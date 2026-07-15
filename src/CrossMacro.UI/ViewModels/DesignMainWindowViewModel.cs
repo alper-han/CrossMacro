@@ -28,7 +28,7 @@ public sealed class DesignMainWindowViewModel : MainWindowViewModel
             context.EnvironmentInfoProvider,
             context.ExternalUrlOpener,
             context.LocalizationService,
-            null)
+extensionNotifier: null)
     {
         IsPaneOpen = true;
         HasExtensionWarning = true;
@@ -40,8 +40,8 @@ public sealed class DesignMainWindowViewModel : MainWindowViewModel
         IsAppNotificationSuccess = true;
         IsAppNotificationVisible = true;
 
-        var previewItem = TopNavigationItems.FirstOrDefault(item => item.LocalizationKey == "Navigation_TextExpansion");
-        if (previewItem != null)
+        var previewItem = TopNavigationItems.FirstOrDefault(item => item.LocalizationKey is "Navigation_TextExpansion");
+        if (previewItem is not null)
         {
             SelectedTopItem = previewItem;
         }

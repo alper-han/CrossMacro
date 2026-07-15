@@ -15,7 +15,7 @@ public class VirtualDeviceManager : IVirtualDeviceManager
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly object _disposeLock = new();
     private bool _disposed;
-    
+
     public void Configure(int width, int height)
     {
         ConfigureAsync(width, height).GetAwaiter().GetResult();
@@ -82,7 +82,7 @@ public class VirtualDeviceManager : IVirtualDeviceManager
         {
             ThrowIfDisposed();
             var device = _uInputDevice;
-            if (device == null) return;
+            if (device is null) return;
 
             foreach (var inputEvent in events)
             {

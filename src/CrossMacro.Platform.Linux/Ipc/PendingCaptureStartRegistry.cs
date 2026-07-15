@@ -310,7 +310,7 @@ internal sealed class PendingCaptureStartRegistry
 
         public string[] GetRemovedConsumerIdsSnapshot()
         {
-            if (_removedConsumersSinceStart.Count == 0)
+            if (_removedConsumersSinceStart.Count is 0)
             {
                 return [];
             }

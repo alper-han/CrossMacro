@@ -76,7 +76,7 @@ public class TextExpansionCliServiceTests
         var profiles = new List<ProfileInfo>
         {
             active,
-            new() { Id = "work", Name = "Work", CreatedAt = DateTime.UnixEpoch.AddDays(1) }
+            new() { Id = "work", Name = "Work", CreatedAt = DateTime.UnixEpoch.AddDays(1) },
         };
 
         var profileManager = Substitute.For<IProfileManager>();

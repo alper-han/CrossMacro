@@ -112,27 +112,27 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         public static DaemonHandshakeProbeResult Success()
         {
-            return new(true, false, null, LinuxDaemonHandshakeStatus.Success);
+            return new(Succeeded: true, TimedOut: false, Failure: null, LinuxDaemonHandshakeStatus.Success);
         }
 
         public static DaemonHandshakeProbeResult Failed(Exception? failure = null)
         {
-            return new(false, false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
+            return new(Succeeded: false, TimedOut: false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
         }
 
         public static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
         {
-            if (status == LinuxDaemonHandshakeStatus.Success)
+            if (status is LinuxDaemonHandshakeStatus.Success)
             {
                 throw new ArgumentException("Use Success for successful daemon handshakes.", nameof(status));
             }
 
-            return new(false, status == LinuxDaemonHandshakeStatus.Timeout, failure, status);
+            return new(Succeeded: false, status is LinuxDaemonHandshakeStatus.Timeout, failure, status);
         }
 
         public static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
         {
-            return new(false, true, failure, LinuxDaemonHandshakeStatus.Timeout);
+            return new(Succeeded: false, TimedOut: true, failure, LinuxDaemonHandshakeStatus.Timeout);
         }
     }
 
@@ -169,7 +169,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
 
         return DaemonHandshakeProbeResult.Failed(result.Failure);
     }
-    
+
     public bool CanConnectToDaemon
     {
         get
@@ -529,14 +529,14 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         try
         {
             string? socketPath = _resolvedSocketPath;
-            if (socketPath == null)
+            if (socketPath is null)
             {
                 socketPath = ResolveAvailableSocketPath();
                 _resolvedSocketPath = socketPath;
                 _daemonSocketExists = socketPath is not null;
             }
 
-            if (socketPath == null)
+            if (socketPath is null)
             {
                 return DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket);
             }

@@ -41,7 +41,7 @@ public static class RunScriptConditionParser
                     break;
                 }
 
-                if (opIndex == 0)
+                if (opIndex is 0)
                 {
                     sawInvalidBoundaryCandidate = true;
                     searchIndex = opIndex + op.Length;
@@ -50,7 +50,7 @@ public static class RunScriptConditionParser
 
                 var leftToken = payload[..opIndex].Trim();
                 var rightToken = payload[(opIndex + op.Length)..].Trim();
-                if (leftToken.Length == 0 || rightToken.Length == 0)
+                if (leftToken.Length is 0 || rightToken.Length is 0)
                 {
                     sawInvalidBoundaryCandidate = true;
                     searchIndex = opIndex + op.Length;

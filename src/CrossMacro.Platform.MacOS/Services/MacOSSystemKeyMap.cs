@@ -33,7 +33,7 @@ internal static class MacOSSystemKeyMap
             NxKeyTypePrevious => InputEventCode.KEY_PREVIOUSSONG,
             NxKeyTypeFast => InputEventCode.KEY_FASTFORWARD,
             NxKeyTypeRewind => InputEventCode.KEY_REWIND,
-            _ => -1
+            _ => -1,
         };
 
         return inputEventCode != -1;
@@ -53,7 +53,7 @@ internal static class MacOSSystemKeyMap
             InputEventCode.KEY_PREVIOUSSONG => NxKeyTypePrevious,
             InputEventCode.KEY_FASTFORWARD => NxKeyTypeFast,
             InputEventCode.KEY_REWIND => NxKeyTypeRewind,
-            _ => -1
+            _ => -1,
         };
 
         return nxKeyType != -1;

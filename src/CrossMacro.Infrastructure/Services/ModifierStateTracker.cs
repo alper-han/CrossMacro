@@ -11,12 +11,12 @@ public class ModifierStateTracker : IModifierStateTracker
     private readonly HashSet<int> _pressedModifiers = new();
     private readonly Lock _lock = new();
     private readonly IKeyCodeMapper _keyCodeMapper;
-    
+
     public ModifierStateTracker(IKeyCodeMapper keyCodeMapper)
     {
         _keyCodeMapper = keyCodeMapper;
     }
-    
+
     public IReadOnlySet<int> CurrentModifiers
     {
         get
@@ -28,7 +28,7 @@ public class ModifierStateTracker : IModifierStateTracker
             }
         }
     }
-    
+
     public bool HasModifiers
     {
         get
@@ -39,29 +39,29 @@ public class ModifierStateTracker : IModifierStateTracker
             }
         }
     }
-    
+
     public void OnKeyPressed(int keyCode)
     {
         if (!_keyCodeMapper.IsModifierKeyCode(keyCode))
             return;
-            
+
         using (_lock.EnterScope())
         {
             _pressedModifiers.Add(keyCode);
         }
     }
-    
+
     public void OnKeyReleased(int keyCode)
     {
         if (!_keyCodeMapper.IsModifierKeyCode(keyCode))
             return;
-            
+
         using (_lock.EnterScope())
         {
             _pressedModifiers.Remove(keyCode);
         }
     }
-    
+
     public void Clear()
     {
         using (_lock.EnterScope())

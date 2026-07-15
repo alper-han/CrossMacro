@@ -22,7 +22,7 @@ public class LinuxCoordinateStrategyFactoryTests
     public LinuxCoordinateStrategyFactoryTests()
     {
         _mockPositionProvider = Substitute.For<IMousePositionProvider>();
-        _mockPositionProvider.IsSupported.Returns(true);
+        _mockPositionProvider.IsSupported.Returns(returnThis: true);
         _mockInputSimulatorFactory = Substitute.For<Func<IInputSimulator>>();
         _mockEnvironmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
 
@@ -33,7 +33,7 @@ public class LinuxCoordinateStrategyFactoryTests
             new WaylandAbsoluteStrategySelector(_mockPositionProvider),
             new WaylandRelativeStrategySelector(),
             new X11AbsoluteStrategySelector(_mockPositionProvider),
-            new X11RelativeStrategySelector()
+            new X11RelativeStrategySelector(),
         };
 
         _factory = new LinuxCoordinateStrategyFactory(_selectors, _mockEnvironmentDetector);
@@ -44,7 +44,7 @@ public class LinuxCoordinateStrategyFactoryTests
     {
         // Arrange
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.KDE);
-        _mockEnvironmentDetector.IsWayland.Returns(true);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
 
         // Act
         // UseAbsolute=True, ForceRelative=True. ForceRelative should win.
@@ -59,7 +59,7 @@ public class LinuxCoordinateStrategyFactoryTests
     {
         // Arrange
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
-        _mockEnvironmentDetector.IsWayland.Returns(true);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
 
         // Act
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
@@ -73,8 +73,8 @@ public class LinuxCoordinateStrategyFactoryTests
     {
         // Arrange
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Other);
-        _mockEnvironmentDetector.IsWayland.Returns(true);
-        _mockPositionProvider.IsSupported.Returns(false);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
+        _mockPositionProvider.IsSupported.Returns(returnThis: false);
 
         // Act
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
@@ -87,8 +87,8 @@ public class LinuxCoordinateStrategyFactoryTests
     public void Wayland_DegradedAbsolutePath_ShouldUseRelativeStrategy()
     {
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
-        _mockEnvironmentDetector.IsWayland.Returns(true);
-        _mockPositionProvider.IsSupported.Returns(false);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
+        _mockPositionProvider.IsSupported.Returns(returnThis: false);
 
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
 
@@ -100,7 +100,7 @@ public class LinuxCoordinateStrategyFactoryTests
     {
         // Arrange
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
-        _mockEnvironmentDetector.IsWayland.Returns(true);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
 
         // Act
         var result = _factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
@@ -114,7 +114,7 @@ public class LinuxCoordinateStrategyFactoryTests
     {
         // Arrange
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.X11);
-        _mockEnvironmentDetector.IsWayland.Returns(false);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: false);
 
         // Act
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
@@ -128,7 +128,7 @@ public class LinuxCoordinateStrategyFactoryTests
     {
         // Arrange
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.X11);
-        _mockEnvironmentDetector.IsWayland.Returns(false);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: false);
 
         // Act
         var result = _factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
@@ -142,7 +142,7 @@ public class LinuxCoordinateStrategyFactoryTests
     {
         // Arrange
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
-        _mockEnvironmentDetector.IsWayland.Returns(false);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: false);
         var factory = new LinuxCoordinateStrategyFactory(new List<ICoordinateStrategySelector>(), _mockEnvironmentDetector);
 
         // Act
@@ -158,13 +158,13 @@ public class LinuxCoordinateStrategyFactoryTests
         // Arrange
         var selector = Substitute.For<ICoordinateStrategySelector>();
         selector.Priority.Returns(10);
-        selector.CanHandle(Arg.Any<StrategyContext>()).Returns(true);
+        selector.CanHandle(Arg.Any<StrategyContext>()).Returns(returnThis: true);
 
         var expected = Substitute.For<ICoordinateStrategy>();
         selector.Create(Arg.Any<StrategyContext>()).Returns(expected);
 
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
-        _mockEnvironmentDetector.IsWayland.Returns(true);
+        _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
         var factory = new LinuxCoordinateStrategyFactory(new[] { selector }, _mockEnvironmentDetector);
 
         // Act

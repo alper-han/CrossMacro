@@ -21,8 +21,8 @@ internal sealed partial class PortalPipeWireFrameCapture
                 ParamChanged = Marshal.GetFunctionPointerForDelegate(_paramChanged),
                 AddBuffer = Marshal.GetFunctionPointerForDelegate(_addBuffer),
                 RemoveBuffer = Marshal.GetFunctionPointerForDelegate(_removeBuffer),
-                Process = Marshal.GetFunctionPointerForDelegate(_process)
-            }, events, false);
+                Process = Marshal.GetFunctionPointerForDelegate(_process),
+            }, events, fDeleteOld: false);
             _lib.StreamAddListener(_stream, listener, events, GCHandle.ToIntPtr(_selfHandle));
             return (listener, events);
         }
@@ -42,7 +42,7 @@ internal sealed partial class PortalPipeWireFrameCapture
         {
             var message = Marshal.PtrToStringAnsi(error) ?? "PipeWire stream entered error state.";
             capture._error = $"{message} nodeId={capture._nodeId} size={capture._width}x{capture._height}";
-            capture._lib.ThreadLoopSignal(capture._threadLoop, false);
+            capture._lib.ThreadLoopSignal(capture._threadLoop, waitForAccept: false);
         }
     }
 
@@ -50,7 +50,7 @@ internal sealed partial class PortalPipeWireFrameCapture
     {
         var capture = FromHandle(data);
         capture._lastParamId = id;
-        capture._lib.ThreadLoopSignal(capture._threadLoop, false);
+        capture._lib.ThreadLoopSignal(capture._threadLoop, waitForAccept: false);
     }
 
     private static void OnAddBuffer(IntPtr data, IntPtr bufferPtr)
@@ -81,12 +81,12 @@ internal sealed partial class PortalPipeWireFrameCapture
         data0.Data = allocation.Address;
         if (data0.Chunk != IntPtr.Zero)
         {
-            Marshal.StructureToPtr(new SpaChunk { Offset = 0, Size = (uint)size, Stride = stride, Flags = 0 }, data0.Chunk, false);
+            Marshal.StructureToPtr(new SpaChunk { Offset = 0, Size = (uint)size, Stride = stride, Flags = 0 }, data0.Chunk, fDeleteOld: false);
         }
 
-        Marshal.StructureToPtr(data0, spaBuffer.Datas, false);
+        Marshal.StructureToPtr(data0, spaBuffer.Datas, fDeleteOld: false);
         pwBuffer.UserData = GCHandle.ToIntPtr(handle);
-        Marshal.StructureToPtr(pwBuffer, bufferPtr, false);
+        Marshal.StructureToPtr(pwBuffer, bufferPtr, fDeleteOld: false);
         capture._allocatedBuffers++;
     }
 
@@ -106,7 +106,7 @@ internal sealed partial class PortalPipeWireFrameCapture
 
         handle.Free();
         pwBuffer.UserData = IntPtr.Zero;
-        Marshal.StructureToPtr(pwBuffer, bufferPtr, false);
+        Marshal.StructureToPtr(pwBuffer, bufferPtr, fDeleteOld: false);
     }
 
     private static void OnProcess(IntPtr data)
@@ -192,13 +192,13 @@ internal sealed partial class PortalPipeWireFrameCapture
         var pixels = new byte[bytes];
         Marshal.Copy(data0.Data + checked((int)offset), pixels, 0, pixels.Length);
         _frame = new PortalPipeWireFrame(new(0, 0, _width, _height), stride, CrossMacro.Platform.Abstractions.ScreenPixelFormat.Xrgb8888, pixels);
-        _lib.ThreadLoopSignal(_threadLoop, false);
+        _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
     }
 
     private void FailCopy(string message)
     {
         _error = message;
-        _lib.ThreadLoopSignal(_threadLoop, false);
+        _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
     }
 
     private static PortalPipeWireFrameCapture FromHandle(IntPtr data) =>

@@ -121,8 +121,8 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "0"),
             fileExists: _ => false,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) => LinuxDisplaySessionService.DaemonHandshakeProbeResult.Failed(),
             getInputEventCandidates: () => ["/dev/input/event0"]);
 
@@ -138,8 +138,8 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: null),
             fileExists: _ => false,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) =>
             {
                 probeCount++;
@@ -161,8 +161,8 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "true"),
             fileExists: _ => false,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) =>
             {
                 probeCount++;
@@ -183,7 +183,7 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "0"),
             fileExists: _ => false,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
             canOpenForRead: _ => false,
             daemonHandshakeProbe: (_, _) => LinuxDisplaySessionService.DaemonHandshakeProbeResult.Failed(),
             getInputEventCandidates: () => ["/dev/input/event0"]);
@@ -200,8 +200,8 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "0"),
             fileExists: _ => false,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             hasUsableReadableInputDevices: () => false,
             daemonHandshakeProbe: (_, _) => LinuxDisplaySessionService.DaemonHandshakeProbeResult.Failed(),
             getInputEventCandidates: () => ["/dev/input/event0"]);
@@ -270,8 +270,8 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) => LinuxDisplaySessionService.DaemonHandshakeProbeResult.Failed(),
             getInputEventCandidates: () => ["/dev/input/event0"]);
 
@@ -330,8 +330,8 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (socketPath, timeout) =>
             {
                 requestedTimeout = timeout;
@@ -380,8 +380,8 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
             fileExists: _ => true,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) =>
             {
                 probeCount++;
@@ -406,8 +406,8 @@ public sealed class LinuxDisplaySessionServiceTests
         var service = CreateService(
             environment,
             fileExists: _ => true,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) => LinuxDisplaySessionService.DaemonHandshakeProbeResult.Failed(),
             getInputEventCandidates: () => ["/dev/input/event0"]);
 

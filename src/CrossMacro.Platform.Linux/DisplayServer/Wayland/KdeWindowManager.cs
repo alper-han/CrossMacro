@@ -44,7 +44,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
             await _dbusConnection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
 
             _trackerService = new KdeTrackerService((_, _) => {}, (_, _) => {}, "/io/github/alper_han/crossmacro/WindowManager");
-            _trackerService.OnWindowDataReceived += (corrId, json) => 
+            _trackerService.OnWindowDataReceived += (corrId, json) =>
             {
                 if (_pendingRequests.TryRemove(corrId, out var tcs))
                 {
@@ -55,7 +55,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
             _trackerHandler = new KdeTrackerServiceMethodHandler(_trackerService);
             _dbusConnection.AddMethodHandler(_trackerHandler);
 
-            try 
+            try
             {
                 await _dbusConnection.RequestNameAsync(KdeTrackerService.TrackerServiceName, RequestNameOptions.ReplaceExisting).ConfigureAwait(false);
             }
@@ -76,7 +76,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
     {
         if (!Directory.Exists(ScriptDirectory))
             Directory.CreateDirectory(ScriptDirectory);
-            
+
         return Path.Combine(ScriptDirectory, fileName);
     }
 
@@ -104,7 +104,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         string? scriptId = null;
         try
         {
-            if (_dbusConnection == null) return null;
+            if (_dbusConnection is null) return null;
 
             var scriptingProxy = new KWinScriptingClient(_dbusConnection);
             var scriptIdInt = await scriptingProxy.LoadScriptAsync(tempJsFile).WaitAsync(ct).ConfigureAwait(false);
@@ -114,10 +114,10 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
             var scriptProxy = new KWinScriptClient(_dbusConnection, scriptId);
             await scriptProxy.RunAsync().WaitAsync(ct).ConfigureAwait(false);
 
-            if (expectsCallback && tcs != null)
+            if (expectsCallback && tcs is not null)
             {
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeoutCts.CancelAfter(5000); 
+                timeoutCts.CancelAfter(5000);
                 try { return await tcs.Task.WaitAsync(timeoutCts.Token).ConfigureAwait(false); }
                 catch (TimeoutException) { return null; }
             }
@@ -126,7 +126,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         catch (Exception) { return null; }
         finally
         {
-            if (scriptId != null && _dbusConnection != null)
+            if (scriptId is not null && _dbusConnection is not null)
             {
                 try
                 {
@@ -151,7 +151,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        string script = JsCallbackFunction + @"
+        const string script = JsCallbackFunction + @"
         (function() {
             var w = workspace.activeWindow || workspace.activeClient;
             if (w) {
@@ -173,8 +173,8 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
             }
         })();";
 
-        var json = await ExecuteOneShotScriptAsync(script, true, cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(json) || json == "null") return null;
+        var json = await ExecuteOneShotScriptAsync(script, expectsCallback: true, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(json) || json is "null") return null;
 
         try
         {
@@ -186,7 +186,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
     {
-        string script = JsCallbackFunction + @"
+        const string script = JsCallbackFunction + @"
         (function() {
             var out = [];
             var list = (typeof workspace.windowList === 'function') ? workspace.windowList() : workspace.clientList();
@@ -209,7 +209,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
             sendCallback(out);
         })();";
 
-        var json = await ExecuteOneShotScriptAsync(script, true, cancellationToken).ConfigureAwait(false);
+        var json = await ExecuteOneShotScriptAsync(script, expectsCallback: true, cancellationToken).ConfigureAwait(false);
         Log.Information("JSON: {Json}", json); if (string.IsNullOrEmpty(json)) return [];
 
         try
@@ -265,13 +265,13 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     public Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { w.fullScreen = !w.fullScreen; } })();";
+        const string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { w.fullScreen = !w.fullScreen; } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 
     public Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { if (w.maximizeMode !== 0) w.setMaximize(false, false); else w.setMaximize(true, true); } })();";
+        const string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { if (w.maximizeMode !== 0) w.setMaximize(false, false); else w.setMaximize(true, true); } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 
@@ -282,21 +282,21 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     public Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var screen = workspace.activeScreen; if (!screen) return; var sg = screen.geometry || workspace.clientArea(0, screen, workspace.currentDesktop); var wg = w.frameGeometry; w.frameGeometry = { x: Math.round(sg.x + (sg.width - wg.width) / 2), y: Math.round(sg.y + (sg.height - wg.height) / 2), width: wg.width, height: wg.height }; } })();";
+        const string script = "(function() { var w = workspace.activeWindow || workspace.activeClient; if (w) { var screen = workspace.activeScreen; if (!screen) return; var sg = screen.geometry || workspace.clientArea(0, screen, workspace.currentDesktop); var wg = w.frameGeometry; w.frameGeometry = { x: Math.round(sg.x + (sg.width - wg.width) / 2), y: Math.round(sg.y + (sg.height - wg.height) / 2), width: wg.width, height: wg.height }; } })();";
         return ExecuteMutationAsync(script, cancellationToken);
     }
 
     public async Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
-        string script = JsCallbackFunction + @"
+        const string script = JsCallbackFunction + @"
         (function() {
             var d = workspace.currentDesktop;
             sendCallback({ name: (d && d.name) ? d.name : '' });
         })();";
-        var json = await ExecuteOneShotScriptAsync(script, true, cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(json) || json == "null") return null;
-        try 
-        { 
+        var json = await ExecuteOneShotScriptAsync(script, expectsCallback: true, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(json) || json is "null") return null;
+        try
+        {
             var doc = JsonDocument.Parse(json);
             return doc.RootElement.GetProperty("name").GetString();
         }
@@ -324,12 +324,12 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
     private async Task<bool> ExecuteMutationAsync(string script, CancellationToken ct)
     {
         var result = await ExecuteOneShotScriptAsync(script, expectsCallback: false, ct).ConfigureAwait(false);
-        return result == "ok";
+        return result is "ok";
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_trackerHandler != null && _dbusConnection != null)
+        if (_trackerHandler is not null && _dbusConnection is not null)
         {
             _dbusConnection.RemoveMethodHandler(_trackerHandler.Path);
         }

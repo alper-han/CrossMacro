@@ -23,7 +23,7 @@ namespace CrossMacro.Platform.Linux.Services
         private CancellationTokenRegistration _startCancellationRegistration;
         private Task? _startupTask;
         private TaskCompletionSource<object?>? _startupCompletionSource;
-        
+
         protected bool _captureMouse;
         protected bool _captureKeyboard;
 
@@ -35,15 +35,15 @@ namespace CrossMacro.Platform.Linux.Services
             {
                 try
                 {
-                    var dpy = X11Native.XOpenDisplay(null);
+                    var dpy = X11Native.XOpenDisplay(display: null);
                     if (dpy == IntPtr.Zero) return false;
-                    
+
                     int major = XInput2Consts.XINPUT2_MAJOR_VERSION;
                     int minor = XInput2Consts.XINPUT2_MINOR_VERSION;
                     int res = X11Native.XIQueryVersion(dpy, ref major, ref minor);
                     X11Native.XCloseDisplay(dpy);
-                    
-                    return res == 0; 
+
+                    return res is 0;
                 }
                 catch
                 {
@@ -86,7 +86,7 @@ namespace CrossMacro.Platform.Linux.Services
             _captureThread = new Thread(() => CaptureLoop(startupCompletionSource))
             {
                 IsBackground = true,
-                Name = GetType().Name
+                Name = GetType().Name,
             };
             _captureThread.Start();
 
@@ -100,9 +100,7 @@ namespace CrossMacro.Platform.Linux.Services
             _startupCompletionSource?.TrySetCanceled();
 
             var captureThread = _captureThread;
-            if (captureThread != null &&
-                captureThread.IsAlive &&
-                !ReferenceEquals(Thread.CurrentThread, captureThread))
+            if (captureThread is not null && captureThread.IsAlive && !ReferenceEquals(Thread.CurrentThread, captureThread))
             {
                 captureThread.Join(500);
             }
@@ -118,7 +116,7 @@ namespace CrossMacro.Platform.Linux.Services
         {
             try
             {
-                _display = X11Native.XOpenDisplay(null);
+                _display = X11Native.XOpenDisplay(display: null);
                 if (_display == IntPtr.Zero)
                 {
                     FailStartup(startupCompletionSource, "Failed to open X Display");
@@ -130,7 +128,7 @@ namespace CrossMacro.Platform.Linux.Services
                 // Init XI2
                 int major = XInput2Consts.XINPUT2_MAJOR_VERSION;
                 int minor = XInput2Consts.XINPUT2_MINOR_VERSION;
-                if (X11Native.XIQueryVersion(_display, ref major, ref minor) != 0)
+                if (X11Native.XIQueryVersion(_display, ref major, ref minor) is not 0)
                 {
                     FailStartup(startupCompletionSource, "XInput2 extension not available");
                     return;
@@ -160,7 +158,7 @@ namespace CrossMacro.Platform.Linux.Services
                     {
                         DeviceId = XInput2Consts.XIAllMasterDevices,
                         MaskLen = maskBytes.Length,
-                        Mask = maskPtr
+                        Mask = maskPtr,
                     };
 
                     X11Native.XISelectEvents(_display, _rootWindow, ref mask, 1);
@@ -170,12 +168,12 @@ namespace CrossMacro.Platform.Linux.Services
                 {
                     Marshal.FreeHGlobal(maskPtr);
                 }
-                
+
                 OnCaptureStarted();
                 startupCompletionSource.TrySetResult(null);
 
                 IntPtr eventPtr = Marshal.AllocHGlobal(XInput2Consts.XEVENT_STRUCT_SIZE);
-                try 
+                try
                 {
                     while (_isRunning)
                     {
@@ -185,7 +183,7 @@ namespace CrossMacro.Platform.Linux.Services
                             X11Native.XNextEvent(_display, eventPtr);
                             var xEvent = Marshal.PtrToStructure<XEvent>(eventPtr);
 
-                            if (xEvent.xcookie.type == XInput2Consts.GenericEvent && 
+                            if (xEvent.xcookie.type == XInput2Consts.GenericEvent &&
                                 X11Native.XGetEventData(_display, eventPtr))
                             {
                                 try
@@ -242,7 +240,7 @@ namespace CrossMacro.Platform.Linux.Services
                 Error?.Invoke(this, exception.Message);
             }
         }
-        
+
         /// <summary>
         /// Called after X11 connection and selection are established, before the loop starts.
         /// </summary>
@@ -285,19 +283,19 @@ namespace CrossMacro.Platform.Linux.Services
 
                int code = rawEvent.detail - LinuxConstants.X11ToLinuxKeycodeOffset;
                int value = (cookie.evtype == XInput2Consts.XI_RawKeyPress) ? 1 : 0;
-               
+
                var args = new InputCaptureEventArgs
                {
                    Type = InputEventType.Key,
                    Code = (ushort)code,
                    Value = value,
                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                   DeviceName = ProviderName
+                   DeviceName = ProviderName,
                };
                InputReceived?.Invoke(this, args);
                return;
             }
-            
+
             // Mouse Buttons
             if (cookie.evtype == XInput2Consts.XI_RawButtonPress || cookie.evtype == XInput2Consts.XI_RawButtonRelease)
             {
@@ -311,22 +309,22 @@ namespace CrossMacro.Platform.Linux.Services
                 // Handle Scroll (buttons 4-7)
                 if (code >= XInput2Consts.X11_SCROLL_UP && code <= XInput2Consts.X11_SCROLL_RIGHT)
                 {
-                    if (value == 0) return;
+                    if (value is 0) return;
                     type = InputEventType.MouseScroll;
-                    
+
                     if (code == XInput2Consts.X11_SCROLL_UP || code == XInput2Consts.X11_SCROLL_DOWN)
                     {
                         // Vertical
-                        value = (code == XInput2Consts.X11_SCROLL_UP) 
-                            ? XInput2Consts.SCROLL_DELTA 
+                        value = (code == XInput2Consts.X11_SCROLL_UP)
+                            ? XInput2Consts.SCROLL_DELTA
                             : -XInput2Consts.SCROLL_DELTA;
                         code = XInput2Consts.SCROLL_AXIS_VERTICAL;
                     }
                     else
                     {
                         // Horizontal (Left=6, Right=7)
-                        value = (code == XInput2Consts.X11_SCROLL_RIGHT) 
-                            ? XInput2Consts.SCROLL_DELTA 
+                        value = (code == XInput2Consts.X11_SCROLL_RIGHT)
+                            ? XInput2Consts.SCROLL_DELTA
                             : -XInput2Consts.SCROLL_DELTA;
                         code = XInput2Consts.SCROLL_AXIS_HORIZONTAL;
                     }
@@ -342,7 +340,7 @@ namespace CrossMacro.Platform.Linux.Services
                     Code = (ushort)code,
                     Value = value,
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    DeviceName = ProviderName
+                    DeviceName = ProviderName,
                 };
                 InputReceived?.Invoke(this, args);
             }
@@ -354,11 +352,11 @@ namespace CrossMacro.Platform.Linux.Services
             return x11Btn switch
             {
                 1 => UInputNative.BTN_LEFT,
-                2 => UInputNative.BTN_MIDDLE, 
+                2 => UInputNative.BTN_MIDDLE,
                 3 => UInputNative.BTN_RIGHT,
-                8 => UInputNative.BTN_SIDE, 
-                9 => UInputNative.BTN_EXTRA, 
-                _ => x11Btn // Unknown
+                8 => UInputNative.BTN_SIDE,
+                9 => UInputNative.BTN_EXTRA,
+                _ => x11Btn, // Unknown
             };
         }
 
@@ -368,7 +366,7 @@ namespace CrossMacro.Platform.Linux.Services
             Stop();
             _disposed = true;
         }
-        
+
         // Helper for subclasses to emit events
         protected void OnInputReceived(InputCaptureEventArgs args)
         {

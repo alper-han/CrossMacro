@@ -9,7 +9,7 @@ public interface IPlaybackValidator
 
 public sealed class ValidationResult
 {
-    public bool IsValid => Errors.Count == 0;
+    public bool IsValid => Errors.Count is 0;
     public List<string> Warnings { get; } = [];
     public List<string> Errors { get; } = [];
 

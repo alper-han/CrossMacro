@@ -15,7 +15,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
     private readonly Func<bool> _isMainThread;
     private readonly SynchronizationContext? _mainThreadContext;
     private readonly Func<(IntPtr LayoutData, IntPtr KeyboardLayout, byte KeyboardType)> _loadKeyboardLayoutData;
-    
+
     // Cache for keyboard layout pointer
     private IntPtr _cachedKeyboardLayout = IntPtr.Zero;
     private IntPtr _cachedLayoutData = IntPtr.Zero;
@@ -50,10 +50,10 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
     public string GetKeyName(int keyCode)
     {
         var semanticName = GetSemanticKeyName(keyCode);
-        if (semanticName != null) return semanticName;
+        if (semanticName is not null) return semanticName;
 
         // Try to get character first via UCKeyTranslate
-        var c = GetCharFromKeyCode(keyCode, false, false, false, false, false, false);
+        var c = GetCharFromKeyCode(keyCode, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false);
         if (c.HasValue && !char.IsControl(c.Value))
         {
             return c.Value.ToString().ToUpper();
@@ -67,18 +67,25 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         // Modifier keys
         if (keyName.Equals("Ctrl", StringComparison.OrdinalIgnoreCase)) return 29;
         if (keyName.Equals("Shift", StringComparison.OrdinalIgnoreCase)) return 42;
-        if (keyName.Equals("Alt", StringComparison.OrdinalIgnoreCase) || 
-            keyName.Equals("Option", StringComparison.OrdinalIgnoreCase)) return 56;
-        if (keyName.Equals("Command", StringComparison.OrdinalIgnoreCase) || 
-            keyName.Equals("Super", StringComparison.OrdinalIgnoreCase)) return 125;
+        if (keyName.Equals("Alt", StringComparison.OrdinalIgnoreCase) ||
+            keyName.Equals("Option", StringComparison.OrdinalIgnoreCase))
+        {
+            return 56;
+        }
+
+        if (keyName.Equals("Command", StringComparison.OrdinalIgnoreCase) ||
+            keyName.Equals("Super", StringComparison.OrdinalIgnoreCase))
+        {
+            return 125;
+        }
 
         // Function keys
-        if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) && 
+        if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) &&
             int.TryParse(keyName[1..], out var fNum))
         {
             if (fNum >= 1 && fNum <= 10) return 59 + fNum - 1;
-            if (fNum == 11) return 87;
-            if (fNum == 12) return 88;
+            if (fNum is 11) return 87;
+            if (fNum is 12) return 88;
             if (fNum >= 13 && fNum <= 20) return 183 + fNum - 13;
         }
 
@@ -133,12 +140,12 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             "Numpad/" => 98,
             "Numpad*" => 55,
             "Numpad=" => 117,
-            _ => -1
+            _ => -1,
         };
         if (special != -1) return special;
 
         // Try to find by character
-        if (keyName.Length == 1)
+        if (keyName.Length is 1)
         {
             var input = GetInputForChar(keyName[0]);
             if (input.HasValue) return input.Value.KeyCode;
@@ -207,7 +214,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             82 => "Numpad0", 83 => "Numpad.", 96 => "NumpadEnter",
             98 => "Numpad/", 55 => "Numpad*", 117 => "Numpad=",
 
-            _ => null
+            _ => null,
         };
     }
 
@@ -215,22 +222,22 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
     {
         bool shift = leftShift || rightShift;
         bool option = leftAlt || rightAlt; // Option key on Mac
-        
+
         // Don't produce chars for modifiers
         if (IsModifier(keyCode)) return null;
-        
+
         // Space special case
-        if (keyCode == 57) return ' ';
+        if (keyCode is 57) return ' ';
 
         try
         {
             // Convert evdev code to Mac key code
             ushort macKeyCode = KeyMap.ToMacKey(keyCode);
-            if (macKeyCode == 0xFFFF) return null;
-            
+            if (macKeyCode is 0xFFFF) return null;
+
             // Get keyboard layout
             if (GetKeyboardLayoutData() == IntPtr.Zero) return null;
-            
+
             // Build modifier state for UCKeyTranslate
             // Mac modifier format: bits for shift, option, control, command
             uint modifierState = 0;
@@ -238,14 +245,14 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             if (shift) modifierState |= 1u << 9; // shiftKey
             if (option) modifierState |= 1u << 11; // optionKey
             if (leftCtrl) modifierState |= 1u << 12; // controlKey
-            
+
             // Shift modifier state to match UCKeyTranslate format (>> 8)
             modifierState = (modifierState >> 8) & 0xFF;
-            
+
             uint deadKeyState = 0;
             ushort[] output = new ushort[4];
             nuint actualLength;
-            
+
             int result;
             lock (_layoutLock)
             {
@@ -266,9 +273,9 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
                     out actualLength,
                     output);
             }
-            
+
             char translated = (char)output[0];
-            if (result == 0 && actualLength > 0 && !char.IsControl(translated))
+            if (result is 0 && actualLength > 0 && !char.IsControl(translated))
             {
                 return translated;
             }
@@ -277,7 +284,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         {
             // Fall through to fallback
         }
-        
+
         return null;
     }
 
@@ -285,7 +292,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
     {
         lock (_lock)
         {
-            if (_charToInputCache == null && !BuildCharInputCache())
+            if (_charToInputCache is null && !BuildCharInputCache())
             {
                 return null;
             }
@@ -309,13 +316,13 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             if (IsModifier(code)) continue;
 
             // No modifiers
-            TryAddCharToCache(charToInputCache, code, false, false);
+            TryAddCharToCache(charToInputCache, code, shift: false, option: false);
             // Shift
-            TryAddCharToCache(charToInputCache, code, true, false);
+            TryAddCharToCache(charToInputCache, code, shift: true, option: false);
             // Option (AltGr equivalent on Mac)
-            TryAddCharToCache(charToInputCache, code, false, true);
+            TryAddCharToCache(charToInputCache, code, shift: false, option: true);
             // Shift + Option
-            TryAddCharToCache(charToInputCache, code, true, true);
+            TryAddCharToCache(charToInputCache, code, shift: true, option: true);
         }
 
         _charToInputCache = charToInputCache;
@@ -324,7 +331,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
 
     private void TryAddCharToCache(Dictionary<char, (int KeyCode, bool Shift, bool AltGr)> charToInputCache, int code, bool shift, bool option)
     {
-        var c = GetCharFromKeyCode(code, shift, false, option, false, false, false);
+        var c = GetCharFromKeyCode(code, shift, rightShift: false, option, leftAlt: false, leftCtrl: false, capsLock: false);
         if (c.HasValue && !charToInputCache.ContainsKey(c.Value))
         {
             charToInputCache[c.Value] = (code, shift, option);
@@ -351,7 +358,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             return LoadAndCacheKeyboardLayoutData();
         }
 
-        if (_mainThreadContext == null)
+        if (_mainThreadContext is null)
         {
             return IntPtr.Zero;
         }
@@ -359,7 +366,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
         IntPtr layoutData = IntPtr.Zero;
         try
         {
-            _mainThreadContext.Send(_ => layoutData = LoadAndCacheKeyboardLayoutData(), null);
+            _mainThreadContext.Send(_ => layoutData = LoadAndCacheKeyboardLayoutData(), state: null);
         }
         catch
         {
@@ -414,7 +421,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
             {
                 inputSource = CoreGraphics.TISCopyCurrentKeyboardInputSource();
             }
-            
+
             if (inputSource == IntPtr.Zero) return default;
 
             // Get the property key for keyboard layout data
@@ -424,7 +431,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
                 ReleaseInputSource(ref inputSource);
                 return default;
             }
-            
+
             // Get the layout data
             IntPtr layoutData = CoreGraphics.TISGetInputSourceProperty(inputSource, propertyKey);
             if (layoutData == IntPtr.Zero)
@@ -439,7 +446,7 @@ public class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
                 ReleaseInputSource(ref inputSource);
                 return default;
             }
-            
+
             // Get the actual byte pointer from CFData
             var keyboardLayout = CoreFoundation.CFDataGetBytePtr(retainedLayoutData);
             if (keyboardLayout == IntPtr.Zero)

@@ -13,13 +13,13 @@ public class XkbStateManager : IXkbStateManager
     private IntPtr _xkbKeymap;
     private IntPtr _xkbState;
     private readonly Lock _lock = new();
-    
+
     private uint _modIndexShift;
     private uint _modIndexLock;
     private uint _modIndexAlt;
     private uint _modIndexAltGr;
     private uint _modIndexCtrl;
-    
+
     private Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>? _charToInputCache;
 
     public bool IsInitialized => _xkbState != IntPtr.Zero;
@@ -67,29 +67,29 @@ public class XkbStateManager : IXkbStateManager
     {
         // Modifiers don't produce characters
         if (IsModifier(keyCode)) return null;
-        if (keyCode == 57) return ' '; // Space
+        if (keyCode is 57) return ' '; // Space
 
         if (_xkbState != IntPtr.Zero)
         {
             lock (_lock)
             {
                 XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
-                
+
                 uint depressedMods = 0;
-                if (shift && _modIndexShift != XkbNative.XKB_MOD_INVALID) 
+                if (shift && _modIndexShift != XkbNative.XKB_MOD_INVALID)
                     depressedMods |= (1u << (int)_modIndexShift);
-                if (altGr && _modIndexAltGr != XkbNative.XKB_MOD_INVALID) 
+                if (altGr && _modIndexAltGr != XkbNative.XKB_MOD_INVALID)
                     depressedMods |= (1u << (int)_modIndexAltGr);
 
                 uint lockedMods = 0;
-                if (capsLock && _modIndexLock != XkbNative.XKB_MOD_INVALID) 
+                if (capsLock && _modIndexLock != XkbNative.XKB_MOD_INVALID)
                     lockedMods |= (1u << (int)_modIndexLock);
 
                 XkbNative.xkb_state_update_mask(_xkbState, depressedMods, 0, lockedMods, 0, 0, 0);
                 var utf8 = XkbNative.GetUtf8String(_xkbState, (uint)(keyCode + 8));
                 XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
 
-                if (!string.IsNullOrEmpty(utf8) && utf8.Length == 1) return utf8[0];
+                if (!string.IsNullOrEmpty(utf8) && utf8.Length is 1) return utf8[0];
             }
         }
         return null;
@@ -99,7 +99,7 @@ public class XkbStateManager : IXkbStateManager
     {
         lock (_lock)
         {
-            if (_charToInputCache == null) BuildCharInputCache();
+            if (_charToInputCache is null) BuildCharInputCache();
             return _charToInputCache!.TryGetValue(c, out var input) ? input : null;
         }
     }
@@ -132,16 +132,16 @@ public class XkbStateManager : IXkbStateManager
         for (int code = 1; code < 255; code++)
         {
             if (IsModifier(code)) continue;
-            TryAddCharToCache(code, false, false);
-            TryAddCharToCache(code, true, false);
-            TryAddCharToCache(code, false, true);
-            TryAddCharToCache(code, true, true);
+            TryAddCharToCache(code, shift: false, altGr: false);
+            TryAddCharToCache(code, shift: true, altGr: false);
+            TryAddCharToCache(code, shift: false, altGr: true);
+            TryAddCharToCache(code, shift: true, altGr: true);
         }
     }
 
     private void TryAddCharToCache(int code, bool shift, bool altGr)
     {
-        var c = GetCharFromKeyCode(code, shift, altGr, false);
+        var c = GetCharFromKeyCode(code, shift, altGr, capsLock: false);
         if (c.HasValue && !_charToInputCache!.ContainsKey(c.Value))
         {
             _charToInputCache[c.Value] = (code, shift, altGr);
@@ -155,7 +155,7 @@ public class XkbStateManager : IXkbStateManager
         if (_xkbState != IntPtr.Zero) XkbNative.xkb_state_unref(_xkbState);
         if (_xkbKeymap != IntPtr.Zero) XkbNative.xkb_keymap_unref(_xkbKeymap);
         if (_xkbContext != IntPtr.Zero) XkbNative.xkb_context_unref(_xkbContext);
-        
+
         _xkbState = IntPtr.Zero;
         _xkbKeymap = IntPtr.Zero;
         _xkbContext = IntPtr.Zero;

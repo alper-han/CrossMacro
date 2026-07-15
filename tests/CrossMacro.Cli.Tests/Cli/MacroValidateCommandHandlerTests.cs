@@ -26,7 +26,7 @@ public class MacroValidateCommandHandlerTests
                 Success = false,
                 ExitCode = CliExitCode.FileError,
                 Message = "Macro file not found.",
-                Errors = ["File does not exist"]
+                Errors = ["File does not exist"],
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
@@ -44,7 +44,7 @@ public class MacroValidateCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Macro is valid."
+                Message = "Macro is valid.",
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);

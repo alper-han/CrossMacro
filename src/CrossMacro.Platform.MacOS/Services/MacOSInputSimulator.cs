@@ -48,10 +48,10 @@ public class MacOSInputSimulator :
         RequestPostEventAccessOnce();
         var point = new CoreGraphics.CGPoint { X = x, Y = y };
          var eventRef = CoreGraphics.CGEventCreateMouseEvent(
-             IntPtr.Zero, 
-             CoreGraphics.CGEventType.MouseMoved, 
-             point, 
-             CoreGraphics.CGMouseButton.Left 
+             IntPtr.Zero,
+             CoreGraphics.CGEventType.MouseMoved,
+             point,
+             CoreGraphics.CGMouseButton.Left
          );
          CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
          CoreFoundation.CFRelease(eventRef);
@@ -67,7 +67,7 @@ public class MacOSInputSimulator :
     {
         RequestPostEventAccessOnce();
         var current = GetCursorPos();
-        
+
         CoreGraphics.CGMouseButton macBtn = CoreGraphics.CGMouseButton.Left;
         CoreGraphics.CGEventType type = CoreGraphics.CGEventType.Null;
 
@@ -86,16 +86,16 @@ public class MacOSInputSimulator :
                 type = pressed ? CoreGraphics.CGEventType.OtherMouseDown : CoreGraphics.CGEventType.OtherMouseUp;
                 break;
             default:
-                macBtn = CoreGraphics.CGMouseButton.Center; 
+                macBtn = CoreGraphics.CGMouseButton.Center;
                 type = pressed ? CoreGraphics.CGEventType.OtherMouseDown : CoreGraphics.CGEventType.OtherMouseUp;
                 break;
         }
 
         var eventRef = CoreGraphics.CGEventCreateMouseEvent(IntPtr.Zero, type, current, macBtn);
-        
+
         if (button != MouseButtonCode.Left && button != MouseButtonCode.Right && button != MouseButtonCode.Middle)
         {
-             long btnNum = button; 
+             long btnNum = button;
              CoreGraphics.CGEventSetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventButtonNumber, btnNum);
         }
 
@@ -157,7 +157,7 @@ public class MacOSInputSimulator :
     {
         ArgumentNullException.ThrowIfNull(text);
 
-        if (text.Length == 0)
+        if (text.Length is 0)
         {
             return;
         }
@@ -196,13 +196,13 @@ public class MacOSInputSimulator :
             var flags = UpdateKeyboardFlagsCore(keyCode, pressed);
 
             var route = ResolveKeyboardEventRoute(keyCode, out var nxKeyType, out var ushortCode);
-            if (route == MacOSKeyboardEventRoute.SystemDefined)
+            if (route is MacOSKeyboardEventRoute.SystemDefined)
             {
                 PostSystemDefinedKeyEvent(nxKeyType, pressed, marker, flags);
                 return;
             }
 
-            if (route == MacOSKeyboardEventRoute.Unsupported)
+            if (route is MacOSKeyboardEventRoute.Unsupported)
             {
                 return;
             }
@@ -290,7 +290,7 @@ public class MacOSInputSimulator :
         }
 
         virtualKeyCode = KeyMap.ToMacKey(keyCode);
-        if (virtualKeyCode == 0xFFFF)
+        if (virtualKeyCode is 0xFFFF)
         {
             return MacOSKeyboardEventRoute.Unsupported;
         }
@@ -346,7 +346,7 @@ public class MacOSInputSimulator :
             InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT => CoreGraphics.CGEventFlags.Alternate,
             InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA => CoreGraphics.CGEventFlags.Command,
             InputEventCode.KEY_CAPSLOCK => CoreGraphics.CGEventFlags.AlphaShift,
-            _ => 0
+            _ => 0,
         };
     }
 

@@ -25,7 +25,7 @@ internal static class ClipboardCommandParser
             "get" => ParseGet(args),
             "set" => ParseSet(args),
             "clear" => ParseClear(args),
-            _ => CliParseResult.Error($"Unknown clipboard subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2))
+            _ => CliParseResult.Error($"Unknown clipboard subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 

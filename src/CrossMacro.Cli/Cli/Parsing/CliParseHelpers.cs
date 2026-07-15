@@ -81,7 +81,7 @@ internal static class CliParseHelpers
     {
         ArgumentNullException.ThrowIfNull(usageLines);
 
-        if (usageLines.Length == 0)
+        if (usageLines.Length is 0)
         {
             return [];
         }
@@ -342,10 +342,10 @@ internal static class CliParseHelpers
             "warning" => "Warning",
             "error" => "Error",
             "fatal" => "Fatal",
-            _ => null
+            _ => null,
         };
 
-        if (normalized == null)
+        if (normalized is null)
         {
             logLevel = null;
             error = $"Invalid value for --log-level: {token}. Allowed: Verbose, Debug, Information, Warning, Error, Fatal.";

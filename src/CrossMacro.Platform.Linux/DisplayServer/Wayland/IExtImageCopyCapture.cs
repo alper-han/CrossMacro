@@ -123,8 +123,8 @@ public readonly record struct ExtImageCopyCaptureResult
     public string? ErrorMessage { get; }
 
     public static ExtImageCopyCaptureResult Success(ExtImageCopyFrame frame) =>
-        new(frame ?? throw new ArgumentNullException(nameof(frame)), null, null);
+        new(frame ?? throw new ArgumentNullException(nameof(frame)), errorKind: null, errorMessage: null);
 
     public static ExtImageCopyCaptureResult Failure(ScreenReadErrorKind errorKind, string errorMessage) =>
-        new(null, errorKind, errorMessage);
+        new(frame: null, errorKind, errorMessage);
 }

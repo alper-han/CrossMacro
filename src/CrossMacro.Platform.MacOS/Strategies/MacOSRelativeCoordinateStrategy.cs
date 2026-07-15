@@ -50,7 +50,7 @@ public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
 
     public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
     {
-        if (e.Type == InputEventType.MouseMove)
+        if (e.Type is InputEventType.MouseMove)
         {
             if (e.Code == InputEventCode.ABS_X)
             {
@@ -68,12 +68,12 @@ public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
             return (0, 0);
         }
 
-        if (e.Type == InputEventType.Sync)
+        if (e.Type is InputEventType.Sync)
         {
             return FlushPendingDelta();
         }
 
-        if (e.Type == InputEventType.MouseButton && _hasPendingX && _hasPendingY)
+        if (e.Type is InputEventType.MouseButton && _hasPendingX && _hasPendingY)
         {
             return FlushPendingDelta();
         }

@@ -24,7 +24,7 @@ public class SchedulerServiceTests
         _repository = Substitute.For<IScheduledTaskRepository>();
         _executor = Substitute.For<IScheduledTaskExecutor>();
         _timeProvider = Substitute.For<ITimeProvider>();
-        
+
         // Default time
         _timeProvider.UtcNow.Returns(new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc));
 
@@ -83,7 +83,7 @@ public class SchedulerServiceTests
         _service.AddTask(task);
 
         // Act
-        _service.SetTaskEnabled(task.Id, true);
+        _service.SetTaskEnabled(task.Id, enabled: true);
 
         // Assert
         var t = _service.Tasks.First(x => x.Id == task.Id);
@@ -97,9 +97,9 @@ public class SchedulerServiceTests
         // Arrange
         var task = new ScheduledTask { MacroFilePath = "test.macro", IsEnabled = true };
         _service.AddTask(task); // Adds and calculates
-        
+
         // Act
-        _service.SetTaskEnabled(task.Id, false);
+        _service.SetTaskEnabled(task.Id, enabled: false);
 
         // Assert
         var t = _service.Tasks.First(x => x.Id == task.Id);
@@ -114,11 +114,11 @@ public class SchedulerServiceTests
         var original = new ScheduledTask { Name = "Old Name", MacroFilePath = "old.macro" };
         _service.AddTask(original);
 
-        var updated = new ScheduledTask 
-        { 
-            Id = original.Id, 
-            Name = "New Name", 
-            MacroFilePath = "new.macro" 
+        var updated = new ScheduledTask
+        {
+            Id = original.Id,
+            Name = "New Name",
+            MacroFilePath = "new.macro",
         };
 
         // Act
@@ -141,7 +141,7 @@ public class SchedulerServiceTests
             Name = "Future task",
             MacroFilePath = "task.macro",
             Type = ScheduleType.SpecificTime,
-            ScheduledDateTime = scheduledUtc
+            ScheduledDateTime = scheduledUtc,
         };
         task.IsEnabled = true;
         task.NextRunTime = now.AddMinutes(5); // stale persisted value
@@ -167,7 +167,7 @@ public class SchedulerServiceTests
             Name = "Past task",
             MacroFilePath = "task.macro",
             Type = ScheduleType.SpecificTime,
-            ScheduledDateTime = now.AddMinutes(-10)
+            ScheduledDateTime = now.AddMinutes(-10),
         };
         task.IsEnabled = true;
         task.NextRunTime = now.AddHours(10); // stale persisted value
@@ -193,7 +193,7 @@ public class SchedulerServiceTests
             MacroFilePath = "task.macro",
             Type = ScheduleType.Interval,
             IntervalUnit = IntervalUnit.Hours,
-            IntervalValue = int.MaxValue
+            IntervalValue = int.MaxValue,
         };
         task.IsEnabled = true;
 
@@ -220,7 +220,7 @@ public class SchedulerServiceTests
             Name = "Invalid specific-time",
             MacroFilePath = "task.macro",
             Type = ScheduleType.SpecificTime,
-            ScheduledDateTime = null
+            ScheduledDateTime = null,
         };
         task.IsEnabled = true;
         task.NextRunTime = now.AddHours(5); // stale persisted value
@@ -246,7 +246,7 @@ public class SchedulerServiceTests
             MacroFilePath = "task.macro",
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.EveryDay,
-            WeeklyTime = now.ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30))
+            WeeklyTime = now.ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30)),
         };
         task.IsEnabled = true;
         task.NextRunTime = now.AddDays(3);
@@ -271,7 +271,7 @@ public class SchedulerServiceTests
             MacroFilePath = "task.macro",
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.None,
-            WeeklyTime = new TimeSpan(9, 0, 0)
+            WeeklyTime = new TimeSpan(9, 0, 0),
         };
         task.IsEnabled = true;
         task.NextRunTime = _timeProvider.UtcNow.AddHours(1);
@@ -295,7 +295,7 @@ public class SchedulerServiceTests
             MacroFilePath = "task.macro",
             Type = ScheduleType.Interval,
             IntervalUnit = IntervalUnit.Seconds,
-            IntervalValue = 30
+            IntervalValue = 30,
         };
         validTask.IsEnabled = true;
 
@@ -325,7 +325,7 @@ public class SchedulerServiceTests
                 Type = ScheduleType.Interval,
                 IntervalUnit = IntervalUnit.Seconds,
                 IntervalValue = 30,
-                IsEnabled = true
+                IsEnabled = true,
             };
 
             _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
@@ -362,7 +362,7 @@ public class SchedulerServiceTests
                 Type = ScheduleType.Interval,
                 IntervalUnit = IntervalUnit.Seconds,
                 IntervalValue = 30,
-                IsEnabled = true
+                IsEnabled = true,
             };
 
             _repository.LoadAsync().Returns(Task.FromResult(new List<ScheduledTask> { task }));
@@ -409,7 +409,7 @@ public class SchedulerServiceTests
             Type = ScheduleType.Interval,
             IntervalUnit = IntervalUnit.Seconds,
             IntervalValue = 30,
-            IsEnabled = false
+            IsEnabled = false,
         };
 
         var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -468,7 +468,7 @@ public class SchedulerServiceTests
 
                 lock (_pendingCallbacks)
                 {
-                    if (_pendingCallbacks.Count == 0)
+                    if (_pendingCallbacks.Count is 0)
                     {
                         return;
                     }

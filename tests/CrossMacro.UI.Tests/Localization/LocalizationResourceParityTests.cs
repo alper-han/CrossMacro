@@ -34,7 +34,7 @@ public class LocalizationResourceParityTests
     private static IReadOnlyList<string> ReadKeys(string path)
     {
         var content = File.ReadAllText(path);
-        return Regex.Matches(content, "<data name=\"([^\"]+)\"")
+        return Regex.Matches(content, "<data name=\"([^\"]+)\"", RegexOptions.NonBacktracking)
             .Select(match => match.Groups[1].Value)
             .ToArray();
     }
@@ -42,7 +42,7 @@ public class LocalizationResourceParityTests
     private static string FindLocalizationDirectory()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current != null)
+        while (current is not null)
         {
             var candidate = Path.Combine(current.FullName, "src", "CrossMacro.UI", "Localization");
             if (Directory.Exists(candidate))

@@ -14,13 +14,13 @@ public class UInputEventExecutorTests
         {
             executor.MoveAbsolute(10, 20);
             executor.MoveRelative(-5, 7);
-            executor.EmitButton(1, true);
-            executor.EmitKey(30, true);
+            executor.EmitButton(1, pressed: true);
+            executor.EmitKey(30, pressed: true);
             executor.EmitScroll(1);
             executor.ReleaseAll();
             executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 1, Y = 2 }, MouseCoordinateMode.Relative);
             executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 1, Y = 2 }, MouseCoordinateMode.Absolute);
-            executor.Execute(new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 1, Y = 2 }, null);
+            executor.Execute(new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 1, Y = 2 }, coordinateMode: null);
         });
 
         Assert.Null(ex);

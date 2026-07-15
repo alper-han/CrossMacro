@@ -14,7 +14,7 @@ internal static partial class ThemeTestFileHelper
     public static string FindRepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current != null)
+        while (current is not null)
         {
             var marker = Path.Combine(current.FullName, "src", "CrossMacro.UI", "Themes");
             if (Directory.Exists(marker))
@@ -55,7 +55,7 @@ internal static partial class ThemeTestFileHelper
         var content = File.ReadAllText(filePath);
         var colorRegex = new Regex(
             $"<Color\\s+x:Key=\"{Regex.Escape(colorKey)}\">([^<]+)</Color>",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
         var match = colorRegex.Match(content);
         if (!match.Success)
         {
@@ -80,9 +80,9 @@ internal static partial class ThemeTestFileHelper
         return keys;
     }
 
-    [GeneratedRegex("x:Key=\"([^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    [GeneratedRegex("x:Key=\"([^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ResourceKeyRegexFactory();
 
-    [GeneratedRegex(@"\{DynamicResource\s+([A-Za-z0-9\._\-]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\{DynamicResource\s+([A-Za-z0-9\._\-]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex DynamicResourceRegexFactory();
 }

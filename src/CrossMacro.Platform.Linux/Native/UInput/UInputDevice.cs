@@ -102,7 +102,7 @@ public class UInputDevice : IUInputDevice
         while (stopwatch.ElapsedMilliseconds < 500)
         {
             var eventNode = FindVirtualDeviceEventNode();
-            if (eventNode != null)
+            if (eventNode is not null)
             {
                 var path = $"/dev/input/{eventNode}";
                 if (System.IO.File.Exists(path))
@@ -122,7 +122,7 @@ public class UInputDevice : IUInputDevice
         while (stopwatch.ElapsedMilliseconds < 500)
         {
             var eventNode = FindVirtualDeviceEventNode();
-            if (eventNode != null)
+            if (eventNode is not null)
             {
                 var path = $"/dev/input/{eventNode}";
                 if (System.IO.File.Exists(path))
@@ -219,7 +219,7 @@ public class UInputDevice : IUInputDevice
             absmax = new int[64],
             absmin = new int[64],
             absfuzz = new int[64],
-            absflat = new int[64]
+            absflat = new int[64],
         };
 
         if (_width > 0 && _height > 0)
@@ -268,7 +268,7 @@ public class UInputDevice : IUInputDevice
             code = code,
             value = value,
             time_sec = IntPtr.Zero,
-            time_usec = IntPtr.Zero
+            time_usec = IntPtr.Zero,
         };
 
         IntPtr size = (IntPtr)Marshal.SizeOf<UInputNative.input_event>();
@@ -321,8 +321,8 @@ public class UInputDevice : IUInputDevice
 
     public void EmitClick(int buttonCode)
     {
-        EmitButton(buttonCode, true);
-        EmitButton(buttonCode, false);
+        EmitButton(buttonCode, pressed: true);
+        EmitButton(buttonCode, pressed: false);
     }
 
     public void EmitKey(int keyCode, bool pressed)
@@ -361,7 +361,7 @@ public class UInputDevice : IUInputDevice
             ErrnoOperationNotPermitted =>
                 $"{baseMessage} Operation not permitted. Check service sandbox/capabilities and uinput access policy.",
             _ =>
-                $"{baseMessage} Check that uinput exists and daemon has required permissions."
+                $"{baseMessage} Check that uinput exists and daemon has required permissions.",
         };
     }
 
@@ -377,7 +377,7 @@ public class UInputDevice : IUInputDevice
             return alternateErrno;
         }
 
-        return primaryErrno != 0 ? primaryErrno : alternateErrno;
+        return primaryErrno is not 0 ? primaryErrno : alternateErrno;
     }
 
     private static bool IsPermissionErrno(int errno)

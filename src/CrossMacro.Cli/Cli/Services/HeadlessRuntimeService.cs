@@ -101,9 +101,9 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                 headlessHotkeyActionService.Start();
                 return Task.CompletedTask;
             }, token => headlessHotkeyActionService.StopAsync(token)),
-            new RuntimeLifecycleStep("screen reading warmup", token => screenReadingWarmupService == null
+            new RuntimeLifecycleStep("screen reading warmup", token => screenReadingWarmupService is null
                 ? Task.CompletedTask
-                : screenReadingWarmupService.WarmUpPortalSessionAsync(token), _ => Task.CompletedTask)
+                : screenReadingWarmupService.WarmUpPortalSessionAsync(token), _ => Task.CompletedTask),
         ]);
     }
 
@@ -146,7 +146,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                     ExitCode = CliExitCode.Cancelled,
                     Message = "Headless mode interrupted.",
                     Warnings = warnings,
-                    Data = data
+                    Data = data,
                 };
             }
 
@@ -156,7 +156,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                 ExitCode = CliExitCode.Success,
                 Message = "Headless mode stopped.",
                 Warnings = warnings,
-                Data = data
+                Data = data,
             };
         }
         catch (OperationCanceledException)
@@ -166,7 +166,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
                 Success = false,
                 ExitCode = CliExitCode.Cancelled,
                 Message = "Headless mode interrupted.",
-                Warnings = warnings
+                Warnings = warnings,
             };
         }
         catch (Exception ex)
@@ -179,7 +179,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
         }
         finally
         {
-            if (lifecycle != null)
+            if (lifecycle is not null)
             {
                 try
                 {
@@ -205,7 +205,7 @@ public sealed class HeadlessRuntimeService : IHeadlessRuntimeService
             ExitCode = exitCode,
             Message = message,
             Errors = errors ?? [],
-            Warnings = warnings ?? []
+            Warnings = warnings ?? [],
         };
     }
 }

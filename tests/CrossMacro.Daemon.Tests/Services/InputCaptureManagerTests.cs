@@ -41,7 +41,7 @@ public class InputCaptureManagerTests
                     Name = "Combo Device",
                     IsMouse = true,
                     IsKeyboard = true
-                }
+                },
             },
             _ => reader);
 
@@ -69,7 +69,7 @@ public class InputCaptureManagerTests
                     Path = "/dev/input/event-test",
                     Name = "Test Keyboard",
                     IsKeyboard = true
-                }
+                },
             ],
             _ => reader);
 
@@ -92,7 +92,7 @@ public class InputCaptureManagerTests
                     Name = "Combo Device",
                     IsMouse = true,
                     IsKeyboard = true
-                }
+                },
             },
             _ => reader);
 
@@ -120,7 +120,7 @@ public class InputCaptureManagerTests
                     Path = "/dev/input/event-test",
                     Name = "Absolute Pointer",
                     IsMouse = true
-                }
+                },
             },
             _ => reader);
 
@@ -147,18 +147,18 @@ public class InputCaptureManagerTests
                     Name = VirtualDeviceConstants.DeviceName,
                     IsKeyboard = true,
                     VendorId = VirtualDeviceConstants.VendorId,
-                    ProductId = VirtualDeviceConstants.ProductId
+                    ProductId = VirtualDeviceConstants.ProductId,
                 },
                 new InputDeviceHelper.InputDevice
                 {
                     Path = "/dev/input/event-real",
                     Name = "Real Keyboard",
                     IsKeyboard = true
-                }
+                },
             },
             device =>
             {
-                if (device.Name == VirtualDeviceConstants.DeviceName)
+                if (string.Equals(device.Name, VirtualDeviceConstants.DeviceName, StringComparison.Ordinal))
                 {
                     virtualFactoryCalls++;
                     return new FakeLinuxCaptureReader();
@@ -190,7 +190,7 @@ public class InputCaptureManagerTests
                     IsKeyboard = true,
                     VendorId = 0x9999,
                     ProductId = 0x8888
-                }
+                },
             },
             _ => reader);
 
@@ -217,7 +217,7 @@ public class InputCaptureManagerTests
                     IsKeyboard = true,
                     VendorId = 0xdec0,
                     ProductId = 0x5eba
-                }
+                },
             },
             _ => virtualKeyboardReader);
 

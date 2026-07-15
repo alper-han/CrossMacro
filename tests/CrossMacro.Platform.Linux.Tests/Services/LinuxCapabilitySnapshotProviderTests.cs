@@ -19,7 +19,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
         {
             ["XDG_SESSION_TYPE"] = sessionType,
             ["WAYLAND_DISPLAY"] = waylandDisplay,
-            ["DISPLAY"] = display
+            ["DISPLAY"] = display,
         };
         var extProbe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("initial"));
         var screenDetector = new LinuxScreenReaderCapabilityDetector(

@@ -12,7 +12,7 @@ public class NumericUpDownValueConverterTests
     [InlineData(typeof(int?))]
     public void ConvertBack_WhenNumericUpDownValueIsCleared_DoesNotUpdateSource(Type targetType)
     {
-        var result = NumericUpDownValueConverter.Instance.ConvertBack(null, targetType, null, CultureInfo.InvariantCulture);
+        var result = NumericUpDownValueConverter.Instance.ConvertBack(value: null, targetType, parameter: null, CultureInfo.InvariantCulture);
 
         result.Should().BeSameAs(BindingOperations.DoNothing);
     }
@@ -22,7 +22,7 @@ public class NumericUpDownValueConverterTests
     [InlineData(typeof(int?))]
     public void ConvertBack_WhenTargetIsInteger_ReturnsTruncatedInteger(Type targetType)
     {
-        var result = NumericUpDownValueConverter.Instance.ConvertBack(42.9m, targetType, null, CultureInfo.InvariantCulture);
+        var result = NumericUpDownValueConverter.Instance.ConvertBack(42.9m, targetType, parameter: null, CultureInfo.InvariantCulture);
 
         result.Should().Be(42);
     }
@@ -30,7 +30,7 @@ public class NumericUpDownValueConverterTests
     [Fact]
     public void Convert_WhenSourceIsInteger_ReturnsDecimalForNumericUpDown()
     {
-        var result = NumericUpDownValueConverter.Instance.Convert(7, typeof(decimal?), null, CultureInfo.InvariantCulture);
+        var result = NumericUpDownValueConverter.Instance.Convert(7, typeof(decimal?), parameter: null, CultureInfo.InvariantCulture);
 
         result.Should().Be(7m);
     }
@@ -38,7 +38,7 @@ public class NumericUpDownValueConverterTests
     [Fact]
     public void ConvertBack_WhenValueIsNotDecimal_DoesNotUpdateSource()
     {
-        var result = NumericUpDownValueConverter.Instance.ConvertBack("", typeof(int), null, CultureInfo.InvariantCulture);
+        var result = NumericUpDownValueConverter.Instance.ConvertBack("", typeof(int), parameter: null, CultureInfo.InvariantCulture);
 
         result.Should().BeSameAs(BindingOperations.DoNothing);
     }
@@ -50,7 +50,7 @@ public class NumericUpDownValueConverterTests
     {
         var decimalValue = decimal.Parse(value, CultureInfo.InvariantCulture);
 
-        var result = NumericUpDownValueConverter.Instance.ConvertBack(decimalValue, typeof(int), null, CultureInfo.InvariantCulture);
+        var result = NumericUpDownValueConverter.Instance.ConvertBack(decimalValue, typeof(int), parameter: null, CultureInfo.InvariantCulture);
 
         result.Should().BeSameAs(BindingOperations.DoNothing);
     }

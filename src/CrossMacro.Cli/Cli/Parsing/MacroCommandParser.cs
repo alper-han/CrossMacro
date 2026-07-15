@@ -64,7 +64,7 @@ internal static class MacroCommandParser
             var token = args[i];
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, $"macro.{subcommand.ToLowerInvariant()}", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }

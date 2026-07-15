@@ -123,7 +123,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
     private static CoreGraphics.CGRect Rect(double x, double y, double width, double height) => new()
     {
         origin = new CoreGraphics.CGPoint { X = x, Y = y },
-        size = new CoreGraphics.CGSize { width = width, height = height }
+        size = new CoreGraphics.CGSize { width = width, height = height },
     };
 
     private static byte[] Pixel(byte red, byte green, byte blue) => [blue, green, red, 0xFF];
@@ -146,7 +146,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
         {
             for (var x = 0; x < width; x++)
             {
-                WritePixel(sourcePixels, width, x, y, pixels[y * width + x], bytesPerRow);
+                WritePixel(sourcePixels, width, x, y, pixels[(y * width) + x], bytesPerRow);
             }
         }
 
@@ -155,7 +155,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
 
     private static void WritePixel(byte[] pixels, int width, int x, int y, byte[] pixel, int? bytesPerRow = null)
     {
-        var offset = y * (bytesPerRow ?? width * 4) + x * 4;
+        var offset = (y * (bytesPerRow ?? width * 4)) + (x * 4);
         Array.Copy(pixel, 0, pixels, offset, 4);
     }
 

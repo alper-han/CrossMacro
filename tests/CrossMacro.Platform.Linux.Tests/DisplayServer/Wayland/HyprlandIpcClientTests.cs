@@ -10,8 +10,8 @@ public class HyprlandIpcClientTests
     [Fact]
     public async Task WhenHyprlandEnvironmentMissing_ClientShouldBeUnavailableAndReturnNullResponses()
     {
-        using var sigScope = new EnvironmentVariableScope("HYPRLAND_INSTANCE_SIGNATURE", null);
-        using var runtimeScope = new EnvironmentVariableScope("XDG_RUNTIME_DIR", null);
+        using var sigScope = new EnvironmentVariableScope("HYPRLAND_INSTANCE_SIGNATURE", value: null);
+        using var runtimeScope = new EnvironmentVariableScope("XDG_RUNTIME_DIR", value: null);
 
         using var client = new HyprlandIpcClient();
 

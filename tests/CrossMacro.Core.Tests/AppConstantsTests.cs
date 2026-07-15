@@ -48,7 +48,7 @@ public class AppConstantsTests
         {
             AppConstants.DefaultRecordingHotkey,
             AppConstants.DefaultPlaybackHotkey,
-            AppConstants.DefaultPauseHotkey
+            AppConstants.DefaultPauseHotkey,
         };
 
         hotkeys.Should().OnlyHaveUniqueItems();

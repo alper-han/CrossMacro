@@ -237,9 +237,9 @@ public class WayfirePositionProvider : IMousePositionProvider
                 return false;
             }
 
-            if (root.ValueKind != JsonValueKind.Object ||
+            if (root.ValueKind is not JsonValueKind.Object ||
                 !root.TryGetProperty("pos", out var posElement) ||
-                posElement.ValueKind != JsonValueKind.Object)
+                posElement.ValueKind is not JsonValueKind.Object)
             {
                 return false;
             }
@@ -284,13 +284,11 @@ public class WayfirePositionProvider : IMousePositionProvider
             }
 
             JsonElement outputs;
-            if (root.ValueKind == JsonValueKind.Array)
+            if (root.ValueKind is JsonValueKind.Array)
             {
                 outputs = root;
             }
-            else if (root.ValueKind == JsonValueKind.Object &&
-                     root.TryGetProperty("outputs", out var outputsElement) &&
-                     outputsElement.ValueKind == JsonValueKind.Array)
+            else if (root.ValueKind is JsonValueKind.Object && root.TryGetProperty("outputs", out var outputsElement) && outputsElement.ValueKind is JsonValueKind.Array)
             {
                 outputs = outputsElement;
             }
@@ -307,9 +305,9 @@ public class WayfirePositionProvider : IMousePositionProvider
 
             foreach (var output in outputs.EnumerateArray())
             {
-                if (output.ValueKind != JsonValueKind.Object ||
+                if (output.ValueKind is not JsonValueKind.Object ||
                     !output.TryGetProperty("geometry", out var geometry) ||
-                    geometry.ValueKind != JsonValueKind.Object)
+                    geometry.ValueKind is not JsonValueKind.Object)
                 {
                     continue;
                 }
@@ -374,12 +372,12 @@ public class WayfirePositionProvider : IMousePositionProvider
     {
         methodUnavailable = false;
 
-        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("error", out var errorElement))
+        if (root.ValueKind is not JsonValueKind.Object || !root.TryGetProperty("error", out var errorElement))
         {
             return false;
         }
 
-        if (errorElement.ValueKind != JsonValueKind.String)
+        if (errorElement.ValueKind is not JsonValueKind.String)
         {
             return true;
         }
@@ -399,7 +397,7 @@ public class WayfirePositionProvider : IMousePositionProvider
             return false;
         }
 
-        if (prop.ValueKind == JsonValueKind.Number)
+        if (prop.ValueKind is JsonValueKind.Number)
         {
             return prop.TryGetDouble(out value);
         }

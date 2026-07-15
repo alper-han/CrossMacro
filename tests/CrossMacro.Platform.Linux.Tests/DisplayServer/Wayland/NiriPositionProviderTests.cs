@@ -31,7 +31,7 @@ public sealed class NiriPositionProviderTests
     [Fact]
     public void TryParseScreenResolution_ShouldIgnoreDisabledOutputs()
     {
-        var response = """
+        const string response = """
                        {
                          "Outputs": {
                            "DP-1": {
@@ -84,7 +84,7 @@ public sealed class NiriPositionProviderTests
     [Fact]
     public async Task GetScreenResolutionAsync_ShouldReturnNull_WhenIpcUnavailable()
     {
-        using var provider = new NiriPositionProvider(new FakeNiriIpcClient(null, isAvailable: false));
+        using var provider = new NiriPositionProvider(new FakeNiriIpcClient(response: null, isAvailable: false));
 
         var resolution = await provider.GetScreenResolutionAsync();
 

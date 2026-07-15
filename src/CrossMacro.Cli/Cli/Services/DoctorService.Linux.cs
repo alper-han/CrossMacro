@@ -44,7 +44,7 @@ public sealed partial class DoctorService
                         ["errorMessage"] = backend.ErrorMessage
                     }).ToArray())
                 }
-                : null
+                : null,
         };
     }
 
@@ -65,18 +65,18 @@ public sealed partial class DoctorService
         {
             Name = "linux-display-vars",
             Status = status,
-            Message = status == DoctorCheckStatus.Pass
+            Message = status is DoctorCheckStatus.Pass
                 ? "Linux display session variables look healthy."
                 : "Some Linux display variables are missing; remote/SSH playback may fail.",
             Details = verbose
                 ? new JsonObject { ["xdgSessionType"] = xdgSessionType, ["display"] = display, ["waylandDisplay"] = waylandDisplay }
-                : null
+                : null,
         };
     }
 
     private DoctorCheck BuildLinuxDaemonSocketCheck(LinuxInputState state, bool verbose)
     {
-        var status = state.SocketAccess.Status == LinuxDaemonSocketAccessStatus.Accessible
+        var status = state.SocketAccess.Status is LinuxDaemonSocketAccessStatus.Accessible
             ? DoctorCheckStatus.Pass
             : DoctorCheckStatus.Warn;
 
@@ -94,7 +94,7 @@ public sealed partial class DoctorService
                 LinuxDaemonSocketAccessStatus.UnexpectedError => "Daemon socket probe failed unexpectedly.",
                 _ => state.DirectFallbackAvailable
                     ? "Daemon socket not found, but direct input fallback is available so daemon is optional."
-                    : "Daemon socket not found. Configure daemon mode or grant direct input access."
+                    : "Daemon socket not found. Configure daemon mode or grant direct input access.",
             },
             Details = verbose
                 ? new JsonObject
@@ -107,7 +107,7 @@ public sealed partial class DoctorService
                     ["directFallbackAvailable"] = state.DirectFallbackAvailable,
                     ["remediation"] = GetSocketRemediation(state)
                 }
-                : null
+                : null,
         };
     }
 
@@ -117,7 +117,7 @@ public sealed partial class DoctorService
         {
             LinuxDaemonSocketAccessStatus.Accessible => DoctorCheckStatus.Pass,
             LinuxDaemonSocketAccessStatus.Missing => state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail,
-            _ => state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail
+            _ => state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail,
         };
 
         return new DoctorCheck
@@ -134,9 +134,9 @@ public sealed partial class DoctorService
                 LinuxDaemonSocketAccessStatus.WrongType => "Daemon IPC path is not a Unix socket.",
                 LinuxDaemonSocketAccessStatus.ConnectionRefusedOrStale => "Daemon IPC socket refused the connection or is stale.",
                 LinuxDaemonSocketAccessStatus.Timeout => "Daemon IPC access probe timed out.",
-                _ => "Daemon IPC access probe failed unexpectedly."
+                _ => "Daemon IPC access probe failed unexpectedly.",
             },
-            Details = verbose ? BuildDaemonDetails(state, GetSocketFailureKind(state.SocketAccess)) : null
+            Details = verbose ? BuildDaemonDetails(state, GetSocketFailureKind(state.SocketAccess)) : null,
         };
     }
 
@@ -146,7 +146,7 @@ public sealed partial class DoctorService
         {
             LinuxDaemonGroupMembershipStatus.Member => DoctorCheckStatus.Pass,
             LinuxDaemonGroupMembershipStatus.Unknown when !state.DaemonSocketExists => DoctorCheckStatus.Warn,
-            _ => state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail
+            _ => state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail,
         };
 
         return new DoctorCheck
@@ -161,9 +161,9 @@ public sealed partial class DoctorService
                 LinuxDaemonGroupMembershipStatus.StaleSession => "Current user is configured for the daemon socket group, but this login session has not picked it up.",
                 _ => state.DaemonSocketExists
                     ? "Daemon socket group membership could not be determined."
-                    : "Daemon socket group membership was not checked because the daemon socket is missing."
+                    : "Daemon socket group membership was not checked because the daemon socket is missing.",
             },
-            Details = verbose ? BuildDaemonDetails(state, GetGroupFailureKind(state.GroupMembershipStatus)) : null
+            Details = verbose ? BuildDaemonDetails(state, GetGroupFailureKind(state.GroupMembershipStatus)) : null,
         };
     }
 
@@ -195,7 +195,7 @@ public sealed partial class DoctorService
                     ["canWriteAlternate"] = state.CanWriteAlternate,
                     ["directFallbackAvailable"] = state.DirectFallbackAvailable
                 }
-                : null
+                : null,
         };
     }
 
@@ -271,7 +271,7 @@ public sealed partial class DoctorService
                     ["uInputWritable"] = state.UInputWritable,
                     ["directFallbackAvailable"] = state.DirectFallbackAvailable
                 }
-                : null
+                : null,
         };
     }
 
@@ -307,7 +307,7 @@ public sealed partial class DoctorService
             Message = message,
             Details = verbose
                 ? BuildDaemonDetails(state, GetHandshakeFailureKind(state.Handshake.Status))
-                : null
+                : null,
         };
     }
 
@@ -327,17 +327,17 @@ public sealed partial class DoctorService
                     ["gsrVirtualKeyboardDetected"] = state.GsrVirtualKeyboardDetected,
                     ["matchedDeviceName"] = state.GsrVirtualKeyboardDetected ? LinuxGsrCompatibility.VirtualKeyboardName : null
                 }
-                : null
+                : null,
         };
     }
 
     private LinuxInputState BuildLinuxInputState()
     {
         var socketAccess = _daemonSocketAccessProbe(IpcProtocol.DefaultSocketPath);
-        var resolvedSocketPath = socketAccess.Status == LinuxDaemonSocketAccessStatus.Missing
+        var resolvedSocketPath = socketAccess.Status is LinuxDaemonSocketAccessStatus.Missing
             ? null
             : socketAccess.SocketPath;
-        var defaultSocketExists = socketAccess.Status != LinuxDaemonSocketAccessStatus.Missing;
+        var defaultSocketExists = socketAccess.Status is not LinuxDaemonSocketAccessStatus.Missing;
         var daemonSocketExists = resolvedSocketPath is not null;
 
         var primaryExists = _fileExists(LinuxUInputPrimaryPath);
@@ -364,13 +364,13 @@ public sealed partial class DoctorService
         var detectedEnvironment = _environmentInfoProvider.CurrentEnvironment;
 
         var isWayland = isWaylandSession
-            || detectedEnvironment == DisplayEnvironment.LinuxWayland
-            || detectedEnvironment == DisplayEnvironment.LinuxHyprland
-            || detectedEnvironment == DisplayEnvironment.LinuxWayfire
-            || detectedEnvironment == DisplayEnvironment.LinuxKDE
-            || detectedEnvironment == DisplayEnvironment.LinuxGnome;
+|| detectedEnvironment is DisplayEnvironment.LinuxWayland
+or DisplayEnvironment.LinuxHyprland
+or DisplayEnvironment.LinuxWayfire
+or DisplayEnvironment.LinuxKDE
+or DisplayEnvironment.LinuxGnome;
 
-        var isX11 = isX11Session || detectedEnvironment == DisplayEnvironment.LinuxX11;
+        var isX11 = isX11Session || detectedEnvironment is DisplayEnvironment.LinuxX11;
 
         var isFlatpak = _runtimeContext?.IsFlatpak ?? !string.IsNullOrWhiteSpace(_getEnvironmentVariable("FLATPAK_ID"));
         var gsrVirtualKeyboardDetected = LinuxGsrCompatibility.ContainsGsrVirtualKeyboard(
@@ -475,25 +475,25 @@ public sealed partial class DoctorService
             ["currentSessionHasGroup"] = state.CurrentSessionHasGroup,
             ["remediation"] = GetDaemonRemediation(state, failureKind),
             ["directFallbackAvailable"] = state.DirectFallbackAvailable,
-            ["message"] = state.SocketAccess.Message ?? state.Handshake.Message ?? membership?.Message
+            ["message"] = state.SocketAccess.Message ?? state.Handshake.Message ?? membership?.Message,
         };
     }
 
     private static string? GetSocketFailureKind(LinuxDaemonSocketAccessResult socketAccess)
     {
-        return socketAccess.Status == LinuxDaemonSocketAccessStatus.Accessible
+        return socketAccess.Status is LinuxDaemonSocketAccessStatus.Accessible
             ? null
             : socketAccess.Status.ToString();
     }
 
     private static string? GetHandshakeFailureKind(LinuxDaemonHandshakeStatus status)
     {
-        return status == LinuxDaemonHandshakeStatus.Success ? null : status.ToString();
+        return status is LinuxDaemonHandshakeStatus.Success ? null : status.ToString();
     }
 
     private static string? GetGroupFailureKind(LinuxDaemonGroupMembershipStatus status)
     {
-        return status == LinuxDaemonGroupMembershipStatus.Member ? null : status.ToString();
+        return status is LinuxDaemonGroupMembershipStatus.Member ? null : status.ToString();
     }
 
     private static string GetSocketRemediation(LinuxInputState state)
@@ -503,17 +503,17 @@ public sealed partial class DoctorService
 
     private static string GetDaemonRemediation(LinuxInputState state, string? failureKind)
     {
-        if (state.GroupMembershipStatus == LinuxDaemonGroupMembershipStatus.StaleSession)
+        if (state.GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.StaleSession)
         {
             return "Log out and back in, or reboot, so the current session picks up crossmacro group membership.";
         }
 
-        if (state.GroupMembershipStatus == LinuxDaemonGroupMembershipStatus.UserNotMember)
+        if (state.GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.UserNotMember)
         {
             return "Run `sudo usermod -aG crossmacro $USER`, then log out and back in or reboot.";
         }
 
-        if (state.GroupMembershipStatus == LinuxDaemonGroupMembershipStatus.MissingGroup)
+        if (state.GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.MissingGroup)
         {
             return "Reinstall or repair the CrossMacro daemon package so the crossmacro system group is created.";
         }
@@ -532,7 +532,7 @@ public sealed partial class DoctorService
                 "Update CrossMacro CLI and daemon packages together so their IPC protocol versions match.",
             nameof(LinuxDaemonHandshakeStatus.HandshakeRejected) =>
                 "Check daemon authorization policy and `journalctl -u crossmacro.service` for rejected client details.",
-            _ => "Inspect `systemctl status crossmacro.service` and `journalctl -u crossmacro.service` for daemon IPC errors."
+            _ => "Inspect `systemctl status crossmacro.service` and `journalctl -u crossmacro.service` for daemon IPC errors.",
         };
     }
 
@@ -558,7 +558,7 @@ public sealed partial class DoctorService
     {
         public bool DirectFallbackAvailable => DirectFallback.IsAvailable;
 
-        public bool CurrentSessionHasGroup => GroupMembershipStatus == LinuxDaemonGroupMembershipStatus.Member;
+        public bool CurrentSessionHasGroup => GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.Member;
 
         public bool GroupDatabaseContainsUser => GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.Member or LinuxDaemonGroupMembershipStatus.StaleSession;
     }

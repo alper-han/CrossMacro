@@ -20,12 +20,12 @@ public class TextExpansionServiceTests
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionStorageService _storageService;
     private readonly IInputCapture _inputCapture;
-    
+
     // New Mocks
     private readonly IInputProcessor _inputProcessor;
     private readonly ITextBufferState _bufferState;
     private readonly ITextExpansionExecutor _executor;
-    
+
     private readonly TextExpansionService _service;
 
     public TextExpansionServiceTests()
@@ -35,7 +35,7 @@ public class TextExpansionServiceTests
 
         _storageService = Substitute.For<ITextExpansionStorageService>();
         _inputCapture = Substitute.For<IInputCapture>();
-        
+
         _inputProcessor = Substitute.For<IInputProcessor>();
         _bufferState = Substitute.For<ITextBufferState>();
         _executor = Substitute.For<ITextExpansionExecutor>();
@@ -58,9 +58,9 @@ public class TextExpansionServiceTests
         // Assert
         Assert.True(_service.IsRunning);
         _storageService.Received(1).Load();
-        _inputCapture.Received(1).Configure(false, true);
+        _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
-        
+
         _inputProcessor.Received(1).Reset();
         _bufferState.Received(1).Clear();
     }
@@ -73,7 +73,7 @@ public class TextExpansionServiceTests
         _service.Start();
 
         _storageService.Received(1).Load();
-        _inputCapture.Received(1).Configure(false, true);
+        _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
         _inputProcessor.Received(1).Reset();
         _bufferState.Received(1).Clear();
@@ -131,10 +131,10 @@ public class TextExpansionServiceTests
 
         Assert.False(_service.IsRunning);
         _storageService.Received(1).Load();
-        _inputCapture.Received(1).Configure(false, true);
+        _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
-    
+
     [Fact]
     public void OnInputReceived_DelegatesToProcessor()
     {
@@ -172,16 +172,16 @@ public class TextExpansionServiceTests
             {
                 invocationCount++;
 
-                if (invocationCount == 1)
+                if (invocationCount is 1)
                 {
                     firstExpansionStarted.Signal();
                 }
-                else if (invocationCount == 2)
+                else if (invocationCount is 2)
                 {
                     secondExpansionStarted.Signal();
                 }
 
-                return invocationCount == 1
+                return invocationCount is 1
                     ? Task.FromException(new InvalidOperationException("boom"))
                     : Task.CompletedTask;
             });
@@ -224,7 +224,7 @@ public class TextExpansionServiceTests
         _executor.ExpandAsync(Arg.Any<TextExpansion>())
             .Returns(async _ =>
             {
-                if (Interlocked.Increment(ref invocationCount) == 1)
+                if (Interlocked.Increment(ref invocationCount) is 1)
                 {
                     firstStarted.Signal();
                     await releaseFirst.Task;

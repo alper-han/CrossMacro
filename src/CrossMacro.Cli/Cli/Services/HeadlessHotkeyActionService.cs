@@ -102,7 +102,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
     {
         if (_disposed)
         {
-            if (_stopTask != null)
+            if (_stopTask is not null)
             {
                 await _stopTask.ConfigureAwait(false);
                 DisposeGate();
@@ -118,7 +118,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
     private Task EnsureStopTask(CancellationToken cancellationToken, bool logWhenStarted)
     {
-        if (_stopTask != null)
+        if (_stopTask is not null)
         {
             return _stopTask;
         }
@@ -181,7 +181,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
                 return;
             }
 
-            if (_activePlayer != null)
+            if (_activePlayer is not null)
             {
                 Log.Debug("[HeadlessHotkeyActionService] Recording toggle ignored while playback is active");
                 return;
@@ -217,14 +217,14 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
                 return;
             }
 
-            if (_activePlayer != null)
+            if (_activePlayer is not null)
             {
                 _ = StopPlaybackCore();
                 Log.Information("[HeadlessHotkeyActionService] Playback stop requested via hotkey");
                 return;
             }
 
-            if (_lastRecordedMacro == null || _lastRecordedMacro.Events.Count == 0)
+            if (_lastRecordedMacro is null || _lastRecordedMacro.Events.Count is 0)
             {
                 Log.Warning("[HeadlessHotkeyActionService] Playback requested but no recorded macro is available in this headless session");
                 return;
@@ -242,7 +242,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
                 RepeatDelayMs = settings.LoopDelayMs,
                 UseRandomRepeatDelay = settings.UseRandomLoopDelay,
                 RepeatDelayMinMs = settings.LoopDelayMinMs,
-                RepeatDelayMaxMs = settings.LoopDelayMaxMs
+                RepeatDelayMaxMs = settings.LoopDelayMaxMs,
             };
 
             _activePlayer = player;
@@ -263,7 +263,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (!_isRunning || _macroRecorder.IsRecording || _activePlayer == null)
+            if (!_isRunning || _macroRecorder.IsRecording || _activePlayer is null)
             {
                 return;
             }
@@ -308,7 +308,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
             _gate.Release();
         }
 
-        if (playbackTaskToAwait != null)
+        if (playbackTaskToAwait is not null)
         {
             try
             {
@@ -335,12 +335,12 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         {
             _globalHotkeyService.RecordingHotkeyCode,
             _globalHotkeyService.PlaybackHotkeyCode,
-            _globalHotkeyService.PauseHotkeyCode
+            _globalHotkeyService.PauseHotkeyCode,
         };
 
         try
         {
-            _globalHotkeyService.SetPlaybackPauseHotkeysEnabled(false);
+            _globalHotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: false);
             _playbackPauseHotkeysDisabled = true;
 
             var startTask = _macroRecorder.StartRecordingAsync(
@@ -381,7 +381,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
         try
         {
             var macro = _macroRecorder.StopRecording();
-            if (macro == null || macro.Events.Count == 0)
+            if (macro is null || macro.Events.Count is 0)
             {
                 Log.Warning("[HeadlessHotkeyActionService] Recording stopped but no events were captured");
                 return;
@@ -497,7 +497,7 @@ public sealed class HeadlessHotkeyActionService : IHeadlessHotkeyActionService
 
         try
         {
-            _globalHotkeyService.SetPlaybackPauseHotkeysEnabled(true);
+            _globalHotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: true);
         }
         catch (Exception ex)
         {

@@ -19,7 +19,7 @@ public class DefaultPlaybackMouseButtonMapper : IPlaybackMouseButtonMapper
             MouseButton.Middle => MouseButtonCode.Middle,
             MouseButton.Side1 => MouseButtonCode.Side1,
             MouseButton.Side2 => MouseButtonCode.Side2,
-            _ => MouseButtonCode.Left
+            _ => MouseButtonCode.Left,
         };
     }
 }

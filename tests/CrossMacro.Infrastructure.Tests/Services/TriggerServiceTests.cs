@@ -40,7 +40,7 @@ public class TriggerServiceTests : IDisposable
         _macroPlayer = Substitute.For<IMacroPlayer>();
 
         var testSynchronizationContext = SynchronizationContext.Current;
-        SynchronizationContext.SetSynchronizationContext(null);
+        SynchronizationContext.SetSynchronizationContext(syncContext: null);
         try
         {
             _service = new TriggerService(
@@ -102,7 +102,7 @@ public class TriggerServiceTests : IDisposable
             .Returns(async callInfo =>
             {
                 var token = callInfo.Arg<CancellationToken>();
-                if (Interlocked.Increment(ref pollCount) == 1)
+                if (Interlocked.Increment(ref pollCount) is 1)
                 {
                     token.Register(() =>
                     {
@@ -157,12 +157,12 @@ public class TriggerServiceTests : IDisposable
         {
             Value = "firefox",
             Action = TriggerAction.SwitchProfile,
-            TargetProfileId = "gaming"
+            TargetProfileId = "gaming",
         };
         _service.AddTask(task);
         task.IsEnabled = true;
 
-        _service.SetTaskEnabled(task.Id, false);
+        _service.SetTaskEnabled(task.Id, enabled: false);
 
         task.IsEnabled.Should().BeFalse();
     }
@@ -178,7 +178,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -203,7 +203,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "dev",
             FireMode = TriggerFireMode.OnceOnChange,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -229,7 +229,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -254,7 +254,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "dev",
             FireMode = TriggerFireMode.OnceOnChange,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -287,7 +287,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -310,7 +310,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -334,7 +334,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -363,7 +363,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.RunMacro,
             MacroFilePath = macroPath,
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -373,7 +373,7 @@ public class TriggerServiceTests : IDisposable
         await _service.PollOnceAsync(CancellationToken.None);
 
         await _macroFileManager.Received(1).LoadAsync(macroPath);
-        await _macroPlayer.Received(1).PlayAsync(macro, null, Arg.Any<CancellationToken>());
+        await _macroPlayer.Received(1).PlayAsync(macro, options: null, Arg.Any<CancellationToken>());
         task.LastStatus.Should().Contain("Ran macro");
     }
 
@@ -388,7 +388,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.RunMacro,
             MacroFilePath = "/nonexistent/demo.macro",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -415,7 +415,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -440,7 +440,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.OnExit,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -469,7 +469,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.OnExit,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -492,7 +492,7 @@ public class TriggerServiceTests : IDisposable
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             CooldownMs = 10000, // 10s — far beyond the test window
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -518,7 +518,7 @@ public class TriggerServiceTests : IDisposable
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
             CooldownMs = 0, // disabled — every match fires
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -539,7 +539,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -563,7 +563,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -586,7 +586,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -609,7 +609,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.EveryMatch,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -637,7 +637,7 @@ public class TriggerServiceTests : IDisposable
             // First matched poll records start timestamp and suppresses; the next poll
             // (running after the 1ms window) clears the debounce and fires.
             DebounceMs = 1,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -667,7 +667,7 @@ public class TriggerServiceTests : IDisposable
             TargetProfileId = "work",
             FireMode = TriggerFireMode.OnceOnChange,
             DebounceMs = 1000,
-            IsEnabled = true
+            IsEnabled = true,
         };
         _service.AddTask(task);
 
@@ -699,7 +699,7 @@ public class TriggerServiceTests : IDisposable
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.OnceOnChange,
-            IsEnabled = false
+            IsEnabled = false,
         };
         _service.AddTask(task);
         await _service.SaveAsync();
@@ -734,7 +734,7 @@ public class TriggerServiceTests : IDisposable
         {
             using var service2 = new TriggerService(
                 _windowManager, () => _profileManager, _macroFileManager, () => _macroPlayer, _triggersFilePath);
-            SynchronizationContext.SetSynchronizationContext(null);
+            SynchronizationContext.SetSynchronizationContext(syncContext: null);
             try
             {
                 var loadTask = Task.Run(service2.LoadAsync);
@@ -771,7 +771,7 @@ public class TriggerServiceTests : IDisposable
             Field = TriggerField.WindowClass,
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "work",
-            IsEnabled = false
+            IsEnabled = false,
         };
         _service.AddTask(task);
         await _service.SaveAsync();
@@ -824,7 +824,7 @@ public class TriggerServiceTests : IDisposable
                 (SendOrPostCallback Callback, object? State) callback;
                 lock (_callbacks)
                 {
-                    if (_callbacks.Count == 0) return;
+                    if (_callbacks.Count is 0) return;
                     callback = _callbacks.Dequeue();
                 }
 

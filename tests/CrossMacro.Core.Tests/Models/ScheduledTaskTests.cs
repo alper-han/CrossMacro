@@ -16,9 +16,9 @@ public class ScheduledTaskTests
         var task = new ScheduledTask
         {
             IntervalUnit = unit,
-            IntervalValue = value
+            IntervalValue = value,
         };
-        
+
         task.GetIntervalMs().Should().Be(expectedMs);
     }
 
@@ -28,7 +28,7 @@ public class ScheduledTaskTests
         var task = new ScheduledTask
         {
             IntervalUnit = IntervalUnit.Hours,
-            IntervalValue = 9999
+            IntervalValue = 9999,
         };
 
         task.GetInterval().Should().Be(TimeSpan.FromHours(9999));
@@ -42,7 +42,7 @@ public class ScheduledTaskTests
         var task = new ScheduledTask
         {
             IntervalUnit = IntervalUnit.Seconds,
-            IntervalValue = invalidValue
+            IntervalValue = invalidValue,
         };
 
         task.GetInterval().Should().Be(TimeSpan.FromSeconds(1));
@@ -54,7 +54,7 @@ public class ScheduledTaskTests
         var task = new ScheduledTask
         {
             IntervalUnit = IntervalUnit.Hours,
-            IntervalValue = 9999
+            IntervalValue = 9999,
         };
 
         task.GetIntervalMs().Should().Be(int.MaxValue);
@@ -68,11 +68,11 @@ public class ScheduledTaskTests
         {
             Type = ScheduleType.Interval,
             IntervalValue = 60,
-            IntervalUnit = IntervalUnit.Seconds
+            IntervalUnit = IntervalUnit.Seconds,
         };
-        
+
         task.CalculateNextRunTime(now);
-        
+
         task.NextRunTime.Should().Be(now.AddSeconds(60));
     }
 
@@ -84,7 +84,7 @@ public class ScheduledTaskTests
         {
             Type = ScheduleType.Interval,
             IntervalUnit = IntervalUnit.Hours,
-            IntervalValue = 9999
+            IntervalValue = 9999,
         };
 
         task.CalculateNextRunTime(now);
@@ -105,7 +105,7 @@ public class ScheduledTaskTests
             IntervalUnit = unit,
             UseRandomIntervalDelay = true,
             IntervalMinValue = minValue,
-            IntervalMaxValue = maxValue
+            IntervalMaxValue = maxValue,
         };
 
         task.CalculateNextRunTime(now);
@@ -125,7 +125,7 @@ public class ScheduledTaskTests
             IntervalUnit = IntervalUnit.Minutes,
             UseRandomIntervalDelay = true,
             IntervalMinValue = 10,
-            IntervalMaxValue = 5
+            IntervalMaxValue = 5,
         };
 
         task.CalculateNextRunTime(now);
@@ -145,7 +145,7 @@ public class ScheduledTaskTests
             IntervalUnit = IntervalUnit.Hours,
             UseRandomIntervalDelay = true,
             IntervalMinValue = -5,
-            IntervalMaxValue = 0
+            IntervalMaxValue = 0,
         };
 
         task.CalculateNextRunTime(now);
@@ -163,7 +163,7 @@ public class ScheduledTaskTests
         {
             Type = ScheduleType.Interval,
             IntervalUnit = IntervalUnit.Seconds,
-            IntervalValue = 1
+            IntervalValue = 1,
         };
 
         task.CalculateNextRunTime(now);
@@ -181,7 +181,7 @@ public class ScheduledTaskTests
             Type = ScheduleType.Interval,
             IntervalUnit = IntervalUnit.Hours,
             IntervalValue = int.MaxValue,
-            MacroFilePath = "test.macro"
+            MacroFilePath = "test.macro",
         };
 
         var act = () => task.IsEnabled = true;
@@ -200,11 +200,11 @@ public class ScheduledTaskTests
         var task = new ScheduledTask
         {
             Type = ScheduleType.SpecificTime,
-            ScheduledDateTime = targetTime
+            ScheduledDateTime = targetTime,
         };
-        
+
         task.CalculateNextRunTime(); // 'now' doesn't matter for specific time logic usually
-        
+
         task.NextRunTime.Should().Be(targetTime);
     }
 
@@ -213,15 +213,15 @@ public class ScheduledTaskTests
     {
         var localTime = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Local);
         var expectedUtc = localTime.ToUniversalTime();
-        
+
         var task = new ScheduledTask
         {
             Type = ScheduleType.SpecificTime,
-            ScheduledDateTime = localTime
+            ScheduledDateTime = localTime,
         };
-        
+
         task.CalculateNextRunTime();
-        
+
         task.NextRunTime.Should().Be(expectedUtc);
     }
 
@@ -233,7 +233,7 @@ public class ScheduledTaskTests
         {
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.Monday | ScheduleDays.Wednesday,
-            WeeklyTime = new TimeSpan(9, 0, 0)
+            WeeklyTime = new TimeSpan(9, 0, 0),
         };
 
         task.CalculateNextRunTime(now);
@@ -249,7 +249,7 @@ public class ScheduledTaskTests
         {
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.Monday | ScheduleDays.Wednesday,
-            WeeklyTime = new TimeSpan(9, 0, 0)
+            WeeklyTime = new TimeSpan(9, 0, 0),
         };
 
         task.CalculateNextRunTime(now);
@@ -265,7 +265,7 @@ public class ScheduledTaskTests
         {
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.Weekdays,
-            WeeklyTime = new TimeSpan(8, 30, 0)
+            WeeklyTime = new TimeSpan(8, 30, 0),
         };
 
         task.CalculateNextRunTime(now);
@@ -281,7 +281,7 @@ public class ScheduledTaskTests
         {
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.Monday,
-            WeeklyTime = new TimeSpan(9, 0, 0)
+            WeeklyTime = new TimeSpan(9, 0, 0),
         };
 
         task.CalculateNextRunTime(now);
@@ -297,7 +297,7 @@ public class ScheduledTaskTests
         {
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.None,
-            WeeklyTime = new TimeSpan(9, 0, 0)
+            WeeklyTime = new TimeSpan(9, 0, 0),
         };
 
         task.CalculateNextRunTime(now);
@@ -312,7 +312,7 @@ public class ScheduledTaskTests
         {
             MacroFilePath = "test.macro",
             Type = ScheduleType.Weekly,
-            WeeklyDays = ScheduleDays.None
+            WeeklyDays = ScheduleDays.None,
         };
 
         task.CanBeEnabled.Should().BeFalse();
@@ -325,7 +325,7 @@ public class ScheduledTaskTests
         {
             MacroFilePath = "test.macro",
             Type = ScheduleType.Weekly,
-            WeeklyDays = ScheduleDays.None
+            WeeklyDays = ScheduleDays.None,
         };
 
         task.IsEnabled = true;
@@ -342,7 +342,7 @@ public class ScheduledTaskTests
             MacroFilePath = "test.macro",
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.Monday,
-            WeeklyTime = new TimeSpan(9, 0, 0)
+            WeeklyTime = new TimeSpan(9, 0, 0),
         };
         task.IsEnabled = true;
 
@@ -359,7 +359,7 @@ public class ScheduledTaskTests
             IntervalUnit.Seconds => TimeSpan.FromSeconds(value),
             IntervalUnit.Minutes => TimeSpan.FromMinutes(value),
             IntervalUnit.Hours => TimeSpan.FromHours(value),
-            _ => TimeSpan.FromSeconds(value)
+            _ => TimeSpan.FromSeconds(value),
         };
     }
 }

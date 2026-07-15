@@ -24,7 +24,7 @@ public class MacroPositionSemanticsTests
         {
             Type = eventType,
             Button = MouseButton.Left,
-            UseCurrentPosition = false
+            UseCurrentPosition = false,
         };
 
         MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeTrue();
@@ -41,7 +41,7 @@ public class MacroPositionSemanticsTests
             Type = eventType,
             Button = MouseButton.Left,
             UseCurrentPosition = true,
-            CoordinateMode = MouseCoordinateMode.Relative
+            CoordinateMode = MouseCoordinateMode.Relative,
         };
 
         MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeFalse();
@@ -59,7 +59,7 @@ public class MacroPositionSemanticsTests
         {
             Type = EventType.Click,
             Button = button,
-            CoordinateMode = MouseCoordinateMode.Absolute
+            CoordinateMode = MouseCoordinateMode.Absolute,
         };
 
         MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeFalse();
@@ -72,7 +72,7 @@ public class MacroPositionSemanticsTests
         var ev = new MacroEvent
         {
             Type = EventType.MouseMove,
-            CoordinateMode = MouseCoordinateMode.Absolute
+            CoordinateMode = MouseCoordinateMode.Absolute,
         };
 
         MacroPositionSemantics.HasExplicitCoordinateMode(ev).Should().BeTrue();
@@ -85,7 +85,7 @@ public class MacroPositionSemanticsTests
         var ev = new MacroEvent
         {
             Type = EventType.MouseMove,
-            CoordinateMode = MouseCoordinateMode.Relative
+            CoordinateMode = MouseCoordinateMode.Relative,
         };
 
         MacroPositionSemantics.HasExplicitCoordinateMode(ev).Should().BeTrue();
@@ -112,7 +112,7 @@ public class MacroPositionSemanticsTests
         var ev = new MacroEvent
         {
             Type = eventType,
-            CoordinateMode = MouseCoordinateMode.Absolute
+            CoordinateMode = MouseCoordinateMode.Absolute,
         };
 
         MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: true).Should().BeNull();
@@ -128,7 +128,7 @@ public class MacroPositionSemanticsTests
             {
                 new() { Type = EventType.MouseMove, CoordinateMode = MouseCoordinateMode.Relative },
                 new() { Type = EventType.Click, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute }
-            }
+            },
         };
 
         MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeTrue();
@@ -144,7 +144,7 @@ public class MacroPositionSemanticsTests
             {
                 new() { Type = EventType.MouseMove },
                 new() { Type = EventType.Click, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative }
-            }
+            },
         };
 
         MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeFalse();
@@ -161,7 +161,7 @@ public class MacroPositionSemanticsTests
                 new() { Type = EventType.KeyPress, KeyCode = 30 },
                 new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true },
                 new() { Type = EventType.Click, Button = MouseButton.ScrollUp }
-            }
+            },
         };
 
         MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.None);
@@ -177,7 +177,7 @@ public class MacroPositionSemanticsTests
             {
                 new() { Type = EventType.MouseMove },
                 new() { Type = EventType.Click, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute }
-            }
+            },
         };
 
         MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Absolute);
@@ -193,7 +193,7 @@ public class MacroPositionSemanticsTests
             {
                 new() { Type = EventType.MouseMove },
                 new() { Type = EventType.ButtonPress, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative }
-            }
+            },
         };
 
         MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Relative);
@@ -209,7 +209,7 @@ public class MacroPositionSemanticsTests
             {
                 new() { Type = EventType.MouseMove, CoordinateMode = MouseCoordinateMode.Absolute },
                 new() { Type = EventType.Click, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative }
-            }
+            },
         };
 
         MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Mixed);

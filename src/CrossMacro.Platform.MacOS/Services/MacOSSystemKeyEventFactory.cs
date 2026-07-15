@@ -7,7 +7,7 @@ internal enum MacOSKeyboardEventRoute
 {
     Unsupported,
     Keyboard,
-    SystemDefined
+    SystemDefined,
 }
 
 internal readonly struct MacOSSystemKeyEventPayload

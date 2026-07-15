@@ -69,7 +69,7 @@ internal static class Program
         services.AddSingleton<IImageClipboardService, NoOpImageClipboardService>();
         services.AddCrossMacroCommonRuntimeServices();
         services.AddCrossMacroSharedPostPlatformRuntimeServices(
-            sp => runtimeProfile == CliRuntimeProfile.Persistent
+            sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
     }

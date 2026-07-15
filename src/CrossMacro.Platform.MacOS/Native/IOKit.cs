@@ -15,7 +15,7 @@ internal static class IOKit
 
     public static bool CheckListenEventAccess()
     {
-        return IOHIDCheckAccess(IOHIDRequestType.ListenEvent) == IOHIDAccessType.Granted;
+        return IOHIDCheckAccess(IOHIDRequestType.ListenEvent) is IOHIDAccessType.Granted;
     }
 
     public static bool RequestListenEventAccess()
@@ -26,13 +26,13 @@ internal static class IOKit
     public enum IOHIDRequestType : uint
     {
         PostEvent = 0,
-        ListenEvent = 1
+        ListenEvent = 1,
     }
 
     public enum IOHIDAccessType : uint
     {
         Granted = 0,
         Denied = 1,
-        Unknown = 2
+        Unknown = 2,
     }
 }

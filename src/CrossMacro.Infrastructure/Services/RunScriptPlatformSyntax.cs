@@ -21,7 +21,7 @@ internal static class RunScriptPlatformSyntax
         {
             "first" => EditorImageMatchMode.FirstThresholdMatch,
             "best" => EditorImageMatchMode.BestMatch,
-            _ => default
+            _ => default,
         };
 
         return string.Equals(token?.Trim(), "first", StringComparison.OrdinalIgnoreCase)
@@ -32,7 +32,7 @@ internal static class RunScriptPlatformSyntax
     {
         EditorImageMatchMode.FirstThresholdMatch => "first",
         EditorImageMatchMode.BestMatch => "best",
-        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Image match mode is invalid.")
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Image match mode is invalid."),
     };
 
     public static string? ValidateScreenshotStep(string step) =>

@@ -8,7 +8,7 @@ internal static class PortalStreamGeometry
 
     public static PortalStreamValidationResult ValidateMonitorStreams(IReadOnlyList<PortalStream> streams, ScreenRect? requestedRegion = null)
     {
-        if (streams.Count == 0)
+        if (streams.Count is 0)
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
@@ -160,7 +160,7 @@ internal static class PortalStreamGeometry
             Array { Length: >= 2 } items => TryToInt32(items.GetValue(0), allowNegative, out first) && TryToInt32(items.GetValue(1), allowNegative, out second),
             ValueTuple<object, object> tuple => TryToInt32(tuple.Item1, allowNegative, out first) && TryToInt32(tuple.Item2, allowNegative, out second),
             Tuple<object, object> tuple => TryToInt32(tuple.Item1, allowNegative, out first) && TryToInt32(tuple.Item2, allowNegative, out second),
-            _ => false
+            _ => false,
         };
     }
 
@@ -311,16 +311,16 @@ internal sealed class PortalStreamValidationResult
 
     public string? ErrorMessage { get; }
 
-    public PortalMonitorStream Stream => Streams.Count == 1
+    public PortalMonitorStream Stream => Streams.Count is 1
         ? Streams[0]
         : throw new InvalidOperationException("Portal stream validation did not contain exactly one stream.");
 
     public static PortalStreamValidationResult Success(PortalMonitorStream stream) =>
-        new([stream], stream.Bounds, null, null);
+        new([stream], stream.Bounds, errorKind: null, errorMessage: null);
 
     public static PortalStreamValidationResult Success(IReadOnlyList<PortalMonitorStream> streams, ScreenRect selectedBounds) =>
-        new(streams, selectedBounds, null, null);
+        new(streams, selectedBounds, errorKind: null, errorMessage: null);
 
     public static PortalStreamValidationResult Failure(ScreenReadErrorKind errorKind, string errorMessage) =>
-        new([], null, errorKind, errorMessage);
+        new([], selectedBounds: null, errorKind, errorMessage);
 }

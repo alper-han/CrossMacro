@@ -64,7 +64,7 @@ public static class LoggerSetup
     /// <param name="logLevel">New log level (Debug, Information, Warning, Error).</param>
     public static void SetLogLevel(string logLevel)
     {
-        if (_levelSwitch == null)
+        if (_levelSwitch is null)
             return;
 
         var newLevel = ParseLogLevel(logLevel);
@@ -85,7 +85,7 @@ public static class LoggerSetup
             "warning" => LogEventLevel.Warning,
             "error" => LogEventLevel.Error,
             "fatal" => LogEventLevel.Fatal,
-            _ => LogEventLevel.Information
+            _ => LogEventLevel.Information,
         };
     }
 

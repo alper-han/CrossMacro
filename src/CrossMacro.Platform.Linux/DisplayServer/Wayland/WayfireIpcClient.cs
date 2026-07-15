@@ -57,7 +57,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
             {
                 WayfireSocketEnvVar => environment.WayfireSocket,
                 RuntimeDirEnvVar => environment.RuntimeDir,
-                _ => null
+                _ => null,
             },
             File.Exists,
             Directory.Exists,
@@ -104,7 +104,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(method);
 
-        if (_disposed || !IsAvailable || _socketPath == null)
+        if (_disposed || !IsAvailable || _socketPath is null)
         {
             return null;
         }

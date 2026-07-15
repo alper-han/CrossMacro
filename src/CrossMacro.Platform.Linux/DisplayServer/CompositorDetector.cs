@@ -58,31 +58,31 @@ namespace CrossMacro.Platform.Linux.DisplayServer
 
             return currentDesktop.ToUpperInvariant() switch
             {
-                var desktop when desktop.Contains("HYPRLAND") =>
+                var desktop when desktop.Contains("HYPRLAND", StringComparison.Ordinal) =>
                     LogAndReturn(CompositorType.HYPRLAND, "Hyprland"),
 
-                var desktop when desktop.Contains("WAYFIRE") || !string.IsNullOrWhiteSpace(environment.WayfireSocket) =>
+                var desktop when desktop.Contains("WAYFIRE", StringComparison.Ordinal) || !string.IsNullOrWhiteSpace(environment.WayfireSocket) =>
                     LogAndReturn(CompositorType.WAYFIRE, "Wayfire"),
 
-                _ when desktopIdentity.Contains("NIRI") =>
+                _ when desktopIdentity.Contains("NIRI", StringComparison.Ordinal) =>
                     LogAndReturn(CompositorType.NIRI, "Niri"),
 
-                _ when desktopIdentity.Contains("COSMIC") =>
+                _ when desktopIdentity.Contains("COSMIC", StringComparison.Ordinal) =>
                     LogAndReturn(CompositorType.COSMIC, "COSMIC"),
 
-                var desktop when desktop.Contains("SWAY") || !string.IsNullOrWhiteSpace(environment.SwaySocket) =>
+                var desktop when desktop.Contains("SWAY", StringComparison.Ordinal) || !string.IsNullOrWhiteSpace(environment.SwaySocket) =>
                     LogAndReturn(CompositorType.SWAY, "Sway"),
 
                 "KDE" =>
                     LogAndReturn(CompositorType.KDE, "KDE Plasma"),
 
-                var desktop when desktop.Contains("GNOME") =>
+                var desktop when desktop.Contains("GNOME", StringComparison.Ordinal) =>
                     LogAndReturn(CompositorType.GNOME, "GNOME"),
 
                 _ when isWayland =>
                     LogAndReturnUnknown(currentDesktop),
 
-                _ => CompositorType.Unknown
+                _ => CompositorType.Unknown,
             };
         }
 

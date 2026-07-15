@@ -23,7 +23,7 @@ public class RunScriptExecutionServiceTests
         _player = Substitute.For<IMacroPlayer>();
         _keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         _keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        _keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
+        _keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
 
         _service = new RunScriptExecutionService(new RunScriptRuntimeService(() => _player, _keyCodeMapper));
     }
@@ -37,9 +37,9 @@ public class RunScriptExecutionServiceTests
             [
                 "move abs 100 120",
                 "delay 50",
-                "click left"
+                "click left",
             ],
-            DryRun = true
+            DryRun = true,
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -59,7 +59,7 @@ public class RunScriptExecutionServiceTests
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
             Steps = ["pixelcolor 1 2 sampled", "tap Backspace"],
-            DryRun = true
+            DryRun = true,
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -74,9 +74,9 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "move abs 100 200",
-                "move rel 10 -5"
+                "move rel 10 -5",
             ],
-            DryRun = true
+            DryRun = true,
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -95,9 +95,9 @@ public class RunScriptExecutionServiceTests
                 "set mode=a>=b",
                 "if $mode == a>=b {",
                 "click left",
-                "}"
+                "}",
             ],
-            DryRun = true
+            DryRun = true,
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -114,9 +114,9 @@ public class RunScriptExecutionServiceTests
                 "set mode=$$foo",
                 "if $mode == $$foo {",
                 "click left",
-                "}"
+                "}",
             ],
-            DryRun = true
+            DryRun = true,
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -138,7 +138,7 @@ public class RunScriptExecutionServiceTests
             [
                 "move abs 100 120",
                 "click left"
-            ]
+            ],
         }, CancellationToken.None);
 
         // Assert
@@ -169,7 +169,7 @@ public class RunScriptExecutionServiceTests
             [
                 "move abs 100 120",
                 "click current left"
-            ]
+            ],
         }, CancellationToken.None);
 
         // Assert
@@ -192,7 +192,7 @@ public class RunScriptExecutionServiceTests
         // Act
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["click left"]
+            Steps = ["click left"],
         }, CancellationToken.None);
 
         // Assert
@@ -209,7 +209,7 @@ public class RunScriptExecutionServiceTests
     {
         _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
         _keyCodeMapper.GetKeyCode("c").Returns(46);
-        _keyCodeMapper.IsModifierKeyCode(29).Returns(true);
+        _keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
 
         MacroSequence? captured = null;
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
@@ -217,7 +217,7 @@ public class RunScriptExecutionServiceTests
 
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["tap ctrl+c"]
+            Steps = ["tap ctrl+c"],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -246,7 +246,7 @@ public class RunScriptExecutionServiceTests
             [
                 "move abs 100 100",
                 "move rel 10 10"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -273,7 +273,7 @@ public class RunScriptExecutionServiceTests
             [
                 "click left",
                 "move abs 100 100"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -293,7 +293,7 @@ public class RunScriptExecutionServiceTests
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
             Steps = steps,
-            DryRun = true
+            DryRun = true,
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -315,7 +315,7 @@ public class RunScriptExecutionServiceTests
                 "click left",
                 "delay 75",
                 "click left"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -343,9 +343,9 @@ public class RunScriptExecutionServiceTests
             Steps =
             [
                 "delay 200",
-                "click left"
+                "click left",
             ],
-            SpeedMultiplier = 4.0
+            SpeedMultiplier = 4.0,
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -357,8 +357,8 @@ public class RunScriptExecutionServiceTests
     public async Task ExecuteAsync_WhenTypeStep_CompilesCharacterEvents()
     {
         _keyCodeMapper.GetKeyCodeForCharacter('a').Returns(30);
-        _keyCodeMapper.RequiresShift('a').Returns(false);
-        _keyCodeMapper.RequiresAltGr('a').Returns(false);
+        _keyCodeMapper.RequiresShift('a').Returns(returnThis: false);
+        _keyCodeMapper.RequiresAltGr('a').Returns(returnThis: false);
 
         MacroSequence? captured = null;
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
@@ -366,7 +366,7 @@ public class RunScriptExecutionServiceTests
 
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["type a"]
+            Steps = ["type a"],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -385,8 +385,8 @@ public class RunScriptExecutionServiceTests
         _keyCodeMapper.GetKeyCodeForCharacter('m').Returns(50);
         _keyCodeMapper.GetKeyCodeForCharacter('d').Returns(32);
         _keyCodeMapper.GetKeyCodeForCharacter(' ').Returns(57);
-        _keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(false);
-        _keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(false);
+        _keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(returnThis: false);
+        _keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(returnThis: false);
 
         MacroSequence? captured = null;
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
@@ -394,7 +394,7 @@ public class RunScriptExecutionServiceTests
 
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["type cmd "]
+            Steps = ["type cmd "],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -413,12 +413,12 @@ public class RunScriptExecutionServiceTests
 
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["type x"]
+            Steps = ["type x"],
         }, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
-        Assert.Contains("cannot map character", result.Errors[0]);
+        Assert.Contains("cannot map character", result.Errors[0], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -433,7 +433,7 @@ public class RunScriptExecutionServiceTests
                 "",
                 "click left",
                 "delay 20",
-                "click left"
+                "click left",
             ]);
 
             MacroSequence? captured = null;
@@ -442,7 +442,7 @@ public class RunScriptExecutionServiceTests
 
             var result = await _service.ExecuteAsync(new RunExecutionRequest
             {
-                StepFilePath = tempFile
+                StepFilePath = tempFile,
             }, CancellationToken.None);
 
             Assert.True(result.Success);
@@ -465,12 +465,12 @@ public class RunScriptExecutionServiceTests
             await File.WriteAllLinesAsync(tempFile,
             [
                 "click left",
-                "bad command"
+                "bad command",
             ]);
 
             var result = await _service.ExecuteAsync(new RunExecutionRequest
             {
-                StepFilePath = tempFile
+                StepFilePath = tempFile,
             }, CancellationToken.None);
 
             Assert.False(result.Success);
@@ -496,7 +496,7 @@ public class RunScriptExecutionServiceTests
             [
                 "set x=123",
                 "move abs $x 200"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -512,7 +512,7 @@ public class RunScriptExecutionServiceTests
     {
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["move abs $missing 10"]
+            Steps = ["move abs $missing 10"],
         }, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -535,7 +535,7 @@ public class RunScriptExecutionServiceTests
                 "repeat $n {",
                 "click left",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -559,7 +559,7 @@ public class RunScriptExecutionServiceTests
                 "click left",
                 "break",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -584,7 +584,7 @@ public class RunScriptExecutionServiceTests
                 "continue",
                 "click right",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -606,7 +606,7 @@ public class RunScriptExecutionServiceTests
             [
                 "break",
                 "click left"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -624,7 +624,7 @@ public class RunScriptExecutionServiceTests
             [
                 "repeat 2 {",
                 "click left"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -646,7 +646,7 @@ public class RunScriptExecutionServiceTests
                 "click left",
                 "delay random 10 20",
                 "click left"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -676,7 +676,7 @@ public class RunScriptExecutionServiceTests
                 "else {",
                 "click right",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -704,7 +704,7 @@ public class RunScriptExecutionServiceTests
                 "else {",
                 "click right",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -730,7 +730,7 @@ public class RunScriptExecutionServiceTests
                 "click left",
                 "inc i",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -753,7 +753,7 @@ public class RunScriptExecutionServiceTests
                 "for i from 1 to 5 step 2 {",
                 "click left",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -778,7 +778,7 @@ public class RunScriptExecutionServiceTests
                 "for i from $start to $finish step $step {",
                 "click left",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -802,7 +802,7 @@ public class RunScriptExecutionServiceTests
                 "for i from 0 to $limit step $limit {",
                 "click left",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -828,7 +828,7 @@ public class RunScriptExecutionServiceTests
                 "click left",
                 "inc i $step",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -848,7 +848,7 @@ public class RunScriptExecutionServiceTests
                 "while $i < 3 {",
                 "click left",
                 "}"
-            ]
+            ],
         }, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -864,7 +864,7 @@ public class RunScriptExecutionServiceTests
 
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["move abs 10 10"]
+            Steps = ["move abs 10 10"],
         }, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -881,7 +881,7 @@ public class RunScriptExecutionServiceTests
 
         var result = await _service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["type a"]
+            Steps = ["type a"],
         }, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -896,13 +896,13 @@ public class RunScriptExecutionServiceTests
         var player = new RuntimeVariablePlayer(new Dictionary<string, string>
         {
             ["sampled"] = "ABCDEF",
-            ["found_x"] = "42"
+            ["found_x"] = "42",
         });
         var service = new RunScriptExecutionService(new RunScriptRuntimeService(() => player, _keyCodeMapper));
 
         var result = await service.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["click left"]
+            Steps = ["click left"],
         }, CancellationToken.None);
 
         Assert.True(result.Success);

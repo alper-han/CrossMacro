@@ -26,7 +26,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
         Unknown,
         HostWlClipboard,
         HostXclip,
-        HostXsel
+        HostXsel,
     }
 
     public FlatpakHostClipboardService(IProcessRunner processRunner, IRuntimeContext runtimeContext)
@@ -53,7 +53,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
         _getEnvironmentVariable = getEnvironmentVariable;
     }
 
-    public bool IsSupported => _tool != ClipboardTool.Unknown || !_initialized;
+    public bool IsSupported => _tool is not ClipboardTool.Unknown || !_initialized;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -163,7 +163,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
                     FlatpakSpawn,
                     ["--host", "xsel", "--clipboard", "--output"],
                     cancellationToken),
-                _ => throw new InvalidOperationException("No supported host clipboard tool is available.")
+                _ => throw new InvalidOperationException("No supported host clipboard tool is available."),
             };
         }
         catch (OperationCanceledException)
@@ -172,7 +172,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
         }
         catch (Exception ex)
         {
-            if (_tool == ClipboardTool.HostWlClipboard && IsEmptyWlPasteResult(ex))
+            if (_tool is ClipboardTool.HostWlClipboard && IsEmptyWlPasteResult(ex))
             {
                 Log.Debug("[FlatpakHostClipboard] Host Wayland clipboard is empty");
                 return string.Empty;

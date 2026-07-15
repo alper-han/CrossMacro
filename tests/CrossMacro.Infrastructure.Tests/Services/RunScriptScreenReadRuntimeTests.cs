@@ -20,7 +20,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             PixelColor = new ScreenPixelColor(0x12, 0x34, 0x56),
             RelativePixelColor = new ScreenPixelColor(0xAA, 0xBB, 0xCC),
-            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(7, 8), new ScreenPixelColor(0x11, 0x22, 0x33))
+            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(7, 8), new ScreenPixelColor(0x11, 0x22, 0x33)),
         };
         var positionProvider = CreatePositionProvider((50, 60));
         using var player = CreatePlayer(positionProvider, screenReader);
@@ -32,7 +32,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "pixelcolor rel 5 -3 relativeSampled",
                 "waitcolor 1 2 00FF00 123",
                 "pixelsearch 0 0 10 12 112233 found_x found_y tolerance 10"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -62,7 +62,7 @@ public sealed class RunScriptScreenReadRuntimeTests
     {
         var screenReader = new FakeScreenPixelReader
         {
-            PixelColor = new ScreenPixelColor(0x12, 0x34, 0x56)
+            PixelColor = new ScreenPixelColor(0x12, 0x34, 0x56),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
@@ -71,7 +71,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "pixelcolor 1 2 sampled",
                 "waitcolor 3 4 $sampled 100 wait_ok"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -92,7 +92,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var screenReader = new FakeScreenPixelReader
         {
             PixelColor = new ScreenPixelColor(0x12, 0x34, 0x56),
-            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(7, 8), new ScreenPixelColor(0x11, 0x22, 0x33))
+            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(7, 8), new ScreenPixelColor(0x11, 0x22, 0x33)),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
@@ -101,7 +101,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "pixelcolor 1 2 sampled",
                 "pixelsearch 0 0 10 12 $sampled found found_x found_y tolerance 10"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -123,18 +123,18 @@ public sealed class RunScriptScreenReadRuntimeTests
     {
         var screenReader = new FakeScreenPixelReader
         {
-            PixelColor = new ScreenPixelColor(0x12, 0x34, 0x56)
+            PixelColor = new ScreenPixelColor(0x12, 0x34, 0x56),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
-            ScriptSteps = ["pixelcolor 10 20 sampled"]
+            ScriptSteps = ["pixelcolor 10 20 sampled"],
         };
 
         await player.PlayAsync(macro, new PlaybackOptions
         {
             Loop = true,
-            RepeatCount = 3
+            RepeatCount = 3,
         }, CancellationToken.None);
 
         screenReader.GetPixelPoints.Should().Equal(
@@ -148,7 +148,7 @@ public sealed class RunScriptScreenReadRuntimeTests
     {
         var timingService = new RecordingTimingService();
         var clipboard = Substitute.For<IClipboardService>();
-        clipboard.IsSupported.Returns(true);
+        clipboard.IsSupported.Returns(returnThis: true);
         clipboard.GetTextAsync(Arg.Any<CancellationToken>()).Returns("clipboard text");
         using var player = CreatePlayer(
             CreatePositionProvider((0, 0)),
@@ -165,7 +165,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "clipboard get $clip",
                 "set copied=$clip",
                 "clipboard set $copied"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -179,7 +179,7 @@ public sealed class RunScriptScreenReadRuntimeTests
     public async Task PlayAsync_WhenRuntimeOnlyControlFlow_DoesNotAcquireSimulator()
     {
         var clipboard = Substitute.For<IClipboardService>();
-        clipboard.IsSupported.Returns(true);
+        clipboard.IsSupported.Returns(returnThis: true);
         using var player = CreatePlayer(
             CreatePositionProvider((0, 0)),
             new FakeScreenPixelReader(),
@@ -193,7 +193,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "if $n == 1 {",
                 "clipboard set ok",
                 "}"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -215,7 +215,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 new RunScriptStep("move rel 10 20"),
                 new RunScriptStep("pixelcolor 1 2 sampled"),
                 new RunScriptStep("click left"),
-                new RunScriptStep("waitcolor 3 4 FFFFFF 10")
+                new RunScriptStep("waitcolor 3 4 FFFFFF 10"),
             ]);
 
         compileResult.Success.Should().BeTrue(compileResult.ErrorMessage);
@@ -244,7 +244,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "pixelcolor 1 2 sampled",
                 "delay 1",
                 "click left"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -268,7 +268,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "pixelcolor 1 2 sampled",
                 "move absolute 100 200"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -298,7 +298,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "else {",
                 "move rel 9 9",
                 "}"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -314,7 +314,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var activity = new List<string>();
         var screenReader = new RecordingScreenPixelReader(activity)
         {
-            PixelColor = new ScreenPixelColor(0x1C, 0x1C, 0x1C)
+            PixelColor = new ScreenPixelColor(0x1C, 0x1C, 0x1C),
         };
         var inputSimulator = new RecordingInputSimulator(activity);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
@@ -327,7 +327,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "click left",
                 "break",
                 "}"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -357,7 +357,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "if $COUNT == -1 {",
                 "click left",
                 "}"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -393,7 +393,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "click left",
                 "}",
                 "}"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -425,7 +425,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "}",
                 "click left",
                 "}"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -454,7 +454,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "set wait_ms 25",
                 "delay $wait_ms",
                 "click left"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 2.5 }, CancellationToken.None);
@@ -480,7 +480,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "if $missing == 1 {",
                 "click left",
                 "}"
-            ]
+            ],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -505,7 +505,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "for i from 1 to 3 step 0 {",
                 "click left",
                 "}"
-            ]
+            ],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -523,7 +523,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             WaitResult = ScreenReadResult<ScreenPixelColor>.Failure(
                 ScreenReadErrorKind.CaptureTimeout,
-                "waitcolor timed out")
+                "waitcolor timed out"),
         };
         var inputSimulator = new RecordingInputSimulator(activity);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
@@ -535,7 +535,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "if $wait_ok == false {",
                 "click left",
                 "}"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -554,7 +554,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
-            ScriptSteps = ["waitcolor 3 4 $sampled 100 wait_ok"]
+            ScriptSteps = ["waitcolor 3 4 $sampled 100 wait_ok"],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -574,7 +574,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "set sampled not-a-color",
                 "waitcolor 3 4 $sampled 100 wait_ok"
-            ]
+            ],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -591,7 +591,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             SearchResult = ScreenReadResult<ScreenPixelSearchMatch>.Failure(
                 ScreenReadErrorKind.CaptureTimeout,
-                "pixelsearch found no matching pixel")
+                "pixelsearch found no matching pixel"),
         };
         var inputSimulator = new RecordingInputSimulator(activity);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
@@ -603,7 +603,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 "if $found == false {",
                 "click left",
                 "}"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -632,24 +632,24 @@ public sealed class RunScriptScreenReadRuntimeTests
     {
         var screenReader = new FakeScreenPixelReader
         {
-            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(7, 8), new ScreenPixelColor(0x11, 0x22, 0x33))
+            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(7, 8), new ScreenPixelColor(0x11, 0x22, 0x33)),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
-            ScriptSteps = [step]
+            ScriptSteps = [step],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         screenReader.SearchCalls.Should().ContainSingle(call => call.Tolerance == expectedTolerance);
         var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
-        if (foundVariable != null)
+        if (foundVariable is not null)
         {
             variables.Should().Contain(foundVariable, "true");
         }
 
-        if (xVariable != null && yVariable != null)
+        if (xVariable is not null && yVariable is not null)
         {
             variables.Should().Contain(xVariable, "7");
             variables.Should().Contain(yVariable, "8");
@@ -667,12 +667,12 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             WaitResult = ScreenReadResult<ScreenPixelColor>.Failure(
                 ScreenReadErrorKind.CaptureTimeout,
-                "waitcolor timed out")
+                "waitcolor timed out"),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
-            ScriptSteps = ["waitcolor 1 2 FFFFFF 10"]
+            ScriptSteps = ["waitcolor 1 2 FFFFFF 10"],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -688,12 +688,12 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             WaitResult = ScreenReadResult<ScreenPixelColor>.Failure(
                 ScreenReadErrorKind.Canceled,
-                "waitcolor canceled")
+                "waitcolor canceled"),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
-            ScriptSteps = ["waitcolor 1 2 FFFFFF 10"]
+            ScriptSteps = ["waitcolor 1 2 FFFFFF 10"],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -710,7 +710,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             WaitResult = ScreenReadResult<ScreenPixelColor>.Failure(
                 ScreenReadErrorKind.Canceled,
-                "waitcolor canceled")
+                "waitcolor canceled"),
         };
         var inputSimulator = new RecordingInputSimulator(activity);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
@@ -720,7 +720,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "waitcolor 1 2 FFFFFF 10 wait_ok",
                 "click left"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -737,7 +737,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             WaitResult = ScreenReadResult<ScreenPixelColor>.Failure(
                 ScreenReadErrorKind.Canceled,
-                "waitcolor canceled")
+                "waitcolor canceled"),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
@@ -746,7 +746,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "waitcolor 1 2 FFFFFF 10",
                 "pixelsearch 0 0 1 1 FFFFFF found_x found_y"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -764,7 +764,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             SearchResult = ScreenReadResult<ScreenPixelSearchMatch>.Failure(
                 ScreenReadErrorKind.Canceled,
-                "pixelsearch canceled")
+                "pixelsearch canceled"),
         };
         var inputSimulator = new RecordingInputSimulator(activity);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
@@ -774,7 +774,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "pixelsearch 0 0 10 12 112233 found found_x found_y tolerance 10",
                 "click left"
-            ]
+            ],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -825,7 +825,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         using var cts = new CancellationTokenSource();
         var provider = new DisposalTrackingFrameProvider(new ScreenPixelColor(0x00, 0x00, 0x00))
         {
-            AfterCapture = () => cts.Cancel()
+            AfterCapture = () => cts.Cancel(),
         };
         using var reader = new ScreenPixelReader(provider);
 
@@ -892,7 +892,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         await cts.CancelAsync();
 
         var result = await reader.SearchImageAsync(
-            null,
+region: null,
             template,
             ScreenImageMatchOptions.Default,
             new ScreenReadOptions(cancellationToken: cts.Token));
@@ -909,9 +909,9 @@ public sealed class RunScriptScreenReadRuntimeTests
         using var reader = new ScreenPixelReader(new DelayedFrameProvider(frame));
 
         var result = await reader.SearchImageAsync(
-            null,
+region: null,
             template,
-            ScreenImageMatchOptions.Create(null, 1.0, 1, ScreenImageMatchSelectionMode.BestMatch),
+            ScreenImageMatchOptions.Create(searchRegion: null, 1.0, 1, ScreenImageMatchSelectionMode.BestMatch),
             new ScreenReadOptions(timeout: TimeSpan.FromMilliseconds(1)));
 
         result.IsSuccess.Should().BeFalse();
@@ -926,12 +926,12 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             SearchResult = ScreenReadResult<ScreenPixelSearchMatch>.Failure(
                 ScreenReadErrorKind.CaptureTimeout,
-                "pixelsearch found no matching pixel")
+                "pixelsearch found no matching pixel"),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
-            ScriptSteps = ["pixelsearch 0 0 1 1 FFFFFF found_x found_y"]
+            ScriptSteps = ["pixelsearch 0 0 1 1 FFFFFF found_x found_y"],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -957,7 +957,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var activity = new List<string>();
         var screenReader = new RecordingScreenPixelReader(activity)
         {
-            WaitResult = ScreenReadResult<ScreenPixelColor>.Failure(errorKind, errorMessage)
+            WaitResult = ScreenReadResult<ScreenPixelColor>.Failure(errorKind, errorMessage),
         };
         var inputSimulator = new RecordingInputSimulator(activity);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
@@ -967,7 +967,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "waitcolor 3 4 FFFFFF 10 wait_ok",
                 "click left"
-            ]
+            ],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -992,7 +992,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var activity = new List<string>();
         var screenReader = new RecordingScreenPixelReader(activity)
         {
-            SearchResult = ScreenReadResult<ScreenPixelSearchMatch>.Failure(errorKind, errorMessage)
+            SearchResult = ScreenReadResult<ScreenPixelSearchMatch>.Failure(errorKind, errorMessage),
         };
         var inputSimulator = new RecordingInputSimulator(activity);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
@@ -1002,7 +1002,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 "pixelsearch 0 0 10 12 112233 found found_x found_y tolerance 10",
                 "click left"
-            ]
+            ],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1019,12 +1019,12 @@ public sealed class RunScriptScreenReadRuntimeTests
     {
         var screenReader = new FakeScreenPixelReader
         {
-            PixelColor = new ScreenPixelColor(0xAB, 0xCD, 0xEF)
+            PixelColor = new ScreenPixelColor(0xAB, 0xCD, 0xEF),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
-            ScriptSteps = ["pixelcolor 10 20 color"]
+            ScriptSteps = ["pixelcolor 10 20 color"],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1042,7 +1042,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         await cts.CancelAsync();
         var macro = new MacroSequence
         {
-            ScriptSteps = ["pixelcolor 1 2 sampled"]
+            ScriptSteps = ["pixelcolor 1 2 sampled"],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: cts.Token);
@@ -1059,13 +1059,13 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             ImageSearchResult = ScreenReadResult<ScreenImageMatch>.Failure(
                 ScreenReadErrorKind.CaptureTimeout,
-                "No image matching the template was found.")
+                "No image matching the template was found."),
         };
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
             ScriptSteps = ["waitimage Target found found_x found_y timeout 0"],
-            Images = { ["Target"] = EncodePngBase64(template) }
+            Images = { ["Target"] = EncodePngBase64(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1087,7 +1087,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"));
         var macro = new MacroSequence
         {
-            ScriptSteps = ["set c=123456"]
+            ScriptSteps = ["set c=123456"],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1104,19 +1104,19 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 [Black, Black, Black, Black],
                 [Black, Red, Green, Black],
-                [Black, Blue, White, Black]
+                [Black, Blue, White, Black],
             ]);
         using var template = CreateRgbFrame(
             new ScreenRect(0, 0, 2, 2),
             [
                 [Red, Green],
-                [Blue, White]
+                [Blue, White],
             ]);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), new ScreenPixelReader(new SingleFrameProvider(frame)));
         var macro = new MacroSequence
         {
             ScriptSteps = ["imagesearch 0 0 4 3 Target found found_x found_y similarity 1 downsample 1"],
-            Images = { ["Target"] = EncodePngBase64(template) }
+            Images = { ["Target"] = EncodePngBase64(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1136,7 +1136,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var macro = new MacroSequence
         {
             ScriptSteps = ["imagesearch Target found found_x found_y matchmode best"],
-            Images = { ["Target"] = EncodePngBase64(template) }
+            Images = { ["Target"] = EncodePngBase64(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1152,9 +1152,9 @@ public sealed class RunScriptScreenReadRuntimeTests
         using var reader = new ScreenPixelReader(new DelayedFrameProvider(frame));
 
         var result = await reader.SearchImageAsync(
-            null,
+region: null,
             template,
-            ScreenImageMatchOptions.Create(null, 1.0, 1, ScreenImageMatchSelectionMode.FirstThresholdMatch),
+            ScreenImageMatchOptions.Create(searchRegion: null, 1.0, 1, ScreenImageMatchSelectionMode.FirstThresholdMatch),
             new ScreenReadOptions(timeout: TimeSpan.FromMilliseconds(1)));
 
         result.IsSuccess.Should().BeTrue($"{result.ErrorKind}: {result.ErrorMessage}");
@@ -1166,7 +1166,7 @@ public sealed class RunScriptScreenReadRuntimeTests
     {
         using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
         using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
-        var executor = new RunScriptScreenReadExecutor(new ScreenPixelReader(new SingleFrameProvider(frame)), null);
+        var executor = new RunScriptScreenReadExecutor(new ScreenPixelReader(new SingleFrameProvider(frame)), mousePositionProvider: null);
 
         var act = async () => await executor.ExecuteStepAsync(
             "imagesearch Target found found_x found_y unsupported 1",
@@ -1188,7 +1188,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var macro = new MacroSequence
         {
             ScriptSteps = ["imagesearch MissingPixel found found_x found_y"],
-            Images = { ["MissingPixel"] = EncodePngBase64(template) }
+            Images = { ["MissingPixel"] = EncodePngBase64(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1206,7 +1206,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]))));
         var macro = new MacroSequence
         {
-            ScriptSteps = ["imagesearch Target found found_x found_y"]
+            ScriptSteps = ["imagesearch Target found found_x found_y"],
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1225,7 +1225,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var macro = new MacroSequence
         {
             ScriptSteps = ["imagesearch Target found found_x found_y"],
-            Images = { ["Target"] = asset }
+            Images = { ["Target"] = asset },
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1242,7 +1242,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var macro = new MacroSequence
         {
             ScriptSteps = ["imagesearch Target found found_x found_y"],
-            Images = { ["Target"] = Convert.ToBase64String(CreateOversizedPngBytes()) }
+            Images = { ["Target"] = Convert.ToBase64String(CreateOversizedPngBytes()) },
         };
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1259,7 +1259,7 @@ public sealed class RunScriptScreenReadRuntimeTests
 	{
 		using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
 		using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
-		var executor = new RunScriptScreenReadExecutor(new ScreenPixelReader(new SingleFrameProvider(frame)), null);
+		var executor = new RunScriptScreenReadExecutor(new ScreenPixelReader(new SingleFrameProvider(frame)), mousePositionProvider: null);
 		var runtimeVariables = new Dictionary<string, string>();
 		var step = $"imagesearch Target found found_x found_y similarity {similarity}";
 
@@ -1283,13 +1283,13 @@ public sealed class RunScriptScreenReadRuntimeTests
             [
                 [Black, Black, Black, Black],
                 [Black, Red, Green, Black],
-                [Black, Blue, White, Black]
+                [Black, Blue, White, Black],
             ]);
         using var template = CreateRgbFrame(
             new ScreenRect(0, 0, 2, 2),
             [
                 [Red, Green],
-                [Blue, White]
+                [Blue, White],
             ]);
         var inputSimulator = new RecordingInputSimulator(activity);
         using var player = CreatePlayer(
@@ -1299,7 +1299,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var macro = new MacroSequence
         {
             ScriptSteps = ["imageclick Target clicked click_x click_y button right similarity 1 downsample 1"],
-            Images = { ["Target"] = EncodePngBase64(template) }
+            Images = { ["Target"] = EncodePngBase64(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1323,13 +1323,13 @@ public sealed class RunScriptScreenReadRuntimeTests
                 [Black, Black, Black, Black],
                 [Black, Red, Green, Black],
                 [Black, Blue, White, Black],
-                [Black, Black, Black, Black]
+                [Black, Black, Black, Black],
             ]);
         using var template = CreateRgbFrame(
             new ScreenRect(0, 0, 2, 2),
             [
                 [Red, Green],
-                [Blue, White]
+                [Blue, White],
             ]);
         var inputSimulator = new RecordingInputSimulator(activity) { SupportsAbsoluteCoordinates = false };
         using var player = CreatePlayer(
@@ -1339,7 +1339,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var macro = new MacroSequence
         {
             ScriptSteps = ["imageclick Target clicked click_x click_y"],
-            Images = { ["Target"] = EncodePngBase64(template) }
+            Images = { ["Target"] = EncodePngBase64(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1365,7 +1365,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var macro = new MacroSequence
         {
             ScriptSteps = ["imageclick MissingPixel clicked click_x click_y"],
-            Images = { ["MissingPixel"] = EncodePngBase64(template) }
+            Images = { ["MissingPixel"] = EncodePngBase64(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1387,7 +1387,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         var macro = new MacroSequence
         {
             ScriptSteps = ["waitimage Target found found_x found_y timeout 1000 similarity 1"],
-            Images = { ["Target"] = EncodePngBase64(template) }
+            Images = { ["Target"] = EncodePngBase64(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -1424,7 +1424,7 @@ public sealed class RunScriptScreenReadRuntimeTests
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
+        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
         keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
         return keyCodeMapper;
     }
@@ -1433,7 +1433,7 @@ public sealed class RunScriptScreenReadRuntimeTests
     {
         var positionProvider = Substitute.For<IMousePositionProvider>();
         positionProvider.ProviderName.Returns("fake-position");
-        positionProvider.IsSupported.Returns(true);
+        positionProvider.IsSupported.Returns(returnThis: true);
         positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>(position));
         positionProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
         return positionProvider;
@@ -1465,7 +1465,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             for (var x = 0; x < bounds.Width; x++)
             {
-                var offset = y * stride + x * 3;
+                var offset = (y * stride) + (x * 3);
                 bytes[offset] = pixels[y][x].R;
                 bytes[offset + 1] = pixels[y][x].G;
                 bytes[offset + 2] = pixels[y][x].B;
@@ -1484,7 +1484,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             for (var x = 0; x < bounds.Width; x++)
             {
-                var offset = y * stride + x * 3;
+                var offset = (y * stride) + (x * 3);
                 bytes[offset] = color.R;
                 bytes[offset + 1] = color.G;
                 bytes[offset + 2] = color.B;
@@ -1515,7 +1515,7 @@ public sealed class RunScriptScreenReadRuntimeTests
             0x00,
             0x00,
             0x00,
-            0x6C, 0xF7, 0xBC, 0x13
+            0x6C, 0xF7, 0xBC, 0x13,
         ];
     }
 
@@ -1553,7 +1553,7 @@ public sealed class RunScriptScreenReadRuntimeTests
         {
             options.CancellationToken.ThrowIfCancellationRequested();
             GetPixelPoints.Add(point);
-            var color = _getPixelCallCount++ == 0 ? PixelColor : RelativePixelColor;
+            var color = _getPixelCallCount++ is 0 ? PixelColor : RelativePixelColor;
             return Task.FromResult(ScreenReadResult<ScreenPixelColor>.Success(color));
         }
 
@@ -1759,7 +1759,7 @@ public sealed class RunScriptScreenReadRuntimeTests
                 {
                     MouseButtonCode.Right => "right",
                     MouseButtonCode.Middle => "middle",
-                    _ => "left"
+                    _ => "left",
                 };
                 _activity.Add($"input:click:{name}");
             }

@@ -10,7 +10,7 @@ public sealed class NiriPositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.NIRI;
+        return compositor is CompositorType.NIRI;
     }
 
     public IMousePositionProvider Create()

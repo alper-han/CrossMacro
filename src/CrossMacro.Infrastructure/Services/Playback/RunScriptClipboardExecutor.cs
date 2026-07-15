@@ -23,7 +23,7 @@ internal sealed class RunScriptClipboardExecutor
 
     public async Task ExecuteStepAsync(string step, int stepNumber, IDictionary<string, string> variables, CancellationToken cancellationToken)
     {
-        if (_clipboardService == null)
+        if (_clipboardService is null)
         {
             throw new InvalidOperationException("Clipboard script steps require an IClipboardService runtime service.");
         }
@@ -41,9 +41,9 @@ internal sealed class RunScriptClipboardExecutor
         }
 
         var subCommand = parts[1].ToLowerInvariant();
-        if (subCommand == "get")
+        if (subCommand is "get")
         {
-            if (parts.Length != 3)
+            if (parts.Length is not 3)
             {
                 throw new InvalidOperationException($"Step {stepNumber}: Syntax: {CommandToken} get <var>");
             }
@@ -54,7 +54,7 @@ internal sealed class RunScriptClipboardExecutor
             return;
         }
 
-        if (subCommand != "set")
+        if (subCommand is not "set")
         {
             throw new InvalidOperationException($"Step {stepNumber}: Unknown clipboard subcommand: {subCommand}");
         }
@@ -111,9 +111,9 @@ internal sealed class RunScriptClipboardExecutor
         }
 
         var subCommand = parts[1].ToLowerInvariant();
-        if (subCommand == "get")
+        if (subCommand is "get")
         {
-            if (parts.Length != 3) return $"Syntax: {CommandToken} get <var>";
+            if (parts.Length is not 3) return $"Syntax: {CommandToken} get <var>";
             var variableName = EditorActionScriptTokens.NormalizeVariableToken(parts[2]);
             if (!EditorActionScriptTokens.IsValidVariableName(variableName))
             {
@@ -123,7 +123,7 @@ internal sealed class RunScriptClipboardExecutor
             return null;
         }
 
-        if (subCommand == "set")
+        if (subCommand is "set")
         {
             if (parts.Length < 3) return $"Syntax: {CommandToken} set <text>";
             return null;

@@ -5,7 +5,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSessionFactory
 {
-    public static PortalScreenCastDbusSessionFactory Instance { get; } = new(null, PortalScreenCastSessionClientFactory.Instance);
+    public static PortalScreenCastDbusSessionFactory Instance { get; } = new(restoreTokenStore: null, PortalScreenCastSessionClientFactory.Instance);
 
     private readonly IPortalScreenCastRestoreTokenStore? _restoreTokenStore;
     private readonly IPortalScreenCastSessionClientFactory _clientFactory;
@@ -24,7 +24,7 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
     }
 
     public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options) =>
-        StartSessionAsync(null, options);
+        StartSessionAsync(requestedRegion: null, options);
 
     public async Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenRect? requestedRegion, ScreenReadOptions options)
     {

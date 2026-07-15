@@ -17,7 +17,7 @@ public class MouseButtonMapper : IMouseButtonMapper
     private const int BtnForward = 277;
     private const int BtnBack = 278;
     private const int BtnTask = 279;
-    
+
     private static readonly Dictionary<int, string> CodeToName = new()
     {
         { BtnLeft, "Mouse Left" },
@@ -27,11 +27,11 @@ public class MouseButtonMapper : IMouseButtonMapper
         { BtnExtra, "Mouse Extra" },    // Often "forward" button
         { BtnForward, "Mouse Forward" },
         { BtnBack, "Mouse Back" },
-        { BtnTask, "Mouse Task" }
+        { BtnTask, "Mouse Task" },
     };
-    
+
     private static readonly Dictionary<string, int> NameToCode;
-    
+
     static MouseButtonMapper()
     {
         NameToCode = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -40,28 +40,28 @@ public class MouseButtonMapper : IMouseButtonMapper
             NameToCode[kvp.Value] = kvp.Key;
         }
     }
-    
+
     public string GetMouseButtonName(int buttonCode)
     {
         if (CodeToName.TryGetValue(buttonCode, out var name))
         {
             return name;
         }
-        
+
         // Generic fallback for unknown buttons
         if (buttonCode >= BtnLeft && buttonCode <= BtnTask + 10)
         {
             return $"Mouse{buttonCode - BtnLeft + 1}";
         }
-        
+
         return string.Empty;
     }
-    
+
     public int GetButtonCode(string buttonName)
     {
         return NameToCode.TryGetValue(buttonName, out var code) ? code : -1;
     }
-    
+
     public bool IsMouseButton(int code)
     {
         // BTN_LEFT (272) through BTN_TASK (279) and a few beyond

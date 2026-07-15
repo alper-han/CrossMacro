@@ -12,7 +12,7 @@ public interface IPlaybackPauseToken
     /// Whether playback is currently paused
     /// </summary>
     bool IsPaused { get; }
-    
+
     /// <summary>
     /// Wait for resume if paused
     /// </summary>

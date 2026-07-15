@@ -11,7 +11,7 @@ public sealed class GsrCompatibilityServiceTests
     public void IsGsrVirtualKeyboardActive_WhenVirtualKeyboardExists_ReturnsTrue()
     {
         var service = new GsrCompatibilityService(
-            path => path == LinuxGsrCompatibility.InputDevicesPath,
+            path => string.Equals(path, LinuxGsrCompatibility.InputDevicesPath, StringComparison.Ordinal),
             _ => "N: Name=\"gsr-ui virtual keyboard\"\nH: Handlers=sysrq kbd event25\n");
 
         var result = service.IsGsrVirtualKeyboardActive();

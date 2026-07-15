@@ -22,13 +22,13 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         _validationConverter = validationConverter ?? throw new ArgumentNullException(nameof(validationConverter));
         _scriptValidationService = scriptValidationService;
     }
-    
+
     /// <inheritdoc/>
     public (bool IsValid, string? Error) Validate(EditorAction action)
     {
-        if (action == null)
+        if (action is null)
             return (false, ValidationMessages.ActionCannotBeNull);
-        
+
         return action.Type switch
         {
             EditorActionType.Delay => ValidateDelay(action),
@@ -58,26 +58,26 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
                 or EditorActionType.BlockEnd
                 or EditorActionType.Break
                 or EditorActionType.Continue => (true, null),
-            _ => (true, null)
+            _ => (true, null),
         };
     }
-    
+
     /// <inheritdoc/>
     public (bool IsValid, List<string> Errors) ValidateAll(IEnumerable<EditorAction> actions)
     {
         var actionList = actions.ToList();
         var errors = new List<string>();
         int index = 0;
-        
+
         foreach (var action in actionList)
         {
             // Validate individual action
             var (isValid, error) = Validate(action);
-            if (!isValid && error != null)
+            if (!isValid && error is not null)
             {
                 errors.Add($"Action {index + 1} ({action.Type}): {error}");
             }
-            
+
             index++;
         }
 
@@ -87,12 +87,12 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             errors.AddRange(structureValidation.Errors);
         }
 
-        if (errors.Count == 0 && RequiresScriptBackedCompilation(actionList))
+        if (errors.Count is 0 && RequiresScriptBackedCompilation(actionList))
         {
             ValidateScriptCompilation(actionList, errors);
         }
-        
-        return (errors.Count == 0, errors);
+
+        return (errors.Count is 0, errors);
     }
 
     public (bool IsValid, List<string> Errors) ValidateEditorFields(IEnumerable<EditorAction> actions)
@@ -102,7 +102,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         for (var index = 0; index < actionList.Count; index++)
         {
             var (isValid, error) = Validate(actionList[index]);
-            if (!isValid && error != null)
+            if (!isValid && error is not null)
             {
                 errors.Add($"Action {index + 1} ({actionList[index].Type}): {error}");
             }
@@ -114,9 +114,9 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             errors.AddRange(structureValidation.Errors);
         }
 
-        return (errors.Count == 0, errors);
+        return (errors.Count is 0, errors);
     }
-    
+
     private static (bool IsValid, string? Error) ValidateDelay(EditorAction action)
     {
         if (action.UseRandomDelay)
@@ -127,7 +127,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             if (action.RandomDelayMaxMs < action.RandomDelayMinMs)
                 return (false, ValidationMessages.RandomDelayBoundsInvalid);
 
-            if (action.RandomDelayMinMs == 0 && action.RandomDelayMaxMs == 0)
+            if (action.RandomDelayMinMs is 0 && action.RandomDelayMaxMs is 0)
                 return (false, ValidationMessages.DelayMustBePositive);
 
             if (action.RandomDelayMaxMs > EditorActionValidationLimits.MaxDelayMs)
@@ -139,37 +139,37 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         if (action.DelayMs < 0)
             return (false, ValidationMessages.DelayMustBeNonNegative);
 
-        if (action.DelayMs == 0)
+        if (action.DelayMs is 0)
             return (false, ValidationMessages.DelayMustBePositive);
 
         if (action.DelayMs > EditorActionValidationLimits.MaxDelayMs)
             return (false, ValidationMessages.DelayTooLong);
-        
+
         return (true, null);
     }
-    
+
     private static (bool IsValid, string? Error) ValidateKeyAction(EditorAction action)
     {
         if (action.KeyCode <= 0)
             return (false, ValidationMessages.KeyCodeMustBePositive);
-        
+
         if (action.KeyCode > EditorActionValidationLimits.MaxKeyCode)
             return (false, ValidationMessages.KeyCodeInvalid);
-        
+
         return (true, null);
     }
-    
+
     private static (bool IsValid, string? Error) ValidateScroll(EditorAction action)
     {
-        if (action.ScrollAmount == 0)
+        if (action.ScrollAmount is 0)
             return (false, ValidationMessages.ScrollAmountCannotBeZero);
-        
+
         if (Math.Abs(action.ScrollAmount) > EditorActionValidationLimits.MaxScrollAmount)
             return (false, ValidationMessages.ScrollAmountTooLarge);
-        
+
         return (true, null);
     }
-    
+
     private static (bool IsValid, string? Error) ValidateMouseMove(EditorAction action)
     {
         return ValidateCoordinateBounds(action, requireRelativeNonZero: true);
@@ -182,7 +182,9 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
         if (action.Button is MouseButton.ScrollUp or MouseButton.ScrollDown
             or MouseButton.ScrollLeft or MouseButton.ScrollRight)
+        {
             return (false, ValidationMessages.UseScrollActionForScrollButtons);
+        }
 
         if (action.UseCurrentPosition && action.IsAbsolute)
             return (false, ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
@@ -199,16 +201,20 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
             if (action.X > EditorActionValidationLimits.MaxAbsoluteCoordinate
                 || action.Y > EditorActionValidationLimits.MaxAbsoluteCoordinate)
+            {
                 return (false, ValidationMessages.CoordsExceedMaximum);
+            }
         }
         else
         {
-            if (requireRelativeNonZero && action.X == 0 && action.Y == 0)
+            if (requireRelativeNonZero && action.X is 0 && action.Y is 0)
                 return (false, ValidationMessages.RelativeMoveMustHaveValue);
 
             if (Math.Abs(action.X) > EditorActionValidationLimits.MaxRelativeCoordinateDelta
                 || Math.Abs(action.Y) > EditorActionValidationLimits.MaxRelativeCoordinateDelta)
+            {
                 return (false, ValidationMessages.RelativeMoveTooLarge);
+            }
         }
 
         return (true, null);
@@ -228,7 +234,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             EditorActionType.MouseDown or
             EditorActionType.MouseUp;
     }
-    
+
     private static (bool IsValid, string? Error) ValidateTextInput(EditorAction action)
     {
         if (string.IsNullOrEmpty(action.Text))
@@ -365,13 +371,13 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         }
 
         var error = RunScriptWindowExecutor.Validate(EditorActionConverter.BuildWindowStep(action));
-        return error == null ? (true, null) : (false, error);
+        return error is null ? (true, null) : (false, error);
     }
 
     private static bool IsIntegerOrVariable(string token)
     {
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            || token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+            || (token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token));
     }
 
     private static bool HasCheckedRegionEndpoints(int left, int top, int width, int height)
@@ -397,7 +403,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
     private static bool IsValidShellCaptureTarget(string target)
     {
-        return target == "_" || EditorActionScriptTokens.IsValidVariableName(target);
+        return target is "_" || EditorActionScriptTokens.IsValidVariableName(target);
     }
 
     private static (bool IsValid, string? Error) ValidateActionPayload(EditorAction action)
@@ -414,7 +420,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             EditorActionType.RepeatBlockStart => ValidateRepeat(action),
             EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart => ValidateCondition(action),
             EditorActionType.ForBlockStart => ValidateFor(action),
-            _ => (false, ValidationMessages.ActionPayloadRequired)
+            _ => (false, ValidationMessages.ActionPayloadRequired),
         };
     }
 
@@ -439,7 +445,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             ScriptValueType.VariableReference => EditorActionScriptTokens.IsValidVariableName(action.ScriptValue)
                 ? (true, null)
                 : (false, "Referenced variable name is invalid."),
-            _ => (false, ValidationMessages.ActionPayloadRequired)
+            _ => (false, ValidationMessages.ActionPayloadRequired),
         };
     }
 
@@ -452,7 +458,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
         if (!EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
         {
-            if (action.ScriptNumericSourceType == ScriptNumericSourceType.VariableReference)
+            if (action.ScriptNumericSourceType is ScriptNumericSourceType.VariableReference)
             {
                 return (false, "Amount variable reference must be a variable name (example: step or $step), not a number literal.");
             }
@@ -467,7 +473,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
     {
         if (!EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
         {
-            if (action.ScriptNumericSourceType == ScriptNumericSourceType.VariableReference)
+            if (action.ScriptNumericSourceType is ScriptNumericSourceType.VariableReference)
             {
                 return (false, "Repeat variable reference must be a variable name (example: count or $count), not a number literal.");
             }
@@ -475,9 +481,9 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             return (false, "Repeat count must be an integer or a valid variable reference.");
         }
 
-        if (action.ScriptNumericSourceType == ScriptNumericSourceType.Number
-            && int.TryParse(action.ScriptNumericValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var repeatCount)
-            && repeatCount < 0)
+        if (action.ScriptNumericSourceType is ScriptNumericSourceType.Number
+&& int.TryParse(action.ScriptNumericValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var repeatCount)
+&& repeatCount < 0)
         {
             return (false, "Repeat count must be >= 0.");
         }
@@ -509,7 +515,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
         if (!EditorActionScriptTokens.ValidateNumericToken(action.ForStartType, action.ForStartValue))
         {
-            if (action.ForStartType == ScriptNumericSourceType.VariableReference)
+            if (action.ForStartType is ScriptNumericSourceType.VariableReference)
             {
                 return (false, "For start variable reference must be a variable name (example: start or $start), not a number literal.");
             }
@@ -519,7 +525,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
         if (!EditorActionScriptTokens.ValidateNumericToken(action.ForEndType, action.ForEndValue))
         {
-            if (action.ForEndType == ScriptNumericSourceType.VariableReference)
+            if (action.ForEndType is ScriptNumericSourceType.VariableReference)
             {
                 return (false, "For end variable reference must be a variable name (example: finish or $finish), not a number literal.");
             }
@@ -529,7 +535,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
         if (action.ForHasStep && !EditorActionScriptTokens.ValidateNumericToken(action.ForStepType, action.ForStepValue))
         {
-            if (action.ForStepType == ScriptNumericSourceType.VariableReference)
+            if (action.ForStepType is ScriptNumericSourceType.VariableReference)
             {
                 return (false, "For step variable reference must be a variable name (example: step or $step), not a number literal.");
             }
@@ -538,9 +544,9 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
         }
 
         if (action.ForHasStep
-            && action.ForStepType == ScriptNumericSourceType.Number
-            && int.TryParse(action.ForStepValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numericStep)
-            && numericStep == 0)
+&& action.ForStepType is ScriptNumericSourceType.Number
+&& int.TryParse(action.ForStepValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numericStep)
+&& numericStep is 0)
         {
             return (false, "For step cannot be 0.");
         }
@@ -581,7 +587,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
         if (!payload.HasValidTargetColor())
         {
-            return payload.ScreenTargetColorSource == EditorActionScreenTargetColorSource.Variable
+            return payload.ScreenTargetColorSource is EditorActionScreenTargetColorSource.Variable
                 ? (false, "Wait color target variable name is invalid.")
                 : (false, "Wait color target must be 6 hexadecimal RGB characters.");
         }
@@ -615,7 +621,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
         if (!payload.HasValidTargetColor())
         {
-            return payload.ScreenTargetColorSource == EditorActionScreenTargetColorSource.Variable
+            return payload.ScreenTargetColorSource is EditorActionScreenTargetColorSource.Variable
                 ? (false, "Pixel search target variable name is invalid.")
                 : (false, "Pixel search target must be 6 hexadecimal RGB characters.");
         }
@@ -682,8 +688,8 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             return (false, "Image search timeout must be >= 0.");
         }
 
-        if (action.Type == EditorActionType.ImageClick
-            && action.Button is not (MouseButton.Left or MouseButton.Right or MouseButton.Middle))
+        if (action.Type is EditorActionType.ImageClick
+&& action.Button is not (MouseButton.Left or MouseButton.Right or MouseButton.Middle))
         {
             return (false, "Image click button must be left, right, or middle.");
         }
@@ -704,7 +710,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
     private void ValidateScriptCompilation(IReadOnlyList<EditorAction> actions, List<string> errors)
     {
         var scriptSteps = actions
-            .Where(action => action.Type == EditorActionType.RawScriptStep && !string.IsNullOrWhiteSpace(action.Text))
+            .Where(action => action.Type is EditorActionType.RawScriptStep && !string.IsNullOrWhiteSpace(action.Text))
             .Select((action, index) => new RunScriptStep(action.Text, SourceIndex: index))
             .ToList();
         if (scriptSteps.Count > 0 && _scriptValidationService is not null)
@@ -772,8 +778,8 @@ public sealed class EditorActionValidator : IEditorActionValidator
             return (false, ValidationMessages.ActionCannotBeNull);
         }
 
-        return action.Type == EditorActionType.RawScriptStep
-            && (RunScriptSyntax.IsWindowStep(action.Text)
+        return action.Type is EditorActionType.RawScriptStep
+&& (RunScriptSyntax.IsWindowStep(action.Text)
                 || RunScriptSyntax.IsClipboardStep(action.Text)
                 || RunScriptSyntax.IsShellStep(action.Text)
                 || RunScriptSyntax.IsScreenReadingStep(action.Text)
@@ -792,11 +798,11 @@ public sealed class EditorActionValidator : IEditorActionValidator
         var actionList = actions.ToList();
         var editorResult = _projectionValidator.ValidateEditorFields(actionList);
         var errors = editorResult.Errors;
-        if (errors.Count == 0)
+        if (errors.Count is 0)
         {
             errors.AddRange(_scriptAdapter.Validate(actionList));
         }
 
-        return (errors.Count == 0, errors);
+        return (errors.Count is 0, errors);
     }
 }

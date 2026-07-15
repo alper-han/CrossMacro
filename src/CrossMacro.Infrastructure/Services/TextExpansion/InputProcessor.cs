@@ -11,7 +11,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
     {
         private readonly IKeyboardLayoutService _layoutService;
         private readonly Lock _stateLock = new();
-        
+
         // Modifier state
         private bool _isLeftShiftPressed;
         private bool _isRightShiftPressed;
@@ -64,7 +64,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
         public void ProcessEvent(InputCaptureEventArgs e)
         {
             // Only process key events
-            if (e.Type != InputEventType.Key) return;
+            if (e.Type is not InputEventType.Key) return;
 
             // Skip character/special-key processing while an expansion is in progress
             if (_isSuspended)
@@ -87,14 +87,14 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
                 UpdatePressedKeys(e);
 
                 // Toggle CapsLock on Press
-                if (e.Code == InputEventCode.KEY_CAPSLOCK && e.Value == 1)
+                if (e.Code == InputEventCode.KEY_CAPSLOCK && e.Value is 1)
                 {
                     _isCapsLockOn = !_isCapsLockOn;
                     return;
                 }
 
                 // Only process key PRESS (value == 1) for actual typing logic
-                if (e.Value != 1) return;
+                if (e.Value is not 1) return;
 
                 // Debouncing check
                 long now = DateTime.UtcNow.Ticks;
@@ -127,12 +127,12 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
                         // Explicitly handle space if layout service returns null for it (it shouldn't, but safe fallback)
                         receivedCharacter = _layoutService.GetCharFromKeyCode(
                             InputEventCode.KEY_SPACE,
-                            false,
-                            false,
-                            false,
-                            false,
-                            false,
-                            false);
+leftShift: false,
+rightShift: false,
+rightAlt: false,
+leftAlt: false,
+leftCtrl: false,
+capsLock: false);
                     }
                 }
             }
@@ -151,7 +151,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
         {
             // Value 1 = Press, 2 = Repeat, 0 = Release.
             // We consider it pressed if 1 or 2.
-            bool isPressed = e.Value == 1 || e.Value == 2;
+            bool isPressed = e.Value is 1 or 2;
 
             switch (e.Code)
             {
@@ -179,11 +179,11 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
 
         private void UpdatePressedKeys(InputCaptureEventArgs e)
         {
-            if (e.Value == 0)
+            if (e.Value is 0)
             {
                 _pressedKeys.Remove(e.Code);
             }
-            else if (e.Value == 1 || e.Value == 2)
+            else if (e.Value is 1 or 2)
             {
                 _pressedKeys.Add(e.Code);
             }

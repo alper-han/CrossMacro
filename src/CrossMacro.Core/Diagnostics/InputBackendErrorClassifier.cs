@@ -11,18 +11,18 @@ public static class InputBackendErrorClassifier
     private static readonly string[] KnownUnavailableFragments =
     [
         "No usable Linux input capture backend is available.",
-        "No usable Linux input backend is available."
+        "No usable Linux input backend is available.",
     ];
 
     public static bool IsKnownUnavailable(Exception? exception)
     {
-        if (exception == null)
+        if (exception is null)
         {
             return false;
         }
 
         var current = exception;
-        while (current != null)
+        while (current is not null)
         {
             if (IsKnownUnavailableMessage(current.Message))
             {

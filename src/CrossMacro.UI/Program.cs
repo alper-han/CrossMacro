@@ -41,7 +41,7 @@ public static class Program
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp(GuiBootstrapContext? bootstrapContext = null)
     {
-        var builder = bootstrapContext == null
+        var builder = bootstrapContext is null
             ? AppBuilder.Configure<App>()
             : AppBuilder.Configure(() => new App(bootstrapContext));
 
@@ -55,7 +55,7 @@ public static class Program
                 FontFallbacks =
                 [
                     new FontFallback { FontFamily = new FontFamily("avares://Avalonia.Fonts.Inter/Assets#Inter") }
-                ]
+                ],
             });
     }
 

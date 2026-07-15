@@ -16,12 +16,12 @@ internal static class HostCommandProbe
                     ArgumentList = { "-c", $"command -v {fileName} >/dev/null 2>&1" },
                     UseShellExecute = false,
                     CreateNoWindow = true
-                }
+                },
             };
 
             process.Start();
             process.WaitForExit();
-            return process.ExitCode == 0;
+            return process.ExitCode is 0;
         }
         catch
         {
@@ -41,12 +41,12 @@ internal static class HostCommandProbe
                     ArgumentList = { "--host", "sh", "-c", $"command -v {fileName} >/dev/null 2>&1" },
                     UseShellExecute = false,
                     CreateNoWindow = true
-                }
+                },
             };
 
             process.Start();
             process.WaitForExit();
-            return process.ExitCode == 0;
+            return process.ExitCode is 0;
         }
         catch
         {

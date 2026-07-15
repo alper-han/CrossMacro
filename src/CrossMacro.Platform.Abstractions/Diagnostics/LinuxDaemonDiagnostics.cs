@@ -12,7 +12,7 @@ public enum LinuxDaemonSocketAccessStatus
     WrongType = 3,
     ConnectionRefusedOrStale = 4,
     Timeout = 5,
-    UnexpectedError = 6
+    UnexpectedError = 6,
 }
 
 public enum LinuxDaemonHandshakeStatus
@@ -25,7 +25,7 @@ public enum LinuxDaemonHandshakeStatus
     Timeout = 5,
     ProtocolMismatch = 6,
     HandshakeRejected = 7,
-    UnexpectedError = 8
+    UnexpectedError = 8,
 }
 
 public enum LinuxDaemonGroupMembershipStatus
@@ -34,7 +34,7 @@ public enum LinuxDaemonGroupMembershipStatus
     MissingGroup = 1,
     UserNotMember = 2,
     StaleSession = 3,
-    Unknown = 4
+    Unknown = 4,
 }
 
 public enum LinuxDirectInputFallbackStatus
@@ -43,7 +43,7 @@ public enum LinuxDirectInputFallbackStatus
     MissingUInputWriteAccess = 1,
     MissingInputEventReadAccess = 2,
     Unavailable = 3,
-    Unknown = 4
+    Unknown = 4,
 }
 
 public enum LinuxFileSystemEntryKind
@@ -53,7 +53,7 @@ public enum LinuxFileSystemEntryKind
     Socket = 2,
     Directory = 3,
     File = 4,
-    Other = 5
+    Other = 5,
 }
 
 public readonly record struct LinuxDaemonSocketProbeOptions(
@@ -88,7 +88,7 @@ public readonly record struct LinuxDaemonGroupMembershipResult(
     string? Message = null,
     Exception? Exception = null)
 {
-    public bool IsCurrentSessionMember => Status == LinuxDaemonGroupMembershipStatus.Member;
+    public bool IsCurrentSessionMember => Status is LinuxDaemonGroupMembershipStatus.Member;
 }
 
 public interface ILinuxDaemonSocketAccessProbe
@@ -105,7 +105,7 @@ public readonly record struct LinuxDaemonSocketAccessResult(
     string? Message = null,
     Exception? Exception = null)
 {
-    public bool IsAccessible => Status == LinuxDaemonSocketAccessStatus.Accessible;
+    public bool IsAccessible => Status is LinuxDaemonSocketAccessStatus.Accessible;
 
     public static LinuxDaemonSocketAccessResult Accessible(
         string socketPath,
@@ -127,8 +127,8 @@ public readonly record struct LinuxDaemonHandshakeProbeResult(
     string? Message = null,
     Exception? Exception = null)
 {
-    public bool Succeeded => Status == LinuxDaemonHandshakeStatus.Success;
-    public bool TimedOut => Status == LinuxDaemonHandshakeStatus.Timeout;
+    public bool Succeeded => Status is LinuxDaemonHandshakeStatus.Success;
+    public bool TimedOut => Status is LinuxDaemonHandshakeStatus.Timeout;
 
     public static LinuxDaemonHandshakeProbeResult Success(string socketPath, TimeSpan timeout)
     {
@@ -142,7 +142,7 @@ public readonly record struct LinuxDaemonHandshakeProbeResult(
         string? message = null,
         Exception? exception = null)
     {
-        if (status == LinuxDaemonHandshakeStatus.Success)
+        if (status is LinuxDaemonHandshakeStatus.Success)
         {
             throw new ArgumentException("Use Success for successful daemon handshakes.", nameof(status));
         }
@@ -157,13 +157,13 @@ public readonly record struct LinuxDirectInputFallbackResult(
     bool CanReadInputEvents,
     string? Message = null)
 {
-    public bool IsAvailable => Status == LinuxDirectInputFallbackStatus.Available;
+    public bool IsAvailable => Status is LinuxDirectInputFallbackStatus.Available;
 
     public static LinuxDirectInputFallbackResult FromAccess(bool canWriteUInput, bool canReadInputEvents)
     {
         if (canWriteUInput && canReadInputEvents)
         {
-            return new(LinuxDirectInputFallbackStatus.Available, true, true);
+            return new(LinuxDirectInputFallbackStatus.Available, CanWriteUInput: true, CanReadInputEvents: true);
         }
 
         var status = !canWriteUInput

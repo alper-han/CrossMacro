@@ -36,7 +36,7 @@ public class LinuxGuiCompositionTests
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
-            ValidateScopes = true
+            ValidateScopes = true,
         });
         var startupCoordinator = provider.GetRequiredService<IDesktopStartupCoordinator>();
         var textExpansionService = provider.GetRequiredService<ITextExpansionService>();

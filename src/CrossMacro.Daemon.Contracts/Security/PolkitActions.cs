@@ -8,6 +8,6 @@ public static class PolkitActions
     public static readonly string[] All =
     [
         InputCapture,
-        InputSimulate
+        InputSimulate,
     ];
 }

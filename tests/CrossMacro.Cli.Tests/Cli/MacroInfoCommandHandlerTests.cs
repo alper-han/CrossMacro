@@ -29,7 +29,7 @@ public class MacroInfoCommandHandlerTests
                 Success = false,
                 ExitCode = CliExitCode.FileError,
                 Message = "Macro file not found.",
-                Errors = ["File does not exist"]
+                Errors = ["File does not exist"],
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
@@ -47,7 +47,7 @@ public class MacroInfoCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Macro info loaded."
+                Message = "Macro info loaded.",
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);

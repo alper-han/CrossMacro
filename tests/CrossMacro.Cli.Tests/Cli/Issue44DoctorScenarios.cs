@@ -38,7 +38,7 @@ internal sealed class Issue44DoctorScenario
             ExpectedReadinessStatus = directFallbackAvailable ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
             _socketAccessStatus = LinuxDaemonSocketAccessStatus.PermissionDenied,
             _groupMembershipStatus = LinuxDaemonGroupMembershipStatus.UserNotMember,
-            _handshakeStatus = LinuxDaemonHandshakeStatus.PermissionDenied
+            _handshakeStatus = LinuxDaemonHandshakeStatus.PermissionDenied,
         };
 
         scenario._existingPaths.Add(IpcProtocol.DefaultSocketPath);
@@ -59,7 +59,7 @@ internal sealed class Issue44DoctorScenario
             ExpectedHandshakeStatus = DoctorCheckStatus.Warn,
             ExpectedReadinessStatus = DoctorCheckStatus.Pass,
             _socketAccessStatus = LinuxDaemonSocketAccessStatus.Missing,
-            _handshakeStatus = LinuxDaemonHandshakeStatus.MissingSocket
+            _handshakeStatus = LinuxDaemonHandshakeStatus.MissingSocket,
         };
 
         scenario._existingPaths.Add("/dev/uinput");
@@ -75,16 +75,16 @@ internal sealed class Issue44DoctorScenario
     {
         var scenario = new Issue44DoctorScenario(nameof(SocketAccessible))
         {
-            DaemonHandshakeSucceeds = handshakeStatus == LinuxDaemonHandshakeStatus.Success,
-            ExpectedHandshakeStatus = handshakeStatus == LinuxDaemonHandshakeStatus.Success
+            DaemonHandshakeSucceeds = handshakeStatus is LinuxDaemonHandshakeStatus.Success,
+            ExpectedHandshakeStatus = handshakeStatus is LinuxDaemonHandshakeStatus.Success
                 ? DoctorCheckStatus.Pass
                 : directFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail,
-            ExpectedReadinessStatus = handshakeStatus == LinuxDaemonHandshakeStatus.Success || directFallbackAvailable
+            ExpectedReadinessStatus = handshakeStatus is LinuxDaemonHandshakeStatus.Success || directFallbackAvailable
                 ? DoctorCheckStatus.Pass
                 : DoctorCheckStatus.Fail,
             _socketAccessStatus = LinuxDaemonSocketAccessStatus.Accessible,
             _groupMembershipStatus = groupMembershipStatus,
-            _handshakeStatus = handshakeStatus
+            _handshakeStatus = handshakeStatus,
         };
 
         scenario._existingPaths.Add(IpcProtocol.DefaultSocketPath);
@@ -110,7 +110,7 @@ internal sealed class Issue44DoctorScenario
 
     public bool CanOpenForRead(string path)
     {
-        return path == "/dev/input/event0" && _existingPaths.Contains(path);
+        return path is "/dev/input/event0" && _existingPaths.Contains(path);
     }
 
     public string[] GetInputEventCandidates()
@@ -120,12 +120,12 @@ internal sealed class Issue44DoctorScenario
 
     public string? GetEnvironmentVariable(string key)
     {
-        return key == "XDG_SESSION_TYPE" ? SessionType : null;
+        return key is "XDG_SESSION_TYPE" ? SessionType : null;
     }
 
     public bool ProbeDaemonHandshake(string socketPath)
     {
-        if (SocketProbePermissionDenied && socketPath == IpcProtocol.DefaultSocketPath)
+        if (SocketProbePermissionDenied && string.Equals(socketPath, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal))
         {
             return false;
         }
@@ -135,7 +135,7 @@ internal sealed class Issue44DoctorScenario
 
     public LinuxDaemonSocketAccessResult ProbeDaemonSocketAccess(string socketPath)
     {
-        if (_socketAccessStatus == LinuxDaemonSocketAccessStatus.Missing)
+        if (_socketAccessStatus is LinuxDaemonSocketAccessStatus.Missing)
         {
             return LinuxDaemonSocketAccessResult.Missing(socketPath);
         }
@@ -154,13 +154,13 @@ internal sealed class Issue44DoctorScenario
             _groupMembershipStatus,
             new LinuxDaemonSocketMetadata(socketPath, LinuxFileSystemEntryKind.Socket, 980, 4242, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite),
             membership,
-            _socketAccessStatus == LinuxDaemonSocketAccessStatus.PermissionDenied ? "Permission denied" : null,
-            _socketAccessStatus == LinuxDaemonSocketAccessStatus.PermissionDenied ? new UnauthorizedAccessException("Permission denied") : null);
+            _socketAccessStatus is LinuxDaemonSocketAccessStatus.PermissionDenied ? "Permission denied" : null,
+            _socketAccessStatus is LinuxDaemonSocketAccessStatus.PermissionDenied ? new UnauthorizedAccessException("Permission denied") : null);
     }
 
     public LinuxDaemonHandshakeProbeResult ProbeDaemonHandshakeDiagnostic(string socketPath, TimeSpan timeout)
     {
-        return _handshakeStatus == LinuxDaemonHandshakeStatus.Success
+        return _handshakeStatus is LinuxDaemonHandshakeStatus.Success
             ? LinuxDaemonHandshakeProbeResult.Success(socketPath, timeout)
             : LinuxDaemonHandshakeProbeResult.Failed(socketPath, timeout, _handshakeStatus, $"{_handshakeStatus} handshake failure");
     }

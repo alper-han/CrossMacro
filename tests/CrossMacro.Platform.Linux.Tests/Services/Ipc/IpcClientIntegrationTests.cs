@@ -767,13 +767,13 @@ public class IpcClientIntegrationTests
         await daemon.WaitForCommandCountAsync(expected: 11, timeout: TimeSpan.FromSeconds(2));
         var commands = daemon.GetCommandsSnapshot();
 
-        Assert.Contains(commands, c => c.OpCode == IpcOpCode.ConfigureResolution && c.Width == 1920 && c.Height == 1080);
-        Assert.Contains(commands, c => c.OpCode == IpcOpCode.SimulateEvent && c.Type == 0x02 && c.Code == 0x00 && c.Value == 5);
-        Assert.Contains(commands, c => c.OpCode == IpcOpCode.SimulateEvent && c.Type == 0x02 && c.Code == 0x01 && c.Value == -3);
-        Assert.Contains(commands, c => c.OpCode == IpcOpCode.SimulateEvent && c.Type == 0x01 && c.Code == 1 && c.Value == 1);
-        Assert.Contains(commands, c => c.OpCode == IpcOpCode.SimulateEvent && c.Type == 0x02 && c.Code == 0x06 && c.Value == -2);
-        Assert.Contains(commands, c => c.OpCode == IpcOpCode.SimulateEvent && c.Type == 0x01 && c.Code == 30 && c.Value == 1);
-        Assert.Contains(commands, c => c.OpCode == IpcOpCode.SimulateEvent && c.Type == 0x00 && c.Code == 0x00 && c.Value == 0);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.ConfigureResolution && c.Width is 1920 && c.Height is 1080);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x02 && c.Code is 0x00 && c.Value is 5);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x02 && c.Code is 0x01 && c.Value == -3);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x01 && c.Code is 1 && c.Value is 1);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x02 && c.Code is 0x06 && c.Value == -2);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x01 && c.Code is 30 && c.Value is 1);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x00 && c.Code is 0x00 && c.Value is 0);
     }
 
     [LinuxFact]
@@ -792,7 +792,7 @@ public class IpcClientIntegrationTests
             new(0x01, 30, 1, 1),
             new(0x00, 0, 0, 2),
             new(0x01, 30, 0, 3),
-            new(0x00, 0, 0, 4)
+            new(0x00, 0, 0, 4),
         ];
 
         simulator.SimulateBatch(steps);
@@ -882,7 +882,7 @@ public class IpcClientIntegrationTests
         FailFirstStartAfterDelay = 6,
         FailSimulationBatch = 7,
         DropSimulationBatchBeforeAck = 8,
-        HoldSimulationBatchWithoutAck = 9
+        HoldSimulationBatchWithoutAck = 9,
     }
 
     private readonly record struct CapturedCommand(
@@ -973,7 +973,7 @@ public class IpcClientIntegrationTests
 
                 var handshakeOp = (IpcOpCode)reader.ReadByte();
                 var protocolVersion = reader.ReadInt32();
-                if (handshakeOp != IpcOpCode.Handshake || protocolVersion != IpcProtocol.ProtocolVersion)
+                if (handshakeOp is not IpcOpCode.Handshake || protocolVersion != IpcProtocol.ProtocolVersion)
                 {
                     writer.Write((byte)IpcOpCode.Error);
                     writer.Write("Invalid handshake");
@@ -981,7 +981,7 @@ public class IpcClientIntegrationTests
                     return;
                 }
 
-                if (_handshakeBehavior == HandshakeBehavior.ErrorResponse)
+                if (_handshakeBehavior is HandshakeBehavior.ErrorResponse)
                 {
                     writer.Write((byte)IpcOpCode.Error);
                     writer.Write("Authorization denied");
@@ -989,7 +989,7 @@ public class IpcClientIntegrationTests
                     return;
                 }
 
-                if (_handshakeBehavior == HandshakeBehavior.ProtocolMismatch)
+                if (_handshakeBehavior is HandshakeBehavior.ProtocolMismatch)
                 {
                     writer.Write((byte)IpcOpCode.Handshake);
                     writer.Write(IpcProtocol.ProtocolVersion + 1);
@@ -997,7 +997,7 @@ public class IpcClientIntegrationTests
                     return;
                 }
 
-                if (_handshakeBehavior == HandshakeBehavior.NoResponse)
+                if (_handshakeBehavior is HandshakeBehavior.NoResponse)
                 {
                     await Task.Delay(Timeout.InfiniteTimeSpan, token);
                     return;
@@ -1036,8 +1036,7 @@ public class IpcClientIntegrationTests
                                 CaptureKeyboard: captureKeyboard));
                             _commandSignal.Release();
                             _startCaptureCount++;
-                            if (_handshakeBehavior == HandshakeBehavior.FailFirstStartAfterDelay &&
-                                _startCaptureCount == 1)
+                            if (_handshakeBehavior is HandshakeBehavior.FailFirstStartAfterDelay && _startCaptureCount is 1)
                             {
                                 await Task.Delay(TimeSpan.FromMilliseconds(300), token);
                                 if (!TryWriteCaptureStartFailed(writer, stream, requestId, "Simulated delayed start failure"))
@@ -1047,8 +1046,7 @@ public class IpcClientIntegrationTests
                                 break;
                             }
 
-                            if (_handshakeBehavior == HandshakeBehavior.FailSecondStartAfterDelay &&
-                                _startCaptureCount == 2)
+                            if (_handshakeBehavior is HandshakeBehavior.FailSecondStartAfterDelay && _startCaptureCount is 2)
                             {
                                 await Task.Delay(TimeSpan.FromMilliseconds(300), token);
                                 if (!TryWriteCaptureStartFailed(writer, stream, requestId, "Simulated delayed start failure"))
@@ -1058,7 +1056,7 @@ public class IpcClientIntegrationTests
                                 break;
                             }
 
-                            if (_handshakeBehavior == HandshakeBehavior.DelayAllCaptureStartAcks)
+                            if (_handshakeBehavior is HandshakeBehavior.DelayAllCaptureStartAcks)
                             {
                                 await Task.Delay(TimeSpan.FromMilliseconds(200), token);
                             }
@@ -1095,19 +1093,19 @@ public class IpcClientIntegrationTests
                                 _commandSignal.Release();
                             }
 
-                            if (_handshakeBehavior == HandshakeBehavior.DropSimulationBatchBeforeAck)
+                            if (_handshakeBehavior is HandshakeBehavior.DropSimulationBatchBeforeAck)
                             {
                                 _clientSocket?.Dispose();
                                 return;
                             }
 
-                            if (_handshakeBehavior == HandshakeBehavior.HoldSimulationBatchWithoutAck)
+                            if (_handshakeBehavior is HandshakeBehavior.HoldSimulationBatchWithoutAck)
                             {
                                 await Task.Delay(Timeout.InfiniteTimeSpan, token);
                                 return;
                             }
 
-                            if (_handshakeBehavior == HandshakeBehavior.FailSimulationBatch)
+                            if (_handshakeBehavior is HandshakeBehavior.FailSimulationBatch)
                             {
                                 if (!TryWriteSimulationBatchFailed(writer, stream, simulationRequestId, "Simulated batch failure"))
                                 {
@@ -1281,7 +1279,7 @@ public class IpcClientIntegrationTests
             {
             }
 
-            if (_serverTask != null)
+            if (_serverTask is not null)
             {
                 try
                 {

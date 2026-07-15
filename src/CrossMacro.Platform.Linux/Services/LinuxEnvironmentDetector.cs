@@ -9,7 +9,7 @@ namespace CrossMacro.Platform.Linux.Services;
 public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
 {
     private readonly Lazy<CompositorType> _compositor;
-    
+
     [Obsolete("Use the snapshot-backed constructor in production composition.", error: false)]
     internal LinuxEnvironmentDetector()
         : this(new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
@@ -24,9 +24,9 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
             environmentVariables.CaptureSnapshot(),
             OperatingSystem.IsLinux()));
     }
-    
+
     public CompositorType DetectedCompositor => _compositor.Value;
-    
+
     public bool IsWayland => DetectedCompositor switch
     {
         CompositorType.HYPRLAND => true,
@@ -37,8 +37,8 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
         CompositorType.GNOME => true,
         CompositorType.KDE => true,
         CompositorType.Other => true,
-        _ => false
+        _ => false,
     };
-    
-    public bool IsX11 => DetectedCompositor == CompositorType.X11;
+
+    public bool IsX11 => DetectedCompositor is CompositorType.X11;
 }

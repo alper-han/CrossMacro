@@ -20,12 +20,12 @@ public class RunScriptCompilerTests
         _keyCodeMapper.GetKeyCode("Enter").Returns(28);
         _keyCodeMapper.GetKeyCode("Tab").Returns(15);
         _keyCodeMapper.GetKeyCodeForCharacter('A').Returns(30);
-        _keyCodeMapper.RequiresShift('A').Returns(true);
-        _keyCodeMapper.RequiresAltGr('A').Returns(false);
+        _keyCodeMapper.RequiresShift('A').Returns(returnThis: true);
+        _keyCodeMapper.RequiresAltGr('A').Returns(returnThis: false);
         _keyCodeMapper.GetKeyCodeForCharacter('@').Returns(16);
-        _keyCodeMapper.RequiresShift('@').Returns(false);
-        _keyCodeMapper.RequiresAltGr('@').Returns(true);
-        _keyCodeMapper.IsModifierKeyCode(29).Returns(true);
+        _keyCodeMapper.RequiresShift('@').Returns(returnThis: false);
+        _keyCodeMapper.RequiresAltGr('@').Returns(returnThis: true);
+        _keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
 
         _compiler = new RunScriptCompiler(_keyCodeMapper);
     }
@@ -51,7 +51,7 @@ public class RunScriptCompilerTests
         var result = _compiler.Compile(
         [
             new RunScriptStep("move abs 100 200"),
-            new RunScriptStep("move rel 10 -5")
+            new RunScriptStep("move rel 10 -5"),
         ]);
 
         result.Success.Should().BeTrue();
@@ -70,7 +70,7 @@ public class RunScriptCompilerTests
         var result = _compiler.Compile(
         [
             new RunScriptStep("move rel 10 -5"),
-            new RunScriptStep("click left")
+            new RunScriptStep("click left"),
         ]);
 
         result.Success.Should().BeTrue();
@@ -93,7 +93,7 @@ public class RunScriptCompilerTests
             new RunScriptStep("move abs 100 200"),
             new RunScriptStep("click left"),
             new RunScriptStep("move rel 10 -5"),
-            new RunScriptStep("click right")
+            new RunScriptStep("click right"),
         ]);
 
         result.Success.Should().BeTrue();
@@ -114,7 +114,7 @@ public class RunScriptCompilerTests
         var result = _compiler.Compile(
         [
             new RunScriptStep("move abs 100 200"),
-            new RunScriptStep("click current left")
+            new RunScriptStep("click current left"),
         ]);
 
         result.Success.Should().BeTrue();
@@ -171,7 +171,7 @@ public class RunScriptCompilerTests
             new RunScriptStep("set name $$foo"),
             new RunScriptStep("if $name == $$foo {"),
             new RunScriptStep("click current left"),
-            new RunScriptStep("}")
+            new RunScriptStep("}"),
         };
 
         var result = _compiler.Compile(steps);
@@ -192,7 +192,7 @@ public class RunScriptCompilerTests
             new RunScriptStep("set color 1C1C1C"),
             new RunScriptStep("if $color == 1c1c1c {"),
             new RunScriptStep("click current left"),
-            new RunScriptStep("}")
+            new RunScriptStep("}"),
         };
 
         var result = _compiler.Compile(steps);
@@ -441,7 +441,7 @@ public class RunScriptCompilerTests
         var result = _compiler.Compile(
         [
             new RunScriptStep("pixelcolor 1 2 sampled"),
-            new RunScriptStep("bogus")
+            new RunScriptStep("bogus"),
         ]);
 
         result.Success.Should().BeFalse();
@@ -454,7 +454,7 @@ public class RunScriptCompilerTests
         var result = _compiler.Compile(
         [
             new RunScriptStep("pixelcolor 1 2 sampled"),
-            new RunScriptStep("break")
+            new RunScriptStep("break"),
         ]);
 
         result.Success.Should().BeFalse();
@@ -468,7 +468,7 @@ public class RunScriptCompilerTests
         [
             new RunScriptStep("set wait_ms 5"),
             new RunScriptStep("pixelcolor 1 2 sampled"),
-            new RunScriptStep("delay $wait_ms")
+            new RunScriptStep("delay $wait_ms"),
         ]);
 
         result.Success.Should().BeTrue(result.ErrorMessage);
@@ -482,7 +482,7 @@ public class RunScriptCompilerTests
         var result = _compiler.Compile(
         [
             new RunScriptStep("pixelcolor 1 2 sampled"),
-            new RunScriptStep("delay nope")
+            new RunScriptStep("delay nope"),
         ]);
 
         result.Success.Should().BeFalse();

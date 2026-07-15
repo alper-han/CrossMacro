@@ -105,11 +105,11 @@ public sealed class MacOSScreenFrameProviderTests
     {
         var backend = new RecordingCaptureBackend
         {
-            VirtualScreenBounds = new ScreenRect(-10, -20, 30, 40)
+            VirtualScreenBounds = new ScreenRect(-10, -20, 30, 40),
         };
         using var provider = new MacOSScreenFrameProvider(backend, new RecordingPermission(), () => true);
 
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
         Assert.Equal(new ScreenRect(-10, -20, 30, 40), backend.LastRegion);

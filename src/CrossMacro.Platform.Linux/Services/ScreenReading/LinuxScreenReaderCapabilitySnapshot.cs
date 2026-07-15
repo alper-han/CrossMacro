@@ -31,6 +31,6 @@ public readonly record struct LinuxScreenReaderCapabilitySnapshot(
         LinuxScreenReaderBackend.WlrScreencopy => WlrScreencopy,
         LinuxScreenReaderBackend.Portal => Portal,
         LinuxScreenReaderBackend.GnomeExtension => GnomeExtension,
-        _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend.")
+        _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend."),
     };
 }

@@ -78,7 +78,7 @@ internal static class DbusWrapperProtocolTestHelpers
         {
             VariantValue variantValue => UnboxVariant(variantValue),
             null => string.Empty,
-            _ => value
+            _ => value,
         };
     }
 
@@ -102,7 +102,7 @@ internal static class DbusWrapperProtocolTestHelpers
             VariantValueType.Struct => UnboxStruct(value),
             VariantValueType.Dictionary => UnboxDictionary(value),
             VariantValueType.Variant => UnboxVariant(value.GetVariantValue()),
-            _ => value.ToString() ?? string.Empty
+            _ => value.ToString() ?? string.Empty,
         };
     }
 
@@ -110,16 +110,16 @@ internal static class DbusWrapperProtocolTestHelpers
     {
         return value.Type switch
         {
-            VariantValueType.Array when value.ItemType == VariantValueType.String => value.GetArray<string>(),
-            VariantValueType.Array when value.ItemType == VariantValueType.ObjectPath => value.GetArray<string>(),
-            VariantValueType.Array when value.ItemType == VariantValueType.Int32 => value.GetArray<int>(),
-            VariantValueType.Array when value.ItemType == VariantValueType.UInt32 => value.GetArray<uint>(),
-            VariantValueType.Array when value.ItemType == VariantValueType.Bool => value.GetArray<bool>(),
-            VariantValueType.Array when value.ItemType == VariantValueType.Byte => value.GetArray<byte>(),
-            VariantValueType.Array when value.ItemType == VariantValueType.Int64 => value.GetArray<long>(),
-            VariantValueType.Array when value.ItemType == VariantValueType.UInt64 => value.GetArray<ulong>(),
-            VariantValueType.Array when value.ItemType == VariantValueType.Double => value.GetArray<double>(),
-            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray()
+            VariantValueType.Array when value.ItemType is VariantValueType.String => value.GetArray<string>(),
+            VariantValueType.Array when value.ItemType is VariantValueType.ObjectPath => value.GetArray<string>(),
+            VariantValueType.Array when value.ItemType is VariantValueType.Int32 => value.GetArray<int>(),
+            VariantValueType.Array when value.ItemType is VariantValueType.UInt32 => value.GetArray<uint>(),
+            VariantValueType.Array when value.ItemType is VariantValueType.Bool => value.GetArray<bool>(),
+            VariantValueType.Array when value.ItemType is VariantValueType.Byte => value.GetArray<byte>(),
+            VariantValueType.Array when value.ItemType is VariantValueType.Int64 => value.GetArray<long>(),
+            VariantValueType.Array when value.ItemType is VariantValueType.UInt64 => value.GetArray<ulong>(),
+            VariantValueType.Array when value.ItemType is VariantValueType.Double => value.GetArray<double>(),
+            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         };
     }
 
@@ -130,7 +130,7 @@ internal static class DbusWrapperProtocolTestHelpers
             0 => Array.Empty<object>(),
             2 => (UnboxVariant(value.GetItem(0)), UnboxVariant(value.GetItem(1))),
             3 => (UnboxVariant(value.GetItem(0)), UnboxVariant(value.GetItem(1)), UnboxVariant(value.GetItem(2))),
-            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray()
+            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         };
     }
 
@@ -228,7 +228,7 @@ internal static class DbusWrapperProtocolTestHelpers
         var unixFdCountField = typeof(Message).GetField("<UnixFdCount>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
         bodyField.SetValue(message, new ReadOnlySequence<byte>(body));
-        isBigEndianField.SetValue(message, false);
+        isBigEndianField.SetValue(message, value: false);
         unixFdCountField.SetValue(message, 0);
         return message;
     }
@@ -252,7 +252,7 @@ public abstract class DbusIntegrationTestBase
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
         startInfo.ArgumentList.Add("--session");
         startInfo.ArgumentList.Add("--nofork");

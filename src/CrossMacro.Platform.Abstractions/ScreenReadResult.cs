@@ -19,7 +19,7 @@ public readonly record struct ScreenReadResult<T>
 
     public string? ErrorMessage { get; }
 
-    public static ScreenReadResult<T> Success(T value) => new(value, null, null);
+    public static ScreenReadResult<T> Success(T value) => new(value, errorKind: null, errorMessage: null);
 
     public static ScreenReadResult<T> Failure(ScreenReadErrorKind errorKind, string errorMessage)
     {

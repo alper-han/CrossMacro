@@ -42,7 +42,7 @@ internal static class ScheduleCommandParser
             "enable" => ParseTaskIdCommand(args, ScheduleCliAction.Enable, "schedule.enable"),
             "disable" => ParseTaskIdCommand(args, ScheduleCliAction.Disable, "schedule.disable"),
             "next" => ParseTaskIdCommand(args, ScheduleCliAction.Next, "schedule.next"),
-            _ => CliParseResult.Error($"Unknown schedule subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2))
+            _ => CliParseResult.Error($"Unknown schedule subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 

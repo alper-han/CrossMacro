@@ -17,7 +17,7 @@ public class GnomePositionProviderTests
         var info = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["state"] = (uint)1,
-            ["name"] = "Cursor Spy"
+            ["name"] = "Cursor Spy",
         };
 
         var enabled = GnomePositionProvider.TryReadEnabledState(info);
@@ -34,7 +34,7 @@ public class GnomePositionProviderTests
                 ("name", "Cursor Spy"),
                 ("enabled", true)));
 
-        var info = GnomeShellExtensionsClient.ReadGetExtensionInfoReply(reply, null);
+        var info = GnomeShellExtensionsClient.ReadGetExtensionInfoReply(reply, _: null);
 
         var enabled = GnomePositionProvider.TryReadEnabledState(info);
 
@@ -48,7 +48,7 @@ public class GnomePositionProviderTests
     {
         var info = new Dictionary<string, object>(StringComparer.Ordinal)
         {
-            ["state"] = state
+            ["state"] = state,
         };
 
         var enabled = GnomePositionProvider.TryReadEnabledState(info);
@@ -62,7 +62,7 @@ public class GnomePositionProviderTests
         var enabled = await GnomePositionProvider.IsExtensionEnabledAsync(
             () => Task.FromResult<IDictionary<string, object>>(new Dictionary<string, object>(StringComparer.Ordinal)
             {
-                ["state"] = 1d
+                ["state"] = 1d,
             }));
 
         Assert.True(enabled);

@@ -23,7 +23,7 @@ public static class ThemeCatalog
             new ThemeDescriptor("Everforest", "Theme.Everforest", "/Themes/Everforest.axaml"),
             new ThemeDescriptor("Gruvbox", "Theme.Gruvbox", "/Themes/Gruvbox.axaml"),
             new ThemeDescriptor("Solarized", "Theme.Solarized", "/Themes/Solarized.axaml"),
-            new ThemeDescriptor("Crimson", "Theme.Crimson", "/Themes/Crimson.axaml")
+            new ThemeDescriptor("Crimson", "Theme.Crimson", "/Themes/Crimson.axaml"),
         });
 
     public static IReadOnlyList<ThemeDescriptor> Themes => ThemeDescriptors;

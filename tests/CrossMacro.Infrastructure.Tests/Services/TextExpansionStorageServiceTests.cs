@@ -135,7 +135,7 @@ public class TextExpansionStorageServiceTests : IDisposable
         var expansions = new List<TextExpansion>
         {
             new(":mail", "test@example.com"),
-            new(":sig", "Best regards,\nTest User", true, PasteMethod.ShiftInsert, TextInsertionMode.DirectTyping, DirectTypingMethod.CompatibleKeyByKey)
+            new(":sig", "Best regards,\nTest User", true, PasteMethod.ShiftInsert, TextInsertionMode.DirectTyping, DirectTypingMethod.CompatibleKeyByKey),
         };
 
         // Act
@@ -156,7 +156,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     public async Task LoadAsync_WhenDirectTypingMethodIsMissing_DefaultsToFastBatch()
     {
         var service = CreateService();
-        var legacyJson = """
+        const string legacyJson = """
             [
               {
                 "trigger": ":typed",
@@ -180,7 +180,7 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var legacyJson = """
+        const string legacyJson = """
             [
               {
                 "trigger": ":mail",
@@ -226,7 +226,7 @@ public class TextExpansionStorageServiceTests : IDisposable
         var service = CreateService();
         var expansions = new List<TextExpansion>
         {
-            new(":test", "Test Value")
+            new(":test", "Test Value"),
         };
 
         // Act

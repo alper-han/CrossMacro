@@ -38,7 +38,7 @@ public class CliPreflightServiceTests
             callInfo[0] = string.Empty;
             return true;
         });
-        inputSimulator.IsSupported.Returns(false);
+        inputSimulator.IsSupported.Returns(returnThis: false);
         inputSimulator.ProviderName.Returns("MockSimulator");
 
         var service = new CliPreflightService(displaySession, inputSimulator, inputCapture, isLinux: () => false);
@@ -60,7 +60,7 @@ public class CliPreflightServiceTests
             callInfo[0] = string.Empty;
             return true;
         });
-        inputCapture.IsSupported.Returns(false);
+        inputCapture.IsSupported.Returns(returnThis: false);
         inputCapture.ProviderName.Returns("MockCapture");
 
         var service = new CliPreflightService(displaySession, inputSimulator, inputCapture, isLinux: () => false);

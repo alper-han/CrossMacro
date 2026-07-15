@@ -9,7 +9,7 @@ public enum InputProviderMode
     /// Use daemon IPC for input operations.
     /// </summary>
     Daemon,
-    
+
     /// <summary>
     /// Use direct /dev/uinput access (requires root or a group that can write /dev/uinput).
     /// </summary>
@@ -18,7 +18,7 @@ public enum InputProviderMode
     /// <summary>
     /// No usable input backend is available.
     /// </summary>
-    None
+    None,
 }
 
 /// <summary>
@@ -31,7 +31,7 @@ public interface ILinuxInputCapabilityDetector
     /// Checks if the daemon socket is available for IPC communication.
     /// </summary>
     bool CanConnectToDaemon { get; }
-    
+
     /// <summary>
     /// Checks if direct /dev/uinput write access is available.
     /// </summary>
@@ -41,7 +41,7 @@ public interface ILinuxInputCapabilityDetector
     /// Checks if at least one /dev/input/event* device is readable.
     /// </summary>
     bool CanReadInputEvents { get; }
-    
+
     /// <summary>
     /// Determines the appropriate input provider mode based on available capabilities.
     /// Result is cached briefly and refreshed periodically.

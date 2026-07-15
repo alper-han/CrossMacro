@@ -21,7 +21,7 @@ public static class TextExpansionConverters
         new FuncValueConverter<TextInsertionMode, string>(mode => mode switch
         {
             TextInsertionMode.DirectTyping => GetLocalizedText("TextExpansion_ModeDirectTyping", "Direct Typing"),
-            _ => GetLocalizedText("TextExpansion_ModePaste", "Paste")
+            _ => GetLocalizedText("TextExpansion_ModePaste", "Paste"),
         });
 
     /// <summary>
@@ -32,7 +32,7 @@ public static class TextExpansionConverters
         {
             PasteMethod.CtrlShiftV => "Ctrl+Shift+V",
             PasteMethod.ShiftInsert => "Shift+Insert",
-            _ => "Ctrl+V"
+            _ => "Ctrl+V",
         });
 
     /// <summary>
@@ -44,18 +44,18 @@ public static class TextExpansionConverters
             DirectTypingMethod.CompatibleKeyByKey => GetLocalizedText(
                 "TextExpansion_DirectTypingMethodCompatible",
                 "Compatible (key-by-key)"),
-            _ => GetLocalizedText("TextExpansion_DirectTypingMethodFast", "Fast (batched)")
+            _ => GetLocalizedText("TextExpansion_DirectTypingMethodFast", "Fast (batched)"),
         });
 
     /// <summary>
     /// Returns true when the insertion mode uses clipboard paste.
     /// </summary>
     public static readonly IValueConverter IsPasteMode =
-        new FuncValueConverter<TextInsertionMode, bool>(mode => mode == TextInsertionMode.Paste);
+        new FuncValueConverter<TextInsertionMode, bool>(mode => mode is TextInsertionMode.Paste);
 
     /// <summary>
     /// Returns true when the insertion mode uses direct typing.
     /// </summary>
     public static readonly IValueConverter IsDirectTypingMode =
-        new FuncValueConverter<TextInsertionMode, bool>(mode => mode == TextInsertionMode.DirectTyping);
+        new FuncValueConverter<TextInsertionMode, bool>(mode => mode is TextInsertionMode.DirectTyping);
 }

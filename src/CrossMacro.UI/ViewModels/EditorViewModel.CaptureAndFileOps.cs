@@ -17,7 +17,7 @@ public partial class EditorViewModel
 {
     private static async Task RunOnUiThreadAsync(Action action)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             action();
             return;
@@ -29,7 +29,7 @@ public partial class EditorViewModel
     public async Task CaptureMouseAsync()
     {
         var targetAction = SelectedAction;
-        if (targetAction == null)
+        if (targetAction is null)
         {
             Status = Localize("Editor_StatusSelectActionFirst");
             return;
@@ -59,7 +59,7 @@ public partial class EditorViewModel
 
                 if (targetAction.Type is EditorActionType.PixelColor or EditorActionType.WaitColor)
                 {
-                    if (targetAction.Type == EditorActionType.PixelColor)
+                    if (targetAction.Type is EditorActionType.PixelColor)
                     {
                         targetAction.IsAbsolute = true;
                     }
@@ -91,7 +91,7 @@ public partial class EditorViewModel
     public async Task CaptureKeyAsync()
     {
         var targetAction = SelectedAction;
-        if (targetAction == null)
+        if (targetAction is null)
         {
             Status = Localize("Editor_StatusSelectActionFirst");
             return;
@@ -137,7 +137,7 @@ public partial class EditorViewModel
     public async Task CaptureTargetColorAsync()
     {
         var targetAction = SelectedAction;
-        if (targetAction == null)
+        if (targetAction is null)
         {
             Status = Localize("Editor_StatusSelectActionFirst");
             return;
@@ -246,7 +246,7 @@ public partial class EditorViewModel
         Action<EditorAction, string> setOperand)
     {
         var targetAction = SelectedAction;
-        if (targetAction == null)
+        if (targetAction is null)
         {
             Status = Localize("Editor_StatusSelectActionFirst");
             return;
@@ -350,7 +350,7 @@ public partial class EditorViewModel
     private static bool IsConditionColorTarget(EditorAction action, Func<EditorAction, ScriptOperandType> getOperandType)
     {
         return action.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart
-            && getOperandType(action) == ScriptOperandType.Color;
+&& getOperandType(action) is ScriptOperandType.Color;
     }
 
     public Task CapturePixelSearchTopLeftAsync()
@@ -449,7 +449,7 @@ public partial class EditorViewModel
     private async Task CapturePixelSearchRegionPointAsync(EditorCaptureMode mode, Action<EditorAction, int, int> applyPoint)
     {
         var targetAction = SelectedAction;
-        if (targetAction == null)
+        if (targetAction is null)
         {
             Status = Localize("Editor_StatusSelectActionFirst");
             return;
@@ -499,13 +499,13 @@ public partial class EditorViewModel
     private async Task CaptureScreenshotRegionPointAsync(EditorCaptureMode mode, Action<EditorAction, int, int> applyPoint)
     {
         var targetAction = SelectedAction;
-        if (targetAction == null)
+        if (targetAction is null)
         {
             Status = Localize("Editor_StatusSelectActionFirst");
             return;
         }
 
-        if (targetAction.Type != EditorActionType.Screenshot)
+        if (targetAction.Type is not EditorActionType.Screenshot)
         {
             Status = Localize("Editor_StatusOperationBlocked");
             return;
@@ -567,7 +567,7 @@ public partial class EditorViewModel
 
 private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
     {
-        if (Actions.Count == 0)
+        if (Actions.Count is 0)
         {
             await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleNoActions"), Localize("Editor_DialogMessageNoActions"));
             return null;
@@ -603,7 +603,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             isAbsolute,
             skipInitialZeroZero);
         var sequence = _converter.ToMacroSequence(projection);
-        if (sequence == null)
+        if (sequence is null)
         {
             return null;
         }
@@ -649,7 +649,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         }
 
         var sequence = await BuildValidMacroSequenceAsync();
-        if (sequence == null)
+        if (sequence is null)
             return;
 
         IsRunningTest = true;
@@ -679,14 +679,14 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
     public async Task SaveMacroAsync()
     {
         var sequence = await BuildValidMacroSequenceAsync();
-        if (sequence == null)
+        if (sequence is null)
             return;
 
         try
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } }
+                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } },
             };
 
             var baseName = MacroName.EndsWith(MacroFileExtension, StringComparison.OrdinalIgnoreCase)
@@ -714,13 +714,13 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
     public async Task BrowseScreenshotOutputPathAsync()
     {
         var action = SelectedAction;
-        if (action == null)
+        if (action is null)
         {
             Status = Localize("Editor_StatusSelectActionFirst");
             return;
         }
 
-        if (action.Type != EditorActionType.Screenshot)
+        if (action.Type is not EditorActionType.Screenshot)
         {
             Status = Localize("Editor_StatusOperationBlocked");
             return;
@@ -728,7 +728,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
 
         var filters = new[]
         {
-            new FileDialogFilter { Name = Localize("Editor_ScreenshotFileDialogName"), Extensions = new[] { "png" } }
+            new FileDialogFilter { Name = Localize("Editor_ScreenshotFileDialogName"), Extensions = new[] { "png" } },
         };
         var currentFileName = Path.GetFileName(action.ScreenshotOutputPath);
         var defaultFileName = string.IsNullOrWhiteSpace(currentFileName)
@@ -750,7 +750,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
     {
         var filters = new[]
         {
-            new FileDialogFilter { Name = Localize("Editor_ImageAssetFileDialogName"), Extensions = new[] { "png" } }
+            new FileDialogFilter { Name = Localize("Editor_ImageAssetFileDialogName"), Extensions = new[] { "png" } },
         };
 
         var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_ImageAssetImportDialogTitle"), filters);
@@ -823,7 +823,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } }
+                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } },
             };
 
             var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_LoadDialogTitle"), filters);
@@ -835,7 +835,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
             }
 
             var sequence = await _fileManager.LoadAsync(filePath);
-            if (sequence == null)
+            if (sequence is null)
             {
                 SetLoadWarnings(Array.Empty<EditorActionRestoreWarning>());
                 Status = Localize("Editor_StatusLoadFailed");
@@ -862,7 +862,7 @@ private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
         SaveUndoState();
 
         ClearLoadedMacroSessionLink();
-        SetSelectedImageAssetPreview(null);
+        SetSelectedImageAssetPreview(preview: null);
         var restoreResult = _converter.FromMacroSequenceWithDiagnostics(sequence);
         var editorActions = restoreResult.Actions;
         SetLoadWarnings(restoreResult.Warnings);

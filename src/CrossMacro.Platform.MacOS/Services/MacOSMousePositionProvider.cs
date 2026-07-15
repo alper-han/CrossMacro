@@ -44,7 +44,7 @@ public class MacOSMousePositionProvider : IMousePositionProvider
         uint mainDisplay = CoreGraphics.CGMainDisplayID();
         var bounds = CoreGraphics.CGDisplayBounds(mainDisplay);
         return Task.FromResult<(int Width, int Height)?>((
-            (int)bounds.size.width, 
+            (int)bounds.size.width,
             (int)bounds.size.height
         ));
     }

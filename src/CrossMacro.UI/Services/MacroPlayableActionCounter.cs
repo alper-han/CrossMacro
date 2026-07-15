@@ -8,7 +8,7 @@ internal static class MacroPlayableActionCounter
 {
     public static int CountPlayableActions(MacroSequence? macro)
     {
-        if (macro == null)
+        if (macro is null)
         {
             return 0;
         }

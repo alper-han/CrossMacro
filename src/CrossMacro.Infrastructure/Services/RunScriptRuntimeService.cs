@@ -46,7 +46,7 @@ public sealed class RunScriptRuntimeService : IRunExecutionService
             return new RunExecutionResult
             {
                 Status = RunExecutionStatus.InvalidArguments,
-                Errors = [compileResult.ErrorMessage]
+                Errors = [compileResult.ErrorMessage],
             };
         }
 
@@ -125,7 +125,7 @@ public sealed class RunScriptRuntimeService : IRunExecutionService
             Errors = errors ?? [],
             Warnings = warnings ?? [],
             RuntimeVariables = runtimeVariables ?? new Dictionary<string, string>(),
-            ErrorMessage = errorMessage
+            ErrorMessage = errorMessage,
         };
     }
 }

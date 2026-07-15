@@ -13,12 +13,12 @@ public class MacroSequence
     /// Unique identifier for this macro
     /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
-    
+
     /// <summary>
     /// Name of the macro
     /// </summary>
     public string Name { get; set; } = MacroNameDefaults.UnnamedMacroName;
-    
+
     /// <summary>
     /// List of events in the macro
     /// </summary>
@@ -39,43 +39,43 @@ public class MacroSequence
     /// Named image assets stored as Base64 PNG strings.
     /// </summary>
     public Dictionary<string, string> Images { get; set; } = new(StringComparer.Ordinal);
-    
+
     /// <summary>
     /// When the macro was created
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
+
     /// <summary>
     /// Total duration of the macro in milliseconds
     /// </summary>
     public long TotalDurationMs { get; set; }
-    
+
     /// <summary>
     /// Number of events in the macro
     /// </summary>
     public int EventCount => Events.Count;
-    
+
     // Statistics metadata
     /// <summary>
     /// When the macro was recorded
     /// </summary>
     public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
-    
+
     /// <summary>
     /// Actual recording duration (wall clock time)
     /// </summary>
     public TimeSpan ActualDuration { get; set; }
-    
+
     /// <summary>
     /// Number of mouse move events
     /// </summary>
     public int MouseMoveCount { get; set; }
-    
+
     /// <summary>
     /// Number of click events
     /// </summary>
     public int ClickCount { get; set; }
-    
+
     /// <summary>
     /// Events recorded per second
     /// </summary>
@@ -85,7 +85,7 @@ public class MacroSequence
     /// Whether the macro contains absolute coordinates (true) or relative deltas (false)
     /// </summary>
     public bool IsAbsoluteCoordinates { get; set; }
-    
+
     /// <summary>
     /// Whether Corner Reset was skipped during recording.
     /// If false and IsAbsoluteCoordinates is false, playback should do Corner Reset to 0,0 first.
@@ -112,17 +112,17 @@ public class MacroSequence
     /// Maximum randomized trailing delay in milliseconds.
     /// </summary>
     public int TrailingDelayMaxMs { get; set; }
-    
+
     /// <summary>
     /// Validates the macro sequence
     /// </summary>
     /// <returns>True if valid, false otherwise</returns>
     public bool IsValid()
     {
-        if ((Events == null || Events.Count == 0) && !HasScriptSteps())
+        if ((Events is null || Events.Count is 0) && !HasScriptSteps())
             return false;
 
-        if (Events != null && !Events.All(IsEventTimingValid))
+        if (Events is not null && !Events.All(IsEventTimingValid))
             return false;
 
         return !HasTrailingRandomDelay
@@ -142,20 +142,20 @@ public class MacroSequence
 
     private bool HasScriptSteps()
     {
-        return ScriptSteps != null && ScriptSteps.Any(step => !string.IsNullOrWhiteSpace(step));
+        return ScriptSteps is not null && ScriptSteps.Any(step => !string.IsNullOrWhiteSpace(step));
     }
-    
+
     /// <summary>
     /// Calculates total duration from events
     /// </summary>
     public void CalculateDuration()
     {
-        if (Events.Count == 0)
+        if (Events.Count is 0)
         {
             TotalDurationMs = 0;
             return;
         }
-        
+
         TotalDurationMs = Events.Last().Timestamp;
     }
 
@@ -184,7 +184,7 @@ public class MacroSequence
             TrailingDelayMs = TrailingDelayMs,
             HasTrailingRandomDelay = HasTrailingRandomDelay,
             TrailingDelayMinMs = TrailingDelayMinMs,
-            TrailingDelayMaxMs = TrailingDelayMaxMs
+            TrailingDelayMaxMs = TrailingDelayMaxMs,
         };
     }
 }

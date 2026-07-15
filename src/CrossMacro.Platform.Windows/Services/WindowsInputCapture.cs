@@ -19,17 +19,17 @@ public class WindowsInputCapture : IInputCapture
 
     public string ProviderName => "Windows Hooks";
     public bool IsSupported => OperatingSystem.IsWindows();
-    
+
     public event EventHandler<InputCaptureEventArgs>? InputReceived;
     public event EventHandler<string>? Error;
 
     private bool _captureMouse;
     private bool _captureKeyboard;
-    
+
     private int _lastX;
     private int _lastY;
     private bool _firstMove = true;
-    
+
     private IntPtr _mouseHookHandle = IntPtr.Zero;
     private IntPtr _keyboardHookHandle = IntPtr.Zero;
     private IntPtr _sessionWindowHandle = IntPtr.Zero;
@@ -38,11 +38,11 @@ public class WindowsInputCapture : IInputCapture
     private User32.WindowProc? _sessionWindowProc;
     private readonly string _sessionWindowClassName = $"CrossMacroSessionSwitch_{Guid.NewGuid():N}";
     private bool _sessionNotificationRegistered;
-    
+
     private Thread? _messagePumpThread;
     private uint _messagePumpThreadId;
     private CancellationTokenRegistration _startCancellationRegistration;
-    
+
 
 
     public void Configure(bool captureMouse, bool captureKeyboard)
@@ -58,13 +58,13 @@ public class WindowsInputCapture : IInputCapture
         ct.ThrowIfCancellationRequested();
 
         var startupTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        
+
         _messagePumpThread = new Thread(() =>
         {
             try
             {
                 _messagePumpThreadId = Kernel32.GetCurrentThreadId();
-                
+
                 _mouseProc = MouseHookCallback;
                 _keyboardProc = KeyboardHookCallback;
                 _sessionWindowProc = SessionWindowCallback;
@@ -96,7 +96,7 @@ public class WindowsInputCapture : IInputCapture
                 RegisterSessionNotificationWindow();
 
                 startupTcs.TrySetResult();
-                
+
                 while (!ct.IsCancellationRequested)
                 {
                     if (User32.GetMessage(out var msg, IntPtr.Zero, 0, 0))
@@ -105,7 +105,7 @@ public class WindowsInputCapture : IInputCapture
                         {
                             break;
                         }
-                        
+
                         User32.TranslateMessage(ref msg);
                         User32.DispatchMessage(ref msg);
                     }
@@ -132,7 +132,7 @@ public class WindowsInputCapture : IInputCapture
 
         _messagePumpThread.IsBackground = true;
         _messagePumpThread.Start();
-        
+
         _startCancellationRegistration.Dispose();
         _startCancellationRegistration = ct.Register(() =>
         {
@@ -161,16 +161,16 @@ public class WindowsInputCapture : IInputCapture
 
     private void RegisterSessionNotificationWindow()
     {
-        var instanceHandle = Kernel32.GetModuleHandle(null);
+        var instanceHandle = Kernel32.GetModuleHandle(lpModuleName: null);
         var windowClass = new WNDCLASSEX
         {
             cbSize = (uint)Marshal.SizeOf<WNDCLASSEX>(),
             lpfnWndProc = _sessionWindowProc!,
             hInstance = instanceHandle,
-            lpszClassName = _sessionWindowClassName
+            lpszClassName = _sessionWindowClassName,
         };
 
-        if (User32.RegisterClassEx(ref windowClass) == 0)
+        if (User32.RegisterClassEx(ref windowClass) is 0)
         {
             Log.Warning("[WindowsInputCapture] Failed to register session notification window class");
             return;
@@ -209,7 +209,7 @@ public class WindowsInputCapture : IInputCapture
 
     private void UnregisterSessionNotificationWindow()
     {
-        DestroySessionNotificationWindow(Kernel32.GetModuleHandle(null));
+        DestroySessionNotificationWindow(Kernel32.GetModuleHandle(lpModuleName: null));
     }
 
     private void DestroySessionNotificationWindow(IntPtr instanceHandle)
@@ -265,7 +265,7 @@ public class WindowsInputCapture : IInputCapture
         {
             var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
             uint msg = (uint)wParam;
-            
+
             ushort evdevCode = 0;
             int value = 0;
             ushort type = InputEventCode.EV_KEY;
@@ -299,11 +299,10 @@ public class WindowsInputCapture : IInputCapture
                 case User32.WM_MOUSEWHEEL:
                     type = InputEventCode.EV_REL;
                     evdevCode = InputEventCode.REL_WHEEL;
-                    
-                    int delta = (short)((hookStruct.mouseData >> 16) & 0xFFFF);
-                    value = delta; 
+
+                    value = (short)((hookStruct.mouseData >> 16) & 0xFFFF);
                     break;
-                    
+
                 case User32.WM_MOUSEMOVE:
                     int currentX = hookStruct.pt.x;
                     int currentY = hookStruct.pt.y;
@@ -314,14 +313,14 @@ public class WindowsInputCapture : IInputCapture
                         _lastY = currentY;
                         _firstMove = false;
                     }
-                    
+
                     int deltaX = currentX - _lastX;
                     int deltaY = currentY - _lastY;
-                    
+
                     _lastX = currentX;
                     _lastY = currentY;
 
-                    if (deltaX != 0)
+                    if (deltaX is not 0)
                     {
                         var xArgs = new InputCaptureEventArgs
                         {
@@ -329,12 +328,12 @@ public class WindowsInputCapture : IInputCapture
                             Code = InputEventCode.REL_X,
                             Value = deltaX,
                             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                            DeviceName = "VirtualMouse"
+                            DeviceName = "VirtualMouse",
                         };
                         InputReceived?.Invoke(this, xArgs);
                     }
 
-                    if (deltaY != 0)
+                    if (deltaY is not 0)
                     {
                         var yArgs = new InputCaptureEventArgs
                         {
@@ -342,13 +341,13 @@ public class WindowsInputCapture : IInputCapture
                             Code = InputEventCode.REL_Y,
                             Value = deltaY,
                             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                            DeviceName = "VirtualMouse"
+                            DeviceName = "VirtualMouse",
                         };
                         InputReceived?.Invoke(this, yArgs);
                     }
-                    
+
                     // Emit SYNC to flush the movement buffer in MacroRecorder
-                    if (deltaX != 0 || deltaY != 0)
+                    if (deltaX is not 0 || deltaY is not 0)
                     {
                         var syncArgs = new InputCaptureEventArgs
                         {
@@ -356,30 +355,30 @@ public class WindowsInputCapture : IInputCapture
                             Code = 0,
                             Value = 0,
                             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                            DeviceName = "VirtualMouse"
+                            DeviceName = "VirtualMouse",
                         };
                         InputReceived?.Invoke(this, syncArgs);
                     }
-                    
-                    evdevCode = 0; 
+
+                    evdevCode = 0;
                     break;
             }
 
-            if (evdevCode != 0)
+            if (evdevCode is not 0)
             {
                 // Mouse buttons should use MouseButton type, not Key
                 var eventType = (type == InputEventCode.EV_KEY && evdevCode >= 272 && evdevCode <= 279)
                     ? InputEventType.MouseButton
-                    : (type == InputEventCode.EV_REL && evdevCode == InputEventCode.REL_WHEEL) ? InputEventType.MouseScroll 
+                    : (type == InputEventCode.EV_REL && evdevCode == InputEventCode.REL_WHEEL) ? InputEventType.MouseScroll
                     : (InputEventType)type;
-                
+
                 var args = new InputCaptureEventArgs
                 {
                     Type = eventType,
                     Code = evdevCode,
                     Value = value,
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    DeviceName = "VirtualMouse"
+                    DeviceName = "VirtualMouse",
                 };
                 InputReceived?.Invoke(this, args);
             }
@@ -398,24 +397,24 @@ public class WindowsInputCapture : IInputCapture
             {
                 return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
             }
-            
+
             bool isDown = (msg == User32.WM_KEYDOWN || msg == User32.WM_SYSKEYDOWN);
             bool isUp = (msg == User32.WM_KEYUP || msg == User32.WM_SYSKEYUP);
 
             if (isDown || isUp)
             {
                 int evdevCode = WindowsKeyMap.GetEvdevCode((ushort)hookStruct.vkCode);
-                
+
                 // Debug logging for key analysis
                 if (isDown)
                 {
-                    Log.Debug("[WindowsInputCapture] KeyDown: VK={VK} (0x{VKHex}), Scan={Scan}, Flags={Flags}, Mapped={Evdev}", 
+                    Log.Debug("[WindowsInputCapture] KeyDown: VK={VK} (0x{VKHex}), Scan={Scan}, Flags={Flags}, Mapped={Evdev}",
                         hookStruct.vkCode, hookStruct.vkCode.ToString("X"), hookStruct.scanCode, hookStruct.flags, evdevCode);
                 }
-                
+
                 // Handle Extended Keys (distinguish Numpad vs Standard)
                 bool isExtended = (hookStruct.flags & LowLevelKeyboardHookFlagExtended) == LowLevelKeyboardHookFlagExtended;
-                
+
                 // Fix for Right Alt (AltGr) appearing as Generic Menu (0x12) or Left Alt (0xA4) with Extended flag
                 if ((hookStruct.vkCode == 0x12 || hookStruct.vkCode == 0xA4) && isExtended)
                 {
@@ -430,10 +429,10 @@ public class WindowsInputCapture : IInputCapture
                 // Numpad Enter (Extended) vs Return
                 if (hookStruct.vkCode == 0x0D && isExtended)
                 {
-                    evdevCode = InputEventCode.KEY_KPENTER; 
+                    evdevCode = InputEventCode.KEY_KPENTER;
                 }
-                
-                if (evdevCode != 0)
+
+                if (evdevCode is not 0)
                 {
                     var args = new InputCaptureEventArgs
                     {
@@ -441,7 +440,7 @@ public class WindowsInputCapture : IInputCapture
                         Code = (ushort)evdevCode,
                         Value = isDown ? 1 : 0,
                         Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                        DeviceName = "VirtualKeyboard"
+                        DeviceName = "VirtualKeyboard",
                     };
                     InputReceived?.Invoke(this, args);
                 }

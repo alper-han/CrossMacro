@@ -5,7 +5,7 @@ public readonly record struct LinuxBackendSelection(
     bool CaptureSupported,
     string Reason)
 {
-    public bool IsSupported => Reason == "native-x11" || Mode != InputProviderMode.None;
+    public bool IsSupported => Reason is "native-x11" || Mode is not InputProviderMode.None;
 }
 
 /// <summary>
@@ -21,7 +21,7 @@ public static class LinuxBackendSelectionPolicy
     {
         if (snapshot.IsX11 && nativeX11Supported)
         {
-            return new LinuxBackendSelection(InputProviderMode.None, true, "native-x11");
+            return new LinuxBackendSelection(InputProviderMode.None, CaptureSupported: true, "native-x11");
         }
 
         var mode = snapshot.Input.ResolvedMode ?? (snapshot.Input.DaemonHandshakeSucceeded
@@ -30,16 +30,16 @@ public static class LinuxBackendSelectionPolicy
                 ? InputProviderMode.Legacy
                 : InputProviderMode.None);
 
-        if (forCapture && mode == InputProviderMode.Legacy && !snapshot.Input.CanReadInputEvents)
+        if (forCapture && mode is InputProviderMode.Legacy && !snapshot.Input.CanReadInputEvents)
         {
-            return new LinuxBackendSelection(InputProviderMode.None, false, "direct-input-events-unavailable");
+            return new LinuxBackendSelection(InputProviderMode.None, CaptureSupported: false, "direct-input-events-unavailable");
         }
 
-        return new LinuxBackendSelection(mode, mode != InputProviderMode.None, mode switch
+        return new LinuxBackendSelection(mode, mode is not InputProviderMode.None, mode switch
         {
             InputProviderMode.Daemon => "daemon",
             InputProviderMode.Legacy => "direct-device",
-            _ => "no-backend"
+            _ => "no-backend",
         });
     }
 }

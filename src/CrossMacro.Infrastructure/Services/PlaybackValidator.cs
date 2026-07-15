@@ -28,13 +28,13 @@ public class PlaybackValidator : IPlaybackValidator
     {
         var result = new ValidationResult();
 
-        if (macro == null || (macro.Events.Count == 0 && !HasRuntimeScriptSteps(macro)))
+        if (macro is null || (macro.Events.Count is 0 && !HasRuntimeScriptSteps(macro)))
         {
             result.AddError("Macro is empty or null");
             return result;
         }
 
-        if (macro.Events.Any(e => e.Type == EventType.None && !IsSpecialControlEvent(e)))
+        if (macro.Events.Any(e => e.Type is EventType.None && !IsSpecialControlEvent(e)))
         {
             result.AddWarning("Macro contains events with Type 'None'");
         }
@@ -47,7 +47,7 @@ public class PlaybackValidator : IPlaybackValidator
         ValidateScriptSteps(macro, result);
 
 
-        if (_provider == null)
+        if (_provider is null)
         {
             result.AddWarning("No position provider available - using fallback mode");
         }
@@ -92,23 +92,23 @@ public class PlaybackValidator : IPlaybackValidator
     {
         var buttonEvents = macro.Events
             .Where(ev => IsNonScrollButtonEvent(ev)
-                && MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) == MouseCoordinateMode.Absolute)
+&& MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Absolute)
             .ToList();
-        if (buttonEvents.Count == 0)
+        if (buttonEvents.Count is 0)
         {
             return;
         }
 
-        bool hasZeroZeroButtonEvent = buttonEvents.Any(e => e.X == 0 && e.Y == 0);
+        bool hasZeroZeroButtonEvent = buttonEvents.Any(e => e.X is 0 && e.Y is 0);
         if (!hasZeroZeroButtonEvent)
         {
             return;
         }
 
-        bool hasNonZeroButtonEvent = buttonEvents.Any(e => e.X != 0 || e.Y != 0);
+        bool hasNonZeroButtonEvent = buttonEvents.Any(e => e.X is not 0 || e.Y is not 0);
         bool hasNonZeroMouseMove = macro.Events.Any(e =>
-            e.Type == EventType.MouseMove
-            && (e.X != 0 || e.Y != 0));
+            e.Type is EventType.MouseMove
+&& (e.X is not 0 || e.Y is not 0));
 
         if (hasNonZeroButtonEvent || hasNonZeroMouseMove)
         {
@@ -138,7 +138,7 @@ public class PlaybackValidator : IPlaybackValidator
     private void ValidateScriptSteps(MacroSequence macro, ValidationResult result)
     {
         var error = _scriptValidator.Validate(macro);
-        if (error != null)
+        if (error is not null)
         {
             result.AddError(error);
         }

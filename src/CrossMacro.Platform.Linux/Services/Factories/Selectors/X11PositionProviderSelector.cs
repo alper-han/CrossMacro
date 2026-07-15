@@ -10,7 +10,7 @@ public class X11PositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.X11;
+        return compositor is CompositorType.X11;
     }
 
     public IMousePositionProvider Create()

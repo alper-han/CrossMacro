@@ -22,12 +22,12 @@ public class HotkeyConfigurationServiceTests : IDisposable
     {
         if (Directory.Exists(_tempPath))
         {
-            try 
+            try
             {
-                Directory.Delete(_tempPath, true);
+                Directory.Delete(_tempPath, recursive: true);
             }
-            catch 
-            { 
+            catch
+            {
                 // Ignore cleanup errors
             }
         }
@@ -74,7 +74,7 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "Ctrl+R",
             PlaybackHotkey = "Ctrl+P",
-            PauseHotkey = "Ctrl+Space"
+            PauseHotkey = "Ctrl+Space",
         };
 
         // Act
@@ -93,7 +93,7 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "F1",
             PlaybackHotkey = "F2",
-            PauseHotkey = "F3"
+            PauseHotkey = "F3",
         };
 
         // Act
@@ -118,7 +118,7 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "F1",
             PlaybackHotkey = "F2",
-            PauseHotkey = "F3"
+            PauseHotkey = "F3",
         };
 
         var request = service.CaptureSaveRequest(settings);
@@ -138,7 +138,7 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "Super+R",
             PlaybackHotkey = "Super+P",
-            PauseHotkey = "Super+S"
+            PauseHotkey = "Super+S",
         };
 
         // Act
@@ -181,7 +181,7 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "Ctrl+R",
             PlaybackHotkey = "Ctrl+P",
-            PauseHotkey = "Ctrl+Space"
+            PauseHotkey = "Ctrl+Space",
         };
 
         // Act

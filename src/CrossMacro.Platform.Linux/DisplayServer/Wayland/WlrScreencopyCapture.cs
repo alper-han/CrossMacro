@@ -43,7 +43,7 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
                 return WlrScreencopySupportResult.Unsupported("Wayland registry did not expose zwlr_screencopy_manager_v1.");
             }
 
-            if (connection.Registry.Outputs.Count == 0)
+            if (connection.Registry.Outputs.Count is 0)
             {
                 return WlrScreencopySupportResult.Unsupported("Wayland registry did not expose any wl_output globals.");
             }

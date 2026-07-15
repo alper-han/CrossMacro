@@ -78,7 +78,7 @@ internal sealed class Issue44LinuxInputCapabilityScenario
                 IpcProtocol.DefaultSocketPath,
                 TimeSpan.FromSeconds(5),
                 LinuxDaemonHandshakeStatus.MissingSocket),
-            ProbeResult = LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed()
+            ProbeResult = LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
         };
 
         scenario._existingPaths.Add(LinuxConstants.UInputAlternatePath);
@@ -141,7 +141,7 @@ internal sealed class Issue44LinuxInputCapabilityScenario
 
     public LinuxInputCapabilityDetector.DaemonHandshakeProbeResult ProbeDaemonHandshake(string socketPath, TimeSpan timeout)
     {
-        return socketPath == IpcProtocol.DefaultSocketPath ? ProbeResult : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed();
+        return string.Equals(socketPath, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal) ? ProbeResult : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed();
     }
 
     private static Issue44LinuxInputCapabilityScenario WithSocketPermissionDenied(string name)
@@ -155,7 +155,7 @@ internal sealed class Issue44LinuxInputCapabilityScenario
                 IpcProtocol.DefaultSocketPath,
                 TimeSpan.FromSeconds(5),
                 LinuxDaemonHandshakeStatus.PermissionDenied,
-                exception: new UnauthorizedAccessException("socket access denied"))
+                exception: new UnauthorizedAccessException("socket access denied")),
         };
 
         scenario._existingPaths.Add(IpcProtocol.DefaultSocketPath);

@@ -33,10 +33,10 @@ public class LinuxInputCapabilityDetectorTests
     {
         // Arrange
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
-            daemonHandshakeProbe: path => path == IpcProtocol.DefaultSocketPath,
+            daemonHandshakeProbe: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
             getInputEventCandidates: () => [],
             utcNow: () => DateTime.UtcNow);
 
@@ -54,7 +54,7 @@ public class LinuxInputCapabilityDetectorTests
         // Arrange
         var detector = new LinuxInputCapabilityDetector(
             fileExists: _ => false,
-            canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal),
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ => false,
             getInputEventCandidates: () => [],
@@ -73,8 +73,8 @@ public class LinuxInputCapabilityDetectorTests
     {
         // Arrange
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
-            canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal),
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ => false,
             getInputEventCandidates: () => [],
@@ -93,7 +93,7 @@ public class LinuxInputCapabilityDetectorTests
     {
         // Arrange
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ => false,
@@ -137,13 +137,13 @@ public class LinuxInputCapabilityDetectorTests
         var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ =>
             {
                 probeCount++;
-                return probeCount == 1;
+                return probeCount is 1;
             },
             getInputEventCandidates: () => [],
             utcNow: () => now);
@@ -165,15 +165,14 @@ public class LinuxInputCapabilityDetectorTests
         var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path =>
-                path == IpcProtocol.DefaultSocketPath ||
-                path == LinuxConstants.UInputAlternatePath,
-            canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal) ||
+string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal),
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ =>
             {
                 probeCount++;
-                return probeCount == 1;
+                return probeCount is 1;
             },
             getInputEventCandidates: () => [],
             utcNow: () => now);
@@ -196,14 +195,14 @@ public class LinuxInputCapabilityDetectorTests
 
         var detector = new LinuxInputCapabilityDetector(
             fileExists: path =>
-                (path == IpcProtocol.DefaultSocketPath && socketAvailable) ||
-                path == LinuxConstants.UInputAlternatePath,
-            canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+                (string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal) && socketAvailable) ||
+string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal),
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ =>
             {
                 probeCount++;
-                return probeCount == 1;
+                return probeCount is 1;
             },
             getInputEventCandidates: () => [],
             utcNow: () => now);
@@ -226,13 +225,13 @@ public class LinuxInputCapabilityDetectorTests
         var probeCount = 0;
 
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath && socketAvailable,
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal) && socketAvailable,
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
             daemonHandshakeProbe: (_, _) =>
             {
                 probeCount++;
-                return probeCount == 1
+                return probeCount is 1
                     ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
                     : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(
                         LinuxDaemonHandshakeStatus.UnexpectedError);
@@ -266,9 +265,9 @@ public class LinuxInputCapabilityDetectorTests
 
         var detector = new LinuxInputCapabilityDetector(
             fileExists: path =>
-                (path == IpcProtocol.DefaultSocketPath && socketAvailable) ||
-                path == LinuxConstants.UInputAlternatePath,
-            canOpenForWrite: path => path == LinuxConstants.UInputAlternatePath,
+                (string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal) && socketAvailable) ||
+string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal),
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ =>
             {
@@ -320,7 +319,7 @@ public class LinuxInputCapabilityDetectorTests
         var detector = new LinuxInputCapabilityDetector(
             fileExists: _ => false,
             canOpenForWrite: _ => false,
-            canOpenForRead: path => path == "/dev/input/event5",
+            canOpenForRead: path => path is "/dev/input/event5",
             daemonHandshakeProbe: _ => false,
             getInputEventCandidates: () => ["/dev/input/event4", "/dev/input/event5"],
             utcNow: () => DateTime.UtcNow);
@@ -332,9 +331,9 @@ public class LinuxInputCapabilityDetectorTests
     public void DetermineMode_WhenRawEventReadableButNoUsableInputDevice_ReturnsLegacyButDirectFallbackUnavailable()
     {
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            fileExists: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             hasUsableReadableInputDevices: () => false,
             daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket),
             getInputEventCandidates: () => ["/dev/input/event0"],
@@ -353,9 +352,9 @@ public class LinuxInputCapabilityDetectorTests
     public void DetermineMode_WhenDaemonHandshakeFailsBecausePermissionDenied_UsesLegacyFallback()
     {
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: _ => throw new UnauthorizedAccessException("permission denied"),
             getInputEventCandidates: () => ["/dev/input/event0"],
             utcNow: () => DateTime.UtcNow);
@@ -372,9 +371,9 @@ public class LinuxInputCapabilityDetectorTests
     public void GetSnapshot_WhenPermissionDeniedButDirectFallbackIsAvailable_PreservesDaemonDiagnostic()
     {
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(
                 LinuxDaemonHandshakeStatus.PermissionDenied,
                 new UnauthorizedAccessException("permission denied")),
@@ -395,9 +394,9 @@ public class LinuxInputCapabilityDetectorTests
     public void GetSnapshot_WhenDaemonTimesOut_PreservesTimeoutDiagnostic()
     {
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Timeout(
                 new TimeoutException("timeout")),
             getInputEventCandidates: () => ["/dev/input/event0"],
@@ -416,9 +415,9 @@ public class LinuxInputCapabilityDetectorTests
     public void GetSnapshot_WhenDaemonSocketMissingAndDirectFallbackIsAvailable_RecordsMissingSocketAndReturnsLegacy()
     {
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            fileExists: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
             getInputEventCandidates: () => ["/dev/input/event0"],
             utcNow: () => DateTime.UtcNow);
@@ -436,17 +435,17 @@ public class LinuxInputCapabilityDetectorTests
     public void SnapshotProvider_WhenPermissionDeniedAndTimeoutResultsOccur_KeepsDistinctHandshakeStatuses()
     {
         var permissionDeniedProvider = new LinuxInputCapabilitySnapshotProvider(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(
                 LinuxDaemonHandshakeStatus.PermissionDenied,
                 new UnauthorizedAccessException("permission denied")),
             getInputEventCandidates: () => ["/dev/input/event0"]);
         var timeoutProvider = new LinuxInputCapabilitySnapshotProvider(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
-            canOpenForWrite: path => path == LinuxConstants.UInputDevicePath,
-            canOpenForRead: path => path == "/dev/input/event0",
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
             daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Timeout(
                 new TimeoutException("timeout")),
             getInputEventCandidates: () => ["/dev/input/event0"]);
@@ -505,7 +504,7 @@ public class LinuxInputCapabilityDetectorTests
     public void DetermineMode_WhenDaemonHandshakeTimesOutAndDirectInputUnavailable_ReturnsNone()
     {
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
             daemonHandshakeProbe: _ => throw new TimeoutException("timeout"),
@@ -526,7 +525,7 @@ public class LinuxInputCapabilityDetectorTests
         TimeSpan? requestedTimeout = null;
 
         var detector = new LinuxInputCapabilityDetector(
-            fileExists: path => path == IpcProtocol.DefaultSocketPath,
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
             canOpenForWrite: _ => false,
             canOpenForRead: _ => false,
             daemonHandshakeProbe: (socketPath, timeout) =>

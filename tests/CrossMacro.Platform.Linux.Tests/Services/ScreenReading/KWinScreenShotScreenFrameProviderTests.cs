@@ -44,7 +44,7 @@ public sealed class KWinScreenShotScreenFrameProviderTests
         Assert.False(provider.IsSupported);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Contains("desktop permission missing", result.ErrorMessage);
+        Assert.Contains("desktop permission missing", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, capture.CaptureCalls);
     }
 
@@ -81,11 +81,11 @@ public sealed class KWinScreenShotScreenFrameProviderTests
         var capture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
 
         using var provider = new KWinScreenShotScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.Unsupported, result.ErrorKind);
-        Assert.Contains("bounded region", result.ErrorMessage);
+        Assert.Contains("bounded region", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, capture.CaptureCalls);
     }
 
@@ -109,7 +109,7 @@ public sealed class KWinScreenShotScreenFrameProviderTests
     {
         var capture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported())
         {
-            CaptureException = new OperationCanceledException("capture canceled")
+            CaptureException = new OperationCanceledException("capture canceled"),
         };
 
         using var provider = new KWinScreenShotScreenFrameProvider(capture);

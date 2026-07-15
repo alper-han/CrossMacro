@@ -26,32 +26,32 @@ public static class ActionTypeConverters
     /// Returns true if the action type is a mouse-related action.
     /// </summary>
     public static readonly IValueConverter IsMouseAction = new FuncValueConverter<EditorActionType, bool>(type =>
-        type is EditorActionType.MouseMove 
-            or EditorActionType.MouseClick 
-            or EditorActionType.MouseDown 
+        type is EditorActionType.MouseMove
+            or EditorActionType.MouseClick
+            or EditorActionType.MouseDown
             or EditorActionType.MouseUp);
-    
+
     /// <summary>
     /// Returns true if the action type is a click action.
     /// </summary>
     public static readonly IValueConverter IsClickAction = new FuncValueConverter<EditorActionType, bool>(type =>
-        type is EditorActionType.MouseClick 
-            or EditorActionType.MouseDown 
+        type is EditorActionType.MouseClick
+            or EditorActionType.MouseDown
             or EditorActionType.MouseUp);
-    
+
     /// <summary>
     /// Returns true if the action type is a keyboard action.
     /// </summary>
     public static readonly IValueConverter IsKeyAction = new FuncValueConverter<EditorActionType, bool>(type =>
-        type is EditorActionType.KeyPress 
-            or EditorActionType.KeyDown 
+        type is EditorActionType.KeyPress
+            or EditorActionType.KeyDown
             or EditorActionType.KeyUp);
-    
+
     /// <summary>
     /// Returns true if the action type is a scroll action.
     /// </summary>
     public static readonly IValueConverter IsScrollAction = new FuncValueConverter<EditorActionType, bool>(type =>
-        type is EditorActionType.ScrollVertical 
+        type is EditorActionType.ScrollVertical
             or EditorActionType.ScrollHorizontal);
 
     public static readonly IValueConverter DisplayText = new FuncValueConverter<EditorActionType, string>(type =>
@@ -63,7 +63,7 @@ public static class ActionTypeConverters
 public static class ImageMatchModeConverters
 {
     public static readonly IValueConverter DisplayText = new FuncValueConverter<EditorImageMatchMode, string>(mode =>
-        mode == EditorImageMatchMode.BestMatch
+        mode is EditorImageMatchMode.BestMatch
             ? Resources.ResourceManager.GetString("Editor_ImageMatchModeBest", Resources.Culture) ?? "Best match"
             : Resources.ResourceManager.GetString("Editor_ImageMatchModeFirst", Resources.Culture) ?? "First threshold match");
 }
@@ -96,7 +96,7 @@ public static class ScheduleTaskConverters
             ScheduleType.Interval => localizationService["Schedule_TypeInterval"],
             ScheduleType.SpecificTime => localizationService["Schedule_TypeDateTime"],
             ScheduleType.Weekly => localizationService["Schedule_TypeWeekly"],
-            _ => task.Type.ToString()
+            _ => task.Type.ToString(),
         };
 
         var fileDisplay = string.IsNullOrEmpty(task.MacroFilePath)
@@ -126,7 +126,7 @@ public static class EditorScriptDisplayConverters
             ScriptOperandType.Text => Localize("Editor_ScriptOperand_Text", "Text"),
             ScriptOperandType.Boolean => Localize("Editor_ScriptOperand_Boolean", "True / False"),
             ScriptOperandType.Color => Localize("Editor_ScriptOperand_Color", "Color (RRGGBB)"),
-            _ => operandType.ToString()
+            _ => operandType.ToString(),
         };
     }
 
@@ -140,7 +140,7 @@ public static class EditorScriptDisplayConverters
             ScriptConditionOperator.GreaterThanOrEqual => Localize("Editor_ScriptConditionOperator_GreaterThanOrEqual", "Greater than or equal (>=)"),
             ScriptConditionOperator.LessThan => Localize("Editor_ScriptConditionOperator_LessThan", "Less than (<)"),
             ScriptConditionOperator.LessThanOrEqual => Localize("Editor_ScriptConditionOperator_LessThanOrEqual", "Less than or equal (<=)"),
-            _ => conditionOperator.ToString()
+            _ => conditionOperator.ToString(),
         };
     }
 
@@ -165,7 +165,7 @@ public static class EditorScreenTargetColorSourceDisplayConverters
         return source switch
         {
             EditorActionScreenTargetColorSource.Variable => Localize("Editor_TargetColorSourceVariable", "Variable"),
-            _ => Localize("Editor_TargetColorSourceManualHex", "Manual hex")
+            _ => Localize("Editor_TargetColorSourceManualHex", "Manual hex"),
         };
     }
 
@@ -183,7 +183,7 @@ public class ScreenTargetColorSourceDisplayConverter : IValueConverter
         return value switch
         {
             EditorActionScreenTargetColorSource source => EditorScreenTargetColorSourceDisplayConverters.FormatSource(source),
-            _ => value?.ToString() ?? string.Empty
+            _ => value?.ToString() ?? string.Empty,
         };
     }
 
@@ -232,13 +232,13 @@ public class NullableDoubleConverter : IValueConverter
 public class IndexConverter : IValueConverter
 {
     public static readonly IndexConverter Instance = new();
-    
+
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         // This is a placeholder - actual implementation would need list context
         return "•";
     }
-    
+
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotSupportedException();
@@ -252,7 +252,7 @@ public class IndexConverter : IValueConverter
 public class NullableIntConverter : IValueConverter
 {
     public static readonly NullableIntConverter Instance = new();
-    
+
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is int intValue)
@@ -261,7 +261,7 @@ public class NullableIntConverter : IValueConverter
         }
         return value?.ToString() ?? "";
     }
-    
+
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is string str)
@@ -269,13 +269,13 @@ public class NullableIntConverter : IValueConverter
             // Empty string = 0 (explicit clear)
             if (string.IsNullOrWhiteSpace(str))
                 return 0;
-            
+
             // Valid number = use it (clamped for key codes if needed)
             if (int.TryParse(str, out int result))
             {
                 return result;
             }
-            
+
             // Invalid text (like "a") = don't update, keep previous value
             return Avalonia.Data.BindingOperations.DoNothing;
         }
@@ -314,7 +314,7 @@ public class ScriptOperandTypeDisplayConverter : IValueConverter
         return value switch
         {
             ScriptOperandType operandType => EditorScriptDisplayConverters.FormatOperandType(operandType),
-            _ => value?.ToString() ?? string.Empty
+            _ => value?.ToString() ?? string.Empty,
         };
     }
 
@@ -331,7 +331,7 @@ public class ScriptConditionOperatorDisplayConverter : IValueConverter
         return value switch
         {
             ScriptConditionOperator conditionOperator => EditorScriptDisplayConverters.FormatConditionOperator(conditionOperator),
-            _ => value?.ToString() ?? string.Empty
+            _ => value?.ToString() ?? string.Empty,
         };
     }
 

@@ -27,11 +27,11 @@ public readonly record struct ExtImageCopySupportResult
 
     public string? ErrorMessage { get; }
 
-    public static ExtImageCopySupportResult Supported() => new(true, null, null);
+    public static ExtImageCopySupportResult Supported() => new(isSupported: true, errorKind: null, errorMessage: null);
 
     public static ExtImageCopySupportResult Unsupported(string errorMessage) =>
-        new(false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
+        new(isSupported: false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
 
     public static ExtImageCopySupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) =>
-        new(false, errorKind, errorMessage);
+        new(isSupported: false, errorKind, errorMessage);
 }

@@ -48,7 +48,7 @@ public class LinuxPermissionServiceTests
         var chownCalls = new List<(string Path, int Owner, int Group)>();
         var modePaths = new List<string>();
         var service = new LinuxPermissionService(
-            fileExists: path => path == LinuxSystemPaths.GroupFile,
+            fileExists: path => string.Equals(path, LinuxSystemPaths.GroupFile, StringComparison.Ordinal),
             readLines: path =>
             {
                 Assert.Equal(LinuxSystemPaths.GroupFile, path);

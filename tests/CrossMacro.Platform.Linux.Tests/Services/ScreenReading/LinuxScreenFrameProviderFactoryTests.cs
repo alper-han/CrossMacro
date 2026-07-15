@@ -140,7 +140,7 @@ public class LinuxScreenFrameProviderFactoryTests
             kWinFactory: support => new KWinScreenShotScreenFrameProvider(kWinCapture, support));
 
         using var provider = factory.Create();
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
@@ -173,11 +173,11 @@ public class LinuxScreenFrameProviderFactoryTests
             kWinFactory: support => new KWinScreenShotScreenFrameProvider(kWinCapture, support));
 
         using var provider = factory.Create();
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.Unsupported, result.ErrorKind);
-        Assert.Contains("bounded region", result.ErrorMessage);
+        Assert.Contains("bounded region", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, kWinCapture.CaptureCalls);
     }
 
@@ -199,7 +199,7 @@ public class LinuxScreenFrameProviderFactoryTests
             kWinFactory: support => new KWinScreenShotScreenFrameProvider(kWinCapture, support));
 
         using var provider = factory.Create();
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
@@ -290,12 +290,12 @@ public class LinuxScreenFrameProviderFactoryTests
         Assert.False(provider.IsSupported);
         var unavailable = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, unavailable.ErrorKind);
-        Assert.Contains("portal denied", unavailable.FailureMessage);
+        Assert.Contains("portal denied", unavailable.FailureMessage, StringComparison.Ordinal);
 
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Contains("portal denied", result.ErrorMessage);
+        Assert.Contains("portal denied", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -326,12 +326,12 @@ public class LinuxScreenFrameProviderFactoryTests
         Assert.False(provider.IsSupported);
         var unavailable = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, unavailable.ErrorKind);
-        Assert.Contains("kwin denied", unavailable.FailureMessage);
+        Assert.Contains("kwin denied", unavailable.FailureMessage, StringComparison.Ordinal);
 
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Contains("kwin denied", result.ErrorMessage);
+        Assert.Contains("kwin denied", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -359,13 +359,13 @@ public class LinuxScreenFrameProviderFactoryTests
         var factory = fixture.CreateFactory();
 
         using var provider = factory.Create();
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.Equal("x11", provider.ProviderName);
         Assert.False(provider.IsSupported);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("DISPLAY missing", result.ErrorMessage);
+        Assert.Contains("DISPLAY missing", result.ErrorMessage, StringComparison.Ordinal);
         Assert.False(fixture.SnapshotRequested);
     }
 
@@ -373,8 +373,8 @@ public class LinuxScreenFrameProviderFactoryTests
     public void Create_WhenSessionIsNeitherWaylandNorX11_ReturnsUnsupportedProviderWithoutCreatingBackends()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(false);
-        environmentDetector.IsX11.Returns(false);
+        environmentDetector.IsWayland.Returns(returnThis: false);
+        environmentDetector.IsX11.Returns(returnThis: false);
         environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
@@ -397,8 +397,8 @@ public class LinuxScreenFrameProviderFactoryTests
         Assert.False(provider.IsSupported);
         var unavailable = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
         Assert.Equal(ScreenReadErrorKind.Unsupported, unavailable.ErrorKind);
-        Assert.Contains("Wayland", unavailable.FailureMessage);
-        Assert.Contains("X11", unavailable.FailureMessage);
+        Assert.Contains("Wayland", unavailable.FailureMessage, StringComparison.Ordinal);
+        Assert.Contains("X11", unavailable.FailureMessage, StringComparison.Ordinal);
         capabilityDetector.DidNotReceive().GetSnapshot();
         x11SupportProbe.DidNotReceive().ProbeSupport();
     }
@@ -412,7 +412,7 @@ public class LinuxScreenFrameProviderFactoryTests
         LinuxScreenReaderBackendCapability portal)
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(true);
+        environmentDetector.IsWayland.Returns(returnThis: true);
         environmentDetector.DetectedCompositor.Returns(compositor);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
@@ -448,7 +448,7 @@ public class LinuxScreenFrameProviderFactoryTests
         Func<KWinScreenShotSupportResult, IScreenFrameProvider>? kWinFactory = null)
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(true);
+        environmentDetector.IsWayland.Returns(returnThis: true);
         environmentDetector.DetectedCompositor.Returns(compositor);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();

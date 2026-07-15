@@ -33,8 +33,8 @@ internal sealed class WaylandWlrFrameState
             case 0:
                 Format = Marshal.PtrToStructure<WlArgument>(args).u;
                 Width = Marshal.PtrToStructure<WlArgument>(args + size).u;
-                Height = Marshal.PtrToStructure<WlArgument>(args + size * 2).u;
-                Stride = Marshal.PtrToStructure<WlArgument>(args + size * 3).u;
+                Height = Marshal.PtrToStructure<WlArgument>(args + (size * 2)).u;
+                Stride = Marshal.PtrToStructure<WlArgument>(args + (size * 3)).u;
                 HasBuffer = true;
                 break;
             case 2:

@@ -19,11 +19,11 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenLinuxClipboardSupported_ShouldUseLinuxService_AndInitializeOnce()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["xclip"] = true },
-            ReadResult = "linux-value"
+            ReadResult = "linux-value",
         };
         var linux = new LinuxShellClipboardService(runner);
         var runtimeContext = new TestRuntimeContext(isFlatpak: false);
@@ -46,10 +46,10 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenLinuxClipboardSupported_ShouldUseLinuxCommandPath()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
-            CheckResults = { ["xclip"] = true }
+            CheckResults = { ["xclip"] = true },
         };
         var linux = new LinuxShellClipboardService(runner);
         var runtimeContext = new TestRuntimeContext(isFlatpak: false);
@@ -72,10 +72,10 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenNativeX11AndAvaloniaSupported_ShouldUseAvaloniaBeforeShellTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
-            CheckResults = { ["xclip"] = true, ["qdbus"] = true }
+            CheckResults = { ["xclip"] = true, ["qdbus"] = true },
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: false, sessionType: "x11");
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -98,11 +98,11 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenNativeX11AndAvaloniaSupported_ShouldUseAvaloniaBeforeShellTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["qdbus6"] = true, ["qdbus"] = true },
-            ReadResult = "qdbus-value"
+            ReadResult = "qdbus-value",
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: false, sessionType: "x11");
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -123,10 +123,10 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenNativeX11AvaloniaUnsupported_ShouldFallbackToShellTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
-            CheckResults = { ["xclip"] = true }
+            CheckResults = { ["xclip"] = true },
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: false, sessionType: "x11");
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -148,11 +148,11 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenNativeX11AvaloniaReadFails_ShouldFallbackToShellTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["xclip"] = true },
-            ReadResult = "shell-value"
+            ReadResult = "shell-value",
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: false, sessionType: "x11");
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -173,11 +173,11 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenFlatpakHostClipboardSupported_ShouldUseHostBeforeSandboxTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true, ["xsel"] = true },
-            HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true }
+            HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true },
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: true);
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -201,12 +201,12 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenFlatpakHostClipboardReturnsNull_ShouldNotFallbackToSandboxTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true, ["xsel"] = true },
             HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true },
-            ReadResult = string.Empty
+            ReadResult = string.Empty,
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: true);
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -221,18 +221,18 @@ public class CompositeClipboardServiceTests
 
         Assert.Equal(string.Empty, result);
         Assert.DoesNotContain("xsel", runner.CheckCalls);
-        Assert.Single(runner.ReadCalls, call => call.Command == "flatpak-spawn" && call.Args == "--host wl-paste --no-newline");
+        Assert.Single(runner.ReadCalls, call => call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
     }
 
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenHostWlPasteReportsNothingCopied_ShouldReturnEmptyWithoutSandboxFallback()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true, ["xsel"] = true },
             HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true },
-            ThrowNothingCopiedOnHostClipboardRead = true
+            ThrowNothingCopiedOnHostClipboardRead = true,
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: true);
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -247,19 +247,19 @@ public class CompositeClipboardServiceTests
 
         Assert.Equal(string.Empty, result);
         Assert.DoesNotContain("xsel", runner.CheckCalls);
-        Assert.Single(runner.ReadCalls, call => call.Command == "flatpak-spawn" && call.Args == "--host wl-paste --no-newline");
+        Assert.Single(runner.ReadCalls, call => call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
     }
 
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenFlatpakHostReadFails_ShouldFallbackToSandboxShellTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true, ["xclip"] = true },
             HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true },
             ReadResult = "shell-value",
-            ThrowOnHostClipboardRead = true
+            ThrowOnHostClipboardRead = true,
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: true);
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -273,18 +273,18 @@ public class CompositeClipboardServiceTests
         var result = await service.GetTextAsync();
 
         Assert.Equal("shell-value", result);
-        Assert.Contains(runner.ReadCalls, call => call.Command == "flatpak-spawn" && call.Args == "--host wl-paste --no-newline");
-        Assert.Contains(runner.ReadCalls, call => call.Command == "xclip" && call.Args == "-selection clipboard -o");
+        Assert.Contains(runner.ReadCalls, call => call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
+        Assert.Contains(runner.ReadCalls, call => call.Command is "xclip" && call.Args is "-selection clipboard -o");
     }
 
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenFlatpakHostUnavailable_ShouldFallbackToSandboxShellTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["xclip"] = true },
-            ReadResult = "shell-value"
+            ReadResult = "shell-value",
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: true);
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -305,10 +305,10 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenFlatpakAvaloniaUnavailable_ShouldFallbackToShellTools()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner
         {
-            CheckResults = { ["xclip"] = true }
+            CheckResults = { ["xclip"] = true },
         };
         var runtimeContext = new TestRuntimeContext(isFlatpak: true);
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -329,7 +329,7 @@ public class CompositeClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenNoLinuxToolAvailable_ShouldFallbackWithoutThrow()
     {
-        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", null);
+        using var waylandScope = new EnvironmentVariableScope("WAYLAND_DISPLAY", value: null);
         var runner = new FakeProcessRunner();
         var runtimeContext = new TestRuntimeContext(isFlatpak: false);
         var flatpakHost = new FlatpakHostClipboardService(runner, runtimeContext);
@@ -410,7 +410,7 @@ public class CompositeClipboardServiceTests
             var joinedArgs = string.Join(' ', args);
             ReadCalls.Add((command, joinedArgs));
 
-            if (command == "flatpak-spawn" && args.Length >= 4 && args[0] == "--host" && args[1] == "sh")
+            if (command is "flatpak-spawn" && args.Length >= 4 && args[0] is "--host" && args[1] is "sh")
             {
                 foreach (var item in HostCommandResults)
                 {
@@ -423,12 +423,12 @@ public class CompositeClipboardServiceTests
                 return Task.FromResult(string.Empty);
             }
 
-            if (ThrowOnHostClipboardRead && command == "flatpak-spawn" && joinedArgs == "--host wl-paste --no-newline")
+            if (ThrowOnHostClipboardRead && command is "flatpak-spawn" && joinedArgs is "--host wl-paste --no-newline")
             {
                 throw new InvalidOperationException("Simulated host clipboard read failure.");
             }
 
-            if (ThrowNothingCopiedOnHostClipboardRead && command == "flatpak-spawn" && joinedArgs == "--host wl-paste --no-newline")
+            if (ThrowNothingCopiedOnHostClipboardRead && command is "flatpak-spawn" && joinedArgs is "--host wl-paste --no-newline")
             {
                 throw new InvalidOperationException("Command 'flatpak-spawn' exited with code 1: Nothing is copied");
             }

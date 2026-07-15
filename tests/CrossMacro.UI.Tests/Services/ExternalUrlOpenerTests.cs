@@ -42,7 +42,7 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return attempts.Count == 2
+                return attempts.Count is 2
                     ? ExternalUrlOpener.LaunchResult.Succeeded
                     : ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed"));
             },
@@ -77,7 +77,7 @@ public class ExternalUrlOpenerTests
                 attempts.Add(startInfo);
                 return ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"Launcher '{startInfo.FileName}' exited with code 4: {portalError}"));
             },
-            command => command == "xdg-open");
+            command => command is "xdg-open");
 
         var act = () => opener.Open("https://github.com/alper-han/CrossMacro");
 
@@ -98,7 +98,7 @@ public class ExternalUrlOpenerTests
                 attempts.Add(startInfo);
                 return ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed"));
             },
-            command => command == "xdg-open");
+            command => command is "xdg-open");
 
         var act = () => opener.Open("https://github.com/alper-han/CrossMacro");
 
@@ -118,7 +118,7 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                if (startInfo.FileName == "gio")
+                if (startInfo.FileName is "gio")
                 {
                     throw new Win32Exception(2, "No such file or directory");
                 }
@@ -224,7 +224,7 @@ public class ExternalUrlOpenerTests
         return new TheoryData<FakeRuntimeContext>
         {
             FakeRuntimeContext.Windows(),
-            FakeRuntimeContext.MacOS()
+            FakeRuntimeContext.MacOS(),
         };
     }
 
@@ -246,17 +246,17 @@ public class ExternalUrlOpenerTests
 
         public static FakeRuntimeContext Linux(bool isFlatpak = false)
         {
-            return new FakeRuntimeContext(true, false, false, isFlatpak);
+            return new FakeRuntimeContext(isLinux: true, isWindows: false, isMacOS: false, isFlatpak);
         }
 
         public static FakeRuntimeContext Windows()
         {
-            return new FakeRuntimeContext(false, true, false, false);
+            return new FakeRuntimeContext(isLinux: false, isWindows: true, isMacOS: false, isFlatpak: false);
         }
 
         public static FakeRuntimeContext MacOS()
         {
-            return new FakeRuntimeContext(false, false, true, false);
+            return new FakeRuntimeContext(isLinux: false, isWindows: false, isMacOS: true, isFlatpak: false);
         }
     }
 }

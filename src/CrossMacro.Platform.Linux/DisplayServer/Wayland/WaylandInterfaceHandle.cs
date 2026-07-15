@@ -27,7 +27,7 @@ internal sealed class WaylandInterfaceHandle : IDisposable
             MethodCount = _methods.Length,
             Methods = _methodsHandle.AddrOfPinnedObject(),
             EventCount = _events.Length,
-            Events = _eventsHandle.AddrOfPinnedObject()
+            Events = _eventsHandle.AddrOfPinnedObject(),
         }, GCHandleType.Pinned);
     }
 

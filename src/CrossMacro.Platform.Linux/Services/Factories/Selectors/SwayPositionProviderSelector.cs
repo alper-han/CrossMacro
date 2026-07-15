@@ -10,7 +10,7 @@ public class SwayPositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.SWAY;
+        return compositor is CompositorType.SWAY;
     }
 
     public IMousePositionProvider Create()

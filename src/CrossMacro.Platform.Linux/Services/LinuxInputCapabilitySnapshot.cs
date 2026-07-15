@@ -30,7 +30,7 @@ public readonly record struct LinuxInputCapabilitySnapshot(
                     ? LinuxDaemonHandshakeStatus.UnexpectedError
                     : LinuxDaemonHandshakeStatus.MissingSocket;
 
-        return status == LinuxDaemonHandshakeStatus.Success
+        return status is LinuxDaemonHandshakeStatus.Success
             ? LinuxDaemonHandshakeProbeResult.Success(socketPath, TimeSpan.Zero)
             : LinuxDaemonHandshakeProbeResult.Failed(socketPath, TimeSpan.Zero, status);
     }

@@ -23,7 +23,7 @@ public sealed class RunScriptScreenshotRuntimeTests
             ["x"] = "1",
             ["y"] = "2",
             ["w"] = "30",
-            ["h"] = "40"
+            ["h"] = "40",
         };
 
         await executor.ExecuteStepAsync("screenshot region $x $y $w $h output \"$name\" clipboard", 5, variables, CancellationToken.None);
@@ -36,7 +36,7 @@ public sealed class RunScriptScreenshotRuntimeTests
     {
         var service = new RecordingScreenshotCaptureService
         {
-            Result = ScreenshotCaptureResult.Fail(ScreenshotCaptureFailureKind.CaptureFailed, "capture failed", ["portal denied"])
+            Result = ScreenshotCaptureResult.Fail(ScreenshotCaptureFailureKind.CaptureFailed, "capture failed", ["portal denied"]),
         };
         var executor = new RunScriptScreenshotExecutor(service);
 
@@ -55,7 +55,7 @@ public sealed class RunScriptScreenshotRuntimeTests
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"));
         var macro = new MacroSequence
         {
-            ScriptSteps = ["screenshot output simple.png"]
+            ScriptSteps = ["screenshot output simple.png"],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -69,11 +69,11 @@ public sealed class RunScriptScreenshotRuntimeTests
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
+        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
         keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
         var positionProvider = Substitute.For<IMousePositionProvider>();
         positionProvider.ProviderName.Returns("fake-position");
-        positionProvider.IsSupported.Returns(true);
+        positionProvider.IsSupported.Returns(returnThis: true);
 
         return new MacroPlayer(
             positionProvider,
@@ -86,7 +86,7 @@ public sealed class RunScriptScreenshotRuntimeTests
 
     private sealed class RecordingScreenshotCaptureService : IScreenshotCaptureService
     {
-        public ScreenshotCaptureResult Result { get; init; } = ScreenshotCaptureResult.Ok(new ScreenshotCaptureData("out.png", 10, 20, "png", "fake", false, false));
+        public ScreenshotCaptureResult Result { get; init; } = ScreenshotCaptureResult.Ok(new ScreenshotCaptureData("out.png", 10, 20, "png", "fake", IsRegion: false, CopiedToClipboard: false));
 
         public List<(string? OutputPath, bool CopyToClipboard, ScreenRect? Region)> Calls { get; } = [];
 

@@ -38,7 +38,7 @@ internal sealed class RunScriptWindowExecutor
             new WindowStateCommandHandler("center"),
             new WindowWorkspaceCommandHandler("getdesktop"),
             new WindowWorkspaceCommandHandler("setdesktop"),
-            new WindowWorkspaceCommandHandler("setdesktopforwindow")
+            new WindowWorkspaceCommandHandler("setdesktopforwindow"),
         };
         _handlers = handlers.ToDictionary(h => h.SubCommand, StringComparer.OrdinalIgnoreCase);
     }
@@ -110,7 +110,7 @@ internal sealed class RunScriptWindowExecutor
             throw new InvalidOperationException($"Step {stepNumber}: Unknown window sub-command '{sub}'.");
 
         var error = handler.Validate(parts);
-        if (error != null)
+        if (error is not null)
             throw new InvalidOperationException($"Step {stepNumber}: {error}");
 
         await handler.ExecuteAsync(parts, variables, stepNumber, _queryService, _mutationService, _workspaceService, cancellationToken).ConfigureAwait(false);

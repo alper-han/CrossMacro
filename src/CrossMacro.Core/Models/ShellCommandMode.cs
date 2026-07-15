@@ -5,5 +5,5 @@ public enum ShellCommandMode
     Shell,
     ShellCapture,
     ShellInput,
-    ShellCaptureInput
+    ShellCaptureInput,
 }

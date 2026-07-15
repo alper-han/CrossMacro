@@ -42,7 +42,7 @@ public partial class App : Avalonia.Application
 
     private void ConfigureServices()
     {
-        if (_bootstrapContext == null)
+        if (_bootstrapContext is null)
         {
             // Allow tooling/design-time hosts to construct App without a platform host project.
             _serviceProvider = new ServiceCollection().BuildServiceProvider();
@@ -61,14 +61,14 @@ public partial class App : Avalonia.Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
         {
-            if (!Design.IsDesignMode && _bootstrapContext == null)
+            if (!Design.IsDesignMode && _bootstrapContext is null)
             {
                 throw new InvalidOperationException(
                     "Platform service composition is not configured. Start the app via a platform host project.");
             }
 
 
-            if (_serviceProvider == null)
+            if (_serviceProvider is null)
             {
                 throw new InvalidOperationException("Service provider is not initialized");
             }
@@ -147,7 +147,7 @@ public partial class App : Avalonia.Application
     private async Task CompleteShutdownAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
         var services = _serviceProvider;
-        if (services != null)
+        if (services is not null)
         {
             var cleanupError = await CleanupAsync(
                 () => services.GetService<DesktopStartupRuntimeService>()?.StopAsync() ?? Task.CompletedTask,
@@ -164,7 +164,7 @@ public partial class App : Avalonia.Application
                     }
                 }).ConfigureAwait(true);
 
-            if (cleanupError != null)
+            if (cleanupError is not null)
             {
                 Log.Error(cleanupError, "Desktop shutdown cleanup failed");
             }
@@ -212,7 +212,7 @@ public partial class App : Avalonia.Application
             errors.Add(ex);
         }
 
-        return errors.Count == 0
+        return errors.Count is 0
             ? null
             : new AggregateException("Desktop shutdown cleanup failed.", errors);
     }

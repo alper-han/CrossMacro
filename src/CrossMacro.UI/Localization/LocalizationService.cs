@@ -11,7 +11,7 @@ public sealed class LocalizationService : ILocalizationService
 
     public LocalizationService()
     {
-        CurrentCulture = ResolveCulture(null);
+        CurrentCulture = ResolveCulture(cultureName: null);
     }
 
     public CultureInfo CurrentCulture { get; private set; }

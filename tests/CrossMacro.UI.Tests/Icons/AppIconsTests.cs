@@ -33,7 +33,7 @@ public sealed class AppIconsTests
         {
             "arrowNorthEast", "calendar", "cancel", "clipboard", "clock", "delete", "edit",
             "editNote", "folderOpen", "keyboard", "location", "mouse", "play", "record", "save",
-            "settings", "stop", "success", "timer", "tip", "tools", "trigger", "warning"
+            "settings", "stop", "success", "timer", "tip", "tools", "trigger", "warning",
         };
 
         Enum.GetValues<AppIcon>()
@@ -60,7 +60,7 @@ public sealed class AppIconsTests
     [Fact]
     public void GetPath_WhenIconValueIsUnknown_Throws()
     {
-        var invalid = (AppIcon)(-1);
+        const AppIcon invalid = (AppIcon)(-1);
 
         var act = () => AppIcons.GetPath(invalid);
 
@@ -70,7 +70,7 @@ public sealed class AppIconsTests
     [Fact]
     public void AppIconGeometryConverter_ConvertBack_Throws()
     {
-        var act = () => AppIconGeometryConverter.Instance.ConvertBack(null, typeof(AppIcon), null, CultureInfo.InvariantCulture);
+        var act = () => AppIconGeometryConverter.Instance.ConvertBack(value: null, typeof(AppIcon), parameter: null, CultureInfo.InvariantCulture);
 
         act.Should().Throw<NotSupportedException>();
     }

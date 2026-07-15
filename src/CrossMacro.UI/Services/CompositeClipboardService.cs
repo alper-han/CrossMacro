@@ -38,7 +38,7 @@ public class CompositeClipboardService : IClipboardService
     private async Task InitializeLinuxAsync(CancellationToken cancellationToken)
     {
         if (_linuxInitialized) return;
-        
+
         await _linuxService.InitializeAsync(cancellationToken);
         _linuxInitialized = true;
     }
@@ -100,7 +100,7 @@ public class CompositeClipboardService : IClipboardService
         {
             return await _linuxService.GetTextAsync(cancellationToken);
         }
-        
+
         return await GetAvaloniaFallbackAsync(cancellationToken);
     }
 

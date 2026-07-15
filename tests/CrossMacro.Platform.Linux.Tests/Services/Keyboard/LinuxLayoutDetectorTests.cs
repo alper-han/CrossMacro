@@ -13,7 +13,7 @@ public sealed class LinuxLayoutDetectorTests
             () =>
             [
                 ("us", string.Empty, "English (US)"),
-                ("de", "nodeadkeys", "German")
+                ("de", "nodeadkeys", "German"),
             ]);
 
         Assert.Equal("de", layout);
@@ -27,7 +27,7 @@ public sealed class LinuxLayoutDetectorTests
             () =>
             [
                 ("us", string.Empty, "English (US)"),
-                ("de", "nodeadkeys", "German")
+                ("de", "nodeadkeys", "German"),
             ]);
 
         Assert.Null(layout);
@@ -50,7 +50,7 @@ public sealed class LinuxLayoutDetectorTests
             () => throw new InvalidOperationException("KDE DBus unavailable"),
             () =>
             [
-                ("us", string.Empty, "English (US)")
+                ("us", string.Empty, "English (US)"),
             ]);
 
         Assert.Null(layout);

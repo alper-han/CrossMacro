@@ -138,9 +138,9 @@ public class TriggerTask : INotifyPropertyChanged
     /// <see cref="TriggerField.None"/> needs no value (pure interval path).
     /// </summary>
     public bool CanBeEnabled =>
-        (Field == TriggerField.None || !string.IsNullOrEmpty(Value))
-        && (Action != TriggerAction.SwitchProfile || !string.IsNullOrEmpty(TargetProfileId))
-        && (Action != TriggerAction.RunMacro || !string.IsNullOrEmpty(MacroFilePath));
+        (Field is TriggerField.None || !string.IsNullOrEmpty(Value))
+&& (Action is not TriggerAction.SwitchProfile || !string.IsNullOrEmpty(TargetProfileId))
+&& (Action is not TriggerAction.RunMacro || !string.IsNullOrEmpty(MacroFilePath));
 
     private DateTime? _lastTriggeredTime;
     public DateTime? LastTriggeredTime

@@ -82,7 +82,7 @@ public class TriggerService : ITriggerService
 
     private void EnsureSyncContext()
     {
-        if (_syncContext == null && SynchronizationContext.Current != null)
+        if (_syncContext is null && SynchronizationContext.Current is not null)
         {
             _syncContext = SynchronizationContext.Current;
         }
@@ -103,7 +103,7 @@ public class TriggerService : ITriggerService
         lock (_lock)
         {
             var task = Tasks.FirstOrDefault(t => t.Id == id);
-            if (task != null)
+            if (task is not null)
             {
                 Tasks.Remove(task);
                 _wasMatching.Remove(id);
@@ -117,7 +117,7 @@ public class TriggerService : ITriggerService
         lock (_lock)
         {
             var existing = Tasks.FirstOrDefault(t => t.Id == task.Id);
-            if (existing != null)
+            if (existing is not null)
             {
                 existing.Name = task.Name;
                 existing.Field = task.Field;
@@ -137,7 +137,7 @@ public class TriggerService : ITriggerService
         lock (_lock)
         {
             var task = Tasks.FirstOrDefault(t => t.Id == id);
-            if (task != null)
+            if (task is not null)
             {
                 task.IsEnabled = enabled;
                 if (!enabled) _wasMatching.Remove(id);
@@ -186,7 +186,7 @@ public class TriggerService : ITriggerService
             monitorTask = _monitorTask;
         }
 
-        if (cts == null) return;
+        if (cts is null) return;
 
         try { cts.Cancel(); }
         catch (ObjectDisposedException) { }
@@ -277,7 +277,7 @@ public class TriggerService : ITriggerService
         // Lazily fetch the active workspace only if an enabled task requires it.
         string? workspace = null;
         var snapshot = TasksWithSnapshot();
-        var anyWorkspaceTask = snapshot.Exists(t => t.IsEnabled && t.Field == TriggerField.Workspace);
+        var anyWorkspaceTask = snapshot.Exists(t => t.IsEnabled && t.Field is TriggerField.Workspace);
         if (anyWorkspaceTask)
         {
             try
@@ -334,8 +334,8 @@ public class TriggerService : ITriggerService
                         // Stable match survived the debounce window — allow fire this once.
                         // Reset the debounce tracking timestamp now that the trigger has fired.
                         _firstMatchedAt.Remove(task.Id);
-                        if (task.FireMode == TriggerFireMode.OnceOnChange
-                            || task.FireMode == TriggerFireMode.OnEnter)
+                        if (task.FireMode is TriggerFireMode.OnceOnChange
+or TriggerFireMode.OnEnter)
                         {
                             shouldFire = true;
                         }
@@ -384,19 +384,19 @@ public class TriggerService : ITriggerService
     {
         // None matches unconditionally. Workspace matches the active workspace.
         string? actual;
-        if (task.Field == TriggerField.None)
+        if (task.Field is TriggerField.None)
         {
             return true;
         }
-        else if (task.Field == TriggerField.Workspace)
+        else if (task.Field is TriggerField.Workspace)
         {
             actual = workspace;
         }
-        else if (task.Field == TriggerField.ProcessName)
+        else if (task.Field is TriggerField.ProcessName)
         {
             actual = window?.ProcessName;
         }
-        else if (task.Field == TriggerField.WindowClass)
+        else if (task.Field is TriggerField.WindowClass)
         {
             actual = window?.Class;
         }
@@ -408,7 +408,7 @@ public class TriggerService : ITriggerService
         if (string.IsNullOrEmpty(actual)) return false;
 
         // Prevent ReDoS on user-defined pattern.
-        if (task.MatchMode == TriggerMatchMode.Regex)
+        if (task.MatchMode is TriggerMatchMode.Regex)
         {
             try
             {
@@ -421,7 +421,7 @@ public class TriggerService : ITriggerService
             }
         }
 
-        return task.MatchMode == TriggerMatchMode.Equals
+        return task.MatchMode is TriggerMatchMode.Equals
             ? string.Equals(actual, task.Value, comparison)
             : actual.Contains(task.Value, comparison);
     }
@@ -433,7 +433,7 @@ public class TriggerService : ITriggerService
 
         try
         {
-            if (task.Action == TriggerAction.SwitchProfile)
+            if (task.Action is TriggerAction.SwitchProfile)
             {
                 if (string.IsNullOrEmpty(task.TargetProfileId))
                 {
@@ -455,14 +455,14 @@ public class TriggerService : ITriggerService
                 else
                 {
                     var macro = await _macroFileManager.LoadAsync(task.MacroFilePath).ConfigureAwait(false);
-                    if (macro == null)
+                    if (macro is null)
                     {
                         message = "Failed to load macro";
                     }
                     else
                     {
                         using var player = _macroPlayerFactory();
-                        await player.PlayAsync(macro, null, ct).ConfigureAwait(false);
+                        await player.PlayAsync(macro, options: null, ct).ConfigureAwait(false);
                         success = true;
                         message = $"Ran macro '{task.MacroFilePath}'";
                     }
@@ -496,8 +496,8 @@ public class TriggerService : ITriggerService
             catch (Exception ex) { Log.Warning(ex, "TriggerFired subscriber threw"); }
         }
 
-        if (_syncContext != null) _syncContext.Post(Raise, null);
-        else Raise(null);
+        if (_syncContext is not null) _syncContext.Post(Raise, state: null);
+        else Raise(_: null);
     }
 
     public async Task SaveAsync()
@@ -536,7 +536,7 @@ public class TriggerService : ITriggerService
                     CrossMacroJsonContext.Default.ListTriggerTask)
                 .ConfigureAwait(false);
 
-            if (tasks != null)
+            if (tasks is not null)
             {
                 void UpdateCollection(object? state)
                 {
@@ -585,9 +585,9 @@ public class TriggerService : ITriggerService
 
     private async Task ExecuteOnCapturedContextAsync(SendOrPostCallback callback)
     {
-        if (_syncContext == null || SynchronizationContext.Current == _syncContext)
+        if (_syncContext is null || SynchronizationContext.Current == _syncContext)
         {
-            callback(null);
+            callback(state: null);
             return;
         }
 
@@ -596,14 +596,14 @@ public class TriggerService : ITriggerService
         {
             try
             {
-                callback(null);
+                callback(state: null);
                 completion.TrySetResult();
             }
             catch (Exception ex)
             {
                 completion.TrySetException(ex);
             }
-        }, null);
+        }, state: null);
         await completion.Task.ConfigureAwait(false);
     }
 

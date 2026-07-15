@@ -52,7 +52,7 @@ public class DaemonServiceTests
 
         Assert.Equal(0, security.ValidateCalls);
 
-        if (permission.ConfiguredSocketPath != null)
+        if (permission.ConfiguredSocketPath is not null)
         {
             Assert.False(File.Exists(permission.ConfiguredSocketPath));
         }
@@ -119,7 +119,7 @@ public class DaemonServiceTests
         var security = new FakeSecurityService
         {
             ValidationResult = null,
-            DisposeRejectedClient = true
+            DisposeRejectedClient = true,
         };
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
@@ -153,7 +153,7 @@ public class DaemonServiceTests
         var security = new FakeSecurityService
         {
             ValidationResult = null,
-            DisposeRejectedClient = false
+            DisposeRejectedClient = false,
         };
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
@@ -188,7 +188,7 @@ public class DaemonServiceTests
         var security = new FakeSecurityService
         {
             ValidationResult = null,
-            DisposeRejectedClient = true
+            DisposeRejectedClient = true,
         };
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
@@ -223,7 +223,7 @@ public class DaemonServiceTests
     {
         var security = new FakeSecurityService
         {
-            ValidationException = new TimeoutException("polkit timeout")
+            ValidationException = new TimeoutException("polkit timeout"),
         };
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
@@ -261,7 +261,7 @@ public class DaemonServiceTests
 
         var security = new FakeSecurityService
         {
-            ValidationResult = (uid, pid)
+            ValidationResult = (uid, pid),
         };
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
@@ -300,7 +300,7 @@ public class DaemonServiceTests
 
         var security = new FakeSecurityService
         {
-            ValidationResult = (uid, pid)
+            ValidationResult = (uid, pid),
         };
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
@@ -340,7 +340,7 @@ public class DaemonServiceTests
 
         var security = new FakeSecurityService
         {
-            ValidationResult = (uid, pid)
+            ValidationResult = (uid, pid),
         };
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
@@ -380,7 +380,7 @@ public class DaemonServiceTests
 
         var security = new FakeSecurityService
         {
-            ValidationResult = (uid, pid)
+            ValidationResult = (uid, pid),
         };
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
@@ -468,12 +468,12 @@ public class DaemonServiceTests
             ValidateCalls++;
             _validated.TrySetResult();
 
-            if (ValidationException != null)
+            if (ValidationException is not null)
             {
                 throw ValidationException;
             }
 
-            if (ValidationResult == null && DisposeRejectedClient)
+            if (ValidationResult is null && DisposeRejectedClient)
             {
                 client.Dispose();
             }

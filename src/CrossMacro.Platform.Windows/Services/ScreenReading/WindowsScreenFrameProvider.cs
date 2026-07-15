@@ -215,14 +215,14 @@ internal sealed class GdiWindowsScreenCaptureBackend : IWindowsScreenCaptureBack
                 biBitCount = BitsPerPixel,
                 biCompression = Gdi32.BiRgb,
                 biSizeImage = (uint)checked(width * height * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Bgra8888))
-            }
+            },
         };
     }
 
     private static Win32Exception CreateWin32Exception(string operation)
     {
         var error = Marshal.GetLastPInvokeError();
-        return error == 0
+        return error is 0
             ? new Win32Exception($"{operation}.")
             : new Win32Exception(error, $"{operation}: {new Win32Exception(error).Message}");
     }

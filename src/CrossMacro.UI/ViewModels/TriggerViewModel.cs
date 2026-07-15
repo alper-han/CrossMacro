@@ -67,7 +67,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         get => null;
         set
         {
-            if (SelectedTask != null && !string.IsNullOrEmpty(value))
+            if (SelectedTask is not null && !string.IsNullOrEmpty(value))
             {
                 SelectedTask.Value = value;
             }
@@ -96,13 +96,13 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         {
             if (_selectedTask != value)
             {
-                if (_selectedTask != null)
+                if (_selectedTask is not null)
                 {
                     _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
                 }
 
                 _selectedTask = value;
-                if (_selectedTask != null)
+                if (_selectedTask is not null)
                 {
                     _selectedTask.PropertyChanged += OnSelectedTaskPropertyChanged;
                 }
@@ -125,7 +125,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
 
         // When the field changes, the previously fetched window values no longer apply.
-        if (e.PropertyName == nameof(TriggerTask.Field))
+        if (string.Equals(e.PropertyName, nameof(TriggerTask.Field), StringComparison.Ordinal))
         {
             RaiseOnUiThread(() =>
             {
@@ -135,7 +135,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool HasSelectedTask => SelectedTask != null;
+    public bool HasSelectedTask => SelectedTask is not null;
 
     /// <summary>
     /// Bridge between the XAML ComboBox (binds <see cref="ProfileInfo"/> objects)
@@ -145,16 +145,16 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     {
         get
         {
-            if (SelectedTask == null || string.IsNullOrEmpty(SelectedTask.TargetProfileId) || _profileManager == null)
+            if (SelectedTask is null || string.IsNullOrEmpty(SelectedTask.TargetProfileId) || _profileManager is null)
                 return null;
-            return AvailableProfiles.FirstOrDefault(p => p.Id == SelectedTask.TargetProfileId);
+            return AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, SelectedTask.TargetProfileId, StringComparison.Ordinal));
         }
         set
         {
-            if (SelectedTask != null)
+            if (SelectedTask is not null)
             {
                 var newId = value?.Id ?? string.Empty;
-                if (SelectedTask.TargetProfileId != newId)
+                if (!string.Equals(SelectedTask.TargetProfileId, newId, StringComparison.Ordinal))
                 {
                     SelectedTask.TargetProfileId = newId;
                     OnPropertyChanged();
@@ -191,7 +191,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         _triggerService.TriggerFired += OnTriggerFired;
         _triggerService.Tasks.CollectionChanged += OnTasksCollectionChanged;
 
-        if (_profileManager != null)
+        if (_profileManager is not null)
         {
             _profileManager.ProfileChanged += OnProfileChanged;
         }
@@ -232,7 +232,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     public void RefreshProfileData()
     {
-        if (_profileManager != null)
+        if (_profileManager is not null)
         {
             AvailableProfiles = _profileManager.Profiles.ToArray();
         }
@@ -252,7 +252,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             Name = string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["Trigger_DefaultTaskName"],
-                Tasks.Count + 1)
+                Tasks.Count + 1),
         };
         if (_manageTrigger is not null)
         {
@@ -269,7 +269,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task RemoveTaskAsync(TriggerTask? task)
     {
-        if (task == null) return;
+        if (task is null) return;
 
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["Trigger_DeleteTitle"],
@@ -310,7 +310,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void SelectTask(TriggerTask? task)
     {
-        if (task != null)
+        if (task is not null)
         {
             SelectedTask = SelectedTask?.Id == task.Id ? null : task;
         }
@@ -325,18 +325,18 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task BrowseMacroAsync()
     {
-        if (SelectedTask == null) return;
+        if (SelectedTask is null) return;
 
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = _localizationService["Trigger_OpenMacroDialogFilter"], Extensions = new[] { "macro" } }
+            new FileDialogFilter { Name = _localizationService["Trigger_OpenMacroDialogFilter"], Extensions = new[] { "macro" } },
         };
 
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
             _localizationService["Trigger_OpenMacroDialogTitle"],
             filters);
 
-        if (!string.IsNullOrEmpty(filePath) && SelectedTask != null)
+        if (!string.IsNullOrEmpty(filePath) && SelectedTask is not null)
         {
             SelectedTask.MacroFilePath = filePath;
             OnPropertyChanged(nameof(SelectedTask));
@@ -346,7 +346,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand(CanExecute = nameof(CanRefreshWindows))]
     private async Task RefreshWindowsAsync()
     {
-        if (SelectedTask == null || _windowManager == null) return;
+        if (SelectedTask is null || _windowManager is null) return;
 
         IsRefreshingWindows = true;
         try
@@ -361,7 +361,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 TriggerField.WindowTitle  => windows.Select(w => w.Title),
                 TriggerField.Workspace    => windows.Select(w => w.Workspace),
                 TriggerField.ProcessName  => windows.Select(w => w.ProcessName),
-                _                         => []
+                _                         => [],
             };
 
             var distinct = values
@@ -384,7 +384,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private bool CanRefreshWindows() => !IsRefreshingWindows && SelectedTask?.Field != TriggerField.None;
+    private bool CanRefreshWindows() => !IsRefreshingWindows && (SelectedTask?.Field) is not TriggerField.None;
 
     private async Task SaveChangesAsync(bool showSuccessStatus, Action? rollback = null)
     {
@@ -493,7 +493,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     private static void RaiseOnUiThread(Action action)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             action();
             return;
@@ -504,7 +504,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     private void RaiseStatus(string message)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             StatusChanged?.Invoke(this, message);
             return;
@@ -527,11 +527,11 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
         _triggerService.TriggerFired -= OnTriggerFired;
         _triggerService.Tasks.CollectionChanged -= OnTasksCollectionChanged;
-        if (_selectedTask != null)
+        if (_selectedTask is not null)
         {
             _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
         }
-        if (_profileManager != null)
+        if (_profileManager is not null)
         {
             _profileManager.ProfileChanged -= OnProfileChanged;
         }

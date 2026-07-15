@@ -12,7 +12,7 @@ public class DbusWrapperClientTests
         var reply = DbusWrapperProtocolTestHelpers.CreateBodyOnlyMessage(
             DbusWrapperProtocolTestHelpers.EncodeInt32Body(42));
 
-        Assert.Equal(42, KWinScriptingClient.ReadLoadScriptReply(reply, null));
+        Assert.Equal(42, KWinScriptingClient.ReadLoadScriptReply(reply, _: null));
     }
 
     [LinuxFact]
@@ -23,7 +23,7 @@ public class DbusWrapperClientTests
                 ("us", string.Empty, "English (US)"),
                 ("de", "nodeadkeys", "German")));
 
-        var layouts = KdeKeyboardClient.ReadGetLayoutsListReply(reply, null);
+        var layouts = KdeKeyboardClient.ReadGetLayoutsListReply(reply, _: null);
 
         Assert.Collection(
             layouts,
@@ -40,7 +40,7 @@ public class DbusWrapperClientTests
                 ("name", "Cursor Spy"),
                 ("enabled", true)));
 
-        var info = GnomeShellExtensionsClient.ReadGetExtensionInfoReply(reply, null);
+        var info = GnomeShellExtensionsClient.ReadGetExtensionInfoReply(reply, _: null);
 
         Assert.Equal((uint)1, info["state"]);
         Assert.Equal("Cursor Spy", info["name"]);

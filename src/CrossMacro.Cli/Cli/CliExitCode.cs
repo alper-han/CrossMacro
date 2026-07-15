@@ -8,5 +8,5 @@ public enum CliExitCode
     ValidationError = 4,
     EnvironmentError = 5,
     RuntimeError = 6,
-    Cancelled = 130
+    Cancelled = 130,
 }

@@ -14,7 +14,7 @@ public static class CliOutputFormatter
     private static readonly CliJsonContext Context = new(new JsonSerializerOptions
     {
         WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     });
 
     public static void Write(CliCommandExecutionResult result, bool jsonOutput)
@@ -42,12 +42,12 @@ public static class CliOutputFormatter
         writer.WriteLine($"Code: {result.ExitCode}");
         writer.WriteLine($"Message: {result.Message}");
 
-        if (result.Data != null)
+        if (result.Data is not null)
         {
             writer.WriteLine("Data:");
             var type = result.Data.GetType();
             var typeInfo = Context.GetTypeInfo(type);
-            if (typeInfo == null)
+            if (typeInfo is null)
             {
                 throw new InvalidOperationException($"Type '{type.FullName}' is not registered in CliJsonContext.");
             }
@@ -77,7 +77,7 @@ public static class CliOutputFormatter
     private static void WriteJson(CliCommandExecutionResult result)
     {
         JsonNode? dataNode = null;
-        if (result.Data != null)
+        if (result.Data is not null)
         {
             if (result.Data is JsonNode node)
             {
@@ -87,7 +87,7 @@ public static class CliOutputFormatter
             {
                 var type = result.Data.GetType();
                 var typeInfo = Context.GetTypeInfo(type);
-                if (typeInfo == null)
+                if (typeInfo is null)
                 {
                     throw new InvalidOperationException($"Type '{type.FullName}' is not registered in CliJsonContext.");
                 }
@@ -174,7 +174,7 @@ public static class CliOutputFormatter
             JsonValueKind.True => "true",
             JsonValueKind.False => "false",
             JsonValueKind.Null => "null",
-            _ => element.GetRawText()
+            _ => element.GetRawText(),
         };
     }
 }

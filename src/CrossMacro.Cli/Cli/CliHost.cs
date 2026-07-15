@@ -104,7 +104,7 @@ public sealed class CliHost
                 "CLI command failed.",
                 errors:
                 [
-                    ex.Message
+                    ex.Message,
                 ]);
             CliOutputFormatter.Write(runtimeFailure, options.JsonOutput);
             return (int)CliExitCode.RuntimeError;

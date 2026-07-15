@@ -18,7 +18,7 @@ public sealed class X11ScreenCaptureTests
                 RedMask = new UIntPtr(0x00FF0000UL),
                 GreenMask = new UIntPtr(0x0000FF00UL),
                 BlueMask = new UIntPtr(0x000000FFUL)
-            }
+            },
         };
         native.Pixels[(0, 0)] = new UIntPtr(0x00112233UL);
         native.Pixels[(1, 0)] = new UIntPtr(0x00445566UL);
@@ -46,7 +46,7 @@ public sealed class X11ScreenCaptureTests
         var native = new FakeX11NativeApi
         {
             RootWidth = 20,
-            RootHeight = 10
+            RootHeight = 10,
         };
         using var capture = CreateCapture(native);
 
@@ -71,7 +71,7 @@ public sealed class X11ScreenCaptureTests
                 RedMask = UIntPtr.Zero,
                 GreenMask = UIntPtr.Zero,
                 BlueMask = UIntPtr.Zero
-            }
+            },
         };
         using var capture = CreateCapture(native);
 
@@ -79,7 +79,7 @@ public sealed class X11ScreenCaptureTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("RGB channel masks", result.ErrorMessage);
+        Assert.Contains("RGB channel masks", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(1, native.DestroyImageCalls);
         Assert.Equal(1, native.CloseDisplayCalls);
     }
@@ -92,11 +92,11 @@ public sealed class X11ScreenCaptureTests
             new FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult.Unsupported("DISPLAY missing")),
             native);
 
-        var result = await capture.CaptureAsync(null, ScreenReadOptions.Default);
+        var result = await capture.CaptureAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("DISPLAY missing", result.ErrorMessage);
+        Assert.Contains("DISPLAY missing", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, native.OpenDisplayCalls);
     }
 
@@ -110,7 +110,7 @@ public sealed class X11ScreenCaptureTests
 
         Assert.False(result.IsSupported);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("DISPLAY", result.ErrorMessage);
+        Assert.Contains("DISPLAY", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, native.OpenDisplayCalls);
     }
 
@@ -145,7 +145,7 @@ public sealed class X11ScreenCaptureTests
             Height = 1,
             RedMask = new UIntPtr(0x00FF0000UL),
             GreenMask = new UIntPtr(0x0000FF00UL),
-            BlueMask = new UIntPtr(0x000000FFUL)
+            BlueMask = new UIntPtr(0x000000FFUL),
         };
 
         public Dictionary<(int X, int Y), UIntPtr> Pixels { get; } = [];

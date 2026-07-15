@@ -34,7 +34,7 @@ public class ViewLocatorTests
         var control = locator.Build(new object());
 
         var textBlock = Assert.IsType<TextBlock>(control);
-        Assert.StartsWith("Not Found:", textBlock.Text);
+        Assert.StartsWith("Not Found:", textBlock.Text, StringComparison.Ordinal);
     }
 
     private sealed class DummyViewModel : ViewModelBase

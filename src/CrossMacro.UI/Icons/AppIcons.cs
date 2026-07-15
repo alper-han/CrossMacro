@@ -60,7 +60,7 @@ public static class AppIcons
             AppIcon.Trigger => Trigger,
             AppIcon.Undo => Undo,
             AppIcon.Warning => Warning,
-            _ => throw new ArgumentOutOfRangeException(nameof(icon), icon, "Unknown application icon.")
+            _ => throw new ArgumentOutOfRangeException(nameof(icon), icon, "Unknown application icon."),
         };
     }
 

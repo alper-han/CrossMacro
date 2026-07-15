@@ -93,7 +93,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
     {
         ArgumentNullException.ThrowIfNull(macro);
 
-        if (SelectedMacroItem == null)
+        if (SelectedMacroItem is null)
         {
             return false;
         }
@@ -105,7 +105,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
     public IReadOnlyList<LoadedMacroListItem> CreateSequentialCycleSnapshot()
     {
-        if (_loadedMacros.Count == 0)
+        if (_loadedMacros.Count is 0)
         {
             return Array.Empty<LoadedMacroListItem>();
         }
@@ -144,7 +144,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
             return true;
         }
 
-        if (_loadedMacros.Count == 0)
+        if (_loadedMacros.Count is 0)
         {
             SelectedMacroItem = null;
             return true;
@@ -157,7 +157,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
     public void RenameSelected(string name)
     {
-        if (SelectedMacroItem == null)
+        if (SelectedMacroItem is null)
         {
             return;
         }
@@ -175,13 +175,13 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
     public bool SelectNext()
     {
-        if (_loadedMacros.Count == 0)
+        if (_loadedMacros.Count is 0)
         {
             SelectedMacroItem = null;
             return false;
         }
 
-        if (SelectedMacroItem == null)
+        if (SelectedMacroItem is null)
         {
             SelectedMacroItem = _loadedMacros[0];
             return true;

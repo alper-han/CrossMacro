@@ -86,7 +86,7 @@ public class MacroEventTests
         var ev = new MacroEvent
         {
             Type = EventType.MouseMove,
-            CoordinateMode = coordinateMode
+            CoordinateMode = coordinateMode,
         };
 
         ev.CoordinateMode.Should().Be(coordinateMode);

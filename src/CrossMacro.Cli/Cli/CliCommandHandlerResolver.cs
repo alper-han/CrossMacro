@@ -114,7 +114,7 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
             ScreenCliOptions => _screenCommandHandler(),
             ScreenshotCliOptions => _screenshotCommandHandler(),
             HeadlessCliOptions => _headlessCommandHandler(),
-            _ => null
+            _ => null,
         };
     }
 }

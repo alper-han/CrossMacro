@@ -17,7 +17,7 @@ internal static class LinuxScreenFrameProviderResults
             OperationCanceledException => ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.Canceled, canceledMessage),
             TimeoutException => ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureTimeout, exception.Message),
             InvalidOperationException or IOException or UnauthorizedAccessException => ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, exception.Message),
-            _ => throw new ArgumentException("Unknown capture exception.", nameof(exception))
+            _ => throw new ArgumentException("Unknown capture exception.", nameof(exception)),
         };
     }
 
@@ -63,13 +63,13 @@ internal static class LinuxScreenFrameProviderResults
 
         for (var row = 0; row < region.Height; row++)
         {
-            var sourceOffset = checked((sourceY + row) * sourceStride + sourceX * bytesPerPixel);
+            var sourceOffset = checked(((sourceY + row) * sourceStride) + (sourceX * bytesPerPixel));
             var targetOffset = checked(row * targetStride);
             sourceBytes.Slice(sourceOffset, targetStride).CopyTo(targetPixels.AsSpan(targetOffset, targetStride));
 
             if (targetValidPixelMask is not null)
             {
-                var sourceMaskOffset = checked((sourceY + row) * sourceBounds.Width + sourceX);
+                var sourceMaskOffset = checked(((sourceY + row) * sourceBounds.Width) + sourceX);
                 var targetMaskOffset = checked(row * region.Width);
                 sourceMask.Slice(sourceMaskOffset, region.Width).CopyTo(targetValidPixelMask.AsSpan(targetMaskOffset, region.Width));
             }

@@ -92,7 +92,7 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
         ScreenRect? region,
         CancellationToken cancellationToken)
     {
-        var readOptions = new ScreenReadOptions(null, null, cancellationToken);
+        var readOptions = new ScreenReadOptions(timeout: null, pollInterval: null, cancellationToken);
 
         ScreenReadResult<ScreenFrame> captureResult;
         try
@@ -160,7 +160,7 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
         try
         {
             await imageClipboardService.SetPngAsync(pngBytes, cancellationToken).ConfigureAwait(false);
-            return ScreenshotCaptureResult.Ok(new ScreenshotCaptureData(null, 0, 0, "png", string.Empty, false, true));
+            return ScreenshotCaptureResult.Ok(new ScreenshotCaptureData(OutputPath: null, 0, 0, "png", string.Empty, IsRegion: false, CopiedToClipboard: true));
         }
         catch (OperationCanceledException)
         {

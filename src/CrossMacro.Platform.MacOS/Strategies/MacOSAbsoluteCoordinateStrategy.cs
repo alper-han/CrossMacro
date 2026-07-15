@@ -27,22 +27,22 @@ public class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
             _lastY = 0;
             return Task.CompletedTask;
         }
-        
+
         var loc = CoreGraphics.CGEventGetLocation(eventRef);
         CoreFoundation.CFRelease(eventRef);
-        
+
         _lastX = (int)loc.X;
         _lastY = (int)loc.Y;
-        
+
         return Task.CompletedTask;
     }
 
     public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
     {
-        if (e.Type == InputEventType.Sync)
+        if (e.Type is InputEventType.Sync)
             return (0, 0);
 
-        if (e.Type != InputEventType.MouseMove)
+        if (e.Type is not InputEventType.MouseMove)
             return (_lastX, _lastY);
 
         // macOS sends ABS_X and ABS_Y with absolute positions

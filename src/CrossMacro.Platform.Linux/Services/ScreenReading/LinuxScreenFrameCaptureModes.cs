@@ -12,6 +12,6 @@ internal static class LinuxScreenFrameCaptureModes
         LinuxScreenReaderBackend.WlrScreencopy => true,
         LinuxScreenReaderBackend.Portal => true,
         LinuxScreenReaderBackend.GnomeExtension => true,
-        _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend.")
+        _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend."),
     };
 }

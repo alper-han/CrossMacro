@@ -43,7 +43,7 @@ internal static class ShortcutCommandParser
             "enable" => ParseTaskIdCommand(args, ShortcutCliAction.Enable, "shortcut.enable"),
             "disable" => ParseTaskIdCommand(args, ShortcutCliAction.Disable, "shortcut.disable"),
             "bind" => ParseBind(args),
-            _ => CliParseResult.Error($"Unknown shortcut subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2))
+            _ => CliParseResult.Error($"Unknown shortcut subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 

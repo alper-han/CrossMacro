@@ -21,7 +21,7 @@ public class PlaybackValidatorExtendedTests
             Events = new List<MacroEvent>
             {
                 new() { Type = (EventType)999 } // Invalid enum val
-            }
+            },
         };
 
         // Act
@@ -41,7 +41,7 @@ public class PlaybackValidatorExtendedTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.None }
-            }
+            },
         };
 
         // Act

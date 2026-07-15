@@ -19,7 +19,7 @@ public static class LoggingExtensions
     /// <param name="args">Optional arguments for the message template.</param>
     public static void LogOnce(string key, string messageTemplate, params object[] args)
     {
-        if (!_loggedKeys.TryAdd(key, true))
+        if (!_loggedKeys.TryAdd(key, value: true))
         {
             return;
         }

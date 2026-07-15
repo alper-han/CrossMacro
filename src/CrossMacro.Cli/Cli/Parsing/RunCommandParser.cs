@@ -115,7 +115,7 @@ internal static class RunCommandParser
             return CliParseHelpers.Error($"Unknown option for run: {token}", jsonOutput);
         }
 
-        if (steps.Count == 0 && string.IsNullOrWhiteSpace(stepFilePath))
+        if (steps.Count is 0 && string.IsNullOrWhiteSpace(stepFilePath))
         {
             return CliParseHelpers.MissingRequiredOperands(
                 "run requires at least one --step argument or --file.",
@@ -194,7 +194,7 @@ internal static class RunCommandParser
             }
 
             step = $"{token} {args[index + 1]}";
-            index += 1;
+            index++;
             return true;
         }
 
@@ -214,7 +214,7 @@ internal static class RunCommandParser
             }
 
             step = $"scroll {args[index + 1]}";
-            index += 1;
+            index++;
             return true;
         }
 
@@ -262,7 +262,7 @@ internal static class RunCommandParser
             }
 
             step = $"delay {args[index + 1]}";
-            index += 1;
+            index++;
             return true;
         }
 
@@ -323,7 +323,7 @@ internal static class RunCommandParser
             if (index + 1 < args.Length && int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
             {
                 step += $" {args[index + 1]}";
-                index += 1;
+                index++;
             }
 
             if (TryConsumeOptionalInlineArgument(args, ref index, out var resultVariableName))
@@ -350,7 +350,7 @@ internal static class RunCommandParser
             {
                 if (RunScriptSyntax.IsPixelSearchToleranceKeyword(variableName))
                 {
-                    index -= 1;
+                    index--;
                     break;
                 }
 
@@ -387,7 +387,7 @@ internal static class RunCommandParser
             }
 
             step = $"{token} {args[index + 1]}";
-            index += 1;
+            index++;
             return true;
         }
 
@@ -402,7 +402,7 @@ internal static class RunCommandParser
             if (args[index + 1].Contains('='))
             {
                 step = $"set {args[index + 1]}";
-                index += 1;
+                index++;
                 return true;
             }
 
@@ -436,7 +436,7 @@ internal static class RunCommandParser
             }
 
             step = $"{token} {args[index + 1]}";
-            index += 1;
+            index++;
             return true;
         }
 
@@ -476,7 +476,7 @@ internal static class RunCommandParser
             }
 
             step = "else {";
-            index += 1;
+            index++;
             return true;
         }
 
@@ -553,7 +553,7 @@ internal static class RunCommandParser
         }
 
         value = candidate;
-        index += 1;
+        index++;
         return true;
     }
 
@@ -619,7 +619,7 @@ internal static class RunCommandParser
             && int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
         {
             step += $" {args[index + 1]}";
-            index += 1;
+            index++;
             optionCount++;
         }
     }
@@ -665,7 +665,7 @@ internal static class RunCommandParser
         }
 
         var name = token[1..];
-        if (name.Length == 0)
+        if (name.Length is 0)
         {
             return false;
         }

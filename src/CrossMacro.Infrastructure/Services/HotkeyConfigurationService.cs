@@ -14,7 +14,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
     private readonly object _pathLock = new();
     private string _configPath;
 
-    public HotkeyConfigurationService() : this(null)
+    public HotkeyConfigurationService() : this(configRootPath: null)
     {
     }
 
@@ -46,7 +46,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
             if (File.Exists(configPath))
             {
                 var settings = FileBackedJsonStorage.Read(configPath, CrossMacroJsonContext.Default.HotkeySettings);
-                if (settings != null)
+                if (settings is not null)
                 {
                     Log.Information("Loaded hotkey configuration from {Path}", configPath);
                     return settings;
@@ -80,7 +80,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
 
             var settings = await FileBackedJsonStorage.ReadAsync(configPath, CrossMacroJsonContext.Default.HotkeySettings)
                 .ConfigureAwait(false);
-            if (settings != null)
+            if (settings is not null)
             {
                 Log.Information("Loaded hotkey configuration from {Path}", configPath);
                 return settings;
@@ -135,7 +135,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
             {
                 RecordingHotkey = request.RecordingHotkey,
                 PlaybackHotkey = request.PlaybackHotkey,
-                PauseHotkey = request.PauseHotkey
+                PauseHotkey = request.PauseHotkey,
             }, CrossMacroJsonContext.Default.HotkeySettings);
             Log.Information("Saved hotkey configuration to {Path}", request.ConfigPath);
             return true;

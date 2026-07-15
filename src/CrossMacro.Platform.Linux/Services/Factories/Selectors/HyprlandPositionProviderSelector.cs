@@ -10,7 +10,7 @@ public class HyprlandPositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.HYPRLAND;
+        return compositor is CompositorType.HYPRLAND;
     }
 
     public IMousePositionProvider Create()

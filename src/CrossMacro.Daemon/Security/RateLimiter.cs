@@ -13,7 +13,7 @@ public class RateLimiter
     private readonly Dictionary<uint, ConnectionRecord> _connectionAttempts = new();
     private readonly Lock _lock = new();
     private readonly Func<DateTime> _utcNow;
-    
+
     private readonly int _maxConnectionsPerWindow;
     private readonly TimeSpan _windowDuration;
     private readonly TimeSpan _banDuration;
@@ -96,7 +96,7 @@ public class RateLimiter
                 {
                     WindowStart = now,
                     Count = 1,
-                    BannedUntil = null
+                    BannedUntil = null,
                 };
                 return false;
             }

@@ -19,46 +19,46 @@ internal sealed class TextExpansionKeyDispatcher
 
         if (ctrl)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, true);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, pressed: true);
         }
 
         if (meta)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, true);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, pressed: true);
         }
 
         if (shift)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, true);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, pressed: true);
         }
 
         if (altGr)
         {
-            SendKeyState(simulator, InputEventCode.KEY_RIGHTALT, true);
+            SendKeyState(simulator, InputEventCode.KEY_RIGHTALT, pressed: true);
         }
 
-        SendKeyState(simulator, keyCode, true);
+        SendKeyState(simulator, keyCode, pressed: true);
         await Task.Delay(TextExpansionExecutionTimings.KeyPressReleaseDelay);
-        SendKeyState(simulator, keyCode, false);
+        SendKeyState(simulator, keyCode, pressed: false);
 
         if (altGr)
         {
-            SendKeyState(simulator, InputEventCode.KEY_RIGHTALT, false);
+            SendKeyState(simulator, InputEventCode.KEY_RIGHTALT, pressed: false);
         }
 
         if (shift)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, false);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, pressed: false);
         }
 
         if (meta)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, false);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, pressed: false);
         }
 
         if (ctrl)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, false);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, pressed: false);
         }
     }
 

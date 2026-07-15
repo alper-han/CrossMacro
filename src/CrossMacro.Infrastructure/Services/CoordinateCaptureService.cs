@@ -18,9 +18,9 @@ public class CoordinateCaptureService : ICoordinateCaptureService
     private readonly IMousePositionProvider _positionProvider;
     private readonly Func<IInputCapture>? _inputCaptureFactory;
     private readonly Lock _lock = new();
-    
+
     private CancellationTokenSource? _currentCts;
-    
+
     public CoordinateCaptureService(
         IMousePositionProvider positionProvider,
         Func<IInputCapture>? inputCaptureFactory = null)
@@ -28,7 +28,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
         _inputCaptureFactory = inputCaptureFactory;
     }
-    
+
     /// <inheritdoc/>
     public bool IsCapturing
     {
@@ -36,28 +36,28 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         {
             lock (_lock)
             {
-                return _currentCts != null && !_currentCts.IsCancellationRequested;
+                return _currentCts is not null && !_currentCts.IsCancellationRequested;
             }
         }
     }
-    
+
     /// <inheritdoc/>
     public async Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default)
     {
         var captureCts = BeginCapture(ct);
-        
+
         try
         {
-            if (_inputCaptureFactory == null)
+            if (_inputCaptureFactory is null)
             {
                 // Fallback: Just get current position immediately
                 Log.Warning("[CoordinateCaptureService] No input capture factory available, using current position");
                 return await _positionProvider.GetAbsolutePositionAsync();
             }
-            
+
             using var capture = _inputCaptureFactory();
             capture.Configure(captureMouse: true, captureKeyboard: true);
-            
+
             var tcs = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
             var callbackTasks = new List<Task>();
 
@@ -125,14 +125,14 @@ public class CoordinateCaptureService : ICoordinateCaptureService
     {
         try
         {
-            if (input.Type == InputEventType.Key && input.Value == 1 && input.Code == InputEventCode.KEY_ESC)
+            if (input.Type is InputEventType.Key && input.Value is 1 && input.Code == InputEventCode.KEY_ESC)
             {
                 completion.TrySetResult(null);
                 return;
             }
 
-            if ((input.Type == InputEventType.MouseButton && input.Value == 1)
-                || (input.Type == InputEventType.Key && input.Value == 1 && input.Code == InputEventCode.KEY_ENTER))
+            if ((input.Type is InputEventType.MouseButton && input.Value is 1)
+|| (input.Type is InputEventType.Key && input.Value is 1 && input.Code == InputEventCode.KEY_ENTER))
             {
                 var position = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
                 completion.TrySetResult(position);
@@ -144,30 +144,30 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             completion.TrySetResult(null);
         }
     }
-    
+
     /// <inheritdoc/>
     public async Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default)
     {
         var captureCts = BeginCapture(ct);
-        
+
         try
         {
-            if (_inputCaptureFactory == null)
+            if (_inputCaptureFactory is null)
             {
                 Log.Warning("[CoordinateCaptureService] No input capture factory available");
                 return null;
             }
-            
+
             using var capture = _inputCaptureFactory();
             capture.Configure(captureMouse: false, captureKeyboard: true);
-            
+
             var tcs = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            
+
             capture.InputReceived += (s, e) =>
             {
                 // Capture any keyboard key press (value == 1 means press)
                 // ESC is a valid key and should be captured, not used for cancellation
-                if (e.Type == InputEventType.Key && e.Value == 1)
+                if (e.Type is InputEventType.Key && e.Value is 1)
                 {
                     tcs.TrySetResult(e.Code);
                 }
@@ -213,7 +213,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             EndCapture(captureCts);
         }
     }
-    
+
     /// <inheritdoc/>
     public void CancelCapture()
     {

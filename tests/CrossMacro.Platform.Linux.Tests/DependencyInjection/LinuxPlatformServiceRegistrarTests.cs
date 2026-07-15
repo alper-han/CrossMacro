@@ -29,14 +29,14 @@ public class LinuxPlatformServiceRegistrarTests
 
         registrar.RegisterPlatformServices(services);
 
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationFactory != null);
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationFactory == null && d.ImplementationInstance is LinuxEnvironmentVariables);
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationFactory is not null);
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationFactory is null && d.ImplementationInstance is LinuxEnvironmentVariables);
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilityDetector) && d.ImplementationType == typeof(LinuxInputCapabilityDetector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPlatformStartupNotificationProvider) && d.ImplementationType == typeof(GsrCompatibilityService));
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonSocketAccessProbe) && d.ImplementationType == typeof(LinuxDaemonSocketAccessProbe));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(LinuxInputProbeUtilities));
-        Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationFactory != null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IDisplaySessionService) && d.ImplementationFactory != null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationFactory is not null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IDisplaySessionService) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IPermissionChecker) && d.ImplementationType == typeof(LinuxPermissionChecker));
         Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategyFactory) && d.ImplementationType == typeof(LinuxCoordinateStrategyFactory));
         Assert.Contains(services, d => d.ServiceType == typeof(IPlaybackBehaviorPolicy));
@@ -45,11 +45,11 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupExecutor) && d.ImplementationType == typeof(LinuxQuickSetupExecutor));
         Assert.Contains(services, d => d.ServiceType == typeof(FlatpakHostCommandLauncher) && d.ImplementationType == typeof(FlatpakHostCommandLauncher));
         Assert.Contains(services, d => d.ServiceType == typeof(DirectPkexecHostCommandLauncher) && d.ImplementationType == typeof(DirectPkexecHostCommandLauncher));
-        Assert.Contains(services, d => d.ServiceType == typeof(IFlatpakQuickSetupService) && d.ImplementationFactory != null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IAppImageQuickSetupService) && d.ImplementationFactory != null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IFlatpakQuickSetupService) && d.ImplementationFactory is not null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IAppImageQuickSetupService) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastRestoreTokenStore) && d.ImplementationType == typeof(PortalScreenCastRestoreTokenStore));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory != null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCaptureSupportProbe) && d.ImplementationFactory != null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory is not null);
+        Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCaptureSupportProbe) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCapture) && d.ImplementationType == typeof(X11ScreenCapture));
          Assert.Single(services, d => d.ServiceType == typeof(IInputSimulatorPool));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputSimulator>));

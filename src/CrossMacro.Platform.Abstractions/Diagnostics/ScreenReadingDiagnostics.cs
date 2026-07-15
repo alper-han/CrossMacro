@@ -97,7 +97,7 @@ public static class ScreenReadingDiagnosticDisplayFormatter
             return "Linux screen reading is unavailable because this session is not a supported Wayland or X11 session.";
         }
 
-        var reason = snapshot.FailureKind == ScreenReadErrorKind.PermissionDenied
+        var reason = snapshot.FailureKind is ScreenReadErrorKind.PermissionDenied
             ? $"{failureBackend ?? "selected backend"} reported permission denied"
             : failureMessage ?? "no Linux screen-reading backend is available";
 

@@ -51,7 +51,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
                 directTypingValidated = true;
             }
 
-            if (expansion.InsertionMode == TextInsertionMode.DirectTyping)
+            if (expansion.InsertionMode is TextInsertionMode.DirectTyping)
             {
                 await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length);
                 await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay);
@@ -121,7 +121,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable
 
     private bool ShouldPreValidateDirectTyping(TextExpansionModel expansion)
     {
-        return expansion.InsertionMode == TextInsertionMode.DirectTyping || !_clipboardInserter.IsSupported;
+        return expansion.InsertionMode is TextInsertionMode.DirectTyping || !_clipboardInserter.IsSupported;
     }
 
     private IInputSimulator GetOrCreateInputSimulator()

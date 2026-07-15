@@ -79,16 +79,16 @@ internal static class KeyMap
         { InputEventCode.KEY_GRAVE, 0x32 },
         { InputEventCode.KEY_BACKSPACE, 0x33 },
         { InputEventCode.KEY_ESC, 0x35 },
-        { InputEventCode.KEY_LEFTMETA, 0x37 }, 
+        { InputEventCode.KEY_LEFTMETA, 0x37 },
         { InputEventCode.KEY_LEFTSHIFT, 0x38 },
         { InputEventCode.KEY_CAPSLOCK, 0x39 },
-        { InputEventCode.KEY_LEFTALT, 0x3A }, 
+        { InputEventCode.KEY_LEFTALT, 0x3A },
         { InputEventCode.KEY_LEFTCTRL, 0x3B },
         { InputEventCode.KEY_RIGHTSHIFT, 0x3C },
-        { InputEventCode.KEY_RIGHTALT, 0x3D }, 
+        { InputEventCode.KEY_RIGHTALT, 0x3D },
         { InputEventCode.KEY_RIGHTCTRL, 0x3E },
-        { InputEventCode.KEY_RIGHTMETA, 0x36 }, 
-        
+        { InputEventCode.KEY_RIGHTMETA, 0x36 },
+
         { InputEventCode.KEY_F5, 0x60 },
         { InputEventCode.KEY_F6, 0x61 },
         { InputEventCode.KEY_F7, 0x62 },
@@ -111,7 +111,7 @@ internal static class KeyMap
         { InputEventCode.KEY_RIGHT, 0x7C },
         { InputEventCode.KEY_DOWN, 0x7D },
         { InputEventCode.KEY_UP, 0x7E },
-        
+
         // Numpad
         { InputEventCode.KEY_KP0, 0x52 },
         { InputEventCode.KEY_KP1, 0x53 },
@@ -131,7 +131,7 @@ internal static class KeyMap
         { InputEventCode.KEY_KPSLASH, 0x4B },
         { InputEventCode.KEY_KPEQUAL, 0x51 },
         { InputEventCode.KEY_NUMLOCK, 0x47 }, // Clear/NumLock
-        
+
         // Extended Function Keys
         { InputEventCode.KEY_F13, 0x69 },
         { InputEventCode.KEY_F14, 0x6B },
@@ -141,26 +141,26 @@ internal static class KeyMap
         { InputEventCode.KEY_F18, 0x4F },
         { InputEventCode.KEY_F19, 0x50 },
         { InputEventCode.KEY_F20, 0x5A },
-        
+
         // Volume/Media Keys
         { InputEventCode.KEY_MUTE, 0x4A },          // kVK_Mute
         { InputEventCode.KEY_VOLUMEDOWN, 0x49 },    // kVK_VolumeDown  
         { InputEventCode.KEY_VOLUMEUP, 0x48 },      // kVK_VolumeUp
-        
+
         // Help Key
         { InputEventCode.KEY_HELP, 0x72 },          // kVK_Help
-        
+
         // ISO Section Key (between left shift and Z on ISO keyboards)
         { InputEventCode.KEY_102ND, 0x0A },         // kVK_ISO_Section
 
         // JIS Keys
         { InputEventCode.KEY_YEN, 0x5D },           // kVK_JIS_Yen
         { InputEventCode.KEY_KPJPCOMMA, 0x5F },     // kVK_JIS_KeypadComma
-        
+
         // Outbound Insert is a lossy alias for kVK_Help; inbound 0x72 resolves to KEY_HELP.
         { InputEventCode.KEY_INSERT, 0x72 },
     };
-    
+
     private static readonly Dictionary<ushort, int> _fromMac = new();
 
     static KeyMap()

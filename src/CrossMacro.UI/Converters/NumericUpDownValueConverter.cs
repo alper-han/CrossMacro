@@ -19,7 +19,7 @@ public sealed class NumericUpDownValueConverter : IValueConverter
             long longValue => (decimal)longValue,
             double doubleValue => (decimal)doubleValue,
             float floatValue => (decimal)floatValue,
-            _ => value
+            _ => value,
         };
     }
 

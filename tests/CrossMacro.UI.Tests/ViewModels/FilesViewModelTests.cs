@@ -46,7 +46,7 @@ public class FilesViewModelTests
             "Files_LoadDialogTitle" => "[Files_LoadDialogTitle]",
             "Files_DeleteLoadedMacroTitle" => "[Files_DeleteLoadedMacroTitle]",
             "Files_DeleteLoadedMacroMessage" => "[Files_DeleteLoadedMacroMessage] {0}",
-            _ => call.Arg<string>()
+            _ => call.Arg<string>(),
         });
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
         _viewModel = new FilesViewModel(_fileManager, _dialogService, _loadedMacroSession, _localizationService);
@@ -88,7 +88,7 @@ public class FilesViewModelTests
         var macro = new MacroSequence
         {
             Name = "Screen Reading Macro",
-            ScriptSteps = ["pixelcolor 10 20 color"]
+            ScriptSteps = ["pixelcolor 10 20 color"],
         };
 
         _viewModel.SetMacro(macro);
@@ -419,7 +419,7 @@ public class FilesViewModelTests
                     Y = 456,
                     CoordinateMode = MouseCoordinateMode.Absolute
                 }
-            ]
+            ],
         };
         _viewModel.SetMacro(macro);
 
@@ -462,7 +462,7 @@ public class FilesViewModelTests
                     X = 77,
                     Y = 88
                 }
-            ]
+            ],
         };
         _viewModel.SetMacro(macro);
         _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
@@ -624,7 +624,7 @@ public class FilesViewModelTests
         return new MacroSequence
         {
             Name = name,
-            Events = { new MacroEvent() }
+            Events = { new MacroEvent() },
         };
     }
 }

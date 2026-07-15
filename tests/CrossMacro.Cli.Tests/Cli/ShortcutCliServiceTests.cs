@@ -24,7 +24,7 @@ public class ShortcutCliServiceTests
                 HotkeyString = "F9",
                 MacroFilePath = "/tmp/a.macro",
                 IsEnabled = true
-            }
+            },
         }));
 
         var service = new ShortcutCliService(shortcutService);
@@ -74,7 +74,7 @@ public class ShortcutCliServiceTests
                 Name = "Shortcut 1",
                 MacroFilePath = "/tmp/a.macro",
                 HotkeyString = "F9"
-            }
+            },
         }));
 
         var service = new ShortcutCliService(shortcuts);
@@ -98,7 +98,7 @@ public class ShortcutCliServiceTests
                 Name = "Shortcut 1",
                 MacroFilePath = "/tmp/a.macro",
                 HotkeyString = "F9"
-            }
+            },
         };
 
         shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(_ =>
@@ -215,13 +215,13 @@ public class ShortcutCliServiceTests
         var shortcuts = Substitute.For<IManageShortcut>();
         shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>
         {
-            new() { Id = id, Name = "Shortcut", MacroFilePath = "/tmp/a.macro", HotkeyString = "F9" }
+            new() { Id = id, Name = "Shortcut", MacroFilePath = "/tmp/a.macro", HotkeyString = "F9" },
         }));
         var service = new ShortcutCliService(shortcuts);
 
         var result = await service.ExecuteAsync(new ShortcutCliOptions(ShortcutCliAction.Disable, TaskId: id.ToString()), CancellationToken.None);
 
         Assert.True(result.Success);
-        await shortcuts.Received(1).SetEnabledAsync(new TaskRequest(id, false), CancellationToken.None);
+        await shortcuts.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: false), CancellationToken.None);
     }
 }

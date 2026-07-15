@@ -38,7 +38,7 @@ public sealed class LinuxInputSimulatorTests
             new(UInputNative.EV_KEY, 30, 1),
             new(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0, 1),
             new(UInputNative.EV_KEY, 30, 0),
-            new(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0)
+            new(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0),
         ];
 
         simulator.SimulateBatch(steps);
@@ -81,7 +81,7 @@ public sealed class LinuxInputSimulatorTests
         InputSimulationStep[] steps =
         [
             new(UInputNative.EV_KEY, 30, 1, IpcProtocol.MaxSimulationBatchTotalDelayMs),
-            new(UInputNative.EV_KEY, 30, 0, 1)
+            new(UInputNative.EV_KEY, 30, 0, 1),
         ];
 
         Assert.Throws<ArgumentOutOfRangeException>(() => simulator.SimulateBatch(steps));

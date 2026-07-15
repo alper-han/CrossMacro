@@ -28,11 +28,11 @@ internal static class FileBackedJsonStorage
         try
         {
             using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.WriteThrough))
-            using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 1024, leaveOpen: true))
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true))
             {
                 writer.Write(json);
                 writer.Flush();
-                stream.Flush(true);
+                stream.Flush(flushToDisk: true);
             }
 
             Replace(filePath, temporaryPath);
@@ -51,11 +51,11 @@ internal static class FileBackedJsonStorage
         try
         {
             await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous | FileOptions.WriteThrough))
-            await using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 1024, leaveOpen: true))
+            await using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true))
             {
                 await writer.WriteAsync(json).ConfigureAwait(false);
                 await writer.FlushAsync().ConfigureAwait(false);
-                stream.Flush(true);
+                stream.Flush(flushToDisk: true);
             }
 
             Replace(filePath, temporaryPath);
@@ -81,7 +81,7 @@ internal static class FileBackedJsonStorage
     {
         if (File.Exists(filePath))
         {
-            File.Replace(temporaryPath, filePath, null);
+            File.Replace(temporaryPath, filePath, destinationBackupFileName: null);
         }
         else
         {

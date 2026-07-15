@@ -12,18 +12,18 @@ public class ThemeServiceBehaviorTests
         var root = new ResourceDictionary();
         var shared = new ResourceDictionary
         {
-            ["Shared.Resource"] = "kept"
+            ["Shared.Resource"] = "kept",
         };
 
         var classic = new ResourceDictionary
         {
             [ThemeCatalog.ThemeMarkerKey] = "Classic",
-            ["Theme.Value"] = "classic"
+            ["Theme.Value"] = "classic",
         };
         var nord = new ResourceDictionary
         {
             [ThemeCatalog.ThemeMarkerKey] = "Nord",
-            ["Theme.Value"] = "nord"
+            ["Theme.Value"] = "nord",
         };
 
         root["Theme.Classic"] = classic;
@@ -50,11 +50,11 @@ public class ThemeServiceBehaviorTests
         var root = new ResourceDictionary();
         var fallbackTheme = new ResourceDictionary
         {
-            [ThemeCatalog.ThemeMarkerKey] = ThemeCatalog.DefaultThemeName
+            [ThemeCatalog.ThemeMarkerKey] = ThemeCatalog.DefaultThemeName,
         };
         var dracula = new ResourceDictionary
         {
-            [ThemeCatalog.ThemeMarkerKey] = "Dracula"
+            [ThemeCatalog.ThemeMarkerKey] = "Dracula",
         };
 
         root[ThemeCatalog.DefaultTheme.ResourceKey] = fallbackTheme;
@@ -78,11 +78,11 @@ public class ThemeServiceBehaviorTests
         var root = new ResourceDictionary();
         var fallbackTheme = new ResourceDictionary
         {
-            [ThemeCatalog.ThemeMarkerKey] = ThemeCatalog.DefaultThemeName
+            [ThemeCatalog.ThemeMarkerKey] = ThemeCatalog.DefaultThemeName,
         };
         var dracula = new ResourceDictionary
         {
-            [ThemeCatalog.ThemeMarkerKey] = "Dracula"
+            [ThemeCatalog.ThemeMarkerKey] = "Dracula",
         };
 
         // "Nord" exists in ThemeCatalog but is intentionally missing from runtime resources.

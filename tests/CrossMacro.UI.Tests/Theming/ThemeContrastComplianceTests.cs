@@ -56,12 +56,12 @@ public class ThemeContrastComplianceTests
             normalized = normalized[1..];
         }
 
-        if (normalized.Length == 8)
+        if (normalized.Length is 8)
         {
             normalized = normalized[2..];
         }
 
-        if (normalized.Length != 6)
+        if (normalized.Length is not 6)
         {
             throw new InvalidOperationException($"Unsupported color format: '{hex}'");
         }
@@ -74,7 +74,7 @@ public class ThemeContrastComplianceTests
 
     private static double RelativeLuminance((double R, double G, double B) color)
     {
-        return 0.2126 * Linearize(color.R) + 0.7152 * Linearize(color.G) + 0.0722 * Linearize(color.B);
+        return (0.2126 * Linearize(color.R)) + (0.7152 * Linearize(color.G)) + (0.0722 * Linearize(color.B));
     }
 
     private static double Linearize(double channel)

@@ -59,10 +59,10 @@ public sealed class ScheduleCliService : IScheduleCliService
             ScheduleCliAction.Add => AddAsync(options, cancellationToken),
             ScheduleCliAction.Edit => EditAsync(options, cancellationToken),
             ScheduleCliAction.Remove => RemoveAsync(options.TaskId ?? string.Empty, cancellationToken),
-            ScheduleCliAction.Enable => SetEnabledAsync(options.TaskId ?? string.Empty, true, cancellationToken),
-            ScheduleCliAction.Disable => SetEnabledAsync(options.TaskId ?? string.Empty, false, cancellationToken),
+            ScheduleCliAction.Enable => SetEnabledAsync(options.TaskId ?? string.Empty, enabled: true, cancellationToken),
+            ScheduleCliAction.Disable => SetEnabledAsync(options.TaskId ?? string.Empty, enabled: false, cancellationToken),
             ScheduleCliAction.Next => NextAsync(options.TaskId ?? string.Empty, cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown schedule action."))
+            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown schedule action.")),
         };
     }
 
@@ -72,7 +72,7 @@ public sealed class ScheduleCliService : IScheduleCliService
         var task = new ScheduledTask
         {
             Name = options.Name ?? string.Empty,
-            MacroFilePath = options.MacroFilePath ?? string.Empty
+            MacroFilePath = options.MacroFilePath ?? string.Empty,
         };
 
         var scheduleResult = ApplyScheduleOptions(task, options);
@@ -247,7 +247,7 @@ public sealed class ScheduleCliService : IScheduleCliService
             'm' => IntervalUnit.Minutes,
             'h' => IntervalUnit.Hours,
             _ when !char.IsLetter(suffix) => IntervalUnit.Seconds,
-            _ => IntervalUnit.Seconds
+            _ => IntervalUnit.Seconds,
         };
 
         if (char.IsLetter(suffix) && suffix is not ('s' or 'S' or 'm' or 'M' or 'h' or 'H'))
@@ -278,10 +278,10 @@ public sealed class ScheduleCliService : IScheduleCliService
                 "weekdays" => ScheduleDays.Weekdays,
                 "weekends" => ScheduleDays.Weekends,
                 "everyday" or "daily" or "all" => ScheduleDays.EveryDay,
-                _ => ScheduleDays.None
+                _ => ScheduleDays.None,
             };
 
-            if (parsed == ScheduleDays.None)
+            if (parsed is ScheduleDays.None)
             {
                 error = $"Unknown weekly day: {rawPart}";
                 return false;
@@ -290,7 +290,7 @@ public sealed class ScheduleCliService : IScheduleCliService
             days |= parsed;
         }
 
-        if (days == ScheduleDays.None)
+        if (days is ScheduleDays.None)
         {
             error = "Weekly schedule requires at least one day.";
             return false;
@@ -301,7 +301,7 @@ public sealed class ScheduleCliService : IScheduleCliService
 
     private static ScheduleTaskData MapScheduleTask(ScheduledTask task)
     {
-        if (task.Type == ScheduleType.Weekly)
+        if (task.Type is ScheduleType.Weekly)
         {
             return new ScheduleTaskData(
                 task.Id,
@@ -310,9 +310,9 @@ public sealed class ScheduleCliService : IScheduleCliService
                 task.Type.ToString(),
                 task.MacroFilePath,
                 task.PlaybackSpeed,
-                null,
-                null,
-                null,
+IntervalValue: null,
+IntervalUnit: null,
+ScheduledDateTime: null,
                 task.WeeklyDays.ToString(),
                 task.WeeklyTime.ToString(),
                 task.NextRunTime,
@@ -328,11 +328,11 @@ public sealed class ScheduleCliService : IScheduleCliService
             task.Type.ToString(),
             task.MacroFilePath,
             task.PlaybackSpeed,
-            task.Type == ScheduleType.Interval ? task.IntervalValue : null,
-            task.Type == ScheduleType.Interval ? task.IntervalUnit.ToString() : null,
-            task.Type == ScheduleType.SpecificTime ? task.ScheduledDateTime : null,
-            null,
-            null,
+            task.Type is ScheduleType.Interval ? task.IntervalValue : null,
+            task.Type is ScheduleType.Interval ? task.IntervalUnit.ToString() : null,
+            task.Type is ScheduleType.SpecificTime ? task.ScheduledDateTime : null,
+WeeklyDays: null,
+WeeklyTime: null,
             task.NextRunTime,
             task.LastRunTime,
             task.LastStatus

@@ -25,12 +25,12 @@ internal sealed class NiriWindowManager : IWindowManager
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendRequestAsync("\"FocusedWindow\"", cancellationToken).ConfigureAwait(false);
-        if (response == null) return null;
+        if (response is null) return null;
 
         try
         {
             var dto = JsonSerializer.Deserialize(response, NiriJsonContext.Default.NiriResponseNiriFocusedWindowData);
-            if (dto?.Ok?.FocusedWindow == null) return null;
+            if ((dto?.Ok?.FocusedWindow) is null) return null;
 
             var workspaces = await GetWorkspacesMapAsync(cancellationToken);
             var outputs = await GetOutputsMapAsync(cancellationToken);
@@ -47,12 +47,12 @@ internal sealed class NiriWindowManager : IWindowManager
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendRequestAsync("\"Windows\"", cancellationToken).ConfigureAwait(false);
-        if (response == null) return Array.Empty<WindowInfo>();
+        if (response is null) return Array.Empty<WindowInfo>();
 
         try
         {
             var dto = JsonSerializer.Deserialize(response, NiriJsonContext.Default.NiriResponseNiriWindowsData);
-            if (dto?.Ok?.Windows == null) return Array.Empty<WindowInfo>();
+            if ((dto?.Ok?.Windows) is null) return Array.Empty<WindowInfo>();
 
             var workspaces = await GetWorkspacesMapAsync(cancellationToken);
             var outputs = await GetOutputsMapAsync(cancellationToken);
@@ -70,10 +70,10 @@ internal sealed class NiriWindowManager : IWindowManager
     {
         var map = new Dictionary<ulong, NiriWorkspaceDto>();
         var resp = await _ipcClient.SendRequestAsync("\"Workspaces\"", cancellationToken).ConfigureAwait(false);
-        if (resp != null)
+        if (resp is not null)
         {
             var data = JsonSerializer.Deserialize(resp, NiriJsonContext.Default.NiriResponseNiriWorkspacesData);
-            if (data?.Ok?.Workspaces != null)
+            if ((data?.Ok?.Workspaces) is not null)
             {
                 foreach (var w in data.Ok.Workspaces) map[w.Id] = w;
             }
@@ -85,10 +85,10 @@ internal sealed class NiriWindowManager : IWindowManager
     {
         var map = new Dictionary<string, NiriOutputDto>();
         var resp = await _ipcClient.SendRequestAsync("\"Outputs\"", cancellationToken).ConfigureAwait(false);
-        if (resp != null)
+        if (resp is not null)
         {
             var data = JsonSerializer.Deserialize(resp, NiriJsonContext.Default.NiriResponseNiriOutputsData);
-            if (data?.Ok?.Outputs != null)
+            if ((data?.Ok?.Outputs) is not null)
             {
                 foreach (var kvp in data.Ok.Outputs) map[kvp.Key] = kvp.Value;
             }
@@ -141,42 +141,40 @@ internal sealed class NiriWindowManager : IWindowManager
     public async Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
         var outputsResp = await _ipcClient.SendRequestAsync("\"Outputs\"", cancellationToken).ConfigureAwait(false);
-        if (outputsResp != null)
+        if (outputsResp is not null)
         {
             try
             {
                 var outputsData = JsonSerializer.Deserialize(outputsResp, NiriJsonContext.Default.NiriResponseNiriOutputsData);
-                if (outputsData?.Ok?.Outputs != null)
+                if ((outputsData?.Ok?.Outputs) is not null)
                 {
                     NiriOutputDto? targetOutput = null;
                     foreach (var kvp in outputsData.Ok.Outputs)
                     {
                         var logical = kvp.Value.Logical;
-                        if (logical != null && 
-                            x >= logical.X && x < logical.X + logical.Width &&
-                            y >= logical.Y && y < logical.Y + logical.Height)
+                        if (logical is not null && x >= logical.X && x < logical.X + logical.Width && y >= logical.Y && y < logical.Y + logical.Height)
                         {
                             targetOutput = kvp.Value;
                             break;
                         }
                     }
 
-                    if (targetOutput?.Logical != null && !string.IsNullOrEmpty(targetOutput.Name))
+                    if ((targetOutput?.Logical) is not null && !string.IsNullOrEmpty(targetOutput.Name))
                     {
                         var win = await GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
                         if (win != null)
                         {
                             var workspacesResp = await _ipcClient.SendRequestAsync("\"Workspaces\"", cancellationToken).ConfigureAwait(false);
-                            if (workspacesResp != null)
+                            if (workspacesResp is not null)
                             {
                                 var wsData = JsonSerializer.Deserialize(workspacesResp, NiriJsonContext.Default.NiriResponseNiriWorkspacesData);
                                 var winWsIdStr = win.Workspace;
-                                var winWs = wsData?.Ok?.Workspaces?.FirstOrDefault(w => w.Id.ToString() == winWsIdStr || w.Name == winWsIdStr);
+                                var winWs = wsData?.Ok?.Workspaces?.FirstOrDefault(w => string.Equals(w.Id.ToString(), winWsIdStr, StringComparison.Ordinal) || string.Equals(w.Name, winWsIdStr, StringComparison.Ordinal));
 
-                                if (winWs != null && winWs.Output != targetOutput.Name)
+                                if (winWs is not null && !string.Equals(winWs.Output, targetOutput.Name, StringComparison.Ordinal))
                                 {
-                                    var targetWs = wsData?.Ok?.Workspaces?.FirstOrDefault(w => w.Output == targetOutput.Name && w.IsActive);
-                                    if (targetWs != null)
+                                    var targetWs = wsData?.Ok?.Workspaces?.FirstOrDefault(w => string.Equals(w.Output, targetOutput.Name, StringComparison.Ordinal) && w.IsActive);
+                                    if (targetWs is not null)
                                     {
                                         await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": null, ""reference"": {{""Id"": {targetWs.Id}}}, ""focus"": false}}}}", cancellationToken).ConfigureAwait(false);
                                     }
@@ -229,24 +227,24 @@ internal sealed class NiriWindowManager : IWindowManager
         if (win == null) return false;
 
         var workspacesResp = await _ipcClient.SendRequestAsync("\"Workspaces\"", cancellationToken).ConfigureAwait(false);
-        if (workspacesResp == null) return false;
+        if (workspacesResp is null) return false;
 
         var outputsResp = await _ipcClient.SendRequestAsync("\"Outputs\"", cancellationToken).ConfigureAwait(false);
-        if (outputsResp == null) return false;
+        if (outputsResp is null) return false;
 
         try
         {
             var workspacesData = JsonSerializer.Deserialize(workspacesResp, NiriJsonContext.Default.NiriResponseNiriWorkspacesData);
             var wsIdStr = win.Workspace;
-            var ws = workspacesData?.Ok?.Workspaces?.FirstOrDefault(w => w.Id.ToString() == wsIdStr || w.Name == wsIdStr);
-            if (ws == null || string.IsNullOrEmpty(ws.Output)) return false;
+            var ws = workspacesData?.Ok?.Workspaces?.FirstOrDefault(w => string.Equals(w.Id.ToString(), wsIdStr, StringComparison.Ordinal) || string.Equals(w.Name, wsIdStr, StringComparison.Ordinal));
+            if (ws is null || string.IsNullOrEmpty(ws.Output)) return false;
 
             var outputsData = JsonSerializer.Deserialize(outputsResp, NiriJsonContext.Default.NiriResponseNiriOutputsData);
-            if (outputsData?.Ok?.Outputs == null || !outputsData.Ok.Outputs.TryGetValue(ws.Output, out var output) || output.Logical == null) 
+            if ((outputsData?.Ok?.Outputs) is null || !outputsData.Ok.Outputs.TryGetValue(ws.Output, out var output) || output.Logical is null)
                 return false;
 
-            int targetX = output.Logical.X + (output.Logical.Width - win.Width) / 2;
-            int targetY = output.Logical.Y + (output.Logical.Height - win.Height) / 2;
+            int targetX = output.Logical.X + ((output.Logical.Width - win.Width) / 2);
+            int targetY = output.Logical.Y + ((output.Logical.Height - win.Height) / 2);
 
             return await MoveActiveWindowAsync(targetX, targetY, cancellationToken).ConfigureAwait(false);
         }
@@ -260,7 +258,7 @@ internal sealed class NiriWindowManager : IWindowManager
     public async Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendRequestAsync("\"Workspaces\"", cancellationToken).ConfigureAwait(false);
-        if (response == null) return null;
+        if (response is null) return null;
 
         try
         {
@@ -308,8 +306,8 @@ internal sealed class NiriWindowManager : IWindowManager
     {
         var payload = $@"{{""Action"": {actionJson}}}";
         var response = await _ipcClient.SendRequestAsync(payload, cancellationToken).ConfigureAwait(false);
-        
-        return response != null && response.Contains("\"Ok\"");
+
+        return response is not null && response.Contains("\"Ok\"", StringComparison.Ordinal);
     }
 
     private static WindowInfo MapWindow(NiriWindowDto dto, Dictionary<ulong, NiriWorkspaceDto> workspaces, Dictionary<string, NiriOutputDto> outputs)
@@ -319,25 +317,22 @@ internal sealed class NiriWindowManager : IWindowManager
         int w = 0;
         int h = 0;
 
-        if (dto.Layout != null)
+        if (dto.Layout is not null)
         {
-            if (dto.Layout.TilePosInWorkspaceView != null && dto.Layout.TilePosInWorkspaceView.Length >= 2)
+            if (dto.Layout.TilePosInWorkspaceView is not null && dto.Layout.TilePosInWorkspaceView.Length >= 2)
             {
                 x = (int)Math.Round(dto.Layout.TilePosInWorkspaceView[0], MidpointRounding.AwayFromZero);
                 y = (int)Math.Round(dto.Layout.TilePosInWorkspaceView[1], MidpointRounding.AwayFromZero);
 
                 // Convert workspace-relative to global absolute
-                if (dto.WorkspaceId.HasValue && workspaces.TryGetValue(dto.WorkspaceId.Value, out var ws) && !string.IsNullOrEmpty(ws.Output))
+                if (dto.WorkspaceId.HasValue && workspaces.TryGetValue(dto.WorkspaceId.Value, out var ws) && !string.IsNullOrEmpty(ws.Output) && outputs.TryGetValue(ws.Output, out var output) && output.Logical is not null)
                 {
-                    if (outputs.TryGetValue(ws.Output, out var output) && output.Logical != null)
-                    {
-                        x += output.Logical.X;
-                        y += output.Logical.Y;
-                    }
+                    x += output.Logical.X;
+                    y += output.Logical.Y;
                 }
             }
 
-            if (dto.Layout.WindowSize != null && dto.Layout.WindowSize.Length >= 2)
+            if (dto.Layout.WindowSize is not null && dto.Layout.WindowSize.Length >= 2)
             {
                 w = (int)Math.Round(dto.Layout.WindowSize[0], MidpointRounding.AwayFromZero);
                 h = (int)Math.Round(dto.Layout.WindowSize[1], MidpointRounding.AwayFromZero);
@@ -361,7 +356,7 @@ internal sealed class NiriWindowManager : IWindowManager
             X = x,
             Y = y,
             Width = w,
-            Height = h
+            Height = h,
         };
     }
 }

@@ -40,7 +40,7 @@ public class SecurityServiceTests
         Assert.Null(result);
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
-            x => !x.Success && x.Reason == "ROOT_REJECTED");
+            x => !x.Success && x.Reason is "ROOT_REJECTED");
         Assert.True(socket.SafeHandle.IsClosed);
     }
 
@@ -81,7 +81,7 @@ public class SecurityServiceTests
         Assert.Null(rateLimitedResult);
         Assert.Equal((1001u, 456), allowedResult);
         Assert.Equal([1000u, 1001u], rateLimiter.IsRateLimitedCalls);
-        Assert.Single(auditLogger.RateLimitedEvents, x => x.Uid == 1000u && x.Pid == 123);
+        Assert.Single(auditLogger.RateLimitedEvents, x => x.Uid is 1000u && x.Pid is 123);
         Assert.Equal(1, polkit.CallCount);
     }
 
@@ -99,7 +99,7 @@ public class SecurityServiceTests
         Assert.Null(result);
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
-            x => !x.Success && x.Reason == "NOT_IN_GROUP");
+            x => !x.Success && x.Reason is "NOT_IN_GROUP");
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class SecurityServiceTests
         Assert.Null(result);
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
-            x => !x.Success && x.Reason == "POLKIT_DENIED");
+            x => !x.Success && x.Reason is "POLKIT_DENIED");
         Assert.True(socket.SafeHandle.IsClosed);
     }
 
@@ -141,7 +141,7 @@ public class SecurityServiceTests
         Assert.False(HasCachedAuthorization(service.SecurityService, 1000));
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
-            x => !x.Success && x.Reason == "POLKIT_DENIED");
+            x => !x.Success && x.Reason is "POLKIT_DENIED");
         Assert.True(secondSocket.SafeHandle.IsClosed);
     }
 
@@ -160,7 +160,7 @@ public class SecurityServiceTests
         Assert.Null(result);
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
-            x => !x.Success && x.Reason == "POLKIT_ERROR");
+            x => !x.Success && x.Reason is "POLKIT_ERROR");
         Assert.True(socket.SafeHandle.IsClosed);
     }
 
@@ -180,7 +180,7 @@ public class SecurityServiceTests
         Assert.Equal(1001u, service.RateLimiter.RecordSuccessUid);
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
-            x => x.Success && x.Executable == "/usr/bin/crossmacro-ui");
+            x => x.Success && x.Executable is "/usr/bin/crossmacro-ui");
         Assert.False(socket.SafeHandle.IsClosed);
     }
 
@@ -274,7 +274,7 @@ public class SecurityServiceTests
         var peerCredentials = new MutablePeerCredentialsProvider
         {
             Credentials = (Uid: 1000, Gid: 1000, Pid: 123),
-            IsUserInGroupResult = true
+            IsUserInGroupResult = true,
         };
         var polkit = new SequencePolkitAuthorizationService(true);
         var service = new SecurityService(rateLimiter, auditLogger, peerCredentials, polkit);
@@ -289,7 +289,7 @@ public class SecurityServiceTests
         Assert.Equal(1, polkit.CallCount);
         Assert.Contains(
             auditLogger.ConnectionAttempts,
-            x => !x.Success && x.Reason == "NOT_IN_GROUP");
+            x => !x.Success && x.Reason is "NOT_IN_GROUP");
         Assert.True(secondSocket.SafeHandle.IsClosed);
     }
 
@@ -301,7 +301,7 @@ public class SecurityServiceTests
         var peerCredentials = new MutablePeerCredentialsProvider
         {
             Credentials = (Uid: 1000, Gid: 1000, Pid: 123),
-            IsUserInGroupResult = true
+            IsUserInGroupResult = true,
         };
         var polkit = new SequencePolkitAuthorizationService(false, true);
         var service = new SecurityService(
@@ -328,7 +328,7 @@ public class SecurityServiceTests
         var peerCredentials = new MutablePeerCredentialsProvider
         {
             Credentials = (Uid: 1000, Gid: 1000, Pid: 123),
-            IsUserInGroupResult = true
+            IsUserInGroupResult = true,
         };
         var polkit = new SequencePolkitAuthorizationService(new TimeoutException("polkit timeout"), true);
         var service = new SecurityService(
@@ -403,12 +403,12 @@ public class SecurityServiceTests
         {
             Credentials = credentials,
             IsUserInGroupResult = inGroup,
-            Executable = executable
+            Executable = executable,
         };
         var polkit = new FakePolkitAuthorizationService
         {
             IsAuthorized = isAuthorized,
-            Exception = polkitException
+            Exception = polkitException,
         };
 
         return (new SecurityService(rateLimiter, auditLogger, peerCredentials, polkit), rateLimiter, auditLogger, polkit);
@@ -534,7 +534,7 @@ public class SecurityServiceTests
         {
             CallCount++;
 
-            if (Exception != null)
+            if (Exception is not null)
             {
                 throw Exception;
             }
@@ -564,7 +564,7 @@ public class SecurityServiceTests
             {
                 Exception exception => throw exception,
                 bool isAuthorized => Task.FromResult(isAuthorized),
-                _ => throw new InvalidOperationException($"Unsupported polkit result type: {next.GetType().FullName}")
+                _ => throw new InvalidOperationException($"Unsupported polkit result type: {next.GetType().FullName}"),
             };
         }
     }

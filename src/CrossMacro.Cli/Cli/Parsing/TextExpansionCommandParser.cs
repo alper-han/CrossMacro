@@ -28,7 +28,7 @@ internal static class TextExpansionCommandParser
             "enable" => ParseTriggerCommand(args, TextExpansionCliAction.Enable, "text-expansion.enable"),
             "disable" => ParseTriggerCommand(args, TextExpansionCliAction.Disable, "text-expansion.disable"),
             "test" => ParseTriggerCommand(args, TextExpansionCliAction.Test, "text-expansion.test"),
-            _ => CliParseResult.Error($"Unknown text-expansion subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2))
+            _ => CliParseResult.Error($"Unknown text-expansion subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 

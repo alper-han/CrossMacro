@@ -32,7 +32,7 @@ public class PlaybackValidatorTests
     {
         var macro = new MacroSequence
         {
-            ScriptSteps = ["pixelcolor 1 2 sampled", "bogus"]
+            ScriptSteps = ["pixelcolor 1 2 sampled", "bogus"],
         };
 
         var result = _validator.Validate(macro);
@@ -49,7 +49,7 @@ public class PlaybackValidatorTests
     {
         var macro = new MacroSequence
         {
-            ScriptSteps = ["pixelcolor 1 2 sampled", scriptStep]
+            ScriptSteps = ["pixelcolor 1 2 sampled", scriptStep],
         };
 
         var result = _validator.Validate(macro);
@@ -80,7 +80,7 @@ public class PlaybackValidatorTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 100, Y = 200 }
-            }
+            },
         };
 
         // Act
@@ -101,7 +101,7 @@ public class PlaybackValidatorTests
             {
                 new() { Type = EventType.MouseMove, X = 500, Y = 300 },
                 new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0 }
-            }
+            },
         };
 
         // Act
@@ -122,7 +122,7 @@ public class PlaybackValidatorTests
             {
                 new() { Type = EventType.MouseMove, X = 500, Y = 300, CoordinateMode = MouseCoordinateMode.Relative },
                 new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0, CoordinateMode = MouseCoordinateMode.Absolute }
-            }
+            },
         };
 
         // Act
@@ -143,7 +143,7 @@ public class PlaybackValidatorTests
             {
                 new() { Type = EventType.MouseMove, X = 500, Y = 300, CoordinateMode = MouseCoordinateMode.Absolute },
                 new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0, CoordinateMode = MouseCoordinateMode.Relative }
-            }
+            },
         };
 
         // Act
@@ -164,7 +164,7 @@ public class PlaybackValidatorTests
             {
                 new() { Type = EventType.MouseMove, X = 400, Y = 250 },
                 new() { Type = EventType.ButtonPress, Button = MouseButton.Left, X = 0, Y = 0 }
-            }
+            },
         };
 
         // Act
@@ -185,7 +185,7 @@ public class PlaybackValidatorTests
             {
                 new() { Type = EventType.MouseMove, X = 400, Y = 250 },
                 new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true, X = 0, Y = 0 }
-            }
+            },
         };
 
         // Act
@@ -206,7 +206,7 @@ public class PlaybackValidatorTests
             {
                 new() { Type = EventType.MouseMove, X = 400, Y = 250 },
                 new() { Type = EventType.Click, Button = MouseButton.ScrollUp, X = 0, Y = 0 }
-            }
+            },
         };
 
         // Act
@@ -225,7 +225,7 @@ public class PlaybackValidatorTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, DelayMs = 15000 }
-            }
+            },
         };
 
         // Act
@@ -245,7 +245,7 @@ public class PlaybackValidatorTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove }
-            }
+            },
         };
 
         // Act
@@ -277,7 +277,7 @@ public class PlaybackValidatorTests
     {
         // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        positionProvider.IsSupported.Returns(false);
+        positionProvider.IsSupported.Returns(returnThis: false);
         positionProvider.ProviderName.Returns("MockProvider");
 
         var validator = new PlaybackValidator(CreateKeyCodeMapper(), positionProvider);
@@ -286,14 +286,14 @@ public class PlaybackValidatorTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove }
-            }
+            },
         };
 
         // Act
         var result = validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w => 
+        result.Warnings.Should().Contain(w =>
             w.Contains("not supported") || w.Contains("MockProvider"));
     }
 
@@ -307,7 +307,7 @@ public class PlaybackValidatorTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove }
-            }
+            },
         };
 
         // Act

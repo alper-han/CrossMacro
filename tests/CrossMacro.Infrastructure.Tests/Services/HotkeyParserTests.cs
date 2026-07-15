@@ -35,7 +35,7 @@ public class HotkeyParserTests
     {
         // Arrange
         _mapper.GetKeyCode("A").Returns(30);
-        _mapper.IsModifierKeyCode(30).Returns(false);
+        _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
 
         // Act
         var result = _parser.Parse("A");
@@ -50,10 +50,10 @@ public class HotkeyParserTests
     {
         // Arrange
         _mapper.GetKeyCode("Ctrl").Returns(29);
-        _mapper.IsModifierKeyCode(29).Returns(true);
-        
+        _mapper.IsModifierKeyCode(29).Returns(returnThis: true);
+
         _mapper.GetKeyCode("A").Returns(30);
-        _mapper.IsModifierKeyCode(30).Returns(false);
+        _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
 
         // Act
         var result = _parser.Parse("Ctrl+A");
@@ -68,13 +68,13 @@ public class HotkeyParserTests
     {
         // Arrange
         _mapper.GetKeyCode("Ctrl").Returns(29);
-        _mapper.IsModifierKeyCode(29).Returns(true);
-        
+        _mapper.IsModifierKeyCode(29).Returns(returnThis: true);
+
         _mapper.GetKeyCode("Shift").Returns(42);
-        _mapper.IsModifierKeyCode(42).Returns(true);
-        
+        _mapper.IsModifierKeyCode(42).Returns(returnThis: true);
+
         _mapper.GetKeyCode("B").Returns(48);
-        _mapper.IsModifierKeyCode(48).Returns(false);
+        _mapper.IsModifierKeyCode(48).Returns(returnThis: false);
 
         // Act
         var result = _parser.Parse("Ctrl+Shift+B");
@@ -83,14 +83,14 @@ public class HotkeyParserTests
         result.MainKey.Should().Be(48);
         result.RequiredModifiers.Should().BeEquivalentTo([29, 42]);
     }
-    
+
     [Fact]
     public void Parse_IgnoresUnknownKeys()
     {
          // Arrange
         _mapper.GetKeyCode("Unknown").Returns(-1);
         _mapper.GetKeyCode("A").Returns(30);
-        _mapper.IsModifierKeyCode(30).Returns(false);
+        _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
 
         // Act
         var result = _parser.Parse("Unknown+A");
@@ -122,7 +122,7 @@ public class HotkeyParserTests
     public void Parse_WhenRoundTripDisplayNameIsSupported_ReturnsCanonicalMainKey(string displayName, int expectedCode)
     {
         _mapper.GetKeyCode(displayName).Returns(expectedCode);
-        _mapper.IsModifierKeyCode(expectedCode).Returns(false);
+        _mapper.IsModifierKeyCode(expectedCode).Returns(returnThis: false);
 
         var result = _parser.Parse(displayName);
 

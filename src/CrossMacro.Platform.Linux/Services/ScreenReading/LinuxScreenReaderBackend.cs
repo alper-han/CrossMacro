@@ -6,5 +6,5 @@ public enum LinuxScreenReaderBackend
     ExtImageCopy,
     WlrScreencopy,
     Portal,
-    GnomeExtension
+    GnomeExtension,
 }

@@ -60,7 +60,7 @@ internal static class SettingsCommandParser
             var token = args[i];
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "settings.get", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }
@@ -74,7 +74,7 @@ internal static class SettingsCommandParser
                 continue;
             }
 
-            if (key == null)
+            if (key is null)
             {
                 key = token;
                 continue;
@@ -83,7 +83,7 @@ internal static class SettingsCommandParser
             return CliParseHelpers.Error($"Unexpected argument for settings get: {token}", jsonOutput);
         }
 
-        if (all && key != null)
+        if (all && key is not null)
         {
             return CliParseHelpers.Error("settings get accepts either --all or <key>, not both.", jsonOutput);
         }
@@ -134,7 +134,7 @@ internal static class SettingsCommandParser
             var token = args[i];
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "settings.set", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }
@@ -162,7 +162,7 @@ internal static class SettingsCommandParser
             var token = args[i];
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "settings.list-keys", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }
@@ -200,7 +200,7 @@ internal static class SettingsCommandParser
             var token = args[i];
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "settings.reset", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }

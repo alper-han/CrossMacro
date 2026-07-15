@@ -20,12 +20,12 @@ public class TextExpansionService : ITextExpansionService
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionStorageService _storageService;
     private readonly Func<IInputCapture> _inputCaptureFactory;
-    
+
     // Decomposed Components
     private readonly IInputProcessor _inputProcessor;
     private readonly ITextBufferState _bufferState;
     private readonly ITextExpansionExecutor _startExecutor;
-    
+
     // Lifecycle management
     private readonly Lock _lock;
     private bool _isRunning;
@@ -39,7 +39,7 @@ public class TextExpansionService : ITextExpansionService
     public bool IsRunning => _isRunning;
 
     public TextExpansionService(
-        ISettingsService settingsService, 
+        ISettingsService settingsService,
         ITextExpansionStorageService storageService,
         Func<IInputCapture> inputCaptureFactory,
         IInputProcessor inputProcessor,
@@ -49,15 +49,15 @@ public class TextExpansionService : ITextExpansionService
         _settingsService = settingsService;
         _storageService = storageService;
         _inputCaptureFactory = inputCaptureFactory;
-        
+
         _inputProcessor = inputProcessor;
         _bufferState = bufferState;
         _startExecutor = startExecutor;
-        
+
         _lock = new Lock();
         _expansionLock = new SemaphoreSlim(1, 1);
         _captureLifecycle = new InputCaptureLifecycle();
-        
+
         // Subscribe to Processor events
         _inputProcessor.CharacterReceived += OnCharacterReceived;
         _inputProcessor.SpecialKeyReceived += OnSpecialKeyReceived;
@@ -87,7 +87,7 @@ public class TextExpansionService : ITextExpansionService
                     OnInputCaptureError,
                     OnCaptureStarted,
                     OnCaptureFaulted);
-                
+
                 // Reset State
                 _inputProcessor.Reset();
                 _bufferState.Clear();
@@ -199,7 +199,7 @@ public class TextExpansionService : ITextExpansionService
         lock (_lock)
         {
             if (!_isRunning) return;
-            if (e.Type == InputEventType.Key && e.Value == 1)
+            if (e.Type is InputEventType.Key && e.Value is 1)
             {
                 _lastCharacterKeyCode = e.Code;
             }
@@ -216,7 +216,7 @@ public class TextExpansionService : ITextExpansionService
 
         // Check for Trigger
         var expansions = _storageService.GetCurrent();
-        if (_bufferState.TryGetMatch(expansions, out var match) && match != null)
+        if (_bufferState.TryGetMatch(expansions, out var match) && match is not null)
         {
              Log.Information(
                  "[TextExpansionService] Trigger detected, scheduling expansion (triggerLength={TriggerLength}, replacementLength={ReplacementLength})",

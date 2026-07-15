@@ -16,7 +16,7 @@ internal static class DoctorCommandParser
 
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "doctor", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }

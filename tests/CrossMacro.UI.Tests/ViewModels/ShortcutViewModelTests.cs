@@ -44,9 +44,9 @@ public class ShortcutViewModelTests
             "Shortcut_StatusCompleted" => "[Shortcut_StatusCompleted] {0}",
             "Shortcut_StatusFailed" => "[Shortcut_StatusFailed] {0} | {1}",
             "Shortcut_StatusChangesSaved" => "[Shortcut_StatusChangesSaved]",
-            _ => call.Arg<string>()
+            _ => call.Arg<string>(),
         });
-        
+
         _shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
 
         _viewModel = new ShortcutViewModel(_shortcutService, _dialogService, _hotkeyService, _localizationService);
@@ -115,7 +115,7 @@ public class ShortcutViewModelTests
     public void AddTask_CreatesAndSelectsTask()
     {
         // Act
-        _viewModel.AddTaskCommand.Execute(null);
+        _viewModel.AddTaskCommand.Execute(parameter: null);
 
         // Assert
         _shortcutService.Received(1).AddTask(Arg.Any<ShortcutTask>());
@@ -130,7 +130,7 @@ public class ShortcutViewModelTests
         _localizationService.CurrentCulture.Returns(culture);
         var task = new ShortcutTask
         {
-            LastTriggeredTime = new DateTime(2026, 1, 1, 7, 0, 0, DateTimeKind.Utc)
+            LastTriggeredTime = new DateTime(2026, 1, 1, 7, 0, 0, DateTimeKind.Utc),
         };
 
         _viewModel.SelectedTask = task;
@@ -229,14 +229,14 @@ public class ShortcutViewModelTests
         {
             MacroFilePath = "/tmp/sample.macro",
             HotkeyString = "F9",
-            IsEnabled = true
+            IsEnabled = true,
         };
 
         // Act
         await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
 
         // Assert
-        _shortcutService.Received(1).SetTaskEnabled(task.Id, true);
+        _shortcutService.Received(1).SetTaskEnabled(task.Id, enabled: true);
         await _shortcutService.Received(1).SaveAsync();
     }
 
@@ -248,7 +248,7 @@ public class ShortcutViewModelTests
         var manager = Substitute.For<IManageShortcut>();
         var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService)
         {
-            SelectedTask = task
+            SelectedTask = task,
         };
         await viewModel.InitializationTask;
 
@@ -270,7 +270,7 @@ public class ShortcutViewModelTests
             .Returns(Task.FromResult<string?>(null));
 
         // Act
-        await _viewModel.BrowseMacroCommand.ExecuteAsync(null);
+        await _viewModel.BrowseMacroCommand.ExecuteAsync(parameter: null);
 
         // Assert
         task.MacroFilePath.Should().Be("existing.macro");
@@ -294,7 +294,7 @@ public class ShortcutViewModelTests
     public async Task SaveCommand_InvokesShortcutServiceSave()
     {
         // Act
-        await _viewModel.SaveCommand.ExecuteAsync(null);
+        await _viewModel.SaveCommand.ExecuteAsync(parameter: null);
 
         // Assert
         await _shortcutService.Received(1).SaveAsync();

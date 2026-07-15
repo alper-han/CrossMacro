@@ -14,6 +14,6 @@ namespace CrossMacro.Platform.Linux.DisplayServer
         KDE,
         GNOME,
         SWAY,
-        Other
+        Other,
     }
 }

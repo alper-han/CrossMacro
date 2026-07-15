@@ -10,10 +10,10 @@ public readonly record struct CaptureStartResult(
     string? ErrorMessage = null)
 {
     public static CaptureStartResult Started(int startedDeviceCount) =>
-        new(true, startedDeviceCount);
+        new(Success: true, startedDeviceCount);
 
     public static CaptureStartResult Failed(string errorMessage) =>
-        new(false, 0, errorMessage);
+        new(Success: false, 0, errorMessage);
 }
 
 public interface IInputCaptureManager : IDisposable

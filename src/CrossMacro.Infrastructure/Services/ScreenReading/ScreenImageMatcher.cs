@@ -148,7 +148,7 @@ public sealed class ScreenImageMatcher : IDisposable
                     options.SelectionMode,
                     cancellationToken);
 
-                if (options.SelectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch)
+                if (options.SelectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch)
                 {
                     if (bandCandidate.HasValue)
                     {
@@ -249,7 +249,7 @@ public sealed class ScreenImageMatcher : IDisposable
         ScreenImageMatchSelectionMode selectionMode,
         CancellationToken cancellationToken)
     {
-        if (downsampleFactor == 1 && template.Width >= 16 && template.Height >= 16)
+        if (downsampleFactor is 1 && template.Width >= 16 && template.Height >= 16)
         {
             var result = FindBestCandidateCoarseToFine(
                 frame,
@@ -332,7 +332,7 @@ public sealed class ScreenImageMatcher : IDisposable
             {
                 lock (bestCandidateLock)
                 {
-                    bestCandidate = selectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch
+                    bestCandidate = selectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch
                         ? EarlierOf(bestCandidate, rowBest)
                         : BetterOf(bestCandidate, rowBest);
                 }
@@ -374,7 +374,7 @@ public sealed class ScreenImageMatcher : IDisposable
         var frameLocalY = checked(minY - frameBounds.Y);
         var frameDown = CropAndDownsampleBy2(frame, frameLocalX, frameLocalY, regionW, regionH);
 
-        int startXDown = 0;
+        const int startXDown = 0;
         int endXDown = frameDown.Width - templateDown.Width + 1;
         int endYDown = frameDown.Height - templateDown.Height + 1;
 
@@ -404,7 +404,7 @@ public sealed class ScreenImageMatcher : IDisposable
             var rowBestDown = FindBestCandidateInRow(
                 frameDown,
                 validityFrame,
-                true,
+frameFullyValid: true,
                 templateDown,
                 new ScreenRect(0, 0, frameDown.Width, frameDown.Height),
                 startXDown,
@@ -430,15 +430,15 @@ public sealed class ScreenImageMatcher : IDisposable
             return MatchCandidate.None;
         }
 
-        int cx = minX + bestCandidate.X * 2;
-        int cy = minY + bestCandidate.Y * 2;
+        int cx = minX + (bestCandidate.X * 2);
+        int cy = minY + (bestCandidate.Y * 2);
 
         int refMinX = Math.Max((int)startX, cx - 2);
         int refMaxX = Math.Min((int)endX - 1, cx + 2);
         int refMinY = Math.Max((int)startY, cy - 2);
         int refMaxY = Math.Min((int)endY - 1, cy + 2);
 
-        var refined = FindBestCandidateStandard(
+        return FindBestCandidateStandard(
             frame,
             validityFrame,
             template,
@@ -452,8 +452,6 @@ public sealed class ScreenImageMatcher : IDisposable
             1,
             selectionMode,
             cancellationToken);
-
-        return refined;
     }
 
     private static RgbImage DownsampleBy2(RgbImage source)
@@ -470,8 +468,8 @@ public sealed class ScreenImageMatcher : IDisposable
             for (int x = 0; x < w; x++)
             {
                 int sourceX = x * 2;
-                int sourceOffset = sourceRowOffset + sourceX * ColorChannelCount;
-                int targetOffset = targetRowOffset + x * ColorChannelCount;
+                int sourceOffset = sourceRowOffset + (sourceX * ColorChannelCount);
+                int targetOffset = targetRowOffset + (x * ColorChannelCount);
                 pixels[targetOffset] = source.Pixels[sourceOffset];
                 pixels[targetOffset + 1] = source.Pixels[sourceOffset + 1];
                 pixels[targetOffset + 2] = source.Pixels[sourceOffset + 2];
@@ -501,14 +499,14 @@ public sealed class ScreenImageMatcher : IDisposable
 
         void CopyRow(int y)
         {
-            int sourceY = startY + y * 2;
+            int sourceY = startY + (y * 2);
             int targetRowOffset = y * w * ColorChannelCount;
             int sourceRowOffset = sourceY * source.RowStride;
             for (int x = 0; x < w; x++)
             {
-                int sourceX = startX + x * 2;
-                int sourceOffset = sourceRowOffset + sourceX * ColorChannelCount;
-                int targetOffset = targetRowOffset + x * ColorChannelCount;
+                int sourceX = startX + (x * 2);
+                int sourceOffset = sourceRowOffset + (sourceX * ColorChannelCount);
+                int targetOffset = targetRowOffset + (x * ColorChannelCount);
                 pixels[targetOffset] = source.Pixels[sourceOffset];
                 pixels[targetOffset + 1] = source.Pixels[sourceOffset + 1];
                 pixels[targetOffset + 2] = source.Pixels[sourceOffset + 2];
@@ -564,7 +562,7 @@ public sealed class ScreenImageMatcher : IDisposable
                 continue;
             }
 
-            var candidateLimit = selectionMode == ScreenImageMatchSelectionMode.BestMatch && rowBest.HasValue
+            var candidateLimit = selectionMode is ScreenImageMatchSelectionMode.BestMatch && rowBest.HasValue
                 ? Math.Min(allowedSad, rowBest.Sad)
                 : allowedSad;
             if (!PassesAnchorPrefilter(frame, template, frameBounds, candidateX, candidateY, anchors, candidateLimit, cancellationToken))
@@ -579,7 +577,7 @@ public sealed class ScreenImageMatcher : IDisposable
             }
 
             var candidate = new MatchCandidate(candidateX, candidateY, sad.Value);
-            if (selectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch)
+            if (selectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch)
             {
                 rowBest = candidate;
                 earlySuccess.Request();
@@ -707,14 +705,14 @@ public sealed class ScreenImageMatcher : IDisposable
                 continue;
             }
 
-            var scaled = scale == 1.0
+            var scaled = scale is 1.0
                 ? baseTemplate
                 : GetScaledTemplate(template, baseTemplate, width, height, scale, options.DownsampleFactor, cancellationToken);
             var candidate = FindScaledCandidate(frame, framePixels, scaled, region, options, scale, cancellationToken);
-            if (options.SelectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch)
+            if (options.SelectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch)
             {
-                if (!selected.HasValue || candidate.HasValue && candidate.Y == selected.Y && candidate.X == selected.X
-                    && Math.Abs(candidate.Scale - 1.0) < Math.Abs(selected.Scale - 1.0))
+                if (!selected.HasValue || (candidate.HasValue && candidate.Y == selected.Y && candidate.X == selected.X
+                    && Math.Abs(candidate.Scale - 1.0) < Math.Abs(selected.Scale - 1.0)))
                 {
                     selected = candidate;
                 }
@@ -730,9 +728,9 @@ public sealed class ScreenImageMatcher : IDisposable
             }
         }
 
-        var scoreThreshold = 0.95;
+        const double scoreThreshold = 0.95;
         var selectedScore = selected.HasValue ? CalculateScore(selected.Sad, selected.MaximumSad) : 0.0;
-        if (selected.HasValue && (options.SelectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch || selectedScore >= scoreThreshold))
+        if (selected.HasValue && (options.SelectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch || selectedScore >= scoreThreshold))
         {
             return new ScreenImageMatch(new ScreenPoint(selected.X, selected.Y), selectedScore, selected.Width, selected.Height);
         }
@@ -747,14 +745,14 @@ public sealed class ScreenImageMatcher : IDisposable
                 continue;
             }
 
-            var scaled = scale == 1.0
+            var scaled = scale is 1.0
                 ? baseTemplate
                 : GetScaledTemplate(template, baseTemplate, width, height, scale, options.DownsampleFactor, cancellationToken);
             var candidate = FindScaledCandidate(frame, framePixels, scaled, region, options, scale, cancellationToken);
-            if (options.SelectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch)
+            if (options.SelectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch)
             {
-                if (!selected.HasValue || candidate.HasValue && candidate.Y == selected.Y && candidate.X == selected.X
-                    && Math.Abs(candidate.Scale - 1.0) < Math.Abs(selected.Scale - 1.0))
+                if (!selected.HasValue || (candidate.HasValue && candidate.Y == selected.Y && candidate.X == selected.X
+                    && Math.Abs(candidate.Scale - 1.0) < Math.Abs(selected.Scale - 1.0)))
                 {
                     selected = candidate;
                 }
@@ -828,8 +826,8 @@ public sealed class ScreenImageMatcher : IDisposable
             for (var x = 0; x < width; x++)
             {
                 var sourceX = Math.Min(source.Width - 1, (int)Math.Floor(x / scale));
-                var sourceOffset = checked((sourceY * source.Width + sourceX) * ColorChannelCount);
-                var targetOffset = checked((y * width + x) * ColorChannelCount);
+                var sourceOffset = checked(((sourceY * source.Width) + sourceX) * ColorChannelCount);
+                var targetOffset = checked(((y * width) + x) * ColorChannelCount);
                 source.Pixels.AsSpan(sourceOffset, ColorChannelCount).CopyTo(pixels.AsSpan(targetOffset, ColorChannelCount));
             }
         }
@@ -862,9 +860,9 @@ public sealed class ScreenImageMatcher : IDisposable
         var candidateDistance = Math.Abs(candidate.Scale - 1.0);
         var currentDistance = Math.Abs(current.Scale - 1.0);
         return candidate.Sad < current.Sad
-            || candidate.Sad == current.Sad && (candidate.Y < current.Y
-                || candidate.Y == current.Y && (candidate.X < current.X
-                    || candidate.X == current.X && candidateDistance < currentDistance))
+            || (candidate.Sad == current.Sad && (candidate.Y < current.Y
+                || (candidate.Y == current.Y && (candidate.X < current.X
+                    || (candidate.X == current.X && candidateDistance < currentDistance)))))
             ? candidate
             : current;
     }
@@ -915,7 +913,7 @@ public sealed class ScreenImageMatcher : IDisposable
     {
         var sampleCount = checked(sampleWidth * sampleHeight);
         var anchorCount = Math.Min(requestedCount, sampleCount);
-        if (anchorCount == 0)
+        if (anchorCount is 0)
         {
             return [];
         }
@@ -925,7 +923,7 @@ public sealed class ScreenImageMatcher : IDisposable
         var uniqueCount = 0;
         for (var anchorIndex = 0; anchorIndex < anchorCount; anchorIndex++)
         {
-            var sampleIndex = anchorCount == 1
+            var sampleIndex = anchorCount is 1
                 ? 0
                 : (int)Math.Round(anchorIndex * (sampleCount - 1) / (double)(anchorCount - 1));
             if (sampleIndex == previousIndex)
@@ -982,7 +980,7 @@ public sealed class ScreenImageMatcher : IDisposable
         long allowedSad,
         CancellationToken cancellationToken)
     {
-        if (downsampleFactor == 1)
+        if (downsampleFactor is 1)
         {
             return TryComputeContiguousSad(frame, template, frameBounds, candidateX, candidateY, allowedSad, cancellationToken);
         }
@@ -1019,7 +1017,7 @@ public sealed class ScreenImageMatcher : IDisposable
         long sad = 0;
         for (var templateY = 0; templateY < template.Height; templateY++)
         {
-            var frameOffset = checked((frameLocalY + templateY) * frame.RowStride + frameLocalX * ColorChannelCount);
+            var frameOffset = checked(((frameLocalY + templateY) * frame.RowStride) + (frameLocalX * ColorChannelCount));
             var templateOffset = checked(templateY * template.RowStride);
             var rowSad = TrySumAbsoluteDifferences(
                 frame.Pixels.AsSpan(frameOffset, rowLength),
@@ -1098,8 +1096,8 @@ public sealed class ScreenImageMatcher : IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 for (var x = 0; x < frame.Width; x++)
                 {
-                    var sourceOffset = checked(y * frame.Stride + x * bytesPerPixel);
-                    var targetOffset = checked(y * rowLength + x * ColorChannelCount);
+                    var sourceOffset = checked((y * frame.Stride) + (x * bytesPerPixel));
+                    var targetOffset = checked((y * rowLength) + (x * ColorChannelCount));
                     WriteNormalizedPixel(source, sourceOffset, frame.PixelFormat, target, targetOffset);
                 }
             }
@@ -1109,12 +1107,12 @@ public sealed class ScreenImageMatcher : IDisposable
             void NormalizeRow(int y)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var sourceRowOffset = checked(sourceSegment.Offset + y * frame.Stride);
+                var sourceRowOffset = checked(sourceSegment.Offset + (y * frame.Stride));
                 var targetRowOffset = checked(y * rowLength);
                 for (var x = 0; x < frame.Width; x++)
                 {
-                    var sourceOffset = checked(sourceRowOffset + x * bytesPerPixel);
-                    var targetOffset = checked(targetRowOffset + x * ColorChannelCount);
+                    var sourceOffset = checked(sourceRowOffset + (x * bytesPerPixel));
+                    var targetOffset = checked(targetRowOffset + (x * ColorChannelCount));
                     WriteNormalizedPixel(sourceArray, sourceOffset, frame.PixelFormat, target, targetOffset);
                 }
             }
@@ -1172,7 +1170,7 @@ public sealed class ScreenImageMatcher : IDisposable
 
     private static ScreenPixelColor ReadPixel(RgbImage image, int localX, int localY)
     {
-        var offset = checked((localY * image.Width + localX) * ColorChannelCount);
+        var offset = checked(((localY * image.Width) + localX) * ColorChannelCount);
         return new ScreenPixelColor(image.Pixels[offset], image.Pixels[offset + 1], image.Pixels[offset + 2]);
     }
 
@@ -1255,7 +1253,7 @@ public sealed class ScreenImageMatcher : IDisposable
             return 1.0;
         }
 
-        return Math.Clamp(1.0 - sad / maximumSad, 0.0, 1.0);
+        return Math.Clamp(1.0 - (sad / maximumSad), 0.0, 1.0);
     }
 
     private readonly record struct AnchorPoint(int X, int Y);
@@ -1325,7 +1323,7 @@ public sealed class ScreenImageMatcher : IDisposable
 
         public void Dispose()
         {
-            Interlocked.Exchange(ref _owner, null)?.ExitSearchLease();
+            Interlocked.Exchange(ref _owner, value: null)?.ExitSearchLease();
         }
     }
 
@@ -1345,7 +1343,7 @@ public sealed class ScreenImageMatcher : IDisposable
 
         if (!current.HasValue
             || candidate.Sad < current.Sad
-            || candidate.Sad == current.Sad && (candidate.Y < current.Y || candidate.Y == current.Y && candidate.X < current.X))
+            || (candidate.Sad == current.Sad && (candidate.Y < current.Y || (candidate.Y == current.Y && candidate.X < current.X))))
         {
             return candidate;
         }
@@ -1362,7 +1360,7 @@ public sealed class ScreenImageMatcher : IDisposable
 
         if (!current.HasValue
             || candidate.Y < current.Y
-            || candidate.Y == current.Y && candidate.X < current.X)
+            || (candidate.Y == current.Y && candidate.X < current.X))
         {
             return candidate;
         }
@@ -1397,7 +1395,7 @@ public sealed class ScreenImageMatcherResourceLimitException : InvalidOperationE
 public enum ScreenImageMatchSelectionMode
 {
     FirstThresholdMatch = 0,
-    BestMatch = 1
+    BestMatch = 1,
 }
 
 public sealed record ScreenImageMatchOptions
@@ -1415,7 +1413,7 @@ public sealed record ScreenImageMatchOptions
             MinimumSimilarity = minimumSimilarity,
             DownsampleFactor = downsampleFactor,
             SelectionMode = selectionMode,
-            ScaleAware = scaleAware
+            ScaleAware = scaleAware,
         };
 
     public ScreenRect? SearchRegion { get; init; }

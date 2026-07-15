@@ -12,7 +12,7 @@ public interface IMacroFileManager
     /// Saves a macro sequence to a file
     /// </summary>
     Task SaveAsync(MacroSequence macro, string filePath);
-    
+
     /// <summary>
     /// Loads a macro sequence from a file
     /// </summary>

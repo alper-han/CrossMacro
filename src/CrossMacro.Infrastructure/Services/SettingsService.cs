@@ -26,7 +26,7 @@ public class SettingsService : ISettingsService
 
     public AppSettings Current => _currentSettings;
 
-    public SettingsService() : this(null)
+    public SettingsService() : this(configRootPath: null)
     {
     }
 
@@ -44,10 +44,10 @@ public class SettingsService : ISettingsService
             ConfigFileNames.ProfilesDirectory,
             "default",
             ConfigFileNames.Settings);
-        
+
         _currentSettings = new AppSettings();
     }
-    
+
     /// <summary>
     /// Try to read log level from settings file before logger is initialized.
     /// This is a static method that doesn't use logging to avoid chicken-and-egg problem.
@@ -80,10 +80,10 @@ public class SettingsService : ISettingsService
 
             if (!File.Exists(settingsPath))
                 return "Information";
-            
+
             var json = File.ReadAllText(settingsPath);
             var settings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings);
-            
+
             return settings?.LogLevel ?? "Information";
         }
         catch
@@ -153,7 +153,7 @@ public class SettingsService : ISettingsService
                     CrossMacroJsonContext.Default.GlobalSettings)
                 .ConfigureAwait(false);
 
-            if (snapshot.ProfileGeneration == _profileGeneration && snapshot.ProfileGeneration % 2 == 0)
+            if (snapshot.ProfileGeneration == _profileGeneration && snapshot.ProfileGeneration % 2 is 0)
             {
                 await FileBackedJsonStorage.WriteAsync(
                         snapshot.ProfilePath,
@@ -161,7 +161,7 @@ public class SettingsService : ISettingsService
                         CrossMacroJsonContext.Default.ProfileSettings)
                     .ConfigureAwait(false);
             }
-            
+
             Log.Information("Settings saved to {GlobalPath} and {ProfilePath}", snapshot.GlobalPath, snapshot.ProfilePath);
         }
         catch (Exception ex)
@@ -189,7 +189,7 @@ public class SettingsService : ISettingsService
                 _profileSettingsFilePath,
                 SettingsMapper.ToProfile(_currentSettings),
                 CrossMacroJsonContext.Default.ProfileSettings);
-            
+
             Log.Information("Settings saved to {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
         }
         catch (Exception ex)

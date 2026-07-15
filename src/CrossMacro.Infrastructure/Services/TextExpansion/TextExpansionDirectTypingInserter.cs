@@ -68,12 +68,12 @@ internal sealed class TextExpansionDirectTypingInserter
             "Typing replacement directly (length={Length}, method={Method})",
             text.Length,
             method);
-        if (method == DirectTypingMethod.FastBatch && TryInsertBatch(inputSimulator, text))
+        if (method is DirectTypingMethod.FastBatch && TryInsertBatch(inputSimulator, text))
         {
             return;
         }
 
-        if (method == DirectTypingMethod.CompatibleKeyByKey && TryInsertCompatibleBatch(inputSimulator, text))
+        if (method is DirectTypingMethod.CompatibleKeyByKey && TryInsertCompatibleBatch(inputSimulator, text))
         {
             return;
         }
@@ -313,7 +313,7 @@ internal sealed class TextExpansionDirectTypingInserter
 
     private static bool SupportsNativeUnicodeTextInput(IUnicodeTextInputSimulator? unicodeTextInput)
     {
-        return unicodeTextInput?.SupportsUnicodeTextInput == true;
+        return (unicodeTextInput?.SupportsUnicodeTextInput) is true;
     }
 
     private void ValidateUnicodeTextSupport(IUnicodeTextInputSimulator? unicodeTextInput, int codePoint)

@@ -26,7 +26,7 @@ public class ModifierStateTrackerTests
     public void OnKeyPressed_ShouldAddModifier_WhenIsModifierKey()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(true);
+        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
 
         // Act
         _tracker.OnKeyPressed(LeftCtrl);
@@ -40,7 +40,7 @@ public class ModifierStateTrackerTests
     public void OnKeyPressed_ShouldNotAddKey_WhenNotModifier()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(KeyA).Returns(false);
+        _keyCodeMapper.IsModifierKeyCode(KeyA).Returns(returnThis: false);
 
         // Act
         _tracker.OnKeyPressed(KeyA);
@@ -54,7 +54,7 @@ public class ModifierStateTrackerTests
     public void OnKeyReleased_ShouldRemoveModifier()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(true);
+        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
         _tracker.OnKeyPressed(LeftCtrl);
 
         // Act
@@ -69,8 +69,8 @@ public class ModifierStateTrackerTests
     public void Clear_ShouldRemoveAllModifiers()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(true);
-        _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(true);
+        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
+        _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(returnThis: true);
         _tracker.OnKeyPressed(LeftCtrl);
         _tracker.OnKeyPressed(RightShift);
 
@@ -86,8 +86,8 @@ public class ModifierStateTrackerTests
     public void CurrentModifiers_ShouldReturnCopy_NotLiveReference()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(true);
-        _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(true);
+        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
+        _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(returnThis: true);
         _tracker.OnKeyPressed(LeftCtrl);
         var snapshot = _tracker.CurrentModifiers;
 

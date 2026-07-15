@@ -13,7 +13,7 @@ internal sealed class InputCaptureLifecycle
 
     public Task? CaptureTask => _captureTask;
 
-    public bool HasActiveResources => _capture != null || _captureCts != null || _captureTask != null;
+    public bool HasActiveResources => _capture is not null || _captureCts is not null || _captureTask is not null;
 
     public bool IsCurrent(IInputCapture capture)
     {
@@ -67,7 +67,7 @@ internal sealed class InputCaptureLifecycle
 
         try
         {
-            if (capture != null)
+            if (capture is not null)
             {
                 capture.InputReceived -= onInputReceived;
                 capture.Error -= onError;

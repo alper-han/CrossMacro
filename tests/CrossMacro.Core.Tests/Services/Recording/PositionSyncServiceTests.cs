@@ -38,7 +38,7 @@ public class PositionSyncServiceTests : IDisposable
     public async Task StartAsync_ShouldNotStart_IfProviderNotSupported()
     {
         // Arrange
-        _providerSubstitute.IsSupported.Returns(false);
+        _providerSubstitute.IsSupported.Returns(returnThis: false);
         var callback = Substitute.For<Action<int, int, long>>();
 
         // Act
@@ -52,7 +52,7 @@ public class PositionSyncServiceTests : IDisposable
     public async Task StartAsync_ShouldStart_IfProviderSupported()
     {
         // Arrange
-        _providerSubstitute.IsSupported.Returns(true);
+        _providerSubstitute.IsSupported.Returns(returnThis: true);
         var callback = Substitute.For<Action<int, int, long>>();
 
         // Act
@@ -65,7 +65,7 @@ public class PositionSyncServiceTests : IDisposable
     [Fact]
     public async Task Stop_WhenProviderQueryDoesNotObserveCancellation_ReturnsWithoutBlockingIndefinitely()
     {
-        _providerSubstitute.IsSupported.Returns(true);
+        _providerSubstitute.IsSupported.Returns(returnThis: true);
 
         var queryStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _providerSubstitute.GetAbsolutePositionAsync()

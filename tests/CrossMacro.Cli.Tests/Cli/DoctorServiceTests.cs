@@ -20,7 +20,7 @@ public class DoctorServiceTests
         _environmentInfoProvider = Substitute.For<IEnvironmentInfoProvider>();
         _displaySessionService = Substitute.For<IDisplaySessionService>();
         _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.LinuxWayland);
-        _environmentInfoProvider.WindowManagerHandlesCloseButton.Returns(false);
+        _environmentInfoProvider.WindowManagerHandlesCloseButton.Returns(returnThis: false);
     }
 
     private static IInputSimulator CreateInputSimulator(bool isSupported = true, string providerName = "test-simulator")
@@ -112,7 +112,7 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var check = Assert.Single(report.Checks, x => x.Name == "config-path");
+        var check = Assert.Single(report.Checks, x => x.Name is "config-path");
         Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
     }
 
@@ -130,7 +130,7 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var check = Assert.Single(report.Checks, x => x.Name == "config-path");
+        var check = Assert.Single(report.Checks, x => x.Name is "config-path");
         Assert.Equal(DoctorCheckStatus.Fail, check.Status);
         Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
         Assert.NotNull(check.Details!["error"]);
@@ -194,7 +194,7 @@ public class DoctorServiceTests
         var report = await service.RunAsync(verbose: false, CancellationToken.None);
 
         Assert.True(report.HasFailures);
-        Assert.Contains(report.Checks, x => x.Name == "display-session" && x.Status == DoctorCheckStatus.Fail);
+        Assert.Contains(report.Checks, x => x.Name is "display-session" && x.Status is DoctorCheckStatus.Fail);
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        Assert.Contains(report.Checks, x => x.Name == "display-session" && x.Status == DoctorCheckStatus.Pass);
+        Assert.Contains(report.Checks, x => x.Name is "display-session" && x.Status is DoctorCheckStatus.Pass);
     }
 
     [Fact]
@@ -227,18 +227,18 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path == "/dev/uinput",
+            path => path is "/dev/uinput",
             isLinux: () => true,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForRead: path => path is "/dev/input/event0",
             getInputEventCandidates: () => ["/dev/input/event0"]);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
-        Assert.Contains("Daemon is not required", readiness.Message);
+        Assert.Contains("Daemon is not required", readiness.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -251,16 +251,16 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path == "/dev/uinput",
-            path => path == "/dev/uinput",
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
+            path => path is "/dev/uinput",
+            path => path is "/dev/uinput",
             canOpenForRead: _ => false,
             getInputEventCandidates: () => [],
             isLinux: () => true);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
         Assert.False(GetDetailsBool(readiness, "directFallbackAvailable"));
     }
@@ -275,17 +275,17 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path == "/dev/uinput",
-            canOpenForRead: path => path == "/dev/input/event0",
+            path => path is "/dev/uinput",
+            canOpenForRead: path => path is "/dev/input/event0",
             getInputEventCandidates: () => ["/dev/input/event0"],
             hasUsableReadableInputDevices: () => false,
             isLinux: () => true);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
         Assert.False(GetDetailsBool(readiness, "directFallbackAvailable"));
     }
@@ -301,7 +301,7 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             _ => false,
             _ => false,
             canOpenForRead: _ => false,
@@ -310,7 +310,7 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: false, CancellationToken.None);
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
     }
 
@@ -324,8 +324,8 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path == "/run/crossmacro/crossmacro.sock",
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
+            path => path is "/run/crossmacro/crossmacro.sock",
             _ => false,
             canOpenForRead: _ => false,
             getInputEventCandidates: () => [],
@@ -334,10 +334,10 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var handshake = Assert.Single(report.Checks, x => x.Name == "linux-daemon-handshake");
+        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
         Assert.Equal(DoctorCheckStatus.Fail, handshake.Status);
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
         Assert.Contains("handshake failed", readiness.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -353,8 +353,8 @@ public class DoctorServiceTests
         string? probedSocketPath = null;
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path == IpcProtocol.DefaultSocketPath,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
+            path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
             _ => false,
             () => true,
             daemonHandshakeProbe: path =>
@@ -367,10 +367,10 @@ public class DoctorServiceTests
 
         probedSocketPath.Should().Be(IpcProtocol.DefaultSocketPath);
 
-        var handshake = Assert.Single(report.Checks, x => x.Name == "linux-daemon-handshake");
+        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
         Assert.Equal(DoctorCheckStatus.Pass, handshake.Status);
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
     }
 
@@ -384,9 +384,9 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             path => path is "/run/crossmacro/crossmacro.sock" or "/dev/uinput",
-            path => path == "/dev/uinput",
+            path => path is "/dev/uinput",
             isLinux: () => true,
             daemonHandshakeProbe: _ => false,
             canOpenForRead: _ => false,
@@ -394,10 +394,10 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: false, CancellationToken.None);
 
-        var handshake = Assert.Single(report.Checks, x => x.Name == "linux-daemon-handshake");
+        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
         Assert.Equal(DoctorCheckStatus.Fail, handshake.Status);
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
     }
 
@@ -411,19 +411,19 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path == "/dev/uinput",
+            path => path is "/dev/uinput",
             isLinux: () => true,
-            readAllTextIfExists: path => path == "/proc/bus/input/devices"
+            readAllTextIfExists: path => path is "/proc/bus/input/devices"
                 ? "N: Name=\"gsr-ui virtual keyboard\"\nH: Handlers=sysrq kbd event25\n"
                 : null,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForRead: path => path is "/dev/input/event0",
             getInputEventCandidates: () => ["/dev/input/event0"]);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var gsr = Assert.Single(report.Checks, x => x.Name == "linux-gsr-compatibility");
+        var gsr = Assert.Single(report.Checks, x => x.Name is "linux-gsr-compatibility");
         Assert.Equal(DoctorCheckStatus.Warn, gsr.Status);
         Assert.Contains("GPU Screen Recorder", gsr.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(GetDetailsBool(gsr, "gsrVirtualKeyboardDetected"));
@@ -440,19 +440,19 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path == "/dev/uinput",
+            path => path is "/dev/uinput",
             isLinux: () => true,
-            readAllTextIfExists: path => path == "/proc/bus/input/devices"
+            readAllTextIfExists: path => path is "/proc/bus/input/devices"
                 ? "N: Name=\"AT Translated Set 2 keyboard\"\nH: Handlers=sysrq kbd event3\n"
                 : null,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForRead: path => path is "/dev/input/event0",
             getInputEventCandidates: () => ["/dev/input/event0"]);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var gsr = Assert.Single(report.Checks, x => x.Name == "linux-gsr-compatibility");
+        var gsr = Assert.Single(report.Checks, x => x.Name is "linux-gsr-compatibility");
         Assert.Equal(DoctorCheckStatus.Pass, gsr.Status);
         Assert.False(GetDetailsBool(gsr, "gsrVirtualKeyboardDetected"));
     }
@@ -467,17 +467,17 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path == "/dev/uinput",
+            path => path is "/dev/uinput",
             isLinux: () => true,
             readAllTextIfExists: _ => null,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForRead: path => path is "/dev/input/event0",
             getInputEventCandidates: () => ["/dev/input/event0"]);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var gsr = Assert.Single(report.Checks, x => x.Name == "linux-gsr-compatibility");
+        var gsr = Assert.Single(report.Checks, x => x.Name is "linux-gsr-compatibility");
         Assert.Equal(DoctorCheckStatus.Pass, gsr.Status);
         Assert.False(GetDetailsBool(gsr, "gsrVirtualKeyboardDetected"));
     }
@@ -505,25 +505,25 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var handshake = Assert.Single(report.Checks, x => x.Name == "linux-daemon-handshake");
+        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
         Assert.Equal(scenario.ExpectedHandshakeStatus, handshake.Status);
         Assert.Equal("PermissionDenied", GetDetailsString(handshake, "failureKind"));
         Assert.False(GetDetailsBool(handshake, "directFallbackAvailable"));
 
-        var access = Assert.Single(report.Checks, x => x.Name == "linux-daemon-access");
+        var access = Assert.Single(report.Checks, x => x.Name is "linux-daemon-access");
         Assert.Equal(DoctorCheckStatus.Fail, access.Status);
         Assert.Equal("PermissionDenied", GetDetailsString(access, "socketStatus"));
         Assert.Equal(1000, GetDetailsInt(access, "currentUid"));
         Assert.Equal([1000, 4242], GetDetailsIntArray(access, "currentProcessGroups"));
 
-        var group = Assert.Single(report.Checks, x => x.Name == "linux-daemon-group");
+        var group = Assert.Single(report.Checks, x => x.Name is "linux-daemon-group");
         Assert.Equal(DoctorCheckStatus.Fail, group.Status);
         Assert.Equal("UserNotMember", GetDetailsString(group, "failureKind"));
         Assert.Contains("usermod", GetDetailsString(group, "remediation"), StringComparison.OrdinalIgnoreCase);
         Assert.Equal(1000, GetDetailsInt(group, "currentUid"));
         Assert.Equal([1000, 4242], GetDetailsIntArray(group, "currentProcessGroups"));
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(scenario.ExpectedReadinessStatus, readiness.Status);
     }
 
@@ -537,11 +537,11 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path == "/dev/uinput",
+            path => path is "/dev/uinput",
             isLinux: () => true,
-            canOpenForRead: path => path == "/dev/input/event0",
+            canOpenForRead: path => path is "/dev/input/event0",
             getInputEventCandidates: () => ["/dev/input/event0"],
             screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
                 IsSupportedSession: true,
@@ -551,9 +551,9 @@ public class DoctorServiceTests
                 SelectedBackend: "WlrScreencopy",
                 Backends:
                 [
-                    new ScreenReadingBackendDiagnostic("ExtImageCopy", false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
-                    new ScreenReadingBackendDiagnostic("WlrScreencopy", true, null, null),
-                    new ScreenReadingBackendDiagnostic("Portal", false, ScreenReadErrorKind.BackendUnavailable, "portal not needed")
+                    new ScreenReadingBackendDiagnostic("ExtImageCopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
+                    new ScreenReadingBackendDiagnostic("WlrScreencopy", IsAvailable: true, ErrorKind: null, ErrorMessage: null),
+                    new ScreenReadingBackendDiagnostic("Portal", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "portal not needed"),
                 ],
                 FailureBackend: null,
                 FailureKind: null,
@@ -562,10 +562,10 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var screenReading = Assert.Single(report.Checks, x => x.Name == "linux-screen-reading");
+        var screenReading = Assert.Single(report.Checks, x => x.Name is "linux-screen-reading");
         Assert.Equal(DoctorCheckStatus.Pass, screenReading.Status);
-        Assert.Contains("WlrScreencopy", screenReading.Message);
-        Assert.Contains("Native", screenReading.Message);
+        Assert.Contains("WlrScreencopy", screenReading.Message, StringComparison.Ordinal);
+        Assert.Contains("Native", screenReading.Message, StringComparison.Ordinal);
         Assert.Equal("WlrScreencopy", GetDetailsString(screenReading, "selectedBackend"));
         Assert.Equal(["ExtImageCopy", "WlrScreencopy", "Portal"], GetDetailsStringArray(screenReading, "policyOrder"));
     }
@@ -580,7 +580,7 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             _ => false,
             _ => false,
             canOpenForRead: _ => false,
@@ -594,9 +594,9 @@ public class DoctorServiceTests
                 SelectedBackend: null,
                 Backends:
                 [
-                    new ScreenReadingBackendDiagnostic("Portal", false, ScreenReadErrorKind.PermissionDenied, "portal denied by user"),
-                    new ScreenReadingBackendDiagnostic("ExtImageCopy", false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
-                    new ScreenReadingBackendDiagnostic("WlrScreencopy", false, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable")
+                    new ScreenReadingBackendDiagnostic("Portal", IsAvailable: false, ScreenReadErrorKind.PermissionDenied, "portal denied by user"),
+                    new ScreenReadingBackendDiagnostic("ExtImageCopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
+                    new ScreenReadingBackendDiagnostic("WlrScreencopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable"),
                 ],
                 FailureBackend: "Portal",
                 FailureKind: ScreenReadErrorKind.PermissionDenied,
@@ -605,10 +605,10 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var screenReading = Assert.Single(report.Checks, x => x.Name == "linux-screen-reading");
+        var screenReading = Assert.Single(report.Checks, x => x.Name is "linux-screen-reading");
         Assert.Equal(DoctorCheckStatus.Warn, screenReading.Status);
         Assert.Contains("permission denied", screenReading.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("ScreenCast permission", screenReading.Message);
+        Assert.Contains("ScreenCast permission", screenReading.Message, StringComparison.Ordinal);
         Assert.Equal("Portal", GetDetailsString(screenReading, "failureBackend"));
         Assert.Equal("PermissionDenied", GetDetailsString(screenReading, "failureKind"));
     }
@@ -623,7 +623,7 @@ public class DoctorServiceTests
         });
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             _ => false,
             _ => false,
             canOpenForRead: _ => false,
@@ -637,10 +637,10 @@ public class DoctorServiceTests
                 SelectedBackend: null,
                 Backends:
                 [
-                    new ScreenReadingBackendDiagnostic("KWinScreenShot2", false, ScreenReadErrorKind.PermissionDenied, "KWin ScreenShot2 permission denied."),
-                    new ScreenReadingBackendDiagnostic("ExtImageCopy", false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
-                    new ScreenReadingBackendDiagnostic("WlrScreencopy", false, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable"),
-                    new ScreenReadingBackendDiagnostic("Portal", false, ScreenReadErrorKind.BackendUnavailable, "portal unavailable")
+                    new ScreenReadingBackendDiagnostic("KWinScreenShot2", IsAvailable: false, ScreenReadErrorKind.PermissionDenied, "KWin ScreenShot2 permission denied."),
+                    new ScreenReadingBackendDiagnostic("ExtImageCopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
+                    new ScreenReadingBackendDiagnostic("WlrScreencopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable"),
+                    new ScreenReadingBackendDiagnostic("Portal", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "portal unavailable"),
                 ],
                 FailureBackend: "KWinScreenShot2",
                 FailureKind: ScreenReadErrorKind.PermissionDenied,
@@ -649,10 +649,10 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var screenReading = Assert.Single(report.Checks, x => x.Name == "linux-screen-reading");
+        var screenReading = Assert.Single(report.Checks, x => x.Name is "linux-screen-reading");
         Assert.Equal(DoctorCheckStatus.Warn, screenReading.Status);
-        Assert.Contains("KWinScreenShot2", screenReading.Message);
-        Assert.Contains("X-KDE-DBUS-Restricted-Interfaces", screenReading.Message);
+        Assert.Contains("KWinScreenShot2", screenReading.Message, StringComparison.Ordinal);
+        Assert.Contains("X-KDE-DBUS-Restricted-Interfaces", screenReading.Message, StringComparison.Ordinal);
         Assert.Equal("KWinScreenShot2", GetDetailsString(screenReading, "failureBackend"));
         Assert.Equal(["KWinScreenShot2", "ExtImageCopy", "WlrScreencopy", "Portal"], GetDetailsStringArray(screenReading, "policyOrder"));
     }
@@ -668,7 +668,7 @@ public class DoctorServiceTests
         const string privateFailure = "portal denied after screenshot /tmp/capture.png raw RGB(255,0,0) frame bytes SECRET_SCREEN_WORD";
 
         var service = CreateService(
-            key => key == "XDG_SESSION_TYPE" ? "wayland" : null,
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             _ => false,
             _ => false,
             canOpenForRead: _ => false,
@@ -682,9 +682,9 @@ public class DoctorServiceTests
                 SelectedBackend: null,
                 Backends:
                 [
-                    new ScreenReadingBackendDiagnostic("ExtImageCopy", false, ScreenReadErrorKind.CaptureFailed, privateFailure),
-                    new ScreenReadingBackendDiagnostic("WlrScreencopy", false, ScreenReadErrorKind.CaptureFailed, "frame bytes 01 02 03"),
-                    new ScreenReadingBackendDiagnostic("Portal", false, ScreenReadErrorKind.PermissionDenied, privateFailure)
+                    new ScreenReadingBackendDiagnostic("ExtImageCopy", IsAvailable: false, ScreenReadErrorKind.CaptureFailed, privateFailure),
+                    new ScreenReadingBackendDiagnostic("WlrScreencopy", IsAvailable: false, ScreenReadErrorKind.CaptureFailed, "frame bytes 01 02 03"),
+                    new ScreenReadingBackendDiagnostic("Portal", IsAvailable: false, ScreenReadErrorKind.PermissionDenied, privateFailure),
                 ],
                 FailureBackend: "Portal",
                 FailureKind: ScreenReadErrorKind.PermissionDenied,
@@ -725,10 +725,10 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var handshake = Assert.Single(report.Checks, x => x.Name == "linux-daemon-handshake");
+        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
         Assert.Equal(scenario.ExpectedHandshakeStatus, handshake.Status);
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(scenario.ExpectedReadinessStatus, readiness.Status);
     }
 
@@ -755,18 +755,18 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var access = Assert.Single(report.Checks, x => x.Name == "linux-daemon-access");
+        var access = Assert.Single(report.Checks, x => x.Name is "linux-daemon-access");
         Assert.Equal(DoctorCheckStatus.Warn, access.Status);
         Assert.Equal("PermissionDenied", GetDetailsString(access, "socketStatus"));
         Assert.True(GetDetailsBool(access, "directFallbackAvailable"));
 
-        var handshake = Assert.Single(report.Checks, x => x.Name == "linux-daemon-handshake");
+        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
         Assert.Equal(DoctorCheckStatus.Warn, handshake.Status);
         Assert.Equal("PermissionDenied", GetDetailsString(handshake, "failureKind"));
         Assert.Equal(1000, GetDetailsInt(handshake, "currentUid"));
         Assert.Equal([1000, 4242], GetDetailsIntArray(handshake, "currentProcessGroups"));
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
     }
 
@@ -796,7 +796,7 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var group = Assert.Single(report.Checks, x => x.Name == "linux-daemon-group");
+        var group = Assert.Single(report.Checks, x => x.Name is "linux-daemon-group");
         Assert.Equal(DoctorCheckStatus.Fail, group.Status);
         Assert.Equal("StaleSession", GetDetailsString(group, "failureKind"));
         var remediation = GetDetailsString(group, "remediation");
@@ -828,12 +828,12 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var access = Assert.Single(report.Checks, x => x.Name == "linux-daemon-access");
+        var access = Assert.Single(report.Checks, x => x.Name is "linux-daemon-access");
         Assert.Equal(DoctorCheckStatus.Warn, access.Status);
         Assert.Equal("Missing", GetDetailsString(access, "socketStatus"));
         Assert.True(GetDetailsBool(access, "directFallbackAvailable"));
 
-        var readiness = Assert.Single(report.Checks, x => x.Name == "linux-input-readiness");
+        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
     }
 
@@ -865,7 +865,7 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var handshake = Assert.Single(report.Checks, x => x.Name == "linux-daemon-handshake");
+        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
         Assert.Equal(DoctorCheckStatus.Fail, handshake.Status);
         Assert.Equal(expectedFailureKind, GetDetailsString(handshake, "failureKind"));
         Assert.Equal(expectedFailureKind, GetDetailsString(handshake, "handshakeStatus"));
@@ -891,10 +891,10 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        Assert.Contains(report.Checks, x => x.Name == "input-simulator" && x.Status == DoctorCheckStatus.Pass);
-        Assert.Contains(report.Checks, x => x.Name == "input-capture" && x.Status == DoctorCheckStatus.Pass);
-        Assert.Contains(report.Checks, x => x.Name == "position-provider" && x.Status == DoctorCheckStatus.Pass);
-        Assert.DoesNotContain(report.Checks, x => x.Name == "macos-accessibility");
+        Assert.Contains(report.Checks, x => x.Name is "input-simulator" && x.Status is DoctorCheckStatus.Pass);
+        Assert.Contains(report.Checks, x => x.Name is "input-capture" && x.Status is DoctorCheckStatus.Pass);
+        Assert.Contains(report.Checks, x => x.Name is "position-provider" && x.Status is DoctorCheckStatus.Pass);
+        Assert.DoesNotContain(report.Checks, x => x.Name is "macos-accessibility");
     }
 
     [Fact]
@@ -924,20 +924,20 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var inputMonitoring = Assert.Single(report.Checks, x => x.Name == "macos-input-monitoring");
+        var inputMonitoring = Assert.Single(report.Checks, x => x.Name is "macos-input-monitoring");
         Assert.Equal(DoctorCheckStatus.Fail, inputMonitoring.Status);
-        Assert.Contains("Input Monitoring", inputMonitoring.Message);
+        Assert.Contains("Input Monitoring", inputMonitoring.Message, StringComparison.Ordinal);
         Assert.Contains("capture", inputMonitoring.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Accessibility permission is missing", inputMonitoring.Message);
+        Assert.DoesNotContain("Accessibility permission is missing", inputMonitoring.Message, StringComparison.Ordinal);
 
-        var eventPosting = Assert.Single(report.Checks, x => x.Name == "macos-event-posting");
+        var eventPosting = Assert.Single(report.Checks, x => x.Name is "macos-event-posting");
         Assert.Equal(DoctorCheckStatus.Pass, eventPosting.Status);
         Assert.Contains("event posting", eventPosting.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("playback", eventPosting.Message, StringComparison.OrdinalIgnoreCase);
 
-        var accessibility = Assert.Single(report.Checks, x => x.Name == "macos-accessibility");
+        var accessibility = Assert.Single(report.Checks, x => x.Name is "macos-accessibility");
         Assert.Equal(DoctorCheckStatus.Fail, accessibility.Status);
-        Assert.Contains("AX features", accessibility.Message);
+        Assert.Contains("AX features", accessibility.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -954,7 +954,7 @@ public class DoctorServiceTests
             return true;
         });
 
-        var permissionChecker = new TestMacOSPermissionChecker(new MacOSPermissionStatus(true, true, true));
+        var permissionChecker = new TestMacOSPermissionChecker(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: true, AccessibilityGranted: true));
         var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: true, granted: granted);
 
         var service = CreateService(
@@ -969,16 +969,16 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var screenRecording = Assert.Single(report.Checks, x => x.Name == "macos-screen-recording");
+        var screenRecording = Assert.Single(report.Checks, x => x.Name is "macos-screen-recording");
         Assert.Equal(expectedStatus, screenRecording.Status);
-        Assert.Contains("Screen Recording", screenRecording.Message);
+        Assert.Contains("Screen Recording", screenRecording.Message, StringComparison.Ordinal);
         Assert.Equal(granted, GetDetailsBool(screenRecording, "screenRecordingGranted"));
         Assert.True(GetDetailsBool(screenRecording, "preflightApiAvailable"));
 
         if (!granted)
         {
-            Assert.Contains("System Settings", screenRecording.Message);
-            Assert.Contains("restart CrossMacro", screenRecording.Message);
+            Assert.Contains("System Settings", screenRecording.Message, StringComparison.Ordinal);
+            Assert.Contains("restart CrossMacro", screenRecording.Message, StringComparison.Ordinal);
         }
     }
 
@@ -992,7 +992,7 @@ public class DoctorServiceTests
             return true;
         });
 
-        var permissionChecker = new TestMacOSPermissionChecker(new MacOSPermissionStatus(true, true, true));
+        var permissionChecker = new TestMacOSPermissionChecker(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: true, AccessibilityGranted: true));
         var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: false, granted: false);
 
         var service = CreateService(
@@ -1007,9 +1007,9 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var screenRecording = Assert.Single(report.Checks, x => x.Name == "macos-screen-recording");
+        var screenRecording = Assert.Single(report.Checks, x => x.Name is "macos-screen-recording");
         Assert.Equal(DoctorCheckStatus.Warn, screenRecording.Status);
-        Assert.Contains("preflight API is unavailable", screenRecording.Message);
+        Assert.Contains("preflight API is unavailable", screenRecording.Message, StringComparison.Ordinal);
         Assert.False(GetDetailsBool(screenRecording, "preflightApiAvailable"));
     }
 
@@ -1024,7 +1024,7 @@ public class DoctorServiceTests
         });
 
         var permissionChecker = Substitute.For<IMacOSPermissionChecker>();
-        permissionChecker.IsSupported.Returns(true);
+        permissionChecker.IsSupported.Returns(returnThis: true);
         permissionChecker.GetCurrentStatus().Returns(_ => throw new InvalidOperationException("status failed"));
         var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: true, granted: true);
 
@@ -1040,8 +1040,8 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        Assert.Contains(report.Checks, x => x.Name == "macos-screen-recording" && x.Status == DoctorCheckStatus.Pass);
-        Assert.Contains(report.Checks, x => x.Name == "macos-input-monitoring" && x.Status == DoctorCheckStatus.Warn);
+        Assert.Contains(report.Checks, x => x.Name is "macos-screen-recording" && x.Status is DoctorCheckStatus.Pass);
+        Assert.Contains(report.Checks, x => x.Name is "macos-input-monitoring" && x.Status is DoctorCheckStatus.Warn);
     }
 
     [Fact]
@@ -1055,8 +1055,8 @@ public class DoctorServiceTests
         });
 
         var permissionChecker = Substitute.For<IPermissionChecker>();
-        permissionChecker.IsSupported.Returns(true);
-        permissionChecker.IsAccessibilityTrusted().Returns(false);
+        permissionChecker.IsSupported.Returns(returnThis: true);
+        permissionChecker.IsAccessibilityTrusted().Returns(returnThis: false);
 
         var service = CreateService(
             _ => null,
@@ -1069,15 +1069,15 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var inputMonitoring = Assert.Single(report.Checks, x => x.Name == "macos-input-monitoring");
+        var inputMonitoring = Assert.Single(report.Checks, x => x.Name is "macos-input-monitoring");
         Assert.Equal(DoctorCheckStatus.Warn, inputMonitoring.Status);
-        Assert.Contains("Input Monitoring status is unavailable", inputMonitoring.Message);
+        Assert.Contains("Input Monitoring status is unavailable", inputMonitoring.Message, StringComparison.Ordinal);
 
-        var eventPosting = Assert.Single(report.Checks, x => x.Name == "macos-event-posting");
+        var eventPosting = Assert.Single(report.Checks, x => x.Name is "macos-event-posting");
         Assert.Equal(DoctorCheckStatus.Warn, eventPosting.Status);
-        Assert.Contains("event posting status is unavailable", eventPosting.Message);
+        Assert.Contains("event posting status is unavailable", eventPosting.Message, StringComparison.Ordinal);
 
-        var accessibility = Assert.Single(report.Checks, x => x.Name == "macos-accessibility");
+        var accessibility = Assert.Single(report.Checks, x => x.Name is "macos-accessibility");
         Assert.Equal(DoctorCheckStatus.Fail, accessibility.Status);
     }
 
@@ -1102,7 +1102,7 @@ public class DoctorServiceTests
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var simulatorCheck = Assert.Single(report.Checks, x => x.Name == "input-simulator");
+        var simulatorCheck = Assert.Single(report.Checks, x => x.Name is "input-simulator");
         Assert.Equal(DoctorCheckStatus.Fail, simulatorCheck.Status);
         Assert.Contains("unavailable", simulatorCheck.Message, StringComparison.OrdinalIgnoreCase);
     }

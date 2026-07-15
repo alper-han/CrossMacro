@@ -186,7 +186,7 @@ public class SessionHandler : ISessionHandler
         private bool TryCompleteHandshake()
         {
             var opcode = (IpcOpCode)_session.Reader.ReadByte();
-            if (opcode != IpcOpCode.Handshake)
+            if (opcode is not IpcOpCode.Handshake)
             {
                 Log.Warning("Invalid handshake opcode: {Op}", opcode);
                 return false;
@@ -396,7 +396,7 @@ public class SessionHandler : ISessionHandler
                     Type = _session.Reader.ReadUInt16(),
                     Code = _session.Reader.ReadUInt16(),
                     Value = _session.Reader.ReadInt32(),
-                    DelayAfterMs = _session.Reader.ReadInt32()
+                    DelayAfterMs = _session.Reader.ReadInt32(),
                 };
 
                 if (inputEvent.DelayAfterMs < 0 || inputEvent.DelayAfterMs > IpcProtocol.MaxSimulationBatchDelayMs)

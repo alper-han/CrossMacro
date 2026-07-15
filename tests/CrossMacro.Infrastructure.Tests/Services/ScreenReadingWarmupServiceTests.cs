@@ -36,7 +36,7 @@ public sealed class ScreenReadingWarmupServiceTests
     {
         using var frameProvider = new RecordingScreenFrameProvider
         {
-            Result = ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, "denied")
+            Result = ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, "denied"),
         };
         var service = new ScreenReadingWarmupService(frameProvider, new StaticScreenReadingDiagnosticProvider("Portal"));
 

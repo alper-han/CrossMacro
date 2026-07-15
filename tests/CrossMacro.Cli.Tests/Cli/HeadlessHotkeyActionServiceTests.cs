@@ -21,7 +21,7 @@ public class HeadlessHotkeyActionServiceTests
         settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
-            IsKeyboardRecordingEnabled = true
+            IsKeyboardRecordingEnabled = true,
         });
 
         var isRecording = false;
@@ -57,7 +57,7 @@ public class HeadlessHotkeyActionServiceTests
                         Type = EventType.KeyPress,
                         KeyCode = 30
                     }
-                ]
+                ],
             };
         });
 
@@ -80,8 +80,8 @@ public class HeadlessHotkeyActionServiceTests
             Arg.Any<CancellationToken>());
 
         recorder.Received(1).StopRecording();
-        hotkeys.Received(1).SetPlaybackPauseHotkeysEnabled(false);
-        hotkeys.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+        hotkeys.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: false);
+        hotkeys.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: true);
 
         await service.DisposeAsync();
     }
@@ -92,7 +92,7 @@ public class HeadlessHotkeyActionServiceTests
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
         var recorder = Substitute.For<IMacroRecorder>();
         var runtimeContext = CreateRuntimeContext();
-        recorder.IsRecording.Returns(false);
+        recorder.IsRecording.Returns(returnThis: false);
         var settings = Substitute.For<ISettingsService>();
         settings.Current.Returns(new AppSettings());
 
@@ -125,7 +125,7 @@ public class HeadlessHotkeyActionServiceTests
         settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
-            IsKeyboardRecordingEnabled = true
+            IsKeyboardRecordingEnabled = true,
         });
 
         var isRecording = false;
@@ -161,7 +161,7 @@ public class HeadlessHotkeyActionServiceTests
                         Type = EventType.KeyPress,
                         KeyCode = 30
                     }
-                ]
+                ],
             };
         });
 
@@ -191,7 +191,7 @@ public class HeadlessHotkeyActionServiceTests
             PlaybackSpeed = 1.5,
             IsLooping = true,
             LoopCount = 3,
-            LoopDelayMs = 10
+            LoopDelayMs = 10,
         });
 
         var isRecording = false;
@@ -227,7 +227,7 @@ public class HeadlessHotkeyActionServiceTests
                         Type = EventType.Click,
                         Button = MouseButton.Left
                     }
-                ]
+                ],
             };
         });
 
@@ -282,7 +282,7 @@ public class HeadlessHotkeyActionServiceTests
             LoopCount = 2,
             UseRandomLoopDelay = true,
             LoopDelayMinMs = 40,
-            LoopDelayMaxMs = 80
+            LoopDelayMaxMs = 80,
         });
 
         var isRecording = false;
@@ -318,7 +318,7 @@ public class HeadlessHotkeyActionServiceTests
                         Type = EventType.Click,
                         Button = MouseButton.Left
                     }
-                ]
+                ],
             };
         });
 
@@ -366,7 +366,7 @@ public class HeadlessHotkeyActionServiceTests
         settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
-            IsKeyboardRecordingEnabled = true
+            IsKeyboardRecordingEnabled = true,
         });
 
         var isRecording = false;
@@ -401,7 +401,7 @@ public class HeadlessHotkeyActionServiceTests
                         Type = EventType.Click,
                         Button = MouseButton.Left
                     }
-                ]
+                ],
             };
         });
 
@@ -433,7 +433,7 @@ public class HeadlessHotkeyActionServiceTests
         settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
-            IsKeyboardRecordingEnabled = true
+            IsKeyboardRecordingEnabled = true,
         });
 
         var isRecording = false;
@@ -468,7 +468,7 @@ public class HeadlessHotkeyActionServiceTests
                         Type = EventType.Click,
                         Button = MouseButton.Left
                     }
-                ]
+                ],
             };
         });
 
@@ -510,11 +510,11 @@ public class HeadlessHotkeyActionServiceTests
             IsMouseRecordingEnabled = true,
             IsKeyboardRecordingEnabled = true,
             ForceRelativeCoordinates = true,
-            SkipInitialZeroZero = true
+            SkipInitialZeroZero = true,
         });
 
         var recorder = Substitute.For<IMacroRecorder>();
-        recorder.IsRecording.Returns(false);
+        recorder.IsRecording.Returns(returnThis: false);
         var runtimeContext = CreateRuntimeContext(isLinux: false, isWindows: false, isMacOS: false);
         var player = Substitute.For<IMacroPlayer>();
         var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
@@ -527,8 +527,8 @@ public class HeadlessHotkeyActionServiceTests
             Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<IEnumerable<int>>(),
-            false,
-            false,
+forceRelative: false,
+skipInitialZero: false,
             Arg.Any<CancellationToken>());
 
         await service.DisposeAsync();
@@ -544,11 +544,11 @@ public class HeadlessHotkeyActionServiceTests
             IsMouseRecordingEnabled = true,
             IsKeyboardRecordingEnabled = true,
             ForceRelativeCoordinates = true,
-            SkipInitialZeroZero = true
+            SkipInitialZeroZero = true,
         });
 
         var recorder = Substitute.For<IMacroRecorder>();
-        recorder.IsRecording.Returns(false);
+        recorder.IsRecording.Returns(returnThis: false);
         var runtimeContext = CreateRuntimeContext(isLinux: false, isWindows: false, isMacOS: true);
         var player = Substitute.For<IMacroPlayer>();
         var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
@@ -561,8 +561,8 @@ public class HeadlessHotkeyActionServiceTests
             Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<IEnumerable<int>>(),
-            true,
-            true,
+forceRelative: true,
+skipInitialZero: true,
             Arg.Any<CancellationToken>());
 
         await service.DisposeAsync();
@@ -622,7 +622,7 @@ public class HeadlessHotkeyActionServiceTests
                     if (_requests.Count > 0)
                     {
                         var request = _requests.Dequeue();
-                        if (_requests.Count == 0)
+                        if (_requests.Count is 0)
                         {
                             _requestArrived.Reset();
                         }

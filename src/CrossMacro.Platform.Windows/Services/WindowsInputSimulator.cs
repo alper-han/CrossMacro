@@ -14,11 +14,11 @@ public class WindowsInputSimulator :
 {
     private int _screenWidth;
     private int _screenHeight;
-    
+
     // ThreadStatic ensures each thread has its own buffer - thread-safe without locking
     [ThreadStatic]
     private static INPUT[]? _inputBuffer;
-    
+
     private static INPUT[] InputBuffer => _inputBuffer ??= new INPUT[1];
 
     public string ProviderName => "Windows SendInput";
@@ -31,7 +31,7 @@ public class WindowsInputSimulator :
     {
         _screenWidth = screenWidth;
         _screenHeight = screenHeight;
-        
+
         if (_screenWidth <= 0 || _screenHeight <= 0)
         {
             _screenWidth = User32.GetSystemMetrics(User32.SM_CXSCREEN);
@@ -54,7 +54,7 @@ public class WindowsInputSimulator :
                     time = 0,
                     dwExtraInfo = IntPtr.Zero
                 }
-            }
+            },
         };
 
         SendInput(input);
@@ -75,7 +75,7 @@ public class WindowsInputSimulator :
                     time = 0,
                     dwExtraInfo = IntPtr.Zero
                 }
-            }
+            },
         };
 
         SendInput(input);
@@ -84,7 +84,7 @@ public class WindowsInputSimulator :
     public void MouseButton(int button, bool pressed)
     {
         uint flags = 0;
-        
+
         switch (button)
         {
             case InputEventCode.BTN_LEFT:
@@ -111,9 +111,9 @@ public class WindowsInputSimulator :
                     time = 0,
                     dwExtraInfo = IntPtr.Zero
                 }
-            }
+            },
         };
-        
+
         SendInput(input);
     }
 
@@ -122,7 +122,7 @@ public class WindowsInputSimulator :
     public void Scroll(int delta, bool isHorizontal = false)
     {
         int normalizedDelta = Math.Abs(delta) <= 10 ? delta * WHEEL_DELTA : delta;
-        
+
         var input = new INPUT
         {
             type = InputType.INPUT_MOUSE,
@@ -135,18 +135,18 @@ public class WindowsInputSimulator :
                     time = 0,
                     dwExtraInfo = IntPtr.Zero
                 }
-            }
+            },
         };
-        
+
         SendInput(input);
     }
 
     private static readonly HashSet<ushort> ExtendedKeys = new()
     {
-        0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 
-        0x2D, 0x2E, 
-        0x5B, 0x5C, 
-        0xA3, 0xA5, 
+        0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+        0x2D, 0x2E,
+        0x5B, 0x5C,
+        0xA3, 0xA5,
     };
 
     public void KeyPress(int keyCode, bool pressed)
@@ -180,7 +180,7 @@ public class WindowsInputSimulator :
     private void SendKeyPress(int keyCode, bool pressed, long? marker)
     {
         ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
-        if (vk == 0) return;
+        if (vk is 0) return;
 
         uint flags = pressed ? 0u : KeyEventFlags.KEYEVENTF_KEYUP;
 
@@ -205,7 +205,7 @@ public class WindowsInputSimulator :
 
     private static int CalculateAbsoluteCoordinate(int val, int max)
     {
-        if (max <= 0) return 0; 
+        if (max <= 0) return 0;
         return (val * 65535) / max;
     }
 
@@ -240,7 +240,7 @@ public class WindowsInputSimulator :
                     time = 0,
                     dwExtraInfo = marker.HasValue ? InputEventMarkers.ToIntPtr(marker.Value) : IntPtr.Zero
                 }
-            }
+            },
         };
 
         SendInput(input);

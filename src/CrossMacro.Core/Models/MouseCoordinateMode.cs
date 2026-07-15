@@ -13,5 +13,5 @@ public enum MouseCoordinateMode
     /// <summary>
     /// Event coordinates are relative movement deltas.
     /// </summary>
-    Relative
+    Relative,
 }

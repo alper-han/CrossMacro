@@ -16,10 +16,10 @@ namespace CrossMacro.Infrastructure.Services;
 public class EditorActionConverter : IEditorActionConverter
 {
     private const int DefaultKeyPressDelayMs = 10;
-    
+
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly RunScriptCompiler _runScriptCompiler;
-    
+
     public EditorActionConverter(IKeyCodeMapper keyCodeMapper)
     {
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
@@ -52,12 +52,12 @@ public class EditorActionConverter : IEditorActionConverter
             sequence.IsAbsoluteCoordinates,
             sequence.SkipInitialZeroZero);
     }
-    
+
     /// <inheritdoc/>
     public List<MacroEvent> ToMacroEvents(EditorAction action)
     {
         var events = new List<MacroEvent>();
-        
+
         switch (action.Type)
         {
             case EditorActionType.MouseMove:
@@ -67,10 +67,10 @@ public class EditorActionConverter : IEditorActionConverter
                     X = action.X,
                     Y = action.Y,
                     DelayMs = action.DelayMs,
-                    CoordinateMode = action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative
+                    CoordinateMode = action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
                 });
                 break;
-                
+
             case EditorActionType.MouseClick:
                 events.Add(new MacroEvent
                 {
@@ -80,10 +80,10 @@ public class EditorActionConverter : IEditorActionConverter
                     Button = action.Button,
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
-                    CoordinateMode = GetCoordinateMode(action)
+                    CoordinateMode = GetCoordinateMode(action),
                 });
                 break;
-                
+
             case EditorActionType.MouseDown:
                 events.Add(new MacroEvent
                 {
@@ -93,10 +93,10 @@ public class EditorActionConverter : IEditorActionConverter
                     Button = action.Button,
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
-                    CoordinateMode = GetCoordinateMode(action)
+                    CoordinateMode = GetCoordinateMode(action),
                 });
                 break;
-                
+
             case EditorActionType.MouseUp:
                 events.Add(new MacroEvent
                 {
@@ -106,44 +106,44 @@ public class EditorActionConverter : IEditorActionConverter
                     Button = action.Button,
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
-                    CoordinateMode = GetCoordinateMode(action)
+                    CoordinateMode = GetCoordinateMode(action),
                 });
                 break;
-                
+
             case EditorActionType.KeyPress:
                 // KeyPress expands to KeyDown + KeyUp
                 events.Add(new MacroEvent
                 {
                     Type = EventType.KeyPress,
                     KeyCode = action.KeyCode,
-                    DelayMs = action.DelayMs
+                    DelayMs = action.DelayMs,
                 });
                 events.Add(new MacroEvent
                 {
                     Type = EventType.KeyRelease,
                     KeyCode = action.KeyCode,
-                    DelayMs = DefaultKeyPressDelayMs
+                    DelayMs = DefaultKeyPressDelayMs,
                 });
                 break;
-                
+
             case EditorActionType.KeyDown:
                 events.Add(new MacroEvent
                 {
                     Type = EventType.KeyPress,
                     KeyCode = action.KeyCode,
-                    DelayMs = action.DelayMs
+                    DelayMs = action.DelayMs,
                 });
                 break;
-                
+
             case EditorActionType.KeyUp:
                 events.Add(new MacroEvent
                 {
                     Type = EventType.KeyRelease,
                     KeyCode = action.KeyCode,
-                    DelayMs = action.DelayMs
+                    DelayMs = action.DelayMs,
                 });
                 break;
-                
+
             case EditorActionType.Delay:
                 // Delay is added to the next event's DelayMs
                 // Create a placeholder move event with the delay
@@ -153,10 +153,10 @@ public class EditorActionConverter : IEditorActionConverter
                     DelayMs = action.UseRandomDelay ? 0 : action.DelayMs,
                     HasRandomDelay = action.UseRandomDelay,
                     RandomDelayMinMs = action.UseRandomDelay ? action.RandomDelayMinMs : 0,
-                    RandomDelayMaxMs = action.UseRandomDelay ? action.RandomDelayMaxMs : 0
+                    RandomDelayMaxMs = action.UseRandomDelay ? action.RandomDelayMaxMs : 0,
                 });
                 break;
-                
+
             case EditorActionType.ScrollVertical:
                 var scrollButton = action.ScrollAmount > 0 ? MouseButton.ScrollUp : MouseButton.ScrollDown;
                 for (int i = 0; i < Math.Abs(action.ScrollAmount); i++)
@@ -165,11 +165,11 @@ public class EditorActionConverter : IEditorActionConverter
                     {
                         Type = EventType.Click,
                         Button = scrollButton,
-                        DelayMs = i == 0 ? action.DelayMs : 0
+                        DelayMs = i is 0 ? action.DelayMs : 0,
                     });
                 }
                 break;
-                
+
             case EditorActionType.ScrollHorizontal:
                 var hScrollButton = action.ScrollAmount > 0 ? MouseButton.ScrollRight : MouseButton.ScrollLeft;
                 for (int i = 0; i < Math.Abs(action.ScrollAmount); i++)
@@ -178,14 +178,14 @@ public class EditorActionConverter : IEditorActionConverter
                     {
                         Type = EventType.Click,
                         Button = hScrollButton,
-                        DelayMs = i == 0 ? action.DelayMs : 0
+                        DelayMs = i is 0 ? action.DelayMs : 0,
                     });
                 }
                 break;
-                
+
             case EditorActionType.TextInput:
                 var preservedTextInputEvents = action.GetPreservedTextInputEvents();
-                if (preservedTextInputEvents != null)
+                if (preservedTextInputEvents is not null)
                 {
                     events.AddRange(preservedTextInputEvents.Select(CloneEvent));
                     break;
@@ -239,7 +239,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.WindowCommand:
                 break;
         }
-        
+
         return events;
     }
 
@@ -250,7 +250,7 @@ public class EditorActionConverter : IEditorActionConverter
             '\r' or '\n' => InputEventCode.KEY_ENTER,
             '\t' => InputEventCode.KEY_TAB,
             '\b' => InputEventCode.KEY_BACKSPACE,
-            _ => -1
+            _ => -1,
         };
 
         return keyCode != -1;
@@ -270,7 +270,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EventType.KeyPress,
                 KeyCode = InputEventCode.KEY_LEFTSHIFT,
-                DelayMs = 0
+                DelayMs = 0,
             });
         }
 
@@ -280,7 +280,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EventType.KeyPress,
                 KeyCode = InputEventCode.KEY_RIGHTALT,
-                DelayMs = 0
+                DelayMs = 0,
             });
         }
 
@@ -288,13 +288,13 @@ public class EditorActionConverter : IEditorActionConverter
         {
             Type = EventType.KeyPress,
             KeyCode = keyCode,
-            DelayMs = isFirst ? initialDelayMs : DefaultKeyPressDelayMs
+            DelayMs = isFirst ? initialDelayMs : DefaultKeyPressDelayMs,
         });
         events.Add(new MacroEvent
         {
             Type = EventType.KeyRelease,
             KeyCode = keyCode,
-            DelayMs = 0
+            DelayMs = 0,
         });
 
         if (needsAltGr)
@@ -303,7 +303,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EventType.KeyRelease,
                 KeyCode = InputEventCode.KEY_RIGHTALT,
-                DelayMs = 0
+                DelayMs = 0,
             });
         }
 
@@ -313,7 +313,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EventType.KeyRelease,
                 KeyCode = InputEventCode.KEY_LEFTSHIFT,
-                DelayMs = 0
+                DelayMs = 0,
             });
         }
 
@@ -341,10 +341,10 @@ public class EditorActionConverter : IEditorActionConverter
         {
             Type = type,
             KeyCode = keyCode,
-            KeyName = _keyCodeMapper.GetKeyName(keyCode)
+            KeyName = _keyCodeMapper.GetKeyName(keyCode),
         };
     }
-    
+
     /// <inheritdoc/>
     public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null)
     {
@@ -353,9 +353,9 @@ public class EditorActionConverter : IEditorActionConverter
             DelayMs = ev.DelayMs,
             UseRandomDelay = ev.HasRandomDelay,
             RandomDelayMinMs = ev.RandomDelayMinMs,
-            RandomDelayMaxMs = ev.RandomDelayMaxMs
+            RandomDelayMaxMs = ev.RandomDelayMaxMs,
         };
-        
+
         switch (ev.Type)
         {
             case EventType.MouseMove:
@@ -364,15 +364,15 @@ public class EditorActionConverter : IEditorActionConverter
                 action.Y = ev.Y;
                 if (ev.CoordinateMode.HasValue)
                 {
-                    action.IsAbsolute = ev.CoordinateMode.Value == MouseCoordinateMode.Absolute;
+                    action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
                 }
                 break;
-                
+
             case EventType.Click:
                 if (IsScrollButton(ev.Button))
                 {
-                    action.Type = ev.Button is MouseButton.ScrollUp or MouseButton.ScrollDown 
-                        ? EditorActionType.ScrollVertical 
+                    action.Type = ev.Button is MouseButton.ScrollUp or MouseButton.ScrollDown
+                        ? EditorActionType.ScrollVertical
                         : EditorActionType.ScrollHorizontal;
                     action.ScrollAmount = ev.Button is MouseButton.ScrollUp or MouseButton.ScrollRight ? 1 : -1;
                 }
@@ -385,11 +385,11 @@ public class EditorActionConverter : IEditorActionConverter
                     action.UseCurrentPosition = ev.UseCurrentPosition;
                     if (ev.CoordinateMode.HasValue)
                     {
-                        action.IsAbsolute = ev.CoordinateMode.Value == MouseCoordinateMode.Absolute;
+                        action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
                     }
                 }
                 break;
-                
+
             case EventType.ButtonPress:
                 action.Type = EditorActionType.MouseDown;
                 action.X = ev.X;
@@ -398,10 +398,10 @@ public class EditorActionConverter : IEditorActionConverter
                 action.UseCurrentPosition = ev.UseCurrentPosition;
                 if (ev.CoordinateMode.HasValue)
                 {
-                    action.IsAbsolute = ev.CoordinateMode.Value == MouseCoordinateMode.Absolute;
+                    action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
                 }
                 break;
-                
+
             case EventType.ButtonRelease:
                 action.Type = EditorActionType.MouseUp;
                 action.X = ev.X;
@@ -410,13 +410,13 @@ public class EditorActionConverter : IEditorActionConverter
                 action.UseCurrentPosition = ev.UseCurrentPosition;
                 if (ev.CoordinateMode.HasValue)
                 {
-                    action.IsAbsolute = ev.CoordinateMode.Value == MouseCoordinateMode.Absolute;
+                    action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
                 }
                 break;
-                
+
             case EventType.KeyPress:
                 // Check if next event is KeyRelease with same key - then merge to KeyPress
-                if (nextEvent?.Type == EventType.KeyRelease && nextEvent?.KeyCode == ev.KeyCode)
+                if ((nextEvent?.Type) is EventType.KeyRelease && nextEvent?.KeyCode == ev.KeyCode)
                 {
                     action.Type = EditorActionType.KeyPress;
                 }
@@ -427,21 +427,21 @@ public class EditorActionConverter : IEditorActionConverter
                 action.KeyCode = ev.KeyCode;
                 action.KeyName = _keyCodeMapper.GetKeyName(ev.KeyCode);
                 break;
-                
+
             case EventType.KeyRelease:
                 action.Type = EditorActionType.KeyUp;
                 action.KeyCode = ev.KeyCode;
                 action.KeyName = _keyCodeMapper.GetKeyName(ev.KeyCode);
                 break;
-                
+
             default:
                 action.Type = EditorActionType.Delay;
                 break;
         }
-        
+
         return action;
     }
-    
+
     /// <inheritdoc/>
     public MacroSequence ToMacroSequence(IEnumerable<EditorAction> actions, string name, bool isAbsolute, bool skipInitialZeroZero = false)
     {
@@ -460,25 +460,25 @@ public class EditorActionConverter : IEditorActionConverter
             Name = name,
             IsAbsoluteCoordinates = isAbsolute,
             SkipInitialZeroZero = skipInitialZeroZero,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
         };
-        
+
         long timestamp = 0;
         int pendingDelay = 0;
         bool hasPendingRandomDelay = false;
         int pendingRandomDelayMinMs = 0;
         int pendingRandomDelayMaxMs = 0;
-        
+
         foreach (var action in actionList)
         {
             var events = ToMacroEvents(action);
             var actionStartEventIndex = sequence.Events.Count;
             var actionEventCount = 0;
-            
+
             foreach (var ev in events)
             {
                 // Skip None type events but accumulate their delay
-                if (ev.Type == EventType.None)
+                if (ev.Type is EventType.None)
                 {
                     pendingDelay += ev.DelayMs;
                     if (ev.HasRandomDelay)
@@ -514,7 +514,7 @@ public class EditorActionConverter : IEditorActionConverter
                 actionEventCount++;
             }
 
-            if (action.Type == EditorActionType.TextInput && actionEventCount > 0)
+            if (action.Type is EditorActionType.TextInput && actionEventCount > 0)
             {
                 sequence.TextInputBoundaries.Add(new TextInputBoundary(
                     actionStartEventIndex,
@@ -531,10 +531,10 @@ public class EditorActionConverter : IEditorActionConverter
             sequence.TrailingDelayMinMs = pendingRandomDelayMinMs;
             sequence.TrailingDelayMaxMs = pendingRandomDelayMaxMs;
         }
-        
+
         sequence.CalculateDuration();
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type == EventType.MouseMove);
-        sequence.ClickCount = sequence.Events.Count(e => e.Type != EventType.MouseMove);
+        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
+        sequence.ClickCount = sequence.Events.Count(e => e.Type is not EventType.MouseMove);
 
         if (hasStateScriptActions)
         {
@@ -544,7 +544,7 @@ public class EditorActionConverter : IEditorActionConverter
                 .Where(step => !string.IsNullOrWhiteSpace(step))
                 .ToList();
         }
-        
+
         return sequence;
     }
 
@@ -552,7 +552,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         var scriptSteps = BuildScriptSteps(actions);
         var compileResult = _runScriptCompiler.Compile(scriptSteps);
-        if (!compileResult.Success || compileResult.Sequence == null)
+        if (!compileResult.Success || compileResult.Sequence is null)
         {
             throw new InvalidOperationException(string.IsNullOrWhiteSpace(compileResult.ErrorMessage)
                 ? "Script compilation failed."
@@ -583,8 +583,8 @@ public class EditorActionConverter : IEditorActionConverter
 
         RecalculateTimestamps(sequence);
         sequence.CalculateDuration();
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type == EventType.MouseMove);
-        sequence.ClickCount = sequence.Events.Count(e => e.Type != EventType.MouseMove);
+        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
+        sequence.ClickCount = sequence.Events.Count(e => e.Type is not EventType.MouseMove);
         return sequence;
     }
 
@@ -624,7 +624,7 @@ public class EditorActionConverter : IEditorActionConverter
 
             foreach (var step in actionSteps)
             {
-                steps.Add(new RunScriptStep(step, null, sourceIndex));
+                steps.Add(new RunScriptStep(step, SourceLineNumber: null, sourceIndex));
             }
         }
 
@@ -863,7 +863,7 @@ public class EditorActionConverter : IEditorActionConverter
     private static string BuildImageActionMatchOptions(EditorAction action)
     {
         var similarity = action.ImageSearchSimilarity.ToString("0.################", CultureInfo.InvariantCulture);
-        var mode = action.ImageSearchMatchModeWasExplicit || action.ImageSearchMatchMode != EditorImageMatchMode.FirstThresholdMatch
+        var mode = action.ImageSearchMatchModeWasExplicit || action.ImageSearchMatchMode is not EditorImageMatchMode.FirstThresholdMatch
             ? $" matchmode {RunScriptPlatformSyntax.ToImageMatchModeToken(action.ImageSearchMatchMode)}"
             : string.Empty;
         var scaleAware = action.ImageSearchScaleAware ? $" {RunScriptSyntax.ImageSearchScaleAwareKeyword}" : string.Empty;
@@ -884,7 +884,7 @@ public class EditorActionConverter : IEditorActionConverter
             ShellCommandMode.ShellCapture => $"shell capture {command} {FormatShellCaptureTarget(payload.ExitCodeVariableName)} {FormatShellCaptureTarget(payload.StandardOutputVariableName)} {FormatShellCaptureTarget(payload.StandardErrorVariableName)}{options}",
             ShellCommandMode.ShellInput => $"shell input {QuoteShellField(payload.StandardInput)} {command}{options}",
             ShellCommandMode.ShellCaptureInput => $"shell capture-input {QuoteShellField(payload.StandardInput)} {command} {FormatShellCaptureTarget(payload.ExitCodeVariableName)} {FormatShellCaptureTarget(payload.StandardOutputVariableName)} {FormatShellCaptureTarget(payload.StandardErrorVariableName)}{options}",
-            _ => $"shell {command}{options}"
+            _ => $"shell {command}{options}",
         };
     }
 
@@ -932,9 +932,9 @@ public class EditorActionConverter : IEditorActionConverter
             WindowCommandMode.Active => $"window active {payload.ActiveField} {outputVariable}",
             WindowCommandMode.Search => $"window search {selectorKind} {selectorValue} {outputVariable}",
             WindowCommandMode.Wait => $"window wait {selectorKind} {selectorValue} {payload.TimeoutMs} {outputVariable}",
-            WindowCommandMode.Focus when selectorKind == "active" => "window focus active",
+            WindowCommandMode.Focus when selectorKind is "active" => "window focus active",
             WindowCommandMode.Focus => $"window focus {selectorKind} {selectorValue}",
-            WindowCommandMode.Close when selectorKind == "active" => "window close active",
+            WindowCommandMode.Close when selectorKind is "active" => "window close active",
             WindowCommandMode.Close => $"window close {selectorKind} {selectorValue}",
             WindowCommandMode.Move => $"window move {payload.X} {payload.Y}",
             WindowCommandMode.Resize => $"window resize {payload.Width} {payload.Height}",
@@ -946,7 +946,7 @@ public class EditorActionConverter : IEditorActionConverter
             WindowCommandMode.WorkspaceSwitch => $"window setdesktop {workspace}",
             WindowCommandMode.WorkspaceMoveActive => $"window setdesktopforwindow active {workspace}",
             WindowCommandMode.WorkspaceMoveWindow => $"window setdesktopforwindow address {payload.SelectorValue.Trim()} {workspace}",
-            _ => "window active title $windowResult"
+            _ => "window active title $windowResult",
         };
     }
 
@@ -979,7 +979,7 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static string FormatShellCaptureTarget(string target)
     {
-        return target == "_" ? "_" : EditorActionScriptTokens.NormalizeVariableToken(target);
+        return target is "_" ? "_" : EditorActionScriptTokens.NormalizeVariableToken(target);
     }
 
     private static string QuoteShellField(string value)
@@ -1006,7 +1006,7 @@ public class EditorActionConverter : IEditorActionConverter
             MouseButton.Middle => "middle",
             MouseButton.Side1 => "side1",
             MouseButton.Side2 => "side2",
-            _ => "left"
+            _ => "left",
         };
     }
 
@@ -1016,7 +1016,7 @@ public class EditorActionConverter : IEditorActionConverter
         {
             MouseButton.Right => "right",
             MouseButton.Middle => "middle",
-            _ => "left"
+            _ => "left",
         };
     }
 
@@ -1030,8 +1030,8 @@ public class EditorActionConverter : IEditorActionConverter
         var name = EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName);
         var value = EditorActionScriptTokens.FormatSetValueToken(action.ScriptValueType, action.ScriptValue);
 
-        if (action.ScriptValueType == ScriptValueType.Text
-            && value.Contains('=', StringComparison.Ordinal))
+        if (action.ScriptValueType is ScriptValueType.Text
+&& value.Contains('=', StringComparison.Ordinal))
         {
             return $"set {name}={value}";
         }
@@ -1152,10 +1152,10 @@ public class EditorActionConverter : IEditorActionConverter
         IReadOnlyList<string> actionSteps)
     {
         if (action.Type is not (EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp)
-            || action.UseCurrentPosition
-            || !action.IsAbsolute
-            || existingSteps.Count == 0
-            || actionSteps.Count == 0)
+|| action.UseCurrentPosition
+|| !action.IsAbsolute
+|| existingSteps.Count is 0
+|| actionSteps.Count is 0)
         {
             return false;
         }
@@ -1174,7 +1174,7 @@ public class EditorActionConverter : IEditorActionConverter
 
         return previousX == currentX && previousY == currentY;
     }
-    
+
     /// <inheritdoc/>
     public List<EditorAction> FromMacroSequence(MacroSequence sequence)
     {
@@ -1204,7 +1204,7 @@ public class EditorActionConverter : IEditorActionConverter
         var events = sequence.Events;
         var useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(sequence);
         var textInputBoundaries = CreateTextInputBoundaryLookup(sequence);
-        
+
         for (int i = 0; i < events.Count; i++)
         {
             var ev = events[i];
@@ -1221,7 +1221,7 @@ public class EditorActionConverter : IEditorActionConverter
                 var textInputAction = new EditorAction
                 {
                     Type = EditorActionType.TextInput,
-                    Text = textInputBoundary.Text
+                    Text = textInputBoundary.Text,
                 };
                 textInputAction.PreserveTextInputEvents(CopyBoundaryEventsWithoutLeadingDelay(
                     events,
@@ -1231,19 +1231,19 @@ public class EditorActionConverter : IEditorActionConverter
                 i += textInputBoundary.EventCount - 1;
                 continue;
             }
-            
+
             // Skip KeyRelease if it was merged with previous KeyPress or TextInput
-            if (ev.Type == EventType.KeyRelease && i > 0)
+            if (ev.Type is EventType.KeyRelease && i > 0)
             {
                 var prevAction = actions.LastOrDefault();
-                if (prevAction?.Type == EditorActionType.KeyPress && prevAction.KeyCode == ev.KeyCode)
+                if ((prevAction?.Type) is EditorActionType.KeyPress && prevAction.KeyCode == ev.KeyCode)
                 {
                     continue; // Already merged
                 }
             }
-            
+
             var action = FromMacroEvent(ev, nextEvent);
-            
+
             // Set IsAbsolute from event-level mode, falling back to legacy sequence metadata.
             if (action.Type is EditorActionType.MouseMove
                 or EditorActionType.MouseClick
@@ -1263,11 +1263,11 @@ public class EditorActionConverter : IEditorActionConverter
                 else
                 {
                     action.IsAbsolute = MacroPositionSemantics.ResolveCoordinateMode(ev, sequence.IsAbsoluteCoordinates)
-                        == MouseCoordinateMode.Absolute;
+ is MouseCoordinateMode.Absolute;
                 }
             }
 
-            if (action.Type == EditorActionType.Delay)
+            if (action.Type is EditorActionType.Delay)
             {
                 if (action.DelayMs > 0 || action.UseRandomDelay)
                 {
@@ -1302,7 +1302,7 @@ public class EditorActionConverter : IEditorActionConverter
 
     private IReadOnlyDictionary<int, TextInputBoundary> CreateTextInputBoundaryLookup(MacroSequence sequence)
     {
-        if (sequence.TextInputBoundaries.Count == 0 || sequence.Events.Count == 0)
+        if (sequence.TextInputBoundaries.Count is 0 || sequence.Events.Count is 0)
         {
             return new Dictionary<int, TextInputBoundary>();
         }
@@ -1336,7 +1336,7 @@ public class EditorActionConverter : IEditorActionConverter
         var expectedEvents = ToMacroEvents(new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = boundary.Text
+            Text = boundary.Text,
         });
 
         if (expectedEvents.Count != boundary.EventCount)
@@ -1368,7 +1368,7 @@ public class EditorActionConverter : IEditorActionConverter
         for (var offset = 0; offset < eventCount; offset++)
         {
             var ev = events[startEventIndex + offset];
-            if (offset == 0)
+            if (offset is 0)
             {
                 ev.DelayMs = 0;
                 ev.HasRandomDelay = false;
@@ -1389,7 +1389,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         actions = new List<EditorAction>();
         warnings = new List<EditorActionRestoreWarning>();
-        if (scriptSteps == null || scriptSteps.Count == 0)
+        if (scriptSteps is null || scriptSteps.Count is 0)
         {
             return false;
         }
@@ -1429,7 +1429,7 @@ public class EditorActionConverter : IEditorActionConverter
                     Type = EditorActionType.MouseMove,
                     IsAbsolute = isAbsoluteMove,
                     X = moveX,
-                    Y = moveY
+                    Y = moveY,
                 });
                 continue;
             }
@@ -1446,7 +1446,7 @@ public class EditorActionConverter : IEditorActionConverter
                     continue;
                 }
 
-                if (currentMoveMode == MouseCoordinateMode.Absolute && hasAbsoluteCursorPosition)
+                if (currentMoveMode is MouseCoordinateMode.Absolute && hasAbsoluteCursorPosition)
                 {
                     actions.Add(CreatePositionedButtonAction(
                         currentButtonKeyword,
@@ -1457,7 +1457,7 @@ public class EditorActionConverter : IEditorActionConverter
                     continue;
                 }
 
-                if (currentMoveMode == MouseCoordinateMode.Relative)
+                if (currentMoveMode is MouseCoordinateMode.Relative)
                 {
                     actions.Add(CreatePositionedButtonAction(
                         currentButtonKeyword,
@@ -1492,7 +1492,7 @@ public class EditorActionConverter : IEditorActionConverter
                     UseRandomDelay = useRandomDelay,
                     DelayMs = useRandomDelay ? 0 : fixedDelay,
                     RandomDelayMinMs = useRandomDelay ? randomMin : 0,
-                    RandomDelayMaxMs = useRandomDelay ? randomMax : 0
+                    RandomDelayMaxMs = useRandomDelay ? randomMax : 0,
                 });
                 continue;
             }
@@ -1502,7 +1502,7 @@ public class EditorActionConverter : IEditorActionConverter
                 actions.Add(new EditorAction
                 {
                     Type = scrollActionType,
-                    ScrollAmount = scrollAmount
+                    ScrollAmount = scrollAmount,
                 });
                 continue;
             }
@@ -1512,7 +1512,7 @@ public class EditorActionConverter : IEditorActionConverter
                 actions.Add(new EditorAction
                 {
                     Type = EditorActionType.TextInput,
-                    Text = text
+                    Text = text,
                 });
                 continue;
             }
@@ -1653,7 +1653,7 @@ public class EditorActionConverter : IEditorActionConverter
         y = 0;
 
         var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length != 4 || !tokens[0].Equals("move", StringComparison.OrdinalIgnoreCase))
+        if (tokens.Length is not 4 || !tokens[0].Equals("move", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1705,7 +1705,7 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        if (tokens.Length == 3)
+        if (tokens.Length is 3)
         {
             if (!RunScriptSyntax.IsCurrentPositionToken(tokens[1]))
             {
@@ -1737,10 +1737,10 @@ public class EditorActionConverter : IEditorActionConverter
             "middle" or "m" => MouseButton.Middle,
             "side1" or "side" or "back" => MouseButton.Side1,
             "side2" or "extra" or "forward" => MouseButton.Side2,
-            _ => MouseButton.None
+            _ => MouseButton.None,
         };
 
-        return button != MouseButton.None;
+        return button is not MouseButton.None;
     }
 
     private static EditorAction CreatePositionedButtonAction(string keyword, MouseButton button, bool isAbsolute, int x, int y)
@@ -1750,7 +1750,7 @@ public class EditorActionConverter : IEditorActionConverter
             "click" => EditorActionType.MouseClick,
             "down" => EditorActionType.MouseDown,
             "up" => EditorActionType.MouseUp,
-            _ => EditorActionType.MouseClick
+            _ => EditorActionType.MouseClick,
         };
 
         return new EditorAction
@@ -1760,7 +1760,7 @@ public class EditorActionConverter : IEditorActionConverter
             IsAbsolute = isAbsolute,
             X = x,
             Y = y,
-            UseCurrentPosition = false
+            UseCurrentPosition = false,
         };
     }
 
@@ -1771,7 +1771,7 @@ public class EditorActionConverter : IEditorActionConverter
             "click" => EditorActionType.MouseClick,
             "down" => EditorActionType.MouseDown,
             "up" => EditorActionType.MouseUp,
-            _ => EditorActionType.MouseClick
+            _ => EditorActionType.MouseClick,
         };
 
         return new EditorAction
@@ -1781,7 +1781,7 @@ public class EditorActionConverter : IEditorActionConverter
             IsAbsolute = false,
             X = 0,
             Y = 0,
-            UseCurrentPosition = true
+            UseCurrentPosition = true,
         };
     }
 
@@ -1790,7 +1790,7 @@ public class EditorActionConverter : IEditorActionConverter
         return new EditorAction
         {
             Type = EditorActionType.RawScriptStep,
-            Text = step
+            Text = step,
         };
     }
 
@@ -1798,7 +1798,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         keyCode = 0;
         var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length != 2 || !tokens[0].Equals("tap", StringComparison.OrdinalIgnoreCase))
+        if (tokens.Length is not 2 || !tokens[0].Equals("tap", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1818,7 +1818,7 @@ public class EditorActionConverter : IEditorActionConverter
         keyCode = 0;
 
         var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length != 3 || !tokens[0].Equals("key", StringComparison.OrdinalIgnoreCase))
+        if (tokens.Length is not 3 || !tokens[0].Equals("key", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1875,12 +1875,12 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        if (tokens.Length == 2)
+        if (tokens.Length is 2)
         {
             return int.TryParse(tokens[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out fixedDelayMs);
         }
 
-        if (tokens.Length == 4 && tokens[1].Equals("random", StringComparison.OrdinalIgnoreCase))
+        if (tokens.Length is 4 && tokens[1].Equals("random", StringComparison.OrdinalIgnoreCase))
         {
             if (!int.TryParse(tokens[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out randomMinDelayMs)
                 || !int.TryParse(tokens[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out randomMaxDelayMs))
@@ -1892,12 +1892,12 @@ public class EditorActionConverter : IEditorActionConverter
             return true;
         }
 
-        if (tokens.Length == 3 && tokens[1].Equals("random", StringComparison.OrdinalIgnoreCase))
+        if (tokens.Length is 3 && tokens[1].Equals("random", StringComparison.OrdinalIgnoreCase))
         {
             var rangeTokens = tokens[2].Split("..", 2, StringSplitOptions.TrimEntries);
-            if (rangeTokens.Length != 2
-                || !int.TryParse(rangeTokens[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out randomMinDelayMs)
-                || !int.TryParse(rangeTokens[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out randomMaxDelayMs))
+            if (rangeTokens.Length is not 2
+|| !int.TryParse(rangeTokens[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out randomMinDelayMs)
+|| !int.TryParse(rangeTokens[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out randomMaxDelayMs))
             {
                 return false;
             }
@@ -1915,14 +1915,14 @@ public class EditorActionConverter : IEditorActionConverter
         amount = 0;
 
         var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if ((tokens.Length != 2 && tokens.Length != 3) || !tokens[0].Equals("scroll", StringComparison.OrdinalIgnoreCase))
+        if ((tokens.Length is not (2 or 3)) || !tokens[0].Equals("scroll", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
         var parsedAmount = 1;
-        if (tokens.Length == 3
-            && !int.TryParse(tokens[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out parsedAmount))
+        if (tokens.Length is 3
+&& !int.TryParse(tokens[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out parsedAmount))
         {
             return false;
         }
@@ -1963,7 +1963,7 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        if (step.Length == 4)
+        if (step.Length is 4)
         {
             return false;
         }
@@ -1987,7 +1987,7 @@ public class EditorActionConverter : IEditorActionConverter
 
         var trimmed = step.Trim();
         var parts = trimmed.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 3 || !parts[0].Equals(RunScriptSyntax.ClipboardCommand, StringComparison.OrdinalIgnoreCase))
+        if (parts.Length is not 3 || !parts[0].Equals(RunScriptSyntax.ClipboardCommand, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -2002,7 +2002,7 @@ public class EditorActionConverter : IEditorActionConverter
             action = new EditorAction
             {
                 Type = EditorActionType.ClipboardGet,
-                ScriptVariableName = variableName
+                ScriptVariableName = variableName,
             };
             return true;
         }
@@ -2012,7 +2012,7 @@ public class EditorActionConverter : IEditorActionConverter
             action = new EditorAction
             {
                 Type = EditorActionType.ClipboardSet,
-                Text = parts[2]
+                Text = parts[2],
             };
             return true;
         }
@@ -2029,7 +2029,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var payload = step.Trim()["shell".Length..].TrimStart();
-        if (payload.Length == 0)
+        if (payload.Length is 0)
         {
             return false;
         }
@@ -2074,7 +2074,7 @@ public class EditorActionConverter : IEditorActionConverter
             ScreenshotRegionX = parsed.UseRegion ? parsed.RegionX : "0",
             ScreenshotRegionY = parsed.UseRegion ? parsed.RegionY : "0",
             ScreenshotRegionWidth = parsed.UseRegion ? parsed.RegionWidth : "100",
-            ScreenshotRegionHeight = parsed.UseRegion ? parsed.RegionHeight : "100"
+            ScreenshotRegionHeight = parsed.UseRegion ? parsed.RegionHeight : "100",
         };
         return true;
     }
@@ -2084,7 +2084,7 @@ public class EditorActionConverter : IEditorActionConverter
         action = new EditorAction();
         var trimmed = step.Trim();
         var validationError = Playback.RunScriptWindowExecutor.Validate(trimmed);
-        if (validationError != null)
+        if (validationError is not null)
         {
             return false;
         }
@@ -2095,8 +2095,7 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        var subCommand = parts[1].ToLowerInvariant();
-        switch (subCommand)
+        switch (parts[1].ToLowerInvariant())
         {
             case "active":
                 action = CreateWindowAction(WindowCommandMode.Active, activeField: parts[2], outputVariable: parts[3]);
@@ -2144,7 +2143,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         var parts = step.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 4 || !TryExtractLastToken(parts[3], out var rawTerm, out var outputVariable))
+        if (parts.Length is not 4 || !TryExtractLastToken(parts[3], out var rawTerm, out var outputVariable))
         {
             return false;
         }
@@ -2157,7 +2156,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         var parts = step.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 4 || !TryExtractLastToken(parts[3], out var beforeVariable, out var outputVariable))
+        if (parts.Length is not 4 || !TryExtractLastToken(parts[3], out var beforeVariable, out var outputVariable))
         {
             return false;
         }
@@ -2186,7 +2185,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var selectorKind = parts[2].ToLowerInvariant();
-        var selectorValue = selectorKind == "active" ? string.Empty : UnquoteWindowField(parts.Length == 4 ? parts[3] : string.Empty);
+        var selectorValue = selectorKind is "active" ? string.Empty : UnquoteWindowField(parts.Length is 4 ? parts[3] : string.Empty);
         action = CreateWindowAction(mode, selectorKind: selectorKind, selectorValue: selectorValue);
         return true;
     }
@@ -2200,13 +2199,13 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var selectorKind = parts[2].ToLowerInvariant();
-        if (selectorKind == "active")
+        if (selectorKind is "active")
         {
             action = CreateWindowAction(WindowCommandMode.WorkspaceMoveActive, workspace: UnquoteWindowField(string.Join(' ', parts[3..])));
             return true;
         }
 
-        if (selectorKind == "address" && parts.Length >= 5)
+        if (selectorKind is "address" && parts.Length >= 5)
         {
             action = CreateWindowAction(WindowCommandMode.WorkspaceMoveWindow, selectorKind: "address", selectorValue: parts[3], workspace: UnquoteWindowField(string.Join(' ', parts[4..])));
             return true;
@@ -2281,7 +2280,7 @@ public class EditorActionConverter : IEditorActionConverter
             WindowY = y,
             WindowWidth = width,
             WindowHeight = height,
-            WindowWorkspace = workspace
+            WindowWorkspace = workspace,
         };
     }
 
@@ -2294,7 +2293,7 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        action = CreateShellAction(ShellCommandMode.Shell, command, string.Empty, null, null, null, retries, backoffMs, timeoutMs);
+        action = CreateShellAction(ShellCommandMode.Shell, command, string.Empty, exitVariable: null, stdoutVariable: null, stderrVariable: null, retries, backoffMs, timeoutMs);
         return true;
     }
 
@@ -2322,7 +2321,7 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        action = CreateShellAction(ShellCommandMode.ShellInput, command, standardInput, null, null, null, retries, backoffMs, timeoutMs);
+        action = CreateShellAction(ShellCommandMode.ShellInput, command, standardInput, exitVariable: null, stdoutVariable: null, stderrVariable: null, retries, backoffMs, timeoutMs);
         return true;
     }
 
@@ -2359,7 +2358,7 @@ public class EditorActionConverter : IEditorActionConverter
         value = string.Empty;
         remaining = string.Empty;
         var trimmed = payload.TrimStart();
-        if (trimmed.Length == 0 || trimmed[0] is not ('\"' or '\''))
+        if (trimmed.Length is 0 || trimmed[0] is not ('\"' or '\''))
         {
             return false;
         }
@@ -2416,7 +2415,7 @@ public class EditorActionConverter : IEditorActionConverter
     private static bool TryNormalizeShellCaptureTarget(string token, out string target)
     {
         target = token;
-        if (token == "_")
+        if (token is "_")
         {
             return true;
         }
@@ -2439,8 +2438,8 @@ public class EditorActionConverter : IEditorActionConverter
         for (var index = 0; index < tokens.Length; index++)
         {
             if (!int.TryParse(tokens[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-                || value < 0
-                || (index == 0 && value > 10_000))
+|| value < 0
+|| (index is 0 && value > 10_000))
             {
                 return false;
             }
@@ -2456,7 +2455,7 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static string[] SplitShellTokens(string payload)
     {
-        return payload.Trim().Length == 0
+        return payload.Trim().Length is 0
             ? []
             : payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
@@ -2483,7 +2482,7 @@ public class EditorActionConverter : IEditorActionConverter
             ShellStandardErrorVariableName = stderrVariable ?? "stderr",
             ShellRetries = retries,
             ShellBackoffMs = backoffMs,
-            ShellTimeoutMs = timeoutMs
+            ShellTimeoutMs = timeoutMs,
         };
     }
 
@@ -2496,7 +2495,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var payload = step[4..].Trim();
-        if (payload.Length == 0)
+        if (payload.Length is 0)
         {
             return false;
         }
@@ -2508,7 +2507,7 @@ public class EditorActionConverter : IEditorActionConverter
                 Type = EditorActionType.SetVariable,
                 ScriptVariableName = variableName,
                 ScriptValueType = valueType,
-                ScriptValue = value
+                ScriptValue = value,
             };
             return true;
         }
@@ -2516,7 +2515,7 @@ public class EditorActionConverter : IEditorActionConverter
         action = new EditorAction
         {
             Type = EditorActionType.SetVariable,
-            Text = payload
+            Text = payload,
         };
         return true;
     }
@@ -2578,7 +2577,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
-            || command != RunScriptScreenReadingCommand.PixelColor)
+|| command is not RunScriptScreenReadingCommand.PixelColor)
         {
             return false;
         }
@@ -2624,8 +2623,8 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
-            || command != RunScriptScreenReadingCommand.WaitColor
-            || tokens.Length is not (5 or 6))
+|| command is not RunScriptScreenReadingCommand.WaitColor
+|| tokens.Length is not (5 or 6))
         {
             return false;
         }
@@ -2638,7 +2637,7 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        var variableName = tokens.Length == 6 && TryNormalizeVariableName(tokens[5], out var resultVariableName)
+        var variableName = tokens.Length is 6 && TryNormalizeVariableName(tokens[5], out var resultVariableName)
             ? resultVariableName
             : EditorActionScreenReadingPayload.DefaultColorVariableName;
         action = new EditorAction();
@@ -2652,8 +2651,8 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
-            || command != RunScriptScreenReadingCommand.PixelSearch
-            || tokens.Length < 6)
+|| command is not RunScriptScreenReadingCommand.PixelSearch
+|| tokens.Length < 6)
         {
             return false;
         }
@@ -2686,13 +2685,13 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        var foundName = variables.Count == 3 ? variables[0] : EditorActionScreenReadingPayload.DefaultFoundVariableName;
-        var xVariableName = variables.Count == 3
+        var foundName = variables.Count is 3 ? variables[0] : EditorActionScreenReadingPayload.DefaultFoundVariableName;
+        var xVariableName = variables.Count is 3
             ? variables[1]
-            : variables.Count == 2 ? variables[0] : EditorActionScreenReadingPayload.DefaultFoundXVariableName;
-        var yVariableName = variables.Count == 3
+            : variables.Count is 2 ? variables[0] : EditorActionScreenReadingPayload.DefaultFoundXVariableName;
+        var yVariableName = variables.Count is 3
             ? variables[2]
-            : variables.Count == 2 ? variables[1] : EditorActionScreenReadingPayload.DefaultFoundYVariableName;
+            : variables.Count is 2 ? variables[1] : EditorActionScreenReadingPayload.DefaultFoundYVariableName;
         var tolerance = 0;
         var timeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs;
         while (index < tokens.Length)
@@ -2795,9 +2794,9 @@ public class EditorActionConverter : IEditorActionConverter
     {
         action = new EditorAction();
         if (!RunScriptScreenReadingStepParser.TryParseCommand(step, out var command, out var tokens)
-            || command != expectedCommand
-            || !RunScriptScreenReadingStepParser.TryValidateStep(step, out var error)
-            || error != null)
+|| command != expectedCommand
+|| !RunScriptScreenReadingStepParser.TryValidateStep(step, out var error)
+|| error is not null)
         {
             return false;
         }
@@ -2909,8 +2908,8 @@ public class EditorActionConverter : IEditorActionConverter
                 continue;
             }
 
-            if (actionType == EditorActionType.ImageClick
-                && string.Equals(tokens[index], "button", StringComparison.OrdinalIgnoreCase))
+            if (actionType is EditorActionType.ImageClick
+&& string.Equals(tokens[index], "button", StringComparison.OrdinalIgnoreCase))
             {
                 if (!TryParseButtonToken(tokens[index + 1], out button)
                     || button is not (MouseButton.Left or MouseButton.Right or MouseButton.Middle))
@@ -2933,16 +2932,16 @@ public class EditorActionConverter : IEditorActionConverter
             ScreenWidth = hasRegion ? regionWidth : EditorActionScreenReadingPayload.DefaultSearchScreenWidth,
             ScreenHeight = hasRegion ? regionHeight : EditorActionScreenReadingPayload.DefaultSearchScreenHeight,
             ImageAssetName = imageName,
-            ScreenFoundVariableName = variableNames.Count == 3 ? variableNames[0] : EditorActionScreenReadingPayload.DefaultFoundVariableName,
-            ScreenFoundXVariableName = variableNames.Count == 3 ? variableNames[1] : EditorActionScreenReadingPayload.DefaultFoundXVariableName,
-            ScreenFoundYVariableName = variableNames.Count == 3 ? variableNames[2] : EditorActionScreenReadingPayload.DefaultFoundYVariableName,
+            ScreenFoundVariableName = variableNames.Count is 3 ? variableNames[0] : EditorActionScreenReadingPayload.DefaultFoundVariableName,
+            ScreenFoundXVariableName = variableNames.Count is 3 ? variableNames[1] : EditorActionScreenReadingPayload.DefaultFoundXVariableName,
+            ScreenFoundYVariableName = variableNames.Count is 3 ? variableNames[2] : EditorActionScreenReadingPayload.DefaultFoundYVariableName,
             ScreenTimeoutMs = timeoutMs,
             ImageSearchSimilarity = similarity,
             ImageSearchDownsample = downsample,
             ImageSearchMatchMode = matchMode,
             ImageSearchMatchModeWasExplicit = matchModeExplicit,
             ImageSearchScaleAware = scaleAware,
-            Button = actionType == EditorActionType.ImageClick ? button : MouseButton.Left
+            Button = actionType is EditorActionType.ImageClick ? button : MouseButton.Left,
         };
         return true;
     }
@@ -2950,7 +2949,7 @@ public class EditorActionConverter : IEditorActionConverter
     private static bool IsImageActionOptionKeyword(EditorActionType actionType, string token)
     {
         return RunScriptScreenReadingStepParser.IsImageSearchOptionKeyword(token)
-            || (actionType == EditorActionType.ImageClick && string.Equals(token, "button", StringComparison.OrdinalIgnoreCase));
+|| (actionType is EditorActionType.ImageClick && string.Equals(token, "button", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool TryParseTargetColorToken(
@@ -2993,13 +2992,13 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var payload = step[(keyword.Length + 1)..].Trim();
-        if (payload.Length == 0)
+        if (payload.Length is 0)
         {
             return false;
         }
 
         var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0)
+        if (parts.Length is 0)
         {
             return false;
         }
@@ -3009,7 +3008,7 @@ public class EditorActionConverter : IEditorActionConverter
             action = new EditorAction
             {
                 Type = actionType,
-                Text = payload
+                Text = payload,
             };
             return true;
         }
@@ -3020,7 +3019,7 @@ public class EditorActionConverter : IEditorActionConverter
             action = new EditorAction
             {
                 Type = actionType,
-                Text = payload
+                Text = payload,
             };
             return true;
         }
@@ -3030,7 +3029,7 @@ public class EditorActionConverter : IEditorActionConverter
             Type = actionType,
             ScriptVariableName = variableName,
             ScriptNumericSourceType = sourceType,
-            ScriptNumericValue = tokenValue
+            ScriptNumericValue = tokenValue,
         };
         return true;
     }
@@ -3045,7 +3044,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var token = step[7..^1].Trim();
-        if (token.Length == 0)
+        if (token.Length is 0)
         {
             return false;
         }
@@ -3056,7 +3055,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EditorActionType.RepeatBlockStart,
                 ScriptNumericSourceType = sourceType,
-                ScriptNumericValue = tokenValue
+                ScriptNumericValue = tokenValue,
             };
             return true;
         }
@@ -3064,7 +3063,7 @@ public class EditorActionConverter : IEditorActionConverter
         action = new EditorAction
         {
             Type = EditorActionType.RepeatBlockStart,
-            Text = token
+            Text = token,
         };
         return true;
     }
@@ -3079,7 +3078,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var condition = step[(keyword.Length + 1)..^1].Trim();
-        if (condition.Length == 0)
+        if (condition.Length is 0)
         {
             return false;
         }
@@ -3102,7 +3101,7 @@ public class EditorActionConverter : IEditorActionConverter
                 ScriptLeftOperand = leftValue,
                 ScriptConditionOperator = conditionOperator,
                 ScriptRightOperandType = rightType,
-                ScriptRightOperand = rightValue
+                ScriptRightOperand = rightValue,
             };
             return true;
         }
@@ -3110,7 +3109,7 @@ public class EditorActionConverter : IEditorActionConverter
         action = new EditorAction
         {
             Type = actionType,
-            Text = condition
+            Text = condition,
         };
         return true;
     }
@@ -3125,7 +3124,7 @@ public class EditorActionConverter : IEditorActionConverter
             ">=" => ScriptConditionOperator.GreaterThanOrEqual,
             "<" => ScriptConditionOperator.LessThan,
             "<=" => ScriptConditionOperator.LessThanOrEqual,
-            _ => ScriptConditionOperator.Equals
+            _ => ScriptConditionOperator.Equals,
         };
 
         return operatorToken is "==" or "!=" or ">" or ">=" or "<" or "<=";
@@ -3141,7 +3140,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var body = step[4..^1].Trim();
-        if (body.Length == 0)
+        if (body.Length is 0)
         {
             return false;
         }
@@ -3154,17 +3153,17 @@ public class EditorActionConverter : IEditorActionConverter
             action = new EditorAction
             {
                 Type = EditorActionType.ForBlockStart,
-                Text = body
+                Text = body,
             };
             return true;
         }
 
-        if (tokens.Length != 5 && tokens.Length != 7)
+        if (tokens.Length is not (5 or 7))
         {
             action = new EditorAction
             {
                 Type = EditorActionType.ForBlockStart,
-                Text = body
+                Text = body,
             };
             return true;
         }
@@ -3176,7 +3175,7 @@ public class EditorActionConverter : IEditorActionConverter
             action = new EditorAction
             {
                 Type = EditorActionType.ForBlockStart,
-                Text = body
+                Text = body,
             };
             return true;
         }
@@ -3184,7 +3183,7 @@ public class EditorActionConverter : IEditorActionConverter
         var hasStep = false;
         var stepType = ScriptNumericSourceType.Number;
         var stepValue = "1";
-        if (tokens.Length == 7)
+        if (tokens.Length is 7)
         {
             if (!tokens[5].Equals("step", StringComparison.OrdinalIgnoreCase)
                 || !TryParseNumericToken(tokens[6], out stepType, out stepValue))
@@ -3192,7 +3191,7 @@ public class EditorActionConverter : IEditorActionConverter
                 action = new EditorAction
                 {
                     Type = EditorActionType.ForBlockStart,
-                    Text = body
+                    Text = body,
                 };
                 return true;
             }
@@ -3210,7 +3209,7 @@ public class EditorActionConverter : IEditorActionConverter
             ForEndValue = endValue,
             ForHasStep = hasStep,
             ForStepType = stepType,
-            ForStepValue = stepValue
+            ForStepValue = stepValue,
         };
         return true;
     }
@@ -3221,7 +3220,7 @@ public class EditorActionConverter : IEditorActionConverter
         tokenValue = string.Empty;
 
         var token = rawToken.Trim();
-        if (token.Length == 0)
+        if (token.Length is 0)
         {
             return false;
         }
@@ -3258,7 +3257,7 @@ public class EditorActionConverter : IEditorActionConverter
         tokenValue = string.Empty;
 
         var token = rawToken.Trim();
-        if (token.Length == 0)
+        if (token.Length is 0)
         {
             return false;
         }
@@ -3321,7 +3320,7 @@ public class EditorActionConverter : IEditorActionConverter
         value = string.Empty;
 
         var token = rawValue.Trim();
-        if (token.Length == 0)
+        if (token.Length is 0)
         {
             return false;
         }
@@ -3370,7 +3369,7 @@ public class EditorActionConverter : IEditorActionConverter
 
         return EditorActionScriptTokens.IsValidVariableName(variableName);
     }
-    
+
     private static void AppendDelayActions(
         ICollection<EditorAction> actions,
         int fixedDelayMs,
@@ -3384,7 +3383,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EditorActionType.Delay,
                 DelayMs = fixedDelayMs,
-                UseRandomDelay = false
+                UseRandomDelay = false,
             });
         }
 
@@ -3395,19 +3394,19 @@ public class EditorActionConverter : IEditorActionConverter
                 Type = EditorActionType.Delay,
                 UseRandomDelay = true,
                 RandomDelayMinMs = randomDelayMinMs,
-                RandomDelayMaxMs = randomDelayMaxMs
+                RandomDelayMaxMs = randomDelayMaxMs,
             });
         }
     }
-    
+
     private static bool IsShiftKey(int keyCode)
     {
         return keyCode == InputEventCode.KEY_LEFTSHIFT || keyCode == InputEventCode.KEY_RIGHTSHIFT;
     }
-    
+
     private static bool IsScrollButton(MouseButton button)
     {
-        return button is MouseButton.ScrollUp or MouseButton.ScrollDown 
+        return button is MouseButton.ScrollUp or MouseButton.ScrollDown
             or MouseButton.ScrollLeft or MouseButton.ScrollRight;
     }
 }

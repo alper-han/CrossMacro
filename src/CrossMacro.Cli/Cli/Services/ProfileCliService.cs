@@ -51,7 +51,7 @@ public sealed class ProfileCliService : IProfileCliService
         try
         {
             var profile = (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: name), cancellationToken).ConfigureAwait(false)).Profile!;
-            return CliCommandExecutionResult.Ok($"Profile created: {profile.Name} ({profile.Id}).", ToData(profile, true));
+            return CliCommandExecutionResult.Ok($"Profile created: {profile.Name} ({profile.Id}).", ToData(profile, isActive: true));
         }
         catch (OperationCanceledException)
         {

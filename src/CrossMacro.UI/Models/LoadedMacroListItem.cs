@@ -41,7 +41,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         {
             _usesGeneratedName = string.IsNullOrWhiteSpace(value);
             var normalized = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : value.Trim();
-            if (_name == normalized)
+            if (string.Equals(_name, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -82,12 +82,10 @@ public sealed class LoadedMacroListItem : ObservableObject
 
     public LoadedMacroListItem CreateSnapshot()
     {
-        var snapshot = new LoadedMacroListItem(Macro.Clone(), SourcePath, SessionId, _localizationService)
+        return new LoadedMacroListItem(Macro.Clone(), SourcePath, SessionId, _localizationService)
         {
-            SequenceRepeatCount = SequenceRepeatCount
+            SequenceRepeatCount = SequenceRepeatCount,
         };
-
-        return snapshot;
     }
 
     public void UpdateSourcePath(string? sourcePath)
@@ -108,7 +106,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         ArgumentNullException.ThrowIfNull(macro);
 
         Macro = macro;
-        if (sourcePath != null)
+        if (sourcePath is not null)
         {
             UpdateSourcePath(sourcePath);
         }
@@ -117,7 +115,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         var normalized = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : macro.Name.Trim();
         Macro.Name = normalized;
 
-        var nameChanged = _name != normalized;
+        var nameChanged = !string.Equals(_name, normalized, StringComparison.Ordinal);
         _name = normalized;
 
         if (nameChanged)
@@ -135,7 +133,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         if (_usesGeneratedName)
         {
             var localizedName = GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName);
-            if (_name != localizedName)
+            if (!string.Equals(_name, localizedName, StringComparison.Ordinal))
             {
                 _name = localizedName;
                 Macro.Name = localizedName;

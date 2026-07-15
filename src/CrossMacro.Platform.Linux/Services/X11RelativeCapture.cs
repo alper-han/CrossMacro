@@ -15,7 +15,7 @@ namespace CrossMacro.Platform.Linux.Services
     {
         private double _accumulatorX;
         private double _accumulatorY;
-        
+
         // Configurable setting (could be injected if needed, hardcoded for now per request)
         private const bool SkipZeroDeltas = true;
 
@@ -36,22 +36,22 @@ namespace CrossMacro.Platform.Linux.Services
         {
             double dx = 0;
             double dy = 0;
-            
+
             int valueIndex = 0;
             var maskState = rawEvent.valuators;
-            
+
             if (XInput2Consts.IsBitSet(maskState.mask, maskState.mask_len, 0))
             {
                 dx = ReadDouble(rawEvent.raw_values, valueIndex);
                 valueIndex++;
             }
-            
+
             if (XInput2Consts.IsBitSet(maskState.mask, maskState.mask_len, 1))
             {
                dy = ReadDouble(rawEvent.raw_values, valueIndex);
                valueIndex++;
             }
-            
+
             if (SkipZeroDeltas && Math.Abs(dx) < 0.001 && Math.Abs(dy) < 0.001)
             {
                 return;
@@ -59,13 +59,13 @@ namespace CrossMacro.Platform.Linux.Services
 
             _accumulatorX += dx;
             _accumulatorY += dy;
-            
+
             int moveX = (int)_accumulatorX;
             int moveY = (int)_accumulatorY;
-            
-            if (moveX == 0 && moveY == 0) return;
-            
-            if (moveX != 0)
+
+            if (moveX is 0 && moveY is 0) return;
+
+            if (moveX is not 0)
             {
                 var argsX = new InputCaptureEventArgs
                 {
@@ -73,13 +73,13 @@ namespace CrossMacro.Platform.Linux.Services
                     Code = 0,
                     Value = moveX,
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    DeviceName = ProviderName
+                    DeviceName = ProviderName,
                 };
                 OnInputReceived(argsX);
                 _accumulatorX -= moveX;
             }
-            
-            if (moveY != 0)
+
+            if (moveY is not 0)
             {
                 var argsY = new InputCaptureEventArgs
                 {
@@ -87,20 +87,20 @@ namespace CrossMacro.Platform.Linux.Services
                     Code = 1,
                     Value = moveY,
                     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    DeviceName = ProviderName
+                    DeviceName = ProviderName,
                 };
                 OnInputReceived(argsY);
                 _accumulatorY -= moveY;
             }
-            
+
             OnInputReceived(new InputCaptureEventArgs
             {
                 Type = InputEventType.Sync,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                DeviceName = ProviderName
+                DeviceName = ProviderName,
             });
         }
-        
+
         private double ReadDouble(IntPtr ptr, int index)
         {
             IntPtr targetPtr = IntPtr.Add(ptr, index * 8);

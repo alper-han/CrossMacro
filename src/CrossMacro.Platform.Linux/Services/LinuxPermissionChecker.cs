@@ -47,7 +47,7 @@ public class LinuxPermissionChecker : IPermissionChecker
             // Check standard paths
             if (CheckWrite(LinuxConstants.UInputDevicePath)) return true;
             if (CheckWrite(LinuxConstants.UInputAlternatePath)) return true;
-            
+
             return false;
         }
         catch (Exception ex)

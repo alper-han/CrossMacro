@@ -19,7 +19,7 @@ public sealed class FlatpakHostImageClipboardService : IImageClipboardService
     {
         Unknown,
         HostWlClipboard,
-        HostXclip
+        HostXclip,
     }
 
     public FlatpakHostImageClipboardService(IProcessRunner processRunner, IRuntimeContext runtimeContext)
@@ -46,7 +46,7 @@ public sealed class FlatpakHostImageClipboardService : IImageClipboardService
         _getEnvironmentVariable = getEnvironmentVariable;
     }
 
-    public bool IsSupported => _tool != ClipboardTool.Unknown || !_initialized;
+    public bool IsSupported => _tool is not ClipboardTool.Unknown || !_initialized;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {

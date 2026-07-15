@@ -8,8 +8,7 @@ public partial class EditorViewModel
 {
     private IEnumerable<ScriptConditionOperator> GetConditionOperatorsForSelectedAction()
     {
-        if (SelectedAction != null
-            && AreNumericComparisonOperatorsAllowed(SelectedAction))
+        if (SelectedAction is not null && AreNumericComparisonOperatorsAllowed(SelectedAction))
         {
             return Enum.GetValues<ScriptConditionOperator>();
         }
@@ -17,7 +16,7 @@ public partial class EditorViewModel
         return new[]
         {
             ScriptConditionOperator.Equals,
-            ScriptConditionOperator.NotEquals
+            ScriptConditionOperator.NotEquals,
         };
     }
 
@@ -55,7 +54,7 @@ public partial class EditorViewModel
             ScriptOperandType.Boolean => ScriptVariableKind.Boolean,
             ScriptOperandType.Color => ScriptVariableKind.Color,
             ScriptOperandType.VariableReference => InferVariableKind(operand, selectedAction),
-            _ => ScriptVariableKind.Unknown
+            _ => ScriptVariableKind.Unknown,
         };
     }
 
@@ -69,7 +68,7 @@ public partial class EditorViewModel
         foreach (var action in ActionsForInference(selectedAction))
         {
             var kind = InferVariableKindFromAction(variableName, action);
-            if (kind != ScriptVariableKind.Unknown)
+            if (kind is not ScriptVariableKind.Unknown)
             {
                 return kind;
             }
@@ -103,7 +102,7 @@ public partial class EditorViewModel
                 EditorActionScreenReadingVariableRole.Color => ScriptVariableKind.Color,
                 EditorActionScreenReadingVariableRole.Boolean => ScriptVariableKind.Boolean,
                 EditorActionScreenReadingVariableRole.Number => ScriptVariableKind.Number,
-                _ => ScriptVariableKind.Unknown
+                _ => ScriptVariableKind.Unknown,
             };
         }
 
@@ -114,11 +113,11 @@ public partial class EditorViewModel
                 ScriptValueType.Number => ScriptVariableKind.Number,
                 ScriptValueType.Text => ScriptVariableKind.Text,
                 ScriptValueType.Boolean => ScriptVariableKind.Boolean,
-                _ => ScriptVariableKind.Unknown
+                _ => ScriptVariableKind.Unknown,
             },
             EditorActionType.ForBlockStart when string.Equals(action.ForVariableName, variableName, StringComparison.Ordinal) => ScriptVariableKind.Number,
             EditorActionType.IncrementVariable or EditorActionType.DecrementVariable when string.Equals(action.ScriptVariableName, variableName, StringComparison.Ordinal) => ScriptVariableKind.Number,
-            _ => ScriptVariableKind.Unknown
+            _ => ScriptVariableKind.Unknown,
         };
     }
 }

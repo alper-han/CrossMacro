@@ -121,7 +121,7 @@ public class LinuxShellClipboardServiceTests
         var originalWaylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
         try
         {
-            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", null);
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", value: null);
             var service = new LinuxShellClipboardService(_processRunner);
 
             var act = async () => await service.SetTextAsync("test");
@@ -134,7 +134,7 @@ public class LinuxShellClipboardServiceTests
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", originalWaylandDisplay);
         }
     }
-    
+
     [Fact]
     public async Task SetTextAsync_UsesXclip_OnX11()
     {
@@ -142,7 +142,7 @@ public class LinuxShellClipboardServiceTests
         var originalWaylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
         try
         {
-            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", null);
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", value: null);
             _processRunner.CheckCommandAsync("xclip", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             // Force re-init if possible or just use new instance
             var service = new LinuxShellClipboardService(_processRunner);

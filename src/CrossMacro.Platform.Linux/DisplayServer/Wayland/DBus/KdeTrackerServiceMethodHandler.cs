@@ -11,7 +11,7 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
     {
         Handled,
         UnknownMethod,
-        InvalidArguments
+        InvalidArguments,
     }
 
     private static readonly ReadOnlyMemory<byte> InterfaceXml =
@@ -106,19 +106,19 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
             var request = context.Request;
 
             var dispatchResult = TryDispatchMethod(request);
-            if (dispatchResult == DispatchResult.UnknownMethod)
+            if (dispatchResult is DispatchResult.UnknownMethod)
             {
                 context.ReplyUnknownMethodError();
                 return default;
             }
 
-            if (dispatchResult == DispatchResult.InvalidArguments)
+            if (dispatchResult is DispatchResult.InvalidArguments)
             {
                 context.ReplyError("org.freedesktop.DBus.Error.InvalidArgs", "Tracker request arguments were invalid.");
                 return default;
             }
 
-            using var writer = context.CreateReplyWriter(null);
+            using var writer = context.CreateReplyWriter(signature: null);
             context.Reply(writer.CreateMessage());
         }
         catch (Exception ex)
@@ -143,10 +143,10 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
             KdeTrackerService.UpdatePositionMethod => "ii",
             KdeTrackerService.UpdateResolutionMethod => "ii",
             KdeTrackerService.ReportWindowDataMethod => "ss",
-            _ => null
+            _ => null,
         };
 
-        if (expectedSignature == null)
+        if (expectedSignature is null)
         {
             return false;
         }

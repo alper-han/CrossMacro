@@ -30,7 +30,7 @@ public interface IEditorActionConverter
     /// <param name="action">The editor action to convert.</param>
     /// <returns>List of corresponding MacroEvents.</returns>
     List<MacroEvent> ToMacroEvents(EditorAction action);
-    
+
     /// <summary>
     /// Converts a MacroEvent to an EditorAction.
     /// May merge consecutive events (e.g., KeyDown+KeyUp → KeyPress).
@@ -39,7 +39,7 @@ public interface IEditorActionConverter
     /// <param name="nextEvent">Optional next event for merging detection.</param>
     /// <returns>The corresponding EditorAction.</returns>
     EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null);
-    
+
     /// <summary>
     /// Converts a list of EditorActions to a complete MacroSequence.
     /// </summary>
@@ -61,7 +61,7 @@ public interface IEditorActionConverter
             sequence.IsAbsoluteCoordinates,
             sequence.SkipInitialZeroZero);
     }
-    
+
     /// <summary>
     /// Converts a MacroSequence to a list of EditorActions for editing.
     /// </summary>

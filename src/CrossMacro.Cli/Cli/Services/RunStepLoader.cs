@@ -27,7 +27,7 @@ internal static class RunStepLoader
                     Success = false,
                     ExitCode = CliExitCode.FileError,
                     Message = "Run steps file not found.",
-                    Errors = [$"File does not exist: {request.StepFilePath}"]
+                    Errors = [$"File does not exist: {request.StepFilePath}"],
                 });
             }
 
@@ -84,7 +84,7 @@ internal static class RunStepLoader
                     Success = false,
                     ExitCode = CliExitCode.FileError,
                     Message = "Failed to read run steps file.",
-                    Errors = [ex.Message]
+                    Errors = [ex.Message],
                 });
             }
         }
@@ -98,12 +98,12 @@ internal static class RunStepLoader
                     Success = false,
                     ExitCode = CliExitCode.FileError,
                     Message = "Too many run steps.",
-                    Errors = [$"Run steps exceed the maximum of {MaxSteps} steps."]
+                    Errors = [$"Run steps exceed the maximum of {MaxSteps} steps."],
                 });
             }
 
             sourceIndex++;
-            steps.Add(new RunStepEntry(step, null, sourceIndex));
+            steps.Add(new RunStepEntry(step, FileLineNumber: null, sourceIndex));
         }
 
         return RunStepLoadOutcome.Ok(steps);
@@ -144,7 +144,7 @@ internal static class RunStepLoader
                 builder.Append(_buffer[0]);
             }
 
-            return builder.Length == 0 ? null : builder.ToString();
+            return builder.Length is 0 ? null : builder.ToString();
         }
     }
 }
@@ -164,7 +164,7 @@ internal sealed class RunStepLoadOutcome
         return new RunStepLoadOutcome
         {
             Success = true,
-            Steps = steps
+            Steps = steps,
         };
     }
 
@@ -173,7 +173,7 @@ internal sealed class RunStepLoadOutcome
         return new RunStepLoadOutcome
         {
             Success = false,
-            ErrorResult = errorResult
+            ErrorResult = errorResult,
         };
     }
 }

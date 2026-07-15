@@ -9,22 +9,20 @@ namespace CrossMacro.Infrastructure.Services;
 public class HotkeyParser : IHotkeyParser
 {
     private readonly IKeyCodeMapper _keyCodeMapper;
-    
+
     public HotkeyParser(IKeyCodeMapper keyCodeMapper)
     {
         _keyCodeMapper = keyCodeMapper;
     }
-    
+
     public HotkeyMapping Parse(string hotkeyString)
     {
         var mapping = new HotkeyMapping();
-        
+
         if (string.IsNullOrWhiteSpace(hotkeyString))
             return mapping;
-        
-        var parts = hotkeyString.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        
-        foreach (var part in parts)
+
+        foreach (var part in hotkeyString.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var keyCode = _keyCodeMapper.GetKeyCode(part);
             if (keyCode == -1)

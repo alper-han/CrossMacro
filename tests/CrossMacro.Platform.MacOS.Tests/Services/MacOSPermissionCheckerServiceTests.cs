@@ -80,7 +80,7 @@ public class MacOSPermissionCheckerServiceTests
     public void IsAccessibilityTrusted_PreservesCompatibilityPath(bool accessibilityTrusted)
     {
         var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => new MacOSPermissionStatus(false, false, !accessibilityTrusted),
+            getCurrentStatus: () => new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: false, !accessibilityTrusted),
             isAccessibilityTrusted: () => accessibilityTrusted);
 
         Assert.Equal(accessibilityTrusted, checker.IsAccessibilityTrusted());
@@ -92,7 +92,7 @@ public class MacOSPermissionCheckerServiceTests
         var listenRequests = 0;
         var postRequests = 0;
         var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => new MacOSPermissionStatus(false, false, false),
+            getCurrentStatus: () => new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: false, AccessibilityGranted: false),
             isAccessibilityTrusted: () => false,
             requestListenEventAccess: () =>
             {
@@ -190,7 +190,7 @@ public class MacOSPermissionCheckerServiceTests
         var listenRequests = 0;
         var postRequests = 0;
         var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => new MacOSPermissionStatus(false, false, false),
+            getCurrentStatus: () => new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: false, AccessibilityGranted: false),
             isAccessibilityTrusted: () => false,
             requestListenEventAccess: () =>
             {
@@ -278,8 +278,8 @@ public class MacOSPermissionCheckerServiceTests
         Assert.True(plan.RequiresListenEvent);
         Assert.False(plan.RequiresPostEvent);
         Assert.False(plan.RequiresAccessibility);
-        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(true, false, false)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(false, true, true)));
+        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: false, AccessibilityGranted: false)));
+        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: true, AccessibilityGranted: true)));
     }
 
     [Fact]
@@ -293,8 +293,8 @@ public class MacOSPermissionCheckerServiceTests
         Assert.False(plan.RequiresListenEvent);
         Assert.True(plan.RequiresPostEvent);
         Assert.False(plan.RequiresAccessibility);
-        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(false, true, false)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(true, false, true)));
+        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: true, AccessibilityGranted: false)));
+        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: false, AccessibilityGranted: true)));
     }
 
     [Fact]
@@ -308,9 +308,9 @@ public class MacOSPermissionCheckerServiceTests
         Assert.True(plan.RequiresListenEvent);
         Assert.True(plan.RequiresPostEvent);
         Assert.False(plan.RequiresAccessibility);
-        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(true, true, false)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(true, false, false)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(false, true, false)));
+        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: true, AccessibilityGranted: false)));
+        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: false, AccessibilityGranted: false)));
+        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: true, AccessibilityGranted: false)));
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public class MacOSPermissionCheckerServiceTests
         Assert.False(plan.RequiresListenEvent);
         Assert.False(plan.RequiresPostEvent);
         Assert.True(plan.RequiresAccessibility);
-        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(false, false, true)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(true, true, false)));
+        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: false, AccessibilityGranted: true)));
+        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: true, AccessibilityGranted: false)));
     }
 }

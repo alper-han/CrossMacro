@@ -20,7 +20,7 @@ public class KeyCodeMapper : IKeyCodeMapper
         56,  // Left Alt
         100, // Right Alt (AltGr)
         125, // Left Super
-        126  // Right Super
+        126,  // Right Super
     };
 
     public KeyCodeMapper(IKeyboardLayoutService layoutService)
@@ -41,7 +41,9 @@ public class KeyCodeMapper : IKeyCodeMapper
             return 100;
         if (keyName.Equals("Super", StringComparison.OrdinalIgnoreCase) ||
             keyName.Equals("Meta", StringComparison.OrdinalIgnoreCase))
+        {
             return 125;
+        }
 
         // Function keys
         if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) &&
@@ -49,9 +51,9 @@ public class KeyCodeMapper : IKeyCodeMapper
         {
             if (fNum >= 1 && fNum <= 10)
                 return 59 + fNum - 1;
-            if (fNum == 11)
+            if (fNum is 11)
                 return 87;
-            if (fNum == 12)
+            if (fNum is 12)
                 return 88;
             if (fNum >= 13 && fNum <= 20)
                 return 183 + fNum - 13;
@@ -70,16 +72,16 @@ public class KeyCodeMapper : IKeyCodeMapper
         if (code != -1) return code;
 
         // Letter keys (QWERTY layout fallback)
-        if (keyName.Length == 1 && char.IsLetter(keyName[0]))
+        if (keyName.Length is 1 && char.IsLetter(keyName[0]))
         {
             return GetLetterKeyCode(char.ToUpper(keyName[0]));
         }
 
         // Digit keys
-        if (keyName.Length == 1 && char.IsDigit(keyName[0]))
+        if (keyName.Length is 1 && char.IsDigit(keyName[0]))
         {
             var digit = keyName[0] - '0';
-            return digit == 0 ? 11 : 2 + digit - 1;
+            return digit is 0 ? 11 : 2 + digit - 1;
         }
 
         // Punctuation
@@ -168,7 +170,7 @@ public class KeyCodeMapper : IKeyCodeMapper
             "Numpad0" => 82, "Numpad." => 83, "NumpadEnter" => 96, "Numpad/" => 98,
             "Numpad*" => 55, "Numpad=" => 117,
 
-            _ => -1
+            _ => -1,
         };
     }
 
@@ -184,7 +186,7 @@ public class KeyCodeMapper : IKeyCodeMapper
             "Mouse Forward" => 277,
             "Mouse Back" => 278,
             "Mouse Task" => 279,
-            _ => -1
+            _ => -1,
         };
     }
 
@@ -198,7 +200,7 @@ public class KeyCodeMapper : IKeyCodeMapper
             'H' => 35, 'J' => 36, 'K' => 37, 'L' => 38,
             'Z' => 44, 'X' => 45, 'C' => 46, 'V' => 47, 'B' => 48,
             'N' => 49, 'M' => 50,
-            _ => -1
+            _ => -1,
         };
     }
 
@@ -217,7 +219,7 @@ public class KeyCodeMapper : IKeyCodeMapper
             "\\" => 43,
             "/" => 53,
             "`" => 41,
-            _ => -1
+            _ => -1,
         };
     }
 }

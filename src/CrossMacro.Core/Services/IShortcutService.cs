@@ -14,7 +14,7 @@ public class ShortcutExecutedEventArgs : EventArgs
     public ShortcutTask Task { get; }
     public bool Success { get; }
     public string? Message { get; }
-    
+
     public ShortcutExecutedEventArgs(ShortcutTask task, bool success, string? message = null)
     {
         Task = task;
@@ -32,42 +32,42 @@ public interface IShortcutService : IDisposable
     /// Collection of shortcut tasks
     /// </summary>
     ObservableCollection<ShortcutTask> Tasks { get; }
-    
+
     /// <summary>
     /// Whether the service is listening for shortcuts
     /// </summary>
     bool IsListening { get; }
-    
+
     /// <summary>
     /// Adds a new shortcut task
     /// </summary>
     void AddTask(ShortcutTask task);
-    
+
     /// <summary>
     /// Removes a shortcut task by ID
     /// </summary>
     void RemoveTask(Guid id);
-    
+
     /// <summary>
     /// Updates an existing task
     /// </summary>
     void UpdateTask(ShortcutTask task);
-    
+
     /// <summary>
     /// Enables or disables a task
     /// </summary>
     void SetTaskEnabled(Guid id, bool enabled);
-    
+
     /// <summary>
     /// Starts listening for shortcuts
     /// </summary>
     void Start();
-    
+
     /// <summary>
     /// Stops listening for shortcuts
     /// </summary>
     void Stop();
-    
+
     /// <summary>
     /// Saves tasks to persistent storage
     /// </summary>
@@ -77,7 +77,7 @@ public interface IShortcutService : IDisposable
     /// Runs a shortcut task manually by id.
     /// </summary>
     Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Loads tasks from persistent storage
     /// </summary>
@@ -87,12 +87,12 @@ public interface IShortcutService : IDisposable
     /// Reloads tasks from the supplied profile configuration directory.
     /// </summary>
     Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
-    
+
     /// <summary>
     /// Event fired when a shortcut is executed
     /// </summary>
     event EventHandler<ShortcutExecutedEventArgs>? ShortcutExecuted;
-    
+
     /// <summary>
     /// Event fired when a shortcut starts executing
     /// </summary>

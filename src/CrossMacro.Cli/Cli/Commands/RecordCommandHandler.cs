@@ -30,7 +30,7 @@ public sealed class RecordCommandHandler : CliCommandHandlerBase<RecordCliOption
             RecordKeyboard = options.RecordKeyboard,
             CoordinateMode = options.CoordinateMode,
             SkipInitialZero = options.SkipInitialZero,
-            DurationSeconds = options.DurationSeconds
+            DurationSeconds = options.DurationSeconds,
         }, cancellationToken);
 
         return result.Success

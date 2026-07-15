@@ -31,13 +31,13 @@ public enum RunExecutionStatus
     Cancelled,
     AbsolutePlaybackUnsupported,
     InputInjectionPermissionRequired,
-    Failed
+    Failed,
 }
 
 public sealed class RunExecutionResult
 {
     public RunExecutionStatus Status { get; init; }
-    public bool Success => Status == RunExecutionStatus.Succeeded;
+    public bool Success => Status is RunExecutionStatus.Succeeded;
     public MacroSequence? Sequence { get; init; }
     public int StepCount { get; init; }
     public int InitialDelayMs { get; init; }

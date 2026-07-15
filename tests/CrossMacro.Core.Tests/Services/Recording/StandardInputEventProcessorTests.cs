@@ -16,7 +16,7 @@ public class StandardInputEventProcessorTests
     {
         _strategy = Substitute.For<ICoordinateStrategy>();
         _processor = new StandardInputEventProcessor(_strategy);
-        
+
         // Default configuration: record both mouse and keyboard
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null);
     }

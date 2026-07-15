@@ -26,7 +26,7 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            ScriptSteps = new List<string> { "pixelcolor 10 20 color" }
+            ScriptSteps = new List<string> { "pixelcolor 10 20 color" },
         };
 
         // Act
@@ -42,7 +42,7 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            ScriptSteps = new List<string> { "pixelcolor 1" }
+            ScriptSteps = new List<string> { "pixelcolor 1" },
         };
 
         // Act
@@ -58,7 +58,7 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            ScriptSteps = new List<string> { " ", "" }
+            ScriptSteps = new List<string> { " ", "" },
         };
 
         // Act
@@ -90,7 +90,7 @@ public class MacroSequenceTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, Timestamp = -1, DelayMs = 0 }
-            }
+            },
         };
 
         // Act
@@ -109,7 +109,7 @@ public class MacroSequenceTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = -100 }
-            }
+            },
         };
 
         // Act
@@ -136,7 +136,7 @@ public class MacroSequenceTests
                     RandomDelayMinMs = 200,
                     RandomDelayMaxMs = 100
                 }
-            }
+            },
         };
 
         // Act
@@ -158,7 +158,7 @@ public class MacroSequenceTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0 }
-            }
+            },
         };
 
         // Act
@@ -179,7 +179,7 @@ public class MacroSequenceTests
                 new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0, X = 100, Y = 200 },
                 new() { Type = EventType.ButtonPress, Timestamp = 100, DelayMs = 100, Button = MouseButton.Left },
                 new() { Type = EventType.ButtonRelease, Timestamp = 150, DelayMs = 50, Button = MouseButton.Left }
-            }
+            },
         };
 
         // Act
@@ -213,7 +213,7 @@ public class MacroSequenceTests
                 new() { Timestamp = 0 },
                 new() { Timestamp = 500 },
                 new() { Timestamp = 1500 }
-            }
+            },
         };
 
         // Act
@@ -232,7 +232,7 @@ public class MacroSequenceTests
             Events = new List<MacroEvent>
             {
                 new(), new(), new(), new(), new()
-            }
+            },
         };
 
         // Act & Assert
@@ -257,12 +257,12 @@ public class MacroSequenceTests
                     Timestamp = 30,
                     DelayMs = 40,
                     CoordinateMode = MouseCoordinateMode.Absolute
-                }
+                },
             },
             ScriptSteps = new List<string> { "move 10 20" },
             TextInputBoundaries = new List<TextInputBoundary>
             {
-                new(0, 2, "hello")
+                new(0, 2, "hello"),
             },
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             TotalDurationMs = 30,
@@ -276,7 +276,7 @@ public class MacroSequenceTests
             TrailingDelayMs = 100,
             HasTrailingRandomDelay = true,
             TrailingDelayMinMs = 50,
-            TrailingDelayMaxMs = 150
+            TrailingDelayMaxMs = 150,
         };
 
         // Act

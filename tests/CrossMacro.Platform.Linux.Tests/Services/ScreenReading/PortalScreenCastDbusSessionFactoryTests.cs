@@ -102,7 +102,7 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
         {
             ["source_type"] = sourceType,
             ["position"] = new object[] { x, y },
-            ["size"] = new object[] { width, height }
+            ["size"] = new object[] { width, height },
         };
 
         if (id is not null)

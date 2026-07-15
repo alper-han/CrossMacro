@@ -29,7 +29,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     private string _replacementInput = string.Empty;
     private ObservableCollection<TextExpansion> _expansions = new();
     private readonly Dictionary<TextExpansion, bool> _managedEnabledState = new();
-    
+
     public TextExpansionViewModel(
         ITextExpansionStore storageService,
         IDialogService dialogService,
@@ -41,7 +41,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         _environmentInfoProvider = environmentInfoProvider;
         _localizationService = localizationService;
         _localizationService.CultureChanged += OnCultureChanged;
-        
+
         // Load existing expansions asynchronously
         InitializationTask = LoadExpansionsAsync();
     }
@@ -61,23 +61,18 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     }
 
     public Task InitializationTask { get; private set; } = Task.CompletedTask;
-    
+
     public bool IsPasteMethodVisible => IsLinuxEnvironment(_environmentInfoProvider.CurrentEnvironment);
 
     public bool IsPasteMethodSelectorVisible =>
-        IsPasteMethodVisible && SelectedInsertionMode == TextInsertionMode.Paste;
+        IsPasteMethodVisible && SelectedInsertionMode is TextInsertionMode.Paste;
 
     public bool IsDirectTypingMethodSelectorVisible =>
-        SelectedInsertionMode == TextInsertionMode.DirectTyping;
+        SelectedInsertionMode is TextInsertionMode.DirectTyping;
 
     private static bool IsLinuxEnvironment(DisplayEnvironment env)
     {
-        return env == DisplayEnvironment.LinuxX11 ||
-               env == DisplayEnvironment.LinuxWayland ||
-               env == DisplayEnvironment.LinuxHyprland ||
-               env == DisplayEnvironment.LinuxWayfire ||
-               env == DisplayEnvironment.LinuxKDE ||
-               env == DisplayEnvironment.LinuxGnome;
+        return env is DisplayEnvironment.LinuxX11 or DisplayEnvironment.LinuxWayland or DisplayEnvironment.LinuxHyprland or DisplayEnvironment.LinuxWayfire or DisplayEnvironment.LinuxKDE or DisplayEnvironment.LinuxGnome;
     }
 
     private async Task LoadExpansionsAsync()
@@ -143,7 +138,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     }
 
     public IEnumerable<TextInsertionMode> InsertionModes => _insertionModes;
-    
+
     // Expose enum values for UI
     public IEnumerable<PasteMethod> PasteMethods => _pasteMethods;
 
@@ -201,7 +196,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 
     private bool CanAddExpansion()
     {
-        return !string.IsNullOrWhiteSpace(TriggerInput) && 
+        return !string.IsNullOrWhiteSpace(TriggerInput) &&
                !string.IsNullOrWhiteSpace(ReplacementInput);
     }
 
@@ -211,11 +206,11 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         var newExpansion = new TextExpansion(
             TriggerInput,
             ReplacementInput,
-            true,
+isEnabled: true,
             SelectedPasteMethod,
             SelectedInsertionMode,
             SelectedDirectTypingMethod);
-        
+
         if (_manageTextExpansion is not null)
         {
             var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion);
@@ -227,11 +222,11 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
             Expansions.Insert(0, newExpansion);
             await _storageService.SaveAsync(Expansions);
         }
-        
+
         // Notify HasExpansions property changed
         OnPropertyChanged(nameof(HasExpansions));
         OnPropertyChanged(nameof(ExpansionCountText));
-        
+
         // Clear inputs
         TriggerInput = string.Empty;
         ReplacementInput = string.Empty;
@@ -245,15 +240,15 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task RemoveExpansionAsync(TextExpansion? expansion)
     {
-        if (expansion == null) return;
-        
+        if (expansion is null) return;
+
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["TextExpansion_DeleteTitle"],
             string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["TextExpansion_DeleteMessage"],
                 expansion.Trigger));
-            
+
         if (!confirmed) return;
 
         if (Expansions.Contains(expansion))
@@ -269,19 +264,18 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
                 Expansions.Remove(expansion);
                 await _storageService.SaveAsync(Expansions);
             }
-            
+
             // Notify HasExpansions property changed
             OnPropertyChanged(nameof(HasExpansions));
             OnPropertyChanged(nameof(ExpansionCountText));
         }
     }
 
-    
     [RelayCommand]
     private async Task ToggleExpansionAsync(TextExpansion? expansion)
     {
-        if (expansion == null) return;
-        
+        if (expansion is null) return;
+
         if (_manageTextExpansion is not null)
         {
             var requestedEnabled = expansion.IsEnabled;

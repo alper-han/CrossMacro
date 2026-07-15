@@ -9,14 +9,14 @@ public enum EditorActionScreenReadingVariableRole
     None,
     Color,
     Boolean,
-    Number
+    Number,
 }
 
 public enum EditorActionScreenTargetColorSource
 {
     ManualHex = 0,
     Manual = ManualHex,
-    Variable = 1
+    Variable = 1,
 }
 
 public readonly record struct EditorActionScreenReadingPayload(
@@ -114,7 +114,7 @@ public readonly record struct EditorActionScreenReadingPayload(
             ImageSearchScaleAware = action.ImageSearchScaleAware,
             ImageSearchMatchMode = action.ImageSearchMatchMode,
             ImageSearchMatchModeWasExplicit = action.ImageSearchMatchModeWasExplicit,
-            Button = action.Button
+            Button = action.Button,
         };
         return true;
     }
@@ -123,7 +123,7 @@ public readonly record struct EditorActionScreenReadingPayload(
     {
         payload = type switch
         {
-            EditorActionType.PixelColor => ForPixelColor(true, 0, 0, DefaultColorVariableName),
+            EditorActionType.PixelColor => ForPixelColor(isAbsolute: true, 0, 0, DefaultColorVariableName),
             EditorActionType.WaitColor => ForWaitColor(0, 0, DefaultColorHex, DefaultTimeoutMs, DefaultWaitColorVariableName),
             EditorActionType.PixelSearch => ForPixelSearch(
                 0,
@@ -138,7 +138,7 @@ public readonly record struct EditorActionScreenReadingPayload(
             EditorActionType.ImageSearch => ForImageSearch(),
             EditorActionType.ImageClick => ForImageClick(),
             EditorActionType.WaitImage => ForWaitImage(),
-            _ => default
+            _ => default,
         };
 
         return IsScreenReadingAction(type);
@@ -179,7 +179,7 @@ public readonly record struct EditorActionScreenReadingPayload(
     {
         return new EditorActionScreenReadingPayload(
             EditorActionType.WaitColor,
-            true,
+IsAbsolute: true,
             screenX,
             screenY,
             0,
@@ -210,7 +210,7 @@ public readonly record struct EditorActionScreenReadingPayload(
     {
         return new EditorActionScreenReadingPayload(
             EditorActionType.PixelSearch,
-            true,
+IsAbsolute: true,
             0,
             0,
             screenLeft,
@@ -238,7 +238,7 @@ public readonly record struct EditorActionScreenReadingPayload(
     {
         return new EditorActionScreenReadingPayload(
             type,
-            true,
+IsAbsolute: true,
             0,
             0,
             0,
@@ -258,7 +258,7 @@ public readonly record struct EditorActionScreenReadingPayload(
             ImageSearchSimilarity = DefaultImageSearchSimilarity,
             ImageSearchDownsample = DefaultImageSearchDownsample,
             ImageSearchScaleAware = DefaultImageSearchScaleAware,
-            Button = MouseButton.Left
+            Button = MouseButton.Left,
         };
     }
 
@@ -313,13 +313,13 @@ public readonly record struct EditorActionScreenReadingPayload(
                 EditorActionScreenReadingVariableRole.Number,
             EditorActionType.WaitImage when string.Equals(ScreenFoundYVariableName, variableName, StringComparison.Ordinal) =>
                 EditorActionScreenReadingVariableRole.Number,
-            _ => EditorActionScreenReadingVariableRole.None
+            _ => EditorActionScreenReadingVariableRole.None,
         };
     }
 
     public bool HasValidRgbColor()
     {
-        if (ScreenColorHex.Length != 6)
+        if (ScreenColorHex.Length is not 6)
         {
             return false;
         }
@@ -340,7 +340,7 @@ public readonly record struct EditorActionScreenReadingPayload(
         return ScreenTargetColorSource switch
         {
             EditorActionScreenTargetColorSource.Variable => HasValidTargetColorVariableName(),
-            _ => HasValidRgbColor()
+            _ => HasValidRgbColor(),
         };
     }
 
@@ -387,7 +387,7 @@ public readonly record struct EditorActionScreenReadingPayload(
 
     public string FormatTargetColorToken()
     {
-        return ScreenTargetColorSource == EditorActionScreenTargetColorSource.Variable
+        return ScreenTargetColorSource is EditorActionScreenTargetColorSource.Variable
             ? $"${NormalizeTargetColorVariableToken()}"
             : ScreenColorHex.Trim().ToUpperInvariant();
     }

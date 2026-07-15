@@ -79,7 +79,7 @@ public readonly record struct ScreenPixelColor(byte R, byte G, byte B)
         >= '0' and <= '9' => value - '0',
         >= 'A' and <= 'F' => value - 'A' + 10,
         >= 'a' and <= 'f' => value - 'a' + 10,
-        _ => -1
+        _ => -1,
     };
 
     private static void WriteByte(Span<char> target, byte value)

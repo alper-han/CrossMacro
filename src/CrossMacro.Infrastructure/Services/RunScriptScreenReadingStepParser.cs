@@ -15,7 +15,7 @@ internal enum RunScriptScreenReadingCommand
     PixelSearch,
     ImageSearch,
     ImageClick,
-    WaitImage
+    WaitImage,
 }
 
 internal readonly record struct PixelSearchVariableLayout(
@@ -41,7 +41,7 @@ internal static class RunScriptScreenReadingStepParser
             RunScriptScreenReadingCommand.ImageSearch => TryValidateImageSearchStep(parts, out error),
             RunScriptScreenReadingCommand.ImageClick => TryValidateImageClickStep(parts, out error),
             RunScriptScreenReadingCommand.WaitImage => TryValidateWaitImageStep(parts, out error),
-            _ => false
+            _ => false,
         };
     }
 
@@ -52,7 +52,7 @@ internal static class RunScriptScreenReadingStepParser
     {
         command = default;
         parts = SplitStep(step);
-        if (parts.Length == 0)
+        if (parts.Length is 0)
         {
             parts = Array.Empty<string>();
             return false;
@@ -111,7 +111,7 @@ internal static class RunScriptScreenReadingStepParser
 
         if (parts.Count >= 8 && !IsPixelSearchOptionKeyword(parts[6]))
         {
-            return new PixelSearchVariableLayout(null, parts[6], parts[7]);
+            return new PixelSearchVariableLayout(FoundVariableName: null, parts[6], parts[7]);
         }
 
         return default;
@@ -219,7 +219,7 @@ internal static class RunScriptScreenReadingStepParser
             return true;
         }
 
-        if (parts.Count == 6 && !EditorActionScriptTokens.IsValidVariableName(parts[5]))
+        if (parts.Count is 6 && !EditorActionScriptTokens.IsValidVariableName(parts[5]))
         {
             error = $"Invalid variable name '{parts[5]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
         }

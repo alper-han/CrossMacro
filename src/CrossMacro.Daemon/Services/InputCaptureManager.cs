@@ -38,10 +38,10 @@ public class InputCaptureManager : IInputCaptureManager
 
             var devices = _deviceEnumerator();
             var targetDevices = devices.Where(d => ShouldCaptureDevice(d, captureMouse, captureKeyboard)).ToList();
-            
+
             Log.Information("[InputCaptureManager] Starting capture on {Count} devices", targetDevices.Count);
 
-            if (targetDevices.Count == 0)
+            if (targetDevices.Count is 0)
             {
                 return CaptureStartResult.Failed("No matching input devices found.");
             }
@@ -49,15 +49,15 @@ public class InputCaptureManager : IInputCaptureManager
             foreach (var dev in targetDevices)
             {
                 ILinuxCaptureReader? evReader = null;
-                try 
+                try
                 {
                     evReader = _readerFactory(dev);
-                    evReader.EventReceived += (sender, e) => 
+                    evReader.EventReceived += (sender, e) =>
                     {
                         // Invoke callback. 
                         // Note: This runs on EvdevReader's thread.
                         // Callback must handle synchronization.
-                        try 
+                        try
                         {
                             if (ShouldForwardEvent(e, captureMouse, captureKeyboard))
                             {
@@ -87,7 +87,7 @@ public class InputCaptureManager : IInputCaptureManager
                 }
             }
 
-            if (_readers.Count == 0)
+            if (_readers.Count is 0)
             {
                 return CaptureStartResult.Failed("Failed to open any input devices.");
             }
@@ -126,7 +126,7 @@ public class InputCaptureManager : IInputCaptureManager
             UInputNative.EV_REL => captureMouse,
             UInputNative.EV_ABS when inputEvent.code == UInputNative.ABS_X || inputEvent.code == UInputNative.ABS_Y => captureMouse,
             UInputNative.EV_SYN => captureMouse,
-            _ => false
+            _ => false,
         };
     }
 

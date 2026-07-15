@@ -31,7 +31,7 @@ public class SettingsServiceTests : IDisposable
         {
             try
             {
-                Directory.Delete(_tempPath, true);
+                Directory.Delete(_tempPath, recursive: true);
             }
             catch
             {
@@ -112,7 +112,7 @@ public class SettingsServiceTests : IDisposable
         // Arrange
         var service = new SettingsService(_tempPath);
         service.Load();
-        
+
         service.Current.PlaybackSpeed = 3.0;
         service.Current.IsLooping = true;
         service.Current.LoopCount = 5;
@@ -125,7 +125,7 @@ public class SettingsServiceTests : IDisposable
 
         // Act
         service.Save();
-        
+
         var newService = new SettingsService(_tempPath);
         var loaded = newService.Load();
 
@@ -146,7 +146,7 @@ public class SettingsServiceTests : IDisposable
     {
         // Arrange
         var service = new SettingsService(_tempPath);
-        var rawJson = """
+        const string rawJson = """
             {
               "playbackSpeed": 999.0,
               "loopDelayMs": -15,
@@ -189,13 +189,13 @@ public class SettingsServiceTests : IDisposable
         // Arrange
         var service = new SettingsService(_tempPath);
         await service.LoadAsync();
-        
+
         service.Current.EnableTextExpansion = true;
         service.Current.CountdownSeconds = 3;
 
         // Act
         await service.SaveAsync();
-        
+
         var newService = new SettingsService(_tempPath);
         var loaded = await newService.LoadAsync();
 
@@ -220,7 +220,7 @@ public class SettingsServiceTests : IDisposable
         // Assert
         result.Should().NotBeNull();
         // Defaults check (assuming defaults are specific values, e.g. PlaybackSpeed = 1.0)
-        result.PlaybackSpeed.Should().Be(1.0); 
+        result.PlaybackSpeed.Should().Be(1.0);
     }
 
     [Fact]

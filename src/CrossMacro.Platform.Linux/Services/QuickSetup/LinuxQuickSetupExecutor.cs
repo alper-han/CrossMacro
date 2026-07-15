@@ -37,7 +37,7 @@ internal sealed class LinuxQuickSetupExecutor
         string unexpectedFailureMessage,
         CancellationToken cancellationToken = default)
     {
-        if (launcher == null)
+        if (launcher is null)
         {
             throw new ArgumentNullException(nameof(launcher));
         }
@@ -62,7 +62,7 @@ internal sealed class LinuxQuickSetupExecutor
         try
         {
             var (exitCode, stdout, stderr) = await _runProcessAsync(startInfo, cancellationToken);
-            if (exitCode == 0)
+            if (exitCode is 0)
             {
                 var successText = BuildSuccessMessage(stdout);
                 Log.Information("[{LogContext}] Session helper completed successfully for {Identity}", logContext, identity.Value.LogDisplay);

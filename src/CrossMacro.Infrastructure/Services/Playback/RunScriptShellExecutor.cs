@@ -32,7 +32,7 @@ internal sealed class RunScriptShellExecutor
 
     public async Task ExecuteStepAsync(string step, int stepNumber, IDictionary<string, string> variables, CancellationToken cancellationToken)
     {
-        if (_shellCommandRunner == null)
+        if (_shellCommandRunner is null)
         {
             throw new InvalidOperationException("Shell script steps require an IShellCommandRunner runtime service.");
         }
@@ -43,7 +43,7 @@ internal sealed class RunScriptShellExecutor
         }
 
         var resolvedCommand = ResolveRequiredText(options.Command, variables, stepNumber, "Shell command");
-        var resolvedInput = options.StandardInput == null
+        var resolvedInput = options.StandardInput is null
             ? null
             : RunScriptRuntimeText.ResolveVariables(options.StandardInput, variables, $"Step {stepNumber}: ");
         var request = new ShellCommandRequest(resolvedCommand, resolvedInput, OutputLimitChars);
@@ -64,7 +64,7 @@ internal sealed class RunScriptShellExecutor
                     return;
                 }
 
-                if (result.ExitCode == 0)
+                if (result.ExitCode is 0)
                 {
                     return;
                 }
@@ -123,7 +123,7 @@ internal sealed class RunScriptShellExecutor
 
     private static void WriteCaptureVariable(string target, string value, IDictionary<string, string> variables)
     {
-        if (target == "_")
+        if (target is "_")
         {
             return;
         }
@@ -172,7 +172,7 @@ internal sealed class RunScriptShellExecutor
         var payload = trimmedStep.Length > payloadStart
             ? trimmedStep[payloadStart..].TrimStart()
             : string.Empty;
-        if (payload.Length == 0)
+        if (payload.Length is 0)
         {
             error = "Shell command cannot be empty.";
             return false;
@@ -279,7 +279,7 @@ internal sealed class RunScriptShellExecutor
         remaining = string.Empty;
         error = string.Empty;
         var trimmed = payload.TrimStart();
-        if (trimmed.Length == 0 || trimmed[0] is not ('"' or '\''))
+        if (trimmed.Length is 0 || trimmed[0] is not ('"' or '\''))
         {
             error = SyntaxText();
             return false;
@@ -367,7 +367,7 @@ internal sealed class RunScriptShellExecutor
     private static bool TryValidateCaptureTarget(string target, out string error)
     {
         error = string.Empty;
-        if (target == "_")
+        if (target is "_")
         {
             return true;
         }
@@ -425,7 +425,7 @@ internal sealed class RunScriptShellExecutor
                 return false;
             }
 
-            if (i == 0 && value > MaxRetries)
+            if (i is 0 && value > MaxRetries)
             {
                 error = $"Invalid retries '{optionTokens[i]}'. Expected integer between 0 and {MaxRetries}.";
                 return false;
@@ -440,7 +440,7 @@ internal sealed class RunScriptShellExecutor
 
     private static string[] SplitTokens(string payload)
     {
-        return payload.Trim().Length == 0
+        return payload.Trim().Length is 0
             ? []
             : payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }

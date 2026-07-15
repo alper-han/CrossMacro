@@ -240,6 +240,6 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         1 => "connecting",
         2 => "paused",
         3 => "streaming",
-        _ => state.ToString()
+        _ => state.ToString(),
     };
 }

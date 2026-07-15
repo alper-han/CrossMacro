@@ -119,7 +119,7 @@ public static class ListBoxSelectedActionIndices
 
         listBox.SelectionChanged += OnSelectionChanged;
         listBox.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
-        listBox.SetValue(AreSelectionHandlersAttachedProperty, true);
+        listBox.SetValue(AreSelectionHandlersAttachedProperty, value: true);
     }
 
     private static void OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -130,7 +130,7 @@ public static class ListBoxSelectedActionIndices
         }
 
         var selectionMode = listBox.SelectionMode;
-        if (selectionMode != SelectionMode.Multiple || (selectionMode & SelectionMode.Toggle) == SelectionMode.Toggle)
+        if (selectionMode is not SelectionMode.Multiple || (selectionMode & SelectionMode.Toggle) is SelectionMode.Toggle)
         {
             return;
         }
@@ -149,7 +149,7 @@ public static class ListBoxSelectedActionIndices
 
         MarkSelectionChangeAsUserInitiated(listBox);
 
-        if (e.KeyModifiers != KeyModifiers.None)
+        if (e.KeyModifiers is not KeyModifiers.None)
         {
             return;
         }
@@ -159,15 +159,15 @@ public static class ListBoxSelectedActionIndices
             return;
         }
 
-        listBox.SetValue(IsWritingExplicitEmptySelectionProperty, true);
+        listBox.SetValue(IsWritingExplicitEmptySelectionProperty, value: true);
         try
         {
             SyncSelectionToViewModel(listBox);
         }
         finally
         {
-            listBox.SetValue(IsWritingExplicitEmptySelectionProperty, false);
-            listBox.SetValue(IsWritingUserSelectionProperty, false);
+            listBox.SetValue(IsWritingExplicitEmptySelectionProperty, value: false);
+            listBox.SetValue(IsWritingUserSelectionProperty, value: false);
         }
 
         e.Handled = true;
@@ -178,7 +178,7 @@ public static class ListBoxSelectedActionIndices
         ArgumentNullException.ThrowIfNull(listBox);
         ArgumentNullException.ThrowIfNull(actionItem);
 
-        if (!actionItem.RepresentsSourceAction || listBox.SelectedItems?.Contains(actionItem) != true)
+        if (!actionItem.RepresentsSourceAction || (listBox.SelectedItems?.Contains(actionItem)) is not true)
         {
             return false;
         }
@@ -190,7 +190,7 @@ public static class ListBoxSelectedActionIndices
     internal static void MarkSelectionChangeAsUserInitiated(ListBox listBox)
     {
         ArgumentNullException.ThrowIfNull(listBox);
-        listBox.SetValue(IsWritingUserSelectionProperty, true);
+        listBox.SetValue(IsWritingUserSelectionProperty, value: true);
     }
 
     internal static IReadOnlyList<EditorActionListItem> GetVisibleSelectedSourceItems(
@@ -239,21 +239,21 @@ public static class ListBoxSelectedActionIndices
         listBox.RemoveHandler(InputElement.PointerPressedEvent, OnPointerPressed);
 
         var oldHandler = listBox.GetValue(BoundSelectionChangedHandlerProperty);
-        if (boundCollection is INotifyCollectionChanged oldCollection && oldHandler != null)
+        if (boundCollection is INotifyCollectionChanged oldCollection && oldHandler is not null)
         {
             oldCollection.CollectionChanged -= oldHandler;
         }
 
         var oldItemsHandler = listBox.GetValue(BoundItemsChangedHandlerProperty);
-        if (listBox.Items is INotifyCollectionChanged itemsCollection && oldItemsHandler != null)
+        if (listBox.Items is INotifyCollectionChanged itemsCollection && oldItemsHandler is not null)
         {
             itemsCollection.CollectionChanged -= oldItemsHandler;
         }
 
-        listBox.SetValue(BoundSelectionChangedHandlerProperty, null);
-        listBox.SetValue(BoundItemsChangedHandlerProperty, null);
-        listBox.SetValue(IsSelectionSyncPendingProperty, false);
-        listBox.SetValue(AreSelectionHandlersAttachedProperty, false);
+        listBox.SetValue(BoundSelectionChangedHandlerProperty, value: null);
+        listBox.SetValue(BoundItemsChangedHandlerProperty, value: null);
+        listBox.SetValue(IsSelectionSyncPendingProperty, value: false);
+        listBox.SetValue(AreSelectionHandlersAttachedProperty, value: false);
     }
 
     private static void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -266,7 +266,7 @@ public static class ListBoxSelectedActionIndices
             }
             finally
             {
-                listBox.SetValue(IsWritingUserSelectionProperty, false);
+                listBox.SetValue(IsWritingUserSelectionProperty, value: false);
             }
         }
     }
@@ -274,16 +274,16 @@ public static class ListBoxSelectedActionIndices
     private static void SyncSelectionToViewModel(ListBox listBox)
     {
         var wasWritingSelection = listBox.GetValue(IsWritingSelectionToViewModelProperty);
-        listBox.SetValue(IsWritingSelectionToViewModelProperty, true);
+        listBox.SetValue(IsWritingSelectionToViewModelProperty, value: true);
         try
         {
             var target = GetSelectedUnderlyingIndices(listBox);
-            if (target == null)
+            if (target is null)
             {
                 return;
             }
 
-            if (listBox.SelectedItems == null)
+            if (listBox.SelectedItems is null)
             {
                 target.Clear();
                 return;
@@ -303,10 +303,10 @@ public static class ListBoxSelectedActionIndices
                 .OrderBy(index => index)
                 .ToArray();
 
-            if (normalizedSelectedIndices.Length == 0
-                && target.Count > 0
-                && !listBox.GetValue(IsWritingUserSelectionProperty)
-                && !listBox.GetValue(IsWritingExplicitEmptySelectionProperty))
+            if (normalizedSelectedIndices.Length is 0
+&& target.Count > 0
+&& !listBox.GetValue(IsWritingUserSelectionProperty)
+&& !listBox.GetValue(IsWritingExplicitEmptySelectionProperty))
             {
                 return;
             }
@@ -340,7 +340,7 @@ public static class ListBoxSelectedActionIndices
     private static void SyncListBoxSelection(ListBox listBox)
     {
         var target = GetSelectedUnderlyingIndices(listBox);
-        if (target == null || listBox.SelectedItems == null)
+        if (target is null || listBox.SelectedItems is null)
         {
             return;
         }
@@ -348,8 +348,8 @@ public static class ListBoxSelectedActionIndices
         var targetSet = target.ToHashSet();
         var desiredActionItems = GetVisibleSelectedSourceItems(listBox.Items.Cast<object?>(), targetSet);
 
-        listBox.SetValue(IsWritingUserSelectionProperty, false);
-        listBox.SetValue(IsSynchronizingSelectionProperty, true);
+        listBox.SetValue(IsWritingUserSelectionProperty, value: false);
+        listBox.SetValue(IsSynchronizingSelectionProperty, value: true);
         try
         {
             var desiredItems = desiredActionItems
@@ -379,7 +379,7 @@ public static class ListBoxSelectedActionIndices
         }
         finally
         {
-            listBox.SetValue(IsSynchronizingSelectionProperty, false);
+            listBox.SetValue(IsSynchronizingSelectionProperty, value: false);
         }
     }
 
@@ -390,7 +390,7 @@ public static class ListBoxSelectedActionIndices
             return;
         }
 
-        listBox.SetValue(IsSelectionSyncPendingProperty, true);
+        listBox.SetValue(IsSelectionSyncPendingProperty, value: true);
         Dispatcher.UIThread.Post(() =>
         {
             if (!listBox.GetValue(IsSelectionSyncPendingProperty))
@@ -398,7 +398,7 @@ public static class ListBoxSelectedActionIndices
                 return;
             }
 
-            listBox.SetValue(IsSelectionSyncPendingProperty, false);
+            listBox.SetValue(IsSelectionSyncPendingProperty, value: false);
             SyncListBoxSelection(listBox);
         });
     }
@@ -406,7 +406,7 @@ public static class ListBoxSelectedActionIndices
     private static T? FindAncestor<T>(Visual? element)
         where T : Visual
     {
-        while (element != null)
+        while (element is not null)
         {
             if (element is T typed)
             {

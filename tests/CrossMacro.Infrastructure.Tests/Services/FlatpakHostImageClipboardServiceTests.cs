@@ -18,7 +18,7 @@ public sealed class FlatpakHostImageClipboardServiceTests
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true },
-            HostCommandResults = { ["wl-copy"] = true }
+            HostCommandResults = { ["wl-copy"] = true },
         };
         var service = new FlatpakHostImageClipboardService(runner, new TestRuntimeContext("wayland"));
         byte[] png = [1, 2, 3];
@@ -37,7 +37,7 @@ public sealed class FlatpakHostImageClipboardServiceTests
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true },
-            HostCommandResults = { ["xclip"] = true }
+            HostCommandResults = { ["xclip"] = true },
         };
         var service = new FlatpakHostImageClipboardService(runner, new TestRuntimeContext("x11"));
         byte[] png = [1, 2, 3];
@@ -65,7 +65,7 @@ public sealed class FlatpakHostImageClipboardServiceTests
     {
         var runner = new FakeProcessRunner
         {
-            CheckResults = { ["flatpak-spawn"] = true }
+            CheckResults = { ["flatpak-spawn"] = true },
         };
         var service = new FlatpakHostImageClipboardService(runner, new TestRuntimeContext("wayland"));
         byte[] png = [1, 2, 3];
@@ -130,7 +130,7 @@ public sealed class FlatpakHostImageClipboardServiceTests
             var joinedArgs = string.Join(' ', args);
             ReadCalls.Add((command, joinedArgs));
 
-            if (command == "flatpak-spawn" && args.Length >= 4 && args[0] == "--host" && args[1] == "sh")
+            if (command is "flatpak-spawn" && args.Length >= 4 && args[0] is "--host" && args[1] is "sh")
             {
                 foreach (var item in HostCommandResults)
                 {

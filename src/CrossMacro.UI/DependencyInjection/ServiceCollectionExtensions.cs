@@ -118,7 +118,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<EditorViewModel>();
         services.AddSingleton<MainWindowViewModel>();
-        
+
         return services;
     }
 

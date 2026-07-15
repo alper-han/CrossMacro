@@ -30,7 +30,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         new("pt", "Language_Portuguese", "Portuguese"),
         new("ru", "Language_Russian", "Russian"),
         new("es", "Language_Spanish", "Spanish"),
-        new("tr", "Language_Turkish", "Turkish")
+        new("tr", "Language_Turkish", "Turkish"),
     ];
 
     internal static IReadOnlyList<string> SupportedLanguageCodes { get; } = SupportedLanguages
@@ -50,7 +50,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     private readonly IDialogService? _dialogService;
     private readonly IManageProfile? _manageProfile;
     private int _settingsChangeVersion;
-    
+
     private string _recordingHotkey;
     private string _playbackHotkey;
     private string _pauseHotkey;
@@ -64,14 +64,14 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     private bool _isProfileOperationInProgress;
     private string _newProfileName = string.Empty;
     private bool _disposed;
-    
+
     /// <summary>
     /// Event fired when tray icon setting changes
     /// </summary>
     public event EventHandler<bool>? TrayIconEnabledChanged;
 
     public event EventHandler<string>? ProfileOperationFailed;
-    
+
     [Obsolete("Use the constructor accepting IRuntimeContext.")]
     public SettingsViewModel(
         IGlobalHotkeyService hotkeyService,
@@ -146,7 +146,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         IsUpdateSettingsVisible = !_runtimeContext.IsFlatpak;
         IsTraySettingsVisible = TrayIconService.IsTraySupported(_runtimeContext);
         RefreshProfileState();
-        if (_profileManager != null)
+        if (_profileManager is not null)
         {
             _profileManager.ProfileChanged += OnProfileChanged;
         }
@@ -186,13 +186,13 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     /// Tray icon settings are hidden in Flatpak where StatusNotifierItem is not supported
     /// </summary>
     public bool IsTraySettingsVisible { get; }
-    
+
     public string RecordingHotkey
     {
         get => _recordingHotkey;
         set
         {
-            if (_recordingHotkey != value)
+            if (!string.Equals(_recordingHotkey, value, StringComparison.Ordinal))
             {
                 _recordingHotkey = value;
                 _hotkeySettings.RecordingHotkey = value;
@@ -201,13 +201,13 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public string PlaybackHotkey
     {
         get => _playbackHotkey;
         set
         {
-            if (_playbackHotkey != value)
+            if (!string.Equals(_playbackHotkey, value, StringComparison.Ordinal))
             {
                 _playbackHotkey = value;
                 _hotkeySettings.PlaybackHotkey = value;
@@ -216,13 +216,13 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public string PauseHotkey
     {
         get => _pauseHotkey;
         set
         {
-            if (_pauseHotkey != value)
+            if (!string.Equals(_pauseHotkey, value, StringComparison.Ordinal))
             {
                 _pauseHotkey = value;
                 _hotkeySettings.PauseHotkey = value;
@@ -231,7 +231,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public bool EnableTrayIcon
     {
         get => _enableTrayIcon;
@@ -311,8 +311,8 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
-    
+
+
     public bool EnableTextExpansion
     {
         get => _settingsService.Current.EnableTextExpansion;
@@ -359,7 +359,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     /// <summary>
     /// Selected log level for the application
     /// </summary>
@@ -368,7 +368,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         get => _selectedLogLevel;
         set
         {
-            if (_selectedLogLevel != value)
+            if (!string.Equals(_selectedLogLevel, value, StringComparison.Ordinal))
             {
                 var previousValue = _selectedLogLevel;
                 _selectedLogLevel = value;
@@ -387,7 +387,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     /// <summary>
     /// Available log levels for the ComboBox
     /// </summary>
@@ -396,14 +396,14 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         "Debug",
         "Information",
         "Warning",
-        "Error"
+        "Error",
     };
 
     public IReadOnlyList<LanguageOption> AvailableLanguages => _availableLanguages;
 
     public LanguageOption? SelectedLanguageOption
     {
-        get => _availableLanguages.FirstOrDefault(option => option.Code == _selectedLanguage);
+        get => _availableLanguages.FirstOrDefault(option => string.Equals(option.Code, _selectedLanguage, StringComparison.Ordinal));
         set
         {
             if (value is null)
@@ -420,7 +420,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         get => _selectedLanguage;
         set
         {
-            if (_selectedLanguage != value)
+            if (!string.Equals(_selectedLanguage, value, StringComparison.Ordinal))
             {
                 var previousValue = _selectedLanguage;
                 _selectedLanguage = value;
@@ -464,7 +464,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             .Select(language => new LanguageOption
             {
                 Code = language.Code,
-                DisplayName = GetLanguageDisplayName(language)
+                DisplayName = GetLanguageDisplayName(language),
             })
             .ToArray();
     }
@@ -525,7 +525,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         get => _selectedTheme;
         set
         {
-            if (_selectedTheme != value)
+            if (!string.Equals(_selectedTheme, value, StringComparison.Ordinal))
             {
                 if (!_themeService.TryApplyTheme(value, out var applyError))
                 {
@@ -558,7 +558,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     public async Task CreateProfileAsync()
     {
         var profileName = NewProfileName.Trim();
-        if ((_profileManager is null && _manageProfile is null) || profileName.Length == 0)
+        if ((_profileManager is null && _manageProfile is null) || profileName.Length is 0)
         {
             return;
         }
@@ -579,7 +579,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     {
         var profileName = NewProfileName.Trim();
         var selectedProfile = SelectedProfile;
-        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null || profileName.Length == 0)
+        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null || profileName.Length is 0)
         {
             return;
         }
@@ -614,7 +614,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (_dialogService != null)
+        if (_dialogService is not null)
         {
             var confirmed = await _dialogService.ShowConfirmationAsync(
                 _localizationService["Settings_ProfileDeleteTitle"],
@@ -760,7 +760,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
 
-        if (_profileManager != null)
+        if (_profileManager is not null)
         {
             _profileManager.ProfileChanged -= OnProfileChanged;
         }
@@ -768,7 +768,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     private static void RaiseOnUiThread(Action action)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             action();
             return;
@@ -794,7 +794,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             Log.Error(ex, "Hotkey update error");
         }
     }
-    
+
     /// <summary>
     /// Start the hotkey service
     /// </summary>
@@ -832,7 +832,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     private bool TryPersistSettings(Action rollback, params string[] propertyNames)
     {
-        return TryPersistSettings(rollback, null, propertyNames);
+        return TryPersistSettings(rollback, onSuccess: null, propertyNames);
     }
 
     private bool TryPersistSettings(Action rollback, Action? onSuccess, params string[] propertyNames)

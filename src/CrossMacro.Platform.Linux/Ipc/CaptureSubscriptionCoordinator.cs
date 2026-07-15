@@ -7,7 +7,7 @@ internal enum CaptureCommandType
 {
     None = 0,
     Start = 1,
-    Stop = 2
+    Stop = 2,
 }
 
 internal readonly record struct CaptureCommand(

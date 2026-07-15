@@ -10,7 +10,7 @@ public class WayfirePositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.WAYFIRE;
+        return compositor is CompositorType.WAYFIRE;
     }
 
     public IMousePositionProvider Create()

@@ -23,7 +23,7 @@ public sealed class ScreenImageMatcherTests
     [InlineData(ScreenImageMatchSelectionMode.BestMatch)]
     public void ScreenImageMatchOptions_Create_PreservesExplicitSelectionMode(ScreenImageMatchSelectionMode selectionMode)
     {
-        var options = ScreenImageMatchOptions.Create(null, 1.0, 1, selectionMode);
+        var options = ScreenImageMatchOptions.Create(searchRegion: null, 1.0, 1, selectionMode);
 
         Assert.Equal(selectionMode, options.SelectionMode);
     }
@@ -35,7 +35,7 @@ public sealed class ScreenImageMatcherTests
         using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
         var options = new ScreenImageMatchOptions
         {
-            SelectionMode = (ScreenImageMatchSelectionMode)99
+            SelectionMode = (ScreenImageMatchSelectionMode)99,
         };
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => _matcher.FindMatch(frame, template, options));
@@ -53,14 +53,14 @@ public sealed class ScreenImageMatcherTests
             [
                 [Black, Black, Black, Black],
                 [Black, Red, Green, Black],
-                [Black, Blue, White, Black]
+                [Black, Blue, White, Black],
             ]);
         using var template = CreateFrame(
             new ScreenRect(0, 0, 2, 2),
             ScreenPixelFormat.Rgb24,
             [
                 [Red, Green],
-                [Blue, White]
+                [Blue, White],
             ]);
 
         var match = _matcher.FindMatch(frame, template);
@@ -79,7 +79,7 @@ public sealed class ScreenImageMatcherTests
                 [Black, Red, Red, Green, Black, Black],
                 [Black, Red, Red, Green, Black, Black],
                 [Black, Blue, Blue, White, Black, Black],
-                [Black, Black, Black, Black, Black, Black]
+                [Black, Black, Black, Black, Black, Black],
             ]);
         using var template = CreateFrame(
             new ScreenRect(0, 0, 2, 2),
@@ -89,7 +89,7 @@ public sealed class ScreenImageMatcherTests
         var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions
         {
             ScaleAware = true,
-            MinimumSimilarity = 1.0
+            MinimumSimilarity = 1.0,
         });
 
         Assert.Equal(new ScreenPoint(12, 22), match?.Point);
@@ -107,7 +107,7 @@ public sealed class ScreenImageMatcherTests
         var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions
         {
             ScaleAware = true,
-            MinimumSimilarity = 1.0
+            MinimumSimilarity = 1.0,
         });
 
         Assert.Equal(new ScreenPoint(10, 20), match?.Point);
@@ -163,14 +163,14 @@ public sealed class ScreenImageMatcherTests
                 [Black, Black, Black, Black, Black],
                 [Black, Red, Green, Black, Black],
                 [Black, Blue, White, Red, Green],
-                [Black, Black, Black, Blue, White]
+                [Black, Black, Black, Blue, White],
             ]);
         using var template = CreateFrame(
             new ScreenRect(0, 0, 2, 2),
             ScreenPixelFormat.Rgb24,
             [
                 [Red, Green],
-                [Blue, White]
+                [Blue, White],
             ]);
 
         for (var attempt = 0; attempt < 10; attempt++)
@@ -192,7 +192,7 @@ public sealed class ScreenImageMatcherTests
         var firstOptions = new ScreenImageMatchOptions
         {
             MinimumSimilarity = 0.5,
-            SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch
+            SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch,
         };
         var bestOptions = firstOptions with { SelectionMode = ScreenImageMatchSelectionMode.BestMatch };
 
@@ -233,7 +233,7 @@ public sealed class ScreenImageMatcherTests
             foreach (var selectionMode in Enum.GetValues<ScreenImageMatchSelectionMode>())
             {
                 var options = new ScreenImageMatchOptions { SelectionMode = selectionMode };
-                var selection = selectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch
+                var selection = selectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch
                     ? ScalarMatchSelection.FirstThresholdMatch
                     : ScalarMatchSelection.BestMatch;
                 var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, selection);
@@ -299,7 +299,7 @@ public sealed class ScreenImageMatcherTests
             ScreenPixelFormat.Rgb24,
             [
                 [Black, Black],
-                [Black, Blue]
+                [Black, Blue],
             ]);
         using var template = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Rgb24, Solid(2, 2, Black));
 
@@ -316,7 +316,7 @@ public sealed class ScreenImageMatcherTests
             ScreenPixelFormat.Rgb24,
             [
                 [Black, Black],
-                [Black, Blue]
+                [Black, Blue],
             ]);
         using var template = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Rgb24, Solid(2, 2, Black));
 
@@ -324,7 +324,7 @@ public sealed class ScreenImageMatcherTests
 
 		Assert.NotNull(match);
 		Assert.Equal(new ScreenPoint(0, 0), match.Value.Point);
-		Assert.Equal(1.0 - 255.0 / (2 * 2 * 3 * 255.0), match.Value.Score, precision: 12);
+		Assert.Equal(1.0 - (255.0 / (2 * 2 * 3 * 255.0)), match.Value.Score, precision: 12);
 	}
 
     [Fact]
@@ -335,7 +335,7 @@ public sealed class ScreenImageMatcherTests
 
         var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.0 });
 
-        Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0 - 255.0 / 765.0), match);
+        Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0 - (255.0 / 765.0)), match);
     }
 
     [Fact]
@@ -350,7 +350,7 @@ public sealed class ScreenImageMatcherTests
         var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions
         {
             MinimumSimilarity = 0.5,
-            SelectionMode = ScreenImageMatchSelectionMode.BestMatch
+            SelectionMode = ScreenImageMatchSelectionMode.BestMatch,
         });
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(1, 0), 1.0), match);
@@ -394,14 +394,14 @@ public sealed class ScreenImageMatcherTests
                 [Black, Black, Black, Black, Black],
                 [Black, Black, Black, Black, Black],
                 [Black, Black, Black, Red, Green],
-                [Black, Black, Black, Blue, White]
+                [Black, Black, Black, Blue, White],
             ]);
         using var template = CreateFrame(
             new ScreenRect(0, 0, 2, 2),
             ScreenPixelFormat.Rgb24,
             [
                 [Red, Green],
-                [Blue, White]
+                [Blue, White],
             ]);
 
         var match = _matcher.FindMatch(
@@ -420,14 +420,14 @@ public sealed class ScreenImageMatcherTests
             ScreenPixelFormat.Rgb24,
             [
                 [Red, Black],
-                [Black, Black]
+                [Black, Black],
             ]);
         using var template = CreateFrame(
             new ScreenRect(0, 0, 2, 2),
             ScreenPixelFormat.Rgb24,
             [
                 [Red, Green],
-                [Blue, White]
+                [Blue, White],
             ]);
 
         var exactMatch = _matcher.FindMatch(frame, template);
@@ -552,7 +552,7 @@ public sealed class ScreenImageMatcherTests
                 [Black, Black, Black, Black, Black, Black],
                 [Black, Red, Green, Black, Black, Black],
                 [Black, Blue, White, Black, Black, Black],
-                [Black, Black, Black, Red, Green, Black]
+                [Black, Black, Black, Red, Green, Black],
             ],
             validPixelMask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             stridePadding: 5);
@@ -603,7 +603,7 @@ public sealed class ScreenImageMatcherTests
                 [Black, Black, Black, Black, Black, Black],
                 [Black, Red, Green, Black, Red, Green],
                 [Black, Blue, White, Black, Blue, White],
-                [Black, Black, Black, Black, Black, Black]
+                [Black, Black, Black, Black, Black, Black],
             ],
             validPixelMask: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             stridePadding: 3);
@@ -670,13 +670,13 @@ public sealed class ScreenImageMatcherTests
         int stridePadding = 0)
     {
         var bytesPerPixel = ScreenFrame.GetBytesPerPixel(pixelFormat);
-        var stride = bounds.Width * bytesPerPixel + stridePadding;
+        var stride = (bounds.Width * bytesPerPixel) + stridePadding;
         var bytes = new byte[stride * bounds.Height];
         for (var y = 0; y < bounds.Height; y++)
         {
             for (var x = 0; x < bounds.Width; x++)
             {
-                WritePixel(bytes, y * stride + x * bytesPerPixel, pixelFormat, pixels[y][x]);
+                WritePixel(bytes, (y * stride) + (x * bytesPerPixel), pixelFormat, pixels[y][x]);
             }
         }
 
@@ -692,7 +692,7 @@ public sealed class ScreenImageMatcherTests
         {
             for (var x = 0; x < bounds.Width; x++)
             {
-                var offset = y * stride + x * 3;
+                var offset = (y * stride) + (x * 3);
                 bytes[offset] = color.R;
                 bytes[offset + 1] = color.G;
                 bytes[offset + 2] = color.B;
@@ -710,7 +710,7 @@ public sealed class ScreenImageMatcherTests
         {
             for (var x = 0; x < bounds.Width; x++)
             {
-                var offset = y * stride + x * 3;
+                var offset = (y * stride) + (x * 3);
                 bytes[offset] = color.R;
                 bytes[offset + 1] = color.G;
                 bytes[offset + 2] = color.B;
@@ -735,7 +735,7 @@ public sealed class ScreenImageMatcherTests
 
         public override Span<byte> GetSpan()
         {
-            if (Interlocked.Increment(ref _spanAccessCount) == 2)
+            if (Interlocked.Increment(ref _spanAccessCount) is 2)
             {
                 _cancellationSource.Cancel();
             }

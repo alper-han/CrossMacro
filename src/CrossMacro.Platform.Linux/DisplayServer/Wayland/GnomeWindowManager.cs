@@ -43,7 +43,7 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
         try
         {
             var json = await _trackerClient!.GetActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrEmpty(json) || json == "null") return null;
+            if (string.IsNullOrEmpty(json) || json is "null") return null;
             var win = JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfo);
             return win is not null ? win with { ProcessName = Helpers.ProcessHelper.GetProcessName(win.Pid) } : null;
         }

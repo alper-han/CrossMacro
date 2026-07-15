@@ -9,7 +9,7 @@ internal static class CaptureStartFailureReconciler
         bool subscriptionRemovedSinceStart,
         bool rollbackChangedSubscriptions)
     {
-        if (currentRequiredCommand.Type != CaptureCommandType.Start)
+        if (currentRequiredCommand.Type is not CaptureCommandType.Start)
         {
             return false;
         }

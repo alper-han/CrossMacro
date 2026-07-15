@@ -53,7 +53,7 @@ public sealed class WaylandScreenFrameComposerTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => composer.CopySource(
             sourceBytes,
-            bytesPerPixel * 2 - 1,
+            (bytesPerPixel * 2) - 1,
             sourceFormat,
             2,
             1,
@@ -61,7 +61,7 @@ public sealed class WaylandScreenFrameComposerTests
             bounds));
 
         Assert.Throws<ArgumentException>(() => composer.CopySource(
-            new byte[bytesPerPixel * 2 - 1],
+            new byte[(bytesPerPixel * 2) - 1],
             bytesPerPixel * 2,
             sourceFormat,
             2,
@@ -77,7 +77,7 @@ public sealed class WaylandScreenFrameComposerTests
         composer.CopySource(
             CreateRgbPixels([
                 [Red, Red],
-                [Red, Red]
+                [Red, Red],
             ]),
             sourceStride: 6,
             ScreenPixelFormat.Rgb24,
@@ -141,7 +141,7 @@ public sealed class WaylandScreenFrameComposerTests
         composer.CopySource(
             CreateRgbPixels([
                 [Red, Red, Red],
-                [Red, Red, Red]
+                [Red, Red, Red],
             ]),
             sourceStride: 9,
             ScreenPixelFormat.Rgb24,
@@ -154,7 +154,7 @@ public sealed class WaylandScreenFrameComposerTests
                 [Blue, Blue],
                 [Blue, Blue],
                 [Blue, Blue],
-                [Blue, Blue]
+                [Blue, Blue],
             ]),
             sourceStride: 6,
             ScreenPixelFormat.Rgb24,
@@ -171,7 +171,7 @@ public sealed class WaylandScreenFrameComposerTests
             0, 0, 0, 0, 0, 0, 1, 1,
             0, 0, 1, 1, 1, 0, 1, 1,
             0, 0, 1, 1, 1, 0, 1, 1,
-            0, 0, 0, 0, 0, 0, 1, 1
+            0, 0, 0, 0, 0, 0, 1, 1,
         }, composedFrame.ValidPixelMask.Span.ToArray());
         Assert.True(frame.TryGetPixel(new ScreenPoint(0, 0), out var red));
         Assert.Equal(Red, red);
@@ -236,7 +236,7 @@ public sealed class WaylandScreenFrameComposerTests
     [Fact]
     public void Create_RejectsCanvasBudgetBeforeRentingPoolArrays()
     {
-        var width = WaylandScreenFrameComposer.MaxCanvasPixels;
+        const int width = WaylandScreenFrameComposer.MaxCanvasPixels;
         var bounds = new ScreenRect(0, 0, width, 2);
 
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() => WaylandScreenFrameComposer.Create(bounds));
@@ -266,7 +266,7 @@ public sealed class WaylandScreenFrameComposerTests
         { ScreenPixelFormat.Xrgb8888, [0x56, 0x34, 0x12, 0x00], [0x56, 0x34, 0x12, 0xFF] },
         { ScreenPixelFormat.Bgra8888, [0x56, 0x34, 0x12, 0x78], [0x56, 0x34, 0x12, 0x78] },
         { ScreenPixelFormat.Abgr8888, [0x12, 0x34, 0x56, 0x78], [0x56, 0x34, 0x12, 0x78] },
-        { ScreenPixelFormat.Xbgr8888, [0x12, 0x34, 0x56, 0x00], [0x56, 0x34, 0x12, 0xFF] }
+        { ScreenPixelFormat.Xbgr8888, [0x12, 0x34, 0x56, 0x00], [0x56, 0x34, 0x12, 0xFF] },
     };
 
     private static readonly ScreenPixelColor Black = new(0x00, 0x00, 0x00);
@@ -300,7 +300,7 @@ public sealed class WaylandScreenFrameComposerTests
         {
             for (var x = 0; x < width; x++)
             {
-                var offset = checked((y * width + x) * 3);
+                var offset = checked(((y * width) + x) * 3);
                 bytes[offset] = rows[y][x].R;
                 bytes[offset + 1] = rows[y][x].G;
                 bytes[offset + 2] = rows[y][x].B;

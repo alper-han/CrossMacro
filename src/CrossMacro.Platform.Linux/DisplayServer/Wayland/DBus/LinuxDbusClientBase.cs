@@ -71,7 +71,7 @@ internal abstract class LinuxDbusClientBase
             VariantValueType.Struct => UnboxStruct(value),
             VariantValueType.Dictionary => UnboxDictionary(value),
             VariantValueType.Variant => UnboxVariant(value.GetVariantValue()),
-            _ => value.ToString() ?? string.Empty
+            _ => value.ToString() ?? string.Empty,
         };
     }
 
@@ -88,7 +88,7 @@ internal abstract class LinuxDbusClientBase
             VariantValueType.Int64 => value.GetArray<long>(),
             VariantValueType.UInt64 => value.GetArray<ulong>(),
             VariantValueType.Double => value.GetArray<double>(),
-            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray()
+            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         };
     }
 
@@ -99,7 +99,7 @@ internal abstract class LinuxDbusClientBase
             0 => Array.Empty<object>(),
             2 => (UnboxVariant(value.GetItem(0)), UnboxVariant(value.GetItem(1))),
             3 => (UnboxVariant(value.GetItem(0)), UnboxVariant(value.GetItem(1)), UnboxVariant(value.GetItem(2))),
-            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray()
+            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         };
     }
 

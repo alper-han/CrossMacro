@@ -28,9 +28,8 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             ? PathHelper.GetConfigDirectory()
             : configDirectory;
         _filePath = Path.Combine(configDirectory, ExpansionsFileName);
-        
 
-        
+
         Log.Information("[TextExpansionStorageService] Storage path: {Path}", _filePath);
     }
 
@@ -52,7 +51,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                 }
 
                 _expansions = FileBackedJsonStorage.Read(_filePath, CrossMacroJsonContext.Default.ListTextExpansion) ?? [];
-                
+
                 Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
                 return new List<Core.Models.TextExpansion>(_expansions);
             }
@@ -82,12 +81,12 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             var loaded = await FileBackedJsonStorage.ReadAsync(_filePath, CrossMacroJsonContext.Default.ListTextExpansion)
                 .ConfigureAwait(false)
                 ?? [];
-            
+
             lock (_lock)
             {
                 _expansions = loaded;
             }
-            
+
             Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", loaded.Count);
             return loaded;
         }
@@ -121,12 +120,12 @@ public class TextExpansionStorageService : ITextExpansionStorageService
 
             await FileBackedJsonStorage.WriteAsync(_filePath, expansionList, CrossMacroJsonContext.Default.ListTextExpansion)
                 .ConfigureAwait(false);
-            
+
             lock (_lock)
             {
                 _expansions = new List<Core.Models.TextExpansion>(expansionList);
             }
-            
+
             Log.Information("[TextExpansionStorageService] Saved {Count} text expansions", expansionList.Count);
         }
         catch (Exception ex)

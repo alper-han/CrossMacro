@@ -169,7 +169,7 @@ public sealed class DesignEditorViewModel : EditorViewModel
             LoadWarnings.Add(warning);
         }
 
-        SelectedAction = Actions.FirstOrDefault(action => action.Type == EditorActionType.MouseClick);
+        SelectedAction = Actions.FirstOrDefault(action => action.Type is EditorActionType.MouseClick);
         SkipInitialZeroZero = true;
     }
 }

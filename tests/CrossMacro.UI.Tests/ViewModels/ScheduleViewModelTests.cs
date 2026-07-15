@@ -46,12 +46,12 @@ public class ScheduleViewModelTests
             "Schedule_WeeklyWeekdays" => "[Schedule_WeeklyWeekdays]",
             "Schedule_WeeklyWeekends" => "[Schedule_WeeklyWeekends]",
             "Schedule_WeeklyCustom" => "[Schedule_WeeklyCustom]",
-            _ => call.Arg<string>()
+            _ => call.Arg<string>(),
         });
         var timeProvider = Substitute.For<ITimeProvider>();
         timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
         timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
-        
+
         // Setup initial tasks list
         _schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
         _schedulerService.LoadAsync().Returns(Task.CompletedTask);
@@ -120,7 +120,7 @@ public class ScheduleViewModelTests
     public void AddTask_CreatesAndSelectsTask()
     {
         // Act
-        _viewModel.AddTaskCommand.Execute(null);
+        _viewModel.AddTaskCommand.Execute(parameter: null);
 
         // Assert
         _schedulerService.Received(1).AddTask(Arg.Any<ScheduledTask>());
@@ -136,7 +136,7 @@ public class ScheduleViewModelTests
         var task = new ScheduledTask
         {
             LastRunTime = new DateTime(2026, 1, 1, 7, 0, 0, DateTimeKind.Utc),
-            NextRunTime = new DateTime(2026, 1, 1, 8, 30, 0, DateTimeKind.Utc)
+            NextRunTime = new DateTime(2026, 1, 1, 8, 30, 0, DateTimeKind.Utc),
         };
         _viewModel.SelectedTask = task;
 
@@ -268,7 +268,7 @@ public class ScheduleViewModelTests
             .Returns(Task.FromResult<string?>("test.macro"));
 
         // Act
-        await _viewModel.BrowseMacroCommand.ExecuteAsync(null);
+        await _viewModel.BrowseMacroCommand.ExecuteAsync(parameter: null);
 
         // Assert
         task.MacroFilePath.Should().Be("test.macro");
@@ -284,7 +284,7 @@ public class ScheduleViewModelTests
             .Returns(Task.FromResult<string?>(null));
 
         // Act
-        await _viewModel.BrowseMacroCommand.ExecuteAsync(null);
+        await _viewModel.BrowseMacroCommand.ExecuteAsync(parameter: null);
 
         // Assert
         task.MacroFilePath.Should().Be("existing.macro");
@@ -311,7 +311,7 @@ public class ScheduleViewModelTests
         var task = new ScheduledTask
         {
             MacroFilePath = "/tmp/sample.txt",
-            IsEnabled = true
+            IsEnabled = true,
         };
         string? status = null;
         _viewModel.StatusChanged += (_, s) => status = s;
@@ -321,7 +321,7 @@ public class ScheduleViewModelTests
 
         // Assert
         status.Should().Contain("[Schedule_StatusExtensionWarning]");
-        _schedulerService.Received(1).SetTaskEnabled(task.Id, true);
+        _schedulerService.Received(1).SetTaskEnabled(task.Id, enabled: true);
     }
 
     [Fact]
@@ -331,14 +331,14 @@ public class ScheduleViewModelTests
         var task = new ScheduledTask
         {
             MacroFilePath = "/tmp/sample.macro",
-            IsEnabled = true
+            IsEnabled = true,
         };
 
         // Act
         await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
 
         // Assert
-        _schedulerService.Received(1).SetTaskEnabled(task.Id, true);
+        _schedulerService.Received(1).SetTaskEnabled(task.Id, enabled: true);
         await _schedulerService.Received(1).SaveAsync();
     }
 
@@ -351,7 +351,7 @@ public class ScheduleViewModelTests
         var timeProvider = Substitute.For<ITimeProvider>();
         var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService)
         {
-            SelectedTask = task
+            SelectedTask = task,
         };
 
         await viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
@@ -418,7 +418,7 @@ public class ScheduleViewModelTests
         var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.Weekdays };
         _viewModel.SelectedTask = task;
 
-        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value == ScheduleDays.Weekends);
+        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value is ScheduleDays.Weekends);
 
         task.WeeklyDays.Should().Be(ScheduleDays.Weekends);
         _viewModel.IsWeeklyCustomSelected.Should().BeFalse();
@@ -430,7 +430,7 @@ public class ScheduleViewModelTests
         var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.Weekdays };
         _viewModel.SelectedTask = task;
 
-        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value == null);
+        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value is null);
 
         task.WeeklyDays.Should().Be(ScheduleDays.Weekdays);
         _viewModel.IsWeeklyCustomSelected.Should().BeTrue();
@@ -443,8 +443,8 @@ public class ScheduleViewModelTests
         _viewModel.SelectedTask = task;
 
         var dayOptions = _viewModel.WeeklyDayOptions.ToArray();
-        dayOptions.Single(option => option.Value == ScheduleDays.Wednesday).IsSelected = true;
-        dayOptions.Single(option => option.Value == ScheduleDays.Monday).IsSelected = false;
+        dayOptions.Single(option => option.Value is ScheduleDays.Wednesday).IsSelected = true;
+        dayOptions.Single(option => option.Value is ScheduleDays.Monday).IsSelected = false;
 
         task.WeeklyDays.Should().Be(ScheduleDays.Wednesday);
         _viewModel.IsWeeklyCustomSelected.Should().BeTrue();
@@ -459,7 +459,7 @@ public class ScheduleViewModelTests
         {
             MacroFilePath = "test.macro",
             Type = ScheduleType.Weekly,
-            WeeklyDays = ScheduleDays.None
+            WeeklyDays = ScheduleDays.None,
         };
 
         _viewModel.SelectedTask = task;
@@ -475,12 +475,12 @@ public class ScheduleViewModelTests
             MacroFilePath = "test.macro",
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.Monday,
-            WeeklyTime = new TimeSpan(9, 0, 0)
+            WeeklyTime = new TimeSpan(9, 0, 0),
         };
         task.IsEnabled = true;
         _viewModel.SelectedTask = task;
 
-        _viewModel.WeeklyDayOptions.Single(option => option.Value == ScheduleDays.Monday).IsSelected = false;
+        _viewModel.WeeklyDayOptions.Single(option => option.Value is ScheduleDays.Monday).IsSelected = false;
 
         task.IsEnabled.Should().BeFalse();
         task.CanBeEnabled.Should().BeFalse();

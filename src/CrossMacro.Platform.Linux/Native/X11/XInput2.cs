@@ -5,7 +5,7 @@ namespace CrossMacro.Platform.Linux.Native.X11
 {
     // ReSharper disable InconsistentNaming
     // ReSharper disable IdentifierTypo
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct XIEventMask
     {
@@ -107,23 +107,23 @@ namespace CrossMacro.Platform.Linux.Native.X11
         public const int XI_RawButtonPress = 15;
         public const int XI_RawButtonRelease = 16;
         public const int XI_RawMotion = 17;
-        
+
         // XInput2 version constants
         public const int XINPUT2_MAJOR_VERSION = 2;
         public const int XINPUT2_MINOR_VERSION = 2;
-        
+
         // XEvent structure size for memory allocation
         public const int XEVENT_STRUCT_SIZE = 192;
-        
+
         // X11 scroll button constants
         public const int X11_SCROLL_UP = 4;
         public const int X11_SCROLL_DOWN = 5;
         public const int X11_SCROLL_LEFT = 6;
         public const int X11_SCROLL_RIGHT = 7;
-        
+
         // Scroll delta value (standard scroll unit)
         public const int SCROLL_DELTA = 120;
-        
+
         // Scroll axis identifiers
         public const int SCROLL_AXIS_VERTICAL = 0;
         public const int SCROLL_AXIS_HORIZONTAL = 1;
@@ -135,7 +135,7 @@ namespace CrossMacro.Platform.Linux.Native.X11
 
         public static bool IsBitSet(byte[] mask, int bit)
         {
-            return (mask[bit >> 3] & (1 << (bit & 7))) != 0;
+            return (mask[bit >> 3] & (1 << (bit & 7))) is not 0;
         }
 
         public static bool IsBitSet(IntPtr maskPtr, int maskLen, int bit)
@@ -143,7 +143,7 @@ namespace CrossMacro.Platform.Linux.Native.X11
             int byteIndex = bit >> 3;
             if (byteIndex >= maskLen) return false;
             byte b = Marshal.ReadByte(maskPtr, byteIndex);
-            return (b & (1 << (bit & 7))) != 0;
+            return (b & (1 << (bit & 7))) is not 0;
         }
     }
 }

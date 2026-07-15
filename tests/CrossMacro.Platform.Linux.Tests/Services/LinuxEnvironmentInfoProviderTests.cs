@@ -42,7 +42,7 @@ public class LinuxEnvironmentInfoProviderTests
     {
         var provider = new LinuxEnvironmentInfoProvider(
             CompositorType.HYPRLAND,
-            key => key == "CROSSMACRO_WINDOW_BUTTONS" ? value : null);
+            key => key is "CROSSMACRO_WINDOW_BUTTONS" ? value : null);
 
         Assert.Equal(expected, provider.WindowManagerHandlesCloseButton);
     }

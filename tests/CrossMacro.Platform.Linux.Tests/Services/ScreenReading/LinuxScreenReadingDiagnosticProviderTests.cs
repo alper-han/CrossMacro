@@ -36,9 +36,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal(["GnomeExtension", "ExtImageCopy", "WlrScreencopy", "Portal"], snapshot.PolicyOrder);
         Assert.Equal("WlrScreencopy", snapshot.SelectedBackend);
         Assert.Contains(snapshot.Backends, backend =>
-            backend.Backend == "ExtImageCopy" &&
-            backend.ErrorKind == ScreenReadErrorKind.BackendUnavailable &&
-            backend.ErrorMessage == "ext protocol missing");
+            backend.Backend is "ExtImageCopy" && backend.ErrorKind is ScreenReadErrorKind.BackendUnavailable && backend.ErrorMessage is "ext protocol missing");
     }
 
     [Fact]
@@ -111,7 +109,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Null(snapshot.SelectedBackend);
         Assert.Equal("KWinScreenShot2", snapshot.FailureBackend);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, snapshot.FailureKind);
-        Assert.Contains("X-KDE-DBUS-Restricted-Interfaces", snapshot.Remediation);
+        Assert.Contains("X-KDE-DBUS-Restricted-Interfaces", snapshot.Remediation, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -145,15 +143,15 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal("Portal", snapshot.FailureBackend);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, snapshot.FailureKind);
         Assert.Equal("portal denied", snapshot.FailureMessage);
-        Assert.Contains("ScreenCast permission", snapshot.Remediation);
+        Assert.Contains("ScreenCast permission", snapshot.Remediation, StringComparison.Ordinal);
     }
 
     [Fact]
     public void GetSnapshot_WhenNativeX11Supported_ReportsNativeX11Selection()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(false);
-        environmentDetector.IsX11.Returns(true);
+        environmentDetector.IsWayland.Returns(returnThis: false);
+        environmentDetector.IsX11.Returns(returnThis: true);
         environmentDetector.DetectedCompositor.Returns(CompositorType.X11);
         var runtimeContext = Substitute.For<IRuntimeContext>();
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
@@ -168,7 +166,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal("NativeX11", snapshot.PolicyName);
         Assert.Equal(["X11"], snapshot.PolicyOrder);
         Assert.Equal("X11", snapshot.SelectedBackend);
-        Assert.Contains(snapshot.Backends, backend => backend.Backend == "X11" && backend.IsAvailable);
+        Assert.Contains(snapshot.Backends, backend => backend.Backend is "X11" && backend.IsAvailable);
         Assert.Equal("Linux screen reading selects X11 backend (NativeX11 policy).", display.Message);
         capabilityDetector.DidNotReceive().GetSnapshot();
     }
@@ -177,8 +175,8 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
     public void GetSnapshot_WhenNativeX11Unsupported_ReportsX11Failure()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(false);
-        environmentDetector.IsX11.Returns(true);
+        environmentDetector.IsWayland.Returns(returnThis: false);
+        environmentDetector.IsX11.Returns(returnThis: true);
         environmentDetector.DetectedCompositor.Returns(CompositorType.X11);
         var runtimeContext = Substitute.For<IRuntimeContext>();
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
@@ -194,7 +192,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal("X11", snapshot.FailureBackend);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, snapshot.FailureKind);
         Assert.Equal("DISPLAY missing", snapshot.FailureMessage);
-        Assert.Contains("DISPLAY", snapshot.Remediation);
+        Assert.Contains("DISPLAY", snapshot.Remediation, StringComparison.Ordinal);
         capabilityDetector.DidNotReceive().GetSnapshot();
     }
 
@@ -202,11 +200,11 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
     public void GetSnapshot_WhenNotWaylandOrX11_DoesNotProbeBackendsAndReportsUnsupportedSession()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(false);
-        environmentDetector.IsX11.Returns(false);
+        environmentDetector.IsWayland.Returns(returnThis: false);
+        environmentDetector.IsX11.Returns(returnThis: false);
         environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsFlatpak.Returns(false);
+        runtimeContext.IsFlatpak.Returns(returnThis: false);
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
         var provider = new LinuxScreenReadingDiagnosticProvider(environmentDetector, runtimeContext, capabilityDetector, x11SupportProbe);
@@ -216,8 +214,8 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
 
         Assert.False(snapshot.IsSupportedSession);
         Assert.Equal(ScreenReadErrorKind.Unsupported, snapshot.FailureKind);
-        Assert.Contains("Wayland", snapshot.FailureMessage);
-        Assert.Contains("X11", snapshot.FailureMessage);
+        Assert.Contains("Wayland", snapshot.FailureMessage, StringComparison.Ordinal);
+        Assert.Contains("X11", snapshot.FailureMessage, StringComparison.Ordinal);
         Assert.False(display.HasSelectedBackend);
         Assert.Equal("Linux screen reading is unavailable because this session is not a supported Wayland or X11 session.", display.Message);
         capabilityDetector.DidNotReceive().GetSnapshot();
@@ -255,8 +253,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal("Details redacted for privacy.", display.FailureMessage);
         Assert.DoesNotContain("SECRET_SCREEN_WORD", display.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(display.Backends, backend =>
-            backend.Backend == "Portal" &&
-            backend.ErrorMessage == "Details redacted for privacy.");
+            backend.Backend is "Portal" && backend.ErrorMessage is "Details redacted for privacy.");
     }
 
     private static LinuxScreenReadingDiagnosticProvider CreateProvider(

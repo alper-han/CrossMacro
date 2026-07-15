@@ -18,7 +18,7 @@ public sealed class SwayIpcClient : ISwayIpcClient
 {
     private const string SocketPathEnvironmentVariable = "SWAYSOCK";
     private const int SocketTimeoutMs = 2000;
-    
+
     // Magic string "i3-ipc"
     private static readonly byte[] MagicString = { 0x69, 0x33, 0x2d, 0x69, 0x70, 0x63 };
 
@@ -56,7 +56,7 @@ public sealed class SwayIpcClient : ISwayIpcClient
 
     public async Task<string?> SendRequestAsync(uint type, string payload = "", CancellationToken cancellationToken = default)
     {
-        if (_disposed || !IsAvailable || _socketPath == null)
+        if (_disposed || !IsAvailable || _socketPath is null)
             return null;
 
         try
@@ -87,14 +87,14 @@ public sealed class SwayIpcClient : ISwayIpcClient
 
             var payloadBytes = string.IsNullOrEmpty(payload) ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(payload);
             var header = new byte[14];
-            
+
             // 1. Magic string (6 bytes)
             Buffer.BlockCopy(MagicString, 0, header, 0, 6);
-            
+
             // 2. Length (4 bytes, native byte order - Sway uses native byte order, assuming little endian for x86/ARM)
             // BitConverter.GetBytes uses native endianness
             Buffer.BlockCopy(BitConverter.GetBytes((uint)payloadBytes.Length), 0, header, 6, 4);
-            
+
             // 3. Type (4 bytes, native byte order)
             Buffer.BlockCopy(BitConverter.GetBytes(type), 0, header, 10, 4);
 
@@ -134,7 +134,7 @@ public sealed class SwayIpcClient : ISwayIpcClient
             // Receive payload
             var resPayload = new byte[resLength];
             int receivedPayload = await ReadExactlyAsync(socket, resPayload, (int)resLength, linkedCts.Token).ConfigureAwait(false);
-            
+
             if (receivedPayload < resLength)
             {
                 Log.Warning("[SwayIpcClient] Incomplete response payload received");
@@ -165,7 +165,7 @@ public sealed class SwayIpcClient : ISwayIpcClient
         while (totalRead < count)
         {
             int read = await socket.ReceiveAsync(new Memory<byte>(buffer, totalRead, count - totalRead), SocketFlags.None, cancellationToken).ConfigureAwait(false);
-            if (read == 0)
+            if (read is 0)
             {
                 break; // Connection closed
             }
@@ -178,7 +178,7 @@ public sealed class SwayIpcClient : ISwayIpcClient
     {
         if (_disposed)
             return;
-            
+
         _disposed = true;
         GC.SuppressFinalize(this);
     }

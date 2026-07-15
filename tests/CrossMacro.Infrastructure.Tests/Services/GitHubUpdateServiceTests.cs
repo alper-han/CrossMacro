@@ -65,7 +65,7 @@ public class GitHubUpdateServiceTests
         _runtimeContext = new TestRuntimeContext();
         _handler = new MockHttpMessageHandler
         {
-            OnSendAsync = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound))
+            OnSendAsync = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)),
         };
         _service = new TestableGitHubUpdateService(_runtimeContext) { Handler = _handler };
     }
@@ -92,10 +92,10 @@ public class GitHubUpdateServiceTests
     {
         _runtimeContext.IsFlatpak = false;
 
-        var json = "{\"tag_name\": \"v99.99.99\", \"html_url\": \"http://example.com\"}";
+        const string json = "{\"tag_name\": \"v99.99.99\", \"html_url\": \"http://example.com\"}";
         _handler.OnSendAsync = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent(json)
+            Content = new StringContent(json),
         });
 
         var result = await _service.CheckForUpdatesAsync();
@@ -110,10 +110,10 @@ public class GitHubUpdateServiceTests
     {
         _runtimeContext.IsFlatpak = false;
 
-        var json = "{\"tag_name\": \"v0.0.0\", \"html_url\": \"http://example.com\"}";
+        const string json = "{\"tag_name\": \"v0.0.0\", \"html_url\": \"http://example.com\"}";
         _handler.OnSendAsync = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent(json)
+            Content = new StringContent(json),
         });
 
         var result = await _service.CheckForUpdatesAsync();
@@ -143,7 +143,7 @@ public class GitHubUpdateServiceTests
         _runtimeContext.IsFlatpak = false;
         _handler.OnSendAsync = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent("{not-valid-json")
+            Content = new StringContent("{not-valid-json"),
         });
 
         var result = await _service.CheckForUpdatesAsync();
@@ -161,7 +161,7 @@ public class GitHubUpdateServiceTests
             await Task.Delay(TimeSpan.FromSeconds(5), ct);
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"tag_name\": \"v99.99.99\", \"html_url\": \"http://example.com\"}")
+                Content = new StringContent("{\"tag_name\": \"v99.99.99\", \"html_url\": \"http://example.com\"}"),
             };
         };
 

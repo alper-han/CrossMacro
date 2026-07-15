@@ -176,7 +176,7 @@ internal sealed class WaylandWlrConnection : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         var bounds = GetVirtualScreenBounds(requestedRegion);
         var outputs = GetIntersectingOutputs(bounds);
-        if (outputs.Count == 0)
+        if (outputs.Count is 0)
         {
             throw new ArgumentOutOfRangeException(nameof(requestedRegion), requestedRegion, "Wayland screen capture requested region is outside all known Wayland outputs.");
         }
@@ -204,7 +204,7 @@ internal sealed class WaylandWlrConnection : IDisposable
             return requestedRegion.Value;
         }
 
-        if (Registry.Outputs.Count == 0)
+        if (Registry.Outputs.Count is 0)
         {
             throw new InvalidOperationException("Wayland registry did not expose any wl_output globals.");
         }

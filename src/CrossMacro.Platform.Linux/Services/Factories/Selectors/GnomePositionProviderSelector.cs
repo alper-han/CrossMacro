@@ -17,7 +17,7 @@ public class GnomePositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.GNOME;
+        return compositor is CompositorType.GNOME;
     }
 
     public IMousePositionProvider Create()

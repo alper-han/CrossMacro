@@ -60,7 +60,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             writer.WriteDictionary(new Dictionary<string, VariantValue>
             {
                 ["session_handle_token"] = VariantValue.String(sessionHandleToken),
-                ["handle_token"] = VariantValue.String(createHandleToken)
+                ["handle_token"] = VariantValue.String(createHandleToken),
             });
         }).ConfigureAwait(false);
 
@@ -82,7 +82,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             writer.WriteString(string.Empty);
             writer.WriteDictionary(new Dictionary<string, VariantValue>
             {
-                ["handle_token"] = VariantValue.String(startHandleToken)
+                ["handle_token"] = VariantValue.String(startHandleToken),
             });
         }).ConfigureAwait(false);
 
@@ -204,7 +204,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             throw new PortalScreenCastException(ScreenReadErrorKind.CaptureFailed, $"Portal response did not include '{key}'.");
         }
 
-        return value.Type == VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
+        return value.Type is VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
     }
 
     internal static Dictionary<string, VariantValue> BuildSelectSourcesOptions(string handleToken, string? restoreToken)
@@ -212,10 +212,10 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         var options = new Dictionary<string, VariantValue>
         {
             ["types"] = VariantValue.UInt32(1),
-            ["multiple"] = VariantValue.Bool(true),
+            ["multiple"] = VariantValue.Bool(value: true),
             ["cursor_mode"] = VariantValue.UInt32(1),
             ["persist_mode"] = VariantValue.UInt32(2),
-            ["handle_token"] = VariantValue.String(handleToken)
+            ["handle_token"] = VariantValue.String(handleToken),
         };
 
         if (!string.IsNullOrWhiteSpace(restoreToken))
@@ -233,7 +233,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             return null;
         }
 
-        var result = value.Type == VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
+        var result = value.Type is VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
         return string.IsNullOrWhiteSpace(result) ? null : result;
     }
 
@@ -253,7 +253,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             streams.Add(new PortalStream(nodeId, properties));
         }
 
-        if (streams.Count == 0)
+        if (streams.Count is 0)
         {
             throw new PortalScreenCastException(ScreenReadErrorKind.CaptureFailed, "Portal Start response did not include any streams.");
         }
@@ -285,13 +285,13 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         VariantValueType.Struct => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         VariantValueType.Dictionary => UnboxDictionary(value),
         VariantValueType.Variant => UnboxVariant(value.GetVariantValue()),
-        _ => value.ToString() ?? string.Empty
+        _ => value.ToString() ?? string.Empty,
     };
 
     private static ScreenReadErrorKind MapResponseCode(uint responseCode) => responseCode switch
     {
         1 => ScreenReadErrorKind.PermissionDenied,
-        _ => ScreenReadErrorKind.CaptureFailed
+        _ => ScreenReadErrorKind.CaptureFailed,
     };
 
     private static TimeSpan GetTimeout(ScreenReadOptions options) => options.Timeout ?? TimeSpan.FromMinutes(2);

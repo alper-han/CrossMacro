@@ -20,7 +20,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
     public ScreenRect GetVirtualScreenBounds()
     {
         var displays = GetActiveDisplays();
-        if (displays.Length == 0)
+        if (displays.Length is 0)
         {
             throw new BackendUnavailableException("CoreGraphics did not report any active displays.");
         }
@@ -39,7 +39,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
         cancellationToken.ThrowIfCancellationRequested();
 
         var displays = _native.GetDisplaysWithRect(ToCGRect(region));
-        if (displays.Length == 0)
+        if (displays.Length is 0)
         {
             throw new InvalidOperationException($"CoreGraphics found no displays intersecting region {region}.");
         }
@@ -88,7 +88,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
             throw new InvalidOperationException($"CoreGraphics returned invalid image dimensions {image.Width}x{image.Height} with stride {image.BytesPerRow}.");
         }
 
-        if (image.BitsPerComponent != 8 || image.BitsPerPixel != 32)
+        if (image.BitsPerComponent is not 8 || image.BitsPerPixel is not 32)
         {
             throw new InvalidOperationException($"CoreGraphics returned unsupported pixel layout: {image.BitsPerComponent} bits/component, {image.BitsPerPixel} bits/pixel.");
         }
@@ -116,8 +116,8 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
             for (var logicalX = 0; logicalX < sourceRect.Width; logicalX++)
             {
                 var sourceX = Clamp((int)((logicalX + 0.5d) * scaleX), 0, image.Width - 1);
-                var sourceOffset = checked(sourceY * image.BytesPerRow + sourceX * 4);
-                var targetOffset = checked(targetY * targetStride + (sourceRect.X - targetRect.X + logicalX) * 4);
+                var sourceOffset = checked((sourceY * image.BytesPerRow) + (sourceX * 4));
+                var targetOffset = checked((targetY * targetStride) + ((sourceRect.X - targetRect.X + logicalX) * 4));
                 WriteBgraPixel(image.Pixels, sourceOffset, sourceFormat, targetPixels, targetOffset);
             }
         }
@@ -137,13 +137,13 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
             (CoreGraphics.kCGBitmapByteOrder32Big, (uint)CoreGraphics.CGBitmapInfo.AlphaPremultipliedLast) => MacOSSourcePixelFormat.Rgba,
             (CoreGraphics.kCGBitmapByteOrder32Big, (uint)CoreGraphics.CGBitmapInfo.AlphaLast) => MacOSSourcePixelFormat.Rgba,
             (CoreGraphics.kCGBitmapByteOrder32Big, (uint)CoreGraphics.CGBitmapInfo.AlphaNoneSkipLast) => MacOSSourcePixelFormat.Rgba,
-            _ => throw new InvalidOperationException($"CoreGraphics returned unsupported bitmap info 0x{info:X}.")
+            _ => throw new InvalidOperationException($"CoreGraphics returned unsupported bitmap info 0x{info:X}."),
         };
     }
 
     private static void WriteBgraPixel(byte[] sourcePixels, int sourceOffset, MacOSSourcePixelFormat sourceFormat, byte[] targetPixels, int targetOffset)
     {
-        if (sourceFormat == MacOSSourcePixelFormat.Bgra)
+        if (sourceFormat is MacOSSourcePixelFormat.Bgra)
         {
             targetPixels[targetOffset] = sourcePixels[sourceOffset];
             targetPixels[targetOffset + 1] = sourcePixels[sourceOffset + 1];
@@ -185,7 +185,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
     private static CoreGraphics.CGRect ToCGRect(ScreenRect rect) => new()
     {
         origin = new CoreGraphics.CGPoint { X = rect.X, Y = rect.Y },
-        size = new CoreGraphics.CGSize { width = rect.Width, height = rect.Height }
+        size = new CoreGraphics.CGSize { width = rect.Width, height = rect.Height },
     };
 
     private static int Clamp(int value, int min, int max) => Math.Min(Math.Max(value, min), max);
@@ -193,7 +193,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
     private enum MacOSSourcePixelFormat
     {
         Bgra,
-        Rgba
+        Rgba,
     }
 }
 
@@ -219,7 +219,7 @@ internal sealed record MacOSCapturedImage(
     CoreGraphics.CGBitmapInfo BitmapInfo,
     byte[] Pixels) : IDisposable
 {
-    public bool IsEmpty => Width == 0 || Height == 0 || Pixels.Length == 0;
+    public bool IsEmpty => Width is 0 || Height is 0 || Pixels.Length is 0;
 
     public void Dispose()
     {
@@ -230,7 +230,7 @@ internal sealed class MacOSCoreGraphicsNative : IMacOSCoreGraphicsNative
 {
     public uint GetActiveDisplayCount()
     {
-        var error = CoreGraphics.CGGetActiveDisplayList(0, null, out var count);
+        var error = CoreGraphics.CGGetActiveDisplayList(0, activeDisplays: null, out var count);
         ThrowIfFailed(error, "CGGetActiveDisplayList count");
         return count;
     }
@@ -245,7 +245,7 @@ internal sealed class MacOSCoreGraphicsNative : IMacOSCoreGraphicsNative
 
     public uint[] GetDisplaysWithRect(CoreGraphics.CGRect rect)
     {
-        var countError = CoreGraphics.CGGetDisplaysWithRect(rect, 0, null, out var count);
+        var countError = CoreGraphics.CGGetDisplaysWithRect(rect, 0, displays: null, out var count);
         ThrowIfFailed(countError, "CGGetDisplaysWithRect count");
         if (count == 0)
         {
@@ -324,7 +324,7 @@ internal sealed class MacOSCoreGraphicsNative : IMacOSCoreGraphicsNative
 
     private static void ThrowIfFailed(CoreGraphics.CGError error, string operation)
     {
-        if (error != CoreGraphics.CGError.Success)
+        if (error is not CoreGraphics.CGError.Success)
         {
             throw new BackendUnavailableException($"{operation} failed with CoreGraphics error {(int)error}.");
         }

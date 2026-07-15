@@ -23,7 +23,7 @@ public sealed class LinuxQuickSetupExecutorTests
             "unexpected");
 
         Assert.False(result.Success);
-        Assert.Contains("pkexec is missing", result.Message);
+        Assert.Contains("pkexec is missing", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -46,12 +46,12 @@ public sealed class LinuxQuickSetupExecutorTests
             "unexpected");
 
         Assert.True(result.Success);
-        Assert.Contains("Applied session ACLs for 1000: uinput=1, input-events=4.", result.Message);
+        Assert.Contains("Applied session ACLs for 1000: uinput=1, input-events=4.", result.Message, StringComparison.Ordinal);
         Assert.NotNull(capturedStartInfo);
         Assert.Equal("fake-launcher", capturedStartInfo!.FileName);
         Assert.Equal("1000", capturedStartInfo.ArgumentList[^1]);
-        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2]);
-        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2]);
+        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
+        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
     }
 
     private sealed class FakeLauncher : IPrivilegedHostCommandLauncher
@@ -75,7 +75,7 @@ public sealed class LinuxQuickSetupExecutorTests
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = "fake-launcher"
+                FileName = "fake-launcher",
             };
 
             startInfo.ArgumentList.Add("sh");

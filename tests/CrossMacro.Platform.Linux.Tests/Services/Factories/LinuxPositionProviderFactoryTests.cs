@@ -35,12 +35,12 @@ public class LinuxPositionProviderFactoryTests
         // Arrange
         var lowPrioritySelector = Substitute.For<IPositionProviderSelector>();
         lowPrioritySelector.Priority.Returns(10);
-        lowPrioritySelector.CanHandle(Arg.Any<CompositorType>()).Returns(true);
+        lowPrioritySelector.CanHandle(Arg.Any<CompositorType>()).Returns(returnThis: true);
         lowPrioritySelector.Create().Returns(Substitute.For<IMousePositionProvider>());
 
         var highPrioritySelector = Substitute.For<IPositionProviderSelector>();
         highPrioritySelector.Priority.Returns(100);
-        highPrioritySelector.CanHandle(Arg.Any<CompositorType>()).Returns(true);
+        highPrioritySelector.CanHandle(Arg.Any<CompositorType>()).Returns(returnThis: true);
         var expectedProvider = Substitute.For<IMousePositionProvider>();
         highPrioritySelector.Create().Returns(expectedProvider);
 
@@ -62,12 +62,12 @@ public class LinuxPositionProviderFactoryTests
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
 
         var gnomeSelector = Substitute.For<IPositionProviderSelector>();
-        gnomeSelector.CanHandle(CompositorType.GNOME).Returns(true);
+        gnomeSelector.CanHandle(CompositorType.GNOME).Returns(returnThis: true);
         var gnomeProvider = Substitute.For<IMousePositionProvider>();
         gnomeSelector.Create().Returns(gnomeProvider);
 
         var kdeSelector = Substitute.For<IPositionProviderSelector>();
-        kdeSelector.CanHandle(CompositorType.GNOME).Returns(false); // Can't handle Gnome
+        kdeSelector.CanHandle(CompositorType.GNOME).Returns(returnThis: false); // Can't handle Gnome
 
         _selectors.Add(gnomeSelector);
         _selectors.Add(kdeSelector);
@@ -102,10 +102,10 @@ public class LinuxPositionProviderFactoryTests
         _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.KDE);
 
         var selectorA = Substitute.For<IPositionProviderSelector>();
-        selectorA.CanHandle(CompositorType.KDE).Returns(false);
+        selectorA.CanHandle(CompositorType.KDE).Returns(returnThis: false);
 
         var selectorB = Substitute.For<IPositionProviderSelector>();
-        selectorB.CanHandle(CompositorType.KDE).Returns(false);
+        selectorB.CanHandle(CompositorType.KDE).Returns(returnThis: false);
 
         _selectors.Add(selectorA);
         _selectors.Add(selectorB);

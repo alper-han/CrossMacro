@@ -15,7 +15,7 @@ public interface IEditorActionValidator
     /// <param name="action">The action to validate.</param>
     /// <returns>Tuple of (IsValid, ErrorMessage).</returns>
     (bool IsValid, string? Error) Validate(EditorAction action);
-    
+
     /// <summary>
     /// Validates a collection of EditorActions.
     /// </summary>

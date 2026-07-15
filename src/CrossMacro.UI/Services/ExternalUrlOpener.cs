@@ -39,7 +39,7 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            || (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal) && !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal)))
         {
             throw new ArgumentException("Only absolute HTTP and HTTPS URLs can be opened.", nameof(url));
         }
@@ -84,7 +84,7 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
             yield return new ProcessStartInfo
             {
                 FileName = url,
-                UseShellExecute = true
+                UseShellExecute = true,
             };
 
             yield break;
@@ -114,7 +114,7 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardError = true,
-            RedirectStandardOutput = true
+            RedirectStandardOutput = true,
         };
 
         foreach (var argument in argumentsBeforeUrl)
@@ -146,7 +146,7 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
             return LaunchResult.Succeeded;
         }
 
-        if (process.ExitCode == 0)
+        if (process.ExitCode is 0)
         {
             return LaunchResult.Succeeded;
         }
@@ -162,7 +162,7 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
     private static InvalidOperationException CreateOpenFailedException(IReadOnlyCollection<Exception> failures)
     {
         const string message = "Unable to open the URL with the available desktop launchers.";
-        return failures.Count == 0
+        return failures.Count is 0
             ? new InvalidOperationException(message)
             : new InvalidOperationException(message, new AggregateException(failures));
     }
@@ -193,16 +193,16 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
 
     private static bool IsCommandNotFound(Win32Exception exception)
     {
-        return exception.NativeErrorCode == 2;
+        return exception.NativeErrorCode is 2;
     }
 
     internal readonly record struct LaunchResult(bool Success, Exception? Failure)
     {
-        public static LaunchResult Succeeded { get; } = new(true, null);
+        public static LaunchResult Succeeded { get; } = new(Success: true, Failure: null);
 
         public static LaunchResult Failed(Exception failure)
         {
-            return new LaunchResult(false, failure ?? throw new ArgumentNullException(nameof(failure)));
+            return new LaunchResult(Success: false, failure ?? throw new ArgumentNullException(nameof(failure)));
         }
     }
 

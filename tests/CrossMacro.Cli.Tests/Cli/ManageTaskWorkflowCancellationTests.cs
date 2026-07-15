@@ -29,7 +29,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         currentCancellation = new CancellationTokenSource();
         await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.RemoveAsync(new TaskRequest(task.Id), currentCancellation.Token));
         currentCancellation = new CancellationTokenSource();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, true), currentCancellation.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), currentCancellation.Token));
 
         service.DidNotReceive().AddTask(Arg.Any<ShortcutTask>());
         service.DidNotReceive().UpdateTask(Arg.Any<ShortcutTask>());
@@ -59,7 +59,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         currentCancellation = new CancellationTokenSource();
         await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.RemoveAsync(new TaskRequest(task.Id), currentCancellation.Token));
         currentCancellation = new CancellationTokenSource();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, true), currentCancellation.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), currentCancellation.Token));
 
         service.DidNotReceive().AddTask(Arg.Any<ScheduledTask>());
         service.DidNotReceive().UpdateTask(Arg.Any<ScheduledTask>());
@@ -89,7 +89,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         currentCancellation = new CancellationTokenSource();
         await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.RemoveAsync(new TaskRequest(task.Id), currentCancellation.Token));
         currentCancellation = new CancellationTokenSource();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, true), currentCancellation.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), currentCancellation.Token));
 
         service.DidNotReceive().AddTask(Arg.Any<TriggerTask>());
         service.DidNotReceive().UpdateTask(Arg.Any<TriggerTask>());

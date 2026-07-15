@@ -45,7 +45,7 @@ public class KeyStateTracker : IKeyStateTracker
         {
             try
             {
-                simulator.KeyPress(keyCode, false);
+                simulator.KeyPress(keyCode, pressed: false);
                 Log.Debug("[KeyStateTracker] Released key: {KeyCode}", keyCode);
             }
             catch (Exception ex)
@@ -61,7 +61,7 @@ public class KeyStateTracker : IKeyStateTracker
         {
             try
             {
-                simulator.KeyPress(keyCode, true);
+                simulator.KeyPress(keyCode, pressed: true);
                 _pressedKeys.TryAdd(keyCode, 0);
                 Log.Debug("[KeyStateTracker] Re-pressed key: {KeyCode}", keyCode);
             }

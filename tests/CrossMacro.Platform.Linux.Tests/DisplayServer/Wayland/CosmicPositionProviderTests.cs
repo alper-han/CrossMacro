@@ -17,7 +17,7 @@ public sealed class CosmicPositionProviderTests
     [Fact]
     public void TryParseScreenResolution_ShouldIgnoreDisabledAndMirroredOutputs()
     {
-        var kdl = """
+        const string kdl = """
                   output "DP-1" enabled=#true {
                     position 0 0
                     scale 1.00
@@ -55,7 +55,7 @@ public sealed class CosmicPositionProviderTests
     [Fact]
     public void TryParseScreenResolution_ShouldApplyScaleAndQuarterTurnTransform()
     {
-        var kdl = """
+        const string kdl = """
                   output "DP-1" enabled=#true {
                     position -720 0
                     scale 2.00
@@ -79,6 +79,33 @@ public sealed class CosmicPositionProviderTests
         Assert.True(parsed);
         Assert.Equal(2768, width);
         Assert.Equal(1152, height);
+    }
+
+    [Fact]
+    public void TryParseScreenResolution_ShouldRejectLongNearMatchModeLine_WhileAcceptingValidMode()
+    {
+        var filler = new string('x', 100_000);
+        var valid = string.Concat(
+            "output \"DP-1\" enabled=#true {\n",
+            "position 0 0\n",
+            "scale 1.00\n",
+            "modes {\n",
+            "mode 1920 1080 60000 ",
+            filler,
+            " current=#true\n",
+            "}\n",
+            "}");
+        var nearMatch = valid.Replace("current=#true", "current=#trueX", StringComparison.Ordinal);
+
+        var validParsed = CosmicPositionProvider.TryParseScreenResolution(valid, out var validWidth, out var validHeight);
+        var nearMatchParsed = CosmicPositionProvider.TryParseScreenResolution(nearMatch, out var nearMatchWidth, out var nearMatchHeight);
+
+        Assert.True(validParsed);
+        Assert.Equal(1920, validWidth);
+        Assert.Equal(1080, validHeight);
+        Assert.False(nearMatchParsed);
+        Assert.Equal(0, nearMatchWidth);
+        Assert.Equal(0, nearMatchHeight);
     }
 
     [Theory]

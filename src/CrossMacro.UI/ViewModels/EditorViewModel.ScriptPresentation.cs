@@ -10,8 +10,8 @@ public partial class EditorViewModel
     public IReadOnlyList<string> AvailableVariableNames => _availableVariableNames;
     public bool HasAvailableVariableNames => AvailableVariableNames.Count > 0;
     public IEnumerable<ScriptConditionOperator> ScriptConditionOperators => GetConditionOperatorsForSelectedAction();
-    public string ConditionRightOperandHint => SelectedAction?.ScriptLeftOperandType == ScriptOperandType.Color
-        || SelectedAction?.ScriptRightOperandType == ScriptOperandType.Color
+    public string ConditionRightOperandHint => (SelectedAction?.ScriptLeftOperandType) is ScriptOperandType.Color
+|| (SelectedAction?.ScriptRightOperandType) is ScriptOperandType.Color
         ? Localize("Editor_ConditionColorHint")
         : string.Empty;
 
@@ -20,7 +20,7 @@ public partial class EditorViewModel
         get => _selectedSetVariableSuggestion;
         set => ApplyVariableSuggestion(ref _selectedSetVariableSuggestion, value, nameof(SelectedSetVariableSuggestion), suggestion =>
         {
-            if (SelectedAction?.Type == EditorActionType.SetVariable)
+            if ((SelectedAction?.Type) is EditorActionType.SetVariable)
             {
                 SelectedAction.ScriptVariableName = suggestion;
             }
@@ -48,7 +48,7 @@ public partial class EditorViewModel
         set => ApplyVariableSuggestion(ref _selectedConditionLeftVariableSuggestion, value, nameof(SelectedConditionLeftVariableSuggestion), suggestion =>
         {
             if (SelectedAction?.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart
-                && SelectedAction.ScriptLeftOperandType == ScriptOperandType.VariableReference)
+&& SelectedAction.ScriptLeftOperandType is ScriptOperandType.VariableReference)
             {
                 SelectedAction.ScriptLeftOperand = suggestion;
             }
@@ -64,7 +64,7 @@ public partial class EditorViewModel
         set => ApplyVariableSuggestion(ref _selectedConditionRightVariableSuggestion, value, nameof(SelectedConditionRightVariableSuggestion), suggestion =>
         {
             if (SelectedAction?.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart
-                && SelectedAction.ScriptRightOperandType == ScriptOperandType.VariableReference)
+&& SelectedAction.ScriptRightOperandType is ScriptOperandType.VariableReference)
             {
                 SelectedAction.ScriptRightOperand = suggestion;
             }
@@ -76,7 +76,7 @@ public partial class EditorViewModel
         get => _selectedForVariableSuggestion;
         set => ApplyVariableSuggestion(ref _selectedForVariableSuggestion, value, nameof(SelectedForVariableSuggestion), suggestion =>
         {
-            if (SelectedAction?.Type == EditorActionType.ForBlockStart)
+            if ((SelectedAction?.Type) is EditorActionType.ForBlockStart)
             {
                 SelectedAction.ForVariableName = suggestion;
             }
@@ -88,7 +88,7 @@ public partial class EditorViewModel
         get => _selectedClipboardVariableSuggestion;
         set => ApplyVariableSuggestion(ref _selectedClipboardVariableSuggestion, value, nameof(SelectedClipboardVariableSuggestion), suggestion =>
         {
-            if (SelectedAction?.Type == EditorActionType.ClipboardGet)
+            if ((SelectedAction?.Type) is EditorActionType.ClipboardGet)
             {
                 SelectedAction.ScriptVariableName = suggestion;
             }
@@ -100,28 +100,28 @@ public partial class EditorViewModel
     public bool ShowIncDecVariablePicker => ShowIncDecFields && HasAvailableVariableNames;
     public bool ShowConditionLeftVariablePicker =>
         ShowConditionFields
-        && HasAvailableVariableNames
-        && SelectedAction?.ScriptLeftOperandType == ScriptOperandType.VariableReference;
+&& HasAvailableVariableNames
+&& (SelectedAction?.ScriptLeftOperandType) is ScriptOperandType.VariableReference;
     public bool ShowConditionLeftOperandTextBox =>
         ShowConditionFields
-        && (SelectedAction?.ScriptLeftOperandType != ScriptOperandType.VariableReference || !ShowConditionLeftVariablePicker);
+        && ((SelectedAction?.ScriptLeftOperandType) is not ScriptOperandType.VariableReference || !ShowConditionLeftVariablePicker);
     public bool ShowConditionLeftColorPicker =>
         ShowConditionFields
-        && !IsCapturingConditionLeftColor
-        && _screenPixelReader?.IsSupported == true
-        && SelectedAction?.ScriptLeftOperandType == ScriptOperandType.Color;
+&& !IsCapturingConditionLeftColor
+&& (_screenPixelReader?.IsSupported) is true
+&& (SelectedAction?.ScriptLeftOperandType) is ScriptOperandType.Color;
     public bool ShowConditionRightVariablePicker =>
         ShowConditionFields
-        && HasAvailableVariableNames
-        && SelectedAction?.ScriptRightOperandType == ScriptOperandType.VariableReference;
+&& HasAvailableVariableNames
+&& (SelectedAction?.ScriptRightOperandType) is ScriptOperandType.VariableReference;
     public bool ShowConditionRightOperandTextBox =>
         ShowConditionFields
-        && (SelectedAction?.ScriptRightOperandType != ScriptOperandType.VariableReference || !ShowConditionRightVariablePicker);
+        && ((SelectedAction?.ScriptRightOperandType) is not ScriptOperandType.VariableReference || !ShowConditionRightVariablePicker);
     public bool ShowConditionRightColorPicker =>
         ShowConditionFields
-        && !IsCapturingConditionRightColor
-        && _screenPixelReader?.IsSupported == true
-        && SelectedAction?.ScriptRightOperandType == ScriptOperandType.Color;
+&& !IsCapturingConditionRightColor
+&& (_screenPixelReader?.IsSupported) is true
+&& (SelectedAction?.ScriptRightOperandType) is ScriptOperandType.Color;
     public bool ShowForVariablePicker => ShowForFields && HasAvailableVariableNames;
 
     private string? GetSelectedConditionVariableSuggestion(
@@ -129,9 +129,9 @@ public partial class EditorViewModel
         ScriptOperandType? operandType,
         string? operand)
     {
-        if (operandType == ScriptOperandType.VariableReference
-            && !string.IsNullOrWhiteSpace(operand)
-            && AvailableVariableNames.Contains(operand, StringComparer.Ordinal))
+        if (operandType is ScriptOperandType.VariableReference
+&& !string.IsNullOrWhiteSpace(operand)
+&& AvailableVariableNames.Contains(operand, StringComparer.Ordinal))
         {
             return operand;
         }

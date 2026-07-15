@@ -34,7 +34,7 @@ public sealed class HyprlandIpcClient : IDisposable
     public HyprlandIpcClient()
     {
         _socketPath = DiscoverSocketPath();
-        IsAvailable = _socketPath != null;
+        IsAvailable = _socketPath is not null;
 
         if (IsAvailable)
         {
@@ -49,7 +49,7 @@ public sealed class HyprlandIpcClient : IDisposable
     public HyprlandIpcClient(LinuxEnvironmentSnapshot environment)
     {
         _socketPath = DiscoverSocketPath(environment.HyprlandInstanceSignature, environment.RuntimeDir);
-        IsAvailable = _socketPath != null;
+        IsAvailable = _socketPath is not null;
 
         if (IsAvailable)
             Log.Information("[HyprlandIpcClient] Socket found: {SocketPath}", _socketPath);
@@ -65,7 +65,7 @@ public sealed class HyprlandIpcClient : IDisposable
     /// <returns>The response string, or null if unavailable/failed</returns>
     public async Task<string?> SendCommandAsync(string command, CancellationToken cancellationToken = default)
     {
-        if (_disposed || !IsAvailable || _socketPath == null)
+        if (_disposed || !IsAvailable || _socketPath is null)
             return null;
 
         try
@@ -88,7 +88,7 @@ public sealed class HyprlandIpcClient : IDisposable
     /// </summary>
     public async Task<string?> SendCommandAsync(byte[] commandBytes, CancellationToken cancellationToken = default)
     {
-        if (_disposed || !IsAvailable || _socketPath == null)
+        if (_disposed || !IsAvailable || _socketPath is null)
             return null;
 
         try
@@ -184,8 +184,7 @@ public sealed class HyprlandIpcClient : IDisposable
 
         try
         {
-            var instanceDirs = Directory.GetDirectories(hyprDir);
-            foreach (var instanceDir in instanceDirs)
+            foreach (var instanceDir in Directory.GetDirectories(hyprDir))
             {
                 var socketPath = Path.Combine(instanceDir, ".socket.sock");
                 if (File.Exists(socketPath))

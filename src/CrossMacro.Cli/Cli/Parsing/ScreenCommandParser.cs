@@ -24,7 +24,7 @@ internal static class ScreenCommandParser
             "search-image" => ParseSearchImage(args),
             "wait-image" => ParseImageAction(args, ScreenCliAction.WaitImage, "wait-image"),
             "image-click" => ParseImageAction(args, ScreenCliAction.ImageClick, "image-click"),
-            _ => CliParseResult.Error($"Unknown screen subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2))
+            _ => CliParseResult.Error($"Unknown screen subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 
@@ -57,7 +57,7 @@ internal static class ScreenCommandParser
                 continue;
             }
 
-            if (TryReadCoordinate(args[i], coordinates.Count == 0 ? "x" : "y", out var coordinate, out var error))
+            if (TryReadCoordinate(args[i], coordinates.Count is 0 ? "x" : "y", out var coordinate, out var error))
             {
                 coordinates.Add(coordinate);
                 continue;
@@ -66,7 +66,7 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error(error, jsonOutput);
         }
 
-        if (coordinates.Count != 2)
+        if (coordinates.Count is not 2)
         {
             return CliParseHelpers.Error(relative ? "screen pixel --relative requires <dx> <dy>." : "screen pixel requires <x> <y>.", jsonOutput);
         }
@@ -100,7 +100,7 @@ internal static class ScreenCommandParser
             operands.Add(args[i]);
         }
 
-        if (operands.Count != 3) return CliParseHelpers.Error("screen wait-color requires <x> <y> <RRGGBB>.", jsonOutput);
+        if (operands.Count is not 3) return CliParseHelpers.Error("screen wait-color requires <x> <y> <RRGGBB>.", jsonOutput);
         if (!TryParseInt(operands[0], "x", out var x, out var xError)) return CliParseHelpers.Error(xError, jsonOutput);
         if (!TryParseInt(operands[1], "y", out var y, out var yError)) return CliParseHelpers.Error(yError, jsonOutput);
         if (!ScreenPixelColor.TryParse(operands[2], out var color)) return CliParseHelpers.Error("Invalid color. Expected 6 hexadecimal RGB characters (RRGGBB).", jsonOutput);
@@ -142,7 +142,7 @@ internal static class ScreenCommandParser
             operands.Add(args[i]);
         }
 
-        if (operands.Count != 5) return CliParseHelpers.Error("screen search-color requires <x1> <y1> <x2> <y2> <RRGGBB>.", jsonOutput);
+        if (operands.Count is not 5) return CliParseHelpers.Error("screen search-color requires <x1> <y1> <x2> <y2> <RRGGBB>.", jsonOutput);
         if (!TryParseInt(operands[0], "x1", out var x1, out var x1Error)) return CliParseHelpers.Error(x1Error, jsonOutput);
         if (!TryParseInt(operands[1], "y1", out var y1, out var y1Error)) return CliParseHelpers.Error(y1Error, jsonOutput);
         if (!TryParseInt(operands[2], "x2", out var x2, out var x2Error)) return CliParseHelpers.Error(x2Error, jsonOutput);
@@ -214,7 +214,7 @@ internal static class ScreenCommandParser
                 {
                     "first" => ScreenImageMatchMode.First,
                     "best" => ScreenImageMatchMode.Best,
-                    _ => (ScreenImageMatchMode)(-1)
+                    _ => (ScreenImageMatchMode)(-1),
                 };
                 if (!Enum.IsDefined(matchMode)) return CliParseHelpers.Error("--matchmode must be first or best", jsonOutput);
                 continue;
@@ -236,7 +236,7 @@ internal static class ScreenCommandParser
 
             if (string.Equals(args[i], "--button", StringComparison.OrdinalIgnoreCase))
             {
-                if (action != ScreenCliAction.ImageClick) return CliParseHelpers.Error($"Unknown option for screen {subcommand}: {args[i]}", jsonOutput);
+                if (action is not ScreenCliAction.ImageClick) return CliParseHelpers.Error($"Unknown option for screen {subcommand}: {args[i]}", jsonOutput);
                 if (++i >= args.Length) return CliParseHelpers.Error("Missing value for option.", jsonOutput);
                 if (!TryParseMouseButton(args[i], out button)) return CliParseHelpers.Error("--button must be left, right, or middle", jsonOutput);
                 continue;
@@ -273,10 +273,10 @@ internal static class ScreenCommandParser
             "left" => MouseButton.Left,
             "right" => MouseButton.Right,
             "middle" => MouseButton.Middle,
-            _ => MouseButton.None
+            _ => MouseButton.None,
         };
 
-        return button != MouseButton.None;
+        return button is not MouseButton.None;
     }
 
     private static bool TryReadRegion(

@@ -13,7 +13,7 @@ public class MacOSAbsoluteCoordinateStrategyTests
 
         var result = strategy.ProcessPosition(new InputCaptureEventArgs
         {
-            Type = InputEventType.Sync
+            Type = InputEventType.Sync,
         });
 
         Assert.Equal((0, 0), result);
@@ -28,20 +28,20 @@ public class MacOSAbsoluteCoordinateStrategyTests
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
-            Value = 42
+            Value = 42,
         });
         strategy.ProcessPosition(new InputCaptureEventArgs
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
-            Value = 99
+            Value = 99,
         });
 
         var result = strategy.ProcessPosition(new InputCaptureEventArgs
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_A,
-            Value = 1
+            Value = 1,
         });
 
         Assert.Equal((42, 99), result);
@@ -56,14 +56,14 @@ public class MacOSAbsoluteCoordinateStrategyTests
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
-            Value = 15
+            Value = 15,
         });
 
         var result = strategy.ProcessPosition(new InputCaptureEventArgs
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
-            Value = 320
+            Value = 320,
         });
 
         Assert.Equal((320, 15), result);
@@ -78,14 +78,14 @@ public class MacOSAbsoluteCoordinateStrategyTests
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
-            Value = 640
+            Value = 640,
         });
 
         var result = strategy.ProcessPosition(new InputCaptureEventArgs
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
-            Value = 480
+            Value = 480,
         });
 
         Assert.Equal((640, 480), result);

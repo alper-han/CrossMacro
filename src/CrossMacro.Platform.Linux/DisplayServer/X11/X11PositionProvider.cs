@@ -22,8 +22,8 @@ namespace CrossMacro.Platform.Linux.DisplayServer.X11
         public X11PositionProvider()
         {
             // Attempt to open X display
-            _display = X11Native.XOpenDisplay(null);
-            
+            _display = X11Native.XOpenDisplay(display: null);
+
             if (_display == IntPtr.Zero)
             {
                 IsSupported = false;
@@ -46,7 +46,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.X11
             try
             {
                 var root = X11Native.XDefaultRootWindow(_display);
-                
+
                 bool success = X11Native.XQueryPointer(
                     _display,
                     root,

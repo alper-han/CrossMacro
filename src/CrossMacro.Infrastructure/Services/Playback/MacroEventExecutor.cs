@@ -108,11 +108,11 @@ public class MacroEventExecutor : IEventExecutor
 
             if (!isScroll && !shouldResolveFromCurrentPosition)
             {
-                if (coordinateMode == MouseCoordinateMode.Absolute)
+                if (coordinateMode is MouseCoordinateMode.Absolute)
                 {
                     MoveRecordedAbsolute(ev.X, ev.Y);
                 }
-                else if (coordinateMode == MouseCoordinateMode.Relative && (ev.X != 0 || ev.Y != 0))
+                else if (coordinateMode is MouseCoordinateMode.Relative && (ev.X is not 0 || ev.Y is not 0))
                 {
                     // Relative mode: use delta directly
                     MoveRelative(ev.X, ev.Y);
@@ -120,7 +120,7 @@ public class MacroEventExecutor : IEventExecutor
             }
         }
 
-        if (ev.Type != EventType.MouseMove)
+        if (ev.Type is not EventType.MouseMove)
         {
             Log.Debug("[MacroEventExecutor] Executing {Type}", ev.Type);
         }
@@ -130,13 +130,13 @@ public class MacroEventExecutor : IEventExecutor
             case EventType.ButtonPress:
                 LogButtonEvent("ButtonPress", ev);
                 var pressButton = (ushort)_buttonMapper.Map(ev.Button);
-                EmitButton(pressButton, true);
+                EmitButton(pressButton, pressed: true);
                 break;
 
             case EventType.ButtonRelease:
                 LogButtonEvent("ButtonRelease", ev);
                 var releaseButton = (ushort)_buttonMapper.Map(ev.Button);
-                EmitButton(releaseButton, false);
+                EmitButton(releaseButton, pressed: false);
                 break;
 
             case EventType.MouseMove:
@@ -149,19 +149,19 @@ public class MacroEventExecutor : IEventExecutor
 
             case EventType.KeyPress:
                 LogKeyEvent("KeyPress", ev.KeyCode);
-                EmitKey(ev.KeyCode, true);
+                EmitKey(ev.KeyCode, pressed: true);
                 break;
 
             case EventType.KeyRelease:
                 LogKeyEvent("KeyRelease", ev.KeyCode);
-                EmitKey(ev.KeyCode, false);
+                EmitKey(ev.KeyCode, pressed: false);
                 break;
         }
     }
 
     private void ExecuteMouseMove(MacroEvent ev, MouseCoordinateMode? coordinateMode)
     {
-        if (coordinateMode == MouseCoordinateMode.Absolute)
+        if (coordinateMode is MouseCoordinateMode.Absolute)
         {
             if (!_supportsAbsoluteCoordinates)
             {
@@ -178,7 +178,7 @@ public class MacroEventExecutor : IEventExecutor
                 // Then apply relative delta for smooth curve
                 int dx = ev.X - _coordinator.CurrentX;
                 int dy = ev.Y - _coordinator.CurrentY;
-                if (dx != 0 || dy != 0)
+                if (dx is not 0 || dy is not 0)
                 {
                     _simulator.MoveRelative(dx, dy);
                 }
@@ -190,7 +190,7 @@ public class MacroEventExecutor : IEventExecutor
             }
             _coordinator.UpdatePosition(ev.X, ev.Y);
         }
-        else if (coordinateMode == MouseCoordinateMode.Relative)
+        else if (coordinateMode is MouseCoordinateMode.Relative)
         {
             MoveRelative(ev.X, ev.Y);
         }
@@ -223,19 +223,19 @@ public class MacroEventExecutor : IEventExecutor
 
             case MouseButton.ScrollLeft:
                 LogScroll("LEFT");
-                _simulator.Scroll(-1, true);
+                _simulator.Scroll(-1, isHorizontal: true);
                 break;
 
             case MouseButton.ScrollRight:
                 LogScroll("RIGHT");
-                _simulator.Scroll(1, true);
+                _simulator.Scroll(1, isHorizontal: true);
                 break;
 
             default:
                 LogClickEvent(ev);
                 var clickButton = (ushort)_buttonMapper.Map(ev.Button);
-                _simulator.MouseButton(clickButton, true);
-                _simulator.MouseButton(clickButton, false);
+                _simulator.MouseButton(clickButton, pressed: true);
+                _simulator.MouseButton(clickButton, pressed: false);
                 break;
         }
     }

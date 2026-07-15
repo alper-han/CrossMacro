@@ -86,13 +86,13 @@ public readonly record struct X11ScreenCaptureSupportResult
 
     public string? ErrorMessage { get; }
 
-    public static X11ScreenCaptureSupportResult Supported() => new(true, null, null);
+    public static X11ScreenCaptureSupportResult Supported() => new(isSupported: true, errorKind: null, errorMessage: null);
 
     public static X11ScreenCaptureSupportResult Unsupported(string errorMessage) =>
-        new(false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
+        new(isSupported: false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
 
     public static X11ScreenCaptureSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) =>
-        new(false, errorKind, errorMessage);
+        new(isSupported: false, errorKind, errorMessage);
 }
 
 public readonly record struct X11ScreenCaptureResult
@@ -118,8 +118,8 @@ public readonly record struct X11ScreenCaptureResult
     public string? ErrorMessage { get; }
 
     public static X11ScreenCaptureResult Success(X11ScreenCaptureFrame frame) =>
-        new(frame ?? throw new ArgumentNullException(nameof(frame)), null, null);
+        new(frame ?? throw new ArgumentNullException(nameof(frame)), errorKind: null, errorMessage: null);
 
     public static X11ScreenCaptureResult Failure(ScreenReadErrorKind errorKind, string errorMessage) =>
-        new(null, errorKind, errorMessage);
+        new(frame: null, errorKind, errorMessage);
 }

@@ -30,7 +30,7 @@ internal sealed class PortalPipeWireBufferAllocation : IDisposable
             throw new InvalidOperationException($"memfd_create failed errno={Marshal.GetLastPInvokeError()}.");
         }
 
-        if (PortalPipeWireLibc.ftruncate(fd, size) != 0)
+        if (PortalPipeWireLibc.ftruncate(fd, size) is not 0)
         {
             PortalPipeWireLibc.close(fd);
             throw new InvalidOperationException($"ftruncate failed errno={Marshal.GetLastPInvokeError()}.");

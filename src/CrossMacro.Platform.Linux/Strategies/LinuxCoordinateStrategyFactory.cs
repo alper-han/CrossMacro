@@ -36,7 +36,7 @@ public class LinuxCoordinateStrategyFactory : ICoordinateStrategyFactory
             .FirstOrDefault()
             ?.Create(context);
 
-        if (strategy == null)
+        if (strategy is null)
         {
             // Fallback default if no selector matches (shouldn't happen with current selectors, but good for safety)
             // Default to Relative as it's the safest bet for macros

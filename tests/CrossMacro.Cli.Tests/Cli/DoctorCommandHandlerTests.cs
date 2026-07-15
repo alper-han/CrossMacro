@@ -25,7 +25,7 @@ public class DoctorCommandHandlerTests
                 Checks =
                 [
                     new DoctorCheck { Name = "display-session", Status = DoctorCheckStatus.Fail, Message = "unsupported" }
-                ]
+                ],
             });
 
         var result = await _handler.ExecuteAsync(new DoctorCliOptions(), CancellationToken.None);
@@ -43,7 +43,7 @@ public class DoctorCommandHandlerTests
                 Checks =
                 [
                     new DoctorCheck { Name = "linux-uinput", Status = DoctorCheckStatus.Warn, Message = "warn" }
-                ]
+                ],
             });
 
         var result = await _handler.ExecuteAsync(new DoctorCliOptions(Verbose: true), CancellationToken.None);

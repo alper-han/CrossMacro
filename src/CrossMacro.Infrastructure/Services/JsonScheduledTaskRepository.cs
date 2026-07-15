@@ -28,12 +28,12 @@ public class JsonScheduledTaskRepository : IScheduledTaskRepository
     {
         try
         {
-            if (!File.Exists(_scheduleFilePath)) 
+            if (!File.Exists(_scheduleFilePath))
                 return new List<ScheduledTask>();
-            
+
             var tasks = await FileBackedJsonStorage.ReadAsync(_scheduleFilePath, CrossMacroJsonContext.Default.ListScheduledTask)
                 .ConfigureAwait(false);
-            
+
             return tasks ?? new List<ScheduledTask>();
         }
         catch (Exception ex)
@@ -62,7 +62,7 @@ public class JsonScheduledTaskRepository : IScheduledTaskRepository
         catch (Exception ex)
         {
             Log.Warning(ex, "Failed to save scheduled tasks to {Path}", _scheduleFilePath);
-            throw; 
+            throw;
         }
     }
 }

@@ -7,7 +7,7 @@ namespace CrossMacro.Infrastructure.Services;
 
 public enum ScriptValidationCategory
 {
-    Compilation
+    Compilation,
 }
 
 public sealed record ScriptValidationDiagnostic(
@@ -37,7 +37,7 @@ public sealed class ScriptValidationService : IScriptValidationService
     public IReadOnlyList<ScriptValidationDiagnostic> Validate(IReadOnlyList<RunScriptStep> steps)
     {
         ArgumentNullException.ThrowIfNull(steps);
-        if (steps.Count == 0)
+        if (steps.Count is 0)
         {
             return Array.Empty<ScriptValidationDiagnostic>();
         }
@@ -51,7 +51,7 @@ public sealed class ScriptValidationService : IScriptValidationService
                     ScriptValidationCategory.Compilation,
                     result.ErrorMessage,
                     steps.FirstOrDefault()?.SourceLineNumber,
-                    steps.FirstOrDefault()?.SourceIndex ?? 0)
+                    steps.FirstOrDefault()?.SourceIndex ?? 0),
             };
     }
 }

@@ -22,7 +22,7 @@ public readonly record struct EditorActionScreenshotPayload(
             action.ScreenshotRegionY,
             action.ScreenshotRegionWidth,
             action.ScreenshotRegionHeight);
-        return action.Type == EditorActionType.Screenshot;
+        return action.Type is EditorActionType.Screenshot;
     }
 }
 
@@ -50,7 +50,7 @@ public readonly record struct EditorActionShellPayload(
             action.ShellRetries,
             action.ShellBackoffMs,
             action.ShellTimeoutMs);
-        return action.Type == EditorActionType.ShellCommand;
+        return action.Type is EditorActionType.ShellCommand;
     }
 }
 
@@ -82,6 +82,6 @@ public readonly record struct EditorActionWindowPayload(
             action.WindowWidth,
             action.WindowHeight,
             action.WindowWorkspace);
-        return action.Type == EditorActionType.WindowCommand;
+        return action.Type is EditorActionType.WindowCommand;
     }
 }

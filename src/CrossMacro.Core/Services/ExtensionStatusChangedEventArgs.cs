@@ -7,7 +7,7 @@ public enum ExtensionStatusCode
     Info = 0,
     Enabled = 1,
     Warning = 2,
-    Error = 3
+    Error = 3,
 }
 
 public sealed class ExtensionStatusChangedEventArgs : EventArgs

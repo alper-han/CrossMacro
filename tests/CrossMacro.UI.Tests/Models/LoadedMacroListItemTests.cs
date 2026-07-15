@@ -20,7 +20,7 @@ public sealed class LoadedMacroListItemTests
         var item = new LoadedMacroListItem(new MacroSequence
         {
             Name = "Screen Reading Macro",
-            ScriptSteps = [scriptStep]
+            ScriptSteps = [scriptStep],
         });
 
         item.EventCount.Should().Be(1);
@@ -39,7 +39,7 @@ public sealed class LoadedMacroListItemTests
                 "waitcolor 11 22 00FFAA 2500",
                 "pixelsearch 0 0 3 3 123456 x y",
                 "click left"
-            ]
+            ],
         });
 
         item.EventCount.Should().Be(4);
@@ -54,7 +54,7 @@ public sealed class LoadedMacroListItemTests
         var item = new LoadedMacroListItem(new MacroSequence
         {
             Name = "Script Macro",
-            ScriptSteps = [scriptStep]
+            ScriptSteps = [scriptStep],
         });
 
         item.EventCount.Should().Be(0);

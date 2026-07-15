@@ -39,7 +39,7 @@ public interface IMacroPlayer : IDisposable
     /// Plays a macro sequence
     /// </summary>
     Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Stops the currently playing macro
     /// </summary>

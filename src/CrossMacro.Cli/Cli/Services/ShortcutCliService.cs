@@ -75,10 +75,10 @@ public sealed class ShortcutCliService : IShortcutCliService
             ShortcutCliAction.Add => AddAsync(options, cancellationToken),
             ShortcutCliAction.Edit => EditAsync(options, cancellationToken),
             ShortcutCliAction.Remove => RemoveAsync(options.TaskId ?? string.Empty, cancellationToken),
-            ShortcutCliAction.Enable => SetEnabledAsync(options.TaskId ?? string.Empty, true, cancellationToken),
-            ShortcutCliAction.Disable => SetEnabledAsync(options.TaskId ?? string.Empty, false, cancellationToken),
+            ShortcutCliAction.Enable => SetEnabledAsync(options.TaskId ?? string.Empty, enabled: true, cancellationToken),
+            ShortcutCliAction.Disable => SetEnabledAsync(options.TaskId ?? string.Empty, enabled: false, cancellationToken),
             ShortcutCliAction.Bind => BindAsync(options, cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown shortcut action."))
+            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown shortcut action.")),
         };
     }
 
@@ -89,7 +89,7 @@ public sealed class ShortcutCliService : IShortcutCliService
         {
             Name = options.Name ?? string.Empty,
             MacroFilePath = options.MacroFilePath ?? string.Empty,
-            HotkeyString = options.Hotkey ?? string.Empty
+            HotkeyString = options.Hotkey ?? string.Empty,
         };
         ApplyOptions(task, options);
 

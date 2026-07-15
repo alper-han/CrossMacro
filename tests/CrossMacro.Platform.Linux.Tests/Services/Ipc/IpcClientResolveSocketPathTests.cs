@@ -12,7 +12,7 @@ public class IpcClientResolveSocketPathTests
     [LinuxFact]
     public void ResolveSocketPath_WhenSocketExists_ReturnsDefaultSocketPath()
     {
-        var socketPath = IpcClient.ResolveSocketPath(path => path == IpcProtocol.DefaultSocketPath, _ => { });
+        var socketPath = IpcClient.ResolveSocketPath(path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal), _ => { });
 
         Assert.Equal(IpcProtocol.DefaultSocketPath, socketPath);
     }

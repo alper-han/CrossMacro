@@ -16,7 +16,7 @@ internal sealed class StaMessageThread : IDisposable
     private readonly ConcurrentQueue<Action<Exception?>> _workQueue = new();
     private IntPtr _hwnd;
     private uint _threadId;
-    private readonly AutoResetEvent _readyEvent = new(false);
+    private readonly AutoResetEvent _readyEvent = new(initialState: false);
     private Exception? _startupException;
     private int _isClosing;
 
@@ -27,7 +27,7 @@ internal sealed class StaMessageThread : IDisposable
         _thread = new Thread(Run)
         {
             Name = name,
-            IsBackground = true
+            IsBackground = true,
         };
         _thread.SetApartmentState(ApartmentState.STA);
         _thread.Start();
@@ -53,10 +53,10 @@ internal sealed class StaMessageThread : IDisposable
                 cbSize = (uint)Marshal.SizeOf<WNDCLASSEX>(),
                 lpfnWndProc = Marshal.GetFunctionPointerForDelegate<WndProcDelegate>(DefWindowProc),
                 lpszClassName = className,
-                hInstance = Kernel32.GetModuleHandle(null)
+                hInstance = Kernel32.GetModuleHandle(lpModuleName: null),
             };
 
-            if (RegisterClassEx(ref wndClass) == 0)
+            if (RegisterClassEx(ref wndClass) is 0)
             {
                 ReportStartupFailure();
                 return;
@@ -89,7 +89,7 @@ internal sealed class StaMessageThread : IDisposable
             try
             {
                 int bRet;
-                while ((bRet = GetMessage(out var msg, IntPtr.Zero, 0, 0)) != 0)
+                while ((bRet = GetMessage(out var msg, IntPtr.Zero, 0, 0)) is not 0)
                 {
                     if (bRet == -1)
                     {
@@ -128,13 +128,13 @@ internal sealed class StaMessageThread : IDisposable
 
     public Task<T> InvokeAsync<T>(Func<T> action)
     {
-        if (Volatile.Read(ref _isClosing) != 0)
+        if (Volatile.Read(ref _isClosing) is not 0)
         {
             return Task.FromException<T>(new ObjectDisposedException(nameof(StaMessageThread)));
         }
 
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-        
+
         _workQueue.Enqueue(failure =>
         {
             if (tcs.Task.IsCompleted)
@@ -158,8 +158,7 @@ internal sealed class StaMessageThread : IDisposable
             }
         });
 
-        if (Volatile.Read(ref _isClosing) != 0 ||
-            !User32.PostThreadMessage(_threadId, User32.WM_APP, IntPtr.Zero, IntPtr.Zero))
+        if (Volatile.Read(ref _isClosing) is not 0 || !User32.PostThreadMessage(_threadId, User32.WM_APP, IntPtr.Zero, IntPtr.Zero))
         {
             tcs.TrySetException(new Win32Exception(Marshal.GetLastWin32Error(), "Failed to queue work on the Windows STA message thread."));
         }
@@ -178,7 +177,7 @@ internal sealed class StaMessageThread : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _isClosing, 1) != 0)
+        if (Interlocked.Exchange(ref _isClosing, 1) is not 0)
         {
             return;
         }

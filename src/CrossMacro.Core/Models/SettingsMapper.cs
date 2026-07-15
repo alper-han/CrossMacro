@@ -18,7 +18,7 @@ public static class SettingsMapper
             LogLevel = source.LogLevel,
             Theme = source.Theme,
             Language = source.Language,
-            PortalScreenCastRestoreToken = source.PortalScreenCastRestoreToken
+            PortalScreenCastRestoreToken = source.PortalScreenCastRestoreToken,
         };
     }
 
@@ -42,7 +42,7 @@ public static class SettingsMapper
             ForceRelativeCoordinates = source.ForceRelativeCoordinates,
             SkipInitialZeroZero = source.SkipInitialZeroZero,
             EnableTextExpansion = source.EnableTextExpansion,
-            CheckForUpdates = source.CheckForUpdates
+            CheckForUpdates = source.CheckForUpdates,
         };
     }
 
@@ -74,7 +74,7 @@ public static class SettingsMapper
             ForceRelativeCoordinates = profile.ForceRelativeCoordinates,
             SkipInitialZeroZero = profile.SkipInitialZeroZero,
             EnableTextExpansion = profile.EnableTextExpansion,
-            CheckForUpdates = profile.CheckForUpdates
+            CheckForUpdates = profile.CheckForUpdates,
         };
     }
 

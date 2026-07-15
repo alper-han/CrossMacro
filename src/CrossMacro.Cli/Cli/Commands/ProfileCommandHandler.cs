@@ -23,7 +23,7 @@ public sealed class ProfileCommandHandler : CliCommandHandlerBase<ProfileCliOpti
             ProfileCliAction.Switch => _profileCliService.SwitchAsync(options.ProfileIdentifier ?? string.Empty, cancellationToken),
             ProfileCliAction.Rename => _profileCliService.RenameAsync(options.ProfileIdentifier ?? string.Empty, options.NewName ?? string.Empty, cancellationToken),
             ProfileCliAction.Delete => _profileCliService.DeleteAsync(options.ProfileIdentifier ?? string.Empty, options.Force, cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown profile action."))
+            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown profile action.")),
         };
     }
 }

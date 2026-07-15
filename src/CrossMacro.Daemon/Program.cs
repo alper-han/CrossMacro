@@ -29,9 +29,9 @@ class Program
             ctx.Cancel = true;
 
             var levelSwitch = LoggerSetup.LevelSwitch;
-            if (levelSwitch == null) return;
+            if (levelSwitch is null) return;
 
-            if (levelSwitch.MinimumLevel == LogEventLevel.Debug)
+            if (levelSwitch.MinimumLevel is LogEventLevel.Debug)
             {
                 LoggerSetup.SetLogLevel("Information");
                 Log.Information("[LogLevel] Switched to Information (send SIGUSR1 again for Debug)");
@@ -94,9 +94,9 @@ class Program
         IDisposable? security)
     {
         var errors = new List<Exception>();
-        if (inputCapture != null) TryDispose(inputCapture, errors);
-        if (virtualDevice != null) TryDispose(virtualDevice, errors);
-        if (security != null) TryDispose(security, errors);
+        if (inputCapture is not null) TryDispose(inputCapture, errors);
+        if (virtualDevice is not null) TryDispose(virtualDevice, errors);
+        if (security is not null) TryDispose(security, errors);
 
         if (errors.Count > 0)
         {

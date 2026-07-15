@@ -8,7 +8,7 @@ internal sealed class XkbLayoutNameResolver
     private static readonly string[] DefaultRulesPaths =
     [
         "/usr/share/X11/xkb/rules/evdev.xml",
-        "/usr/share/X11/xkb/rules/base.xml"
+        "/usr/share/X11/xkb/rules/base.xml",
     ];
 
     private static readonly Dictionary<string, string> KnownLayoutNames = new(StringComparer.OrdinalIgnoreCase)
@@ -24,7 +24,7 @@ internal sealed class XkbLayoutNameResolver
         ["Portuguese"] = "pt",
         ["Arabic"] = "ara",
         ["Chinese"] = "cn",
-        ["Japanese"] = "jp"
+        ["Japanese"] = "jp",
     };
 
     private readonly IReadOnlyList<string> _rulesPaths;
@@ -96,7 +96,7 @@ internal sealed class XkbLayoutNameResolver
     private static string? NormalizeLayoutCode(string layoutName)
     {
         var trimmed = layoutName.Trim();
-        return trimmed.Length == 2 && trimmed.All(char.IsAsciiLetter)
+        return trimmed.Length is 2 && trimmed.All(char.IsAsciiLetter)
             ? trimmed.ToLowerInvariant()
             : null;
     }

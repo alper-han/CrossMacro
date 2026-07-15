@@ -48,7 +48,7 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
 
     private static LinuxDaemonSocketMetadata GetSocketMetadata(string path)
     {
-        if (lstat(path, out var stat) != 0)
+        if (lstat(path, out var stat) is not 0)
         {
             var errno = Marshal.GetLastPInvokeError();
             if (errno == ErrNo.ENOENT || errno == ErrNo.ENOTDIR)
@@ -100,7 +100,7 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
 
     private static LinuxDaemonCurrentUserGroups GetCurrentUserGroups()
     {
-        var groupCount = getgroups(0, null);
+        var groupCount = getgroups(0, groups: null);
         if (groupCount < 0)
         {
             ThrowForErrno(Marshal.GetLastPInvokeError(), "getgroups");
@@ -137,15 +137,15 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
         {
             return LinuxDaemonSocketAccessStatus.PermissionDenied;
         }
-        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AccessDenied)
+        catch (SocketException ex) when (ex.SocketErrorCode is SocketError.AccessDenied)
         {
             return LinuxDaemonSocketAccessStatus.PermissionDenied;
         }
-        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionRefused)
+        catch (SocketException ex) when (ex.SocketErrorCode is SocketError.ConnectionRefused)
         {
             return LinuxDaemonSocketAccessStatus.ConnectionRefusedOrStale;
         }
-        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.TimedOut)
+        catch (SocketException ex) when (ex.SocketErrorCode is SocketError.TimedOut)
         {
             return LinuxDaemonSocketAccessStatus.Timeout;
         }
@@ -162,7 +162,7 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
             SocketFileType => LinuxFileSystemEntryKind.Socket,
             DirectoryFileType => LinuxFileSystemEntryKind.Directory,
             RegularFileType => LinuxFileSystemEntryKind.File,
-            _ => LinuxFileSystemEntryKind.Other
+            _ => LinuxFileSystemEntryKind.Other,
         };
     }
 

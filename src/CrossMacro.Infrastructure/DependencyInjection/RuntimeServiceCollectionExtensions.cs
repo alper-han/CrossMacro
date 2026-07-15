@@ -258,8 +258,8 @@ public static class RuntimeServiceCollectionExtensions
     {
         services.AddSingleton<IProfileManager>(sp =>
         {
-            var hasKeyboardLayout = sp.GetService<IKeyboardLayoutService>() != null;
-            var hasInputCaptureFactory = sp.GetService<Func<IInputCapture>>() != null;
+            var hasKeyboardLayout = sp.GetService<IKeyboardLayoutService>() is not null;
+            var hasInputCaptureFactory = sp.GetService<Func<IInputCapture>>() is not null;
 
             return new ProfileManager(
                 configRootPath: null,

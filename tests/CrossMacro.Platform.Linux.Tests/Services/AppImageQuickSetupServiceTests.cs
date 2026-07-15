@@ -19,7 +19,7 @@ public sealed class AppImageQuickSetupServiceTests
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -40,7 +40,7 @@ public sealed class AppImageQuickSetupServiceTests
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -61,7 +61,7 @@ public sealed class AppImageQuickSetupServiceTests
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -82,7 +82,7 @@ public sealed class AppImageQuickSetupServiceTests
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -104,7 +104,7 @@ public sealed class AppImageQuickSetupServiceTests
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var commandWasRun = false;
@@ -135,7 +135,7 @@ public sealed class AppImageQuickSetupServiceTests
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var detector = new FakeCapabilityDetector(InputProviderMode.None, canReadInputEvents: false);
@@ -158,13 +158,13 @@ public sealed class AppImageQuickSetupServiceTests
         var result = await service.RunAsync();
 
         Assert.True(result.Success);
-        Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=3.", result.Message);
+        Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=3.", result.Message, StringComparison.Ordinal);
         Assert.Equal(1, detector.InvalidateCallCount);
         Assert.NotNull(capturedStartInfo);
         Assert.Equal("pkexec", capturedStartInfo!.FileName);
         Assert.Equal("1042", capturedStartInfo.ArgumentList[^1]);
-        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2]);
-        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2]);
+        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
+        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public sealed class AppImageQuickSetupServiceTests
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -234,7 +234,7 @@ public sealed class AppImageQuickSetupServiceTests
                 DaemonSocketExists: false,
                 DaemonHandshakeSucceeded: false,
                 DaemonHandshakeTimedOut: false,
-                CanUseDirectUInput: _mode == InputProviderMode.Legacy,
+                CanUseDirectUInput: _mode is InputProviderMode.Legacy,
                 CanReadInputEvents: _canReadInputEvents);
 
         public InputProviderMode DetermineMode() => _mode;

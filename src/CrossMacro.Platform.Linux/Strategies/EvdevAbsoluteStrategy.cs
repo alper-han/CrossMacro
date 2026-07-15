@@ -18,7 +18,7 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
     private int _currentY;
     private int _screenWidth = 1920;
     private int _screenHeight = 1080;
-    
+
     private Task? _syncTask;
     private CancellationTokenSource? _cts;
 
@@ -99,7 +99,7 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
                 {
                     Log.Warning(ex, "[EvdevAbsoluteStrategy] Sync loop error #{Count}", errorCount);
                 }
-                
+
                 if (errorCount >= maxErrors)
                 {
                     Log.Error("[EvdevAbsoluteStrategy] Too many sync errors, stopping background sync");
@@ -110,13 +110,13 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
                 await Task.Delay(100, ct);
             }
         }
-        
+
         Log.Debug("[EvdevAbsoluteStrategy] Background sync loop ended");
     }
 
     public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
     {
-        if (e.Type == InputEventType.Sync)
+        if (e.Type is InputEventType.Sync)
             return (0, 0);
 
         // Return cached position from background sync (zero latency)
@@ -127,14 +127,14 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
     public void Dispose()
     {
         _cts?.Cancel();
-        
+
         // Give sync loop a moment to exit gracefully
         try
         {
             _syncTask?.Wait(100);
         }
         catch { /* Ignore */ }
-        
+
         _cts?.Dispose();
         Log.Debug("[EvdevAbsoluteStrategy] Disposed");
     }

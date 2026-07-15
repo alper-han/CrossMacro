@@ -36,32 +36,32 @@ internal sealed class WaylandRegistryState
         var size = Marshal.SizeOf<WlArgument>();
         var name = Marshal.PtrToStructure<WlArgument>(args).u;
         var ifacePointer = Marshal.PtrToStructure<WlArgument>(args + size).s;
-        var version = Marshal.PtrToStructure<WlArgument>(args + size * 2).u;
+        var version = Marshal.PtrToStructure<WlArgument>(args + (size * 2)).u;
         var iface = Marshal.PtrToStringUTF8(ifacePointer) ?? string.Empty;
 
-        if (iface == "wl_output")
+        if (iface is "wl_output")
         {
             var output = new WaylandOutputInfo(name, _library.Bind(target, name, iface, Math.Min(version, 4), _protocol.WlOutput));
             _library.AddDispatcher(output.Proxy, output.DispatcherPtr);
             Outputs.Add(output);
         }
-        else if (iface == "wl_shm")
+        else if (iface is "wl_shm")
         {
             Shm = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.WlShm);
         }
-        else if (iface == "zwlr_screencopy_manager_v1")
+        else if (iface is "zwlr_screencopy_manager_v1")
         {
             WlrScreencopyManager = _library.Bind(target, name, iface, Math.Min(version, 3), _protocol.WlrScreencopyManager);
         }
-        else if (iface == "zxdg_output_manager_v1")
+        else if (iface is "zxdg_output_manager_v1")
         {
             XdgOutputManager = _library.Bind(target, name, iface, Math.Min(version, 3), _protocol.XdgOutputManager);
         }
-        else if (iface == "ext_output_image_capture_source_manager_v1")
+        else if (iface is "ext_output_image_capture_source_manager_v1")
         {
             ExtOutputSourceManager = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.ExtOutputSourceManager);
         }
-        else if (iface == "ext_image_copy_capture_manager_v1")
+        else if (iface is "ext_image_copy_capture_manager_v1")
         {
             ExtCopyManager = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.ExtCopyManager);
         }
@@ -142,7 +142,7 @@ internal sealed class WaylandOutputInfo
         else if (opcode == 1)
         {
             ModeWidth = Marshal.PtrToStructure<WlArgument>(args + size).i;
-            ModeHeight = Marshal.PtrToStructure<WlArgument>(args + size * 2).i;
+            ModeHeight = Marshal.PtrToStructure<WlArgument>(args + (size * 2)).i;
         }
 
         return 0;

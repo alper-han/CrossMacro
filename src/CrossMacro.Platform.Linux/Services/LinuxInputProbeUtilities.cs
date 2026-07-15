@@ -35,7 +35,7 @@ internal static class LinuxInputProbeUtilities
         ArgumentNullException.ThrowIfNull(getInputEventCandidates);
 
         var eventDevices = getInputEventCandidates();
-        if (eventDevices.Length == 0)
+        if (eventDevices.Length is 0)
         {
             return false;
         }
@@ -82,12 +82,12 @@ internal static class LinuxInputProbeUtilities
                 Message: ex.Message);
         }
 
-        if (metadata.EntryKind == LinuxFileSystemEntryKind.Missing)
+        if (metadata.EntryKind is LinuxFileSystemEntryKind.Missing)
         {
             return LinuxDaemonSocketAccessResult.Missing(options.SocketPath);
         }
 
-        if (metadata.EntryKind != LinuxFileSystemEntryKind.Socket)
+        if (metadata.EntryKind is not LinuxFileSystemEntryKind.Socket)
         {
             return new LinuxDaemonSocketAccessResult(
                 options.SocketPath,
@@ -249,7 +249,7 @@ internal static class LinuxInputProbeUtilities
                 IpcClientFailureReason.HandshakeFailed => LinuxDaemonHandshakeStatus.HandshakeRejected,
                 IpcClientFailureReason.ProtocolMismatch => LinuxDaemonHandshakeStatus.ProtocolMismatch,
                 IpcClientFailureReason.Timeout => LinuxDaemonHandshakeStatus.Timeout,
-                _ => LinuxDaemonHandshakeStatus.UnexpectedError
+                _ => LinuxDaemonHandshakeStatus.UnexpectedError,
             };
         }
 

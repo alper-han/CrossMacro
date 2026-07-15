@@ -10,7 +10,7 @@ public sealed class CosmicPositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.COSMIC;
+        return compositor is CompositorType.COSMIC;
     }
 
     public IMousePositionProvider Create()

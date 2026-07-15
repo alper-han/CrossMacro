@@ -18,7 +18,7 @@ public class DaemonService
 
     private Socket? _socket;
     private int _shutdownRequested;
-    
+
     private readonly ISecurityService _security;
     private readonly ILinuxPermissionService _permissionService;
     private readonly ISessionHandlerFactory _sessionHandlerFactory;
@@ -168,7 +168,7 @@ public class DaemonService
     private readonly record struct ClientSessionAudit(bool IsValidated, uint Uid, int Pid, DateTime SessionStart)
     {
         public static ClientSessionAudit CreatePending() =>
-            new(false, 0, 0, DateTime.UtcNow);
+            new(IsValidated: false, 0, 0, DateTime.UtcNow);
 
         public ClientSessionAudit MarkValidated(uint uid, int pid) =>
             this with
@@ -176,7 +176,7 @@ public class DaemonService
                 IsValidated = true,
                 Uid = uid,
                 Pid = pid,
-                SessionStart = DateTime.UtcNow
+                SessionStart = DateTime.UtcNow,
             };
 
         public TimeSpan GetDuration() => DateTime.UtcNow - SessionStart;
@@ -217,7 +217,7 @@ public class DaemonService
 
     private void RequestShutdown()
     {
-        if (Interlocked.Exchange(ref _shutdownRequested, 1) != 0)
+        if (Interlocked.Exchange(ref _shutdownRequested, 1) is not 0)
         {
             return;
         }
@@ -229,7 +229,7 @@ public class DaemonService
 
     private void CloseListeningSocket()
     {
-        var socket = Interlocked.Exchange(ref _socket, null);
+        var socket = Interlocked.Exchange(ref _socket, value: null);
         DisposeSocket(socket);
     }
 

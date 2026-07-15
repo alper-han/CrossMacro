@@ -26,7 +26,7 @@ public static class PeerCredentials
     /// <returns>Tuple of (uid, gid, pid) or null if failed</returns>
     public static (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket)
     {
-        if (socket == null)
+        if (socket is null)
             return null;
 
         try
@@ -35,12 +35,12 @@ public static class PeerCredentials
             var len = credBuffer.Length;
 
             var handle = (int)socket.Handle;
-            if (getsockopt(handle, SOL_SOCKET, SO_PEERCRED, credBuffer, ref len) == 0)
+            if (getsockopt(handle, SOL_SOCKET, SO_PEERCRED, credBuffer, ref len) is 0)
             {
                 var pid = BitConverter.ToInt32(credBuffer, 0);
                 var uid = BitConverter.ToUInt32(credBuffer, 4);
                 var gid = BitConverter.ToUInt32(credBuffer, 8);
-                
+
                 Log.Debug("[PeerCredentials] Retrieved: UID={Uid}, GID={Gid}, PID={Pid}", uid, gid, pid);
                 return (uid, gid, pid);
             }
@@ -72,16 +72,16 @@ public static class PeerCredentials
                 foreach (var line in System.IO.File.ReadLines(LinuxSystemPaths.GroupFile))
                 {
                     var parts = line.Split(':');
-                    if (parts.Length >= 4 && parts[0] == groupName)
+                    if (parts.Length >= 4 && string.Equals(parts[0], groupName, StringComparison.Ordinal))
                     {
                         if (int.TryParse(parts[2], out int gid))
                         {
                             groupGid = gid;
-                            
+
                             // Also check if UID is in the member list (field 4)
                             var members = parts[3].Split(',', StringSplitOptions.RemoveEmptyEntries);
                             var username = GetUsernameByUid(uid);
-                            if (!string.IsNullOrEmpty(username) && Array.Exists(members, m => m == username))
+                            if (!string.IsNullOrEmpty(username) && Array.Exists(members, m => string.Equals(m, username, StringComparison.Ordinal)))
                             {
                                 return true;
                             }
@@ -91,7 +91,7 @@ public static class PeerCredentials
                 }
             }
 
-            if (groupGid == null)
+            if (groupGid is null)
             {
                 Log.Debug("[PeerCredentials] Group '{Group}' not found", groupName);
                 return false;

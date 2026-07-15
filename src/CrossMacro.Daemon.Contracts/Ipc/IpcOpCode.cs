@@ -72,5 +72,5 @@ public enum IpcOpCode : byte
     /// Configure virtual device resolution.
     /// Payload: int (Width), int (Height)
     /// </summary>
-    ConfigureResolution = 0x06
+    ConfigureResolution = 0x06,
 }

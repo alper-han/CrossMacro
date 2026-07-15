@@ -114,10 +114,10 @@ public sealed class ScreenFrame : IDisposable
         var mask = ValidPixelMask.Span;
         for (var currentY = region.Y; currentY < region.Bottom; currentY++)
         {
-            var maskOffset = checked((currentY - LogicalBounds.Y) * Width + region.X - LogicalBounds.X);
+            var maskOffset = checked(((currentY - LogicalBounds.Y) * Width) + region.X - LogicalBounds.X);
             for (var currentX = 0; currentX < region.Width; currentX++)
             {
-                if (mask[maskOffset + currentX] != 0)
+                if (mask[maskOffset + currentX] is not 0)
                 {
                     return true;
                 }
@@ -149,10 +149,10 @@ public sealed class ScreenFrame : IDisposable
         var mask = ValidPixelMask.Span;
         for (var currentY = region.Y; currentY < region.Bottom; currentY++)
         {
-            var maskOffset = checked((currentY - LogicalBounds.Y) * Width + region.X - LogicalBounds.X);
+            var maskOffset = checked(((currentY - LogicalBounds.Y) * Width) + region.X - LogicalBounds.X);
             for (var currentX = 0; currentX < region.Width; currentX++)
             {
-                if (mask[maskOffset + currentX] == 0)
+                if (mask[maskOffset + currentX] is 0)
                 {
                     return false;
                 }
@@ -213,14 +213,14 @@ public sealed class ScreenFrame : IDisposable
     {
         ScreenPixelFormat.Rgb24 or ScreenPixelFormat.Bgr24 => 3,
         ScreenPixelFormat.Xrgb8888 or ScreenPixelFormat.Bgra8888 or ScreenPixelFormat.Abgr8888 or ScreenPixelFormat.Xbgr8888 => 4,
-        _ => throw new ArgumentOutOfRangeException(nameof(pixelFormat), pixelFormat, "Unsupported screen pixel format.")
+        _ => throw new ArgumentOutOfRangeException(nameof(pixelFormat), pixelFormat, "Unsupported screen pixel format."),
     };
 
     private ScreenPixelColor ReadPixel(ScreenPoint point)
     {
         var localX = point.X - LogicalBounds.X;
         var localY = point.Y - LogicalBounds.Y;
-        var offset = checked(localY * Stride + localX * GetBytesPerPixel(PixelFormat));
+        var offset = checked((localY * Stride) + (localX * GetBytesPerPixel(PixelFormat)));
         var span = Pixels.Span;
 
         return PixelFormat switch
@@ -231,7 +231,7 @@ public sealed class ScreenFrame : IDisposable
             ScreenPixelFormat.Bgra8888 => new ScreenPixelColor(span[offset + 2], span[offset + 1], span[offset]),
             ScreenPixelFormat.Abgr8888 => new ScreenPixelColor(span[offset], span[offset + 1], span[offset + 2]),
             ScreenPixelFormat.Xbgr8888 => new ScreenPixelColor(span[offset], span[offset + 1], span[offset + 2]),
-            _ => throw new InvalidOperationException($"Unsupported screen pixel format '{PixelFormat}'.")
+            _ => throw new InvalidOperationException($"Unsupported screen pixel format '{PixelFormat}'."),
         };
     }
 
@@ -244,7 +244,7 @@ public sealed class ScreenFrame : IDisposable
 
         var localX = point.X - LogicalBounds.X;
         var localY = point.Y - LogicalBounds.Y;
-        return ValidPixelMask.Span[checked(localY * Width + localX)] != 0;
+        return ValidPixelMask.Span[checked((localY * Width) + localX)] is not 0;
     }
 }
 
@@ -289,7 +289,7 @@ public sealed class ScreenFrameValidityIndex : IDisposable
                 var previousOffset = checked((row - 1) * prefixWidth);
                 for (var column = 1; column <= width; column++)
                 {
-                    rowSum += validPixelMask[maskOffset + column - 1] == 0 ? 1 : 0;
+                    rowSum += validPixelMask[maskOffset + column - 1] is 0 ? 1 : 0;
                     prefix[prefixOffset + column] = prefix[previousOffset + column] + rowSum;
                 }
             }
@@ -316,7 +316,7 @@ public sealed class ScreenFrameValidityIndex : IDisposable
             - prefix[topOffset + right]
             - prefix[bottomOffset + left]
             + prefix[topOffset + left];
-        return invalidCount == 0;
+        return invalidCount is 0;
     }
 
     public void Dispose()

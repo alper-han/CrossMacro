@@ -101,7 +101,7 @@ public class LinuxPermissionService : ILinuxPermissionService
         try
         {
             // -1 means don't change owner.
-            if (_chown(socketPath, UnchangedOwner, targetGid) == 0)
+            if (_chown(socketPath, UnchangedOwner, targetGid) is 0)
             {
                 Log.Information("Set socket group to 'crossmacro' (GID: {Gid})", targetGid);
                 return;
@@ -118,8 +118,8 @@ public class LinuxPermissionService : ILinuxPermissionService
     private static void SetUnixSocketPermissions(string socketPath)
     {
 #pragma warning disable CA1416 // CrossMacro.Daemon is the privileged Linux daemon runtime.
-        File.SetUnixFileMode(socketPath, 
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | 
+        File.SetUnixFileMode(socketPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite |
             UnixFileMode.GroupRead | UnixFileMode.GroupWrite);
 #pragma warning restore CA1416
         Log.Information("Socket permissions set to 660 (User+Group RW)");

@@ -16,17 +16,17 @@ internal static class LinuxDaemonHandshakeTransport
     {
         public static ProbeResult Success()
         {
-            return new(true, false, null);
+            return new(Succeeded: true, TimedOut: false, Failure: null);
         }
 
         public static ProbeResult Failed(Exception? failure = null)
         {
-            return new(false, false, failure);
+            return new(Succeeded: false, TimedOut: false, failure);
         }
 
         public static ProbeResult Timeout(Exception? failure = null)
         {
-            return new(false, true, failure);
+            return new(Succeeded: false, TimedOut: true, failure);
         }
     }
 
@@ -53,14 +53,14 @@ internal static class LinuxDaemonHandshakeTransport
             WriteHandshakeRequest(stream, startedUtc, timeout);
 
             var opcode = (IpcOpCode)ReadByteWithinBudget(stream, startedUtc, timeout);
-            if (opcode == IpcOpCode.Error)
+            if (opcode is IpcOpCode.Error)
             {
                 var message = ReadStringWithinBudget(stream, startedUtc, timeout);
                 return ProbeResult.Failed(
                     new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {message}"));
             }
 
-            if (opcode != IpcOpCode.Handshake)
+            if (opcode is not IpcOpCode.Handshake)
             {
                 return ProbeResult.Failed(
                     new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}"));
@@ -114,7 +114,7 @@ internal static class LinuxDaemonHandshakeTransport
                 var socketError = socketErrorOption is int socketErrorValue
                     ? (SocketError)socketErrorValue
                     : SocketError.SocketError;
-                if (socketError != SocketError.Success)
+                if (socketError is not SocketError.Success)
                 {
                     return IsSocketTimeout(socketError)
                         ? ProbeResult.Timeout(new SocketException((int)socketError))
@@ -198,7 +198,7 @@ internal static class LinuxDaemonHandshakeTransport
             throw new IOException("Daemon handshake returned a negative string length.");
         }
 
-        if (byteCount == 0)
+        if (byteCount is 0)
         {
             return string.Empty;
         }
@@ -217,7 +217,7 @@ internal static class LinuxDaemonHandshakeTransport
         {
             var next = ReadByteWithinBudget(stream, startedUtc, timeout);
             result |= (next & 0x7F) << shift;
-            if ((next & 0x80) == 0)
+            if ((next & 0x80) is 0)
             {
                 return result;
             }
@@ -298,19 +298,19 @@ internal static class LinuxDaemonHandshakeTransport
                 IpcClientFailureReason.HandshakeFailed => LinuxDaemonHandshakeStatus.HandshakeRejected,
                 IpcClientFailureReason.ProtocolMismatch => LinuxDaemonHandshakeStatus.ProtocolMismatch,
                 IpcClientFailureReason.Timeout => LinuxDaemonHandshakeStatus.Timeout,
-                _ => LinuxDaemonHandshakeStatus.UnexpectedError
+                _ => LinuxDaemonHandshakeStatus.UnexpectedError,
             };
         }
 
         return failure switch
         {
             UnauthorizedAccessException => LinuxDaemonHandshakeStatus.PermissionDenied,
-            SocketException socketException when socketException.SocketErrorCode == SocketError.AccessDenied => LinuxDaemonHandshakeStatus.PermissionDenied,
+            SocketException socketException when socketException.SocketErrorCode is SocketError.AccessDenied => LinuxDaemonHandshakeStatus.PermissionDenied,
             FileNotFoundException => LinuxDaemonHandshakeStatus.MissingSocket,
             DirectoryNotFoundException => LinuxDaemonHandshakeStatus.MissingSocket,
             TimeoutException => LinuxDaemonHandshakeStatus.Timeout,
             IOException ioException when ioException.Message.Contains("not a socket", StringComparison.OrdinalIgnoreCase) => LinuxDaemonHandshakeStatus.WrongSocketType,
-            _ => LinuxDaemonHandshakeStatus.UnexpectedError
+            _ => LinuxDaemonHandshakeStatus.UnexpectedError,
         };
     }
 
@@ -327,14 +327,12 @@ internal static class LinuxDaemonHandshakeTransport
 
     private static bool IsSocketTimeout(SocketError socketError)
     {
-        return socketError == SocketError.TimedOut;
+        return socketError is SocketError.TimedOut;
     }
 
     private static bool IsInProgressConnect(SocketException ex)
     {
-        return ex.SocketErrorCode == SocketError.WouldBlock ||
-               ex.SocketErrorCode == SocketError.InProgress ||
-               ex.SocketErrorCode == SocketError.AlreadyInProgress;
+        return ex.SocketErrorCode is SocketError.WouldBlock or SocketError.InProgress or SocketError.AlreadyInProgress;
     }
 
     private static void TryCloseSocket(Socket socket)

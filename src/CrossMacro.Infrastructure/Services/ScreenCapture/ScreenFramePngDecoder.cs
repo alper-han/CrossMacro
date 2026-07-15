@@ -101,7 +101,7 @@ public static class ScreenFramePngDecoder
             }
             else if (type.SequenceEqual("IEND"u8))
             {
-                if (length != 0)
+                if (length is not 0)
                 {
                     throw new InvalidDataException("PNG IEND chunk is invalid.");
                 }
@@ -158,7 +158,7 @@ public static class ScreenFramePngDecoder
 
     private static PngHeader ReadHeader(ReadOnlySpan<byte> data)
     {
-        if (data.Length != 13)
+        if (data.Length is not 13)
         {
             throw new InvalidDataException("PNG IHDR length is invalid.");
         }
@@ -178,17 +178,17 @@ public static class ScreenFramePngDecoder
 
         ScreenImageAssetPolicy.ValidateDimensions(width, height);
 
-        if (bitDepth != 8)
+        if (bitDepth is not 8)
         {
             throw new NotSupportedException($"Unsupported PNG bit depth '{bitDepth}'. Only 8-bit PNG assets are supported.");
         }
 
-        if (compression != 0 || filter != 0)
+        if (compression is not 0 || filter is not 0)
         {
             throw new NotSupportedException("Unsupported PNG compression or filter method.");
         }
 
-        if (interlace != 0)
+        if (interlace is not 0)
         {
             throw new NotSupportedException("Interlaced PNG assets are not supported.");
         }
@@ -199,7 +199,7 @@ public static class ScreenFramePngDecoder
             2 => 3,
             4 => 2,
             6 => 4,
-            _ => throw new NotSupportedException($"Unsupported PNG color type '{colorType}'. Supported types are grayscale, RGB, grayscale-alpha, and RGBA.")
+            _ => throw new NotSupportedException($"Unsupported PNG color type '{colorType}'. Supported types are grayscale, RGB, grayscale-alpha, and RGBA."),
         };
 
         return new PngHeader(width, height, colorType, channelCount);
@@ -230,7 +230,7 @@ public static class ScreenFramePngDecoder
                 while (totalRead < decompressed.Length)
                 {
                     var read = zlib.Read(decompressed, totalRead, decompressed.Length - totalRead);
-                    if (read == 0)
+                    if (read is 0)
                     {
                         break;
                     }
@@ -284,7 +284,7 @@ public static class ScreenFramePngDecoder
                     2 => unchecked((byte)(raw + up)),
                     3 => unchecked((byte)(raw + ((left + up) >> 1))),
                     4 => unchecked((byte)(raw + PaethPredictor(left, up, upperLeft))),
-                    _ => throw new InvalidDataException($"Unsupported PNG filter type '{filterType}'.")
+                    _ => throw new InvalidDataException($"Unsupported PNG filter type '{filterType}'."),
                 };
             }
         }
@@ -302,8 +302,8 @@ public static class ScreenFramePngDecoder
             var targetRowOffset = checked(y * header.Width * 3);
             for (var x = 0; x < header.Width; x++)
             {
-                var sourceOffset = sourceRowOffset + x * header.ChannelCount;
-                var targetOffset = targetRowOffset + x * 3;
+                var sourceOffset = sourceRowOffset + (x * header.ChannelCount);
+                var targetOffset = targetRowOffset + (x * 3);
                 switch (header.ColorType)
                 {
                     case 0:

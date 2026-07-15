@@ -46,7 +46,7 @@ internal sealed class SingleInstanceGuard : IDisposable
         var preferredName = GetPreferredMutexName(name);
 
         var (guard, unauthorized) = TryAcquireCore(preferredName);
-        if (guard != null)
+        if (guard is not null)
         {
             return guard;
         }
@@ -62,7 +62,7 @@ internal sealed class SingleInstanceGuard : IDisposable
             var localName = LocalPrefix + preferredName[GlobalPrefix.Length..];
             (guard, _) = TryAcquireCore(localName);
 
-            if (guard != null)
+            if (guard is not null)
             {
                 return guard;
             }
@@ -147,7 +147,7 @@ internal sealed class SingleInstanceGuard : IDisposable
 
             try
             {
-                hasHandle = mutex.WaitOne(0, false);
+                hasHandle = mutex.WaitOne(0, exitContext: false);
             }
             catch (AbandonedMutexException)
             {
@@ -181,7 +181,7 @@ internal sealed class SingleInstanceGuard : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        if (Interlocked.Exchange(ref _disposed, 1) is not 0)
         {
             return;
         }

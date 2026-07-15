@@ -22,13 +22,13 @@ public readonly record struct ImageClickMovementResolution(
     string? ErrorMessage)
 {
     public static ImageClickMovementResolution Absolute(ScreenPoint target) =>
-        new(true, MouseCoordinateMode.Absolute, target.X, target.Y, null);
+        new(IsSuccess: true, MouseCoordinateMode.Absolute, target.X, target.Y, ErrorMessage: null);
 
     public static ImageClickMovementResolution Relative(int deltaX, int deltaY) =>
-        new(true, MouseCoordinateMode.Relative, deltaX, deltaY, null);
+        new(IsSuccess: true, MouseCoordinateMode.Relative, deltaX, deltaY, ErrorMessage: null);
 
     public static ImageClickMovementResolution Failure(string message) =>
-        new(false, default, 0, 0, message);
+        new(IsSuccess: false, default, 0, 0, message);
 }
 
 public sealed class ImageClickMovementUnsupportedException : InvalidOperationException

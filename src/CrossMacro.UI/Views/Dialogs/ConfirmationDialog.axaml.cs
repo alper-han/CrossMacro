@@ -25,7 +25,7 @@ public partial class ConfirmationDialog : Window
 
         SetButtonStyle(YesButton, dangerYes ? "danger" : "primary");
         SetButtonStyle(NoButton, dangerNo ? "danger" : "secondary");
-        
+
         if (string.IsNullOrEmpty(noText))
         {
             NoButton.IsVisible = false;
@@ -34,12 +34,12 @@ public partial class ConfirmationDialog : Window
 
     private void YesButton_Click(object? sender, RoutedEventArgs e)
     {
-        Close(true);
+        Close(dialogResult: true);
     }
 
     private void NoButton_Click(object? sender, RoutedEventArgs e)
     {
-        Close(false);
+        Close(dialogResult: false);
     }
 
     private static void SetButtonStyle(Button button, string styleClass)

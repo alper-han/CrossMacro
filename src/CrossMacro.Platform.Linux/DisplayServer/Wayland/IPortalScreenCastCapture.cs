@@ -60,7 +60,7 @@ public sealed class PortalScreenCastSession : IDisposable
             throw new ArgumentException("Portal sessions require a handle.", nameof(sessionHandle));
         }
 
-        if (streams.Count == 0)
+        if (streams.Count is 0)
         {
             throw new ArgumentException("Portal sessions require at least one stream.", nameof(streams));
         }
@@ -164,9 +164,9 @@ public readonly record struct PortalScreenCastSupportResult
 
     public string? ErrorMessage { get; }
 
-    public static PortalScreenCastSupportResult Supported() => new(true, null, null);
-    public static PortalScreenCastSupportResult Unsupported(string errorMessage) => new(false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
-    public static PortalScreenCastSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(false, errorKind, errorMessage);
+    public static PortalScreenCastSupportResult Supported() => new(isSupported: true, errorKind: null, errorMessage: null);
+    public static PortalScreenCastSupportResult Unsupported(string errorMessage) => new(isSupported: false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
+    public static PortalScreenCastSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(isSupported: false, errorKind, errorMessage);
 }
 
 public readonly record struct PortalScreenCastSessionResult
@@ -187,8 +187,8 @@ public readonly record struct PortalScreenCastSessionResult
     public PortalScreenCastSession? Session { get; }
     public ScreenReadErrorKind? ErrorKind { get; }
     public string? ErrorMessage { get; }
-    public static PortalScreenCastSessionResult Success(PortalScreenCastSession session) => new(session ?? throw new ArgumentNullException(nameof(session)), null, null);
-    public static PortalScreenCastSessionResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(null, errorKind, errorMessage);
+    public static PortalScreenCastSessionResult Success(PortalScreenCastSession session) => new(session ?? throw new ArgumentNullException(nameof(session)), errorKind: null, errorMessage: null);
+    public static PortalScreenCastSessionResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(session: null, errorKind, errorMessage);
 }
 
 public readonly record struct PortalPipeWireFrameResult
@@ -209,8 +209,8 @@ public readonly record struct PortalPipeWireFrameResult
     public PortalPipeWireFrame? Frame { get; }
     public ScreenReadErrorKind? ErrorKind { get; }
     public string? ErrorMessage { get; }
-    public static PortalPipeWireFrameResult Success(PortalPipeWireFrame frame) => new(frame ?? throw new ArgumentNullException(nameof(frame)), null, null);
-    public static PortalPipeWireFrameResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(null, errorKind, errorMessage);
+    public static PortalPipeWireFrameResult Success(PortalPipeWireFrame frame) => new(frame ?? throw new ArgumentNullException(nameof(frame)), errorKind: null, errorMessage: null);
+    public static PortalPipeWireFrameResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(frame: null, errorKind, errorMessage);
 }
 
 public readonly record struct PortalScreenCastCaptureResult
@@ -231,6 +231,6 @@ public readonly record struct PortalScreenCastCaptureResult
     public PortalPipeWireFrame? Frame { get; }
     public ScreenReadErrorKind? ErrorKind { get; }
     public string? ErrorMessage { get; }
-    public static PortalScreenCastCaptureResult Success(PortalPipeWireFrame frame) => new(frame ?? throw new ArgumentNullException(nameof(frame)), null, null);
-    public static PortalScreenCastCaptureResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(null, errorKind, errorMessage);
+    public static PortalScreenCastCaptureResult Success(PortalPipeWireFrame frame) => new(frame ?? throw new ArgumentNullException(nameof(frame)), errorKind: null, errorMessage: null);
+    public static PortalScreenCastCaptureResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(frame: null, errorKind, errorMessage);
 }

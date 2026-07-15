@@ -103,7 +103,7 @@ public class EditorViewModelTests
         nameof(EditorViewModel.ImageAssetNames),
         nameof(EditorViewModel.ImportImageAssetAsync),
         nameof(EditorViewModel.BrowseScreenshotOutputPathAsync),
-        nameof(EditorViewModel.CancelCapture)
+        nameof(EditorViewModel.CancelCapture),
     };
 
     private readonly IEditorActionConverter _converter;
@@ -129,7 +129,7 @@ public class EditorViewModelTests
         _screenPixelReader = Substitute.For<IScreenPixelReader>();
         _macroPlayer = Substitute.For<IMacroPlayer>();
         _keyCodeMapper.GetKeyName(Arg.Any<int>()).Returns("A");
-        _screenPixelReader.IsSupported.Returns(true);
+        _screenPixelReader.IsSupported.Returns(returnThis: true);
         _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
         _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
         {
@@ -177,8 +177,8 @@ public class EditorViewModelTests
             "Editor_BlockName_While" => "WhileToken",
             "Editor_BlockName_For" => "ForToken",
             "Editor_BlockName_Block" => "BlockToken",
-            _ when call.Arg<string>().StartsWith("Editor_ActionType_") => call.Arg<string>()["Editor_ActionType_".Length..],
-            _ => call.Arg<string>()
+            _ when call.Arg<string>().StartsWith("Editor_ActionType_", StringComparison.Ordinal) => call.Arg<string>()["Editor_ActionType_".Length..],
+            _ => call.Arg<string>(),
         });
 
         _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
@@ -217,7 +217,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = "\basd\r\nasd\t\\"
+            Text = "\basd\r\nasd\t\\",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -268,7 +268,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = "\b"
+            Text = "\b",
         };
         var changed = new List<string?>();
         _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
@@ -315,7 +315,7 @@ public class EditorViewModelTests
     public void NewActionGroup_WhenChanged_SelectsFirstActionInGroup()
     {
         var timingGroup = _viewModel.AddableActionGroups.Single(group =>
-            group.Choices.Any(choice => choice.ActionType == EditorActionType.Delay));
+            group.Choices.Any(choice => choice.ActionType is EditorActionType.Delay));
 
         _viewModel.NewActionGroup = timingGroup;
 
@@ -340,7 +340,7 @@ public class EditorViewModelTests
     public void AddableActionGroups_IncludesClipboardActions()
     {
         var clipboardGroup = _viewModel.AddableActionGroups.Single(group =>
-            group.Choices.Any(choice => choice.ActionType == EditorActionType.ClipboardGet));
+            group.Choices.Any(choice => choice.ActionType is EditorActionType.ClipboardGet));
 
         clipboardGroup.Choices.Select(choice => choice.ActionType).Should().Equal(
             EditorActionType.ClipboardGet,
@@ -351,7 +351,7 @@ public class EditorViewModelTests
     public void AddableActionGroups_IncludesSingleShellCommandAction()
     {
         var shellGroup = _viewModel.AddableActionGroups.Single(group =>
-            group.Choices.Any(choice => choice.ActionType == EditorActionType.ShellCommand));
+            group.Choices.Any(choice => choice.ActionType is EditorActionType.ShellCommand));
 
         shellGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.ShellCommand);
     }
@@ -360,7 +360,7 @@ public class EditorViewModelTests
     public void AddableActionGroups_IncludesSingleWindowCommandAction()
     {
         var windowGroup = _viewModel.AddableActionGroups.Single(group =>
-            group.Choices.Any(choice => choice.ActionType == EditorActionType.WindowCommand));
+            group.Choices.Any(choice => choice.ActionType is EditorActionType.WindowCommand));
 
         windowGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.WindowCommand);
     }
@@ -369,7 +369,7 @@ public class EditorViewModelTests
     public void AddableActionGroups_IncludesSingleScreenshotAction()
     {
         var screenshotGroup = _viewModel.AddableActionGroups.Single(group =>
-            group.Choices.Any(choice => choice.ActionType == EditorActionType.Screenshot));
+            group.Choices.Any(choice => choice.ActionType is EditorActionType.Screenshot));
 
         screenshotGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.Screenshot);
     }
@@ -400,7 +400,7 @@ public class EditorViewModelTests
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
         action.Type.Should().Be(actionType);
-        if (actionType == EditorActionType.ClipboardGet)
+        if (actionType is EditorActionType.ClipboardGet)
         {
             action.ScriptVariableName.Should().Be("clipboardText");
             _viewModel.ShowClipboardGetFields.Should().BeTrue();
@@ -478,7 +478,7 @@ public class EditorViewModelTests
             WindowCommandMode = mode,
             WindowSelectorKind = "title",
             WindowSelectorValue = "Firefox",
-            WindowWorkspace = "2"
+            WindowWorkspace = "2",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -533,7 +533,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = EditorActionType.Screenshot,
-            ScreenshotOutputPath = "/tmp/current-shot.png"
+            ScreenshotOutputPath = "/tmp/current-shot.png",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -628,7 +628,7 @@ public class EditorViewModelTests
         action.ImageSearchDownsample.Should().Be(1);
         action.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
         action.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
-        if (actionType == EditorActionType.ImageClick)
+        if (actionType is EditorActionType.ImageClick)
         {
             action.Button.Should().Be(MouseButton.Left);
         }
@@ -703,7 +703,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.ShellCommand,
             ShellCommandMode = mode,
-            ShellCommand = "echo ok"
+            ShellCommand = "echo ok",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -726,13 +726,13 @@ public class EditorViewModelTests
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
         action.Type.Should().Be(actionType);
         action.ScreenColorHex.Should().Be("FFFFFF");
-        action.ScreenColorVariableName.Should().Be(actionType == EditorActionType.WaitColor ? "wait_ok" : "color");
+        action.ScreenColorVariableName.Should().Be(actionType is EditorActionType.WaitColor ? "wait_ok" : "color");
         action.ScreenFoundXVariableName.Should().Be("found_x");
         action.ScreenFoundYVariableName.Should().Be("found_y");
         action.ScreenTimeoutMs.Should().Be(5000);
         action.ScreenTolerance.Should().Be(0);
-        action.ScreenWidth.Should().Be(actionType == EditorActionType.PixelSearch ? 1920 : 1);
-        action.ScreenHeight.Should().Be(actionType == EditorActionType.PixelSearch ? 1080 : 1);
+        action.ScreenWidth.Should().Be(actionType is EditorActionType.PixelSearch ? 1920 : 1);
+        action.ScreenHeight.Should().Be(actionType is EditorActionType.PixelSearch ? 1080 : 1);
         _viewModel.SelectedAction.Should().BeSameAs(action);
     }
 
@@ -775,7 +775,7 @@ public class EditorViewModelTests
         _viewModel.ShowScreenReadingColorFields.Should().Be(showScreenReadingColorFields);
         _viewModel.ShowScreenReadingPointFields.Should().Be(showScreenReadingPointFields);
         _viewModel.ShowScreenReadingColorPreview.Should().Be(actionType is EditorActionType.WaitColor or EditorActionType.PixelSearch);
-        _viewModel.ScreenReadingColorPreviewHex.Should().Be(actionType == EditorActionType.PixelColor ? string.Empty : "A1B2C3");
+        _viewModel.ScreenReadingColorPreviewHex.Should().Be(actionType is EditorActionType.PixelColor ? string.Empty : "A1B2C3");
         _viewModel.ShowScreenReadingRawAssistance.Should().BeFalse();
         _viewModel.ScreenReadingRawHint.Should().BeEmpty();
     }
@@ -816,7 +816,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = actionType,
-            ScreenColorHex = "FFFFFF"
+            ScreenColorHex = "FFFFFF",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -850,7 +850,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = EditorActionType.RawScriptStep,
-            Text = rawStep
+            Text = rawStep,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -865,7 +865,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = EditorActionType.RawScriptStep,
-            Text = "waitcolor 10 20 00FF00 1000 wait_ok"
+            Text = "waitcolor 10 20 00FF00 1000 wait_ok",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -883,7 +883,7 @@ public class EditorViewModelTests
         var action = new EditorAction
         {
             Type = EditorActionType.RawScriptStep,
-            Text = "window active title activeTitle"
+            Text = "window active title activeTitle",
         };
         var changed = new List<string?>();
         _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
@@ -908,7 +908,7 @@ public class EditorViewModelTests
             ScriptLeftOperand = "color",
             ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
             ScriptRightOperandType = ScriptOperandType.Number,
-            ScriptRightOperand = "10"
+            ScriptRightOperand = "10",
         };
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.PixelColor, ScreenColorVariableName = "color" });
         _viewModel.Actions.Add(action);
@@ -934,14 +934,14 @@ public class EditorViewModelTests
             ScriptLeftOperand = "found_x",
             ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
             ScriptRightOperandType = ScriptOperandType.Number,
-            ScriptRightOperand = "10"
+            ScriptRightOperand = "10",
         };
         _viewModel.Actions.Add(new EditorAction
         {
             Type = EditorActionType.PixelSearch,
             ScreenFoundVariableName = "found",
             ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y"
+            ScreenFoundYVariableName = "found_y",
         });
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -960,14 +960,14 @@ public class EditorViewModelTests
             ScriptLeftOperand = "found",
             ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
             ScriptRightOperandType = ScriptOperandType.Boolean,
-            ScriptRightOperand = "true"
+            ScriptRightOperand = "true",
         };
         _viewModel.Actions.Add(new EditorAction
         {
             Type = EditorActionType.PixelSearch,
             ScreenFoundVariableName = "found",
             ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y"
+            ScreenFoundYVariableName = "found_y",
         });
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -986,7 +986,7 @@ public class EditorViewModelTests
             Type = EditorActionType.IfBlockStart,
             ScriptLeftOperandType = ScriptOperandType.VariableReference,
             ScriptLeftOperand = "color",
-            ScriptRightOperandType = ScriptOperandType.VariableReference
+            ScriptRightOperandType = ScriptOperandType.VariableReference,
         };
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.PixelColor, ScreenColorVariableName = "color" });
         _viewModel.Actions.Add(action);
@@ -1006,7 +1006,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.IfBlockStart,
             ScriptLeftOperandType = ScriptOperandType.VariableReference,
-            ScriptRightOperandType = ScriptOperandType.VariableReference
+            ScriptRightOperandType = ScriptOperandType.VariableReference,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -1024,7 +1024,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.IfBlockStart,
             ScriptLeftOperandType = ScriptOperandType.Color,
-            ScriptRightOperandType = ScriptOperandType.Color
+            ScriptRightOperandType = ScriptOperandType.Color,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -1042,7 +1042,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.IfBlockStart,
             ScriptLeftOperandType = ScriptOperandType.Text,
-            ScriptRightOperandType = ScriptOperandType.VariableReference
+            ScriptRightOperandType = ScriptOperandType.VariableReference,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -1078,7 +1078,7 @@ public class EditorViewModelTests
         var rawAction = new EditorAction
         {
             Type = EditorActionType.RawScriptStep,
-            Text = "waitcolor 10 20 00FF00 1000 wait_ok"
+            Text = "waitcolor 10 20 00FF00 1000 wait_ok",
         };
         _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("initial raw hint");
         _viewModel.Actions.Add(rawAction);
@@ -1102,7 +1102,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.IfBlockStart,
             ScriptLeftOperandType = ScriptOperandType.Number,
-            ScriptRightOperandType = ScriptOperandType.Number
+            ScriptRightOperandType = ScriptOperandType.Number,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -1126,7 +1126,7 @@ public class EditorViewModelTests
             {
                 Type = EditorActionType.MouseMove,
                 X = index,
-                Y = index + 1
+                Y = index + 1,
             });
         }
 
@@ -1228,7 +1228,7 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = "\basd\r\nasd\t"
+            Text = "\basd\r\nasd\t",
         });
 
         // Act / Assert
@@ -1253,7 +1253,7 @@ public class EditorViewModelTests
             Type = actionType,
             IsAbsolute = isAbsolute,
             X = isAbsolute ? 100 : 5,
-            Y = isAbsolute ? 200 : -3
+            Y = isAbsolute ? 200 : -3,
         };
 
         _viewModel.Actions.Add(action);
@@ -1273,7 +1273,7 @@ public class EditorViewModelTests
         {
             Type = actionType,
             UseCurrentPosition = true,
-            IsAbsolute = false
+            IsAbsolute = false,
         });
 
         _viewModel.ActionListItems.Should().ContainSingle();
@@ -1366,7 +1366,7 @@ public class EditorViewModelTests
         _viewModel.SelectedActionUnderlyingIndices.Add(0);
         _viewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(EditorViewModel.SelectedAction))
+            if (string.Equals(args.PropertyName, nameof(EditorViewModel.SelectedAction), StringComparison.Ordinal))
             {
                 observedSelectedActions.Add(_viewModel.SelectedAction);
             }
@@ -1476,7 +1476,7 @@ public class EditorViewModelTests
         var notifications = new List<string>();
         _viewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName != null)
+            if (args.PropertyName is not null)
             {
                 notifications.Add(args.PropertyName);
             }
@@ -1534,7 +1534,7 @@ public class EditorViewModelTests
         var notifications = new List<string>();
         _viewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName != null)
+            if (args.PropertyName is not null)
             {
                 notifications.Add(args.PropertyName);
             }
@@ -1566,7 +1566,7 @@ public class EditorViewModelTests
         var notifications = new List<string>();
         _viewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName != null)
+            if (args.PropertyName is not null)
             {
                 notifications.Add(args.PropertyName);
             }
@@ -1984,7 +1984,7 @@ public class EditorViewModelTests
             DelayMs = delayMs,
             UseRandomDelay = useRandomDelay,
             RandomDelayMinMs = 1,
-            RandomDelayMaxMs = 9
+            RandomDelayMaxMs = 9,
         });
         AddCondensibleRun(_viewModel, 3);
 
@@ -2144,7 +2144,7 @@ public class EditorViewModelTests
     {
         for (var index = 0; index < actionCount; index++)
         {
-            viewModel.Actions.Add(index % 2 == 0
+            viewModel.Actions.Add(index % 2 is 0
                 ? new EditorAction { Type = EditorActionType.MouseMove, X = index, Y = index + 1 }
                 : new EditorAction { Type = EditorActionType.Delay, DelayMs = 4 });
         }
@@ -2242,8 +2242,7 @@ public class EditorViewModelTests
         _viewModel.NewActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         _viewModel.AddAction();
-        var firstAction = _viewModel.Actions[0];
-        _viewModel.SelectedAction = firstAction;
+        _viewModel.SelectedAction = _viewModel.Actions[0];
         _viewModel.NewActionType = EditorActionType.Delay;
 
         // Act
@@ -2359,7 +2358,7 @@ public class EditorViewModelTests
         var presentationResetCount = 0;
         _viewModel.ActionListItems.CollectionChanged += (_, args) =>
         {
-            if (args.Action == NotifyCollectionChangedAction.Reset)
+            if (args.Action is NotifyCollectionChangedAction.Reset)
             {
                 presentationResetCount++;
             }
@@ -2395,12 +2394,12 @@ public class EditorViewModelTests
         _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
         _viewModel.LoadMacroSequence(sequence);
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(Enumerable.Range(0, 5_000).Where(index => index % 2 == 0));
+        _viewModel.ReplaceSelectedActionUnderlyingIndices(Enumerable.Range(0, 5_000).Where(index => index % 2 is 0));
 
         var presentationResetCount = 0;
         _viewModel.ActionListItems.CollectionChanged += (_, args) =>
         {
-            if (args.Action == NotifyCollectionChangedAction.Reset)
+            if (args.Action is NotifyCollectionChangedAction.Reset)
             {
                 presentationResetCount++;
             }
@@ -3024,7 +3023,7 @@ public class EditorViewModelTests
             ScreenTolerance = 9,
             ScreenFoundVariableName = "found",
             ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y"
+            ScreenFoundYVariableName = "found_y",
         };
 
         var clone = action.Clone();
@@ -3144,7 +3143,7 @@ public class EditorViewModelTests
             Button = MouseButton.Left,
             IsAbsolute = false,
             X = 3,
-            Y = -2
+            Y = -2,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3171,7 +3170,7 @@ public class EditorViewModelTests
             X = 3,
             Y = -2,
             ScreenX = 10,
-            ScreenY = 20
+            ScreenY = 20,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3199,7 +3198,7 @@ public class EditorViewModelTests
             X = 3,
             Y = -2,
             ScreenX = 10,
-            ScreenY = 20
+            ScreenY = 20,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3312,7 +3311,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.IfBlockStart,
             ScriptRightOperandType = ScriptOperandType.Color,
-            ScriptRightOperand = "000000"
+            ScriptRightOperand = "000000",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3337,7 +3336,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.WhileBlockStart,
             ScriptLeftOperandType = ScriptOperandType.Color,
-            ScriptLeftOperand = "000000"
+            ScriptLeftOperand = "000000",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3358,7 +3357,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.IfBlockStart,
             ScriptRightOperandType = ScriptOperandType.Color,
-            ScriptRightOperand = "111111"
+            ScriptRightOperand = "111111",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3386,7 +3385,7 @@ public class EditorViewModelTests
             ScreenLeft = 10,
             ScreenTop = 20,
             ScreenWidth = 11,
-            ScreenHeight = 21
+            ScreenHeight = 21,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3414,7 +3413,7 @@ public class EditorViewModelTests
             ScreenLeft = 10,
             ScreenTop = 20,
             ScreenWidth = 1,
-            ScreenHeight = 1
+            ScreenHeight = 1,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3440,7 +3439,7 @@ public class EditorViewModelTests
             ScreenLeft = 10,
             ScreenTop = 20,
             ScreenWidth = 7,
-            ScreenHeight = 8
+            ScreenHeight = 8,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3478,7 +3477,7 @@ public class EditorViewModelTests
         await _viewModel.CapturePixelSearchTopLeftAsync();
 
         // Assert
-        if (actionType == EditorActionType.WaitColor)
+        if (actionType is EditorActionType.WaitColor)
         {
             action.ScreenLeft.Should().Be(10);
             action.ScreenTop.Should().Be(20);
@@ -3501,7 +3500,7 @@ public class EditorViewModelTests
             Type = EditorActionType.Screenshot,
             ScreenshotUseRegion = false,
             ScreenshotRegionWidth = string.Empty,
-            ScreenshotRegionHeight = "0"
+            ScreenshotRegionHeight = "0",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3526,7 +3525,7 @@ public class EditorViewModelTests
             Type = EditorActionType.Screenshot,
             ScreenshotUseRegion = true,
             ScreenshotRegionX = "30",
-            ScreenshotRegionY = "40"
+            ScreenshotRegionY = "40",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3552,7 +3551,7 @@ public class EditorViewModelTests
             ScreenshotRegionX = "5",
             ScreenshotRegionY = "6",
             ScreenshotRegionWidth = "7",
-            ScreenshotRegionHeight = "8"
+            ScreenshotRegionHeight = "8",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3576,7 +3575,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.Screenshot,
             ScreenshotRegionX = "12",
-            ScreenshotRegionY = "34"
+            ScreenshotRegionY = "34",
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3600,7 +3599,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.MouseClick,
             Button = MouseButton.Left,
-            UseCurrentPosition = true
+            UseCurrentPosition = true,
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -3700,14 +3699,14 @@ public class EditorViewModelTests
         {
             new() { Type = EditorActionType.MouseMove, X = 10, Y = 20 },
             new() { Type = EditorActionType.MouseClick, X = 10, Y = 20 },
-            new() { Type = EditorActionType.Delay, DelayMs = 25 }
+            new() { Type = EditorActionType.Delay, DelayMs = 25 },
         };
         var addedRowCount = 0;
         _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
         _viewModel.ActionListItems.CollectionChanged += (_, args) =>
         {
-            if (args.Action == NotifyCollectionChangedAction.Add)
+            if (args.Action is NotifyCollectionChangedAction.Add)
             {
                 addedRowCount += args.NewItems?.Count ?? 0;
             }
@@ -3733,7 +3732,7 @@ public class EditorViewModelTests
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
         _viewModel.ActionListItems.CollectionChanged += (_, args) =>
         {
-            if (args.Action == NotifyCollectionChangedAction.Add)
+            if (args.Action is NotifyCollectionChangedAction.Add)
             {
                 addedRowCount += args.NewItems?.Count ?? 0;
             }
@@ -3764,7 +3763,7 @@ public class EditorViewModelTests
         var addedRowCount = 0;
         _viewModel.ActionListItems.CollectionChanged += (_, args) =>
         {
-            if (args.Action == NotifyCollectionChangedAction.Add)
+            if (args.Action is NotifyCollectionChangedAction.Add)
             {
                 addedRowCount += args.NewItems?.Count ?? 0;
             }
@@ -3834,7 +3833,7 @@ public class EditorViewModelTests
         var sequence = new MacroSequence { Name = "Loaded Macro", SkipInitialZeroZero = true };
         var converted = new List<EditorAction>
         {
-            new() { Type = EditorActionType.MouseMove, X = 10, Y = 20 }
+            new() { Type = EditorActionType.MouseMove, X = 10, Y = 20 },
         };
         _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
@@ -3858,7 +3857,7 @@ public class EditorViewModelTests
             Images = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["Target_1"] = TransparentPngBase64
-            }
+            },
         };
         var converted = new List<EditorAction>
         {
@@ -3873,7 +3872,7 @@ public class EditorViewModelTests
                 ScreenFoundYVariableName = "found_y",
                 ImageSearchSimilarity = 1.0,
                 ImageSearchDownsample = 1
-            }
+            },
         };
         _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: true));
@@ -3918,7 +3917,7 @@ public class EditorViewModelTests
                 ScreenFoundXVariableName = "found_x",
                 ScreenFoundYVariableName = "found_y",
                 ImageSearchSimilarity = 1.0,
-                ImageSearchDownsample = 1
+                ImageSearchDownsample = 1,
             };
             _viewModel.Actions.Add(action);
             _viewModel.SelectedAction = action;
@@ -3930,7 +3929,7 @@ public class EditorViewModelTests
             var generatedSequence = new MacroSequence
             {
                 Name = "Generated",
-                ScriptSteps = ["imagesearch 0 0 100 100 Target_1 found found_x found_y"]
+                ScriptSteps = ["imagesearch 0 0 100 100 Target_1 found found_x found_y"],
             };
             _converter
                 .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -3976,12 +3975,12 @@ public class EditorViewModelTests
                     Y = -3,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            ]
+            ],
         };
         var converted = new List<EditorAction>
         {
             new() { Type = EditorActionType.MouseMove, X = 10, Y = 20, IsAbsolute = true },
-            new() { Type = EditorActionType.MouseClick, X = 5, Y = -3, IsAbsolute = false }
+            new() { Type = EditorActionType.MouseClick, X = 5, Y = -3, IsAbsolute = false },
         };
         _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
@@ -4002,15 +4001,15 @@ public class EditorViewModelTests
         var sequence = new MacroSequence
         {
             Name = "Loaded Macro",
-            ScriptSteps = ["tap ctrl+c"]
+            ScriptSteps = ["tap ctrl+c"],
         };
         var converted = new List<EditorAction>
         {
-            new() { Type = EditorActionType.RawScriptStep, Text = "tap ctrl+c" }
+            new() { Type = EditorActionType.RawScriptStep, Text = "tap ctrl+c" },
         };
         var warnings = new List<EditorActionRestoreWarning>
         {
-            new(1, "tap ctrl+c", "Unsupported step restored as raw script text.")
+            new(1, "tap ctrl+c", "Unsupported step restored as raw script text."),
         };
         _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, warnings, restoredFromScriptSteps: true));
@@ -4152,7 +4151,7 @@ public class EditorViewModelTests
         {
             Type = EditorActionType.WindowCommand,
             WindowCommandMode = WindowCommandMode.Active,
-            WindowOutputVariable = "activeTitle"
+            WindowOutputVariable = "activeTitle",
         };
         _viewModel.Actions.Add(action);
 
@@ -4170,19 +4169,19 @@ public class EditorViewModelTests
         var pixelColor = new EditorAction
         {
             Type = EditorActionType.PixelColor,
-            ScreenColorVariableName = "sample_color"
+            ScreenColorVariableName = "sample_color",
         };
         var waitColor = new EditorAction
         {
             Type = EditorActionType.WaitColor,
-            ScreenColorVariableName = "wait_ok"
+            ScreenColorVariableName = "wait_ok",
         };
         var pixelSearch = new EditorAction
         {
             Type = EditorActionType.PixelSearch,
             ScreenFoundVariableName = "found",
             ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y"
+            ScreenFoundYVariableName = "found_y",
         };
 
         _viewModel.Actions.Add(pixelColor);
@@ -4283,7 +4282,7 @@ public class EditorViewModelTests
             Type = EditorActionType.PixelSearch,
             ScreenFoundVariableName = "found",
             ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y"
+            ScreenFoundYVariableName = "found_y",
         };
         _viewModel.Actions.Add(pixelSearch);
 
@@ -4306,7 +4305,7 @@ public class EditorViewModelTests
             Type = actionType,
             ScreenFoundVariableName = "image_found",
             ScreenFoundXVariableName = "image_x",
-            ScreenFoundYVariableName = "image_y"
+            ScreenFoundYVariableName = "image_y",
         });
 
         _viewModel.AvailableVariableNames.Should().Contain(new[] { "image_found", "image_x", "image_y" });
@@ -4318,7 +4317,7 @@ public class EditorViewModelTests
         var pixelColor = new EditorAction
         {
             Type = EditorActionType.PixelColor,
-            ScreenColorVariableName = "sample_color"
+            ScreenColorVariableName = "sample_color",
         };
         _viewModel.Actions.Add(pixelColor);
         _viewModel.NewActionType = EditorActionType.TextInput;
@@ -4342,7 +4341,7 @@ public class EditorViewModelTests
         var pixelColor = new EditorAction
         {
             Type = EditorActionType.PixelColor,
-            ScreenColorVariableName = "sample_color"
+            ScreenColorVariableName = "sample_color",
         };
         _viewModel.Actions.Add(pixelColor);
 
@@ -4564,8 +4563,8 @@ public class EditorViewModelTests
         // Act
         try
         {
-            removedAction.X += 1;
-            removedAction.Y += 1;
+            removedAction.X++;
+            removedAction.Y++;
         }
         finally
         {
@@ -4840,7 +4839,7 @@ public class EditorViewModelTests
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }]
+            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }],
         };
         _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -4871,7 +4870,7 @@ public class EditorViewModelTests
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }]
+            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 10, Y = 10 }],
         };
         _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -4935,7 +4934,7 @@ public class EditorViewModelTests
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 }]
+            Events = [new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0 }],
         };
         _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -4961,7 +4960,7 @@ public class EditorViewModelTests
             UseCurrentPosition = true,
             IsAbsolute = true,
             X = 123,
-            Y = 456
+            Y = 456,
         };
         _viewModel.Actions.Add(currentPositionClick);
 
@@ -5009,7 +5008,7 @@ public class EditorViewModelTests
             UseCurrentPosition = true,
             IsAbsolute = true,
             X = 123,
-            Y = 456
+            Y = 456,
         };
         _viewModel.Actions.Add(currentPositionClick);
 
@@ -5041,7 +5040,7 @@ public class EditorViewModelTests
             UseCurrentPosition = true,
             IsAbsolute = true,
             X = 123,
-            Y = 456
+            Y = 456,
         };
         _viewModel.Actions.Add(currentPositionClick);
 
@@ -5079,7 +5078,7 @@ public class EditorViewModelTests
             [
                 new MacroEvent { Type = EventType.Click, Button = MouseButton.Left, X = 0, Y = 0, UseCurrentPosition = true },
                 new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 }
-            ]
+            ],
         };
         _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -5108,7 +5107,7 @@ public class EditorViewModelTests
             0x00,
             0x00,
             0x00,
-            0x00, 0x00, 0x00, 0x00
+            0x00, 0x00, 0x00, 0x00,
         ];
     }
 }

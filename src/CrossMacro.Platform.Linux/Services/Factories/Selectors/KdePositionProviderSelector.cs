@@ -17,7 +17,7 @@ public class KdePositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.KDE;
+        return compositor is CompositorType.KDE;
     }
 
     public IMousePositionProvider Create()

@@ -37,5 +37,5 @@ public enum AppIcon
     Tools,
     Trigger,
     Undo,
-    Warning
+    Warning,
 }

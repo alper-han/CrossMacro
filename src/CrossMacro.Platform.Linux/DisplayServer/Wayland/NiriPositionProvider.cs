@@ -75,7 +75,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
             using var document = JsonDocument.Parse(response);
             var root = document.RootElement;
 
-            if (!TryGetOutputsElement(root, out var outputsElement) || outputsElement.ValueKind != JsonValueKind.Object)
+            if (!TryGetOutputsElement(root, out var outputsElement) || outputsElement.ValueKind is not JsonValueKind.Object)
             {
                 return false;
             }
@@ -89,12 +89,12 @@ public sealed class NiriPositionProvider : IMousePositionProvider
             foreach (var outputProperty in outputsElement.EnumerateObject())
             {
                 var output = outputProperty.Value;
-                if (output.ValueKind != JsonValueKind.Object || !IsOutputEnabled(output))
+                if (output.ValueKind is not JsonValueKind.Object || !IsOutputEnabled(output))
                 {
                     continue;
                 }
 
-                if (!output.TryGetProperty("logical", out var logical) || logical.ValueKind != JsonValueKind.Object)
+                if (!output.TryGetProperty("logical", out var logical) || logical.ValueKind is not JsonValueKind.Object)
                 {
                     continue;
                 }
@@ -145,7 +145,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
     {
         outputsElement = default;
 
-        if (root.ValueKind != JsonValueKind.Object)
+        if (root.ValueKind is not JsonValueKind.Object)
         {
             return false;
         }
@@ -157,12 +157,12 @@ public sealed class NiriPositionProvider : IMousePositionProvider
 
         if (root.TryGetProperty("Ok", out var okElement))
         {
-            if (okElement.ValueKind == JsonValueKind.Object && okElement.TryGetProperty("Outputs", out outputsElement))
+            if (okElement.ValueKind is JsonValueKind.Object && okElement.TryGetProperty("Outputs", out outputsElement))
             {
                 return true;
             }
 
-            if (okElement.ValueKind == JsonValueKind.Object)
+            if (okElement.ValueKind is JsonValueKind.Object)
             {
                 outputsElement = okElement;
                 return true;
@@ -176,8 +176,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
     private static bool IsOutputEnabled(JsonElement output)
     {
         return output.TryGetProperty("current_mode", out var currentMode) &&
-               currentMode.ValueKind != JsonValueKind.Null &&
-               currentMode.ValueKind != JsonValueKind.Undefined;
+               currentMode.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined);
     }
 
     private static bool TryGetPositiveInt32(JsonElement element, string propertyName, out int value)
@@ -193,7 +192,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
             return false;
         }
 
-        return property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out value);
+        return property.ValueKind is JsonValueKind.Number && property.TryGetInt32(out value);
     }
 
     public void Dispose()

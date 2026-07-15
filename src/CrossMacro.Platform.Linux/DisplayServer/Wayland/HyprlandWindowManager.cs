@@ -24,13 +24,13 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendCommandAsync("j/activewindow", cancellationToken).ConfigureAwait(false);
-        if (response == null)
+        if (response is null)
             return null;
 
         try
         {
             var dto = JsonSerializer.Deserialize(response, HyprlandJsonContext.Default.HyprlandWindowDto);
-            return dto == null ? null : MapWindow(dto, isFocused: true);
+            return dto is null ? null : MapWindow(dto, isFocused: true);
         }
         catch (Exception ex)
         {
@@ -42,18 +42,18 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendCommandAsync("j/clients", cancellationToken).ConfigureAwait(false);
-        if (response == null)
+        if (response is null)
             return [];
 
         try
         {
             var dtos = JsonSerializer.Deserialize(response, HyprlandJsonContext.Default.HyprlandWindowDtoArray);
-            if (dtos == null)
+            if (dtos is null)
                 return [];
 
             var result = new List<WindowInfo>(dtos.Length);
             foreach (var dto in dtos)
-                result.Add(MapWindow(dto, isFocused: dto.FocusHistoryId == 0));
+                result.Add(MapWindow(dto, isFocused: dto.FocusHistoryId is 0));
 
             return result;
         }
@@ -151,7 +151,7 @@ public sealed class HyprlandWindowManager : IWindowManager
     public async Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
         var response = await _ipcClient.SendCommandAsync("j/activeworkspace", cancellationToken).ConfigureAwait(false);
-        if (response == null)
+        if (response is null)
             return null;
 
         try
@@ -204,11 +204,11 @@ public sealed class HyprlandWindowManager : IWindowManager
             ProcessName = Helpers.ProcessHelper.GetProcessName(dto.Pid),
             Workspace = dto.Workspace?.Name ?? string.Empty,
             IsFocused = isFocused,
-            IsFullscreen = dto.Fullscreen == 2,
-            IsMaximized = dto.Fullscreen == 1,
+            IsFullscreen = dto.Fullscreen is 2,
+            IsMaximized = dto.Fullscreen is 1,
             IsFloating = dto.Floating,
             IsPinned = dto.Pinned,
-            IsHidden = dto.Hidden, X = dto.At != null && dto.At.Length >= 2 ? dto.At[0] : 0, Y = dto.At != null && dto.At.Length >= 2 ? dto.At[1] : 0, Width = dto.Size != null && dto.Size.Length >= 2 ? dto.Size[0] : 0, Height = dto.Size != null && dto.Size.Length >= 2 ? dto.Size[1] : 0
+            IsHidden = dto.Hidden, X = dto.At is not null && dto.At.Length >= 2 ? dto.At[0] : 0, Y = dto.At is not null && dto.At.Length >= 2 ? dto.At[1] : 0, Width = dto.Size is not null && dto.Size.Length >= 2 ? dto.Size[0] : 0, Height = dto.Size is not null && dto.Size.Length >= 2 ? dto.Size[1] : 0,
         };
 
     private static string NormalizeAddress(string address) =>
@@ -216,7 +216,7 @@ public sealed class HyprlandWindowManager : IWindowManager
 
     private static bool IsOkResponse(string? response)
     {
-        if (response == null)
+        if (response is null)
             return false;
 
         var trimmed = response.Trim();

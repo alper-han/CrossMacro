@@ -34,7 +34,7 @@ public sealed class EmojiAppIcon : Image
         [AppIcon.Tip] = CreateSource(TipEmojiIcon.Picture),
         [AppIcon.Tools] = CreateSource(ToolsEmojiIcon.Picture),
         [AppIcon.Trigger] = CreateSource(TriggerEmojiIcon.Picture),
-        [AppIcon.Warning] = CreateSource(WarningEmojiIcon.Picture)
+        [AppIcon.Warning] = CreateSource(WarningEmojiIcon.Picture),
     };
 
     public static readonly StyledProperty<AppIcon> IconProperty = AvaloniaProperty.Register<EmojiAppIcon, AppIcon>(
@@ -95,7 +95,7 @@ public sealed class EmojiAppIcon : Image
             AppIcon.Cancel => "cancel",
             AppIcon.Warning => "warning",
             AppIcon.Trigger => "trigger",
-            _ => null
+            _ => null,
         };
     }
 

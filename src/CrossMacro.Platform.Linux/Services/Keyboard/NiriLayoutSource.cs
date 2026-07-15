@@ -48,7 +48,7 @@ internal sealed class NiriLayoutSource
             using var document = JsonDocument.Parse(response);
             var root = document.RootElement;
 
-            if (root.ValueKind != JsonValueKind.Object) return null;
+            if (root.ValueKind is not JsonValueKind.Object) return null;
 
             var keyboardLayouts = root;
             if (root.TryGetProperty("Ok", out var okElement))
@@ -56,15 +56,14 @@ internal sealed class NiriLayoutSource
                 keyboardLayouts = okElement;
             }
 
-            if (keyboardLayouts.ValueKind == JsonValueKind.Object &&
-                keyboardLayouts.TryGetProperty("KeyboardLayouts", out var nestedKeyboardLayouts))
+            if (keyboardLayouts.ValueKind is JsonValueKind.Object && keyboardLayouts.TryGetProperty("KeyboardLayouts", out var nestedKeyboardLayouts))
             {
                 keyboardLayouts = nestedKeyboardLayouts;
             }
 
-            if (keyboardLayouts.ValueKind != JsonValueKind.Object ||
+            if (keyboardLayouts.ValueKind is not JsonValueKind.Object ||
                 !keyboardLayouts.TryGetProperty("names", out var names) ||
-                names.ValueKind != JsonValueKind.Array ||
+                names.ValueKind is not JsonValueKind.Array ||
                 !keyboardLayouts.TryGetProperty("current_idx", out var currentIndex) ||
                 !currentIndex.TryGetInt32(out var index) ||
                 index < 0 ||

@@ -11,12 +11,12 @@ namespace CrossMacro.Platform.Linux.Native.X11
         private const string LibX11 = "libX11.so.6";
         public const int ZPixmap = 2;
         public static readonly UIntPtr AllPlanes = new(ulong.MaxValue);
-        
+
         static X11Native()
         {
             // Register a custom resolver for X11 libraries to handle naming variations on different distros (e.g. NixOS)
             NativeLibrary.SetDllImportResolver(System.Reflection.Assembly.GetExecutingAssembly(), DllImportResolver);
-            
+
             // Enable thread safety
             XInitThreads();
         }
@@ -24,7 +24,7 @@ namespace CrossMacro.Platform.Linux.Native.X11
         private static IntPtr DllImportResolver(string libraryName, System.Reflection.Assembly assembly, DllImportSearchPath? searchPath)
         {
             // Only handle our specific libraries
-            if (libraryName != LibXtst && libraryName != LibX11 && libraryName != LibXi)
+            if (!string.Equals(libraryName, LibXtst, StringComparison.Ordinal) && !string.Equals(libraryName, LibX11, StringComparison.Ordinal) && !string.Equals(libraryName, LibXi, StringComparison.Ordinal))
             {
                 return IntPtr.Zero;
             }
@@ -36,16 +36,16 @@ namespace CrossMacro.Platform.Linux.Native.X11
             }
 
             // Fallback for libXtst.so.6 -> libXtst.so
-            if (libraryName == LibXtst)
+            if (string.Equals(libraryName, LibXtst, StringComparison.Ordinal))
             {
                 if (NativeLibrary.TryLoad("libXtst.so", assembly, searchPath, out handle)) return handle;
                 if (NativeLibrary.TryLoad("libXtst.so.6.1.0", assembly, searchPath, out handle)) return handle;
             }
-            
+
             // Fallback for libX11.so.6 -> libX11.so
-            if (libraryName == LibX11)
+            if (string.Equals(libraryName, LibX11, StringComparison.Ordinal) && NativeLibrary.TryLoad("libX11.so", assembly, searchPath, out handle))
             {
-                 if (NativeLibrary.TryLoad("libX11.so", assembly, searchPath, out handle)) return handle;
+                return handle;
             }
 
             return IntPtr.Zero;

@@ -24,7 +24,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         {
             "flatpak/crossmacro.sh",
             "README.md",
-            "docs/man/crossmacro.1"
+            "docs/man/crossmacro.1",
         };
 
         foreach (var relativePath in referencedFiles)
@@ -41,7 +41,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         var manifestPaths = new[]
         {
             "flatpak/io.github.alper_han.crossmacro.yml",
-            "flatpak/io.github.alper_han.crossmacro.flathub.yml"
+            "flatpak/io.github.alper_han.crossmacro.flathub.yml",
         };
 
         var expectedFinishArgs = new[]
@@ -56,7 +56,7 @@ public sealed partial class LinuxPackagingStaticParityTests
             "--filesystem=xdg-run/hypr:ro",
             HostDaemonFilesystemArg,
             "--filesystem=~/.local/share/gnome-shell/extensions:create",
-            "--env=CROSSMACRO_FLATPAK=1"
+            "--env=CROSSMACRO_FLATPAK=1",
         };
 
         var firstManifestArgs = ReadFinishArgs(manifestPaths[0]);
@@ -111,7 +111,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "assets/io.github.alper_han.crossmacro.policy",
                 "assets/50-crossmacro.rules",
                 "assets/99-crossmacro.rules",
-                "assets/crossmacro-modules.conf"
+                "assets/crossmacro-modules.conf",
             ],
             ["scripts/packaging/rpm/build.sh"] =
             [
@@ -119,7 +119,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "assets/io.github.alper_han.crossmacro.policy",
                 "assets/50-crossmacro.rules",
                 "assets/99-crossmacro.rules",
-                "assets/crossmacro-modules.conf"
+                "assets/crossmacro-modules.conf",
             ],
             ["scripts/packaging/arch/PKGBUILD"] =
             [
@@ -127,7 +127,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "scripts/assets/io.github.alper_han.crossmacro.policy",
                 "scripts/assets/50-crossmacro.rules",
                 "scripts/assets/99-crossmacro.rules",
-                "crossmacro-modules.conf"
+                "crossmacro-modules.conf",
             ],
             ["scripts/packaging/rpm/crossmacro.spec"] =
             [
@@ -135,7 +135,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "io.github.alper_han.crossmacro.policy",
                 "50-crossmacro.rules",
                 "99-crossmacro.rules",
-                "crossmacro-modules.conf"
+                "crossmacro-modules.conf",
             ],
             ["scripts/daemon/install.sh"] =
             [
@@ -144,7 +144,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "scripts/assets/io.github.alper_han.crossmacro.policy",
                 "scripts/assets/50-crossmacro.rules",
                 "crossmacro.service"
-            ]
+            ],
         };
 
         foreach (var (sourcePath, references) in requiredReferencesBySource)
@@ -281,7 +281,7 @@ public sealed partial class LinuxPackagingStaticParityTests
             .Select(line => line.Trim())
             .Single(line => line.StartsWith("depends=", StringComparison.Ordinal));
 
-        return Regex.Matches(dependsLine, "'([^']+)'")
+        return Regex.Matches(dependsLine, "'([^']+)'", RegexOptions.NonBacktracking)
             .Select(match => match.Groups[1].Value)
             .ToArray();
     }
@@ -296,7 +296,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         {
             var line = rawLine.TrimEnd('\r');
 
-            if (line == "finish-args:")
+            if (line is "finish-args:")
             {
                 inFinishArgs = true;
                 continue;
@@ -354,6 +354,6 @@ public sealed partial class LinuxPackagingStaticParityTests
         throw new DirectoryNotFoundException("Could not locate repository root from test output directory.");
     }
 
-    [GeneratedRegex("io\\.github\\.alper_han\\.crossmacro\\.input-(?:capture|simulate)")]
+    [GeneratedRegex("io\\.github\\.alper_han\\.crossmacro\\.input-(?:capture|simulate)", RegexOptions.NonBacktracking)]
     private static partial Regex PolkitActionIdRegex();
 }

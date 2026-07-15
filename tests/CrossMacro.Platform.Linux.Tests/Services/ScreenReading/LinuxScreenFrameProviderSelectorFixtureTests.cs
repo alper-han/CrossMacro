@@ -68,7 +68,7 @@ public sealed class LinuxScreenFrameProviderSelectorFixtureTests
         using var provider = factory.Create();
 
         var unavailable = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
-        Assert.Contains(expectedOrder, unavailable.FailureMessage);
+        Assert.Contains(expectedOrder, unavailable.FailureMessage, StringComparison.Ordinal);
     }
 
     [Fact]

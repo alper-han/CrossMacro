@@ -20,7 +20,7 @@ public sealed class CliPreflightResult
         {
             Success = true,
             ExitCode = CliExitCode.Success,
-            Warnings = warnings ?? []
+            Warnings = warnings ?? [],
         };
     }
 
@@ -36,7 +36,7 @@ public sealed class CliPreflightResult
             ExitCode = exitCode,
             Message = message,
             Errors = errors ?? [],
-            Warnings = warnings ?? []
+            Warnings = warnings ?? [],
         };
     }
 }

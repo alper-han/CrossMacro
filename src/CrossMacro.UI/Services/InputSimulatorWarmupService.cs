@@ -23,7 +23,7 @@ internal sealed class InputSimulatorWarmupService
             var width = 0;
             var height = 0;
 
-            if (positionProvider != null)
+            if (positionProvider is not null)
             {
                 var resolution = await positionProvider.GetScreenResolutionAsync();
                 cancellationToken.ThrowIfCancellationRequested();

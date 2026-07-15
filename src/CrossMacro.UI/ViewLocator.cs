@@ -24,7 +24,7 @@ public class ViewLocator : IDataTemplate
             TriggerViewModel => new TriggerTabView(),
             EditorViewModel => new EditorTabView(),
             null => null,
-            _ => new TextBlock { Text = "Not Found: " + param.GetType().FullName }
+            _ => new TextBlock { Text = "Not Found: " + param.GetType().FullName },
         };
     }
 

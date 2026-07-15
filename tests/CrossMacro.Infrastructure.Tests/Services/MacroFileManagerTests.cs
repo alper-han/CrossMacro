@@ -74,7 +74,7 @@ public class MacroFileManagerTests : IDisposable
         var manager = new MacroFileManager(() =>
             throw new InvalidOperationException("Key mapper should not be resolved while loading."));
         var filePath = GetTempFilePath();
-        var content = """
+        const string content = """
 # Name: Load Without Key Mapper
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 0
@@ -105,7 +105,7 @@ M,0,0
                 new() { Type = EventType.MouseMove, X = 100, Y = 200, Timestamp = 0, DelayMs = 0 },
                 new() { Type = EventType.ButtonPress, X = 100, Y = 200, Button = MouseButton.Left, Timestamp = 100, DelayMs = 100 },
                 new() { Type = EventType.ButtonRelease, X = 100, Y = 200, Button = MouseButton.Left, Timestamp = 150, DelayMs = 50 }
-            }
+            },
         };
     }
 
@@ -154,7 +154,7 @@ M,0,0
             TextInputBoundaries = [new TextInputBoundary(0, 1, "hello")],
             Images = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["Target"] = TransparentPngBase64
+                ["Target"] = TransparentPngBase64,
             },
             Events =
             [
@@ -165,7 +165,7 @@ M,0,0
                     Y = 20,
                     Timestamp = 0,
                     DelayMs = 0,
-                    CoordinateMode = MouseCoordinateMode.Relative
+                    CoordinateMode = MouseCoordinateMode.Relative,
                 },
                 new MacroEvent
                 {
@@ -179,13 +179,13 @@ M,0,0
                     RandomDelayMinMs = 5,
                     RandomDelayMaxMs = 15,
                     UseCurrentPosition = true
-                }
+                },
             ],
             RecordedAt = new DateTime(2024, 2, 3, 4, 5, 6, DateTimeKind.Utc),
             ActualDuration = TimeSpan.FromMilliseconds(321),
             MouseMoveCount = 9,
             ClickCount = 8,
-            EventsPerSecond = 7.5
+            EventsPerSecond = 7.5,
         };
         var filePath = GetTempFilePath();
 
@@ -317,7 +317,7 @@ M,0,0
         {
             // Cleanup
             if (Directory.Exists(tempDir))
-                Directory.Delete(tempDir, true);
+                Directory.Delete(tempDir, recursive: true);
         }
     }
 
@@ -402,7 +402,7 @@ M,0,0
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 500, Y = 600, Timestamp = 0, DelayMs = 0 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -428,7 +428,7 @@ M,0,0
             {
                 new() { Type = EventType.KeyPress, KeyCode = 30, Timestamp = 0, DelayMs = 0 },
                 new() { Type = EventType.KeyRelease, KeyCode = 30, Timestamp = 50, DelayMs = 50 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -456,7 +456,7 @@ M,0,0
                 new() { Type = EventType.MouseMove, X = 0, Y = 0, Timestamp = 0, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 100, Y = 100, Timestamp = 500, DelayMs = 500 },
                 new() { Type = EventType.MouseMove, X = 200, Y = 200, Timestamp = 1500, DelayMs = 1000 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -480,7 +480,7 @@ M,0,0
             {
                 new() { Type = EventType.ButtonPress, X = 100, Y = 200, Button = MouseButton.Right, Timestamp = 0, DelayMs = 0 },
                 new() { Type = EventType.ButtonRelease, X = 100, Y = 200, Button = MouseButton.Right, Timestamp = 100, DelayMs = 100 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -512,7 +512,7 @@ M,0,0
                     Button = MouseButton.Left,
                     UseCurrentPosition = true
                 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -531,7 +531,7 @@ M,0,0
     {
         // Arrange - Manual file with WAIT command
         var filePath = GetTempFilePath();
-        var content = @"# Name: Wait Test
+        const string content = @"# Name: Wait Test
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 1000
 # IsAbsolute: True
@@ -556,7 +556,7 @@ M,100,100";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = """
+        const string content = """
 # Name: Sectionless Events
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 1000
@@ -585,7 +585,7 @@ KP,65
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = @"# Name: Delay Leak Test
+        const string content = @"# Name: Delay Leak Test
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 1000
 # IsAbsolute: True
@@ -613,7 +613,7 @@ M,100,100";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = @"# Name: Legacy Current Position Test
+        const string content = @"# Name: Legacy Current Position Test
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 0
 # IsAbsolute: False
@@ -638,7 +638,7 @@ C,0,0,Left";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = @"# Name: Legacy Current Position Followed By Move
+        const string content = @"# Name: Legacy Current Position Followed By Move
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 0
 # IsAbsolute: False
@@ -667,7 +667,7 @@ C,0,0,Left";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = @"# Name: Explicit Relative Zero Click
+        const string content = @"# Name: Explicit Relative Zero Click
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 0
 # IsAbsolute: False
@@ -709,7 +709,7 @@ C,rel,0,0,Left";
                     RandomDelayMinMs = 60,
                     RandomDelayMaxMs = 120
                 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -739,7 +739,7 @@ C,rel,0,0,Left";
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 0, Y = 0, Timestamp = 0, DelayMs = 0 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -759,7 +759,7 @@ C,rel,0,0,Left";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = @"# Name: Wait Random Test
+        const string content = @"# Name: Wait Random Test
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 1000
 # IsAbsolute: True
@@ -795,12 +795,12 @@ M,100,100";
                 "set i 0",
                 "for i from 1 to 10 {",
                 "click left",
-                "}"
+                "}",
             ],
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.Click, Button = MouseButton.Left, DelayMs = 0 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -848,7 +848,7 @@ M,100,100";
             "[Script]",
             "imagesearch Missing found found_x found_y",
             "[Events]",
-            "M,0,0"
+            "M,0,0",
         ]);
 
         var act = async () => await _manager.LoadAsync(filePath);
@@ -866,9 +866,9 @@ M,100,100";
             Name = "Image Asset Round Trip",
             Images = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["Target_1"] = TransparentPngBase64
+                ["Target_1"] = TransparentPngBase64,
             },
-            ScriptSteps = ["click left"]
+            ScriptSteps = ["click left"],
         };
         var filePath = GetTempFilePath();
 
@@ -896,12 +896,12 @@ M,100,100";
             Images = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["Zeta"] = TransparentPngBase64,
-                ["Alpha_2"] = BlackPngBase64
+                ["Alpha_2"] = BlackPngBase64,
             },
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 0, Y = 0 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -949,12 +949,12 @@ M,100,100";
             {
                 ["ValidTarget"] = TransparentPngBase64,
                 ["InvalidTarget"] = "not-base64",
-                ["WrappedTarget"] = $"{BlackPngBase64[..12]}\n{BlackPngBase64[12..]}"
+                ["WrappedTarget"] = $"{BlackPngBase64[..12]}\n{BlackPngBase64[12..]}",
             },
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 0, Y = 0 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -979,7 +979,7 @@ M,100,100";
             "# Image: ValidName = not-base64",
             "# Format: CrossMacroFormatV2",
             "[Events]",
-            "M,0,0"
+            "M,0,0",
         ]);
 
         // Act
@@ -1001,7 +1001,7 @@ M,100,100";
             $"# Image: Oversized = {Convert.ToBase64String(CreateOversizedPngBytes())}",
             "# Format: CrossMacroFormatV2",
             "[Events]",
-            "M,0,0"
+            "M,0,0",
         ]);
 
         // Act
@@ -1020,7 +1020,7 @@ M,100,100";
         var macro = CreateValidMacro();
         macro.Images = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["InvalidTarget"] = "not-base64"
+            ["InvalidTarget"] = "not-base64",
         };
 
         var act = async () => await _manager.SaveAsync(macro, filePath);
@@ -1053,9 +1053,9 @@ M,100,100";
             Name = "Invalid Script With Images",
             Images = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["Target_1"] = TransparentPngBase64
+                ["Target_1"] = TransparentPngBase64,
             },
-            ScriptSteps = ["pixelcolor 1"]
+            ScriptSteps = ["pixelcolor 1"],
         };
         var filePath = GetTempFilePath();
 
@@ -1073,7 +1073,7 @@ M,100,100";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = """
+        const string content = """
 # Name: Readable Script Step Macro
 # Created: 2024-01-01T00:00:00Z
 # DurationMs: 0
@@ -1105,7 +1105,7 @@ pixelsearch 0 0 3 3 123456 found x y
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = """
+        const string content = """
 # Name: Readable Section Noise
 # Format: CrossMacroFormatV2
 [Script]
@@ -1141,7 +1141,7 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Embedded Newline Script Step Round Trip",
-            ScriptSteps = ["type first line\npath C:\\Users\\me"]
+            ScriptSteps = ["type first line\npath C:\\Users\\me"],
         };
         var filePath = GetTempFilePath();
 
@@ -1171,7 +1171,7 @@ KP,65
             [
                 "pixelcolor 10 20 color",
                 "pixelsearch 0 0 3 3 123456 x y"
-            ]
+            ],
         };
         var filePath = GetTempFilePath();
 
@@ -1200,7 +1200,7 @@ KP,65
             ScriptSteps =
             [
                 "type [demo], #1, C:\\Temp\\macro.txt"
-            ]
+            ],
         };
         var filePath = GetTempFilePath();
 
@@ -1224,7 +1224,7 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Invalid Script Step Macro",
-            ScriptSteps = ["pixelcolor 1"]
+            ScriptSteps = ["pixelcolor 1"],
         };
         var filePath = GetTempFilePath();
 
@@ -1247,7 +1247,7 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Runtime Mapped Key Script",
-            ScriptSteps = [scriptStep]
+            ScriptSteps = [scriptStep],
         };
         var filePath = GetTempFilePath();
 
@@ -1272,13 +1272,13 @@ KP,65
                 new() { Type = EventType.KeyPress, KeyCode = 65 },
                 new() { Type = EventType.KeyRelease, KeyCode = 65 },
                 new() { Type = EventType.KeyPress, KeyCode = 66 },
-                new() { Type = EventType.KeyRelease, KeyCode = 66 }
+                new() { Type = EventType.KeyRelease, KeyCode = 66 },
             },
             TextInputBoundaries =
             [
                 new TextInputBoundary(0, 2, "a,b $1"),
                 new TextInputBoundary(2, 2, "çok satırlı\nmetin")
-            ]
+            ],
         };
         var filePath = GetTempFilePath();
 
@@ -1300,7 +1300,7 @@ KP,65
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = @"# Name: Legacy Relative
+        const string content = @"# Name: Legacy Relative
 # IsAbsolute: False
 # SkipInitialZero: False
 # Format: CrossMacroFormatV2
@@ -1337,7 +1337,7 @@ C,5,6,Right";
             {
                 new() { Type = EventType.MouseMove, X = 100, Y = 200, CoordinateMode = MouseCoordinateMode.Absolute },
                 new() { Type = EventType.MouseMove, X = 10, Y = 20, CoordinateMode = MouseCoordinateMode.Relative }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -1368,7 +1368,7 @@ C,5,6,Right";
                 new() { Type = EventType.MouseMove, X = 100, Y = 200, CoordinateMode = MouseCoordinateMode.Absolute },
                 new() { Type = EventType.MouseMove, X = 10, Y = 20 },
                 new() { Type = EventType.Click, X = 5, Y = 6, Button = MouseButton.Left }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -1404,7 +1404,7 @@ C,5,6,Right";
                 new() { Type = EventType.ButtonPress, X = 1, Y = 2, Button = MouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute },
                 new() { Type = EventType.ButtonRelease, X = 3, Y = 4, Button = MouseButton.Right, CoordinateMode = MouseCoordinateMode.Relative },
                 new() { Type = EventType.Click, X = 5, Y = 6, Button = MouseButton.Middle, CoordinateMode = MouseCoordinateMode.Relative }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -1444,7 +1444,7 @@ C,5,6,Right";
                     UseCurrentPosition = true,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -1480,7 +1480,7 @@ C,5,6,Right";
                     Button = MouseButton.ScrollDown,
                     CoordinateMode = MouseCoordinateMode.Absolute
                 }
-            }
+            },
         };
         var filePath = GetTempFilePath();
 
@@ -1503,7 +1503,7 @@ C,5,6,Right";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        var content = @"# Name: Invalid Mode
+        const string content = @"# Name: Invalid Mode
 # IsAbsolute: True
 # Format: CrossMacroFormatV2
 [Events]
@@ -1537,7 +1537,7 @@ M,abs,10,20";
             "# Format: CrossMacroFormatV2",
             "[Events]",
             "KP,65",
-            "KR,65"
+            "KR,65",
         ]);
 
         // Act
@@ -1553,7 +1553,7 @@ M,abs,10,20";
     public async Task LoadAsync_WhenTextInputBoundaryMetadataUsesLegacyPascalCaseJson_LoadsBoundary()
     {
         // Arrange
-        var boundaryJson = "{\"StartEventIndex\":0,\"EventCount\":2,\"Text\":\"legacy text\"}";
+        const string boundaryJson = "{\"StartEventIndex\":0,\"EventCount\":2,\"Text\":\"legacy text\"}";
         var encodedBoundary = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(boundaryJson));
         var filePath = GetTempFilePath();
         await File.WriteAllLinesAsync(filePath,
@@ -1563,7 +1563,7 @@ M,abs,10,20";
             "# Format: CrossMacroFormatV2",
             "[Events]",
             "KP,65",
-            "KR,65"
+            "KR,65",
         ]);
 
         // Act
@@ -1589,7 +1589,7 @@ M,abs,10,20";
             0x00,
             0x00,
             0x00,
-            0x6C, 0xF7, 0xBC, 0x13
+            0x6C, 0xF7, 0xBC, 0x13,
         ];
     }
 

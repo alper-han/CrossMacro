@@ -7,7 +7,7 @@ internal enum DesktopStartupDisplayMode
 {
     Visible,
     Minimized,
-    HiddenToTray
+    HiddenToTray,
 }
 
 internal readonly record struct DesktopStartupPreferences(

@@ -56,7 +56,7 @@ internal sealed class RunSequenceExecutor
 
             var playbackOptions = new PlaybackOptions
             {
-                SpeedMultiplier = normalizedSpeed
+                SpeedMultiplier = normalizedSpeed,
             };
 
             using var player = _macroPlayerFactory();
@@ -146,7 +146,7 @@ internal sealed class RunSequenceExecutionResult
             Success = true,
             RuntimeVariables = runtimeVariables is null
                 ? new Dictionary<string, string>()
-                : new Dictionary<string, string>(runtimeVariables, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(runtimeVariables, StringComparer.OrdinalIgnoreCase),
         };
     }
 
@@ -155,7 +155,7 @@ internal sealed class RunSequenceExecutionResult
         return new RunSequenceExecutionResult
         {
             Success = false,
-            IsCancelled = true
+            IsCancelled = true,
         };
     }
 
@@ -166,7 +166,7 @@ internal sealed class RunSequenceExecutionResult
             Success = false,
             IsCancelled = false,
             IsAbsolutePlaybackUnsupported = true,
-            ErrorMessage = errorMessage
+            ErrorMessage = errorMessage,
         };
     }
 
@@ -177,7 +177,7 @@ internal sealed class RunSequenceExecutionResult
             Success = false,
             IsCancelled = false,
             IsInputInjectionPermissionRequired = true,
-            ErrorMessage = errorMessage
+            ErrorMessage = errorMessage,
         };
     }
 
@@ -187,7 +187,7 @@ internal sealed class RunSequenceExecutionResult
         {
             Success = false,
             IsCancelled = false,
-            ErrorMessage = errorMessage
+            ErrorMessage = errorMessage,
         };
     }
 }

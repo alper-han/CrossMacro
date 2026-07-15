@@ -100,7 +100,7 @@ public class AppSettingsTests
     {
         var settings = new AppSettings
         {
-            StartMinimized = true
+            StartMinimized = true,
         };
 
         settings.StartMinimized.Should().BeTrue();

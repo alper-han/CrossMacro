@@ -23,5 +23,5 @@ public enum CoordinateModeSummary
     /// <summary>
     /// Coordinate-bearing events resolve to both absolute coordinates and relative deltas.
     /// </summary>
-    Mixed
+    Mixed,
 }

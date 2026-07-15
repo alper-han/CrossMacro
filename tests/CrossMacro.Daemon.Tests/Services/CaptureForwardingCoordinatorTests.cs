@@ -45,7 +45,7 @@ public sealed class CaptureForwardingCoordinatorTests
                 {
                     type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
                     code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
-                    value = 1
+                    value = 1,
                 }),
                 TaskCreationOptions.LongRunning);
 

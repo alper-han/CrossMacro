@@ -47,7 +47,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         CurrentY = 0;
 
         // Try to get current position from provider
-        if (_positionProvider != null && _positionProvider.IsSupported)
+        if (_positionProvider is not null && _positionProvider.IsSupported)
         {
             try
             {
@@ -66,15 +66,15 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         }
 
         var firstPositionRelevantMouseEvent = FindFirstPositionRelevantMouseEvent(macro);
-        var firstCoordinateMode = firstPositionRelevantMouseEvent.Type == EventType.None
+        var firstCoordinateMode = firstPositionRelevantMouseEvent.Type is EventType.None
             ? null
             : MacroPositionSemantics.ResolveCoordinateMode(firstPositionRelevantMouseEvent, macro.IsAbsoluteCoordinates);
 
-        if (firstCoordinateMode == MouseCoordinateMode.Absolute)
+        if (firstCoordinateMode is MouseCoordinateMode.Absolute)
         {
             Log.Information("[PlaybackCoordinator] Absolute mode: first coordinate-bearing event will establish playback position");
         }
-        else if (firstCoordinateMode == MouseCoordinateMode.Relative)
+        else if (firstCoordinateMode is MouseCoordinateMode.Relative)
         {
             await InitializeRelativeModeAsync(macro, simulator, cancellationToken);
         }
@@ -114,18 +114,18 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         CancellationToken cancellationToken)
     {
         // First iteration is handled by InitializeAsync
-        if (iteration == 0)
+        if (iteration is 0)
             return;
 
         var firstPositionRelevantMouseEvent = FindFirstPositionRelevantMouseEvent(macro);
-        var firstCoordinateMode = firstPositionRelevantMouseEvent.Type == EventType.None
+        var firstCoordinateMode = firstPositionRelevantMouseEvent.Type is EventType.None
             ? null
             : MacroPositionSemantics.ResolveCoordinateMode(firstPositionRelevantMouseEvent, macro.IsAbsoluteCoordinates);
 
-        if (firstCoordinateMode == MouseCoordinateMode.Absolute)
+        if (firstCoordinateMode is MouseCoordinateMode.Absolute)
         {
             // Sync tracked position when possible; the first absolute event itself performs the movement.
-            if (_positionProvider != null && _positionProvider.IsSupported)
+            if (_positionProvider is not null && _positionProvider.IsSupported)
             {
                 try
                 {
@@ -144,8 +144,8 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
                 }
             }
         }
-        else if (firstCoordinateMode == MouseCoordinateMode.Relative
-            && !macro.SkipInitialZeroZero)
+        else if (firstCoordinateMode is MouseCoordinateMode.Relative
+&& !macro.SkipInitialZeroZero)
         {
             // Relative mode with Corner Reset
             Log.Information("[PlaybackCoordinator] Iteration {I}: Performing Corner Reset (0,0)", iteration + 1);
@@ -160,7 +160,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
     private static MacroEvent FindFirstPositionRelevantMouseEvent(MacroSequence macro)
     {
         return macro.Events.FirstOrDefault(e =>
-            e.Type == EventType.MouseMove
-            || MacroPositionSemantics.IsNonScrollMouseButtonEvent(e));
+            e.Type is EventType.MouseMove
+|| MacroPositionSemantics.IsNonScrollMouseButtonEvent(e));
     }
 }

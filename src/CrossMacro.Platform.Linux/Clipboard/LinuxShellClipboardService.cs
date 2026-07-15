@@ -11,7 +11,7 @@ using CrossMacro.Platform.Linux.Services;
 namespace CrossMacro.Platform.Linux.Clipboard;
 
 /// <summary>
-/// Clipboard service that uses Linux command line tools (wl-copy, xclip) 
+/// Clipboard service that uses Linux command line tools (wl-copy, xclip)
 /// to ensure reliable background operation where GUI frameworks fail.
 /// </summary>
 public class LinuxShellClipboardService : ILinuxClipboardService
@@ -22,7 +22,7 @@ public class LinuxShellClipboardService : ILinuxClipboardService
     private bool _initialized = false;
     private readonly LinuxEnvironmentSnapshot _environment;
 
-    public bool IsSupported => _tool != ClipboardTool.Unknown || !_initialized;
+    public bool IsSupported => _tool is not ClipboardTool.Unknown || !_initialized;
 
     public LinuxShellClipboardService(IProcessRunner processRunner)
         : this(processRunner, LinuxEnvironmentVariables.CaptureCurrentSnapshot())
@@ -40,16 +40,13 @@ public class LinuxShellClipboardService : ILinuxClipboardService
         if (_initialized) return;
 
         // Check for Wayland first
-        if (!string.IsNullOrEmpty(_environment.WaylandDisplay))
-        {
-            if (await _processRunner.CheckCommandAsync("wl-copy", cancellationToken) &&
+        if (!string.IsNullOrEmpty(_environment.WaylandDisplay) && await _processRunner.CheckCommandAsync("wl-copy", cancellationToken) &&
                 await _processRunner.CheckCommandAsync("wl-paste", cancellationToken))
-            {
-                _tool = ClipboardTool.WlClipboard;
-                Log.Information("[LinuxClipboard] Detected Wayland, using wl-clipboard");
-                _initialized = true;
-                return;
-            }
+        {
+            _tool = ClipboardTool.WlClipboard;
+            Log.Information("[LinuxClipboard] Detected Wayland, using wl-clipboard");
+            _initialized = true;
+            return;
         }
 
         // Check for X11 tools
@@ -82,7 +79,7 @@ public class LinuxShellClipboardService : ILinuxClipboardService
             switch (_tool)
             {
                 case ClipboardTool.WlClipboard:
-                    if (text.Length == 0)
+                    if (text.Length is 0)
                     {
                         await _processRunner.ExecuteCommandAsync("wl-copy", ["--clear"], cancellationToken);
                     }
@@ -123,7 +120,7 @@ public class LinuxShellClipboardService : ILinuxClipboardService
                 ClipboardTool.WlClipboard => await _processRunner.ReadCommandAsync("wl-paste", "--no-newline", cancellationToken),
                 ClipboardTool.Xclip => await _processRunner.ReadCommandAsync("xclip", "-selection clipboard -o", cancellationToken),
                 ClipboardTool.Xsel => await _processRunner.ReadCommandAsync("xsel", "--clipboard --output", cancellationToken),
-                _ => throw new InvalidOperationException("No supported Linux clipboard tool is available.")
+                _ => throw new InvalidOperationException("No supported Linux clipboard tool is available."),
             };
         }
         catch (OperationCanceledException)
@@ -132,7 +129,7 @@ public class LinuxShellClipboardService : ILinuxClipboardService
         }
         catch (Exception ex)
         {
-            if (_tool == ClipboardTool.WlClipboard && IsEmptyWlPasteResult(ex))
+            if (_tool is ClipboardTool.WlClipboard && IsEmptyWlPasteResult(ex))
             {
                 Log.Debug("[LinuxClipboard] Wayland clipboard is empty");
                 return string.Empty;

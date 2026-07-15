@@ -37,12 +37,12 @@ public class GitHubUpdateService : IUpdateService
     private readonly HttpClient? _httpClient;
 
     public GitHubUpdateService()
-        : this(new RuntimeContext(), null)
+        : this(new RuntimeContext(), httpClient: null)
     {
     }
 
     public GitHubUpdateService(IRuntimeContext runtimeContext)
-        : this(runtimeContext, null)
+        : this(runtimeContext, httpClient: null)
     {
     }
 
@@ -85,7 +85,7 @@ public class GitHubUpdateService : IUpdateService
                     GitHubJsonContext.Default.GitHubRelease,
                     timeoutCts.Token);
 
-                if (release == null)
+                if (release is null)
                 {
                     Log.Warning("GitHub release info is null");
                     return new UpdateCheckResult { HasUpdate = false };
@@ -109,7 +109,7 @@ public class GitHubUpdateService : IUpdateService
                         {
                             HasUpdate = true,
                             LatestVersion = tagName ?? release.TagName ?? string.Empty,
-                            ReleaseUrl = release.HtmlUrl ?? string.Empty
+                            ReleaseUrl = release.HtmlUrl ?? string.Empty,
                         };
                     }
 

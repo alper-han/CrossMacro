@@ -23,7 +23,7 @@ public sealed class PortalScreenCastCaptureTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("portal unavailable", result.ErrorMessage);
+        Assert.Contains("portal unavailable", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, sessionFactory.StartCalls);
         Assert.Equal(0, pipeWireFactory.CreateCalls);
     }
@@ -72,7 +72,7 @@ public sealed class PortalScreenCastCaptureTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Contains("user denied", result.ErrorMessage);
+        Assert.Contains("user denied", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(1, sessionFactory.StartCalls);
         Assert.Equal(0, pipeWireFactory.CreateCalls);
     }
@@ -94,7 +94,7 @@ public sealed class PortalScreenCastCaptureTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("pipewire stream failed", result.ErrorMessage);
+        Assert.Contains("pipewire stream failed", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(1, pipeWireFactory.CreateCalls);
         Assert.Equal(42U, pipeWireFactory.LastNodeId);
         Assert.Equal(3, pipeWireFactory.LastWidth);
@@ -112,7 +112,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
             PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not return"))
         {
-            CaptureException = new OperationCanceledException("pipewire canceled")
+            CaptureException = new OperationCanceledException("pipewire canceled"),
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
@@ -138,7 +138,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
             PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not return"))
         {
-            CaptureException = new TimeoutException("pipewire timed out")
+            CaptureException = new TimeoutException("pipewire timed out"),
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
@@ -150,7 +150,7 @@ public sealed class PortalScreenCastCaptureTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
-        Assert.Contains("pipewire timed out", result.ErrorMessage);
+        Assert.Contains("pipewire timed out", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(1, pipeWireFactory.CreateCalls);
         Assert.Equal(1, pipeWireCapture.CaptureCalls);
         Assert.Equal(1, pipeWireCapture.DisposeCount);
@@ -218,7 +218,7 @@ public sealed class PortalScreenCastCaptureTests
         var streams = new[]
         {
             Stream(42, id: "left", x: 0, y: 0, width: 2, height: 1),
-            Stream(43, id: "right", x: 2, y: 0, width: 2, height: 1)
+            Stream(43, id: "right", x: 2, y: 0, width: 2, height: 1),
         };
         var session = FakePortalScreenCastSessionFactory.CreateSession(streams);
         var leftCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
@@ -231,7 +231,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(new Dictionary<uint, FakePortalPipeWireFrameCapture>
         {
             [42] = leftCapture,
-            [43] = rightCapture
+            [43] = rightCapture,
         });
         using var capture = new PortalScreenCastCapture(
             new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
@@ -286,7 +286,7 @@ public sealed class PortalScreenCastCaptureTests
             ["source_type"] = 1U,
             ["id"] = id,
             ["position"] = new object[] { x, y },
-            ["size"] = new object[] { width, height }
+            ["size"] = new object[] { width, height },
         });
     }
 }

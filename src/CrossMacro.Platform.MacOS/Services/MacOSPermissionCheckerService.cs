@@ -60,7 +60,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
             MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
             MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
-            _ => false
+            _ => false,
         };
     }
 
@@ -86,7 +86,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionRequirement.ListenEvent => _requestListenEventAccess(),
             MacOSPermissionRequirement.PostEvent => _requestPostEventAccess(),
             MacOSPermissionRequirement.Accessibility => MacOSPermissionChecker.PromptAccessibilityPermission(),
-            _ => false
+            _ => false,
         };
     }
 

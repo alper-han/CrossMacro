@@ -119,7 +119,7 @@ public sealed class RuntimeLifecycle : IRuntimeLifecycle
 
     private static void ThrowWithCleanupErrors(Exception startError, IReadOnlyList<Exception> cleanupErrors)
     {
-        if (cleanupErrors.Count == 0)
+        if (cleanupErrors.Count is 0)
         {
             throw startError;
         }

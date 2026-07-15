@@ -16,7 +16,7 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
     private readonly Func<TimeSpan, CancellationToken, Task> _waitAsync;
     private readonly Func<IInputSimulator>? _simulatorFactory;
     private readonly IInputSimulatorPool? _simulatorPool;
-    private readonly ManualResetEventSlim _pauseEvent = new(true);
+    private readonly ManualResetEventSlim _pauseEvent = new(initialState: true);
     private readonly Dictionary<string, string> _variables = new(StringComparer.OrdinalIgnoreCase);
     private IInputSimulator? _simulator;
     private int _released;
@@ -173,7 +173,7 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
     private void ReleaseSimulator()
     {
         var simulator = _simulator;
-        if (simulator is null || Interlocked.Exchange(ref _released, 1) != 0)
+        if (simulator is null || Interlocked.Exchange(ref _released, 1) is not 0)
         {
             return;
         }

@@ -98,7 +98,7 @@ public class LinuxIpcInputCapture : IInputCapture
         var startupAttempt = BeginStartupAttempt();
         if (!startupAttempt.ShouldStart)
         {
-            if (startupAttempt.PendingStartTask != null)
+            if (startupAttempt.PendingStartTask is not null)
             {
                 await startupAttempt.PendingStartTask.WaitAsync(ct);
             }
@@ -214,7 +214,7 @@ public class LinuxIpcInputCapture : IInputCapture
 
     private static string GetStartupFailureMessage(Exception ex)
     {
-        if (ex is IpcClientException ipcEx && ipcEx.Reason == IpcClientFailureReason.Timeout)
+        if (ex is IpcClientException ipcEx && ipcEx.Reason is IpcClientFailureReason.Timeout)
         {
             return "Timed out while waiting for daemon handshake. Check that crossmacro.service is running and responsive.";
         }
@@ -232,9 +232,7 @@ public class LinuxIpcInputCapture : IInputCapture
     private StartupFailurePolicy ClassifyCaptureStartupFailure(Exception ex)
     {
         var userMessage = GetStartupFailureMessage(ex);
-        var shouldWaitForReconnect = _client.AutoReconnectEnabled &&
-            ex is IpcClientException ipcEx &&
-            ipcEx.Reason == IpcClientFailureReason.ConnectFailed;
+        var shouldWaitForReconnect = _client.AutoReconnectEnabled && ex is IpcClientException ipcEx && ipcEx.Reason is IpcClientFailureReason.ConnectFailed;
 
         return new StartupFailurePolicy(shouldWaitForReconnect, userMessage);
     }
@@ -369,10 +367,7 @@ public class LinuxIpcInputCapture : IInputCapture
         int startupConfigurationVersion)
     {
         var shouldStopImmediately =
-            _disposed ||
-            _stopRequestedDuringStartup ||
-            pendingStartLifetimeCts?.IsCancellationRequested == true ||
-            cancellationToken.IsCancellationRequested;
+            _disposed || _stopRequestedDuringStartup || (pendingStartLifetimeCts?.IsCancellationRequested) is true || cancellationToken.IsCancellationRequested;
         var deferredCaptureMouse = _captureMouse;
         var deferredCaptureKeyboard = _captureKeyboard;
         var deferredConfigurationVersion = _configurationVersion;

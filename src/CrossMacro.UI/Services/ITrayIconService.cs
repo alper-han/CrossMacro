@@ -16,22 +16,22 @@ public interface ITrayIconService : IDisposable
     /// Initialize the tray icon
     /// </summary>
     void Initialize();
-    
+
     /// <summary>
     /// Show the tray icon
     /// </summary>
     void Show();
-    
+
     /// <summary>
     /// Hide the tray icon
     /// </summary>
     void Hide();
-    
+
     /// <summary>
     /// Update the tooltip text
     /// </summary>
     void UpdateTooltip(string tooltip);
-    
+
     /// <summary>
     /// Enable or disable tray icon functionality
     /// When disabled, window will close normally instead of minimizing to tray

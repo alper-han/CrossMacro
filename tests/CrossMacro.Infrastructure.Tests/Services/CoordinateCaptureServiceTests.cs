@@ -41,7 +41,7 @@ public class CoordinateCaptureServiceTests
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_ENTER,
-            Value = 1
+            Value = 1,
         });
 
         var result = await captureTask;
@@ -65,7 +65,7 @@ public class CoordinateCaptureServiceTests
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_ESC,
-            Value = 1
+            Value = 1,
         });
 
         var result = await captureTask;
@@ -87,7 +87,7 @@ public class CoordinateCaptureServiceTests
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_ESC,
-            Value = 1
+            Value = 1,
         });
 
         var result = await captureTask;
@@ -147,7 +147,7 @@ public class CoordinateCaptureServiceTests
         var firstCapture = new FakeInputCapture();
         var secondCapture = new FakeInputCapture();
         var factoryCalls = 0;
-        var service = new CoordinateCaptureService(positionProvider, () => ++factoryCalls == 1 ? firstCapture : secondCapture);
+        var service = new CoordinateCaptureService(positionProvider, () => ++factoryCalls is 1 ? firstCapture : secondCapture);
 
         var firstTask = service.CaptureMousePositionAsync();
         await firstCapture.ConfiguredSignal.WaitAsync(TestTimeout);
@@ -163,7 +163,7 @@ public class CoordinateCaptureServiceTests
         {
             Type = InputEventType.Key,
             Code = InputEventCode.KEY_ENTER,
-            Value = 1
+            Value = 1,
         });
 
         var secondResult = await secondTask;

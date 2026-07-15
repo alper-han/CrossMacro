@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 
 internal enum PipeWireDirection
 {
-    Input = 0
+    Input = 0,
 }
 
 [Flags]
@@ -10,7 +10,7 @@ internal enum PipeWireStreamFlags
 {
     Autoconnect = 1 << 0,
     MapBuffers = 1 << 2,
-    AllocBuffers = 1 << 8
+    AllocBuffers = 1 << 8,
 }
 
 internal static class PipeWireConstants

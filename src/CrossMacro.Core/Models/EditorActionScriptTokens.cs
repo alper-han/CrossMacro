@@ -15,7 +15,7 @@ public static class EditorActionScriptTokens
         }
 
         var name = NormalizeVariableToken(value);
-        if (name.Length == 0)
+        if (name.Length is 0)
         {
             return false;
         }
@@ -44,7 +44,7 @@ public static class EditorActionScriptTokens
 
     public static bool ValidateNumericToken(ScriptNumericSourceType sourceType, string token)
     {
-        if (sourceType == ScriptNumericSourceType.VariableReference)
+        if (sourceType is ScriptNumericSourceType.VariableReference)
         {
             return IsValidVariableName(token);
         }
@@ -61,14 +61,14 @@ public static class EditorActionScriptTokens
             ScriptOperandType.Boolean => bool.TryParse(token, out _),
             ScriptOperandType.Color => TryFormatRgbHexColor(token, out _),
             ScriptOperandType.Text => !string.IsNullOrWhiteSpace(token),
-            _ => false
+            _ => false,
         };
     }
 
     public static string FormatNumericToken(ScriptNumericSourceType sourceType, string value, string defaultValue = "0")
     {
         var token = string.IsNullOrWhiteSpace(value) ? defaultValue : value.Trim();
-        return sourceType == ScriptNumericSourceType.VariableReference
+        return sourceType is ScriptNumericSourceType.VariableReference
             ? $"${NormalizeVariableToken(token)}"
             : token;
     }
@@ -81,7 +81,7 @@ public static class EditorActionScriptTokens
             ScriptOperandType.VariableReference => $"${NormalizeVariableToken(token)}",
             ScriptOperandType.Text => EscapeLiteralDollar(token),
             ScriptOperandType.Color => TryFormatRgbHexColor(token, out var color) ? color : token,
-            _ => token
+            _ => token,
         };
     }
 
@@ -94,7 +94,7 @@ public static class EditorActionScriptTokens
                 ? boolValue.ToString().ToLowerInvariant()
                 : value.Trim(),
             ScriptValueType.Text => EscapeLiteralDollar(value.Trim()),
-            _ => value.Trim()
+            _ => value.Trim(),
         };
     }
 
@@ -108,7 +108,7 @@ public static class EditorActionScriptTokens
             ScriptConditionOperator.GreaterThanOrEqual => ">=",
             ScriptConditionOperator.LessThan => "<",
             ScriptConditionOperator.LessThanOrEqual => "<=",
-            _ => "=="
+            _ => "==",
         };
     }
 
@@ -135,7 +135,7 @@ public static class EditorActionScriptTokens
     private static bool TryFormatRgbHexColor(string value, out string color)
     {
         var token = value.Trim();
-        if (token.Length != 6)
+        if (token.Length is not 6)
         {
             color = string.Empty;
             return false;

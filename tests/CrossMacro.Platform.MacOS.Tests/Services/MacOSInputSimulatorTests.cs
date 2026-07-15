@@ -68,8 +68,8 @@ public class MacOSInputSimulatorTests
         var exception = Assert.Throws<InputInjectionPermissionRequiredException>(
             () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
 
-        Assert.Contains("Accessibility", exception.Message);
-        Assert.Contains("Input Monitoring", exception.Message);
+        Assert.Contains("Accessibility", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Input Monitoring", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class MacOSInputSimulatorTests
             () =>
             {
                 postRequests++;
-                return postRequests == 2;
+                return postRequests is 2;
             },
             isMacOS: () => true);
 
@@ -127,7 +127,7 @@ public class MacOSInputSimulatorTests
             [
                 InputEventCode.KEY_LEFTCTRL,
                 InputEventCode.KEY_LEFTSHIFT,
-                InputEventCode.KEY_LEFTALT
+                InputEventCode.KEY_LEFTALT,
             ]);
 
         Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Control));

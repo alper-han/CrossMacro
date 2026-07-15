@@ -19,7 +19,7 @@ public class RecordCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Recording completed."
+                Message = "Recording completed.",
             });
 
         var handler = new RecordCommandHandler(service, preflight);
@@ -42,7 +42,7 @@ public class RecordCommandHandlerTests
                 Success = false,
                 ExitCode = CliExitCode.EnvironmentError,
                 Message = "Failed to start recording.",
-                Errors = ["capture unavailable"]
+                Errors = ["capture unavailable"],
             });
 
         var handler = new RecordCommandHandler(service, preflight);

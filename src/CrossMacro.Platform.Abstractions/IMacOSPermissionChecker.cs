@@ -4,7 +4,7 @@ public enum MacOSPermissionRequirement
 {
     ListenEvent,
     PostEvent,
-    Accessibility
+    Accessibility,
 }
 
 public readonly record struct MacOSPermissionStatus(
@@ -21,7 +21,7 @@ public readonly record struct MacOSPermissionStatus(
             MacOSPermissionRequirement.ListenEvent => ListenEventApiAvailable && ListenEventGranted,
             MacOSPermissionRequirement.PostEvent => PostEventApiAvailable && PostEventGranted,
             MacOSPermissionRequirement.Accessibility => AccessibilityGranted,
-            _ => false
+            _ => false,
         };
     }
 }

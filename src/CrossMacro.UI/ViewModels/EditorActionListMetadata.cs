@@ -22,7 +22,7 @@ internal static class EditorActionListMetadata
             EditorActionType.RepeatBlockStart or EditorActionType.IfBlockStart or EditorActionType.ElseBlockStart
                 or EditorActionType.WhileBlockStart or EditorActionType.ForBlockStart or EditorActionType.BlockEnd
                 or EditorActionType.Break or EditorActionType.Continue => EditorActionVisualKind.ControlFlow,
-            _ => EditorActionVisualKind.Raw
+            _ => EditorActionVisualKind.Raw,
         };
     }
 
@@ -36,30 +36,30 @@ internal static class EditorActionListMetadata
         return action.Type switch
         {
             EditorActionType.MouseMove => false,
-            EditorActionType.Delay when !action.UseRandomDelay && action.DelayMs == 0 => false,
-            _ => true
+            EditorActionType.Delay when !action.UseRandomDelay && action.DelayMs is 0 => false,
+            _ => true,
         };
     }
 
     public static bool IsCleanupEligible(EditorAction action, bool isNoise)
     {
-        return isNoise && (action.Type == EditorActionType.MouseMove || action.Type == EditorActionType.Delay);
+        return isNoise && (action.Type is EditorActionType.MouseMove or EditorActionType.Delay);
     }
 
     public static bool IsHidden(EditorAction action, bool hideMouseMoves, bool hideShortWaits)
     {
-        return (hideMouseMoves && action.Type == EditorActionType.MouseMove)
-            || (hideShortWaits && IsShortWait(action));
+        return (hideMouseMoves && action.Type is EditorActionType.MouseMove)
+|| (hideShortWaits && IsShortWait(action));
     }
 
     public static bool IsLowImportance(EditorAction action, bool isInsideDrag)
     {
-        return (!isInsideDrag && action.Type == EditorActionType.MouseMove) || IsShortWait(action);
+        return (!isInsideDrag && action.Type is EditorActionType.MouseMove) || IsShortWait(action);
     }
 
     public static bool IsMovementCandidate(EditorAction action)
     {
-        return action.Type == EditorActionType.MouseMove || IsShortWait(action);
+        return action.Type is EditorActionType.MouseMove || IsShortWait(action);
     }
 
     public static bool IsShortWait(EditorAction action)

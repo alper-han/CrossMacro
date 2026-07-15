@@ -19,7 +19,7 @@ public class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDisposable
     {
         _keyCodeMapper = keyCodeMapper;
         _xkbState = xkbState;
-        
+
         // Detect layout and initialize XKB
         var layout = layoutDetector.DetectLayout();
         _xkbState.Initialize(layout);

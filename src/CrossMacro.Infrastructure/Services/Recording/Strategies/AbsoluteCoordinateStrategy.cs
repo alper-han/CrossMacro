@@ -74,10 +74,10 @@ public class AbsoluteCoordinateStrategy : ICoordinateStrategy
     {
         lock (_lock)
         {
-            if (e.Type == InputEventType.Sync)
+            if (e.Type is InputEventType.Sync)
                 return (0, 0);
 
-            if (e.Type == InputEventType.MouseMove)
+            if (e.Type is InputEventType.MouseMove)
             {
                 if (e.Code == InputEventCode.REL_X) _currentX += e.Value;
                 else if (e.Code == InputEventCode.REL_Y) _currentY += e.Value;

@@ -24,8 +24,8 @@ public class EditorViewModelIntegrationTests
         {
             "Editor_BlockName_If" => "IfToken",
             "Editor_BlockName_Repeat" => "RepeatToken",
-            _ when call.Arg<string>().StartsWith("Editor_ActionType_") => call.Arg<string>()["Editor_ActionType_".Length..],
-            _ => call.Arg<string>()
+            _ when call.Arg<string>().StartsWith("Editor_ActionType_", StringComparison.Ordinal) => call.Arg<string>()["Editor_ActionType_".Length..],
+            _ => call.Arg<string>(),
         });
         var viewModel = new EditorViewModel(
             converter,
@@ -69,8 +69,8 @@ public class EditorViewModelIntegrationTests
         localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
         {
             "Editor_Action_KeyDown" => "Hold '{0}'",
-            _ when call.Arg<string>().StartsWith("Editor_ActionType_") => call.Arg<string>()["Editor_ActionType_".Length..],
-            _ => call.Arg<string>()
+            _ when call.Arg<string>().StartsWith("Editor_ActionType_", StringComparison.Ordinal) => call.Arg<string>()["Editor_ActionType_".Length..],
+            _ => call.Arg<string>(),
         });
         var viewModel = new EditorViewModel(
             converter,
@@ -84,7 +84,7 @@ public class EditorViewModelIntegrationTests
             new EditorActionDisplayFormatter(localizationService));
         var sequence = new MacroSequence
         {
-            Events = [new MacroEvent { Type = EventType.KeyPress, KeyCode = 18 }]
+            Events = [new MacroEvent { Type = EventType.KeyPress, KeyCode = 18 }],
         };
 
         // Act
@@ -104,7 +104,7 @@ public class EditorViewModelIntegrationTests
         mapper.GetKeyCode("AltGr").Returns(100);
         mapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(call => call.Arg<char>());
         mapper.RequiresShift(Arg.Any<char>()).Returns(call => char.IsUpper(call.Arg<char>()));
-        mapper.RequiresAltGr(Arg.Any<char>()).Returns(false);
+        mapper.RequiresAltGr(Arg.Any<char>()).Returns(returnThis: false);
         mapper.GetKeyName(Arg.Any<int>()).Returns("A");
         return mapper;
     }

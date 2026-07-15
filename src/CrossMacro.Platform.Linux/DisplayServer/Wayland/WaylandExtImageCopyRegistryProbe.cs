@@ -28,7 +28,7 @@ internal static class WaylandExtImageCopyRegistryProbe
             return ExtImageCopySupportResult.Unsupported("Wayland registry did not expose ext_image_copy_capture_manager_v1.");
         }
 
-        if (connection.Registry.Outputs.Count == 0)
+        if (connection.Registry.Outputs.Count is 0)
         {
             return ExtImageCopySupportResult.Unsupported("Wayland registry did not expose any wl_output globals.");
         }

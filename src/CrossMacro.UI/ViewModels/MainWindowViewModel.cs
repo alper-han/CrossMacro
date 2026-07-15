@@ -32,10 +32,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IUpdateService? _updateService;
     private readonly IEnumerable<IPlatformStartupNotificationProvider> _platformStartupNotificationProviders;
     private readonly DisplayEnvironment _currentEnvironment;
-    
+
     private string? _extensionWarning;
     private bool _hasExtensionWarning;
-    
+
     private string? _gnomeWarning;
     private bool _disposed;
     private CancellationTokenSource? _appNotificationCts;
@@ -52,7 +52,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _suppressSelectedMacroRecordingSync;
 
     internal Task StartupInitializationTask { get; }
-    
+
     public RecordingViewModel Recording { get; }
     public PlaybackViewModel Playback { get; }
     public FilesViewModel Files { get; }
@@ -62,8 +62,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public TriggerViewModel Triggers { get; }
     public SettingsViewModel Settings { get; }
     public EditorViewModel Editor { get; }
-    
-    
+
+
     public bool IsCloseButtonVisible { get; }
 
     private bool _isPaneOpen = false;
@@ -90,8 +90,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 _selectedTopItem = value;
                 OnPropertyChanged();
-                
-                if (value != null)
+
+                if (value is not null)
                 {
                     SelectedBottomItem = null;
                     SelectedNavigationItem = value;
@@ -110,8 +110,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 _selectedBottomItem = value;
                 OnPropertyChanged();
-                
-                if (value != null)
+
+                if (value is not null)
                 {
                     SelectedTopItem = null;
                     SelectedNavigationItem = value;
@@ -130,7 +130,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 _selectedNavigationItem = value;
                 OnPropertyChanged();
-                if (value != null)
+                if (value is not null)
                 {
                     CurrentPage = value.ViewModel;
                 }
@@ -155,23 +155,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<NavigationItem> TopNavigationItems { get; private set; }
     public ObservableCollection<NavigationItem> BottomNavigationItems { get; private set; }
 
-    
     /// <summary>
     /// Application version from assembly
     /// </summary>
     public string AppVersion { get; } = GetAppVersion();
-    
+
     private static string GetAppVersion()
     {
         var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         return version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "";
     }
-    
+
     /// <summary>
     /// Event fired when tray icon setting changes (for App.axaml.cs)
     /// </summary>
     public event EventHandler<bool>? TrayIconEnabledChanged;
-    
+
     public MainWindowViewModel(
         RecordingViewModel recording,
         PlaybackViewModel playback,
@@ -213,28 +212,28 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _currentEnvironment = environmentInfo.CurrentEnvironment;
         _globalStatus = _localizationService["Status_Ready"];
         _localizationService.CultureChanged += OnCultureChanged;
-        
+
         // Use abstraction for close button visibility (DIP: depends on Core interface)
         IsCloseButtonVisible = !environmentInfo.WindowManagerHandlesCloseButton;
-        
+
         // Wire up cross-ViewModel communication
         SetupViewModelCommunication();
-        
+
         // Subscribe to hotkey events
         _hotkeyService.ToggleRecordingRequested += OnToggleRecordingRequested;
         _hotkeyService.TogglePlaybackRequested += OnTogglePlaybackRequested;
         _hotkeyService.TogglePauseRequested += OnTogglePauseRequested;
-        
+
         // Subscribe to extension status events
         SetupExtensionStatusHandling();
-        
+
         // Subscribe to global hotkey errors
         _hotkeyService.ErrorOccurred += OnGlobalHotkeyError;
-        if (_profileManager != null)
+        if (_profileManager is not null)
         {
             _profileManager.ProfileChanged += OnProfileChanged;
         }
-        
+
         // Check for existing errors (in case service started before we subscribed)
         if (!string.IsNullOrEmpty(_hotkeyService.LastError))
         {
@@ -243,7 +242,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         // Forward tray icon changes
         Settings.TrayIconEnabledChanged += (s, enabled) => TrayIconEnabledChanged?.Invoke(this, enabled);
-        
+
         // Start hotkey service
         Settings.StartHotkeyService();
 
@@ -300,7 +299,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 duration: TimeSpan.FromSeconds(12));
         }
 
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             ShowNotification();
             return;
@@ -343,7 +342,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             PlatformStartupNotificationSeverity.Success => AppNotificationSeverity.Success,
             PlatformStartupNotificationSeverity.Error => AppNotificationSeverity.Error,
-            _ => AppNotificationSeverity.Warning
+            _ => AppNotificationSeverity.Warning,
         };
     }
 
@@ -370,7 +369,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         get => _latestVersion;
         set
         {
-            if (_latestVersion != value)
+            if (!string.Equals(_latestVersion, value, StringComparison.Ordinal))
             {
                 _latestVersion = value;
                 OnPropertyChanged();
@@ -390,7 +389,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             // Check if updates are enabled in settings
             if (!Settings.CheckForUpdates) return;
 
-            if (_updateService == null) return;
+            if (_updateService is null) return;
 
             var result = await _updateService.CheckForUpdatesAsync();
             if (result.HasUpdate)
@@ -403,7 +402,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                     OnPropertyChanged(nameof(UpdateAvailableVersionText));
                 }
 
-                if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+                if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
                 {
                     ApplyUpdateNotification();
                 }
@@ -442,7 +441,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             IsUpdateNotificationVisible = false;
         }
     }
-    
+
     private void SetupViewModelCommunication()
     {
         // When recording completes, add the macro to the session and select it
@@ -468,13 +467,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 _localizationService["Status_RecordedEvents"],
                 eventCount));
         };
-        
+
         // When recording state changes, update Playback's ability to start
         Recording.RecordingStateChanged += (s, isRecording) =>
         {
             Playback.CanPlayMacroExternal = !isRecording;
         };
-        
+
         // When playback state changes, update Recording's ability to start and freeze Files interactions
         Playback.PlaybackStateChanged += (s, isPlaying) =>
         {
@@ -500,7 +499,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Keep recording statistics in sync when selection changes or the selected macro payload is replaced.
         Files.SelectedMacroChanged += SyncSelectedMacroSummary;
         Files.SelectedMacroUpdated += SyncSelectedMacroSummary;
-        
+
         // When a macro is loaded from disk, update global status.
         Files.MacroLoaded += (s, macro) =>
         {
@@ -509,12 +508,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 _localizationService["Status_LoadedMacro"],
                 macro.Name));
         };
-        
+
         // When a macro is created in Editor, update the linked loaded macro or add a new one.
         Editor.MacroCreated += (s, e) =>
         {
             var linkedItem = Files.UpsertMacro(Editor.LinkedLoadedMacroSessionId, e.Macro, e.SourcePath);
-            if (linkedItem != null)
+            if (linkedItem is not null)
             {
                 Editor.TrackLoadedMacroSession(linkedItem.SessionId);
             }
@@ -525,16 +524,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 e.Macro.Name,
                 MacroPlayableActionCounter.CountPlayableActions(e.Macro)));
         };
-        
+
         // Forward status changes
         Recording.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(Recording.RecordingStatus) && !_suppressRecordingStatusForwarding)
+            if (string.Equals(e.PropertyName, nameof(Recording.RecordingStatus), StringComparison.Ordinal) && !_suppressRecordingStatusForwarding)
             {
                 SetGlobalStatusThreadSafe(Recording.RecordingStatus);
             }
         };
-        
+
         Playback.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Files.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
         Schedule.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
@@ -573,7 +572,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             Triggers.RefreshProfileData();
         }
 
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             RefreshProfileBackedViewModels();
             return;
@@ -584,7 +583,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void SetGlobalStatusThreadSafe(string status)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             GlobalStatus = status;
             return;
@@ -592,11 +591,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         Dispatcher.UIThread.Post(() => GlobalStatus = status);
     }
-    
+
     private void SetupExtensionStatusHandling()
     {
         // Subscribe via Core interface - no platform-specific type checking needed
-        if (_extensionNotifier != null)
+        if (_extensionNotifier is not null)
         {
             _extensionNotifier.ExtensionStatusUpdated += OnExtensionStatusUpdated;
             if (_extensionNotifier.CurrentExtensionStatus is { } currentStatus)
@@ -636,14 +635,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         get => _extensionWarning;
         set
         {
-            if (_extensionWarning != value)
+            if (!string.Equals(_extensionWarning, value, StringComparison.Ordinal))
             {
                 _extensionWarning = value;
                 OnPropertyChanged();
             }
         }
     }
-    
+
     public bool HasExtensionWarning
     {
         get => _hasExtensionWarning;
@@ -656,13 +655,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public string GlobalStatus
     {
         get => _globalStatus;
         set
         {
-            if (_globalStatus != value)
+            if (!string.Equals(_globalStatus, value, StringComparison.Ordinal))
             {
                 _globalStatus = value;
                 OnPropertyChanged();
@@ -688,7 +687,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         get => _appNotificationTitle;
         set
         {
-            if (_appNotificationTitle != value)
+            if (!string.Equals(_appNotificationTitle, value, StringComparison.Ordinal))
             {
                 _appNotificationTitle = value;
                 OnPropertyChanged();
@@ -701,7 +700,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         get => _appNotificationMessage;
         set
         {
-            if (_appNotificationMessage != value)
+            if (!string.Equals(_appNotificationMessage, value, StringComparison.Ordinal))
             {
                 _appNotificationMessage = value;
                 OnPropertyChanged();
@@ -760,40 +759,40 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     private void OnExtensionStatusUpdated(object? sender, ExtensionStatusChangedEventArgs e)
     {
         void ApplyStatusUpdate()
         {
-            if (e.Code == ExtensionStatusCode.Enabled)
+            if (e.Code is ExtensionStatusCode.Enabled)
             {
                 ShowAppNotification(
                     title: _localizationService["MainWindow_GnomeExtensionTitle"],
                     message: e.Message,
                     severity: AppNotificationSeverity.Success,
                     duration: TimeSpan.FromSeconds(3));
-                
+
                 // Clear warning if it was set
-                if (_gnomeWarning != null)
+                if (_gnomeWarning is not null)
                 {
                     _gnomeWarning = null;
                     UpdateCombinedWarning();
                 }
                 return;
             }
-            
+
             _gnomeWarning = e.Message;
             UpdateCombinedWarning();
             ShowAppNotification(
                 title: _localizationService["MainWindow_GnomeExtensionTitle"],
                 message: e.Message,
-                severity: e.Code == ExtensionStatusCode.Error
+                severity: e.Code is ExtensionStatusCode.Error
                     ? AppNotificationSeverity.Error
                     : AppNotificationSeverity.Warning,
                 duration: TimeSpan.FromSeconds(10));
         }
 
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             ApplyStatusUpdate();
             return;
@@ -817,7 +816,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             HasExtensionWarning = false;
         }
     }
-    
+
     private void OnToggleRecordingRequested(object? sender, EventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
@@ -847,7 +846,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Dispatcher.UIThread.Post(() =>
         {
             var troubleshootingHintKey = GetBackendTroubleshootingHintKey(_currentEnvironment);
-            var message = troubleshootingHintKey == null
+            var message = troubleshootingHintKey is null
                 ? error
                 : $"{error}\n\n{string.Format(
                     _localizationService.CurrentCulture,
@@ -883,7 +882,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 => "MainWindow_BackendTroubleshootingWindows",
             DisplayEnvironment.MacOS
                 => "MainWindow_BackendTroubleshootingMacOS",
-            _ => null
+            _ => null,
         };
     }
 
@@ -900,11 +899,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             AppNotificationSeverity.Success => AppIcon.Success,
             AppNotificationSeverity.Error => AppIcon.Warning,
-            _ => AppIcon.Warning
+            _ => AppIcon.Warning,
         };
-        IsAppNotificationSuccess = severity == AppNotificationSeverity.Success;
-        IsAppNotificationError = severity == AppNotificationSeverity.Error;
-        IsAppNotificationWarning = severity == AppNotificationSeverity.Warning;
+        IsAppNotificationSuccess = severity is AppNotificationSeverity.Success;
+        IsAppNotificationError = severity is AppNotificationSeverity.Error;
+        IsAppNotificationWarning = severity is AppNotificationSeverity.Warning;
         IsAppNotificationVisible = true;
 
         _ = DismissAppNotificationAfterDelayAsync(notificationCts, duration, token);
@@ -933,7 +932,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         finally
         {
             if (ReferenceEquals(
-                    Interlocked.CompareExchange(ref _appNotificationCts, null, notificationCts),
+                    Interlocked.CompareExchange(ref _appNotificationCts, value: null, notificationCts),
                     notificationCts))
             {
                 notificationCts.Dispose();
@@ -943,8 +942,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void CancelAppNotificationTimer()
     {
-        var notificationCts = Interlocked.Exchange(ref _appNotificationCts, null);
-        if (notificationCts == null)
+        var notificationCts = Interlocked.Exchange(ref _appNotificationCts, value: null);
+        if (notificationCts is null)
         {
             return;
         }
@@ -955,7 +954,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private static void PostToUiThreadIfNeeded(Action action)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             action();
             return;
@@ -974,30 +973,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IsAppNotificationError = false;
         IsAppNotificationWarning = false;
     }
-    
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
 
         CancelAppNotificationTimer();
-        
+
         // Unsubscribe from hotkey events
         _hotkeyService.ToggleRecordingRequested -= OnToggleRecordingRequested;
         _hotkeyService.TogglePlaybackRequested -= OnTogglePlaybackRequested;
         _hotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
         _hotkeyService.ErrorOccurred -= OnGlobalHotkeyError;
-        if (_profileManager != null)
+        if (_profileManager is not null)
         {
             _profileManager.ProfileChanged -= OnProfileChanged;
         }
-        
+
         // Unsubscribe from extension status events
-        if (_extensionNotifier != null)
+        if (_extensionNotifier is not null)
         {
             _extensionNotifier.ExtensionStatusUpdated -= OnExtensionStatusUpdated;
         }
-        
+
         // Dispose child ViewModels that implement IDisposable
         Recording.Dispose();
         Schedule.Dispose();
@@ -1010,6 +1009,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         Success,
         Warning,
-        Error
+        Error,
     }
 }

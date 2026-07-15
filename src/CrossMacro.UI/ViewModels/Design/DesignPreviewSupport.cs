@@ -115,7 +115,7 @@ internal sealed class DesignPreviewContext
             CheckForUpdates = true,
             LogLevel = "Information",
             Theme = "Nord",
-            Language = "en"
+            Language = "en",
         };
     }
 
@@ -125,7 +125,7 @@ internal sealed class DesignPreviewContext
         {
             RecordingHotkey = "Ctrl+Alt+R",
             PlaybackHotkey = "Ctrl+Alt+P",
-            PauseHotkey = "Ctrl+Alt+Space"
+            PauseHotkey = "Ctrl+Alt+Space",
         };
     }
 }
@@ -166,7 +166,7 @@ internal static class DesignPreviewSamples
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30, Timestamp = 230, DelayMs = 30 },
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 48, Timestamp = 260, DelayMs = 30 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48, Timestamp = 290, DelayMs = 200 }
-            ]
+            ],
         };
 
         macro.CalculateDuration();
@@ -177,9 +177,9 @@ internal static class DesignPreviewSamples
     {
         return
         [
-            new TextExpansion(":mail", "email@example.com", true, PasteMethod.CtrlV, TextInsertionMode.Paste),
-            new TextExpansion(":retry-note", "Retry failed upload after reconnecting VPN", true, PasteMethod.CtrlShiftV, TextInsertionMode.Paste),
-            new TextExpansion(":runbook", "Open dashboard and start the nightly export macro", true, PasteMethod.CtrlV, TextInsertionMode.DirectTyping)
+            new TextExpansion(":mail", "email@example.com", isEnabled: true, PasteMethod.CtrlV, TextInsertionMode.Paste),
+            new TextExpansion(":retry-note", "Retry failed upload after reconnecting VPN", isEnabled: true, PasteMethod.CtrlShiftV, TextInsertionMode.Paste),
+            new TextExpansion(":runbook", "Open dashboard and start the nightly export macro", isEnabled: true, PasteMethod.CtrlV, TextInsertionMode.DirectTyping),
         ];
     }
 
@@ -194,7 +194,7 @@ internal static class DesignPreviewSamples
             IntervalValue = 15,
             IntervalUnit = IntervalUnit.Minutes,
             LastRunTime = SampleNow.AddMinutes(-10),
-            LastStatus = "Last run completed"
+            LastStatus = "Last run completed",
         };
         intervalTask.IsEnabled = true;
         intervalTask.NextRunTime = SampleNow.AddMinutes(5);
@@ -206,7 +206,7 @@ internal static class DesignPreviewSamples
             MacroFilePath = "/home/demo/macros/run-nightly-export.macro",
             PlaybackSpeed = 1.0,
             ScheduledDateTime = SampleNow.Date.AddDays(1).AddHours(1),
-            LastStatus = "Queued for scheduled run"
+            LastStatus = "Queued for scheduled run",
         };
         oneShotTask.IsEnabled = true;
         oneShotTask.NextRunTime = SampleNow.Date.AddDays(1).AddHours(1);
@@ -219,7 +219,7 @@ internal static class DesignPreviewSamples
             PlaybackSpeed = 1.0,
             WeeklyDays = ScheduleDays.Weekdays,
             WeeklyTime = new TimeSpan(9, 0, 0),
-            LastStatus = "Waiting for next weekday"
+            LastStatus = "Waiting for next weekday",
         };
         weeklyTask.IsEnabled = true;
         weeklyTask.NextRunTime = SampleNow.Date.AddDays(1).AddHours(9);
@@ -239,7 +239,7 @@ internal static class DesignPreviewSamples
             RepeatCount = 0,
             RepeatDelayMs = 120,
             LastTriggeredTime = SampleNow.AddMinutes(-3),
-            LastStatus = "Loop running"
+            LastStatus = "Loop running",
         };
         loopShortcut.IsEnabled = true;
 
@@ -250,7 +250,7 @@ internal static class DesignPreviewSamples
             HotkeyString = "Ctrl+Alt+H",
             PlaybackSpeed = 1.0,
             LastTriggeredTime = SampleNow.AddHours(-2),
-            LastStatus = "Completed"
+            LastStatus = "Completed",
         };
         singleShortcut.IsEnabled = true;
 
@@ -269,7 +269,7 @@ internal static class DesignPreviewSamples
             TargetProfileId = "dev",
             FireMode = TriggerFireMode.OnceOnChange,
             LastTriggeredTime = SampleNow.AddMinutes(-5),
-            LastStatus = "Switched to dev"
+            LastStatus = "Switched to dev",
         };
         codeTrigger.IsEnabled = true;
 
@@ -281,7 +281,7 @@ internal static class DesignPreviewSamples
             Value = "firefox",
             Action = TriggerAction.SwitchProfile,
             TargetProfileId = "gaming",
-            FireMode = TriggerFireMode.OnceOnChange
+            FireMode = TriggerFireMode.OnceOnChange,
         };
         browserTrigger.IsEnabled = true;
 
@@ -297,7 +297,7 @@ internal static class DesignPreviewSamples
                 Type = EditorActionType.SetVariable,
                 ScriptVariableName = "retryCount",
                 ScriptValueType = ScriptValueType.Number,
-                ScriptValue = "0"
+                ScriptValue = "0",
             },
             new EditorAction
             {
@@ -306,29 +306,29 @@ internal static class DesignPreviewSamples
                 ScriptLeftOperand = "retryCount",
                 ScriptConditionOperator = ScriptConditionOperator.LessThan,
                 ScriptRightOperandType = ScriptOperandType.Number,
-                ScriptRightOperand = "3"
+                ScriptRightOperand = "3",
             },
             new EditorAction
             {
                 Type = EditorActionType.MouseClick,
                 Button = MouseButton.Left,
                 UseCurrentPosition = true,
-                IsAbsolute = false
+                IsAbsolute = false,
             },
             new EditorAction
             {
                 Type = EditorActionType.Delay,
-                DelayMs = 250
+                DelayMs = 250,
             },
             new EditorAction
             {
                 Type = EditorActionType.TextInput,
-                Text = "Export completed"
+                Text = "Export completed",
             },
             new EditorAction
             {
                 Type = EditorActionType.BlockEnd
-            }
+            },
         ];
     }
 
@@ -336,7 +336,7 @@ internal static class DesignPreviewSamples
     {
         return
         [
-            "Step 7: Unsupported script line was kept as raw text for preview"
+            "Step 7: Unsupported script line was kept as raw text for preview",
         ];
     }
 }
@@ -597,7 +597,7 @@ internal sealed class DesignSchedulerService : ISchedulerService
     public void RemoveTask(Guid id)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task != null)
+        if (task is not null)
         {
             Tasks.Remove(task);
         }
@@ -610,7 +610,7 @@ internal sealed class DesignSchedulerService : ISchedulerService
     public void SetTaskEnabled(Guid id, bool enabled)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task != null)
+        if (task is not null)
         {
             task.IsEnabled = enabled;
         }
@@ -619,7 +619,7 @@ internal sealed class DesignSchedulerService : ISchedulerService
     public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == taskId);
-        if (task != null)
+        if (task is not null)
         {
             TaskStarting?.Invoke(this, task);
             TaskExecuted?.Invoke(this, new TaskExecutedEventArgs(task, success: true, message: "Preview macro run completed"));
@@ -667,7 +667,7 @@ internal sealed class DesignShortcutService : IShortcutService
     public void RemoveTask(Guid id)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task != null)
+        if (task is not null)
         {
             Tasks.Remove(task);
         }
@@ -680,7 +680,7 @@ internal sealed class DesignShortcutService : IShortcutService
     public void SetTaskEnabled(Guid id, bool enabled)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task != null)
+        if (task is not null)
         {
             task.IsEnabled = enabled;
         }
@@ -695,7 +695,7 @@ internal sealed class DesignShortcutService : IShortcutService
     public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == taskId);
-        if (task != null)
+        if (task is not null)
         {
             ShortcutStarting?.Invoke(this, task);
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: true, message: "Preview macro run completed"));
@@ -753,7 +753,7 @@ internal sealed class DesignMacroPlayer : IMacroPlayer
 
     public Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default)
     {
-        TotalLoops = options?.Loop == true ? Math.Max(1, options?.RepeatCount ?? 1) : 1;
+        TotalLoops = (options?.Loop) is true ? Math.Max(1, options?.RepeatCount ?? 1) : 1;
         CurrentLoop = 1;
         IsPaused = false;
         IsWaitingBetweenLoops = false;
@@ -870,7 +870,7 @@ internal sealed class DesignTriggerService : ITriggerService
     public void RemoveTask(Guid id)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task != null) Tasks.Remove(task);
+        if (task is not null) Tasks.Remove(task);
     }
 
     public void UpdateTask(TriggerTask task) { }
@@ -878,7 +878,7 @@ internal sealed class DesignTriggerService : ITriggerService
     public void SetTaskEnabled(Guid id, bool enabled)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task != null) task.IsEnabled = enabled;
+        if (task is not null) task.IsEnabled = enabled;
     }
 
     public void Start() => IsMonitoring = true;
@@ -908,7 +908,7 @@ internal sealed class DesignProfileManager : IProfileManager
         [
             new ProfileInfo { Id = "default", Name = "Default" },
             new ProfileInfo { Id = "dev", Name = "Development" },
-            new ProfileInfo { Id = "gaming", Name = "Gaming" }
+            new ProfileInfo { Id = "gaming", Name = "Gaming" },
         ];
         ActiveProfile = Profiles[0];
     }
@@ -927,7 +927,7 @@ internal sealed class DesignProfileManager : IProfileManager
 
     public Task SwitchProfileAsync(string profileId)
     {
-        ActiveProfile = Profiles.FirstOrDefault(p => p.Id == profileId) ?? Profiles[0];
+        ActiveProfile = Profiles.FirstOrDefault(p => string.Equals(p.Id, profileId, StringComparison.Ordinal)) ?? Profiles[0];
         return Task.CompletedTask;
     }
 

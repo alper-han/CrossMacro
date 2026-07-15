@@ -53,11 +53,11 @@ public sealed class SwayPositionProvider : IMousePositionProvider
                 return null;
 
             var outputs = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayOutputDtoArray);
-            if (outputs == null || outputs.Length == 0)
+            if (outputs is null || outputs.Length is 0)
                 return null;
 
-            var activeOutputs = outputs.Where(o => o.Active && o.Rect != null).ToArray();
-            if (activeOutputs.Length == 0)
+            var activeOutputs = outputs.Where(o => o.Active && o.Rect is not null).ToArray();
+            if (activeOutputs.Length is 0)
                 return null;
 
             int minX = activeOutputs.Min(o => o.Rect!.X);

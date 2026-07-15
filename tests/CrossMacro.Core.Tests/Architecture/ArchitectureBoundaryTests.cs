@@ -21,7 +21,7 @@ public class ArchitectureBoundaryTests
         "EDITOR-PROJECTION-BRIDGE", "EDITOR-ACTION-COMPATIBILITY-FACADE", "EDITOR-VALIDATOR-COMPATIBILITY-FACADE",
         "IPC-HANDSHAKE-CODEC-BRIDGE",
             "TRIGGER-DEFAULT-ADAPTER",
-        "EDITOR-COORDINATE-CAPTURE-PORT"
+        "EDITOR-COORDINATE-CAPTURE-PORT",
     ];
 
     private static readonly string[] CoreForbiddenNamespaces =
@@ -35,7 +35,7 @@ public class ArchitectureBoundaryTests
         "CrossMacro.Cli",
         "CrossMacro.Platform.Linux",
         "CrossMacro.Platform.Windows",
-        "CrossMacro.Platform.MacOS"
+        "CrossMacro.Platform.MacOS",
     ];
 
     private static readonly string[] PlatformAbstractionsForbiddenImplementationPatterns =
@@ -44,7 +44,7 @@ public class ArchitectureBoundaryTests
         "OperatingSystem.",
         "RuntimeInformation",
         "File.",
-        "Directory."
+        "Directory.",
     ];
 
     private static readonly string[] DaemonContractsForbiddenPatterns =
@@ -58,7 +58,7 @@ public class ArchitectureBoundaryTests
         "IServiceCollection",
         "ServiceCollection",
         "DependencyInjection",
-        "RuntimeServiceCollectionExtensions"
+        "RuntimeServiceCollectionExtensions",
     ];
 
     [Fact]
@@ -109,7 +109,7 @@ public class ArchitectureBoundaryTests
                     "Microsoft.Extensions.DependencyInjection",
                     "Environment.",
                     "OperatingSystem",
-                    "RuntimeInformation"
+                    "RuntimeInformation",
                 ]),
             "CrossMacro.Application project metadata must not mention concrete adapters, host frameworks, or OS/runtime APIs.");
     }
@@ -128,7 +128,7 @@ public class ArchitectureBoundaryTests
                 "Microsoft.Extensions.DependencyInjection",
                 "Environment.",
                 "OperatingSystem.",
-                "RuntimeInformation"
+                "RuntimeInformation",
             ]);
 
         AssertNoViolations(
@@ -155,7 +155,7 @@ public class ArchitectureBoundaryTests
                 "src/CrossMacro.Application/Automation/ManageTextExpansion.cs",
                 "src/CrossMacro.Application/Profiles/ManageProfile.cs",
                 "src/CrossMacro.Application/Runtime/IRuntimeLifecycle.cs",
-                "src/CrossMacro.Application/Runtime/RunScriptExecution.cs"
+                "src/CrossMacro.Application/Runtime/RunScriptExecution.cs",
             ],
             applicationSource);
     }
@@ -171,7 +171,7 @@ public class ArchitectureBoundaryTests
 
         var projectViolations = hostProjects
             .SelectMany(projectPath => ReadProjectReferenceNames(projectPath)
-                .Where(projectName => projectName == "CrossMacro.Infrastructure")
+                .Where(projectName => projectName is "CrossMacro.Infrastructure")
                 .Select(projectName => $"{projectPath}: {projectName}"))
             .ToArray();
 
@@ -199,7 +199,7 @@ public class ArchitectureBoundaryTests
             "LinuxShellClipboardService",
             "Infrastructure.Services.InputSimulatorPool",
             "Infrastructure.Services.KeyCodeMapper",
-            "Infrastructure.Services.InputSimulator"
+            "Infrastructure.Services.InputSimulator",
         };
 
         var violations = FindTextViolations("src", forbiddenPatterns)
@@ -223,7 +223,7 @@ public class ArchitectureBoundaryTests
         {
             "src/CrossMacro.UI/Services/ExternalUrlOpener.cs",
             "src/CrossMacro.UI/Services/TrayIconService.cs",
-            "src/CrossMacro.UI/ViewModels/SettingsViewModel.cs"
+            "src/CrossMacro.UI/ViewModels/SettingsViewModel.cs",
         };
 
         foreach (var relativePath in affectedFiles)
@@ -242,13 +242,13 @@ public class ArchitectureBoundaryTests
         {
             "src/CrossMacro.UI.Linux/Program.cs",
             "src/CrossMacro.UI.Windows/Program.cs",
-            "src/CrossMacro.UI.MacOS/Program.cs"
+            "src/CrossMacro.UI.MacOS/Program.cs",
         };
 
         foreach (var relativePath in roots)
         {
             var source = File.ReadAllText(Path.Combine(GetRepositoryRoot(), relativePath));
-            Assert.Single(Regex.Matches(source, "AddSingleton<IRuntimeContext(?:,|>\\()"));
+            Assert.Single(Regex.Matches(source, "AddSingleton<IRuntimeContext(?:,|>\\()", RegexOptions.NonBacktracking));
             Assert.Contains("RuntimeContext", source, StringComparison.Ordinal);
         }
     }
@@ -289,14 +289,14 @@ public class ArchitectureBoundaryTests
         var forbiddenPatterns = new[]
         {
             "ITextExpansionStorageService",
-            "TextExpansionStorageService"
+            "TextExpansionStorageService",
         };
         var uiDirectories = new[]
         {
             "src/CrossMacro.UI",
             "src/CrossMacro.UI.Linux",
             "src/CrossMacro.UI.Windows",
-            "src/CrossMacro.UI.MacOS"
+            "src/CrossMacro.UI.MacOS",
         };
         var violations = uiDirectories
             .SelectMany(directory => FindTextViolations(directory, forbiddenPatterns))
@@ -314,7 +314,7 @@ public class ArchitectureBoundaryTests
             .Where(path => Path.GetFileName(path).StartsWith("CrossMacro.Platform.", StringComparison.Ordinal))
             .Select(NormalizeRepositoryRelativePath)
             .SelectMany(projectPath => ReadProjectReferenceNames(projectPath)
-                .Where(projectName => projectName == "CrossMacro.Infrastructure")
+                .Where(projectName => projectName is "CrossMacro.Infrastructure")
                 .Select(projectName => $"{projectPath}: {projectName}"))
             .OrderBy(value => value, StringComparer.Ordinal)
             .ToArray();
@@ -411,7 +411,7 @@ public class ArchitectureBoundaryTests
             "CrossMacro.Core",
             "CrossMacro.Infrastructure",
             "CrossMacro.Daemon.Contracts",
-            "CrossMacro.Platform.Abstractions"
+            "CrossMacro.Platform.Abstractions",
         };
 
         var projectReferences = ReadProjectReferenceNames("tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj");
@@ -499,7 +499,7 @@ public class ArchitectureBoundaryTests
             "CrossMacro.Common",
             "CrossMacro.Helpers",
             "CrossMacro.Manager",
-            "CrossMacro.Shared"
+            "CrossMacro.Shared",
         };
         var violations = Directory.EnumerateFiles(
                 Path.Combine(GetRepositoryRoot(), "src"),
@@ -524,7 +524,7 @@ public class ArchitectureBoundaryTests
             "src/CrossMacro.Core/Models/MacroPositionSemantics.cs",
             "src/CrossMacro.Platform.Linux/Services/Factories/LinuxCaptureFactory.cs",
             "src/CrossMacro.Platform.Linux/Services/Factories/LinuxSimulatorFactory.cs",
-            "src/CrossMacro.Platform.Linux/Ipc/IpcHandshakeCodec.cs"
+            "src/CrossMacro.Platform.Linux/Ipc/IpcHandshakeCodec.cs",
         };
         var missing = requiredPaths
             .Where(path => !File.Exists(Path.Combine(GetRepositoryRoot(), path)))
@@ -538,14 +538,14 @@ public class ArchitectureBoundaryTests
     private static void AssertNoViolations(IReadOnlyCollection<string> violations, string message)
     {
         Assert.True(
-            violations.Count == 0,
+            violations.Count is 0,
             message + Environment.NewLine + string.Join(Environment.NewLine, violations));
     }
 
     private static string[] ReadProjectReferenceNames(string projectPath)
     {
         return ReadProjectDependencies(projectPath)
-            .Where(dependency => dependency.Kind == "ProjectReference")
+            .Where(dependency => dependency.Kind is "ProjectReference")
             .Select(dependency => Path.GetFileNameWithoutExtension(dependency.Name.Replace('\\', Path.DirectorySeparatorChar)))
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToArray();
@@ -592,14 +592,14 @@ public class ArchitectureBoundaryTests
         var trimmed = line.Trim();
         if (!trimmed.StartsWith('|') || !trimmed.EndsWith('|')) return false;
         cells = trimmed[1..^1].Split('|').Select(cell => cell.Trim()).ToArray();
-        return cells.Length == 5;
+        return cells.Length is 5;
     }
 
     private static string[] ReadProjectReferenceTargets(string projectPath)
     {
         var projectDirectory = Path.GetDirectoryName(Path.Combine(GetRepositoryRoot(), projectPath))!;
         return ReadProjectDependencies(projectPath)
-            .Where(dependency => dependency.Kind == "ProjectReference")
+            .Where(dependency => dependency.Kind is "ProjectReference")
             .Select(dependency => NormalizeRepositoryRelativePath(Path.GetFullPath(Path.Combine(
                 projectDirectory,
                 dependency.Name.Replace('\\', Path.DirectorySeparatorChar)))))
@@ -618,7 +618,7 @@ public class ArchitectureBoundaryTests
 
     private static string GetDependencyName((string Kind, string Name) dependency)
     {
-        return dependency.Kind == "ProjectReference"
+        return dependency.Kind is "ProjectReference"
             ? Path.GetFileNameWithoutExtension(dependency.Name.Replace('\\', Path.DirectorySeparatorChar))
             : dependency.Name;
     }
@@ -717,7 +717,8 @@ public class ArchitectureBoundaryTests
             foreach (Match match in Regex.Matches(
                 line,
                 @"(?<![A-Za-z0-9_])(?:global::)?(CrossMacro\.Infrastructure(?:\.[A-Za-z_][A-Za-z0-9_]*)*)",
-                RegexOptions.CultureInvariant))
+                RegexOptions.CultureInvariant,
+                TimeSpan.FromMilliseconds(100)))
             {
                 var reference = match.Groups[1].Value;
                 yield return $"{relativePath}: {reference}";

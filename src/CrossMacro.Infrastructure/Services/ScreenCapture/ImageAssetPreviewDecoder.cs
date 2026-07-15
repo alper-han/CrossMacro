@@ -23,11 +23,11 @@ public sealed class ImageAssetPreviewDecoder : IImageAssetPreviewDecoder
 
         for (var y = 0; y < height; y++)
         {
-            var sourceY = frame.LogicalBounds.Y + y * frame.Height / height;
+            var sourceY = frame.LogicalBounds.Y + (y * frame.Height / height);
             for (var x = 0; x < width; x++)
             {
-                var sourceX = frame.LogicalBounds.X + x * frame.Width / width;
-                var destinationOffset = checked(y * stride + x * 4);
+                var sourceX = frame.LogicalBounds.X + (x * frame.Width / width);
+                var destinationOffset = checked((y * stride) + (x * 4));
                 if (!frame.TryGetPixel(new ScreenPoint(sourceX, sourceY), out var color))
                 {
                     continue;

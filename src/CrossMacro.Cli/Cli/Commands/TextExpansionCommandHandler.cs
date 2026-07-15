@@ -30,7 +30,7 @@ public sealed class TextExpansionCommandHandler : CliCommandHandlerBase<TextExpa
             TextExpansionCliAction.Enable => _textExpansionCliService.EnableAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
             TextExpansionCliAction.Disable => _textExpansionCliService.DisableAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
             TextExpansionCliAction.Test => _textExpansionCliService.TestAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown text-expansion action."))
+            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown text-expansion action.")),
         };
     }
 }

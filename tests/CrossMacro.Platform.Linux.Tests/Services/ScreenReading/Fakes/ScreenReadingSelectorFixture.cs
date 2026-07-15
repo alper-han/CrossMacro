@@ -94,7 +94,7 @@ internal sealed class ScreenReadingSelectorFixture
     {
         return new ScreenReadingSelectorFixture(
             new FakeLinuxEnvironmentDetector(isWayland: false, isX11: false, CompositorType.Unknown),
-            new FakeRuntimeContext(false),
+            new FakeRuntimeContext(isFlatpak: false),
             new FakeLinuxScreenReaderCapabilityDetector(default),
             new FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult.Unsupported("not x11")));
     }
@@ -103,7 +103,7 @@ internal sealed class ScreenReadingSelectorFixture
     {
         return new ScreenReadingSelectorFixture(
             new FakeLinuxEnvironmentDetector(isWayland: false, isX11: true, CompositorType.X11),
-            new FakeRuntimeContext(false),
+            new FakeRuntimeContext(isFlatpak: false),
             new FakeLinuxScreenReaderCapabilityDetector(default),
             new FakeX11ScreenCaptureSupportProbe(support));
     }

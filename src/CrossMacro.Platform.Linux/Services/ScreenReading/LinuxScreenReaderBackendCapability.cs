@@ -30,11 +30,11 @@ public readonly record struct LinuxScreenReaderBackendCapability
     public string? ErrorMessage { get; }
 
     public static LinuxScreenReaderBackendCapability Available(LinuxScreenReaderBackend backend) =>
-        new(backend, true, null, null);
+        new(backend, isAvailable: true, errorKind: null, errorMessage: null);
 
     public static LinuxScreenReaderBackendCapability Unavailable(
         LinuxScreenReaderBackend backend,
         ScreenReadErrorKind errorKind,
         string errorMessage) =>
-        new(backend, false, errorKind, errorMessage);
+        new(backend, isAvailable: false, errorKind, errorMessage);
 }

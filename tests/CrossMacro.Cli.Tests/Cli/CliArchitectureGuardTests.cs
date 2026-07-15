@@ -13,22 +13,20 @@ public class CliArchitectureGuardTests
         var handlerTypes = typeof(ICliCommandHandler).Assembly
             .GetTypes()
             .Where(x =>
-                x is { IsClass: true, IsAbstract: false } &&
-                x.Namespace == "CrossMacro.Cli.Commands" &&
-                typeof(ICliCommandHandler).IsAssignableFrom(x))
+                x is { IsClass: true, IsAbstract: false } && x.Namespace is "CrossMacro.Cli.Commands" && typeof(ICliCommandHandler).IsAssignableFrom(x))
             .ToArray();
 
         var violations = handlerTypes
             .SelectMany(handlerType => handlerType
                 .GetConstructors()
                 .SelectMany(ctor => ctor.GetParameters().Select(p => (handlerType, dependencyType: p.ParameterType))))
-            .Where(x => x.dependencyType.Namespace?.StartsWith("CrossMacro.Core.Services", StringComparison.Ordinal) == true)
+            .Where(x => (x.dependencyType.Namespace?.StartsWith("CrossMacro.Core.Services", StringComparison.Ordinal)) is true)
             .Select(x => $"{x.handlerType.Name} -> {x.dependencyType.FullName}")
             .OrderBy(x => x)
             .ToArray();
 
         Assert.True(
-            violations.Length == 0,
+            violations.Length is 0,
             "Command handlers must depend on CLI service abstractions, not Core.Services directly."
             + Environment.NewLine
             + string.Join(Environment.NewLine, violations));
@@ -40,9 +38,7 @@ public class CliArchitectureGuardTests
         var cliTypes = typeof(ICliCommandHandler).Assembly
             .GetTypes()
             .Where(x =>
-                x is { IsClass: true, IsAbstract: false } &&
-                x.Namespace != null &&
-                x.Namespace.StartsWith("CrossMacro.Cli", StringComparison.Ordinal))
+                x is { IsClass: true, IsAbstract: false } && x.Namespace is not null && x.Namespace.StartsWith("CrossMacro.Cli", StringComparison.Ordinal))
             .ToArray();
 
         var violations = cliTypes
@@ -55,7 +51,7 @@ public class CliArchitectureGuardTests
             .ToArray();
 
         Assert.True(
-            violations.Length == 0,
+            violations.Length is 0,
             "CLI layer constructors must remain Avalonia-free."
             + Environment.NewLine
             + string.Join(Environment.NewLine, violations));
@@ -93,7 +89,7 @@ public class CliArchitectureGuardTests
 
     private static bool HasAvaloniaType(Type type)
     {
-        if (type.Namespace?.StartsWith("Avalonia", StringComparison.Ordinal) == true)
+        if ((type.Namespace?.StartsWith("Avalonia", StringComparison.Ordinal)) is true)
         {
             return true;
         }

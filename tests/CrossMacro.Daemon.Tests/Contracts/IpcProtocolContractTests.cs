@@ -50,7 +50,7 @@ public sealed class IpcProtocolContractTests
             Type = 1,
             Code = 30,
             Value = 1,
-            Timestamp = 123456789
+            Timestamp = 123456789,
         };
 
         Assert.Equal((byte)1, evt.Type);
@@ -77,7 +77,7 @@ public sealed class IpcProtocolContractTests
             Type = 2,
             Code = 15,
             Value = -1,
-            DelayAfterMs = 25
+            DelayAfterMs = 25,
         };
 
         Assert.Equal((ushort)2, request.Type);

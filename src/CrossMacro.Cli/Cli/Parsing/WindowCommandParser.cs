@@ -28,7 +28,7 @@ internal static class WindowCommandParser
             "fullscreen" => ParseActiveFlag(args, "window.fullscreen", WindowCliAction.Fullscreen),
             "float" => ParseActiveFlag(args, "window.float", WindowCliAction.Float),
             "workspace" => ParseWorkspace(args),
-            _ => CliParseResult.Error($"Unknown window subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2))
+            _ => CliParseResult.Error($"Unknown window subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 
@@ -123,12 +123,12 @@ internal static class WindowCommandParser
             return CliParseHelpers.Error($"{helpTopic.Replace('.', ' ')} requires --active <{firstName}> <{secondName}>.", jsonOutput);
         }
 
-        if (action == WindowCliAction.Resize && (first <= 0 || second <= 0))
+        if (action is WindowCliAction.Resize && (first <= 0 || second <= 0))
         {
             return CliParseHelpers.Error("window resize dimensions must be positive.", jsonOutput);
         }
 
-        return CliParseResult.Success(action == WindowCliAction.Move
+        return CliParseResult.Success(action is WindowCliAction.Move
             ? new WindowCliOptions(action, X: first, Y: second, JsonOutput: jsonOutput, LogLevel: logLevel)
             : new WindowCliOptions(action, Width: first, Height: second, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
@@ -175,7 +175,7 @@ internal static class WindowCommandParser
             "switch" => ParseWorkspaceName(args, "window.workspace.switch", WindowCliAction.WorkspaceSwitch, 3),
             "move-active" => ParseWorkspaceName(args, "window.workspace.move-active", WindowCliAction.WorkspaceMoveActive, 3),
             "move-window" => ParseWorkspaceMoveWindow(args),
-            _ => CliParseResult.Error($"Unknown window workspace subcommand: {args[2]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 3))
+            _ => CliParseResult.Error($"Unknown window workspace subcommand: {args[2]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 3)),
         };
     }
 
@@ -269,7 +269,7 @@ internal static class WindowCommandParser
             "--address" when allowAddress => WindowSelectorKind.Address,
             "--title" when allowTitle => WindowSelectorKind.Title,
             "--class" when allowClass => WindowSelectorKind.Class,
-            _ => (WindowSelectorKind?)null
+            _ => (WindowSelectorKind?)null,
         };
 
         if (kind is null)

@@ -11,7 +11,7 @@ public enum TriggerField
     WindowTitle,
     Workspace,
     ProcessName,
-    None
+    None,
 }
 
 /// <summary>
@@ -21,7 +21,7 @@ public enum TriggerMatchMode
 {
     Equals,
     Contains,
-    Regex
+    Regex,
 }
 
 /// <summary>
@@ -30,7 +30,7 @@ public enum TriggerMatchMode
 public enum TriggerAction
 {
     SwitchProfile,
-    RunMacro
+    RunMacro,
 }
 
 /// <summary>
@@ -41,7 +41,7 @@ public enum TriggerFireMode
     OnceOnChange,
     EveryMatch,
     OnEnter,
-    OnExit
+    OnExit,
 }
 
 /// <summary>

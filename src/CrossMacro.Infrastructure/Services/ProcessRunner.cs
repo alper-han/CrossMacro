@@ -13,7 +13,7 @@ public class ProcessRunner : IProcessRunner
         try
         {
             var fileName = System.OperatingSystem.IsWindows() ? "where" : "which";
-            
+
             using var proc = Process.Start(new ProcessStartInfo
             {
                 FileName = fileName,
@@ -21,17 +21,17 @@ public class ProcessRunner : IProcessRunner
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             });
-            
-            if (proc == null) return false;
-            
+
+            if (proc is null) return false;
+
             var outputTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
             await WaitForExitOrKillAsync(proc, cancellationToken);
             await outputTask;
             await errorTask;
-            return proc.ExitCode == 0;
+            return proc.ExitCode is 0;
         }
         catch (OperationCanceledException)
         {
@@ -105,7 +105,7 @@ public class ProcessRunner : IProcessRunner
             throw;
         }
 
-        proc.StandardInput.Close(); 
+        proc.StandardInput.Close();
 
         await WaitForExitOrKillAsync(proc, cancellationToken);
         var error = await errorTask;
@@ -149,7 +149,7 @@ public class ProcessRunner : IProcessRunner
             {
                 // Wrapper child may hold stderr pipe; don't block on it if we succeeded.
                 string error = string.Empty;
-                if (proc.ExitCode != 0)
+                if (proc.ExitCode is not 0)
                 {
                     var completed = await Task.WhenAny(errorTask, Task.Delay(TimeSpan.FromMilliseconds(500)));
                     if (completed == errorTask)
@@ -265,7 +265,7 @@ public class ProcessRunner : IProcessRunner
                 RedirectStandardError = redirectStandardError,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            }
+            },
         };
     }
 
@@ -299,7 +299,7 @@ public class ProcessRunner : IProcessRunner
 
     private static void EnsureSuccessfulExit(Process process, string error)
     {
-        if (process.ExitCode == 0)
+        if (process.ExitCode is 0)
         {
             return;
         }

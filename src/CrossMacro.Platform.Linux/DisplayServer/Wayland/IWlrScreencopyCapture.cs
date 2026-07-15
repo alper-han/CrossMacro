@@ -121,8 +121,8 @@ public readonly record struct WlrScreencopyCaptureResult
     public string? ErrorMessage { get; }
 
     public static WlrScreencopyCaptureResult Success(WlrScreencopyFrame frame) =>
-        new(frame ?? throw new ArgumentNullException(nameof(frame)), null, null);
+        new(frame ?? throw new ArgumentNullException(nameof(frame)), errorKind: null, errorMessage: null);
 
     public static WlrScreencopyCaptureResult Failure(ScreenReadErrorKind errorKind, string errorMessage) =>
-        new(null, errorKind, errorMessage);
+        new(frame: null, errorKind, errorMessage);
 }

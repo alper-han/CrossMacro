@@ -173,7 +173,7 @@ public sealed class HyprlandWindowManagerTests
 
         var result = await manager.FocusWindowByAddressAsync("ABCD", CancellationToken.None);
 
-        Assert.False(result); 
+        Assert.False(result);
     }
 
     [Fact]
@@ -185,15 +185,15 @@ public sealed class HyprlandWindowManagerTests
         var result = await manager.FocusWindowByAddressAsync(string.Empty, CancellationToken.None);
 
         Assert.False(result);
-        Assert.False(client.IsAvailable); 
+        Assert.False(client.IsAvailable);
     }
 
     // ---- helpers ----------------------------------------------------------------------
 
     private static HyprlandIpcClient UnavailableClient()
     {
-        Environment.SetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE", null);
-        Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", null);
+        Environment.SetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE", value: null);
+        Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", value: null);
         return new HyprlandIpcClient();
     }
 }

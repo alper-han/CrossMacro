@@ -43,7 +43,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 Success = false,
                 ExitCode = CliExitCode.FileError,
                 Message = "Macro file not found.",
-                Errors = [$"File does not exist: {macroFilePath}"]
+                Errors = [$"File does not exist: {macroFilePath}"],
             };
         }
 
@@ -59,17 +59,17 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 Success = false,
                 ExitCode = CliExitCode.FileError,
                 Message = "Failed to read macro file.",
-                Errors = [ex.Message]
+                Errors = [ex.Message],
             };
         }
 
-        if (macro == null)
+        if (macro is null)
         {
             return new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.ValidationError,
-                Message = "Macro file could not be loaded."
+                Message = "Macro file could not be loaded.",
             };
         }
 
@@ -88,7 +88,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 Message = message,
                 Errors = validation.Errors,
                 Warnings = validation.Warnings,
-                Data = data
+                Data = data,
             };
         }
 
@@ -98,7 +98,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
             ExitCode = CliExitCode.Success,
             Message = message,
             Warnings = validation.Warnings,
-            Data = data
+            Data = data,
         };
     }
 
@@ -111,7 +111,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
             SpeedMultiplier = request.SpeedMultiplier,
             Loop = request.Loop,
             RepeatCount = request.RepeatCount,
-            RepeatDelayMs = request.RepeatDelayMs
+            RepeatDelayMs = request.RepeatDelayMs,
         };
 
         return ExecuteCoreAsync(
@@ -138,7 +138,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 Success = false,
                 ExitCode = CliExitCode.FileError,
                 Message = "Macro file not found.",
-                Errors = [$"File does not exist: {macroFilePath}"]
+                Errors = [$"File does not exist: {macroFilePath}"],
             };
         }
 
@@ -154,17 +154,17 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 Success = false,
                 ExitCode = CliExitCode.FileError,
                 Message = "Failed to read macro file.",
-                Errors = [ex.Message]
+                Errors = [ex.Message],
             };
         }
 
-        if (macro == null)
+        if (macro is null)
         {
             return new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.ValidationError,
-                Message = "Macro file could not be loaded."
+                Message = "Macro file could not be loaded.",
             };
         }
 
@@ -178,7 +178,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 Message = "Macro validation failed.",
                 Errors = validation.Errors,
                 Warnings = validation.Warnings,
-                Data = new MacroValidationData(macroFilePath, macro.EventCount)
+                Data = new MacroValidationData(macroFilePath, macro.EventCount),
             };
         }
 
@@ -190,7 +190,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 ExitCode = CliExitCode.Success,
                 Message = "Macro is valid.",
                 Warnings = validation.Warnings,
-                Data = BuildSummaryData(macroFilePath, macro)
+                Data = BuildSummaryData(macroFilePath, macro),
             };
         }
 
@@ -221,7 +221,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 ExitCode = CliExitCode.Success,
                 Message = "Playback complete.",
                 Warnings = validation.Warnings,
-                Data = BuildSummaryData(macroFilePath, macro)
+                Data = BuildSummaryData(macroFilePath, macro),
             };
         }
         catch (OperationCanceledException)
@@ -230,7 +230,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
             {
                 Success = false,
                 ExitCode = CliExitCode.Cancelled,
-                Message = "Playback cancelled."
+                Message = "Playback cancelled.",
             };
         }
         catch (Exception ex)
@@ -244,7 +244,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                     Message = "Absolute coordinate playback is not supported in this session.",
                     Errors = ["This macro contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or edit the macro to use relative coordinates."],
                     Warnings = validation.Warnings,
-                    Data = BuildSummaryData(macroFilePath, macro)
+                    Data = BuildSummaryData(macroFilePath, macro),
                 };
             }
 
@@ -257,7 +257,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                     Message = "Playback permission is missing.",
                     Errors = [ex.Message],
                     Warnings = validation.Warnings,
-                    Data = BuildSummaryData(macroFilePath, macro)
+                    Data = BuildSummaryData(macroFilePath, macro),
                 };
             }
 
@@ -268,7 +268,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
                 Message = "Playback failed.",
                 Errors = [ex.Message],
                 Warnings = validation.Warnings,
-                Data = BuildSummaryData(macroFilePath, macro)
+                Data = BuildSummaryData(macroFilePath, macro),
             };
         }
     }
@@ -280,7 +280,7 @@ public sealed class MacroExecutionService : IMacroExecutionService
             CoordinateModeSummary.Absolute => "absolute",
             CoordinateModeSummary.Relative => "relative",
             CoordinateModeSummary.Mixed => "mixed",
-            _ => "none"
+            _ => "none",
         };
 
         return new MacroSummaryData(
@@ -307,16 +307,16 @@ public sealed class MacroExecutionService : IMacroExecutionService
             CoordinateModeSummary.Absolute => "absolute",
             CoordinateModeSummary.Relative => "relative",
             CoordinateModeSummary.Mixed => "mixed",
-            _ => "none"
+            _ => "none",
         };
 
         var eventBreakdown = new MacroEventBreakdownData(
-            macro.Events.Count(e => e.Type == EventType.MouseMove),
-            macro.Events.Count(e => e.Type == EventType.ButtonPress),
-            macro.Events.Count(e => e.Type == EventType.ButtonRelease),
-            macro.Events.Count(e => e.Type == EventType.Click),
-            macro.Events.Count(e => e.Type == EventType.KeyPress),
-            macro.Events.Count(e => e.Type == EventType.KeyRelease)
+            macro.Events.Count(e => e.Type is EventType.MouseMove),
+            macro.Events.Count(e => e.Type is EventType.ButtonPress),
+            macro.Events.Count(e => e.Type is EventType.ButtonRelease),
+            macro.Events.Count(e => e.Type is EventType.Click),
+            macro.Events.Count(e => e.Type is EventType.KeyPress),
+            macro.Events.Count(e => e.Type is EventType.KeyRelease)
         );
 
         return new MacroInfoData(

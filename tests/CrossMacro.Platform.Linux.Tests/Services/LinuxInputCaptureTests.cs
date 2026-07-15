@@ -33,7 +33,7 @@ public class LinuxInputCaptureTests
                 Path = "/dev/input/event-test",
                 Name = "Test Keyboard",
                 IsKeyboard = true
-            }
+            },
         };
 
         using var capture = new LinuxInputCapture(
@@ -56,7 +56,7 @@ public class LinuxInputCaptureTests
                 Path = "/dev/input/event-test",
                 Name = "Test Mouse",
                 IsMouse = true
-            }
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -83,7 +83,7 @@ public class LinuxInputCaptureTests
                 Name = "Combo Device",
                 IsMouse = true,
                 IsKeyboard = true
-            }
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -113,7 +113,7 @@ public class LinuxInputCaptureTests
                 Name = "Combo Device",
                 IsMouse = true,
                 IsKeyboard = true
-            }
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -142,7 +142,7 @@ public class LinuxInputCaptureTests
                 Path = "/dev/input/event-test",
                 Name = "Absolute Pointer",
                 IsMouse = true
-            }
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -170,7 +170,7 @@ public class LinuxInputCaptureTests
                 Path = "/dev/input/event-test",
                 Name = "Wheel Mouse",
                 IsMouse = true
-            }
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -200,14 +200,14 @@ public class LinuxInputCaptureTests
                 Name = VirtualDeviceConstants.DeviceName,
                 IsKeyboard = true,
                 VendorId = VirtualDeviceConstants.VendorId,
-                ProductId = VirtualDeviceConstants.ProductId
+                ProductId = VirtualDeviceConstants.ProductId,
             },
             new InputDeviceHelper.InputDevice
             {
                 Path = "/dev/input/event-real",
                 Name = "Real Keyboard",
                 IsKeyboard = true
-            }
+            },
         };
 
         var realReader = new FakeLinuxInputReader(deviceName: "Real Keyboard");
@@ -215,7 +215,7 @@ public class LinuxInputCaptureTests
             () => devices,
             device =>
             {
-                if (device.Name == VirtualDeviceConstants.DeviceName)
+                if (string.Equals(device.Name, VirtualDeviceConstants.DeviceName, StringComparison.Ordinal))
                 {
                     virtualFactoryCalls++;
                     return new FakeLinuxInputReader(deviceName: VirtualDeviceConstants.DeviceName);
@@ -243,7 +243,7 @@ public class LinuxInputCaptureTests
                 IsKeyboard = true,
                 VendorId = 0x9999,
                 ProductId = 0x8888
-            }
+            },
         };
 
         using var capture = new LinuxInputCapture(() => devices, _ => reader);
@@ -268,7 +268,7 @@ public class LinuxInputCaptureTests
                 IsKeyboard = true,
                 VendorId = 0xdec0,
                 ProductId = 0x5eba
-            }
+            },
         };
 
         using var capture = new LinuxInputCapture(() => devices, _ => virtualKeyboardReader);
@@ -318,7 +318,7 @@ public class LinuxInputCaptureTests
         public void Start()
         {
             StartCalls++;
-            if (_startException != null)
+            if (_startException is not null)
             {
                 throw _startException;
             }

@@ -27,11 +27,11 @@ public readonly record struct WlrScreencopySupportResult
 
     public string? ErrorMessage { get; }
 
-    public static WlrScreencopySupportResult Supported() => new(true, null, null);
+    public static WlrScreencopySupportResult Supported() => new(isSupported: true, errorKind: null, errorMessage: null);
 
     public static WlrScreencopySupportResult Unsupported(string errorMessage) =>
-        new(false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
+        new(isSupported: false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
 
     public static WlrScreencopySupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) =>
-        new(false, errorKind, errorMessage);
+        new(isSupported: false, errorKind, errorMessage);
 }

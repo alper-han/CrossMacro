@@ -19,7 +19,7 @@ public class ButtonStateTrackerTests
     public void Press_ShouldAddButtonToPressed()
     {
         // Arrange
-        ushort button = 272; // BTN_LEFT
+        const ushort button = 272; // BTN_LEFT
 
         // Act
         _tracker.Press(button);
@@ -33,7 +33,7 @@ public class ButtonStateTrackerTests
     public void Release_ShouldRemoveButtonFromPressed()
     {
         // Arrange
-        ushort button = 272;
+        const ushort button = 272;
         _tracker.Press(button);
 
         // Act
@@ -87,8 +87,8 @@ public class ButtonStateTrackerTests
         _tracker.ReleaseAll(simulator);
 
         // Assert
-        simulator.Received().MouseButton(272, false);
-        simulator.Received().MouseButton(273, false);
+        simulator.Received().MouseButton(272, pressed: false);
+        simulator.Received().MouseButton(273, pressed: false);
         _tracker.IsAnyPressed.Should().BeFalse();
     }
 
@@ -116,8 +116,8 @@ public class ButtonStateTrackerTests
         _tracker.RestoreAll(simulator, buttons);
 
         // Assert
-        simulator.Received().MouseButton(272, true);
-        simulator.Received().MouseButton(273, true);
+        simulator.Received().MouseButton(272, pressed: true);
+        simulator.Received().MouseButton(273, pressed: true);
         _tracker.PressedButtons.Should().Contain(272);
         _tracker.PressedButtons.Should().Contain(273);
     }
@@ -126,7 +126,7 @@ public class ButtonStateTrackerTests
     public void Press_ShouldBeIdempotent_ForSameButton()
     {
         // Arrange
-        ushort button = 272;
+        const ushort button = 272;
 
         // Act
         _tracker.Press(button);

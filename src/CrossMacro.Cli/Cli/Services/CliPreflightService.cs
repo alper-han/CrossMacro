@@ -71,21 +71,18 @@ public sealed class CliPreflightService : ICliPreflightService
                 errors));
         }
 
-        if (target == CliPreflightTarget.Headless &&
-            _isLinux() &&
-            string.IsNullOrWhiteSpace(_getEnvironmentVariable("DISPLAY")) &&
-            string.IsNullOrWhiteSpace(_getEnvironmentVariable("WAYLAND_DISPLAY")))
+        if (target is CliPreflightTarget.Headless && _isLinux() && string.IsNullOrWhiteSpace(_getEnvironmentVariable("DISPLAY")) && string.IsNullOrWhiteSpace(_getEnvironmentVariable("WAYLAND_DISPLAY")))
         {
             return Task.FromResult(CliPreflightResult.Fail(
                 CliExitCode.EnvironmentError,
                 "Preflight check failed: no active Linux display session was detected.",
                 [
                     "DISPLAY and WAYLAND_DISPLAY are empty.",
-                    "Headless mode requires an interactive desktop session."
+                    "Headless mode requires an interactive desktop session.",
                 ]));
         }
 
-        if (target == CliPreflightTarget.Play || target == CliPreflightTarget.Run)
+        if (target is CliPreflightTarget.Play or CliPreflightTarget.Run)
         {
             using var inputSimulator = _inputSimulatorFactory();
             if (!inputSimulator.IsSupported)
@@ -97,7 +94,7 @@ public sealed class CliPreflightService : ICliPreflightService
             }
         }
 
-        if (target == CliPreflightTarget.Record)
+        if (target is CliPreflightTarget.Record)
         {
             using var inputCapture = _inputCaptureFactory();
             if (!inputCapture.IsSupported)

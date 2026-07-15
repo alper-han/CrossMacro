@@ -22,7 +22,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         Ready,
         Recording,
         LoadedEvents,
-        RecordedEvents
+        RecordedEvents,
     }
 
     private readonly IMacroRecorder _recorder;
@@ -30,7 +30,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private readonly ISettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
     private readonly IRuntimeContext _runtimeContext;
-    
+
     private bool _disposed;
     private bool _isRecording;
     private bool _isStartingRecording;
@@ -45,17 +45,17 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private RecordingStatusKind _recordingStatusKind = RecordingStatusKind.Ready;
     private long _activeCounterUpdateSessionId;
     private long _nextCounterUpdateSessionId;
-    
+
     /// <summary>
     /// Event fired when recording is completed with the recorded macro
     /// </summary>
     public event EventHandler<MacroSequence>? RecordingCompleted;
-    
+
     /// <summary>
     /// Event fired when recording status changes (for external coordination)
     /// </summary>
     public event EventHandler<bool>? RecordingStateChanged;
-    
+
     public RecordingViewModel(
         IMacroRecorder recorder,
         IGlobalHotkeyService hotkeyService,
@@ -72,11 +72,11 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _recordingStatus = BuildRecordingStatus(RecordingStatusKind.Ready);
         _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
         _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
-        
+
         _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
-        
+
         _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
-        
+
         _recorder.EventRecorded += OnEventRecorded;
     }
 
@@ -100,7 +100,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanStartRecording));
         OnCanToggleRecordingChanged();
     }
-    
+
     public bool IsRecording
     {
         get => _isRecording;
@@ -117,7 +117,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public int EventCount
     {
         get => _eventCount;
@@ -130,7 +130,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public int MouseEventCount
     {
         get => _mouseEventCount;
@@ -143,7 +143,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public int KeyboardEventCount
     {
         get => _keyboardEventCount;
@@ -156,20 +156,20 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public string RecordingStatus
     {
         get => _recordingStatus;
         set
         {
-            if (_recordingStatus != value)
+            if (!string.Equals(_recordingStatus, value, StringComparison.Ordinal))
             {
                 _recordingStatus = value;
                 OnPropertyChanged();
             }
         }
     }
-    
+
     public bool IsMouseRecordingEnabled
     {
         get => _isMouseRecordingEnabled;
@@ -221,7 +221,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public bool ForceRelativeCoordinates
     {
         get => _forceRelativeCoordinates;
@@ -250,7 +250,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     }
 
     public bool IsForceRelativeSupported => _runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS;
-    
+
     public bool SkipInitialZeroZero
     {
         get => _skipInitialZeroZero;
@@ -272,24 +272,24 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public bool ShowSkipZeroZeroOption => ForceRelativeCoordinates;
-    
+
     public bool CanStartRecording => !IsRecording && !_isStartingRecording && CanStartRecordingExternal && (IsMouseRecordingEnabled || IsKeyboardRecordingEnabled);
-    
+
     /// <summary>
     /// Returns true if the toggle button should be enabled (can start OR can stop)
     /// </summary>
     public bool CanToggleRecording => IsRecording || CanStartRecording;
-    
+
     private bool _canStartRecordingExternal = true;
     private int _settingsChangeVersion;
-    
+
     /// <summary>
     /// Used by MainWindowViewModel to control if recording can start (considering playback state)
     /// </summary>
-    public bool CanStartRecordingExternal 
-    { 
+    public bool CanStartRecordingExternal
+    {
         get => _canStartRecordingExternal;
         set
         {
@@ -302,7 +302,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     private void OnEventRecorded(object? sender, MacroEvent e)
     {
         var sessionId = Volatile.Read(ref _activeCounterUpdateSessionId);
@@ -316,29 +316,29 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             ApplyLiveCounterUpdate(sessionId, e);
         });
     }
-    
+
     public async Task StartRecordingAsync()
     {
         if (!CanStartRecording || !CanStartRecordingExternal)
             return;
-            
+
         try
         {
-            SetRecordingStartupInProgress(true);
+            SetRecordingStartupInProgress(value: true);
 
             // Disable playback and pause hotkeys during recording so they can be recorded
-            _hotkeyService.SetPlaybackPauseHotkeysEnabled(false);
-            
-            int[] ignoredKeys = 
-            [ 
+            _hotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: false);
+
+            int[] ignoredKeys =
+            [
                 _hotkeyService.RecordingHotkeyCode,
                 _hotkeyService.PlaybackHotkeyCode,
-                _hotkeyService.PauseHotkeyCode
+                _hotkeyService.PauseHotkeyCode,
             ];
-            
+
             await _recorder.StartRecordingAsync(
-                IsMouseRecordingEnabled, 
-                IsKeyboardRecordingEnabled, 
+                IsMouseRecordingEnabled,
+                IsKeyboardRecordingEnabled,
                 ignoredKeys,
                 forceRelative: ForceRelativeCoordinates,
                 skipInitialZero: SkipInitialZeroZero);
@@ -352,16 +352,16 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             DeactivateLiveCounterUpdates();
             SetRecordingStatusKind(RecordingStatusKind.Ready);
             IsRecording = false;
-            
+
             // Re-enable hotkeys on error
-            _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
+            _hotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: true);
         }
         finally
         {
-            SetRecordingStartupInProgress(false);
+            SetRecordingStartupInProgress(value: false);
         }
     }
-    
+
     public MacroSequence? StopRecording()
     {
         if (!IsRecording)
@@ -385,7 +385,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             // Re-enable playback and pause hotkeys after recording stops
             try
             {
-                _hotkeyService.SetPlaybackPauseHotkeysEnabled(true);
+                _hotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: true);
             }
             catch (Exception ex)
             {
@@ -395,7 +395,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
         IsRecording = false;
 
-        if (macro == null)
+        if (macro is null)
         {
             return null;
         }
@@ -421,7 +421,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
         return macro;
     }
-    
+
     private void ClearEventCounters()
     {
         EventCount = 0;
@@ -469,7 +469,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void SetMacro(MacroSequence? macro, bool updateStatus = true)
     {
-        if (macro == null)
+        if (macro is null)
         {
             ClearEventCounters();
             if (updateStatus)
@@ -490,7 +490,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             SetRecordingStatusKind(RecordingStatusKind.LoadedEvents);
         }
     }
-    
+
     /// <summary>
     /// Toggle recording state (for hotkey handling)
     /// </summary>
@@ -587,7 +587,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 _localizationService.CurrentCulture,
                 _localizationService["Recording_StatusRecordedEvents"],
                 EventCount),
-            _ => _localizationService["Recording_StatusReady"]
+            _ => _localizationService["Recording_StatusReady"],
         };
     }
 

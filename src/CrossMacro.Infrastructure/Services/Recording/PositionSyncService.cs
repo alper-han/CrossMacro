@@ -27,7 +27,7 @@ public class PositionSyncService : IPositionSyncService
     private readonly Lock _lock = new();
     private bool _disposed;
 
-    public bool IsRunning => _syncTask != null && !_syncTask.IsCompleted;
+    public bool IsRunning => _syncTask is not null && !_syncTask.IsCompleted;
 
     public PositionSyncService(IMousePositionProvider positionProvider)
     {
@@ -152,7 +152,7 @@ public class PositionSyncService : IPositionSyncService
 
         lock (_lock)
         {
-            if (_cancellation == null && _syncTask == null)
+            if (_cancellation is null && _syncTask is null)
             {
                 return;
             }
@@ -171,7 +171,7 @@ public class PositionSyncService : IPositionSyncService
         {
         }
 
-        if (syncTask == null)
+        if (syncTask is null)
         {
             cancellation?.Dispose();
             return;
@@ -229,7 +229,7 @@ public class PositionSyncService : IPositionSyncService
 
             await syncTask.ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        catch (OperationCanceledException) when ((cancellation?.IsCancellationRequested) is true)
         {
         }
         catch
@@ -248,7 +248,7 @@ public class PositionSyncService : IPositionSyncService
         {
             await syncTask.ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        catch (OperationCanceledException) when ((cancellation?.IsCancellationRequested) is true)
         {
         }
         catch

@@ -56,7 +56,7 @@ public class PlaybackViewModelTests
             "Playback_PermissionRequiredTitle" => "[Playback_PermissionRequiredTitle]",
             "Playback_PermissionRequiredMessage" => "[Playback_PermissionRequiredMessage]",
             "Playback_StatusPermissionRequired" => "[Playback_StatusPermissionRequired]",
-            _ => call.Arg<string>()
+            _ => call.Arg<string>(),
         });
         _settings = new AppSettings
         {
@@ -67,7 +67,7 @@ public class PlaybackViewModelTests
             UseRandomLoopDelay = false,
             LoopDelayMinMs = 0,
             LoopDelayMaxMs = 0,
-            CountdownSeconds = 0
+            CountdownSeconds = 0,
         };
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
 
@@ -75,7 +75,7 @@ public class PlaybackViewModelTests
         _settingsService.SaveAsync().Returns(Task.CompletedTask);
         _player.CurrentLoop.Returns(1);
         _player.TotalLoops.Returns(1);
-        _player.IsWaitingBetweenLoops.Returns(false);
+        _player.IsWaitingBetweenLoops.Returns(returnThis: false);
         _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
@@ -142,7 +142,7 @@ public class PlaybackViewModelTests
                 "pixelcolor 10 20 color",
                 "waitcolor 11 22 00FFAA 2500",
                 "pixelsearch 0 0 3 3 123456 x y"
-            ]
+            ],
         };
         _viewModel.SetMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
@@ -294,7 +294,7 @@ public class PlaybackViewModelTests
         var scriptOnly = _loadedMacroSession.AddMacro(new MacroSequence
         {
             Name = "Screen Reading Macro",
-            ScriptSteps = ["waitcolor 11 22 00FFAA 2500"]
+            ScriptSteps = ["waitcolor 11 22 00FFAA 2500"],
         });
         _loadedMacroSession.SelectedMacroItem = first;
         _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
@@ -333,8 +333,8 @@ public class PlaybackViewModelTests
         _localizationService["Playback_SequenceCycleInfinite"].Returns("[Playback_SequenceCycleInfinite:updated] {0}");
         _localizationService["Playback_SequenceRepeatProgress"].Returns("[Playback_SequenceRepeatProgress:updated] {0} | {1}");
 
-        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, true);
-        SetNonPublicField(_viewModel, "_isSequencePlayback", true);
+        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, value: true);
+        SetNonPublicField(_viewModel, "_isSequencePlayback", value: true);
         SetNonPublicField(_viewModel, "_sequenceMacroName", string.Empty);
         SetNonPublicField(_viewModel, "_sequenceMacroIndex", 1);
         SetNonPublicField(_viewModel, "_sequenceMacroCount", 2);
@@ -392,7 +392,7 @@ public class PlaybackViewModelTests
             .Returns(_ =>
             {
                 invocationCount++;
-                if (invocationCount == 2)
+                if (invocationCount is 2)
                 {
                     _viewModel.StopPlayback();
                 }
@@ -437,9 +437,9 @@ public class PlaybackViewModelTests
     [Fact]
     public void TogglePause_WhenPlaying_PausesOrResumes()
     {
-        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, value: true);
 
-        _player.IsPaused.Returns(false);
+        _player.IsPaused.Returns(returnThis: false);
 
         _viewModel.TogglePause();
 
@@ -447,7 +447,7 @@ public class PlaybackViewModelTests
         _viewModel.IsPaused.Should().BeTrue();
         _viewModel.PlaybackStatus.Should().Be("[Playback_StatusPaused]");
 
-        _player.IsPaused.Returns(true);
+        _player.IsPaused.Returns(returnThis: true);
 
         _viewModel.TogglePause();
 
@@ -458,7 +458,7 @@ public class PlaybackViewModelTests
     [Fact]
     public void StopPlayback_WhenPlaying_StopsPlayerAndSetsStatus()
     {
-        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, value: true);
 
         _viewModel.StopPlayback();
 
@@ -563,7 +563,7 @@ public class PlaybackViewModelTests
         return new MacroSequence
         {
             Name = name,
-            Events = { new MacroEvent() }
+            Events = { new MacroEvent() },
         };
     }
 }

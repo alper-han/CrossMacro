@@ -102,7 +102,7 @@ public sealed partial class DoctorService : IDoctorService
             daemonSocketAccessProbe,
             daemonHandshakeDiagnosticProbe,
             ReadAllTextIfExists,
-            null,
+hasUsableReadableInputDevices: null,
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
             getConfigDirectory)
@@ -234,7 +234,7 @@ public sealed partial class DoctorService : IDoctorService
             BuildDisplaySessionCheck(),
             BuildInputSimulationCheck(verbose),
             BuildInputCaptureCheck(verbose),
-            BuildPositionProviderCheck(verbose)
+            BuildPositionProviderCheck(verbose),
         };
 
         if (_isMacOS())
@@ -261,7 +261,7 @@ public sealed partial class DoctorService : IDoctorService
 
         return new DoctorReport
         {
-            Checks = checks
+            Checks = checks,
         };
     }
 
@@ -278,7 +278,7 @@ public sealed partial class DoctorService : IDoctorService
                 ["osDescription"] = description,
                 ["osArchitecture"] = RuntimeInformation.OSArchitecture.ToString(),
                 ["processArchitecture"] = RuntimeInformation.ProcessArchitecture.ToString()
-            }
+            },
         };
     }
 
@@ -293,7 +293,7 @@ public sealed partial class DoctorService : IDoctorService
             {
                 ["currentEnvironment"] = _environmentInfoProvider.CurrentEnvironment.ToString(),
                 ["wmHandlesCloseButton"] = _environmentInfoProvider.WindowManagerHandlesCloseButton
-            }
+            },
         };
     }
 
@@ -313,7 +313,7 @@ public sealed partial class DoctorService : IDoctorService
                 Message = isWritable
                     ? "Config directory is writable."
                     : "Config directory is not writable.",
-                Details = new JsonObject { ["configDirectory"] = configDirectory, ["writable"] = isWritable }
+                Details = new JsonObject { ["configDirectory"] = configDirectory, ["writable"] = isWritable },
             };
         }
         catch (Exception ex)
@@ -323,7 +323,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "config-path",
                 Status = DoctorCheckStatus.Fail,
                 Message = "Failed to access config directory.",
-                Details = new JsonObject { ["configDirectory"] = configDirectory, ["error"] = ex.Message }
+                Details = new JsonObject { ["configDirectory"] = configDirectory, ["error"] = ex.Message },
             };
         }
     }
@@ -360,7 +360,7 @@ public sealed partial class DoctorService : IDoctorService
             {
                 ["supported"] = supported,
                 ["reason"] = string.IsNullOrWhiteSpace(reason) ? null : reason
-            }
+            },
         };
     }
 
@@ -384,7 +384,7 @@ public sealed partial class DoctorService : IDoctorService
                         ["provider"] = simulator.ProviderName,
                         ["supported"] = isSupported
                     }
-                    : null
+                    : null,
             };
         }
         catch (Exception ex)
@@ -394,7 +394,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "input-simulator",
                 Status = DoctorCheckStatus.Fail,
                 Message = "Input simulator backend probe failed.",
-                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
             };
         }
     }
@@ -419,7 +419,7 @@ public sealed partial class DoctorService : IDoctorService
                         ["provider"] = capture.ProviderName,
                         ["supported"] = isSupported
                     }
-                    : null
+                    : null,
             };
         }
         catch (Exception ex)
@@ -429,7 +429,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "input-capture",
                 Status = DoctorCheckStatus.Fail,
                 Message = "Input capture backend probe failed.",
-                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
             };
         }
     }
@@ -451,7 +451,7 @@ public sealed partial class DoctorService : IDoctorService
                     ["provider"] = _mousePositionProvider.ProviderName,
                     ["supported"] = isSupported
                 }
-                : null
+                : null,
         };
     }
 
@@ -466,7 +466,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS Input Monitoring check was skipped outside macOS.",
-                Details = verbose ? new JsonObject { ["skipped"] = true } : null
+                Details = verbose ? new JsonObject { ["skipped"] = true } : null,
             });
 
             return checks;
@@ -480,7 +480,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS permission checker is unavailable.",
-                Details = verbose ? new JsonObject { ["checkerAvailable"] = false } : null
+                Details = verbose ? new JsonObject { ["checkerAvailable"] = false } : null,
             });
 
             return checks;
@@ -494,7 +494,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS Input Monitoring status is unavailable from this permission checker.",
-                Details = verbose ? new JsonObject { ["checkerProvidesSeparateMacOSStatus"] = false } : null
+                Details = verbose ? new JsonObject { ["checkerProvidesSeparateMacOSStatus"] = false } : null,
             });
 
             checks.Add(new DoctorCheck
@@ -502,7 +502,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-event-posting",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS event posting status is unavailable from this permission checker.",
-                Details = verbose ? new JsonObject { ["checkerProvidesSeparateMacOSStatus"] = false } : null
+                Details = verbose ? new JsonObject { ["checkerProvidesSeparateMacOSStatus"] = false } : null,
             });
 
             bool trusted;
@@ -517,7 +517,7 @@ public sealed partial class DoctorService : IDoctorService
                     Name = "macos-accessibility",
                     Status = DoctorCheckStatus.Warn,
                     Message = "macOS Accessibility trust probe failed.",
-                    Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
+                    Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
                 });
 
                 return checks;
@@ -541,7 +541,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-input-monitoring",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS permission status probe failed.",
-                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
             });
 
             return checks;
@@ -560,7 +560,7 @@ public sealed partial class DoctorService : IDoctorService
                     ["listenEventGranted"] = status.ListenEventGranted,
                     ["listenEventApiAvailable"] = status.ListenEventApiAvailable
                 }
-                : null
+                : null,
         });
 
         checks.Add(new DoctorCheck
@@ -576,7 +576,7 @@ public sealed partial class DoctorService : IDoctorService
                     ["postEventGranted"] = status.PostEventGranted,
                     ["postEventApiAvailable"] = status.PostEventApiAvailable
                 }
-                : null
+                : null,
         });
 
         checks.Add(BuildMacOSAccessibilityCheck(status.AccessibilityGranted, verbose));
@@ -592,7 +592,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-screen-recording",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS Screen Recording status is unavailable from this platform backend.",
-                Details = verbose ? new JsonObject { ["probeAvailable"] = false } : null
+                Details = verbose ? new JsonObject { ["probeAvailable"] = false } : null,
             };
         }
 
@@ -612,7 +612,7 @@ public sealed partial class DoctorService : IDoctorService
                             ["probeAvailable"] = true,
                             ["preflightApiAvailable"] = false
                         }
-                        : null
+                        : null,
                 };
             }
 
@@ -630,7 +630,7 @@ public sealed partial class DoctorService : IDoctorService
                         ["screenRecordingGranted"] = granted,
                         ["preflightApiAvailable"] = true
                     }
-                    : null
+                    : null,
             };
         }
         catch (Exception ex)
@@ -640,7 +640,7 @@ public sealed partial class DoctorService : IDoctorService
                 Name = "macos-screen-recording",
                 Status = DoctorCheckStatus.Warn,
                 Message = "macOS Screen Recording status probe failed.",
-                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
             };
         }
     }
@@ -654,7 +654,7 @@ public sealed partial class DoctorService : IDoctorService
             Message = trusted
                 ? "macOS Accessibility trust is granted for AX features."
                 : "macOS Accessibility trust is missing for AX features. Grant CrossMacro access in System Settings > Privacy & Security > Accessibility only if AX features are needed.",
-            Details = verbose ? new JsonObject { ["accessibilityTrusted"] = trusted } : null
+            Details = verbose ? new JsonObject { ["accessibilityTrusted"] = trusted } : null,
         };
     }
 

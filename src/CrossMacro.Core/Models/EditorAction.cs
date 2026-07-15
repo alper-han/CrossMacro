@@ -97,14 +97,14 @@ public class EditorAction : INotifyPropertyChanged
     private bool _preferLegacyScriptText;
     private List<MacroEvent>? _preservedTextInputEvents;
     private string? _preservedTextInputText;
-    
+
     public event PropertyChangedEventHandler? PropertyChanged;
-    
+
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
-    
+
     /// <summary>
     /// Unique identifier for this action.
     /// </summary>
@@ -113,19 +113,19 @@ public class EditorAction : INotifyPropertyChanged
         get => _id;
         set { _id = value; OnPropertyChanged(); }
     }
-    
+
     /// <summary>
     /// Type of action to perform.
     /// </summary>
     public EditorActionType Type
     {
         get => _type;
-        set 
-        { 
+        set
+        {
             if (_type != value)
             {
-                _type = value; 
-                if (value != EditorActionType.TextInput)
+                _type = value;
+                if (value is not EditorActionType.TextInput)
                 {
                     ClearPreservedTextInputEvents();
                 }
@@ -143,7 +143,7 @@ public class EditorAction : INotifyPropertyChanged
             }
         }
     }
-    
+
     /// <summary>
     /// X coordinate (for mouse actions).
     /// For absolute: screen position. For relative: offset.
@@ -151,17 +151,17 @@ public class EditorAction : INotifyPropertyChanged
     public int X
     {
         get => _x;
-        set 
-        { 
+        set
+        {
             if (_x != value)
             {
-                _x = value; 
+                _x = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Y coordinate (for mouse actions).
     /// For absolute: screen position. For relative: offset.
@@ -169,17 +169,17 @@ public class EditorAction : INotifyPropertyChanged
     public int Y
     {
         get => _y;
-        set 
-        { 
+        set
+        {
             if (_y != value)
             {
-                _y = value; 
+                _y = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Whether coordinates are absolute (true) or relative (false).
     /// Used by mouse actions with coordinates (MouseMove/MouseClick/MouseDown/MouseUp).
@@ -187,34 +187,34 @@ public class EditorAction : INotifyPropertyChanged
     public bool IsAbsolute
     {
         get => _isAbsolute;
-        set 
-        { 
+        set
+        {
             if (_isAbsolute != value)
             {
-                _isAbsolute = value; 
+                _isAbsolute = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Mouse button (for click/down/up actions).
     /// </summary>
     public MouseButton Button
     {
         get => _button;
-        set 
-        { 
+        set
+        {
             if (_button != value)
             {
-                _button = value; 
+                _button = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Keyboard key code (for key actions).
     /// Uses Linux input key codes.
@@ -222,28 +222,28 @@ public class EditorAction : INotifyPropertyChanged
     public int KeyCode
     {
         get => _keyCode;
-        set 
-        { 
+        set
+        {
             if (_keyCode != value)
             {
-                _keyCode = value; 
+                _keyCode = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Delay in milliseconds (for Delay action or timing between actions).
     /// </summary>
     public int DelayMs
     {
         get => _delayMs;
-        set 
-        { 
+        set
+        {
             if (_delayMs != value)
             {
-                _delayMs = value; 
+                _delayMs = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
@@ -319,57 +319,57 @@ public class EditorAction : INotifyPropertyChanged
             }
         }
     }
-    
+
     /// <summary>
     /// Scroll amount (positive = up/right, negative = down/left).
     /// </summary>
     public int ScrollAmount
     {
         get => _scrollAmount;
-        set 
-        { 
+        set
+        {
             if (_scrollAmount != value)
             {
-                _scrollAmount = value; 
+                _scrollAmount = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Human-readable key name for display purposes.
     /// </summary>
     public string? KeyName
     {
         get => _keyName;
-        set 
-        { 
-            if (_keyName != value)
+        set
+        {
+            if (!string.Equals(_keyName, value, StringComparison.Ordinal))
             {
-                _keyName = value; 
+                _keyName = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Index of this action in the list (1-based for display).
     /// </summary>
     public int Index
     {
         get => _index;
-        set 
-        { 
+        set
+        {
             if (_index != value)
             {
-                _index = value; 
+                _index = value;
                 OnPropertyChanged();
             }
         }
     }
-    
+
     /// <summary>
     /// Text content (for TextInput action).
     /// Each character will be converted to a KeyPress event when saving.
@@ -377,13 +377,13 @@ public class EditorAction : INotifyPropertyChanged
     public string Text
     {
         get => _text;
-        set 
-        { 
-            if (_text != value)
+        set
+        {
+            if (!string.Equals(_text, value, StringComparison.Ordinal))
             {
                 var normalized = value ?? string.Empty;
                 _text = normalized;
-                if (Type == EditorActionType.TextInput && _preservedTextInputText != normalized)
+                if (Type is EditorActionType.TextInput && !string.Equals(_preservedTextInputText, normalized, StringComparison.Ordinal))
                 {
                     ClearPreservedTextInputEvents();
                 }
@@ -410,10 +410,10 @@ public class EditorAction : INotifyPropertyChanged
 
     public IReadOnlyList<MacroEvent>? GetPreservedTextInputEvents()
     {
-        return Type == EditorActionType.TextInput
-            && _preservedTextInputEvents is { Count: > 0 }
-            && _preservedTextInputText == Text
-            ? _preservedTextInputEvents
+        return Type is EditorActionType.TextInput
+&& _preservedTextInputEvents is { Count: > 0 }
+&& string.Equals(_preservedTextInputText, Text
+, StringComparison.Ordinal) ? _preservedTextInputEvents
             : null;
     }
 
@@ -433,7 +433,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_scriptVariableName == normalized)
+            if (string.Equals(_scriptVariableName, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -474,7 +474,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value ?? string.Empty;
-            if (_scriptValue == normalized)
+            if (string.Equals(_scriptValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -515,7 +515,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_scriptNumericValue == normalized)
+            if (string.Equals(_scriptNumericValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -556,7 +556,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_scriptLeftOperand == normalized)
+            if (string.Equals(_scriptLeftOperand, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -617,7 +617,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_scriptRightOperand == normalized)
+            if (string.Equals(_scriptRightOperand, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -638,7 +638,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_forVariableName == normalized)
+            if (string.Equals(_forVariableName, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -679,7 +679,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_forStartValue == normalized)
+            if (string.Equals(_forStartValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -720,7 +720,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_forEndValue == normalized)
+            if (string.Equals(_forEndValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -781,7 +781,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_forStepValue == normalized)
+            if (string.Equals(_forStepValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -1127,7 +1127,7 @@ public class EditorAction : INotifyPropertyChanged
 
     public bool TryGetWindowPayload(out EditorActionWindowPayload payload) =>
         EditorActionWindowPayload.TryCreate(this, out payload);
-    
+
     /// <summary>
     /// Gets a human-readable description of this action.
     /// </summary>
@@ -1155,8 +1155,8 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.Delay => $"Wait {DelayMs}ms",
             EditorActionType.ScrollVertical => ScrollAmount > 0 ? $"Scroll Up {ScrollAmount}" : $"Scroll Down {Math.Abs(ScrollAmount)}",
             EditorActionType.ScrollHorizontal => ScrollAmount > 0 ? $"Scroll Right {ScrollAmount}" : $"Scroll Left {Math.Abs(ScrollAmount)}",
-            EditorActionType.TextInput => string.IsNullOrEmpty(Text) 
-                ? "Text Input (empty)" 
+            EditorActionType.TextInput => string.IsNullOrEmpty(Text)
+                ? "Text Input (empty)"
                 : $"Type \"{(Text.Length > 25 ? Text[..25] + "..." : Text)}\"",
             EditorActionType.SetVariable => UseLegacyScriptTextDisplay
                 ? $"Set {Text}"
@@ -1203,10 +1203,10 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.RawScriptStep => string.IsNullOrWhiteSpace(Text)
                 ? "Raw Script Step"
                 : $"Raw Script: {(Text.Length > 40 ? Text[..40] + "..." : Text)}",
-            _ => "Unknown Action"
+            _ => "Unknown Action",
         };
     }
-    
+
     /// <summary>
     /// Validates this action.
     /// </summary>
@@ -1218,10 +1218,10 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.Delay when UseRandomDelay =>
                 RandomDelayMinMs >= 0
                 && RandomDelayMaxMs >= RandomDelayMinMs
-                && !(RandomDelayMinMs == 0 && RandomDelayMaxMs == 0),
+                && !(RandomDelayMinMs is 0 && RandomDelayMaxMs is 0),
             EditorActionType.Delay => DelayMs >= 0,
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => KeyCode > 0,
-            EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount != 0,
+            EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount is not 0,
             EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp when UseCurrentPosition => !IsAbsolute,
             EditorActionType.TextInput => !string.IsNullOrEmpty(Text),
             EditorActionType.SetVariable => UseLegacyScriptTextDisplay || ValidateSetVariableFields(),
@@ -1240,10 +1240,10 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.WindowCommand => ValidateWindowCommandFields(),
             EditorActionType.RawScriptStep => !string.IsNullOrWhiteSpace(Text),
             EditorActionType.ElseBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue => true,
-            _ => true
+            _ => true,
         };
     }
-    
+
     public EditorAction Clone()
     {
         var clone = new EditorAction
@@ -1313,7 +1313,7 @@ public class EditorAction : INotifyPropertyChanged
             _windowWorkspace = WindowWorkspace,
             _preferLegacyScriptText = PreferLegacyScriptText,
             _preservedTextInputText = _preservedTextInputText,
-            _preservedTextInputEvents = _preservedTextInputEvents?.ToList()
+            _preservedTextInputEvents = _preservedTextInputEvents?.ToList(),
         };
 
         if (TryGetScreenReadingPayload(out var screenReadingPayload))
@@ -1435,7 +1435,7 @@ public class EditorAction : INotifyPropertyChanged
             ScriptValueType.Boolean => bool.TryParse(ScriptValue, out _),
             ScriptValueType.Text => !string.IsNullOrWhiteSpace(ScriptValue),
             ScriptValueType.VariableReference => EditorActionScriptTokens.IsValidVariableName(ScriptValue),
-            _ => false
+            _ => false,
         };
     }
 
@@ -1504,7 +1504,7 @@ public class EditorAction : INotifyPropertyChanged
             && double.IsFinite(ImageSearchSimilarity)
             && ImageSearchSimilarity is >= 0.0 and <= 1.0
             && ImageSearchDownsample >= 1
-            && (Type != EditorActionType.ImageClick
+            && (Type is not EditorActionType.ImageClick
                 || Button is MouseButton.Left or MouseButton.Right or MouseButton.Middle);
     }
 
@@ -1551,22 +1551,22 @@ public class EditorAction : INotifyPropertyChanged
                 && !string.IsNullOrWhiteSpace(WindowSelectorValue)
                 && WindowTimeoutMs > 0
                 && EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
-            WindowCommandMode.Focus => WindowSelectorKind == "active"
-                || (IsValidWindowFocusSelector(WindowSelectorKind) && !string.IsNullOrWhiteSpace(WindowSelectorValue)),
-            WindowCommandMode.Close => WindowSelectorKind == "active"
-                || (IsValidWindowCloseSelector(WindowSelectorKind) && !string.IsNullOrWhiteSpace(WindowSelectorValue)),
+            WindowCommandMode.Focus => WindowSelectorKind is "active"
+|| (IsValidWindowFocusSelector(WindowSelectorKind) && !string.IsNullOrWhiteSpace(WindowSelectorValue)),
+            WindowCommandMode.Close => WindowSelectorKind is "active"
+|| (IsValidWindowCloseSelector(WindowSelectorKind) && !string.IsNullOrWhiteSpace(WindowSelectorValue)),
             WindowCommandMode.Resize => WindowWidth > 0 && WindowHeight > 0,
             WindowCommandMode.WorkspaceGet => EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
             WindowCommandMode.WorkspaceSwitch or WindowCommandMode.WorkspaceMoveActive => !string.IsNullOrWhiteSpace(WindowWorkspace),
             WindowCommandMode.WorkspaceMoveWindow => !string.IsNullOrWhiteSpace(WindowSelectorValue) && !string.IsNullOrWhiteSpace(WindowWorkspace),
-            _ => true
+            _ => true,
         };
     }
 
     private static bool IsIntegerOrVariable(string token)
     {
         return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _)
-            || token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token);
+            || (token.StartsWith("$", StringComparison.Ordinal) && EditorActionScriptTokens.IsValidVariableName(token));
     }
 
     private static bool IsPositiveIntegerOrVariable(string token)
@@ -1578,7 +1578,7 @@ public class EditorAction : INotifyPropertyChanged
 
     private static bool IsValidShellCaptureTarget(string target)
     {
-        return target == "_" || EditorActionScriptTokens.IsValidVariableName(target);
+        return target is "_" || EditorActionScriptTokens.IsValidVariableName(target);
     }
 
     private EditorActionScreenReadingPayload GetScreenReadingPayload()
@@ -1655,13 +1655,13 @@ public class EditorAction : INotifyPropertyChanged
             WindowCommandMode.WorkspaceSwitch => $"Switch to workspace {WindowWorkspace}",
             WindowCommandMode.WorkspaceMoveActive => $"Move active window to workspace {WindowWorkspace}",
             WindowCommandMode.WorkspaceMoveWindow => $"Move window {WindowSelectorValue} to workspace {WindowWorkspace}",
-            _ => "Window Command"
+            _ => "Window Command",
         };
     }
 
     private string FormatWindowSelectorSummary(string verb)
     {
-        return WindowSelectorKind == "active"
+        return WindowSelectorKind is "active"
             ? $"{verb} active window"
             : $"{verb} window by {WindowSelectorKind} \"{WindowSelectorValue}\"";
     }

@@ -74,9 +74,9 @@ public readonly record struct KWinScreenShotSupportResult
     public ScreenReadErrorKind? ErrorKind { get; }
     public string? ErrorMessage { get; }
 
-    public static KWinScreenShotSupportResult Supported() => new(true, null, null);
-    public static KWinScreenShotSupportResult Unsupported(string errorMessage) => new(false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
-    public static KWinScreenShotSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(false, errorKind, errorMessage);
+    public static KWinScreenShotSupportResult Supported() => new(isSupported: true, errorKind: null, errorMessage: null);
+    public static KWinScreenShotSupportResult Unsupported(string errorMessage) => new(isSupported: false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
+    public static KWinScreenShotSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(isSupported: false, errorKind, errorMessage);
 }
 
 public readonly record struct KWinScreenShotCaptureResult
@@ -98,6 +98,6 @@ public readonly record struct KWinScreenShotCaptureResult
     public ScreenReadErrorKind? ErrorKind { get; }
     public string? ErrorMessage { get; }
 
-    public static KWinScreenShotCaptureResult Success(KWinScreenShotFrame frame) => new(frame ?? throw new ArgumentNullException(nameof(frame)), null, null);
-    public static KWinScreenShotCaptureResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(null, errorKind, errorMessage);
+    public static KWinScreenShotCaptureResult Success(KWinScreenShotFrame frame) => new(frame ?? throw new ArgumentNullException(nameof(frame)), errorKind: null, errorMessage: null);
+    public static KWinScreenShotCaptureResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(frame: null, errorKind, errorMessage);
 }

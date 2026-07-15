@@ -23,7 +23,7 @@ public class MacroPlayerTests
     public MacroPlayerTests()
     {
         _positionProvider = Substitute.For<IMousePositionProvider>();
-        _positionProvider.IsSupported.Returns(true);
+        _positionProvider.IsSupported.Returns(returnThis: true);
         _positionProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
         _keyCodeMapper = CreateKeyCodeMapper();
         _validator = new PlaybackValidator(_keyCodeMapper, _positionProvider);
@@ -49,7 +49,7 @@ public class MacroPlayerTests
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
+        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
         keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
         return keyCodeMapper;
     }
@@ -185,10 +185,10 @@ public class MacroPlayerTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         simulator.ProviderName.Returns("MockSimulator");
-        
+
         var player = new MacroPlayer(
-            _positionProvider, 
-            _validator, 
+            _positionProvider,
+            _validator,
             inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
@@ -198,7 +198,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 100, Y = 100 },
                 new() { Type = EventType.ButtonPress, Button = MouseButton.Left },
                 new() { Type = EventType.KeyPress, KeyCode = 30 }
-            }
+            },
         };
 
         // Act
@@ -207,12 +207,12 @@ public class MacroPlayerTests
         // Assert
         // Verify MoveRelative (default mode)
         simulator.Received().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
-        
+
         // Verify MouseButton
-        simulator.Received().MouseButton(Arg.Any<int>(), true);
-        
+        simulator.Received().MouseButton(Arg.Any<int>(), pressed: true);
+
         // Verify KeyPress
-        simulator.Received().KeyPress(30, true);
+        simulator.Received().KeyPress(30, pressed: true);
     }
 
     [Fact]
@@ -233,14 +233,14 @@ public class MacroPlayerTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10 }
-            }
+            },
         };
 
         var options = new PlaybackOptions
         {
             Loop = true,
             RepeatCount = 2,
-            RepeatDelayMs = 123
+            RepeatDelayMs = 123,
         };
 
         // Act
@@ -268,14 +268,14 @@ public class MacroPlayerTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10 }
-            }
+            },
         };
 
         var options = new PlaybackOptions
         {
             Loop = true,
             RepeatCount = 2,
-            RepeatDelayMs = 0
+            RepeatDelayMs = 0,
         };
 
         // Act
@@ -302,7 +302,7 @@ public class MacroPlayerTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10 }
-            }
+            },
         };
 
         var options = new PlaybackOptions
@@ -312,7 +312,7 @@ public class MacroPlayerTests
             RepeatDelayMs = 999,
             UseRandomRepeatDelay = true,
             RepeatDelayMinMs = 77,
-            RepeatDelayMaxMs = 77
+            RepeatDelayMaxMs = 77,
         };
 
         await player.PlayAsync(macro, options);
@@ -348,7 +348,7 @@ public class MacroPlayerTests
                     RandomDelayMinMs = 20,
                     RandomDelayMaxMs = 20
                 }
-            }
+            },
         };
 
         // Act
@@ -368,7 +368,7 @@ public class MacroPlayerTests
         var timing = new RecordingTimingService
         {
             WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
-            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
         };
 
         var player = new MacroPlayer(
@@ -384,7 +384,7 @@ public class MacroPlayerTests
             {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 0 }
-            }
+            },
         };
 
         // Act
@@ -428,7 +428,7 @@ public class MacroPlayerTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 }
-            }
+            },
         };
 
         // Act
@@ -458,7 +458,7 @@ public class MacroPlayerTests
             {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 }
-            }
+            },
         };
 
         // Block timing service so first playback remains in-progress.
@@ -493,7 +493,7 @@ public class MacroPlayerTests
 
         timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
         {
-            if (callIndex == 1)
+            if (callIndex is 1)
             {
                 delayWaitEntered.Signal();
                 await releaseDelayWait.WaitAsync(TestTimeout, cancellationToken);
@@ -516,7 +516,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 1, Y = 1, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 2, Y = 2, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 40 }
-            }
+            },
         };
 
         // Act
@@ -589,7 +589,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 }
-            }
+            },
         };
 
         // Act
@@ -638,12 +638,12 @@ public class MacroPlayerTests
             {
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 100 }
-            }
+            },
         };
 
         var options = new PlaybackOptions
         {
-            SpeedMultiplier = speedMultiplier
+            SpeedMultiplier = speedMultiplier,
         };
 
         // Act
@@ -665,13 +665,13 @@ public class MacroPlayerTests
         {
             OnWaitAsync = (callIndex, _, _, _) =>
             {
-                if (callIndex == 1)
+                if (callIndex is 1)
                 {
                     clock.AdvanceBy(130);
                 }
 
                 return Task.CompletedTask;
-            }
+            },
         };
 
         var player = CreatePlayer(
@@ -686,7 +686,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 }
-            }
+            },
         };
 
         // Act
@@ -708,7 +708,7 @@ public class MacroPlayerTests
         {
             OnWaitAsync = (callIndex, delayMs, _, _) =>
             {
-                if (callIndex == 1)
+                if (callIndex is 1)
                 {
                     clock.AdvanceBy(delayMs + 12);
                 }
@@ -718,7 +718,7 @@ public class MacroPlayerTests
                 }
 
                 return Task.CompletedTask;
-            }
+            },
         };
 
         var player = CreatePlayer(
@@ -733,7 +733,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 100 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 100 }
-            }
+            },
         };
 
         // Act
@@ -757,7 +757,7 @@ public class MacroPlayerTests
             .When(s => s.MoveRelative(Arg.Any<int>(), Arg.Any<int>()))
             .Do(_ =>
             {
-                if (Interlocked.Increment(ref moveCallCount) == 1)
+                if (Interlocked.Increment(ref moveCallCount) is 1)
                 {
                     clock.AdvanceBy(120);
                 }
@@ -782,7 +782,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 10, Y = 10, DelayMs = 0 },
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 }
-            }
+            },
         };
 
         // Act
@@ -804,13 +804,13 @@ public class MacroPlayerTests
 
         timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
         {
-            if (callIndex == 1)
+            if (callIndex is 1)
             {
                 clock.AdvanceBy(130);
                 return;
             }
 
-            if (callIndex == 2)
+            if (callIndex is 2)
             {
                 secondWaitEntered.Signal();
             }
@@ -843,7 +843,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 }
-            }
+            },
         };
 
         // Act
@@ -876,7 +876,7 @@ public class MacroPlayerTests
 
         timing.OnWaitAsync = (callIndex, _, _, _) =>
         {
-            if (callIndex == 1)
+            if (callIndex is 1)
             {
                 clock.AdvanceBy(130);
                 player.Pause();
@@ -894,7 +894,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 30, Y = 30, DelayMs = 40 },
                 new() { Type = EventType.MouseMove, X = 40, Y = 40, DelayMs = 40 }
-            }
+            },
         };
 
         // Act
@@ -922,7 +922,7 @@ public class MacroPlayerTests
 
         timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
         {
-            if (callIndex == 1)
+            if (callIndex is 1)
             {
                 waitEntered.Signal();
                 await releaseWait.WaitAsync(TestTimeout, cancellationToken);
@@ -942,7 +942,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.KeyRelease, KeyCode = InputEventCode.KEY_A, DelayMs = 80 },
                 new() { Type = EventType.KeyPress, KeyCode = InputEventCode.KEY_B, DelayMs = 80 },
                 new() { Type = EventType.KeyRelease, KeyCode = InputEventCode.KEY_B, DelayMs = 80 }
-            }
+            },
         };
 
         // Act
@@ -955,7 +955,7 @@ public class MacroPlayerTests
         await playbackTask;
 
         // Assert
-        simulator.Received(1).KeyPress(InputEventCode.KEY_A, true);
+        simulator.Received(1).KeyPress(InputEventCode.KEY_A, pressed: true);
     }
 
     [Fact]
@@ -975,7 +975,7 @@ public class MacroPlayerTests
 
         timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
         {
-            if (callIndex == 1)
+            if (callIndex is 1)
             {
                 waitEntered.Signal();
                 await releaseWait.WaitAsync(TestTimeout, cancellationToken);
@@ -993,7 +993,7 @@ public class MacroPlayerTests
             {
                 new() { Type = EventType.KeyPress, KeyCode = InputEventCode.KEY_LEFTCTRL, DelayMs = 0 },
                 new() { Type = EventType.KeyRelease, KeyCode = InputEventCode.KEY_LEFTCTRL, DelayMs = 100 }
-            }
+            },
         };
 
         // Act
@@ -1006,7 +1006,7 @@ public class MacroPlayerTests
         await playbackTask;
 
         // Assert
-        simulator.Received(2).KeyPress(InputEventCode.KEY_LEFTCTRL, true);
+        simulator.Received(2).KeyPress(InputEventCode.KEY_LEFTCTRL, pressed: true);
     }
 
     [Fact]
@@ -1027,7 +1027,7 @@ public class MacroPlayerTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true }
-            }
+            },
         };
 
         // Act
@@ -1059,14 +1059,14 @@ public class MacroPlayerTests
             Events = new List<MacroEvent>
             {
                 new() { Type = EventType.Click, Button = MouseButton.Left, UseCurrentPosition = true }
-            }
+            },
         };
 
         var options = new PlaybackOptions
         {
             Loop = true,
             RepeatCount = 2,
-            RepeatDelayMs = 0
+            RepeatDelayMs = 0,
         };
 
         // Act
@@ -1100,7 +1100,7 @@ public class MacroPlayerTests
                     Y = 777,
                     UseCurrentPosition = true
                 }
-            }
+            },
         };
 
         // Act
@@ -1139,7 +1139,7 @@ public class MacroPlayerTests
                     Y = -5,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            }
+            },
         };
 
         await player.PlayAsync(macro);
@@ -1185,7 +1185,7 @@ public class MacroPlayerTests
                     Y = -5,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            }
+            },
         };
 
         await player.PlayAsync(macro);
@@ -1225,7 +1225,7 @@ public class MacroPlayerTests
                     Y = -5,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            }
+            },
         };
 
         await player.PlayAsync(macro);
@@ -1257,7 +1257,7 @@ public class MacroPlayerTests
                     Y = 200,
                     CoordinateMode = MouseCoordinateMode.Absolute
                 }
-            }
+            },
         };
 
         var act = async () => await player.PlayAsync(macro);
@@ -1271,7 +1271,7 @@ public class MacroPlayerTests
     public async Task PlayAsync_WhenAbsoluteMacroUsesResolutionOnlyProvider_CachesResolutionAndCreatesAbsoluteDevice()
     {
         var resolutionOnlyProvider = Substitute.For<IMousePositionProvider>();
-        resolutionOnlyProvider.IsSupported.Returns(false);
+        resolutionOnlyProvider.IsSupported.Returns(returnThis: false);
         resolutionOnlyProvider.ProviderName.Returns("Niri IPC (Resolution Only)");
         resolutionOnlyProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
 
@@ -1294,7 +1294,7 @@ public class MacroPlayerTests
                     Y = 200,
                     CoordinateMode = MouseCoordinateMode.Absolute
                 }
-            }
+            },
         };
 
         await player.PlayAsync(macro);
@@ -1309,7 +1309,7 @@ public class MacroPlayerTests
     public async Task PlayAsync_WhenRelativeMacroUsesResolutionOnlyProvider_CachesResolutionAndPlaysRelativeOnly()
     {
         var resolutionOnlyProvider = Substitute.For<IMousePositionProvider>();
-        resolutionOnlyProvider.IsSupported.Returns(false);
+        resolutionOnlyProvider.IsSupported.Returns(returnThis: false);
         resolutionOnlyProvider.ProviderName.Returns("COSMIC RandR (Resolution Only)");
         resolutionOnlyProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((2560, 1440)));
 
@@ -1332,7 +1332,7 @@ public class MacroPlayerTests
                     Y = 3,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            ]
+            ],
         };
 
         await player.PlayAsync(macro);
@@ -1372,7 +1372,7 @@ public class MacroPlayerTests
                     Y = 200,
                     CoordinateMode = MouseCoordinateMode.Absolute
                 }
-            }
+            },
         };
 
         var act = async () => await player.PlayAsync(macro);
@@ -1403,7 +1403,7 @@ public class MacroPlayerTests
                     Y = 3,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            }
+            },
         };
 
         await player.PlayAsync(macro);
@@ -1433,7 +1433,7 @@ public class MacroPlayerTests
                     X = 100,
                     Y = 200
                 }
-            }
+            },
         };
 
         await player.PlayAsync(macro);
@@ -1470,7 +1470,7 @@ public class MacroPlayerTests
                     Y = 3,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            }
+            },
         };
 
         await player.PlayAsync(macro);
@@ -1490,9 +1490,9 @@ public class MacroPlayerTests
         {
             OnWaitAsync = (callIndex, delayMs, _, _) =>
             {
-                clock.AdvanceBy(callIndex == 1 ? 35 : delayMs);
+                clock.AdvanceBy(callIndex is 1 ? 35 : delayMs);
                 return Task.CompletedTask;
-            }
+            },
         };
 
         var player = CreatePlayer(
@@ -1508,7 +1508,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 2, Y = 2, DelayMs = 50 },
                 new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 50 },
                 new() { Type = EventType.MouseMove, X = 4, Y = 4, DelayMs = 50 }
-            }
+            },
         };
 
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 10.0 });
@@ -1533,9 +1533,9 @@ public class MacroPlayerTests
         {
             OnWaitAsync = (callIndex, delayMs, _, _) =>
             {
-                clock.AdvanceBy(callIndex == 1 ? stallMs : delayMs);
+                clock.AdvanceBy(callIndex is 1 ? stallMs : delayMs);
                 return Task.CompletedTask;
-            }
+            },
         };
 
         var player = CreatePlayer(
@@ -1545,7 +1545,7 @@ public class MacroPlayerTests
 
         var events = new List<MacroEvent>
         {
-            new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 }
+            new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 },
         };
         for (int i = 1; i <= 4; i++)
             events.Add(new MacroEvent { Type = EventType.MouseMove, X = i * 10, Y = i * 10, DelayMs = sourceDelayMs });
@@ -1575,7 +1575,7 @@ public class MacroPlayerTests
             {
                 clock.AdvanceBy(delayMs + extraDriftMs);
                 return Task.CompletedTask;
-            }
+            },
         };
 
         var player = CreatePlayer(
@@ -1585,7 +1585,7 @@ public class MacroPlayerTests
 
         var events = new List<MacroEvent>
         {
-            new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 }
+            new() { Type = EventType.MouseMove, X = 0, Y = 0, DelayMs = 0 },
         };
         for (int i = 1; i <= 4; i++)
             events.Add(new MacroEvent { Type = EventType.MouseMove, X = i * 10, Y = i * 10, DelayMs = sourceDelayMs });
@@ -1605,9 +1605,9 @@ public class MacroPlayerTests
         {
             OnWaitAsync = (callIndex, delayMs, _, _) =>
             {
-                clock.AdvanceBy(callIndex == 1 || callIndex == 3 ? 310 : delayMs);
+                clock.AdvanceBy(callIndex is 1 or 3 ? 310 : delayMs);
                 return Task.CompletedTask;
-            }
+            },
         };
 
         var player = CreatePlayer(
@@ -1625,7 +1625,7 @@ public class MacroPlayerTests
                 new() { Type = EventType.MouseMove, X = 3, Y = 3, DelayMs = 100 },
                 new() { Type = EventType.MouseMove, X = 4, Y = 4, DelayMs = 100 },
                 new() { Type = EventType.MouseMove, X = 5, Y = 5, DelayMs = 100 }
-            }
+            },
         };
 
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
@@ -1644,7 +1644,7 @@ public class MacroPlayerTests
             WaitCalls.Add(delayMs);
             WaitEntered?.TrySetResult(true);
 
-            if (ContinueWait != null)
+            if (ContinueWait is not null)
             {
                 await ContinueWait.Task.WaitAsync(cancellationToken);
             }
@@ -1666,7 +1666,7 @@ public class MacroPlayerTests
         {
             WaitCalls.Add(delayMs);
             int callIndex = ++_waitCallCount;
-            if (OnWaitAsync != null)
+            if (OnWaitAsync is not null)
             {
                 await OnWaitAsync(callIndex, delayMs, pauseToken, cancellationToken);
             }

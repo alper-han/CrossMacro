@@ -101,7 +101,7 @@ internal sealed class RunScriptScreenshotExecutor
 
     private static string FormatFailure(ScreenshotCaptureResult result)
     {
-        var details = result.Details.Count == 0 ? string.Empty : $" {string.Join(" ", result.Details.Where(detail => !string.IsNullOrWhiteSpace(detail)))}";
+        var details = result.Details.Count is 0 ? string.Empty : $" {string.Join(" ", result.Details.Where(detail => !string.IsNullOrWhiteSpace(detail)))}";
         return string.IsNullOrWhiteSpace(result.Message)
             ? $"Screenshot capture failed.{details}"
             : $"{result.Message}{details}";

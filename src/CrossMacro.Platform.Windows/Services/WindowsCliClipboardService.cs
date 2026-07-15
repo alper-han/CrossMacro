@@ -77,7 +77,7 @@ internal sealed class WindowsCliClipboardService : IClipboardService
                     {
                         throw new InvalidOperationException("Failed to set clipboard data.");
                     }
-                    
+
                     isOwnedBySystem = true;
                 }
                 finally

@@ -263,7 +263,7 @@ public sealed class WindowsWindowManager : IWindowManager
             X = visibleBounds.left,
             Y = visibleBounds.top,
             Width = Math.Max(0, visibleBounds.right - visibleBounds.left),
-            Height = Math.Max(0, visibleBounds.bottom - visibleBounds.top)
+            Height = Math.Max(0, visibleBounds.bottom - visibleBounds.top),
         };
     }
 
@@ -272,7 +272,7 @@ public sealed class WindowsWindowManager : IWindowManager
         if (!User32.IsWindowVisible(hwnd))
             return false;
 
-        if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_CLOAKED, out int cloaked, sizeof(int)) == 0 && cloaked != 0)
+        if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_CLOAKED, out int cloaked, sizeof(int)) is 0 && cloaked is not 0)
             return false;
 
         var exStyle = GetExtendedStyle(hwnd);
@@ -282,8 +282,7 @@ public sealed class WindowsWindowManager : IWindowManager
         if ((exStyle & User32.WS_EX_APPWINDOW) != 0)
             return User32.GetWindowTextLengthW(hwnd) > 0;
 
-        var root = User32.GetAncestor(hwnd, User32.GA_ROOTOWNER);
-        var walk = root;
+        var walk = User32.GetAncestor(hwnd, User32.GA_ROOTOWNER);
         while (true)
         {
             var pop = User32.GetLastActivePopup(walk);
@@ -332,7 +331,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     private static RECT GetVisibleBounds(IntPtr hwnd)
     {
-        if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_EXTENDED_FRAME_BOUNDS, out RECT bounds, Marshal.SizeOf<RECT>()) == 0)
+        if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_EXTENDED_FRAME_BOUNDS, out RECT bounds, Marshal.SizeOf<RECT>()) is 0)
             return bounds;
 
         return User32.GetWindowRect(hwnd, out bounds) ? bounds : default;
@@ -393,10 +392,10 @@ public sealed class WindowsWindowManager : IWindowManager
             User32.LockSetForegroundWindow(User32.LSFW_UNLOCK);
 
             if (targetThread != 0 && targetThread != currentThread)
-                attachedToTarget = User32.AttachThreadInput(currentThread, targetThread, true);
+                attachedToTarget = User32.AttachThreadInput(currentThread, targetThread, fAttach: true);
 
             if (foregroundThread != 0 && foregroundThread != currentThread && foregroundThread != targetThread)
-                attachedToForeground = User32.AttachThreadInput(currentThread, foregroundThread, true);
+                attachedToForeground = User32.AttachThreadInput(currentThread, foregroundThread, fAttach: true);
 
             if (User32.IsIconic(hwnd))
                 User32.ShowWindow(hwnd, User32.SW_RESTORE);
@@ -410,10 +409,10 @@ public sealed class WindowsWindowManager : IWindowManager
         finally
         {
             if (attachedToForeground)
-                User32.AttachThreadInput(currentThread, foregroundThread, false);
+                User32.AttachThreadInput(currentThread, foregroundThread, fAttach: false);
 
             if (attachedToTarget)
-                User32.AttachThreadInput(currentThread, targetThread, false);
+                User32.AttachThreadInput(currentThread, targetThread, fAttach: false);
 
             if (timeoutRead)
                 User32.SystemParametersInfo(User32.SPI_SETFOREGROUNDLOCKTIMEOUT, 0, new IntPtr(oldTimeout), 0);
@@ -425,7 +424,7 @@ public sealed class WindowsWindowManager : IWindowManager
         try
         {
             using var manager = CreateVirtualDesktopManager();
-            return manager.GetWindowDesktopId(hwnd, out var desktopId) == 0 ? desktopId.ToString() : null;
+            return manager.GetWindowDesktopId(hwnd, out var desktopId) is 0 ? desktopId.ToString() : null;
         }
         catch (COMException)
         {
@@ -441,7 +440,7 @@ public sealed class WindowsWindowManager : IWindowManager
         try
         {
             using var manager = CreateVirtualDesktopManager();
-            return manager.MoveWindowToDesktop(hwnd, ref desktopId) == 0;
+            return manager.MoveWindowToDesktop(hwnd, ref desktopId) is 0;
         }
         catch (COMException)
         {

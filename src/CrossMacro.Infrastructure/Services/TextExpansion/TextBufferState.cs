@@ -43,17 +43,15 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion
         public bool TryGetMatch(IEnumerable<Core.Models.TextExpansion> expansions, out Core.Models.TextExpansion? match)
         {
             match = null;
-            if (_buffer.Length == 0) return false;
+            if (_buffer.Length is 0) return false;
 
             string currentText = _buffer.ToString();
-            
-            // Look for triggered expansions
-            
-            var validExpansions = expansions.Where(e => e.IsEnabled && !string.IsNullOrEmpty(e.Trigger));
 
-            foreach (var expansion in validExpansions)
+            // Look for triggered expansions
+
+            foreach (var expansion in expansions.Where(e => e.IsEnabled && !string.IsNullOrEmpty(e.Trigger)))
             {
-                if (currentText.EndsWith(expansion.Trigger))
+                if (currentText.EndsWith(expansion.Trigger, StringComparison.CurrentCulture))
                 {
                     match = expansion;
                     return true;

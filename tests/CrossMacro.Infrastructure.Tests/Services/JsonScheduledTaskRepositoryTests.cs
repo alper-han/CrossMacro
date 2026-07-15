@@ -50,7 +50,7 @@ public class JsonScheduledTaskRepositoryTests : IDisposable
         var tasks = new List<ScheduledTask>
         {
             new ScheduledTask { Name = "Task 1", MacroFilePath = "path1" },
-            new ScheduledTask { Name = "Task 2", MacroFilePath = "path2" }
+            new ScheduledTask { Name = "Task 2", MacroFilePath = "path2" },
         };
 
         // Act
@@ -84,7 +84,7 @@ public class JsonScheduledTaskRepositoryTests : IDisposable
         }
         finally
         {
-            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
         }
     }
 

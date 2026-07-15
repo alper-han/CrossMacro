@@ -19,7 +19,7 @@ internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSess
 
     public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options)
     {
-        return StartSessionAsync(null, options);
+        return StartSessionAsync(requestedRegion: null, options);
     }
 
     public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenRect? requestedRegion, ScreenReadOptions options)
@@ -35,7 +35,7 @@ internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSess
         {
             ["source_type"] = 1U,
             ["position"] = new object[] { x, y },
-            ["size"] = new object[] { width, height }
+            ["size"] = new object[] { width, height },
         };
 
         if (!string.IsNullOrWhiteSpace(id))

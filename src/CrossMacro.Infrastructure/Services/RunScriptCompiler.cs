@@ -46,7 +46,7 @@ public sealed class RunScriptCompileResult
             InitialDelayMs = initialDelayMs,
             InitialHasRandomDelay = initialHasRandomDelay,
             InitialRandomDelayMinMs = initialRandomDelayMinMs,
-            InitialRandomDelayMaxMs = initialRandomDelayMaxMs
+            InitialRandomDelayMaxMs = initialRandomDelayMaxMs,
         };
     }
 
@@ -55,7 +55,7 @@ public sealed class RunScriptCompileResult
         return new RunScriptCompileResult
         {
             Success = false,
-            ErrorMessage = errorMessage
+            ErrorMessage = errorMessage,
         };
     }
 }
@@ -98,12 +98,12 @@ public sealed class RunScriptCompiler
             return RunScriptCompileResult.Fail(expandResult.ErrorMessage);
         }
 
-        if (expandResult.LoopControlSignal != LoopControlSignal.None)
+        if (expandResult.LoopControlSignal is not LoopControlSignal.None)
         {
             return RunScriptCompileResult.Fail("Internal parser error: unhandled loop-control signal.");
         }
 
-        if (expandedSteps.Count == 0 && ContainsRuntimeBackedNode(parseResult.Nodes!))
+        if (expandedSteps.Count is 0 && ContainsRuntimeBackedNode(parseResult.Nodes!))
         {
             return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);
         }
@@ -127,7 +127,7 @@ public sealed class RunScriptCompiler
             ScriptSteps = steps
                 .Select(step => step.Step.Trim())
                 .Where(step => !string.IsNullOrWhiteSpace(step))
-                .ToList()
+                .ToList(),
         };
 
         return RunScriptCompileResult.Ok(sequence, initialDelayMs: 0);
@@ -196,7 +196,7 @@ public sealed class RunScriptCompiler
 
         if (IsScreenReadingStep(trimmed))
         {
-            return TryParseScreenReadingStep(trimmed, out var screenReadingError) && screenReadingError != null
+            return TryParseScreenReadingStep(trimmed, out var screenReadingError) && screenReadingError is not null
                 ? RunScriptCompileResult.Fail($"{source}: {screenReadingError}")
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
@@ -204,7 +204,7 @@ public sealed class RunScriptCompiler
         if (RunScriptSyntax.IsWindowStep(trimmed))
         {
             var windowError = RunScriptWindowExecutor.Validate(trimmed);
-            return windowError != null
+            return windowError is not null
                 ? RunScriptCompileResult.Fail($"{source}: {windowError}")
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
@@ -212,7 +212,7 @@ public sealed class RunScriptCompiler
         if (RunScriptSyntax.IsClipboardStep(trimmed))
         {
             var clipboardError = RunScriptClipboardExecutor.Validate(trimmed);
-            return clipboardError != null
+            return clipboardError is not null
                 ? RunScriptCompileResult.Fail($"{source}: {clipboardError}")
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
@@ -220,7 +220,7 @@ public sealed class RunScriptCompiler
         if (RunScriptSyntax.IsShellStep(trimmed))
         {
             var shellError = RunScriptShellExecutor.Validate(trimmed);
-            return shellError != null
+            return shellError is not null
                 ? RunScriptCompileResult.Fail($"{source}: {shellError}")
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
@@ -228,14 +228,14 @@ public sealed class RunScriptCompiler
         if (RunScriptPlatformSyntax.IsScreenshotStep(trimmed))
         {
             var screenshotError = RunScriptPlatformSyntax.ValidateScreenshotStep(trimmed);
-            return screenshotError != null
+            return screenshotError is not null
                 ? RunScriptCompileResult.Fail($"{source}: {screenshotError}")
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
 
         if (RunScriptSyntax.IsBreakCommand(trimmed) || RunScriptSyntax.IsContinueCommand(trimmed))
         {
-            return loopDepth == 0
+            return loopDepth is 0
                 ? RunScriptCompileResult.Fail($"{source}: {trimmed} can only be used inside repeat/while/for blocks.")
                 : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
@@ -264,7 +264,7 @@ public sealed class RunScriptCompiler
             }
 
             var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length == 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
+            return parts.Length is 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
         }
 
         if (step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase)
@@ -286,7 +286,7 @@ public sealed class RunScriptCompiler
             return false;
         }
 
-        if (parts.Length == 2)
+        if (parts.Length is 2)
         {
             if (parts[1].Contains("..", StringComparison.Ordinal))
             {
@@ -298,12 +298,12 @@ public sealed class RunScriptCompiler
 
         if (parts.Length is 3 or 4 && string.Equals(parts[1], "random", StringComparison.OrdinalIgnoreCase))
         {
-            if (parts.Length == 3)
+            if (parts.Length is 3)
             {
                 var range = parts[2].Split("..", 2, StringSplitOptions.TrimEntries);
-                return range.Length == 2
-                    && IsRuntimeIntegerToken(range[0])
-                    && IsRuntimeIntegerToken(range[1]);
+                return range.Length is 2
+&& IsRuntimeIntegerToken(range[0])
+&& IsRuntimeIntegerToken(range[1]);
             }
 
             return IsRuntimeIntegerToken(parts[2]) && IsRuntimeIntegerToken(parts[3]);
@@ -370,7 +370,7 @@ public sealed class RunScriptCompiler
                 case RepeatNode repeatNode when ContainsCommandNode(repeatNode.Body, predicate):
                     return true;
                 case IfNode ifNode when ContainsCommandNode(ifNode.TrueBody, predicate)
-                    || (ifNode.FalseBody != null && ContainsCommandNode(ifNode.FalseBody, predicate)):
+|| (ifNode.FalseBody is not null && ContainsCommandNode(ifNode.FalseBody, predicate)):
                     return true;
                 case WhileNode whileNode when ContainsCommandNode(whileNode.Body, predicate):
                     return true;
@@ -388,7 +388,7 @@ public sealed class RunScriptCompiler
         {
             Name = "Run Script",
             IsAbsoluteCoordinates = false,
-            SkipInitialZeroZero = true
+            SkipInitialZeroZero = true,
         };
 
         var timestampMs = 0L;
@@ -460,7 +460,7 @@ public sealed class RunScriptCompiler
                         Type = EventType.MouseMove,
                         X = x,
                         Y = y,
-                        CoordinateMode = currentMoveMode
+                        CoordinateMode = currentMoveMode,
                     });
 
                     if (isAbsolute)
@@ -483,7 +483,7 @@ public sealed class RunScriptCompiler
                     {
                         Type = EventType.ButtonPress,
                         Button = downButton,
-                        UseCurrentPosition = isCurrentPositionDown || currentMoveMode == null
+                        UseCurrentPosition = isCurrentPositionDown || currentMoveMode is null,
                     };
 
                     if (isCurrentPositionDown)
@@ -492,7 +492,7 @@ public sealed class RunScriptCompiler
                         continue;
                     }
 
-                    if (currentMoveMode == MouseCoordinateMode.Absolute)
+                    if (currentMoveMode is MouseCoordinateMode.Absolute)
                     {
                         if (!hasAbsoluteCursorPosition)
                         {
@@ -504,7 +504,7 @@ public sealed class RunScriptCompiler
                         downEvent.Y = absoluteCursorY;
                         downEvent.CoordinateMode = MouseCoordinateMode.Absolute;
                     }
-                    else if (currentMoveMode == MouseCoordinateMode.Relative)
+                    else if (currentMoveMode is MouseCoordinateMode.Relative)
                     {
                         downEvent.CoordinateMode = MouseCoordinateMode.Relative;
                     }
@@ -519,7 +519,7 @@ public sealed class RunScriptCompiler
                     {
                         Type = EventType.ButtonRelease,
                         Button = upButton,
-                        UseCurrentPosition = isCurrentPositionUp || currentMoveMode == null
+                        UseCurrentPosition = isCurrentPositionUp || currentMoveMode is null,
                     };
 
                     if (isCurrentPositionUp)
@@ -528,7 +528,7 @@ public sealed class RunScriptCompiler
                         continue;
                     }
 
-                    if (currentMoveMode == MouseCoordinateMode.Absolute)
+                    if (currentMoveMode is MouseCoordinateMode.Absolute)
                     {
                         if (!hasAbsoluteCursorPosition)
                         {
@@ -540,7 +540,7 @@ public sealed class RunScriptCompiler
                         upEvent.Y = absoluteCursorY;
                         upEvent.CoordinateMode = MouseCoordinateMode.Absolute;
                     }
-                    else if (currentMoveMode == MouseCoordinateMode.Relative)
+                    else if (currentMoveMode is MouseCoordinateMode.Relative)
                     {
                         upEvent.CoordinateMode = MouseCoordinateMode.Relative;
                     }
@@ -555,7 +555,7 @@ public sealed class RunScriptCompiler
                     {
                         Type = EventType.Click,
                         Button = clickButton,
-                        UseCurrentPosition = isCurrentPositionClick || currentMoveMode == null
+                        UseCurrentPosition = isCurrentPositionClick || currentMoveMode is null,
                     };
 
                     if (isCurrentPositionClick)
@@ -564,7 +564,7 @@ public sealed class RunScriptCompiler
                         continue;
                     }
 
-                    if (currentMoveMode == MouseCoordinateMode.Absolute)
+                    if (currentMoveMode is MouseCoordinateMode.Absolute)
                     {
                         if (!hasAbsoluteCursorPosition)
                         {
@@ -576,7 +576,7 @@ public sealed class RunScriptCompiler
                         clickEvent.Y = absoluteCursorY;
                         clickEvent.CoordinateMode = MouseCoordinateMode.Absolute;
                     }
-                    else if (currentMoveMode == MouseCoordinateMode.Relative)
+                    else if (currentMoveMode is MouseCoordinateMode.Relative)
                     {
                         clickEvent.CoordinateMode = MouseCoordinateMode.Relative;
                     }
@@ -587,7 +587,7 @@ public sealed class RunScriptCompiler
 
                 if (TryParseScroll(step, out var scrollButton, out var scrollCount, out var scrollError))
                 {
-                    if (scrollError != null)
+                    if (scrollError is not null)
                     {
                         return RunScriptCompileResult.Fail($"{stepPrefix}: {scrollError}");
                     }
@@ -597,7 +597,7 @@ public sealed class RunScriptCompiler
                         EmitEvent(new MacroEvent
                         {
                             Type = EventType.Click,
-                            Button = scrollButton
+                            Button = scrollButton,
                         });
                     }
 
@@ -606,7 +606,7 @@ public sealed class RunScriptCompiler
 
                 if (TryParseScreenReadingStep(step, out var screenReadingError))
                 {
-                    if (screenReadingError != null)
+                    if (screenReadingError is not null)
                     {
                         return RunScriptCompileResult.Fail($"{stepPrefix}: {screenReadingError}");
                     }
@@ -626,7 +626,7 @@ public sealed class RunScriptCompiler
                     EmitEvent(new MacroEvent
                     {
                         Type = isKeyDown ? EventType.KeyPress : EventType.KeyRelease,
-                        KeyCode = keyCode
+                        KeyCode = keyCode,
                     });
 
                     continue;
@@ -634,7 +634,7 @@ public sealed class RunScriptCompiler
 
                 if (TryEmitTapCombo(stepPrefix, step, EmitEvent, out var tapError))
                 {
-                    if (tapError != null)
+                    if (tapError is not null)
                     {
                         return RunScriptCompileResult.Fail(tapError);
                     }
@@ -644,7 +644,7 @@ public sealed class RunScriptCompiler
 
                 if (TryEmitTypeText(stepPrefix, stepForType, EmitEvent, EmitTapKeyByName, out var typeError))
                 {
-                    if (typeError != null)
+                    if (typeError is not null)
                     {
                         return RunScriptCompileResult.Fail(typeError);
                     }
@@ -674,13 +674,13 @@ public sealed class RunScriptCompiler
                 .ToList();
         }
 
-        sequence.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(sequence) == CoordinateModeSummary.Absolute;
+        sequence.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(sequence) is CoordinateModeSummary.Absolute;
         sequence.TrailingDelayMs = pendingFixedDelayMs;
         sequence.HasTrailingRandomDelay = pendingHasRandomDelay;
         sequence.TrailingDelayMinMs = pendingRandomDelayMinMs;
         sequence.TrailingDelayMaxMs = pendingRandomDelayMaxMs;
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type == EventType.MouseMove);
-        sequence.ClickCount = sequence.Events.Count(e => e.Type == EventType.Click || e.Type == EventType.ButtonPress || e.Type == EventType.ButtonRelease);
+        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
+        sequence.ClickCount = sequence.Events.Count(e => e.Type is EventType.Click or EventType.ButtonPress or EventType.ButtonRelease);
         sequence.CalculateDuration();
 
         return RunScriptCompileResult.Ok(
@@ -778,7 +778,7 @@ public sealed class RunScriptCompiler
 
             if (TryParseIfHeader(trimmed, out var ifCondition, out var ifHeaderError))
             {
-                if (ifHeaderError != null)
+                if (ifHeaderError is not null)
                 {
                     return ScriptNodeParseResult.Fail($"{source}: {ifHeaderError}");
                 }
@@ -813,7 +813,7 @@ public sealed class RunScriptCompiler
 
             if (TryParseWhileHeader(trimmed, out var whileCondition, out var whileHeaderError))
             {
-                if (whileHeaderError != null)
+                if (whileHeaderError is not null)
                 {
                     return ScriptNodeParseResult.Fail($"{source}: {whileHeaderError}");
                 }
@@ -832,7 +832,7 @@ public sealed class RunScriptCompiler
 
             if (TryParseForHeader(trimmed, out var forHeader, out var forHeaderError))
             {
-                if (forHeaderError != null)
+                if (forHeaderError is not null)
                 {
                     return ScriptNodeParseResult.Fail($"{source}: {forHeaderError}");
                 }
@@ -893,7 +893,7 @@ public sealed class RunScriptCompiler
 
                     if (RunScriptSyntax.IsBreakCommand(step))
                     {
-                        if (loopDepth == 0)
+                        if (loopDepth is 0)
                         {
                             return ScriptExpansionResult.Fail($"{source}: 'break' can only be used inside repeat/while/for blocks.");
                         }
@@ -903,7 +903,7 @@ public sealed class RunScriptCompiler
 
                     if (RunScriptSyntax.IsContinueCommand(step))
                     {
-                        if (loopDepth == 0)
+                        if (loopDepth is 0)
                         {
                             return ScriptExpansionResult.Fail($"{source}: 'continue' can only be used inside repeat/while/for blocks.");
                         }
@@ -926,7 +926,7 @@ public sealed class RunScriptCompiler
 
                         if (TryEvaluateNumericExpression(resolvedValueResult.Value!, out var numericValue, out var expressionError))
                         {
-                            if (expressionError != null)
+                            if (expressionError is not null)
                             {
                                 return ScriptExpansionResult.Fail($"{source}: {expressionError}");
                             }
@@ -943,7 +943,7 @@ public sealed class RunScriptCompiler
 
                     if (TryParseIncDecCommand(step, out var targetVariableName, out var amountToken, out var sign, out var incDecError))
                     {
-                        if (incDecError != null)
+                        if (incDecError is not null)
                         {
                             return ScriptExpansionResult.Fail($"{source}: {incDecError}");
                         }
@@ -960,7 +960,7 @@ public sealed class RunScriptCompiler
                             return ScriptExpansionResult.Fail($"{source}: {amountResult.ErrorMessage}");
                         }
 
-                        var updated = existingInt + sign * amountResult.Value;
+                        var updated = existingInt + (sign * amountResult.Value);
                         variables[targetVariableName!] = updated.ToString(CultureInfo.InvariantCulture);
                         break;
                     }
@@ -1001,12 +1001,12 @@ public sealed class RunScriptCompiler
                             return nestedResult;
                         }
 
-                        if (nestedResult.LoopControlSignal == LoopControlSignal.Break)
+                        if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
                         {
                             break;
                         }
 
-                        if (nestedResult.LoopControlSignal == LoopControlSignal.Continue)
+                        if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
                         {
                             continue;
                         }
@@ -1024,7 +1024,7 @@ public sealed class RunScriptCompiler
                     }
 
                     var branch = conditionResult.Value ? ifNode.TrueBody : ifNode.FalseBody;
-                    if (branch == null || branch.Count == 0)
+                    if (branch is null || branch.Count is 0)
                     {
                         break;
                     }
@@ -1035,7 +1035,7 @@ public sealed class RunScriptCompiler
                         return nestedResult;
                     }
 
-                    if (nestedResult.LoopControlSignal != LoopControlSignal.None)
+                    if (nestedResult.LoopControlSignal is not LoopControlSignal.None)
                     {
                         return nestedResult;
                     }
@@ -1069,12 +1069,12 @@ public sealed class RunScriptCompiler
                             return nestedResult;
                         }
 
-                        if (nestedResult.LoopControlSignal == LoopControlSignal.Break)
+                        if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
                         {
                             break;
                         }
 
-                        if (nestedResult.LoopControlSignal == LoopControlSignal.Continue)
+                        if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
                         {
                             continue;
                         }
@@ -1113,7 +1113,7 @@ public sealed class RunScriptCompiler
                         stepValue = startResult.Value <= endResult.Value ? 1 : -1;
                     }
 
-                    if (stepValue == 0)
+                    if (stepValue is 0)
                     {
                         return ScriptExpansionResult.Fail($"{source}: for step cannot be 0.");
                     }
@@ -1134,12 +1134,12 @@ public sealed class RunScriptCompiler
                             return nestedResult;
                         }
 
-                        if (nestedResult.LoopControlSignal == LoopControlSignal.Break)
+                        if (nestedResult.LoopControlSignal is LoopControlSignal.Break)
                         {
                             break;
                         }
 
-                        if (nestedResult.LoopControlSignal == LoopControlSignal.Continue)
+                        if (nestedResult.LoopControlSignal is LoopControlSignal.Continue)
                         {
                             continue;
                         }
@@ -1172,9 +1172,9 @@ public sealed class RunScriptCompiler
     {
         countToken = string.Empty;
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 3
-            && string.Equals(parts[0], "repeat", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(parts[2], "{", StringComparison.Ordinal))
+        if (parts.Length is 3
+&& string.Equals(parts[0], "repeat", StringComparison.OrdinalIgnoreCase)
+&& string.Equals(parts[2], "{", StringComparison.Ordinal))
         {
             countToken = parts[1];
             return true;
@@ -1236,7 +1236,7 @@ public sealed class RunScriptCompiler
         var payload = step[..^1].Trim();
         var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        if (parts.Length != 6 && parts.Length != 8)
+        if (parts.Length is not (6 or 8))
         {
             error = "Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {";
             return true;
@@ -1261,7 +1261,7 @@ public sealed class RunScriptCompiler
         string? stepToken = null;
         var hasExplicitStep = false;
 
-        if (parts.Length == 8)
+        if (parts.Length is 8)
         {
             if (!string.Equals(parts[6], "step", StringComparison.OrdinalIgnoreCase))
             {
@@ -1314,7 +1314,7 @@ public sealed class RunScriptCompiler
         if (condition.OperatorToken is "==" or "!=")
         {
             var equals = ValuesEqual(leftValue, rightValue);
-            return ConditionEvaluationResult.Ok(condition.OperatorToken == "==" ? equals : !equals);
+            return ConditionEvaluationResult.Ok(condition.OperatorToken is "==" ? equals : !equals);
         }
 
         if (!int.TryParse(leftValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var leftInt)
@@ -1330,7 +1330,7 @@ public sealed class RunScriptCompiler
             ">=" => leftInt >= rightInt,
             "<" => leftInt < rightInt,
             "<=" => leftInt <= rightInt,
-            _ => false
+            _ => false,
         };
 
         return ConditionEvaluationResult.Ok(result);
@@ -1421,7 +1421,7 @@ public sealed class RunScriptCompiler
         }
 
         var payload = step[4..].Trim();
-        if (payload.Length == 0)
+        if (payload.Length is 0)
         {
             error = "Invalid set syntax. Expected: set <name> <value> or set <name>=<value>.";
             return true;
@@ -1436,7 +1436,7 @@ public sealed class RunScriptCompiler
         else
         {
             var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length != 2)
+            if (parts.Length is not 2)
             {
                 error = "Invalid set syntax. Expected: set <name> <value> or set <name>=<value>.";
                 return true;
@@ -1486,7 +1486,7 @@ public sealed class RunScriptCompiler
         }
 
         sign = step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase) ? 1 : -1;
-        var command = sign == 1 ? "inc" : "dec";
+        var command = sign is 1 ? "inc" : "dec";
         var payload = step[4..].Trim();
         var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -1497,7 +1497,7 @@ public sealed class RunScriptCompiler
         }
 
         variableName = parts[0];
-        amountToken = parts.Length == 2 ? parts[1] : "1";
+        amountToken = parts.Length is 2 ? parts[1] : "1";
         if (!EditorActionScriptTokens.IsValidVariableName(variableName))
         {
             error = $"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
@@ -1512,7 +1512,7 @@ public sealed class RunScriptCompiler
         value = 0;
         error = null;
         var trimmed = expression.Trim();
-        if (trimmed.Length == 0)
+        if (trimmed.Length is 0)
         {
             return false;
         }
@@ -1549,7 +1549,7 @@ public sealed class RunScriptCompiler
                 value = left * right;
                 return true;
             case '/':
-                if (right == 0)
+                if (right is 0)
                 {
                     error = "Division by zero is not allowed in set expressions.";
                     return true;
@@ -1558,7 +1558,7 @@ public sealed class RunScriptCompiler
                 value = left / right;
                 return true;
             case '%':
-                if (right == 0)
+                if (right is 0)
                 {
                     error = "Modulo by zero is not allowed in set expressions.";
                     return true;
@@ -1694,7 +1694,7 @@ public sealed class RunScriptCompiler
         }
 
         var comboParts = combo.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (comboParts.Length == 0)
+        if (comboParts.Length is 0)
         {
             error = $"{stepPrefix}: tap combo cannot be empty.";
             return true;
@@ -1722,14 +1722,14 @@ public sealed class RunScriptCompiler
         }
 
         var distinctModifiers = modifiers.Distinct().ToList();
-        if (primaryKeys.Count == 0 && distinctModifiers.Count == 1)
+        if (primaryKeys.Count is 0 && distinctModifiers.Count is 1)
         {
             emitEvent(new MacroEvent { Type = EventType.KeyPress, KeyCode = distinctModifiers[0] });
             emitEvent(new MacroEvent { Type = EventType.KeyRelease, KeyCode = distinctModifiers[0] });
             return true;
         }
 
-        if (primaryKeys.Count != 1)
+        if (primaryKeys.Count is not 1)
         {
             error = $"{stepPrefix}: tap expects either exactly one non-modifier key (example: ctrl+c) or a single modifier key.";
             return true;
@@ -1759,7 +1759,7 @@ public sealed class RunScriptCompiler
             return false;
         }
 
-        if (textToType.Length == 0)
+        if (textToType.Length is 0)
         {
             error = $"{stepPrefix}: type text cannot be empty.";
             return true;
@@ -1862,19 +1862,19 @@ public sealed class RunScriptCompiler
             int minDelayMs;
             int maxDelayMs;
 
-            if (randomParts.Length == 1 && randomParts[0].Contains("..", StringComparison.Ordinal))
+            if (randomParts.Length is 1 && randomParts[0].Contains("..", StringComparison.Ordinal))
             {
                 var range = randomParts[0].Split("..", 2, StringSplitOptions.TrimEntries);
-                if (range.Length != 2
+                if (range.Length is not 2
                     || !int.TryParse(range[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out minDelayMs)
                     || !int.TryParse(range[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out maxDelayMs))
                 {
                     throw new ArgumentException("Invalid random delay range. Expected: delay random <min> <max> or delay random <min>..<max>.");
                 }
             }
-            else if (randomParts.Length == 2
-                     && int.TryParse(randomParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out minDelayMs)
-                     && int.TryParse(randomParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out maxDelayMs))
+            else if (randomParts.Length is 2
+&& int.TryParse(randomParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out minDelayMs)
+&& int.TryParse(randomParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out maxDelayMs))
             {
             }
             else
@@ -1908,7 +1908,7 @@ public sealed class RunScriptCompiler
         y = 0;
 
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 4 || !string.Equals(parts[0], "move", StringComparison.OrdinalIgnoreCase))
+        if (parts.Length is not 4 || !string.Equals(parts[0], "move", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1947,7 +1947,7 @@ public sealed class RunScriptCompiler
             return false;
         }
 
-        if (parts.Length == 2)
+        if (parts.Length is 2)
         {
             if (!TryResolveButton(parts[1], out button))
             {
@@ -1957,7 +1957,7 @@ public sealed class RunScriptCompiler
             return true;
         }
 
-        if (parts.Length == 3 && RunScriptSyntax.IsCurrentPositionToken(parts[1]))
+        if (parts.Length is 3 && RunScriptSyntax.IsCurrentPositionToken(parts[1]))
         {
             if (!TryResolveButton(parts[2], out button))
             {
@@ -1978,7 +1978,7 @@ public sealed class RunScriptCompiler
         keyToken = string.Empty;
 
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 3 || !string.Equals(parts[0], "key", StringComparison.OrdinalIgnoreCase))
+        if (parts.Length is not 3 || !string.Equals(parts[0], "key", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -2042,17 +2042,17 @@ public sealed class RunScriptCompiler
             "down" => MouseButton.ScrollDown,
             "left" => MouseButton.ScrollLeft,
             "right" => MouseButton.ScrollRight,
-            _ => MouseButton.None
+            _ => MouseButton.None,
         };
 
-        if (button == MouseButton.None)
+        if (button is MouseButton.None)
         {
             error = "Unknown scroll direction. Expected: up|down|left|right.";
             return true;
         }
 
-        if (parts.Length == 3
-            && (!int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out count) || count <= 0))
+        if (parts.Length is 3
+&& (!int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out count) || count <= 0))
         {
             error = "Invalid scroll count. Expected integer > 0.";
             return true;
@@ -2075,10 +2075,10 @@ public sealed class RunScriptCompiler
             "middle" or "m" => MouseButton.Middle,
             "side1" or "side" or "back" => MouseButton.Side1,
             "side2" or "extra" or "forward" => MouseButton.Side2,
-            _ => MouseButton.None
+            _ => MouseButton.None,
         };
 
-        return button != MouseButton.None;
+        return button is not MouseButton.None;
     }
 
     private sealed class LoopExecutionState
@@ -2090,7 +2090,7 @@ public sealed class RunScriptCompiler
     {
         None = 0,
         Break = 1,
-        Continue = 2
+        Continue = 2,
     }
 
     private sealed class ScriptNodeParseResult
@@ -2108,7 +2108,7 @@ public sealed class RunScriptCompiler
             return new ScriptNodeParseResult
             {
                 Success = true,
-                Nodes = nodes
+                Nodes = nodes,
             };
         }
 
@@ -2117,7 +2117,7 @@ public sealed class RunScriptCompiler
             return new ScriptNodeParseResult
             {
                 Success = false,
-                ErrorMessage = errorMessage
+                ErrorMessage = errorMessage,
             };
         }
     }
@@ -2137,7 +2137,7 @@ public sealed class RunScriptCompiler
             return new ScriptExpansionResult
             {
                 Success = true,
-                LoopControlSignal = LoopControlSignal.None
+                LoopControlSignal = LoopControlSignal.None,
             };
         }
 
@@ -2146,7 +2146,7 @@ public sealed class RunScriptCompiler
             return new ScriptExpansionResult
             {
                 Success = false,
-                ErrorMessage = errorMessage
+                ErrorMessage = errorMessage,
             };
         }
 
@@ -2155,7 +2155,7 @@ public sealed class RunScriptCompiler
             return new ScriptExpansionResult
             {
                 Success = true,
-                LoopControlSignal = LoopControlSignal.Break
+                LoopControlSignal = LoopControlSignal.Break,
             };
         }
 
@@ -2164,7 +2164,7 @@ public sealed class RunScriptCompiler
             return new ScriptExpansionResult
             {
                 Success = true,
-                LoopControlSignal = LoopControlSignal.Continue
+                LoopControlSignal = LoopControlSignal.Continue,
             };
         }
     }
@@ -2184,7 +2184,7 @@ public sealed class RunScriptCompiler
             return new VariableResolutionResult
             {
                 Success = true,
-                Value = value
+                Value = value,
             };
         }
 
@@ -2193,7 +2193,7 @@ public sealed class RunScriptCompiler
             return new VariableResolutionResult
             {
                 Success = false,
-                ErrorMessage = errorMessage
+                ErrorMessage = errorMessage,
             };
         }
     }
@@ -2213,7 +2213,7 @@ public sealed class RunScriptCompiler
             return new IntegerResolutionResult
             {
                 Success = true,
-                Value = value
+                Value = value,
             };
         }
 
@@ -2222,7 +2222,7 @@ public sealed class RunScriptCompiler
             return new IntegerResolutionResult
             {
                 Success = false,
-                ErrorMessage = errorMessage
+                ErrorMessage = errorMessage,
             };
         }
     }
@@ -2242,7 +2242,7 @@ public sealed class RunScriptCompiler
             return new OperandResolutionResult
             {
                 Success = true,
-                Value = value
+                Value = value,
             };
         }
 
@@ -2251,7 +2251,7 @@ public sealed class RunScriptCompiler
             return new OperandResolutionResult
             {
                 Success = false,
-                ErrorMessage = errorMessage
+                ErrorMessage = errorMessage,
             };
         }
     }
@@ -2271,7 +2271,7 @@ public sealed class RunScriptCompiler
             return new ConditionEvaluationResult
             {
                 Success = true,
-                Value = value
+                Value = value,
             };
         }
 
@@ -2280,7 +2280,7 @@ public sealed class RunScriptCompiler
             return new ConditionEvaluationResult
             {
                 Success = false,
-                ErrorMessage = errorMessage
+                ErrorMessage = errorMessage,
             };
         }
     }

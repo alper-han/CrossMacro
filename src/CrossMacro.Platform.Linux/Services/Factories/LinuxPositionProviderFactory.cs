@@ -21,14 +21,14 @@ public class LinuxPositionProviderFactory
     public LinuxPositionProviderFactory(
         IEnumerable<IPositionProviderSelector> selectors,
         ILinuxCapabilitySnapshotProvider snapshotProvider)
-        : this(selectors, null!, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), true)
+        : this(selectors, null!, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), _: true)
     {
     }
 
     internal LinuxPositionProviderFactory(
         IEnumerable<IPositionProviderSelector> selectors,
         ILinuxEnvironmentDetector environmentDetector)
-        : this(selectors, environmentDetector, null, true)
+        : this(selectors, environmentDetector, snapshotProvider: null, _: true)
     {
     }
 
@@ -36,7 +36,7 @@ public class LinuxPositionProviderFactory
         IEnumerable<IPositionProviderSelector> selectors,
         ILinuxEnvironmentDetector environmentDetector,
         ILinuxCapabilitySnapshotProvider snapshotProvider)
-        : this(selectors, environmentDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), true)
+        : this(selectors, environmentDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), _: true)
     {
     }
 
@@ -57,7 +57,7 @@ public class LinuxPositionProviderFactory
     public IMousePositionProvider Create()
     {
         var compositorType = _snapshotProvider?.GetSnapshot().Compositor ?? _environmentDetector!.DetectedCompositor;
-        
+
         LoggingExtensions.LogOnce("LinuxPositionProviderFactory_Compositor", "[LinuxPositionProviderFactory] Compositor: {Compositor}", compositorType);
 
         var provider = _selectors
@@ -66,7 +66,7 @@ public class LinuxPositionProviderFactory
             .FirstOrDefault()
             ?.Create();
 
-        if (provider == null)
+        if (provider is null)
         {
            // Should ideally not happen if Fallback selector is registered, but as a safety net:
            Log.Warning("[LinuxPositionProviderFactory] No matching selector found for {Compositor}, using Fallback.", compositorType);

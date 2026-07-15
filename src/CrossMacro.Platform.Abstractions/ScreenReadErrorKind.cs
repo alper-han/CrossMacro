@@ -10,5 +10,5 @@ public enum ScreenReadErrorKind
     CaptureFailed,
     Canceled,
     ResourceLimitExceeded,
-    InvalidArguments
+    InvalidArguments,
 }

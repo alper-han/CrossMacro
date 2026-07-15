@@ -147,7 +147,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         var capture = await CaptureFrameAsync(region, effectiveOptions).ConfigureAwait(false);
         if (!capture.IsSuccess)
         {
-            if (capture.ErrorKind == ScreenReadErrorKind.Canceled && IsImageSearchTimeout(options.CancellationToken, timeoutCancellation))
+            if (capture.ErrorKind is ScreenReadErrorKind.Canceled && IsImageSearchTimeout(options.CancellationToken, timeoutCancellation))
             {
                 return ScreenReadResult<ScreenImageMatch>.Failure(
                     ScreenReadErrorKind.CaptureTimeout,
@@ -171,7 +171,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
 
         try
         {
-            var matcherCancellationToken = effectiveMatchOptions.SelectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch
+            var matcherCancellationToken = effectiveMatchOptions.SelectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch
                 ? options.CancellationToken
                 : effectiveOptions.CancellationToken;
             matcherCancellationToken.ThrowIfCancellationRequested();

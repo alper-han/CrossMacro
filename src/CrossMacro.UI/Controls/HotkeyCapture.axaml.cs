@@ -147,7 +147,7 @@ public partial class HotkeyCapture : UserControl
 
     private void DetachLocalizationService()
     {
-        if (_localizationService != null)
+        if (_localizationService is not null)
         {
             _localizationService.CultureChanged -= OnCultureChanged;
             _localizationService = null;
@@ -163,7 +163,7 @@ public partial class HotkeyCapture : UserControl
 
         DetachLocalizationService();
         _localizationService = localizationService;
-        if (_localizationService != null)
+        if (_localizationService is not null)
         {
             _localizationService.CultureChanged += OnCultureChanged;
         }
@@ -209,7 +209,7 @@ public partial class HotkeyCapture : UserControl
 
         var hotkeyService = GlobalHotkeyService;
 
-        if (hotkeyService == null)
+        if (hotkeyService is null)
         {
             DisplayString = ServiceErrorDisplayText;
             return;
@@ -227,7 +227,7 @@ public partial class HotkeyCapture : UserControl
         {
             // Capture directly from the service (bypassing UI/OS filtering)
             var newHotkey = await hotkeyService.CaptureNextKeyAsync(captureToken);
-            
+
             // Update on UI thread
             Dispatcher.UIThread.Post(() =>
             {
@@ -237,10 +237,10 @@ public partial class HotkeyCapture : UserControl
                 }
 
                 // Validate the new hotkey if validation function is provided
-                if (ValidationFunc != null)
+                if (ValidationFunc is not null)
                 {
                     var (isValid, errorMessage) = ValidationFunc(newHotkey);
-                    
+
                     if (!isValid)
                     {
                         // Show error state briefly
@@ -248,14 +248,14 @@ public partial class HotkeyCapture : UserControl
                         ErrorMessage = errorMessage;
                         UpdateVisualStateClasses();
                         ScheduleValidationReset();
-                        
+
                         IsCapturing = false;
                         UpdateDisplayString();
                         UpdateVisualStateClasses();
                         return;
                     }
                 }
-                
+
                 // Valid hotkey - update
                 CancelValidationResetTimer();
                 ResetValidationState();
@@ -281,7 +281,7 @@ public partial class HotkeyCapture : UserControl
                 IsCapturing = false;
                 UpdateDisplayString();
                 UpdateVisualStateClasses();
-                
+
                 Log.Error(ex, "Capture failed");
             });
         }
@@ -336,7 +336,7 @@ public partial class HotkeyCapture : UserControl
 
     private void CancelValidationResetTimer()
     {
-        if (_validationResetCts == null)
+        if (_validationResetCts is null)
         {
             return;
         }
@@ -348,7 +348,7 @@ public partial class HotkeyCapture : UserControl
 
     private void CancelCapture()
     {
-        if (_captureCts == null)
+        if (_captureCts is null)
         {
             return;
         }

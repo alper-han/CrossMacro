@@ -18,8 +18,8 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading
         public ScreenReadErrorKind? ErrorKind { get; }
         public string? ErrorMessage { get; }
 
-        public static GnomeExtensionSupportResult Supported() => new(true, null, null);
-        public static GnomeExtensionSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(false, errorKind, errorMessage);
+        public static GnomeExtensionSupportResult Supported() => new(isSupported: true, errorKind: null, errorMessage: null);
+        public static GnomeExtensionSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(isSupported: false, errorKind, errorMessage);
     }
 
     public sealed class GnomeExtensionScreenFrameProvider : IScreenFrameProvider
@@ -87,7 +87,7 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading
                 }
 
                 var frame = new GnomeExtensionScreenFrame(bounds, captureResult.Value.Stride, captureResult.Value.Format, captureResult.Value.Pixels);
-                
+
                 return LinuxScreenFrameProviderResults.CreateSharedFrame(
                     frame.LogicalBounds,
                     frame.Stride,
@@ -115,7 +115,7 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading
             }
 
             var status = provider.CurrentExtensionStatus;
-            if (status == null || status.Code != CrossMacro.Core.Services.ExtensionStatusCode.Enabled)
+            if (status is null || status.Code is not CrossMacro.Core.Services.ExtensionStatusCode.Enabled)
             {
                 return GnomeExtensionSupportResult.Failure(
                     ScreenReadErrorKind.BackendUnavailable,

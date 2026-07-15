@@ -9,7 +9,7 @@ public class FileDialogFilterTests
     [Fact]
     public void NormalizePatterns_WhenNull_ReturnsEmpty()
     {
-        var normalized = FileDialogFilter.NormalizePatterns(null);
+        var normalized = FileDialogFilter.NormalizePatterns(extensions: null);
         normalized.Should().BeEmpty();
     }
 

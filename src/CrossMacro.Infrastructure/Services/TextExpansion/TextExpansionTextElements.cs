@@ -36,7 +36,7 @@ internal static class TextExpansionTextElements
 
             if (current == '\n')
             {
-                yield return new TextExpansionTextElement(i, 1, current, null, true);
+                yield return new TextExpansionTextElement(i, 1, current, KeyboardLayoutCharacter: null, IsNewLine: true);
                 continue;
             }
 
@@ -54,7 +54,7 @@ internal static class TextExpansionTextElements
                 continue;
             }
 
-            yield return new TextExpansionTextElement(i, 1, current, current, false);
+            yield return new TextExpansionTextElement(i, 1, current, current, IsNewLine: false);
         }
     }
 }

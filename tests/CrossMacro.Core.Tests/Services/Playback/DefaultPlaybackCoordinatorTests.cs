@@ -23,7 +23,7 @@ public class DefaultPlaybackCoordinatorTests
             Events =
             [
                 new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 }
-            ]
+            ],
         };
 
         // Act
@@ -42,7 +42,7 @@ public class DefaultPlaybackCoordinatorTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        positionProvider.IsSupported.Returns(true);
+        positionProvider.IsSupported.Returns(returnThis: true);
         positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((50, 40)));
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
         var macro = new MacroSequence
@@ -51,7 +51,7 @@ public class DefaultPlaybackCoordinatorTests
             Events =
             [
                 new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 }
-            ]
+            ],
         };
 
         // Act
@@ -78,7 +78,7 @@ public class DefaultPlaybackCoordinatorTests
             Events =
             [
                 new MacroEvent { Type = EventType.MouseMove, X = 200, Y = 150 }
-            ]
+            ],
         };
 
         // Act
@@ -111,7 +111,7 @@ public class DefaultPlaybackCoordinatorTests
                     Y = 0,
                     UseCurrentPosition = true
                 }
-            ]
+            ],
         };
 
         // Act
@@ -146,7 +146,7 @@ public class DefaultPlaybackCoordinatorTests
                     Button = MouseButton.Left,
                     UseCurrentPosition = true
                 }
-            ]
+            ],
         };
 
         // Act
@@ -176,7 +176,7 @@ public class DefaultPlaybackCoordinatorTests
                     Y = 0,
                     UseCurrentPosition = true
                 }
-            ]
+            ],
         };
 
         // Act
@@ -205,7 +205,7 @@ public class DefaultPlaybackCoordinatorTests
                     Y = 600,
                     UseCurrentPosition = true
                 }
-            ]
+            ],
         };
 
         // Act
@@ -241,7 +241,7 @@ public class DefaultPlaybackCoordinatorTests
                     X = 900,
                     Y = 700
                 }
-            ]
+            ],
         };
 
         // Act
@@ -278,7 +278,7 @@ public class DefaultPlaybackCoordinatorTests
                     X = 900,
                     Y = 700
                 }
-            ]
+            ],
         };
 
         // Act
@@ -306,7 +306,7 @@ public class DefaultPlaybackCoordinatorTests
                     Y = 250,
                     CoordinateMode = MouseCoordinateMode.Absolute
                 }
-            ]
+            ],
         };
 
         await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
@@ -335,7 +335,7 @@ public class DefaultPlaybackCoordinatorTests
                     Y = -5,
                     CoordinateMode = MouseCoordinateMode.Relative
                 }
-            ]
+            ],
         };
 
         await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
@@ -362,7 +362,7 @@ public class DefaultPlaybackCoordinatorTests
                     Y = 250,
                     CoordinateMode = MouseCoordinateMode.Absolute
                 }
-            ]
+            ],
         };
 
         await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, CancellationToken.None);

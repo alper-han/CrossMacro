@@ -26,7 +26,7 @@ public sealed partial class ScreenshotCliService : IScreenshotCliService
         return options.Action switch
         {
             ScreenshotCliAction.Capture => await CaptureAsync(_screenshotCaptureService, options, region, cancellationToken).ConfigureAwait(false),
-            _ => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown screenshot action.")
+            _ => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown screenshot action."),
         };
     }
 
@@ -84,7 +84,7 @@ public sealed partial class ScreenshotCliService : IScreenshotCliService
             ScreenshotCaptureFailureKind.CaptureFailed when result.ScreenReadErrorKind is ScreenReadErrorKind.Unsupported
                     or ScreenReadErrorKind.PermissionDenied
                     or ScreenReadErrorKind.BackendUnavailable => CliExitCode.EnvironmentError,
-            _ => CliExitCode.RuntimeError
+            _ => CliExitCode.RuntimeError,
         };
     }
 

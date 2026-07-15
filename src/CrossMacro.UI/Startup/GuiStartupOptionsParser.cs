@@ -7,7 +7,7 @@ public static class GuiStartupOptionsParser
 {
     public static GuiStartupParseResult Parse(string[]? args)
     {
-        if (args == null || args.Length == 0)
+        if (args is null || args.Length is 0)
         {
             return new GuiStartupParseResult(GuiStartupOptions.Default, []);
         }

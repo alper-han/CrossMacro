@@ -50,7 +50,7 @@ internal sealed class EditorActionScriptValidationAdapter
         }
 
         var steps = actions
-            .Where(action => action.Type == EditorActionType.RawScriptStep && !string.IsNullOrWhiteSpace(action.Text))
+            .Where(action => action.Type is EditorActionType.RawScriptStep && !string.IsNullOrWhiteSpace(action.Text))
             .Select((action, index) => new RunScriptStep(action.Text, SourceIndex: index))
             .ToList();
         return _service.Validate(steps)

@@ -45,20 +45,20 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         else if (_isAppImageKde) maxRetries = 20;
         else if (_isKde) maxRetries = 6;
         else maxRetries = 1;
-        
-        int delayMs = 500;
+
+        const int delayMs = 500;
 
         for (int i = 0; i < maxRetries; i++)
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             var result = CaptureAreaCoreAsync(ProbeRegion, new ScreenReadOptions(cancellationToken: cts.Token)).GetAwaiter().GetResult();
-            
+
             if (result.IsSuccess)
             {
                 return KWinScreenShotSupportResult.Supported();
             }
 
-            if (_isKde && result.ErrorKind != ScreenReadErrorKind.CaptureTimeout && i < maxRetries - 1)
+            if (_isKde && result.ErrorKind is not ScreenReadErrorKind.CaptureTimeout && i < maxRetries - 1)
             {
                 Thread.Sleep(delayMs);
                 continue;
@@ -66,13 +66,13 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
             return KWinScreenShotSupportResult.Failure(result.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable, result.ErrorMessage ?? "KWin ScreenShot2 is unavailable.");
         }
-        
+
         return KWinScreenShotSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, "KWin ScreenShot2 is unavailable.");
     }
 
     private static bool IsKde(string? currentDesktop)
     {
-        return currentDesktop?.Contains("KDE", StringComparison.OrdinalIgnoreCase) == true;
+        return (currentDesktop?.Contains("KDE", StringComparison.OrdinalIgnoreCase)) is true;
     }
 
     private static void EnsureAppImageKdeDesktopFile()
@@ -85,7 +85,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
         try
         {
-            var canonicalExe = File.ResolveLinkTarget("/proc/self/exe", true)?.FullName ?? currentExe;
+            var canonicalExe = File.ResolveLinkTarget("/proc/self/exe", returnFinalTarget: true)?.FullName ?? currentExe;
             var desktopDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applications");
             var desktopFile = System.IO.Path.Combine(desktopDir, "crossmacro-appimage-kwin.desktop");
 
@@ -102,8 +102,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
 
             if (File.Exists(desktopFile))
             {
-                var existingLines = File.ReadAllLines(desktopFile);
-                foreach (var line in existingLines)
+                foreach (var line in File.ReadAllLines(desktopFile))
                 {
                     if (string.Equals(line, $"Exec={canonicalExe}", StringComparison.Ordinal))
                     {
@@ -251,7 +250,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
             Access = FileAccess.ReadWrite,
             Share = FileShare.None,
             Options = FileOptions.DeleteOnClose,
-            UnixCreateMode = OwnerOnlyFileMode
+            UnixCreateMode = OwnerOnlyFileMode,
         };
 
         return new FileStream(rawPath, options);
@@ -268,7 +267,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
         while (offset < pixels.Length)
         {
             var read = file.Read(pixels, offset, pixels.Length - offset);
-            if (read == 0)
+            if (read is 0)
             {
                 break;
             }
@@ -296,10 +295,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
 
     private static ScreenReadErrorKind MapException(Exception ex)
     {
-        if (ex is DBusErrorReplyException dbus && 
-            (dbus.ErrorName.Contains("NoAuthorized", StringComparison.OrdinalIgnoreCase) || 
-             dbus.ErrorName.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase) ||
-             dbus.ErrorMessage?.Contains("Not authorized", StringComparison.OrdinalIgnoreCase) == true))
+        if (ex is DBusErrorReplyException dbus && (dbus.ErrorName.Contains("NoAuthorized", StringComparison.OrdinalIgnoreCase) || dbus.ErrorName.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase) || (dbus.ErrorMessage?.Contains("Not authorized", StringComparison.OrdinalIgnoreCase)) is true))
         {
             return ScreenReadErrorKind.PermissionDenied;
         }
@@ -309,10 +305,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
 
     private static string BuildErrorMessage(Exception ex)
     {
-        if (ex is DBusErrorReplyException dbus && 
-            (dbus.ErrorName.Contains("NoAuthorized", StringComparison.OrdinalIgnoreCase) || 
-             dbus.ErrorName.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase) ||
-             dbus.ErrorMessage?.Contains("Not authorized", StringComparison.OrdinalIgnoreCase) == true))
+        if (ex is DBusErrorReplyException dbus && (dbus.ErrorName.Contains("NoAuthorized", StringComparison.OrdinalIgnoreCase) || dbus.ErrorName.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase) || (dbus.ErrorMessage?.Contains("Not authorized", StringComparison.OrdinalIgnoreCase)) is true))
         {
             return "KWin ScreenShot2 permission denied. Install a desktop entry for CrossMacro that includes X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2.";
         }

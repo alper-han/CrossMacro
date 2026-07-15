@@ -31,7 +31,7 @@ internal sealed class WaylandShmBuffer : IDisposable
             throw new InvalidOperationException($"memfd_create failed errno={Marshal.GetLastPInvokeError()}.");
         }
 
-        if (PortalPipeWireLibc.ftruncate(fd, size) != 0)
+        if (PortalPipeWireLibc.ftruncate(fd, size) is not 0)
         {
             PortalPipeWireLibc.close(fd);
             throw new InvalidOperationException($"ftruncate failed errno={Marshal.GetLastPInvokeError()}.");
@@ -49,7 +49,7 @@ internal sealed class WaylandShmBuffer : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        if (Interlocked.Exchange(ref _disposed, 1) is not 0)
         {
             return;
         }

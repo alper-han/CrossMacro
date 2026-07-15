@@ -217,7 +217,7 @@ public class KeyMapTests
     {
         var exception = Assert.Throws<KeyNotFoundException>(() => KeyMap.FromMacKey(0xFFFF));
 
-        Assert.Contains("0xFFFF", exception.Message);
+        Assert.Contains("0xFFFF", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

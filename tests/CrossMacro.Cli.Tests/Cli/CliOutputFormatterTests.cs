@@ -153,9 +153,9 @@ public class CliOutputFormatterTests
                 ["eventBreakdown"] = new JsonObject
                 {
                     ["mouseMove"] = 3,
-                    ["click"] = 4
+                    ["click"] = 4,
                 },
-                ["tags"] = new JsonArray("demo", "smoke")
+                ["tags"] = new JsonArray("demo", "smoke"),
             };
             var result = CliCommandExecutionResult.Ok("macro info loaded", data: data);
             CliOutputFormatter.Write(result, jsonOutput: false);

@@ -80,12 +80,12 @@ internal static class WaylandExtImageCopyShmFormats
 
     public static string FormatAdvertisedFormats(ReadOnlySpan<uint> advertisedFormats)
     {
-        if (advertisedFormats.Length == 0)
+        if (advertisedFormats.Length is 0)
         {
             return "[]";
         }
 
-        var builder = new StringBuilder(advertisedFormats.Length * 11 + 2);
+        var builder = new StringBuilder((advertisedFormats.Length * 11) + 2);
         builder.Append('[');
 
         for (var index = 0; index < advertisedFormats.Length; index++)

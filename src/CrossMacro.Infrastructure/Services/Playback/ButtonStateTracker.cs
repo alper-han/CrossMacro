@@ -47,7 +47,7 @@ public class ButtonStateTracker : IButtonStateTracker
         {
             try
             {
-                simulator.MouseButton(button, false);
+                simulator.MouseButton(button, pressed: false);
                 Log.Debug("[ButtonStateTracker] Released button: {Button}", button);
             }
             catch (Exception ex)
@@ -59,9 +59,9 @@ public class ButtonStateTracker : IButtonStateTracker
         // Failsafe: ensure common buttons are released
         try
         {
-            simulator.MouseButton(MouseButtonCode.Left, false);
-            simulator.MouseButton(MouseButtonCode.Right, false);
-            simulator.MouseButton(MouseButtonCode.Middle, false);
+            simulator.MouseButton(MouseButtonCode.Left, pressed: false);
+            simulator.MouseButton(MouseButtonCode.Right, pressed: false);
+            simulator.MouseButton(MouseButtonCode.Middle, pressed: false);
         }
         catch (Exception ex)
         {
@@ -75,7 +75,7 @@ public class ButtonStateTracker : IButtonStateTracker
         {
             try
             {
-                simulator.MouseButton(button, true);
+                simulator.MouseButton(button, pressed: true);
                 _pressedButtons.TryAdd(button, 0);
                 Log.Debug("[ButtonStateTracker] Re-pressed button: {Button}", button);
             }

@@ -37,12 +37,12 @@ public sealed class PortalScreenCastScreenFrameProviderTests
         var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Unsupported("portal missing"));
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(provider.IsSupported);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("portal missing", result.ErrorMessage);
+        Assert.Contains("portal missing", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, capture.CaptureCalls);
     }
 
@@ -59,7 +59,7 @@ public sealed class PortalScreenCastScreenFrameProviderTests
             PortalScreenCastCaptureResult.Success(frame));
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);
         using var resultFrame = Assert.IsType<ScreenFrame>(result.Value);
@@ -80,11 +80,11 @@ public sealed class PortalScreenCastScreenFrameProviderTests
             PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "pipewire failed"));
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("pipewire failed", result.ErrorMessage);
+        Assert.Contains("pipewire failed", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class PortalScreenCastScreenFrameProviderTests
         await cts.CancelAsync();
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, new ScreenReadOptions(cancellationToken: cts.Token));
+        var result = await provider.CaptureFrameAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
@@ -107,11 +107,11 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     {
         var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Supported())
         {
-            CaptureException = new OperationCanceledException("capture canceled")
+            CaptureException = new OperationCanceledException("capture canceled"),
         };
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
@@ -123,15 +123,15 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     {
         var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Supported())
         {
-            CaptureException = new TimeoutException("capture timed out")
+            CaptureException = new TimeoutException("capture timed out"),
         };
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
-        Assert.Contains("capture timed out", result.ErrorMessage);
+        Assert.Contains("capture timed out", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(1, capture.CaptureCalls);
     }
 

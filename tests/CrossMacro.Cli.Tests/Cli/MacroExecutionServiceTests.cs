@@ -67,7 +67,7 @@ public class MacroExecutionServiceTests
             _fileManager.LoadAsync(tempFile).Returns(new MacroSequence
             {
                 Name = "script",
-                ScriptSteps = ["pixelcolor 1 2 sampled", "tap Backspace"]
+                ScriptSteps = ["pixelcolor 1 2 sampled", "tap Backspace"],
             });
 
             var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
@@ -134,7 +134,7 @@ public class MacroExecutionServiceTests
             var result = await _service.ExecuteAsync(new MacroExecutionRequest
             {
                 MacroFilePath = tempFile,
-                DryRun = true
+                DryRun = true,
             }, CancellationToken.None);
 
             Assert.True(result.Success);
@@ -162,7 +162,7 @@ public class MacroExecutionServiceTests
                 Loop = true,
                 RepeatCount = 3,
                 RepeatDelayMs = 100,
-                DryRun = false
+                DryRun = false,
             }, CancellationToken.None);
 
             Assert.True(result.Success);
@@ -191,13 +191,13 @@ public class MacroExecutionServiceTests
             var result = await _service.ExecuteAsync(new MacroExecutionRequest
             {
                 MacroFilePath = tempFile,
-                DryRun = false
+                DryRun = false,
             }, CancellationToken.None);
 
             Assert.False(result.Success);
             Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
             Assert.Equal("Absolute coordinate playback is not supported in this session.", result.Message);
-            Assert.Contains("active backend cannot play absolute coordinates", result.Errors.Single());
+            Assert.Contains("active backend cannot play absolute coordinates", result.Errors.Single(), StringComparison.Ordinal);
         }
         finally
         {
@@ -209,7 +209,7 @@ public class MacroExecutionServiceTests
     {
         var macro = new MacroSequence
         {
-            Name = "test"
+            Name = "test",
         };
         macro.Events.Add(new MacroEvent
         {
@@ -217,7 +217,7 @@ public class MacroExecutionServiceTests
             X = 1,
             Y = 1,
             DelayMs = 0,
-            Timestamp = 0
+            Timestamp = 0,
         });
         return macro;
     }
@@ -227,7 +227,7 @@ public class MacroExecutionServiceTests
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
         keyCodeMapper.GetKeyCode("Backspace").Returns(InputEventCode.KEY_BACKSPACE);
-        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
+        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
         return keyCodeMapper;
     }
 
@@ -235,7 +235,7 @@ public class MacroExecutionServiceTests
     {
         var macro = new MacroSequence
         {
-            Name = "mixed"
+            Name = "mixed",
         };
 
         macro.Events.Add(new MacroEvent
@@ -245,7 +245,7 @@ public class MacroExecutionServiceTests
             Y = 1,
             CoordinateMode = MouseCoordinateMode.Absolute,
             DelayMs = 0,
-            Timestamp = 0
+            Timestamp = 0,
         });
         macro.Events.Add(new MacroEvent
         {
@@ -254,7 +254,7 @@ public class MacroExecutionServiceTests
             Y = 2,
             CoordinateMode = MouseCoordinateMode.Relative,
             DelayMs = 0,
-            Timestamp = 1
+            Timestamp = 1,
         });
 
         return macro;

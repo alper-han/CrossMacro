@@ -116,7 +116,7 @@ public static class RunScriptSyntax
         PixelSearchCommand,
         ImageSearchCommand,
         ImageClickCommand,
-        WaitImageCommand
+        WaitImageCommand,
     ];
 
     public static bool IsBreakCommand(string step)
@@ -142,9 +142,9 @@ public static class RunScriptSyntax
         }
 
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return parts.Length == 2
-            && string.Equals(parts[0], "else", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(parts[1], "{", StringComparison.Ordinal);
+        return parts.Length is 2
+&& string.Equals(parts[0], "else", StringComparison.OrdinalIgnoreCase)
+&& string.Equals(parts[1], "{", StringComparison.Ordinal);
     }
 
     public static bool IsCurrentPositionToken(string token)

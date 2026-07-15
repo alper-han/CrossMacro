@@ -12,7 +12,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     private const string WindowButtonsEnvKey = "CROSSMACRO_WINDOW_BUTTONS";
     private readonly CompositorType _compositor;
     private readonly bool _windowManagerHandlesCloseButton;
-    
+
     [Obsolete("Use the snapshot-backed constructor in production composition.", error: false)]
     internal LinuxEnvironmentInfoProvider()
         : this(CompositorDetector.DetectCompositor(), LinuxEnvironmentVariables.CaptureCurrentSnapshot().WindowButtons)
@@ -34,7 +34,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
             environment.WindowButtons)
     {
     }
-    
+
     /// <summary>
     /// Constructor for testing with explicit compositor type.
     /// </summary>
@@ -71,7 +71,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
             compositor,
             windowButtonsMode);
     }
-    
+
     public DisplayEnvironment CurrentEnvironment => _compositor switch
     {
         CompositorType.X11 => DisplayEnvironment.LinuxX11,
@@ -83,9 +83,9 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         CompositorType.KDE => DisplayEnvironment.LinuxKDE,
         CompositorType.GNOME => DisplayEnvironment.LinuxGnome,
         CompositorType.Other => DisplayEnvironment.LinuxWayland,
-        _ => DisplayEnvironment.Unknown
+        _ => DisplayEnvironment.Unknown,
     };
-    
+
     public bool WindowManagerHandlesCloseButton => _windowManagerHandlesCloseButton;
 
     private static bool ResolveWindowManagerHandlesCloseButton(
@@ -105,7 +105,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
             "show" or "1" or "true" or "yes" or "on" => false,
             "hide" or "0" or "false" or "no" or "off" => true,
             "auto" => defaultValue,
-            _ => defaultValue
+            _ => defaultValue,
         };
     }
 }

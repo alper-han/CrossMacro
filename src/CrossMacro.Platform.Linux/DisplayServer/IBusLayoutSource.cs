@@ -18,10 +18,10 @@ public class IBusLayoutSource
             var output = ProcessHelper.ExecuteCommand("ibus", "engine");
             if (string.IsNullOrWhiteSpace(output)) return null;
 
-            if (output.StartsWith("xkb:"))
+            if (output.StartsWith("xkb:", StringComparison.Ordinal))
             {
                 var parts = output.Split(':');
-                if (parts.Length > 1) 
+                if (parts.Length > 1)
                 {
                     return parts[1];
                 }

@@ -21,7 +21,7 @@ public sealed class ClipboardCommandHandler : CliCommandHandlerBase<ClipboardCli
             ClipboardCliAction.Set when options.FilePath is not null => _clipboardCliService.SetFileAsync(options.FilePath, cancellationToken),
             ClipboardCliAction.Set => _clipboardCliService.SetTextAsync(options.Text ?? string.Empty, cancellationToken),
             ClipboardCliAction.Clear => _clipboardCliService.ClearAsync(cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown clipboard action."))
+            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown clipboard action.")),
         };
     }
 }

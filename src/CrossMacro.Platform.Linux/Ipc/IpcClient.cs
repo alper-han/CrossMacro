@@ -70,7 +70,7 @@ public class IpcClient : IDisposable
                 // Handshake uses explicit timeout to avoid hanging forever on partial connections.
                 _socket.ReceiveTimeout = HandshakeTimeoutMs;
                 _socket.SendTimeout = HandshakeTimeoutMs;
-                
+
                 _stream = new NetworkStream(_socket);
                 _reader = new BinaryReader(_stream);
                 _writer = new BinaryWriter(_stream);
@@ -88,12 +88,12 @@ public class IpcClient : IDisposable
                 var handshakeToken = handshakeCts.Token;
 
                 var opcode = (IpcOpCode)await IpcHandshakeCodec.ReadByteAsync(_stream, handshakeToken);
-                if (opcode == IpcOpCode.Error)
+                if (opcode is IpcOpCode.Error)
                 {
                     var msg = await IpcHandshakeCodec.ReadStringAsync(_stream, handshakeToken);
                     throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {msg}");
                 }
-                if (opcode != IpcOpCode.Handshake)
+                if (opcode is not IpcOpCode.Handshake)
                 {
                     throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}");
                 }
@@ -125,9 +125,9 @@ public class IpcClient : IDisposable
                     {
                         _captureCoordinator.ResetTransportState();
                         var command = _captureCoordinator.GetRequiredCommand();
-                        if (command.Type != CaptureCommandType.None)
+                        if (command.Type is not CaptureCommandType.None)
                         {
-                            if (command.Type == CaptureCommandType.Start)
+                            if (command.Type is CaptureCommandType.Start)
                             {
                                 var previousTransportCommand = _captureCoordinator.GetTransportCommand();
                                 if (_pendingCaptureStarts.TryReissueCurrent(
@@ -155,14 +155,14 @@ public class IpcClient : IDisposable
                         }
                     }
 
-                    if (replayCommand.Type != CaptureCommandType.None)
+                    if (replayCommand.Type is not CaptureCommandType.None)
                     {
                         try
                         {
                             SendCaptureCommand(
                                 replayCommand,
                                 requestId: replayPendingStart?.RequestId ?? 0,
-                                throwOnFailure: replayCommand.Type == CaptureCommandType.Start);
+                                throwOnFailure: replayCommand.Type is CaptureCommandType.Start);
                         }
                         catch
                         {
@@ -283,15 +283,12 @@ public class IpcClient : IDisposable
             return true;
         }
 
-        if (ex is IOException ioEx &&
-            ioEx.InnerException is SocketException ioSocketEx &&
-            ioSocketEx.SocketErrorCode == SocketError.TimedOut)
+        if (ex is IOException ioEx && ioEx.InnerException is SocketException ioSocketEx && ioSocketEx.SocketErrorCode is SocketError.TimedOut)
         {
             return true;
         }
 
-        if (ex is SocketException socketEx &&
-            socketEx.SocketErrorCode == SocketError.TimedOut)
+        if (ex is SocketException socketEx && socketEx.SocketErrorCode is SocketError.TimedOut)
         {
             return true;
         }
@@ -308,12 +305,12 @@ public class IpcClient : IDisposable
 
         if (ex is SocketException socketEx)
         {
-            return socketEx.SocketErrorCode == SocketError.AccessDenied;
+            return socketEx.SocketErrorCode is SocketError.AccessDenied;
         }
 
         if (ex is IOException ioEx && ioEx.InnerException is SocketException ioSocketEx)
         {
-            return ioSocketEx.SocketErrorCode == SocketError.AccessDenied;
+            return ioSocketEx.SocketErrorCode is SocketError.AccessDenied;
         }
 
         return false;
@@ -323,7 +320,7 @@ public class IpcClient : IDisposable
     {
         try
         {
-            while (!token.IsCancellationRequested && _reader != null)
+            while (!token.IsCancellationRequested && _reader is not null)
             {
                 var opcode = (IpcOpCode)_reader.ReadByte();
 
@@ -343,7 +340,7 @@ public class IpcClient : IDisposable
                             Code = code,
                             Value = value,
                             Timestamp = timestamp,
-                            DeviceName = "Daemon Device"
+                            DeviceName = "Daemon Device",
                         });
                         break;
 
@@ -440,21 +437,21 @@ public class IpcClient : IDisposable
             {
                 _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
 
-                if (_pendingCaptureStarts.TryGetPendingTask() != null)
+                if (_pendingCaptureStarts.TryGetPendingTask() is not null)
                 {
                     _pendingCaptureStarts.RequestFailureNotification();
                     return;
                 }
 
                 var command = _captureCoordinator.GetRequiredCommand();
-                if (command.Type != CaptureCommandType.None)
+                if (command.Type is not CaptureCommandType.None)
                 {
-                    if (command.Type == CaptureCommandType.Start && !IsConnected)
+                    if (command.Type is CaptureCommandType.Start && !IsConnected)
                     {
                         return;
                     }
 
-                        if (command.Type == CaptureCommandType.Start)
+                        if (command.Type is CaptureCommandType.Start)
                         {
                             var previousTransportCommand = _captureCoordinator.GetTransportCommand();
                             pendingStart = _pendingCaptureStarts.Begin(
@@ -545,15 +542,15 @@ public class IpcClient : IDisposable
                     }
 
                     waitTask = _pendingCaptureStarts.TryGetPendingTask();
-                    if (waitTask == null)
+                    if (waitTask is null)
                     {
                         var command = _captureCoordinator.GetRequiredCommand();
-                        if (command.Type == CaptureCommandType.None)
+                        if (command.Type is CaptureCommandType.None)
                         {
                             return;
                         }
 
-                        if (command.Type == CaptureCommandType.Start)
+                        if (command.Type is CaptureCommandType.Start)
                         {
                             var previousTransportCommand = _captureCoordinator.GetTransportCommand();
                             createdPendingStart = _pendingCaptureStarts.Begin(
@@ -582,14 +579,14 @@ public class IpcClient : IDisposable
                     }
                 }
 
-                if (commandToSend.Type != CaptureCommandType.None)
+                if (commandToSend.Type is not CaptureCommandType.None)
                 {
                     try
                     {
                         SendCaptureCommand(
                             commandToSend,
                             requestId: createdPendingStart?.RequestId ?? 0,
-                            throwOnFailure: commandToSend.Type == CaptureCommandType.Start);
+                            throwOnFailure: commandToSend.Type is CaptureCommandType.Start);
                     }
                     catch
                     {
@@ -607,7 +604,7 @@ public class IpcClient : IDisposable
                         throw;
                     }
 
-                    if (commandToSend.Type == CaptureCommandType.Stop)
+                    if (commandToSend.Type is CaptureCommandType.Stop)
                     {
                         return;
                     }
@@ -618,7 +615,7 @@ public class IpcClient : IDisposable
                 ExitCaptureCommandGate();
             }
 
-            if (waitTask == null)
+            if (waitTask is null)
             {
                 return;
             }
@@ -661,7 +658,7 @@ public class IpcClient : IDisposable
             {
                 _captureCoordinator.RemoveSubscription(consumerId);
 
-                if (_pendingCaptureStarts.TryGetPendingTask() != null)
+                if (_pendingCaptureStarts.TryGetPendingTask() is not null)
                 {
                     _pendingCaptureStarts.MarkSubscriptionRemoved(consumerId);
 
@@ -678,9 +675,9 @@ public class IpcClient : IDisposable
                 else
                 {
                     var command = _captureCoordinator.GetRequiredCommand();
-                    if (command.Type != CaptureCommandType.None)
+                    if (command.Type is not CaptureCommandType.None)
                     {
-                        if (command.Type == CaptureCommandType.Start)
+                        if (command.Type is CaptureCommandType.Start)
                         {
                             var previousTransportCommand = _captureCoordinator.GetTransportCommand();
                             pendingStart = _pendingCaptureStarts.Begin(
@@ -696,7 +693,7 @@ public class IpcClient : IDisposable
                 }
             }
 
-            if (commandToSend.Type != CaptureCommandType.None)
+            if (commandToSend.Type is not CaptureCommandType.None)
             {
                 try
                 {
@@ -1046,11 +1043,11 @@ public class IpcClient : IDisposable
 
         // DropTransport can run concurrently from read/send failure paths and Dispose().
         // Detaching references first avoids double-cancel/double-dispose races.
-        var cts = Interlocked.Exchange(ref _cts, null);
-        var reader = Interlocked.Exchange(ref _reader, null);
-        var writer = Interlocked.Exchange(ref _writer, null);
-        var stream = Interlocked.Exchange(ref _stream, null);
-        var socket = Interlocked.Exchange(ref _socket, null);
+        var cts = Interlocked.Exchange(ref _cts, value: null);
+        var reader = Interlocked.Exchange(ref _reader, value: null);
+        var writer = Interlocked.Exchange(ref _writer, value: null);
+        var stream = Interlocked.Exchange(ref _stream, value: null);
+        var socket = Interlocked.Exchange(ref _socket, value: null);
 
         CancelSafely(cts);
         SafeDispose(reader);
@@ -1370,7 +1367,7 @@ public class IpcClient : IDisposable
             return;
         }
 
-        var removedConsumersSinceStart = failureContext.RemovedConsumersSinceStart.Length == 0
+        var removedConsumersSinceStart = failureContext.RemovedConsumersSinceStart.Length is 0
             ? null
             : new HashSet<string>(failureContext.RemovedConsumersSinceStart, StringComparer.Ordinal);
         bool shouldReconcile;
@@ -1385,7 +1382,7 @@ public class IpcClient : IDisposable
                     continue;
                 }
 
-                if (removedConsumersSinceStart?.Contains(participant.ConsumerId) == true)
+                if ((removedConsumersSinceStart?.Contains(participant.ConsumerId)) is true)
                 {
                     continue;
                 }
@@ -1402,8 +1399,7 @@ public class IpcClient : IDisposable
                 CaptureStartFailureReconciler.ShouldReconcile(
                     currentRequiredCommand,
                     failureContext.FailedCommand,
-                    failureContext.FailedAsyncParticipants.Length == 0 &&
-                        failureContext.FailedPreviousTransportCommand.Type == CaptureCommandType.Start,
+                    failureContext.FailedAsyncParticipants.Length is 0 && failureContext.FailedPreviousTransportCommand.Type is CaptureCommandType.Start,
                     failureContext.SubscriptionRemovedSinceStart,
                     rollbackChangedSubscriptions);
         }
@@ -1436,18 +1432,18 @@ public class IpcClient : IDisposable
 
         lock (_captureLock)
         {
-            if (_pendingCaptureStarts.TryGetPendingTask() != null)
+            if (_pendingCaptureStarts.TryGetPendingTask() is not null)
             {
                 return true;
             }
 
             deferredCommand = _captureCoordinator.GetRequiredCommand();
-            if (deferredCommand.Type == CaptureCommandType.None)
+            if (deferredCommand.Type is CaptureCommandType.None)
             {
                 return true;
             }
 
-            if (deferredCommand.Type == CaptureCommandType.Start)
+            if (deferredCommand.Type is CaptureCommandType.Start)
             {
                 deferredPendingStart = _pendingCaptureStarts.Begin(deferredCommand, notifyOnFailure: true);
             }
@@ -1460,7 +1456,7 @@ public class IpcClient : IDisposable
             SendCaptureCommand(
                 deferredCommand,
                 requestId: deferredPendingStart?.RequestId ?? 0,
-                throwOnFailure: deferredCommand.Type == CaptureCommandType.Start);
+                throwOnFailure: deferredCommand.Type is CaptureCommandType.Start);
         }
         catch
         {

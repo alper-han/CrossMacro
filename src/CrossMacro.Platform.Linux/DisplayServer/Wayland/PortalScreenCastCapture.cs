@@ -44,7 +44,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
     }
 
     public Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenReadOptions options) =>
-        CaptureSupportedAsync(null, options);
+        CaptureSupportedAsync(requestedRegion: null, options);
 
     public async Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenRect? requestedRegion, ScreenReadOptions options)
     {
@@ -110,7 +110,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
                 }
 
                 DisposeCachedSession();
-                if (cachedValidation.ErrorKind != ScreenReadErrorKind.OutOfBounds)
+                if (cachedValidation.ErrorKind is not ScreenReadErrorKind.OutOfBounds)
                 {
                     return PortalScreenCastSessionResult.Failure(
                         cachedValidation.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
@@ -145,7 +145,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
 
         var targetBounds = requestedRegion ?? validation.SelectedBounds ?? throw new InvalidOperationException("Validated portal streams did not include monitor bounds.");
         var streams = PortalStreamGeometry.GetIntersectingStreams(validation.Streams, targetBounds);
-        if (streams.Count == 0)
+        if (streams.Count is 0)
         {
             DisposeCachedSession();
             return PortalScreenCastCaptureResult.Failure(
@@ -153,7 +153,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
                 "Requested region is outside validated XDG Desktop Portal monitor coverage. CrossMacro cannot force GNOME portal to select all monitors or a specific monitor; retry and select the monitor containing the requested coordinates.");
         }
 
-        var result = streams.Count == 1 && streams[0].Bounds == targetBounds
+        var result = streams.Count is 1 && streams[0].Bounds == targetBounds
             ? await CaptureWholeStreamAsync(session, streams[0], options).ConfigureAwait(false)
             : await CaptureComposedFrameAsync(session, streams, targetBounds, options).ConfigureAwait(false);
 
@@ -259,15 +259,15 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
 
         for (var row = 0; row < intersection.Height; row++)
         {
-            var sourceOffset = checked((sourceY + row) * source.Stride + sourceX * bytesPerPixel);
-            var targetOffset = checked((targetY + row) * targetStride + targetX * bytesPerPixel);
+            var sourceOffset = checked(((sourceY + row) * source.Stride) + (sourceX * bytesPerPixel));
+            var targetOffset = checked(((targetY + row) * targetStride) + (targetX * bytesPerPixel));
             sourcePixels.Slice(sourceOffset, rowBytes).CopyTo(targetPixels.AsSpan(targetOffset, rowBytes));
         }
     }
 
     private void DisposeCachedSession()
     {
-        var session = Interlocked.Exchange(ref _session, null);
+        var session = Interlocked.Exchange(ref _session, value: null);
         session?.Dispose();
     }
 }

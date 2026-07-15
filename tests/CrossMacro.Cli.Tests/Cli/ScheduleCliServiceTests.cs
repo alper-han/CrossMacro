@@ -23,7 +23,7 @@ public class ScheduleCliServiceTests
                 Name = "Task 1",
                 MacroFilePath = "/tmp/a.macro",
                 IsEnabled = true
-            }
+            },
         }));
 
         var service = new ScheduleCliService(scheduler);
@@ -47,7 +47,7 @@ public class ScheduleCliServiceTests
                 Type = ScheduleType.Weekly,
                 WeeklyDays = ScheduleDays.Weekdays,
                 WeeklyTime = new TimeSpan(9, 30, 0)
-            }
+            },
         }));
 
         var service = new ScheduleCliService(scheduler);
@@ -71,7 +71,7 @@ public class ScheduleCliServiceTests
                 Name = "Interval task",
                 MacroFilePath = "/tmp/a.macro",
                 Type = ScheduleType.Interval
-            }
+            },
         }));
 
         var service = new ScheduleCliService(scheduler);
@@ -125,7 +125,7 @@ public class ScheduleCliServiceTests
                 Id = id,
                 Name = "Task 1",
                 MacroFilePath = "/tmp/a.macro"
-            }
+            },
         }));
 
         var service = new ScheduleCliService(scheduler);
@@ -152,7 +152,7 @@ public class ScheduleCliServiceTests
                 Id = id,
                 Name = "Task 1",
                 MacroFilePath = "/tmp/a.macro"
-            }
+            },
             }));
         });
 
@@ -240,14 +240,14 @@ public class ScheduleCliServiceTests
         var scheduler = Substitute.For<IManageSchedule>();
         scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
         {
-            new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro" }
+            new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro" },
         }));
         var service = new ScheduleCliService(scheduler);
 
         var result = await service.ExecuteAsync(new ScheduleCliOptions(ScheduleCliAction.Enable, TaskId: id.ToString()), CancellationToken.None);
 
         Assert.True(result.Success);
-        await scheduler.Received(1).SetEnabledAsync(new TaskRequest(id, true), CancellationToken.None);
+        await scheduler.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: true), CancellationToken.None);
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public class ScheduleCliServiceTests
         var scheduler = Substitute.For<IManageSchedule>();
         scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
         {
-            new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro", Type = ScheduleType.Interval, IntervalValue = 5, IntervalUnit = IntervalUnit.Minutes }
+            new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro", Type = ScheduleType.Interval, IntervalValue = 5, IntervalUnit = IntervalUnit.Minutes },
         }));
         var service = new ScheduleCliService(scheduler);
 

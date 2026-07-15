@@ -48,7 +48,7 @@ public class MainWindowViewModelTests
         _settingsService = Substitute.For<ISettingsService>();
         _settingsService.Current.Returns(new AppSettings());
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsLinux.Returns(true);
+        runtimeContext.IsLinux.Returns(returnThis: true);
         _localizationService = Substitute.For<ILocalizationService>();
         _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
         _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
@@ -83,7 +83,7 @@ public class MainWindowViewModelTests
             "Navigation_Triggers" => "[Navigation_Triggers]",
             "Navigation_Editor" => "[Navigation_Editor]",
             "Navigation_Settings" => "[Navigation_Settings]",
-            _ => call.Arg<string>()
+            _ => call.Arg<string>(),
         });
 
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
@@ -106,7 +106,7 @@ public class MainWindowViewModelTests
         var textExpansionStorage = Substitute.For<ITextExpansionStore>();
         var dialogService = Substitute.For<IDialogService>();
         var environmentInfo = Substitute.For<IEnvironmentInfoProvider>();
-        environmentInfo.WindowManagerHandlesCloseButton.Returns(false);
+        environmentInfo.WindowManagerHandlesCloseButton.Returns(returnThis: false);
         environmentInfo.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
 
         _textExpansionViewModel = new TextExpansionViewModel(textExpansionStorage, dialogService, environmentInfo, _localizationService);
@@ -124,7 +124,7 @@ public class MainWindowViewModelTests
         var triggerService = Substitute.For<ITriggerService>();
         triggerService.Tasks.Returns(new System.Collections.ObjectModel.ObservableCollection<TriggerTask>());
         triggerService.LoadAsync().Returns(Task.CompletedTask);
-        _triggerViewModel = new TriggerViewModel(triggerService, null, dialogService, _localizationService, windowManager: null);
+        _triggerViewModel = new TriggerViewModel(triggerService, profileManager: null, dialogService, _localizationService, windowManager: null);
 
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
@@ -170,7 +170,7 @@ public class MainWindowViewModelTests
             environmentInfo,
             _externalUrlOpener,
             _localizationService,
-            null);
+extensionNotifier: null);
     }
 
     [Fact]
@@ -276,13 +276,13 @@ public class MainWindowViewModelTests
             ("Navigation_Shortcuts", "[Navigation_Shortcuts]", _shortcutViewModel),
             ("Navigation_Schedule", "[Navigation_Schedule]", _scheduleViewModel),
             ("Navigation_Triggers", "[Navigation_Triggers]", _triggerViewModel),
-            ("Navigation_Editor", "[Navigation_Editor]", _editorViewModel)
+            ("Navigation_Editor", "[Navigation_Editor]", _editorViewModel),
         ]);
         topItems.Should().OnlyContain(item => Enum.IsDefined(item.Icon));
 
         bottomItems.Select(item => (item.LocalizationKey, item.Label, item.ViewModel)).Should().Equal(
         [
-            ("Navigation_Settings", "[Navigation_Settings]", _settingsViewModel)
+            ("Navigation_Settings", "[Navigation_Settings]", _settingsViewModel),
         ]);
         bottomItems.Should().OnlyContain(item => Enum.IsDefined(item.Icon));
     }
@@ -327,7 +327,7 @@ public class MainWindowViewModelTests
             {
                 HasUpdate = true,
                 LatestVersion = "9.9.9",
-                ReleaseUrl = "https://example.invalid/releases/9.9.9"
+                ReleaseUrl = "https://example.invalid/releases/9.9.9",
             };
         });
 
@@ -360,7 +360,7 @@ public class MainWindowViewModelTests
         {
             HasUpdate = true,
             LatestVersion = "1.2.3",
-            ReleaseUrl = "https://example.invalid/releases/1.2.3"
+            ReleaseUrl = "https://example.invalid/releases/1.2.3",
         }));
 
         var viewModel = CreateMainWindowViewModel(
@@ -381,11 +381,11 @@ public class MainWindowViewModelTests
     {
         var recordingProp = _recordingViewModel.GetType().GetProperty("IsRecording");
 
-        recordingProp?.SetValue(_recordingViewModel, true);
+        recordingProp?.SetValue(_recordingViewModel, value: true);
 
         _playbackViewModel.CanPlayMacroExternal.Should().BeFalse();
 
-        recordingProp?.SetValue(_recordingViewModel, false);
+        recordingProp?.SetValue(_recordingViewModel, value: false);
 
         _playbackViewModel.CanPlayMacroExternal.Should().BeTrue();
     }
@@ -395,12 +395,12 @@ public class MainWindowViewModelTests
     {
         var playbackProp = _playbackViewModel.GetType().GetProperty("IsPlaying");
 
-        playbackProp?.SetValue(_playbackViewModel, true);
+        playbackProp?.SetValue(_playbackViewModel, value: true);
 
         _recordingViewModel.CanStartRecordingExternal.Should().BeFalse();
         _filesViewModel.CanManageLoadedMacrosExternal.Should().BeFalse();
 
-        playbackProp?.SetValue(_playbackViewModel, false);
+        playbackProp?.SetValue(_playbackViewModel, value: false);
 
         _recordingViewModel.CanStartRecordingExternal.Should().BeTrue();
         _filesViewModel.CanManageLoadedMacrosExternal.Should().BeTrue();
@@ -412,7 +412,7 @@ public class MainWindowViewModelTests
         var macro = new MacroSequence
         {
             Name = "TestMacro",
-            Events = { new MacroEvent { Type = EventType.MouseMove } }
+            Events = { new MacroEvent { Type = EventType.MouseMove } },
         };
 
         _filesDialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
@@ -467,7 +467,7 @@ public class MainWindowViewModelTests
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.EventCount), 7);
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.MouseEventCount), 3);
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.KeyboardEventCount), 4);
-        SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.IsRecording), true);
+        SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.IsRecording), value: true);
 
         _filesViewModel.SelectedMacroItem = secondItem;
 
@@ -500,7 +500,7 @@ public class MainWindowViewModelTests
     {
         var recordedMacro = CreateMacro("RecordedMacro", EventType.MouseMove, EventType.KeyPress);
         _recorder.StopRecording().Returns(recordedMacro);
-        SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.IsRecording), true);
+        SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.IsRecording), value: true);
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.EventCount), 2);
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.MouseEventCount), 1);
         SetPrivateProperty(_recordingViewModel, nameof(RecordingViewModel.KeyboardEventCount), 1);
@@ -609,7 +609,7 @@ public class MainWindowViewModelTests
                 "pixelcolor 10 20 color",
                 "waitcolor 11 22 00FFAA 2500",
                 "pixelsearch 0 0 3 3 123456 x y"
-            ]
+            ],
         };
 
         RaiseEditorMacroCreated(macro);
@@ -677,7 +677,7 @@ public class MainWindowViewModelTests
     {
         _viewModel.IsUpdateNotificationVisible = true;
 
-        _viewModel.DismissUpdateNotificationCommand.Execute(null);
+        _viewModel.DismissUpdateNotificationCommand.Execute(parameter: null);
 
         _viewModel.IsUpdateNotificationVisible.Should().BeFalse();
     }
@@ -688,7 +688,7 @@ public class MainWindowViewModelTests
         SetPrivateField(_viewModel, "_updateReleaseUrl", "https://example.invalid/releases/latest");
         _viewModel.IsUpdateNotificationVisible = true;
 
-        _viewModel.OpenUpdateUrlCommand.Execute(null);
+        _viewModel.OpenUpdateUrlCommand.Execute(parameter: null);
 
         _externalUrlOpener.Received(1).Open("https://example.invalid/releases/latest");
         _viewModel.IsUpdateNotificationVisible.Should().BeFalse();
@@ -879,10 +879,10 @@ public class MainWindowViewModelTests
         var settingsService = Substitute.For<ISettingsService>();
         settingsService.Current.Returns(new AppSettings
         {
-            CheckForUpdates = checkForUpdates ?? false
+            CheckForUpdates = checkForUpdates ?? false,
         });
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsLinux.Returns(true);
+        runtimeContext.IsLinux.Returns(returnThis: true);
 
         var localizationService = Substitute.For<ILocalizationService>();
         localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
@@ -918,7 +918,7 @@ public class MainWindowViewModelTests
             "Navigation_Triggers" => "[Navigation_Triggers]",
             "Navigation_Editor" => "[Navigation_Editor]",
             "Navigation_Settings" => "[Navigation_Settings]",
-            _ => call.Arg<string>()
+            _ => call.Arg<string>(),
         });
 
         var hotkeyService = Substitute.For<IGlobalHotkeyService>();
@@ -940,7 +940,7 @@ public class MainWindowViewModelTests
         var textExpansionStorage = Substitute.For<ITextExpansionStore>();
         var dialogService = Substitute.For<IDialogService>();
         var environmentInfo = Substitute.For<IEnvironmentInfoProvider>();
-        environmentInfo.WindowManagerHandlesCloseButton.Returns(false);
+        environmentInfo.WindowManagerHandlesCloseButton.Returns(returnThis: false);
         environmentInfo.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
         var textExpansionViewModel = new TextExpansionViewModel(textExpansionStorage, dialogService, environmentInfo, localizationService);
 
@@ -961,7 +961,7 @@ public class MainWindowViewModelTests
         var triggerService = Substitute.For<ITriggerService>();
         triggerService.Tasks.Returns(new System.Collections.ObjectModel.ObservableCollection<TriggerTask>());
         triggerService.LoadAsync().Returns(Task.CompletedTask);
-        var triggerViewModel = new TriggerViewModel(triggerService, null, dialogService, localizationService, windowManager: null);
+        var triggerViewModel = new TriggerViewModel(triggerService, profileManager: null, dialogService, localizationService, windowManager: null);
 
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();

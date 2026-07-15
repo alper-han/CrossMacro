@@ -18,7 +18,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         IRuntimeContext runtimeContext,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
         IX11ScreenCaptureSupportProbe x11SupportProbe)
-        : this(environmentDetector, runtimeContext, capabilityDetector, null, x11SupportProbe, true)
+        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider: null, x11SupportProbe, _: true)
     {
     }
 
@@ -28,7 +28,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
         ILinuxCapabilitySnapshotProvider snapshotProvider,
         IX11ScreenCaptureSupportProbe x11SupportProbe)
-        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), x11SupportProbe, true)
+        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), x11SupportProbe, _: true)
     {
     }
 
@@ -55,12 +55,12 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak, compositor);
         var policyName = LinuxScreenReaderBackendPolicy.GetPolicyName(isFlatpak, compositor);
 
-        if (capabilitySnapshot?.IsX11 == true || capabilitySnapshot is null && _environmentDetector.IsX11)
+        if ((capabilitySnapshot?.IsX11) is true || (capabilitySnapshot is null && _environmentDetector.IsX11))
         {
                 return GetX11Snapshot(compositor);
         }
 
-        if (capabilitySnapshot?.IsWayland == false || capabilitySnapshot is null && !_environmentDetector.IsWayland)
+        if ((capabilitySnapshot?.IsWayland) is false || (capabilitySnapshot is null && !_environmentDetector.IsWayland))
         {
             return new ScreenReadingDiagnosticSnapshot(
                 IsSupportedSession: false,
@@ -112,7 +112,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
                     "X11",
                     support.IsSupported,
                     support.ErrorKind,
-                    support.ErrorMessage)
+                    support.ErrorMessage),
             ],
             FailureBackend: support.IsSupported ? null : "X11",
             FailureKind: support.IsSupported ? null : support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
@@ -130,8 +130,8 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
     private static LinuxScreenReaderBackendCapability? SelectFailure(IReadOnlyList<LinuxScreenReaderBackendCapability> orderedCapabilities)
     {
         var permissionDenied = orderedCapabilities.FirstOrDefault(capability =>
-            !capability.IsAvailable && capability.ErrorKind == ScreenReadErrorKind.PermissionDenied);
-        if (permissionDenied.ErrorKind == ScreenReadErrorKind.PermissionDenied)
+            !capability.IsAvailable && capability.ErrorKind is ScreenReadErrorKind.PermissionDenied);
+        if (permissionDenied.ErrorKind is ScreenReadErrorKind.PermissionDenied)
         {
             return permissionDenied;
         }
@@ -141,17 +141,17 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
 
     private static string? GetRemediation(LinuxScreenReaderBackendCapability failure)
     {
-        if (failure.Backend == LinuxScreenReaderBackend.KWinScreenShot2)
+        if (failure.Backend is LinuxScreenReaderBackend.KWinScreenShot2)
         {
             return "Install a KDE desktop entry for CrossMacro that includes X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2, then restart the app.";
         }
 
-        if (failure.ErrorKind == ScreenReadErrorKind.PermissionDenied && failure.Backend == LinuxScreenReaderBackend.Portal)
+        if (failure.ErrorKind is ScreenReadErrorKind.PermissionDenied && failure.Backend is LinuxScreenReaderBackend.Portal)
         {
             return "Grant ScreenCast permission in the desktop portal prompt, or reset portal permissions and retry.";
         }
 
-        if (failure.ErrorKind == ScreenReadErrorKind.PermissionDenied)
+        if (failure.ErrorKind is ScreenReadErrorKind.PermissionDenied)
         {
             return "Grant the desktop permission requested by the selected screen-reading backend and retry.";
         }
@@ -162,7 +162,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
             LinuxScreenReaderBackend.ExtImageCopy => "Use a compositor that exposes ext-image-copy-capture-v1, or allow fallback to another backend.",
             LinuxScreenReaderBackend.WlrScreencopy => "Use a compositor that exposes wlr-screencopy-unstable-v1, or allow fallback to another backend.",
             LinuxScreenReaderBackend.Portal => "Install and enable XDG Desktop Portal ScreenCast with PipeWire, or use a native Wayland backend.",
-            _ => null
+            _ => null,
         };
     }
 }

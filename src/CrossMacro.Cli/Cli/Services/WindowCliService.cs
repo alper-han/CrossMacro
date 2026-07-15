@@ -44,7 +44,7 @@ public sealed class WindowCliService : IWindowCliService
             WindowCliAction.WorkspaceMoveActive when !string.IsNullOrWhiteSpace(options.WorkspaceName) => await MutationAsync("workspace move-active", () => windowManager.MoveActiveWindowToWorkspaceAsync(options.WorkspaceName, cancellationToken)).ConfigureAwait(false),
             WindowCliAction.WorkspaceMoveWindow when options.Selector is { Kind: WindowSelectorKind.Address } selector && !string.IsNullOrWhiteSpace(options.WorkspaceName) => await MutationAsync("workspace move-window", () => windowManager.MoveWindowToWorkspaceByAddressAsync(selector.Value, options.WorkspaceName, cancellationToken)).ConfigureAwait(false),
             WindowCliAction.Search or WindowCliAction.Wait or WindowCliAction.Focus or WindowCliAction.Close or WindowCliAction.Move or WindowCliAction.Resize or WindowCliAction.WorkspaceSwitch or WindowCliAction.WorkspaceMoveActive or WindowCliAction.WorkspaceMoveWindow => InvalidOptions(options.Action),
-            _ => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown window action.")
+            _ => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown window action."),
         };
     }
 
@@ -105,7 +105,7 @@ public sealed class WindowCliService : IWindowCliService
             WindowSelectorKind.Address => windowManager.FocusWindowByAddressAsync(selector.Value, cancellationToken),
             WindowSelectorKind.Title => windowManager.FocusWindowByTitleAsync(selector.Value, cancellationToken),
             WindowSelectorKind.Class => windowManager.FocusWindowByClassAsync(selector.Value, cancellationToken),
-            _ => Task.FromResult(false)
+            _ => Task.FromResult(false),
         }).ConfigureAwait(false);
     }
 
@@ -115,7 +115,7 @@ public sealed class WindowCliService : IWindowCliService
         {
             WindowSelectorKind.Address => windowManager.CloseWindowByAddressAsync(selector.Value, cancellationToken),
             WindowSelectorKind.Title => windowManager.CloseWindowByTitleAsync(selector.Value, cancellationToken),
-            _ => Task.FromResult(false)
+            _ => Task.FromResult(false),
         }).ConfigureAwait(false);
     }
 
@@ -134,7 +134,7 @@ public sealed class WindowCliService : IWindowCliService
             WindowSelectorKind.Title => windows.Where(w => w.Title.Contains(selector.Value, StringComparison.OrdinalIgnoreCase)),
             WindowSelectorKind.Class => windows.Where(w => w.Class.Contains(selector.Value, StringComparison.OrdinalIgnoreCase)),
             WindowSelectorKind.Address => windows.Where(w => string.Equals(w.Address, selector.Value, StringComparison.OrdinalIgnoreCase)),
-            _ => []
+            _ => [],
         };
     }
 
@@ -142,12 +142,12 @@ public sealed class WindowCliService : IWindowCliService
     {
         var result = await mutate().ConfigureAwait(false);
         return result
-            ? CliCommandExecutionResult.Ok($"Window {operation} complete.", new WindowMutationData(operation, true))
+            ? CliCommandExecutionResult.Ok($"Window {operation} complete.", new WindowMutationData(operation, Result: true))
             : CliCommandExecutionResult.Fail(
                 CliExitCode.RuntimeError,
                 $"Window {operation} failed.",
                 ["The window manager did not report success. The target may not exist or the operation may be unsupported."],
-                data: new WindowMutationData(operation, false));
+                data: new WindowMutationData(operation, Result: false));
     }
 
     private bool TryGetWindowManager(

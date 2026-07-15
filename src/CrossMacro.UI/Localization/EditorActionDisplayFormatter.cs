@@ -62,7 +62,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.RawScriptStep => string.IsNullOrWhiteSpace(action.Text)
                 ? localizationService["Editor_Action_RawScriptStepShort"]
                 : string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_RawScriptStep"], Truncate(action.Text, 40)),
-            _ => localizationService["Editor_Action_UnknownShort"]
+            _ => localizationService["Editor_Action_UnknownShort"],
         };
     }
 
@@ -104,7 +104,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.Screenshot => localizationService["Editor_ActionType_Screenshot"],
             EditorActionType.WindowCommand => localizationService["Editor_ActionType_WindowCommand"],
             EditorActionType.RawScriptStep => localizationService["Editor_ActionType_RawScriptStep"],
-            _ => actionType.ToString()
+            _ => actionType.ToString(),
         };
     }
 
@@ -117,7 +117,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.WhileBlockStart => localizationService["Editor_BlockName_While"],
             EditorActionType.ForBlockStart => localizationService["Editor_BlockName_For"],
             EditorActionType.RepeatBlockStart => localizationService["Editor_BlockName_Repeat"],
-            _ => localizationService["Editor_BlockName_Block"]
+            _ => localizationService["Editor_BlockName_Block"],
         };
     }
 
@@ -132,7 +132,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             MouseButton.ScrollDown => localizationService["MouseButton_ScrollDown"],
             MouseButton.ScrollLeft => localizationService["MouseButton_ScrollLeft"],
             MouseButton.ScrollRight => localizationService["MouseButton_ScrollRight"],
-            _ => button.ToString()
+            _ => button.ToString(),
         };
     }
 
@@ -227,7 +227,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             ShellCommandMode.ShellCapture => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCapture"], command, action.ShellExitCodeVariableName, action.ShellStandardOutputVariableName, action.ShellStandardErrorVariableName),
             ShellCommandMode.ShellInput => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellInput"], command),
             ShellCommandMode.ShellCaptureInput => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCaptureInput"], command, action.ShellExitCodeVariableName, action.ShellStandardOutputVariableName, action.ShellStandardErrorVariableName),
-            _ => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCommand"], command)
+            _ => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCommand"], command),
         };
     }
 
@@ -272,13 +272,13 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             WindowCommandMode.WorkspaceSwitch => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceSwitch"], action.WindowWorkspace),
             WindowCommandMode.WorkspaceMoveActive => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceMoveActive"], action.WindowWorkspace),
             WindowCommandMode.WorkspaceMoveWindow => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceMoveWindow"], action.WindowSelectorValue, action.WindowWorkspace),
-            _ => localizationService["Editor_ActionType_WindowCommand"]
+            _ => localizationService["Editor_ActionType_WindowCommand"],
         };
     }
 
     private string FormatWindowSelectorAction(EditorAction action, string selectorKey, string activeKey)
     {
-        return action.WindowSelectorKind == "active"
+        return action.WindowSelectorKind is "active"
             ? localizationService[activeKey]
             : string.Format(localizationService.CurrentCulture, localizationService[selectorKey], action.WindowSelectorKind, action.WindowSelectorValue);
     }

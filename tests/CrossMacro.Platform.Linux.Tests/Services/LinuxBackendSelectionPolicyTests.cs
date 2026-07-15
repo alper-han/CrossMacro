@@ -63,7 +63,7 @@ public sealed class LinuxBackendSelectionPolicyTests
                 directUInput: false,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.UnexpectedError,
-                resolvedMode: InputProviderMode.Daemon)
+                resolvedMode: InputProviderMode.Daemon),
         };
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: false);
@@ -111,7 +111,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         InputProviderMode expectedMode,
         bool expectedSupported)
     {
-        var snapshot = CreateSnapshot(compositor, daemon: compositor == CompositorType.GNOME, directUInput: compositor == CompositorType.KDE, canReadInputEvents: compositor == CompositorType.KDE);
+        var snapshot = CreateSnapshot(compositor, daemon: compositor is CompositorType.GNOME, directUInput: compositor is CompositorType.KDE, canReadInputEvents: compositor is CompositorType.KDE);
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported, forCapture: false);
 
@@ -126,7 +126,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         bool canReadInputEvents,
         LinuxDaemonHandshakeStatus daemonStatus = LinuxDaemonHandshakeStatus.MissingSocket) =>
         new(
-            new LinuxEnvironmentSnapshot(null, null, null, null, null, null, null, null, null, null, null, null, null),
+            new LinuxEnvironmentSnapshot(FlatpakId: null, AppImage: null, UseDaemon: null, SessionType: null, WaylandDisplay: null, Display: null, CurrentDesktop: null, GdmSession: null, HyprlandInstanceSignature: null, RuntimeDir: null, WayfireSocket: null, SwaySocket: null, WindowButtons: null),
             compositor,
             CreateSnapshotInput(
                 daemon,
@@ -146,13 +146,13 @@ public sealed class LinuxBackendSelectionPolicyTests
         LinuxDaemonHandshakeStatus daemonStatus,
         InputProviderMode? resolvedMode = null) =>
         new(
-                null,
-                daemonStatus != LinuxDaemonHandshakeStatus.MissingSocket,
+ResolvedSocketPath: null,
+                daemonStatus is not LinuxDaemonHandshakeStatus.MissingSocket,
                 daemon,
-                daemonStatus == LinuxDaemonHandshakeStatus.Timeout,
+                daemonStatus is LinuxDaemonHandshakeStatus.Timeout,
                 directUInput,
                 canReadInputEvents,
-                daemonStatus == LinuxDaemonHandshakeStatus.Success
+                daemonStatus is LinuxDaemonHandshakeStatus.Success
                     ? LinuxDaemonHandshakeProbeResult.Success("/run/crossmacro.sock", TimeSpan.Zero)
                     : LinuxDaemonHandshakeProbeResult.Failed("/run/crossmacro.sock", TimeSpan.Zero, daemonStatus),
                 resolvedMode);

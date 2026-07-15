@@ -34,7 +34,7 @@ internal sealed class DesktopQuickSetupGateService
         if (!string.IsNullOrWhiteSpace(unsupportedSessionReason))
         {
             var flatpakQuickSetupService = _getFlatpakQuickSetupService();
-            if (flatpakQuickSetupService != null && flatpakQuickSetupService.IsApplicable())
+            if (flatpakQuickSetupService is not null && flatpakQuickSetupService.IsApplicable())
             {
                 await HandleFlatpakQuickSetupAsync(desktop, startupPreferences, unsupportedSessionReason, startDesktopRuntimeAsync);
                 return true;
@@ -45,7 +45,7 @@ internal sealed class DesktopQuickSetupGateService
         }
 
         var appImageQuickSetupService = _getAppImageQuickSetupService();
-        if (appImageQuickSetupService?.ShouldPrompt() == true)
+        if ((appImageQuickSetupService?.ShouldPrompt()) is true)
         {
             await HandleAppImageQuickSetupAsync(desktop, startupPreferences, startDesktopRuntimeAsync);
             return true;
@@ -61,7 +61,7 @@ internal sealed class DesktopQuickSetupGateService
         Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync)
     {
         var quickSetupService = _getFlatpakQuickSetupService();
-        if (quickSetupService == null)
+        if (quickSetupService is null)
         {
             ShowUnsupportedSessionDialog(desktop, initialReason);
             return;
@@ -115,7 +115,7 @@ internal sealed class DesktopQuickSetupGateService
         Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync)
     {
         var quickSetupService = _getAppImageQuickSetupService();
-        if (quickSetupService == null)
+        if (quickSetupService is null)
         {
             await startDesktopRuntimeAsync(desktop, startupPreferences);
             return;
@@ -125,7 +125,7 @@ internal sealed class DesktopQuickSetupGateService
         {
             try
             {
-                var promptMessage =
+                const string promptMessage =
                     "CrossMacro cannot access Linux input devices in this AppImage session.\n\n" +
                     "Run Quick Setup now?\n\n" +
                     "Quick Setup uses pkexec to grant temporary direct device mode access to /dev/uinput and /dev/input/event* for your current user.\n\n" +
@@ -149,7 +149,7 @@ internal sealed class DesktopQuickSetupGateService
                             "Quick Setup Failed",
                             $"{setupResult.Message}\n\nCrossMacro will continue without temporary device permissions.",
                             "Continue",
-                            null,
+noText: null,
                             dangerYes: false);
 
                         await failureDialog.ShowDialog<bool>(bootstrapOwner);
@@ -174,7 +174,7 @@ internal sealed class DesktopQuickSetupGateService
             "Unsupported Session",
             reason,
             "Exit",
-            null);
+noText: null);
 
         desktop.MainWindow = dialog;
 

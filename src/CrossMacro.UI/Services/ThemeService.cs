@@ -28,7 +28,7 @@ public sealed class ThemeService : IThemeService
 
             var resourceRoot = _resourceRoot ?? Avalonia.Application.Current?.Resources;
         var mergedDictionaries = resourceRoot?.MergedDictionaries;
-        if (resourceRoot == null || mergedDictionaries == null)
+        if (resourceRoot is null || mergedDictionaries is null)
         {
             error = "Application resources are not available.";
             CurrentTheme = ThemeCatalog.DefaultThemeName;
@@ -53,7 +53,7 @@ public sealed class ThemeService : IThemeService
 
         for (var index = mergedDictionaries.Count - 1; index >= 0; index--)
         {
-            if (mergedDictionaries[index].TryGetResource(ThemeCatalog.ThemeMarkerKey, null, out _))
+            if (mergedDictionaries[index].TryGetResource(ThemeCatalog.ThemeMarkerKey, theme: null, out _))
             {
                 mergedDictionaries.RemoveAt(index);
             }
@@ -84,7 +84,7 @@ public sealed class ThemeService : IThemeService
         out IResourceDictionary dictionary)
     {
         dictionary = null!;
-        if (!root.TryGetResource(descriptor.ResourceKey, null, out var resource) || resource is not IResourceDictionary resolved)
+        if (!root.TryGetResource(descriptor.ResourceKey, theme: null, out var resource) || resource is not IResourceDictionary resolved)
         {
             return false;
         }

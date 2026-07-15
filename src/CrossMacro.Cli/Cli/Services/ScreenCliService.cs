@@ -26,15 +26,15 @@ public sealed class ScreenCliService : IScreenCliService
 
     public async Task<CliCommandExecutionResult> ExecuteAsync(ScreenCliOptions options, CancellationToken cancellationToken)
     {
-        if (options.Action == ScreenCliAction.SearchImage && options.ImagePath is { Length: > 0 })
+        if (options.Action is ScreenCliAction.SearchImage && options.ImagePath is { Length: > 0 })
         {
             return await SearchImageAsync(options, cancellationToken).ConfigureAwait(false);
         }
-        if (options.Action == ScreenCliAction.WaitImage && options.ImagePath is { Length: > 0 })
+        if (options.Action is ScreenCliAction.WaitImage && options.ImagePath is { Length: > 0 })
         {
             return await WaitImageAsync(options, cancellationToken).ConfigureAwait(false);
         }
-        if (options.Action == ScreenCliAction.ImageClick && options.ImagePath is { Length: > 0 })
+        if (options.Action is ScreenCliAction.ImageClick && options.ImagePath is { Length: > 0 })
         {
             return await ImageClickAsync(options, cancellationToken).ConfigureAwait(false);
         }
@@ -50,7 +50,7 @@ public sealed class ScreenCliService : IScreenCliService
             ScreenCliAction.WaitColor when options.ExpectedColor is ScreenPixelColor expected => await WaitColorAsync(reader, options, expected, cancellationToken).ConfigureAwait(false),
             ScreenCliAction.SearchColor when options.ExpectedColor is ScreenPixelColor expected && options.X2 is int x2 && options.Y2 is int y2 && options.X != x2 && options.Y != y2 => await SearchColorAsync(reader, options, expected, x2, y2, cancellationToken).ConfigureAwait(false),
             ScreenCliAction.WaitColor or ScreenCliAction.SearchColor or ScreenCliAction.SearchImage or ScreenCliAction.WaitImage or ScreenCliAction.ImageClick => InvalidOptions(options.Action),
-            _ => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown screen action.")
+            _ => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown screen action."),
         };
     }
 
@@ -69,7 +69,7 @@ public sealed class ScreenCliService : IScreenCliService
         var point = new ScreenPoint(options.X, options.Y);
         var result = await reader.WaitForPixelAsync(point, expected, CreateOptions(options.TimeoutMs, cancellationToken)).ConfigureAwait(false);
         if (!result.IsSuccess) return ToFailure("Failed while waiting for screen color.", result);
-        var data = new ScreenWaitColorData(point.X, point.Y, expected.ToString(), result.Value.ToString(), reader.ProviderName, true, options.TimeoutMs);
+        var data = new ScreenWaitColorData(point.X, point.Y, expected.ToString(), result.Value.ToString(), reader.ProviderName, Matched: true, options.TimeoutMs);
         return CliCommandExecutionResult.Ok($"Pixel {point.X},{point.Y} matched {expected}.", data);
     }
 
@@ -81,7 +81,7 @@ public sealed class ScreenCliService : IScreenCliService
         var result = await reader.SearchPixelAsync(region, expected, options.Tolerance, CreateOptions(options.TimeoutMs, cancellationToken)).ConfigureAwait(false);
         if (!result.IsSuccess) return ToFailure("Failed while searching for screen color.", result);
         var match = result.Value;
-        var data = new ScreenSearchColorData(true, match.Point.X, match.Point.Y, match.Color.ToString(), expected.ToString(), region.X, region.Y, region.Width, region.Height, options.Tolerance, reader.ProviderName);
+        var data = new ScreenSearchColorData(Found: true, match.Point.X, match.Point.Y, match.Color.ToString(), expected.ToString(), region.X, region.Y, region.Width, region.Height, options.Tolerance, reader.ProviderName);
         return CliCommandExecutionResult.Ok($"Color {expected} found at {match.Point.X},{match.Point.Y}.", data);
     }
 
@@ -92,11 +92,11 @@ public sealed class ScreenCliService : IScreenCliService
         if (!TryGetImageAutomation(out var automation, out var unsupported)) return unsupported;
         var result = await automation.SearchAsync(request!, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess) return ImageFound("Image found", result, options, request!.Region, automation.ProviderName);
-        if (result.ErrorKind == ScreenReadErrorKind.CaptureTimeout)
+        if (result.ErrorKind is ScreenReadErrorKind.CaptureTimeout)
         {
-            return CliCommandExecutionResult.Ok("Image was not found.", CreateSearchImageData(false, null, null, null, options, request!.Region, automation.ProviderName), [result.ErrorMessage ?? "No matching image was found."]);
+            return CliCommandExecutionResult.Ok("Image was not found.", CreateSearchImageData(found: false, x: null, y: null, score: null, options, request!.Region, automation.ProviderName), [result.ErrorMessage ?? "No matching image was found."]);
         }
-        if (result.ErrorKind == ScreenReadErrorKind.InvalidArguments)
+        if (result.ErrorKind is ScreenReadErrorKind.InvalidArguments)
         {
             return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, result.ErrorMessage ?? "Invalid image search arguments.", [result.ErrorMessage ?? "Invalid image search arguments."]);
         }
@@ -110,11 +110,11 @@ public sealed class ScreenCliService : IScreenCliService
         if (!TryGetImageAutomation(out var automation, out var unsupported)) return unsupported;
         var result = await automation.WaitAsync(request!, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess) return ImageFound("Image appeared", result, options, request!.Region, automation.ProviderName);
-        if (result.ErrorKind == ScreenReadErrorKind.CaptureTimeout)
+        if (result.ErrorKind is ScreenReadErrorKind.CaptureTimeout)
         {
-            return CliCommandExecutionResult.Ok("Image did not appear before timeout.", CreateSearchImageData(false, null, null, null, options, request!.Region, automation.ProviderName), [result.ErrorMessage ?? "No matching image was found."]);
+            return CliCommandExecutionResult.Ok("Image did not appear before timeout.", CreateSearchImageData(found: false, x: null, y: null, score: null, options, request!.Region, automation.ProviderName), [result.ErrorMessage ?? "No matching image was found."]);
         }
-        if (result.ErrorKind == ScreenReadErrorKind.InvalidArguments)
+        if (result.ErrorKind is ScreenReadErrorKind.InvalidArguments)
         {
             return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, result.ErrorMessage ?? "Invalid image wait arguments.", [result.ErrorMessage ?? "Invalid image wait arguments."]);
         }
@@ -129,18 +129,18 @@ public sealed class ScreenCliService : IScreenCliService
         var result = await automation.ClickAsync(request!, ToMouseButtonCode(options.Button), cancellationToken).ConfigureAwait(false);
         if (!result.IsSuccess)
         {
-            if (result.ErrorKind == ScreenReadErrorKind.Unsupported)
+            if (result.ErrorKind is ScreenReadErrorKind.Unsupported)
             {
                 return CliCommandExecutionResult.Fail(CliExitCode.EnvironmentError, "Screen image click requires absolute coordinate support.", [result.ErrorMessage ?? "Image click movement could not be resolved."]);
             }
-            if (result.ErrorKind == ScreenReadErrorKind.InvalidArguments)
+            if (result.ErrorKind is ScreenReadErrorKind.InvalidArguments)
             {
                 return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, result.ErrorMessage ?? "Invalid image click arguments.", [result.ErrorMessage ?? "Invalid image click arguments."]);
             }
             return ToFailure("Failed while searching for screen image to click.", result);
         }
         var point = result.Point!.Value;
-        var data = new ScreenImageClickData(point.X, point.Y, result.Score!.Value, Path.GetFullPath(options.ImagePath!), request!.Region?.X, request.Region?.Y, request.Region?.Width, request.Region?.Height, options.Similarity, options.Downsample, options.MatchMode == ScreenImageMatchMode.Best ? "best" : "first", options.ScaleAware, options.Button.ToString(), automation.ProviderName);
+        var data = new ScreenImageClickData(point.X, point.Y, result.Score!.Value, Path.GetFullPath(options.ImagePath!), request!.Region?.X, request.Region?.Y, request.Region?.Width, request.Region?.Height, options.Similarity, options.Downsample, options.MatchMode is ScreenImageMatchMode.Best ? "best" : "first", options.ScaleAware, options.Button.ToString(), automation.ProviderName);
         return CliCommandExecutionResult.Ok($"Image clicked at {point.X},{point.Y} with score {result.Score:0.###}.", data);
     }
 
@@ -214,11 +214,11 @@ public sealed class ScreenCliService : IScreenCliService
     private static CliCommandExecutionResult ImageFound(string prefix, ScreenImageAutomationResult result, ScreenCliOptions options, ScreenRect? region, string providerName)
     {
         var point = result.Point!.Value;
-        return CliCommandExecutionResult.Ok($"{prefix} at {point.X},{point.Y} with score {result.Score:0.###}.", CreateSearchImageData(true, point.X, point.Y, result.Score, options, region, providerName));
+        return CliCommandExecutionResult.Ok($"{prefix} at {point.X},{point.Y} with score {result.Score:0.###}.", CreateSearchImageData(found: true, point.X, point.Y, result.Score, options, region, providerName));
     }
 
     private static ScreenSearchImageData CreateSearchImageData(bool found, int? x, int? y, double? score, ScreenCliOptions options, ScreenRect? region, string providerName) =>
-        new(found, x, y, score, Path.GetFullPath(options.ImagePath!), region?.X, region?.Y, region?.Width, region?.Height, options.Similarity, options.Downsample, options.MatchMode == ScreenImageMatchMode.Best ? "best" : "first", options.ScaleAware, providerName);
+        new(found, x, y, score, Path.GetFullPath(options.ImagePath!), region?.X, region?.Y, region?.Width, region?.Height, options.Similarity, options.Downsample, options.MatchMode is ScreenImageMatchMode.Best ? "best" : "first", options.ScaleAware, providerName);
 
     private static int ToMouseButtonCode(MouseButton button) => button switch { MouseButton.Right => MouseButtonCode.Right, MouseButton.Middle => MouseButtonCode.Middle, _ => MouseButtonCode.Left };
     private static ScreenReadOptions CreateOptions(int? timeout, CancellationToken token) => new(timeout is { } value ? TimeSpan.FromMilliseconds(value) : null, ScreenReadOptions.Default.PollInterval, token);
@@ -238,7 +238,7 @@ public sealed class ScreenCliService : IScreenCliService
 
     private readonly record struct PointResolutionResult(ScreenPoint Point, CliCommandExecutionResult? Error)
     {
-        public static PointResolutionResult Ok(ScreenPoint point) => new(point, null);
+        public static PointResolutionResult Ok(ScreenPoint point) => new(point, Error: null);
         public static PointResolutionResult Fail(CliCommandExecutionResult error) => new(default, error);
     }
 }

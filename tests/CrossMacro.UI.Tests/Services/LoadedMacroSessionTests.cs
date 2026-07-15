@@ -91,7 +91,7 @@ public class LoadedMacroSessionTests
         return new MacroSequence
         {
             Name = name,
-            Events = { new MacroEvent { Type = EventType.MouseMove } }
+            Events = { new MacroEvent { Type = EventType.MouseMove } },
         };
     }
 }

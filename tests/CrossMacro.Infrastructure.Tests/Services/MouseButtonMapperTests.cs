@@ -34,7 +34,7 @@ public class MouseButtonMapperTests
     public void GetMouseButtonName_ShouldReturnGenericName_ForUnknownButton()
     {
         // Arrange - button code in valid range but not mapped
-        int unknownButton = 280;
+        const int unknownButton = 280;
 
         // Act
         var result = _mapper.GetMouseButtonName(unknownButton);
@@ -47,7 +47,7 @@ public class MouseButtonMapperTests
     public void GetMouseButtonName_ShouldReturnEmpty_ForOutOfRangeCode()
     {
         // Arrange - button code way out of range
-        int invalidCode = 100;
+        const int invalidCode = 100;
 
         // Act
         var result = _mapper.GetMouseButtonName(invalidCode);

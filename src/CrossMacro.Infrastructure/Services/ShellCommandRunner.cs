@@ -32,7 +32,7 @@ public sealed class ShellCommandRunner : IShellCommandRunner
         using var timeoutCts = timeout is { } timeoutValue && timeoutValue > TimeSpan.Zero
             ? new CancellationTokenSource(timeoutValue)
             : null;
-        using var linkedCts = timeoutCts == null
+        using var linkedCts = timeoutCts is null
             ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
             : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
@@ -42,7 +42,7 @@ public sealed class ShellCommandRunner : IShellCommandRunner
 
         try
         {
-            if (request.StandardInput != null)
+            if (request.StandardInput is not null)
             {
                 await WriteStandardInputAsync(process.StandardInput, request.StandardInput, linkedCts.Token).ConfigureAwait(false);
             }
@@ -76,11 +76,11 @@ public sealed class ShellCommandRunner : IShellCommandRunner
         var startInfo = new ProcessStartInfo
         {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
-            RedirectStandardInput = request.StandardInput != null,
+            RedirectStandardInput = request.StandardInput is not null,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
 
         if (OperatingSystem.IsWindows())
@@ -140,7 +140,7 @@ public sealed class ShellCommandRunner : IShellCommandRunner
         while (true)
         {
             var read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
-            if (read == 0)
+            if (read is 0)
             {
                 return builder.ToString();
             }

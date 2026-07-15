@@ -19,7 +19,7 @@ public class EditorActionTests
             ScreenshotRegionWidth = "30",
             ScreenshotRegionHeight = "40",
             ShellCommand = "echo ignored",
-            WindowSelectorValue = "ignored"
+            WindowSelectorValue = "ignored",
         };
 
         action.TryGetScreenshotPayload(out var screenshot).Should().BeTrue();
@@ -96,7 +96,7 @@ public class EditorActionTests
             WindowY = 20,
             WindowWidth = 800,
             WindowHeight = 600,
-            WindowWorkspace = "2"
+            WindowWorkspace = "2",
         };
 
         // Act
@@ -165,7 +165,7 @@ public class EditorActionTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = "abcdefghijklmnopqrstuvwxyz"
+            Text = "abcdefghijklmnopqrstuvwxyz",
         };
 
         // Act
@@ -186,7 +186,7 @@ public class EditorActionTests
             Type = EditorActionType.Delay,
             UseRandomDelay = true,
             RandomDelayMinMs = 200,
-            RandomDelayMaxMs = 100
+            RandomDelayMaxMs = 100,
         };
         var scroll = new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 0 };
 
@@ -214,7 +214,7 @@ public class EditorActionTests
             ScreenTimeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs,
             ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
             ImageSearchDownsample = EditorActionScreenReadingPayload.DefaultImageSearchDownsample,
-            Button = MouseButton.Left
+            Button = MouseButton.Left,
         };
 
         action.IsValid().Should().BeTrue();
@@ -232,7 +232,7 @@ public class EditorActionTests
             ScreenFoundVariableName = "found",
             ScreenFoundXVariableName = "found_x",
             ScreenFoundYVariableName = "found_y",
-            Button = MouseButton.Side1
+            Button = MouseButton.Side1,
         };
 
         action.IsValid().Should().BeFalse();
@@ -257,7 +257,7 @@ public class EditorActionTests
             ImageAssetName = "Target",
             ScreenFoundVariableName = "found",
             ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y"
+            ScreenFoundYVariableName = "found_y",
         };
 
         action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
@@ -273,7 +273,7 @@ public class EditorActionTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = " \n\t"
+            Text = " \n\t",
         };
 
         action.IsValid().Should().BeTrue();
@@ -285,7 +285,7 @@ public class EditorActionTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = string.Empty
+            Text = string.Empty,
         };
 
         action.IsValid().Should().BeFalse();
@@ -300,7 +300,7 @@ public class EditorActionTests
             Type = EditorActionType.SetVariable,
             ScriptVariableName = "$target",
             ScriptValueType = ScriptValueType.VariableReference,
-            ScriptValue = "$source"
+            ScriptValue = "$source",
         };
 
         // Act + Assert
@@ -321,7 +321,7 @@ public class EditorActionTests
             ForEndValue = "$finish",
             ForHasStep = true,
             ForStepType = ScriptNumericSourceType.VariableReference,
-            ForStepValue = "$step"
+            ForStepValue = "$step",
         };
 
         // Act
@@ -344,7 +344,7 @@ public class EditorActionTests
             ScriptLeftOperand = "$foo",
             ScriptConditionOperator = ScriptConditionOperator.Equals,
             ScriptRightOperandType = ScriptOperandType.VariableReference,
-            ScriptRightOperand = "$bar"
+            ScriptRightOperand = "$bar",
         };
 
         action.DisplayName.Should().Contain("$$foo == $bar");
@@ -382,7 +382,7 @@ public class EditorActionTests
         {
             Type = EditorActionType.RepeatBlockStart,
             ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
-            ScriptNumericValue = "$count"
+            ScriptNumericValue = "$count",
         };
 
         action.IsValid().Should().BeTrue();
@@ -398,7 +398,7 @@ public class EditorActionTests
             ShellCommand = "echo ok",
             ShellExitCodeVariableName = "_",
             ShellStandardOutputVariableName = "stdout",
-            ShellStandardErrorVariableName = "_"
+            ShellStandardErrorVariableName = "_",
         };
 
         action.IsValid().Should().BeTrue();

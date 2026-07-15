@@ -53,7 +53,7 @@ public sealed class TextExpansionCliService : ITextExpansionCliService
 
         try
         {
-            var expansion = new TextExpansion(trigger, replacement, true, method, insertionMode, directTypingMethod);
+            var expansion = new TextExpansion(trigger, replacement, isEnabled: true, method, insertionMode, directTypingMethod);
             await _manageTextExpansion.AddAsync(expansion, profileIdentifier, cancellationToken).ConfigureAwait(false);
             return CliCommandExecutionResult.Ok($"Text expansion added: {trigger}.", ToData(expansion));
         }
@@ -86,12 +86,12 @@ public sealed class TextExpansionCliService : ITextExpansionCliService
 
     public Task<CliCommandExecutionResult> EnableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken)
     {
-        return SetEnabledAsync(trigger, true, profileIdentifier, cancellationToken);
+        return SetEnabledAsync(trigger, isEnabled: true, profileIdentifier, cancellationToken);
     }
 
     public Task<CliCommandExecutionResult> DisableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken)
     {
-        return SetEnabledAsync(trigger, false, profileIdentifier, cancellationToken);
+        return SetEnabledAsync(trigger, isEnabled: false, profileIdentifier, cancellationToken);
     }
 
     public async Task<CliCommandExecutionResult> TestAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken)
@@ -101,11 +101,11 @@ public sealed class TextExpansionCliService : ITextExpansionCliService
             var expansion = await _manageTextExpansion.FindAsync(trigger, profileIdentifier, cancellationToken).ConfigureAwait(false);
             if (expansion is null)
             {
-                return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Text expansion not found.", [$"Unknown trigger: {trigger}"], data: new TextExpansionTestData(false, null));
+                return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Text expansion not found.", [$"Unknown trigger: {trigger}"], data: new TextExpansionTestData(Found: false, Expansion: null));
             }
             return CliCommandExecutionResult.Ok(
                 $"{expansion.Trigger} => {expansion.Replacement}",
-                new TextExpansionTestData(true, ToData(expansion)));
+                new TextExpansionTestData(Found: true, ToData(expansion)));
         }
         catch (KeyNotFoundException)
         {

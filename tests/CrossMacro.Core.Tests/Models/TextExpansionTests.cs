@@ -26,7 +26,7 @@ public class TextExpansionTests
         var expansion = new TextExpansion(
             ":mail",
             "test@example.com",
-            true,
+isEnabled: true,
             PasteMethod.CtrlShiftV,
             TextInsertionMode.DirectTyping);
 
@@ -42,7 +42,7 @@ public class TextExpansionTests
     public void TextExpansion_ParameterizedConstructor_CanBeDisabled()
     {
         // Arrange & Act
-        var expansion = new TextExpansion(":sig", "Best regards,\nJohn", false);
+        var expansion = new TextExpansion(":sig", "Best regards,\nJohn", isEnabled: false);
 
         // Assert
         expansion.IsEnabled.Should().BeFalse();
@@ -91,7 +91,7 @@ public class TextExpansionTests
     public void TextExpansion_SupportsMultilineReplacement()
     {
         // Arrange
-        var multilineText = "Line 1\nLine 2\nLine 3";
+        const string multilineText = "Line 1\nLine 2\nLine 3";
 
         // Act
         var expansion = new TextExpansion(":multi", multilineText);
@@ -115,7 +115,7 @@ public class TextExpansionTests
     public void TextExpansion_SupportsUnicodeInReplacement()
     {
         // Arrange
-        var unicodeText = "こんにちは 🎉 Привет";
+        const string unicodeText = "こんにちは 🎉 Привет";
 
         // Act
         var expansion = new TextExpansion(":hello", unicodeText);

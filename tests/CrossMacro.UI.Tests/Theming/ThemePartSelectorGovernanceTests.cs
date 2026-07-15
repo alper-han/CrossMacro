@@ -25,6 +25,6 @@ public partial class ThemePartSelectorGovernanceTests
         templatePartFiles.Should().OnlyContain(path => string.Equals(path, templateOverridesPath, StringComparison.Ordinal));
     }
 
-    [GeneratedRegex("Style\\s+Selector=\"[^\"]*PART_[^\"]*\"", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    [GeneratedRegex("Style\\s+Selector=\"[^\"]*PART_[^\"]*\"", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex PartSelectorRegex();
 }

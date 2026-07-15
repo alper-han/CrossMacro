@@ -31,7 +31,7 @@ public interface IVirtualDeviceManager : IDisposable
     void SendEvents(ReadOnlySpan<IpcSimulationRequest> events);
 
     Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Resets/Disposes the current uinput device.
     /// </summary>

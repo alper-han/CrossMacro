@@ -19,7 +19,7 @@ public sealed class LinuxShellImageClipboardService : IImageClipboardService
     {
         Unknown,
         WlClipboard,
-        Xclip
+        Xclip,
     }
 
     public LinuxShellImageClipboardService(IProcessRunner processRunner)
@@ -33,7 +33,7 @@ public sealed class LinuxShellImageClipboardService : IImageClipboardService
         _environment = environment;
     }
 
-    public bool IsSupported => _tool != ClipboardTool.Unknown || !_initialized;
+    public bool IsSupported => _tool is not ClipboardTool.Unknown || !_initialized;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {

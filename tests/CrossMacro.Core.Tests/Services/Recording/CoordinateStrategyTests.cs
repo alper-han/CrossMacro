@@ -127,7 +127,7 @@ public class CoordinateStrategyTests
         // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
         positionProvider.GetAbsolutePositionAsync().Returns((X: 100, Y: 200));
-        
+
         var strategy = new AbsoluteCoordinateStrategy(positionProvider);
         using var cts = new CancellationTokenSource(TestTimeout);
 
@@ -136,7 +136,7 @@ public class CoordinateStrategyTests
 
         // Assert
         await positionProvider.Received().GetAbsolutePositionAsync();
-        
+
         // Cleanup
         strategy.Dispose();
     }
@@ -147,7 +147,7 @@ public class CoordinateStrategyTests
         // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
         positionProvider.GetAbsolutePositionAsync().Returns((X: 100, Y: 100));
-        
+
         var strategy = new AbsoluteCoordinateStrategy(positionProvider);
         using var cts = new CancellationTokenSource(TestTimeout);
         await strategy.InitializeAsync(cts.Token);
@@ -162,7 +162,7 @@ public class CoordinateStrategyTests
         // Assert - should accumulate from initial position
         result.X.Should().Be(110); // 100 + 10
         result.Y.Should().Be(120); // 100 + 20
-        
+
         // Cleanup
         strategy.Dispose();
     }
@@ -180,7 +180,7 @@ public class CoordinateStrategyTests
 
         // Assert
         result.Should().Be((0, 0));
-        
+
         // Cleanup
         strategy.Dispose();
     }
@@ -191,7 +191,7 @@ public class CoordinateStrategyTests
         // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
         positionProvider.GetAbsolutePositionAsync().Returns(((int X, int Y)?)null);
-        
+
         var strategy = new AbsoluteCoordinateStrategy(positionProvider);
         using var cts = new CancellationTokenSource(TestTimeout);
 

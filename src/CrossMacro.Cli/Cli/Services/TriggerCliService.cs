@@ -37,9 +37,9 @@ public sealed class TriggerCliService : ITriggerCliService
             TriggerCliAction.Add => AddAsync(options, cancellationToken),
             TriggerCliAction.Edit => EditAsync(options, cancellationToken),
             TriggerCliAction.Remove => RemoveAsync(options.TaskId ?? string.Empty, cancellationToken),
-            TriggerCliAction.Enable => SetEnabledAsync(options.TaskId ?? string.Empty, true, cancellationToken),
-            TriggerCliAction.Disable => SetEnabledAsync(options.TaskId ?? string.Empty, false, cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown trigger action."))
+            TriggerCliAction.Enable => SetEnabledAsync(options.TaskId ?? string.Empty, enabled: true, cancellationToken),
+            TriggerCliAction.Disable => SetEnabledAsync(options.TaskId ?? string.Empty, enabled: false, cancellationToken),
+            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown trigger action.")),
         };
     }
 
@@ -57,7 +57,7 @@ public sealed class TriggerCliService : ITriggerCliService
             MacroFilePath = options.MacroFilePath ?? string.Empty,
             FireMode = options.FireMode ?? TriggerFireMode.OnceOnChange,
             CooldownMs = options.CooldownMs,
-            DebounceMs = options.DebounceMs
+            DebounceMs = options.DebounceMs,
         };
 
         if (options.Enabled.HasValue)
@@ -83,8 +83,8 @@ public sealed class TriggerCliService : ITriggerCliService
         if (options.TargetProfileId is not null) task.TargetProfileId = options.TargetProfileId;
         if (options.MacroFilePath is not null) task.MacroFilePath = options.MacroFilePath;
         if (options.FireMode.HasValue) task.FireMode = options.FireMode.Value;
-        if (options.CooldownMs.HasValue) task.CooldownMs = options.CooldownMs.Value == 0 ? null : options.CooldownMs.Value;
-        if (options.DebounceMs.HasValue) task.DebounceMs = options.DebounceMs.Value == 0 ? null : options.DebounceMs.Value;
+        if (options.CooldownMs.HasValue) task.CooldownMs = options.CooldownMs.Value is 0 ? null : options.CooldownMs.Value;
+        if (options.DebounceMs.HasValue) task.DebounceMs = options.DebounceMs.Value is 0 ? null : options.DebounceMs.Value;
         if (options.Enabled.HasValue) task.IsEnabled = options.Enabled.Value;
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -145,8 +145,8 @@ public sealed class TriggerCliService : ITriggerCliService
             task.MatchMode.ToString(),
             task.Value,
             task.Action.ToString(),
-            task.Action == TriggerAction.SwitchProfile ? task.TargetProfileId : null,
-            task.Action == TriggerAction.RunMacro ? task.MacroFilePath : null,
+            task.Action is TriggerAction.SwitchProfile ? task.TargetProfileId : null,
+            task.Action is TriggerAction.RunMacro ? task.MacroFilePath : null,
             task.FireMode.ToString(),
             task.CooldownMs,
             task.DebounceMs,

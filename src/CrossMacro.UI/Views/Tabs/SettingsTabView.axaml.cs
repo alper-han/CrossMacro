@@ -17,51 +17,51 @@ public partial class SettingsTabView : UserControl
     private Border? _toastNotification;
     private TextBlock? _toastMessage;
     private CancellationTokenSource? _toastCts;
-    
+
     public SettingsTabView()
     {
         InitializeComponent();
-        
+
         // Wire up validation after the controls are loaded
         this.Loaded += OnLoaded;
         this.Unloaded += OnUnloaded;
     }
-    
+
     private void OnLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         // Get references to the HotkeyCapture controls
         _recordingHotkeyCapture = this.FindControl<HotkeyCapture>("RecordingHotkeyCapture");
         _playbackHotkeyCapture = this.FindControl<HotkeyCapture>("PlaybackHotkeyCapture");
         _pauseHotkeyCapture = this.FindControl<HotkeyCapture>("PauseHotkeyCapture");
-        
+
         // Get references to toast notification elements
         _toastNotification = this.FindControl<Border>("ToastNotification");
         _toastMessage = this.FindControl<TextBlock>("ToastMessage");
         ResetToastState();
 
-        if (_profileToastViewModel != null)
+        if (_profileToastViewModel is not null)
         {
             _profileToastViewModel.ProfileOperationFailed -= OnProfileOperationFailed;
             _profileToastViewModel = null;
         }
 
         var viewModel = DataContext as SettingsViewModel;
-        if (viewModel != null)
+        if (viewModel is not null)
         {
             _profileToastViewModel = viewModel;
             _profileToastViewModel.ProfileOperationFailed += OnProfileOperationFailed;
         }
 
-        if (_recordingHotkeyCapture != null && viewModel != null)
+        if (_recordingHotkeyCapture is not null && viewModel is not null)
         {
             _recordingHotkeyCapture.ValidationFunc = (newHotkey) =>
             {
-                if (newHotkey == viewModel.PlaybackHotkey)
+                if (string.Equals(newHotkey, viewModel.PlaybackHotkey, StringComparison.Ordinal))
                 {
                     ShowToast("This hotkey is already assigned to Playback");
                     return (false, "This hotkey is already assigned to Playback");
                 }
-                if (newHotkey == viewModel.PauseHotkey)
+                if (string.Equals(newHotkey, viewModel.PauseHotkey, StringComparison.Ordinal))
                 {
                     ShowToast("This hotkey is already assigned to Pause");
                     return (false, "This hotkey is already assigned to Pause");
@@ -69,17 +69,17 @@ public partial class SettingsTabView : UserControl
                 return (true, string.Empty);
             };
         }
-        
-        if (_playbackHotkeyCapture != null && viewModel != null)
+
+        if (_playbackHotkeyCapture is not null && viewModel is not null)
         {
             _playbackHotkeyCapture.ValidationFunc = (newHotkey) =>
             {
-                if (newHotkey == viewModel.RecordingHotkey)
+                if (string.Equals(newHotkey, viewModel.RecordingHotkey, StringComparison.Ordinal))
                 {
                     ShowToast("This hotkey is already assigned to Recording");
                     return (false, "This hotkey is already assigned to Recording");
                 }
-                if (newHotkey == viewModel.PauseHotkey)
+                if (string.Equals(newHotkey, viewModel.PauseHotkey, StringComparison.Ordinal))
                 {
                     ShowToast("This hotkey is already assigned to Pause");
                     return (false, "This hotkey is already assigned to Pause");
@@ -87,17 +87,17 @@ public partial class SettingsTabView : UserControl
                 return (true, string.Empty);
             };
         }
-        
-        if (_pauseHotkeyCapture != null && viewModel != null)
+
+        if (_pauseHotkeyCapture is not null && viewModel is not null)
         {
             _pauseHotkeyCapture.ValidationFunc = (newHotkey) =>
             {
-                if (newHotkey == viewModel.RecordingHotkey)
+                if (string.Equals(newHotkey, viewModel.RecordingHotkey, StringComparison.Ordinal))
                 {
                     ShowToast("This hotkey is already assigned to Recording");
                     return (false, "This hotkey is already assigned to Recording");
                 }
-                if (newHotkey == viewModel.PlaybackHotkey)
+                if (string.Equals(newHotkey, viewModel.PlaybackHotkey, StringComparison.Ordinal))
                 {
                     ShowToast("This hotkey is already assigned to Playback");
                     return (false, "This hotkey is already assigned to Playback");
@@ -106,10 +106,10 @@ public partial class SettingsTabView : UserControl
             };
         }
     }
-    
+
     private void OnUnloaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (_profileToastViewModel != null)
+        if (_profileToastViewModel is not null)
         {
             _profileToastViewModel.ProfileOperationFailed -= OnProfileOperationFailed;
             _profileToastViewModel = null;
@@ -126,14 +126,14 @@ public partial class SettingsTabView : UserControl
 
     private async void ShowToast(string message)
     {
-        if (_toastNotification == null || _toastMessage == null)
+        if (_toastNotification is null || _toastMessage is null)
             return;
 
         CancelToastTimer();
         var toastCts = new CancellationTokenSource();
         _toastCts = toastCts;
         var token = toastCts.Token;
-            
+
         _toastMessage.Text = message;
         _toastNotification.IsVisible = true;
         _toastNotification.Opacity = 1.0;
@@ -142,7 +142,7 @@ public partial class SettingsTabView : UserControl
         {
             await Task.Delay(2000, token);
 
-            if (token.IsCancellationRequested || _toastNotification == null)
+            if (token.IsCancellationRequested || _toastNotification is null)
             {
                 return;
             }
@@ -152,7 +152,7 @@ public partial class SettingsTabView : UserControl
             // Wait for fade animation to complete before hiding
             await Task.Delay(300, token);
 
-            if (token.IsCancellationRequested || _toastNotification == null)
+            if (token.IsCancellationRequested || _toastNotification is null)
             {
                 return;
             }
@@ -178,7 +178,7 @@ public partial class SettingsTabView : UserControl
 
     private void CancelToastTimer()
     {
-        if (_toastCts == null)
+        if (_toastCts is null)
         {
             return;
         }
@@ -190,13 +190,13 @@ public partial class SettingsTabView : UserControl
 
     private void ResetToastState()
     {
-        if (_toastNotification != null)
+        if (_toastNotification is not null)
         {
             _toastNotification.IsVisible = false;
             _toastNotification.Opacity = 0.0;
         }
 
-        if (_toastMessage != null)
+        if (_toastMessage is not null)
         {
             _toastMessage.Text = string.Empty;
         }

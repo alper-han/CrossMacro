@@ -25,8 +25,8 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("non-monitor", result.ErrorMessage);
-        Assert.Contains("cannot force GNOME portal", result.ErrorMessage);
+        Assert.Contains("non-monitor", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("cannot force GNOME portal", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("position", result.ErrorMessage);
+        Assert.Contains("position", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -52,7 +52,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("positive size", result.ErrorMessage);
+        Assert.Contains("positive size", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("duplicate monitor stream id", result.ErrorMessage);
+        Assert.Contains("duplicate monitor stream id", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("duplicate monitor stream bounds", result.ErrorMessage);
+        Assert.Contains("duplicate monitor stream bounds", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.OutOfBounds, result.ErrorKind);
-        Assert.Contains("cannot force GNOME portal", result.ErrorMessage);
+        Assert.Contains("cannot force GNOME portal", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     private static PortalStream Stream(
@@ -119,7 +119,7 @@ public sealed class PortalStreamGeometryTests
         var properties = new Dictionary<string, object>
         {
             ["source_type"] = sourceType,
-            ["size"] = new object[] { width, height }
+            ["size"] = new object[] { width, height },
         };
 
         if (includePosition)

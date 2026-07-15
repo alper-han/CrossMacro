@@ -135,7 +135,7 @@ internal static class CoreGraphics
 
     [DllImport(CoreGraphicsLib)]
     public static extern void CGEventSetType(IntPtr eventRef, CGEventType type);
-    
+
     [DllImport(CoreGraphicsLib)]
     public static extern CGEventFlags CGEventGetFlags(IntPtr eventRef);
 
@@ -144,10 +144,10 @@ internal static class CoreGraphics
 
     [DllImport(CoreGraphicsLib)]
     public static extern void CGEventSetIntegerValueField(IntPtr eventRef, CGEventField field, long value);
-    
+
     [DllImport(CoreGraphicsLib)]
     public static extern CGPoint CGEventGetLocation(IntPtr eventRef);
-    
+
     /// <summary>
     /// Gets the unicode string from a keyboard event
     /// </summary>
@@ -166,26 +166,26 @@ internal static class CoreGraphics
         IntPtr eventRef,
         nuint stringLength,
         [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
-    
+
     // Text Input Source (TIS) functions for keyboard layout
     private const string CarbonCoreLib = "/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/CarbonCore";
     private const string HIToolboxLib = "/System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/HIToolbox";
-    
+
     [DllImport(HIToolboxLib)]
     public static extern IntPtr TISCopyCurrentKeyboardInputSource();
-    
+
     [DllImport(HIToolboxLib)]
     public static extern IntPtr TISCopyCurrentKeyboardLayoutInputSource();
-    
+
     [DllImport(HIToolboxLib)]
     public static extern IntPtr TISGetInputSourceProperty(IntPtr inputSource, IntPtr propertyKey);
 
     [DllImport(HIToolboxLib)]
     public static extern byte LMGetKbdType();
-    
+
     // Property key for Unicode keyboard layout data - loaded at runtime
     public static readonly IntPtr kTISPropertyUnicodeKeyLayoutData;
-    
+
     static CoreGraphics()
     {
         try
@@ -199,7 +199,7 @@ internal static class CoreGraphics
             kTISPropertyUnicodeKeyLayoutData = IntPtr.Zero;
         }
     }
-    
+
     /// <summary>
     /// UCKeyTranslate - converts keycode to unicode character
     /// </summary>
@@ -215,45 +215,45 @@ internal static class CoreGraphics
         nuint maxStringLength,
         out nuint actualStringLength,
         [Out, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
-    
+
     // UCKeyTranslate action types
     public const ushort kUCKeyActionDown = 0;
     public const ushort kUCKeyActionUp = 1;
     public const ushort kUCKeyActionAutoKey = 2;
     public const ushort kUCKeyActionDisplay = 3;
-    
+
     // UCKeyTranslate options
     public const uint kUCKeyTranslateNoDeadKeysBit = 0;
     public const uint kUCKeyTranslateNoDeadKeysMask = 1;
 
 
     // Enums and Structs
-    
+
     public enum CGEventTapLocation : uint
     {
         HIDEventTap = 0,
         SessionEventTap = 1,
-        AnnotatedSessionEventTap = 2
+        AnnotatedSessionEventTap = 2,
     }
 
     public enum CGEventTapPlacement : uint
     {
         HeadInsertEventTap = 0,
-        TailAppendEventTap = 1
+        TailAppendEventTap = 1,
     }
-    
+
     public enum CGScrollEventUnit : uint
     {
         Pixel = 0,
-        Line = 1
+        Line = 1,
     }
 
     public enum CGEventTapOptions : uint
     {
         Default = 0x00000000,
-        ListenOnly = 0x00000001
+        ListenOnly = 0x00000001,
     }
-    
+
     public enum CGEventType : uint
     {
         Null = 0,
@@ -275,16 +275,16 @@ internal static class CoreGraphics
         OtherMouseUp = 26,
         OtherMouseDragged = 27,
         TapDisabledByTimeout = 0xFFFFFFFE,
-        TapDisabledByUserInput = 0xFFFFFFFF
+        TapDisabledByUserInput = 0xFFFFFFFF,
     }
 
     public enum CGMouseButton : uint
     {
         Left = 0,
         Right = 1,
-        Center = 2
+        Center = 2,
     }
-    
+
     [Flags]
     public enum CGEventFlags : ulong
     {
@@ -296,9 +296,9 @@ internal static class CoreGraphics
         Command = 0x0000000000100000,
         NumericPad = 0x0000000000200000,
         Help = 0x0000000000400000,
-        SecondaryFn = 0x0000000000800000
+        SecondaryFn = 0x0000000000800000,
     }
-    
+
     public enum CGEventField : uint
     {
         MouseEventNumber = 0,
@@ -326,7 +326,7 @@ internal static class CoreGraphics
         ScrollWheelEventPointDeltaAxis1 = 96,
         ScrollWheelEventPointDeltaAxis2 = 97,
         ScrollWheelEventPointDeltaAxis3 = 98,
-        ScrollWheelEventInstantMouser = 14
+        ScrollWheelEventInstantMouser = 14,
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -335,24 +335,24 @@ internal static class CoreGraphics
         public double X;
         public double Y;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct CGSize
     {
         public double width;
         public double height;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct CGRect
     {
         public CGPoint origin;
         public CGSize size;
     }
-    
+
     [DllImport(CoreGraphicsLib)]
     public static extern uint CGMainDisplayID();
-    
+
     [DllImport(CoreGraphicsLib)]
     public static extern CGRect CGDisplayBounds(uint display);
 
@@ -402,7 +402,7 @@ internal static class CoreGraphics
 
     public enum CGError : int
     {
-        Success = 0
+        Success = 0,
     }
 
     [Flags]
@@ -415,7 +415,7 @@ internal static class CoreGraphics
         AlphaNoneSkipLast = 5,
         AlphaNoneSkipFirst = 6,
         ByteOrder32Little = kCGBitmapByteOrder32Little,
-        ByteOrder32Big = kCGBitmapByteOrder32Big
+        ByteOrder32Big = kCGBitmapByteOrder32Big,
     }
 
     private sealed class OptionalPermissionAccessFunction
@@ -434,7 +434,7 @@ internal static class CoreGraphics
         internal bool Invoke()
         {
             var function = _function.Value;
-            return function is not null && function() != 0;
+            return function is not null && function() is not 0;
         }
 
         private PermissionAccessDelegate? LoadFunction()

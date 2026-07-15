@@ -16,7 +16,7 @@ public class LinuxSimulatorFactoryTests
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Daemon);
 
@@ -48,7 +48,7 @@ public class LinuxSimulatorFactoryTests
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Legacy);
 
@@ -80,7 +80,7 @@ public class LinuxSimulatorFactoryTests
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.None);
 
@@ -100,14 +100,14 @@ public class LinuxSimulatorFactoryTests
         // Assert
         Assert.False(result.IsSupported);
         Assert.IsType<UnavailableInputSimulator>(result);
-        Assert.Contains("No usable Linux input backend is available", ((UnavailableInputSimulator)result).FailureMessage);
+        Assert.Contains("No usable Linux input backend is available", ((UnavailableInputSimulator)result).FailureMessage, StringComparison.Ordinal);
     }
 
     [LinuxFact]
     public void Create_WhenX11NativeSimulatorSupported_ReturnsX11BeforeCapabilityFallback()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(false);
+        env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Daemon);
@@ -134,7 +134,7 @@ public class LinuxSimulatorFactoryTests
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDaemon_ReturnsIpcSimulator()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(false);
+        env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Daemon);
@@ -161,7 +161,7 @@ public class LinuxSimulatorFactoryTests
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDirect_ReturnsLegacySimulator()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(false);
+        env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Legacy);
@@ -188,7 +188,7 @@ public class LinuxSimulatorFactoryTests
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsNone_ReturnsUnsupportedSimulator()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(false);
+        env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.None);
@@ -217,17 +217,17 @@ public class LinuxSimulatorFactoryTests
     public void Create_WhenWaylandPermissionDeniedAndNoReadableEvents_ReturnsDiagnosticReason()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.None);
         capability.GetSnapshot().Returns(new LinuxInputCapabilitySnapshot(
             "/run/crossmacro/crossmacro.sock",
-            true,
-            false,
-            false,
-            false,
-            false,
+DaemonSocketExists: true,
+DaemonHandshakeSucceeded: false,
+DaemonHandshakeTimedOut: false,
+CanUseDirectUInput: false,
+CanReadInputEvents: false,
             LinuxDaemonHandshakeProbeResult.Failed(
                 "/run/crossmacro/crossmacro.sock",
                 TimeSpan.FromSeconds(5),

@@ -85,7 +85,7 @@ internal sealed class DesktopStartupRuntimeService
                 }
 
                 return Task.CompletedTask;
-            })
+            }),
         ]);
     }
 
@@ -104,7 +104,7 @@ internal sealed class DesktopStartupRuntimeService
         trayIconService.Initialize();
 
         var inputSimulatorPool = _getInputSimulatorPool();
-        if (inputSimulatorPool != null)
+        if (inputSimulatorPool is not null)
         {
             _warmupTasks.Add(_inputSimulatorWarmupService.WarmUpAsync(
                 inputSimulatorPool,
@@ -120,7 +120,7 @@ internal sealed class DesktopStartupRuntimeService
         var displayMode = ConfigureMainWindow(desktop, mainWindow, startupPreferences, trayIconService);
         ShowWindowForStartup(mainWindow, displayMode);
 
-        if (_screenReadingWarmup != null)
+        if (_screenReadingWarmup is not null)
         {
             _warmupTasks.Add(RunScreenReadingWarmupAsync(_warmupCancellation.Token));
         }
@@ -129,7 +129,7 @@ internal sealed class DesktopStartupRuntimeService
 
     internal async Task StopAsync()
     {
-        if (Interlocked.Exchange(ref _stopped, 1) != 0)
+        if (Interlocked.Exchange(ref _stopped, 1) is not 0)
         {
             return;
         }
@@ -171,12 +171,12 @@ internal sealed class DesktopStartupRuntimeService
 
     private async Task RunScreenReadingWarmupAsync(CancellationToken cancellationToken)
     {
-        if (_screenReadingWarmup == null)
+        if (_screenReadingWarmup is null)
         {
             return;
         }
 
-        if (_portalScreenReadingGuidanceService != null)
+        if (_portalScreenReadingGuidanceService is not null)
         {
             try
             {
@@ -279,7 +279,7 @@ internal sealed class DesktopStartupRuntimeService
                 ShowActivated: true,
                 WindowState: WindowState.Normal,
                 DisableStartupOnlyTrayAfterInitialRestore: startupPreferences.UseStartupTrayOnly),
-            _ => throw new ArgumentOutOfRangeException(nameof(displayMode), displayMode, "Unknown initial display mode.")
+            _ => throw new ArgumentOutOfRangeException(nameof(displayMode), displayMode, "Unknown initial display mode."),
         };
     }
 
@@ -291,7 +291,7 @@ internal sealed class DesktopStartupRuntimeService
         void OnOpened(object? sender, EventArgs e)
         {
             mainWindow.Opened -= OnOpened;
-            trayIconService.SetEnabled(false);
+            trayIconService.SetEnabled(enabled: false);
             Log.Information("[DesktopStartupCoordinator] Disabled startup-only tray after initial restore.");
         }
 

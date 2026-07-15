@@ -14,12 +14,12 @@ public interface IScheduledTaskExecutor
     /// Executes a single scheduled task
     /// </summary>
     Task ExecuteAsync(ScheduledTask task, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Event fired when a task execution is completed
     /// </summary>
     event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
-    
+
     /// <summary>
     /// Event fired when a task is starting
     /// </summary>

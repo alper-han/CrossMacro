@@ -14,7 +14,7 @@ namespace CrossMacro.Platform.Linux.Services
     {
         private double _lastX = -1;
         private double _lastY = -1;
-        
+
         // State for motion compression
         private bool _pendingMotion = false;
         private long _lastMotionTime = 0;
@@ -52,9 +52,8 @@ namespace CrossMacro.Platform.Linux.Services
         protected override void ProcessMotion(XGenericEventCookie cookie)
         {
 
-            
             _pendingMotion = true;
-                
+
             long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if ((now - _lastMotionTime) >= MinMotionIntervalMs)
             {
@@ -81,17 +80,17 @@ namespace CrossMacro.Platform.Linux.Services
 
             double dx = rootX - _lastX;
             double dy = rootY - _lastY;
-            
+
             _lastX = rootX;
             _lastY = rootY;
-            
+
 
             if (dx == 0 && dy == 0) return;
 
             int moveX = (int)dx;
             int moveY = (int)dy;
 
-            if (moveX != 0)
+            if (moveX is not 0)
             {
                 var argsX = new InputCaptureEventArgs
                 {
@@ -99,12 +98,12 @@ namespace CrossMacro.Platform.Linux.Services
                     Code = 0,
                     Value = moveX,
                     Timestamp = _lastMotionTime,
-                    DeviceName = ProviderName
+                    DeviceName = ProviderName,
                 };
                 OnInputReceived(argsX);
             }
 
-            if (moveY != 0)
+            if (moveY is not 0)
             {
                 var argsY = new InputCaptureEventArgs
                 {
@@ -112,17 +111,17 @@ namespace CrossMacro.Platform.Linux.Services
                     Code = 1,
                     Value = moveY,
                     Timestamp = _lastMotionTime,
-                    DeviceName = ProviderName
+                    DeviceName = ProviderName,
                 };
                 OnInputReceived(argsY);
             }
-            
+
             // SYNC
             var argsSync = new InputCaptureEventArgs
             {
                 Type = InputEventType.Sync,
                 Timestamp = _lastMotionTime,
-                DeviceName = ProviderName
+                DeviceName = ProviderName,
             };
             OnInputReceived(argsSync);
         }

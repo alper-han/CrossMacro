@@ -99,37 +99,37 @@ public static class Log
         }
 
         public void Verbose(string messageTemplate, params object?[] propertyValues) =>
-            Write(CoreLogLevel.Verbose, null, messageTemplate, propertyValues);
+            Write(CoreLogLevel.Verbose, exception: null, messageTemplate, propertyValues);
 
         public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Verbose, exception, messageTemplate, propertyValues);
 
         public void Debug(string messageTemplate, params object?[] propertyValues) =>
-            Write(CoreLogLevel.Debug, null, messageTemplate, propertyValues);
+            Write(CoreLogLevel.Debug, exception: null, messageTemplate, propertyValues);
 
         public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Debug, exception, messageTemplate, propertyValues);
 
         public void Information(string messageTemplate, params object?[] propertyValues) =>
-            Write(CoreLogLevel.Information, null, messageTemplate, propertyValues);
+            Write(CoreLogLevel.Information, exception: null, messageTemplate, propertyValues);
 
         public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Information, exception, messageTemplate, propertyValues);
 
         public void Warning(string messageTemplate, params object?[] propertyValues) =>
-            Write(CoreLogLevel.Warning, null, messageTemplate, propertyValues);
+            Write(CoreLogLevel.Warning, exception: null, messageTemplate, propertyValues);
 
         public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Warning, exception, messageTemplate, propertyValues);
 
         public void Error(string messageTemplate, params object?[] propertyValues) =>
-            Write(CoreLogLevel.Error, null, messageTemplate, propertyValues);
+            Write(CoreLogLevel.Error, exception: null, messageTemplate, propertyValues);
 
         public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Error, exception, messageTemplate, propertyValues);
 
         public void Fatal(string messageTemplate, params object?[] propertyValues) =>
-            Write(CoreLogLevel.Fatal, null, messageTemplate, propertyValues);
+            Write(CoreLogLevel.Fatal, exception: null, messageTemplate, propertyValues);
 
         public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Write(CoreLogLevel.Fatal, exception, messageTemplate, propertyValues);
@@ -151,7 +151,7 @@ public static class Log
             builder.Append("[CrossMacro][").Append(level).Append("] ");
             builder.Append(FormatMessage(messageTemplate, propertyValues));
 
-            if (exception != null)
+            if (exception is not null)
             {
                 builder.AppendLine();
                 builder.Append(exception);
@@ -162,7 +162,7 @@ public static class Log
 
         private void EmitBootstrapWarning()
         {
-            if (Interlocked.Exchange(ref _bootstrapWarningEmitted, 1) == 1)
+            if (Interlocked.Exchange(ref _bootstrapWarningEmitted, 1) is 1)
             {
                 return;
             }
@@ -172,7 +172,7 @@ public static class Log
 
         private static string FormatMessage(string template, object?[] propertyValues)
         {
-            if (propertyValues.Length == 0)
+            if (propertyValues.Length is 0)
             {
                 return template;
             }
@@ -219,8 +219,8 @@ public static class Log
 
         public void Dispose()
         {
-            var previousLogger = Interlocked.Exchange(ref _previousLogger, null);
-            if (previousLogger != null)
+            var previousLogger = Interlocked.Exchange(ref _previousLogger, value: null);
+            if (previousLogger is not null)
             {
                 Configure(previousLogger);
             }

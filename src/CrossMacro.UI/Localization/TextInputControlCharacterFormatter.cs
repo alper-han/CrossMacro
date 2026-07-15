@@ -35,7 +35,7 @@ internal static class TextInputControlCharacterFormatter
                 '⌫' => '\b',
                 '↵' => '\r',
                 '⇥' => '\t',
-                _ => ch
+                _ => ch,
             });
         }
 

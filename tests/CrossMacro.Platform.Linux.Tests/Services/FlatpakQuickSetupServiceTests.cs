@@ -18,7 +18,7 @@ public sealed class FlatpakQuickSetupServiceTests
         var env = new Dictionary<string, string?>
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -38,7 +38,7 @@ public sealed class FlatpakQuickSetupServiceTests
         var env = new Dictionary<string, string?>
         {
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -58,7 +58,7 @@ public sealed class FlatpakQuickSetupServiceTests
         var env = new Dictionary<string, string?>
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var commandWasRun = false;
@@ -84,7 +84,7 @@ public sealed class FlatpakQuickSetupServiceTests
         var env = new Dictionary<string, string?>
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         ProcessStartInfo? capturedStartInfo = null;
@@ -101,14 +101,14 @@ public sealed class FlatpakQuickSetupServiceTests
         var result = await service.RunAsync();
 
         Assert.True(result.Success);
-        Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=5.", result.Message);
+        Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=5.", result.Message, StringComparison.Ordinal);
         Assert.NotNull(capturedStartInfo);
         Assert.Equal("flatpak-spawn", capturedStartInfo!.FileName);
         Assert.Contains("--host", capturedStartInfo.ArgumentList);
         Assert.Contains("pkexec", capturedStartInfo.ArgumentList);
         Assert.Equal("1042", capturedStartInfo.ArgumentList[^1]);
-        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[4]);
-        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[4]);
+        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[4], StringComparison.Ordinal);
+        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[4], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class FlatpakQuickSetupServiceTests
         var env = new Dictionary<string, string?>
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         ProcessStartInfo? capturedStartInfo = null;
@@ -144,7 +144,7 @@ public sealed class FlatpakQuickSetupServiceTests
         var env = new Dictionary<string, string?>
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(

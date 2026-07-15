@@ -32,9 +32,9 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenAbsoluteRequestedButUnsupported_FallsBackToRelativeWithWarning()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         ConfigureImmediateStart();
-        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.IsRecording.Returns(returnThis: true, false);
         _macroRecorder.StopRecording().Returns(CreateSequenceWithOneEvent());
 
         using var cts = new CancellationTokenSource();
@@ -42,7 +42,7 @@ public class RecordExecutionServiceTests
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
             OutputFilePath = "/tmp/test-record-abs-fallback.macro",
-            CoordinateMode = RecordCoordinateMode.Absolute
+            CoordinateMode = RecordCoordinateMode.Absolute,
         }, cts.Token);
 
         await CancelAfterStartupWaitIsObservedAsync(cts);
@@ -53,8 +53,8 @@ public class RecordExecutionServiceTests
         Assert.Contains(result.Warnings, x => x.Contains("Falling back to relative mode.", StringComparison.Ordinal));
 
         await _macroRecorder.Received(1).StartRecordingAsync(
-            true,
-            true,
+recordMouse: true,
+recordKeyboard: true,
             Arg.Any<IEnumerable<int>>(),
             forceRelative: true,
             skipInitialZero: false,
@@ -64,10 +64,10 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenAutoAndAbsoluteSupported_UsesAbsolute()
     {
-        _mousePositionProvider.IsSupported.Returns(true);
+        _mousePositionProvider.IsSupported.Returns(returnThis: true);
         _mousePositionProvider.GetAbsolutePositionAsync().Returns((100, 200));
         ConfigureImmediateStart();
-        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.IsRecording.Returns(returnThis: true, false);
         _macroRecorder.StopRecording().Returns(CreateSequenceWithOneEvent());
 
         using var cts = new CancellationTokenSource();
@@ -76,7 +76,7 @@ public class RecordExecutionServiceTests
         {
             OutputFilePath = "/tmp/test-record-auto-abs.macro",
             CoordinateMode = RecordCoordinateMode.Auto,
-            DurationSeconds = 0
+            DurationSeconds = 0,
         }, cts.Token);
 
         await CancelAfterStartupWaitIsObservedAsync(cts);
@@ -84,8 +84,8 @@ public class RecordExecutionServiceTests
 
         Assert.True(result.Success);
         await _macroRecorder.Received(1).StartRecordingAsync(
-            true,
-            true,
+recordMouse: true,
+recordKeyboard: true,
             Arg.Any<IEnumerable<int>>(),
             forceRelative: false,
             skipInitialZero: false,
@@ -95,10 +95,10 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenRecordedSequenceFallsBackToRelative_DataReflectsEffectiveMode()
     {
-        _mousePositionProvider.IsSupported.Returns(true);
+        _mousePositionProvider.IsSupported.Returns(returnThis: true);
         _mousePositionProvider.GetAbsolutePositionAsync().Returns((100, 200));
         ConfigureImmediateStart();
-        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.IsRecording.Returns(returnThis: true, false);
         _macroRecorder.StopRecording().Returns(new MacroSequence
         {
             Name = "recorded",
@@ -113,7 +113,7 @@ public class RecordExecutionServiceTests
                     Y = 1,
                     Timestamp = 0
                 }
-            }
+            },
         });
 
         using var cts = new CancellationTokenSource();
@@ -121,7 +121,7 @@ public class RecordExecutionServiceTests
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
             OutputFilePath = "/tmp/test-record-effective-mode.macro",
-            CoordinateMode = RecordCoordinateMode.Auto
+            CoordinateMode = RecordCoordinateMode.Auto,
         }, cts.Token);
 
         await CancelAfterStartupWaitIsObservedAsync(cts);
@@ -137,16 +137,16 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenNoEventsRecorded_ReturnsRuntimeError()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         ConfigureImmediateStart();
-        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.IsRecording.Returns(returnThis: true, false);
         _macroRecorder.StopRecording().Returns(new MacroSequence());
 
         using var cts = new CancellationTokenSource();
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-empty.macro"
+            OutputFilePath = "/tmp/test-record-empty.macro",
         }, cts.Token);
 
         await CancelAfterStartupWaitIsObservedAsync(cts);
@@ -154,13 +154,13 @@ public class RecordExecutionServiceTests
 
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
-        Assert.Contains("No events were recorded", result.Message);
+        Assert.Contains("No events were recorded", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenStartTaskDoesNotComplete_ReturnsCancelled()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         var blockingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
@@ -171,13 +171,13 @@ public class RecordExecutionServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(blockingStartTask.Task);
 
-        _macroRecorder.IsRecording.Returns(false);
+        _macroRecorder.IsRecording.Returns(returnThis: false);
 
         using var cts = new CancellationTokenSource();
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-blocking-start.macro"
+            OutputFilePath = "/tmp/test-record-blocking-start.macro",
         }, cts.Token);
 
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
@@ -198,7 +198,7 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenStartTaskFaults_ReturnsEnvironmentError()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
@@ -210,7 +210,7 @@ public class RecordExecutionServiceTests
 
         var result = await _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-start-fail.macro"
+            OutputFilePath = "/tmp/test-record-start-fail.macro",
         }, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -222,7 +222,7 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenStartTaskFaultsAfterProbe_ReturnsEnvironmentErrorWithoutExternalCancellation()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var startInvoked = new AsyncSignal();
         _macroRecorder.StartRecordingAsync(
@@ -238,11 +238,11 @@ public class RecordExecutionServiceTests
                 return delayedStartTask.Task;
             });
 
-        _macroRecorder.IsRecording.Returns(false);
+        _macroRecorder.IsRecording.Returns(returnThis: false);
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-late-start-fail.macro"
+            OutputFilePath = "/tmp/test-record-late-start-fail.macro",
         }, CancellationToken.None);
 
         await startInvoked.WaitAsync(TimeSpan.FromSeconds(2));
@@ -258,7 +258,7 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenCancelledThenStartupFaults_ReturnsEnvironmentError()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
@@ -269,13 +269,13 @@ public class RecordExecutionServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(delayedStartTask.Task);
 
-        _macroRecorder.IsRecording.Returns(false);
+        _macroRecorder.IsRecording.Returns(returnThis: false);
 
         using var cts = new CancellationTokenSource();
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-cancel-then-fault.macro"
+            OutputFilePath = "/tmp/test-record-cancel-then-fault.macro",
         }, cts.Token);
 
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
@@ -298,7 +298,7 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenCancelledButEventsCapturedAndStartupSettlesLate_PreservesSuccessfulRecording()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         var neverCompletingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
@@ -309,14 +309,14 @@ public class RecordExecutionServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(neverCompletingStartTask.Task);
 
-        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.IsRecording.Returns(returnThis: true, false);
         _macroRecorder.StopRecording().Returns(CreateSequenceWithOneEvent());
 
         using var cts = new CancellationTokenSource();
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-cancel-with-captured-events.macro"
+            OutputFilePath = "/tmp/test-record-cancel-with-captured-events.macro",
         }, cts.Token);
 
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
@@ -336,7 +336,7 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenCancelledBeforeStartAndStopFails_ReturnsRuntimeError()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         var blockingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
@@ -347,14 +347,14 @@ public class RecordExecutionServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(blockingStartTask.Task);
 
-        _macroRecorder.IsRecording.Returns(true);
+        _macroRecorder.IsRecording.Returns(returnThis: true);
         _macroRecorder.StopRecording().Returns(_ => throw new InvalidOperationException("stop failed"));
 
         using var cts = new CancellationTokenSource();
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-cancel-stop-fail.macro"
+            OutputFilePath = "/tmp/test-record-cancel-stop-fail.macro",
         }, cts.Token);
 
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
@@ -376,7 +376,7 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenCancelledBeforeStartAndRecorderStopsConcurrently_ReturnsCancelled()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         var blockingStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
                 Arg.Any<bool>(),
@@ -387,14 +387,14 @@ public class RecordExecutionServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(blockingStartTask.Task);
 
-        _macroRecorder.IsRecording.Returns(true, false);
+        _macroRecorder.IsRecording.Returns(returnThis: true, false);
         _macroRecorder.StopRecording().Returns(_ => throw new InvalidOperationException("Not currently recording"));
 
         using var cts = new CancellationTokenSource();
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-cancel-race-stop-transition.macro"
+            OutputFilePath = "/tmp/test-record-cancel-race-stop-transition.macro",
         }, cts.Token);
 
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
@@ -415,7 +415,7 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenCancelledDuringSlowStartupThatLaterSucceeds_ReturnsCancelled()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var startInvoked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _macroRecorder.StartRecordingAsync(
@@ -431,13 +431,13 @@ public class RecordExecutionServiceTests
                 return delayedStartTask.Task;
             });
 
-        _macroRecorder.IsRecording.Returns(false);
+        _macroRecorder.IsRecording.Returns(returnThis: false);
 
         using var cts = new CancellationTokenSource();
 
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
-            OutputFilePath = "/tmp/test-record-cancel-then-succeed.macro"
+            OutputFilePath = "/tmp/test-record-cancel-then-succeed.macro",
         }, cts.Token);
 
         await startInvoked.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -461,7 +461,7 @@ public class RecordExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenDurationRequested_WaitsUntilStartupCompletesBeforeStopping()
     {
-        _mousePositionProvider.IsSupported.Returns(false);
+        _mousePositionProvider.IsSupported.Returns(returnThis: false);
         var delayedStartTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var stopCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var isRecording = false;
@@ -486,7 +486,7 @@ public class RecordExecutionServiceTests
         var executeTask = _service.ExecuteAsync(new RecordExecutionRequest
         {
             OutputFilePath = "/tmp/test-record-duration-after-startup.macro",
-            DurationSeconds = 1
+            DurationSeconds = 1,
         }, CancellationToken.None);
 
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
@@ -531,14 +531,14 @@ public class RecordExecutionServiceTests
     {
         var sequence = new MacroSequence
         {
-            Name = "recorded"
+            Name = "recorded",
         };
         sequence.Events.Add(new MacroEvent
         {
             Type = EventType.MouseMove,
             X = 1,
             Y = 1,
-            Timestamp = 0
+            Timestamp = 0,
         });
         sequence.CalculateDuration();
         return sequence;
@@ -589,7 +589,7 @@ public class RecordExecutionServiceTests
                     if (_requests.Count > 0)
                     {
                         var request = _requests.Dequeue();
-                        if (_requests.Count == 0)
+                        if (_requests.Count is 0)
                         {
                             _requestArrived.Reset();
                         }

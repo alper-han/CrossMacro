@@ -93,12 +93,12 @@ public sealed class LiveWaylandScreenReadingSmokeTests
     private static string DescribePixelResult(string operation, ScreenPoint point, ScreenReadResult<ScreenPixelColor> result) =>
         result.IsSuccess
             ? $"{operation} at {point}: {result.Value}"
-            : $"{operation} at {point}: {DescribeFailure(null, result.ErrorKind, result.ErrorMessage)}";
+            : $"{operation} at {point}: {DescribeFailure(backend: null, result.ErrorKind, result.ErrorMessage)}";
 
     private static string DescribeSearchResult(ScreenRect region, ScreenPixelColor color, ScreenReadResult<ScreenPixelSearchMatch> result) =>
         result.IsSuccess
             ? $"SearchPixel in {region} for {color}: {result.Value}"
-            : $"SearchPixel in {region} for {color}: {DescribeFailure(null, result.ErrorKind, result.ErrorMessage)}";
+            : $"SearchPixel in {region} for {color}: {DescribeFailure(backend: null, result.ErrorKind, result.ErrorMessage)}";
 
     private static string DescribeFailure(ScreenReadingDiagnosticSnapshot? diagnostics, string operation, ScreenPoint point, ScreenReadErrorKind? errorKind, string? errorMessage) =>
         $"{operation} at {point} failed: {DescribeFailure(diagnostics?.FailureBackend, errorKind, errorMessage)}";

@@ -12,12 +12,12 @@ public interface ILinuxEnvironmentDetector
     /// Result is cached after first detection.
     /// </summary>
     CompositorType DetectedCompositor { get; }
-    
+
     /// <summary>
     /// Determines if the current session is Wayland-based.
     /// </summary>
     bool IsWayland { get; }
-    
+
     /// <summary>
     /// Determines if the current session is X11-based.
     /// </summary>

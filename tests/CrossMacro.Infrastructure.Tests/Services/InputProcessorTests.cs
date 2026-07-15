@@ -25,7 +25,7 @@ public class InputProcessorTests
         // Arrange
         var charReceived = false;
         _processor.CharacterReceived += _ => charReceived = true;
-        
+
         var mouseEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = 0, Value = 0 };
 
         // Act
@@ -41,8 +41,8 @@ public class InputProcessorTests
         // Arrange
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
-        _layoutService.GetCharFromKeyCode(30, false, false, false, false, false, false).Returns('a');
-        
+        _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false).Returns('a');
+
         var keyEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
 
         // Act
@@ -58,7 +58,7 @@ public class InputProcessorTests
         // Arrange
         int? receivedKey = null;
         _processor.SpecialKeyReceived += k => receivedKey = k;
-        
+
         var backspaceEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 14, Value = 1 };
 
         // Act
@@ -74,7 +74,7 @@ public class InputProcessorTests
         // Arrange
         int? receivedKey = null;
         _processor.SpecialKeyReceived += k => receivedKey = k;
-        
+
         var enterEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 28, Value = 1 };
 
         // Act
@@ -90,9 +90,9 @@ public class InputProcessorTests
         // Arrange
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
-        _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(), 
+        _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(),
             Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns('a');
-        
+
         var keyReleaseEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 0 };
 
         // Act
@@ -160,16 +160,16 @@ public class InputProcessorTests
     public void ProcessEvent_ShouldToggleCapsLock_OnPress()
     {
         // Arrange - simulate CapsLock press affecting character output
-        _layoutService.GetCharFromKeyCode(30, false, false, false, false, false, true).Returns('A');
-        _layoutService.GetCharFromKeyCode(30, false, false, false, false, false, false).Returns('a');
-        
+        _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: true).Returns('A');
+        _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false).Returns('a');
+
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
 
         // Act - press CapsLock then type 'a'
         var capsLockPress = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 58, Value = 1 };
         _processor.ProcessEvent(capsLockPress);
-        
+
         var keyEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
         _processor.ProcessEvent(keyEvent);
 

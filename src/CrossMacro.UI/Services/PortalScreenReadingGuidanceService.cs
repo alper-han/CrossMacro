@@ -40,7 +40,7 @@ internal sealed class PortalScreenReadingGuidanceService : IPortalScreenReadingG
 
     private bool ShouldShowGuidance()
     {
-        if (_diagnosticProvider == null)
+        if (_diagnosticProvider is null)
         {
             return false;
         }

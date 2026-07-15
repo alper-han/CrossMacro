@@ -11,7 +11,7 @@ public interface ITimeProvider
     /// Gets the current local date and time
     /// </summary>
     DateTime Now { get; }
-    
+
     /// <summary>
     /// Gets the current UTC date and time
     /// </summary>

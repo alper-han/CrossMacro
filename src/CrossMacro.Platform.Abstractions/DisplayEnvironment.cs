@@ -49,5 +49,5 @@ public enum DisplayEnvironment
     /// <summary>
     /// Linux with GNOME desktop.
     /// </summary>
-    LinuxGnome
+    LinuxGnome,
 }

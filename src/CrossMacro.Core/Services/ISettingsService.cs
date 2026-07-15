@@ -12,7 +12,7 @@ public interface ISettingsService
     /// Gets the current application settings
     /// </summary>
     AppSettings Current { get; }
-    
+
     /// <summary>
     /// Loads settings from disk asynchronously
     /// </summary>
@@ -22,7 +22,7 @@ public interface ISettingsService
     /// Loads settings from disk synchronously
     /// </summary>
     AppSettings Load();
-    
+
     /// <summary>
     /// Saves current settings to disk
     /// </summary>
@@ -32,7 +32,7 @@ public interface ISettingsService
     /// Reloads profile-specific settings from a profile configuration directory.
     /// </summary>
     Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
-    
+
     /// <summary>
     /// Saves current settings to disk synchronously
     /// </summary>

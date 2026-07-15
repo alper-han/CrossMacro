@@ -12,7 +12,7 @@ namespace CrossMacro.Daemon.Security;
 /// Polkit authorization checker using pkcheck command.
 /// Requires polkitd to be running and a CrossMacro polkit policy file to be installed.
 /// Uses auth_self_keep - user enters their own password, cached for 5 minutes.
-/// 
+///
 /// This implementation uses pkcheck instead of D-Bus for simplicity and
 /// guaranteed AOT compatibility.
 /// </summary>
@@ -66,12 +66,12 @@ public static class PolkitChecker
                     {
                         "--action-id", actionId,
                         "--process", processSubject,
-                        "--allow-user-interaction"
+                        "--allow-user-interaction",
                     },
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
                 };
 
                 using var process = new Process { StartInfo = startInfo };
@@ -112,7 +112,7 @@ public static class PolkitChecker
                 // 1 = not authorized
                 // 2 = authorization was dismissed
                 // 126 = action does not exist
-                if (exitCode == 0)
+                if (exitCode is 0)
                 {
                     Log.Information("[Polkit] Authorization GRANTED for {Action} (UID={Uid}, PID={Pid})",
                         actionId, uid, pid);
@@ -120,7 +120,7 @@ public static class PolkitChecker
                     return true;
                 }
 
-                if (exitCode == 1 || exitCode == 2)
+                if (exitCode is 1 or 2)
                 {
                     Log.Information("[Polkit] Authorization DENIED for {Action} (UID={Uid}, PID={Pid})",
                         actionId, uid, pid);
@@ -128,7 +128,7 @@ public static class PolkitChecker
                     return false;
                 }
 
-                if (exitCode == 126)
+                if (exitCode is 126)
                 {
                     Log.Warning("[Polkit] Action {Action} not registered - install the polkit policy file", actionId);
                     return false; // Policy not installed - deny connection
@@ -141,7 +141,7 @@ public static class PolkitChecker
 
             return false;
         }
-        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 2)
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode is 2)
         {
             // pkcheck not found (ENOENT)
             Log.Warning("[Polkit] pkcheck command not found - polkit is required for daemon mode");
@@ -218,7 +218,7 @@ public static class PolkitChecker
             return false;
         }
 
-        return exitCode != 0 &&
+        return exitCode is not 0 &&
                (stderr.Contains("does not have uid set", StringComparison.OrdinalIgnoreCase) ||
                 stderr.Contains("No such process", StringComparison.OrdinalIgnoreCase) ||
                 stderr.Contains("process has changed", StringComparison.OrdinalIgnoreCase));

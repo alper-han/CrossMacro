@@ -116,7 +116,7 @@ public class SecurityService : ISecurityService, IDisposable
 
     private void PruneExpiredAuthorizations(DateTime now)
     {
-        if (_authorizedUidCache.Count == 0)
+        if (_authorizedUidCache.Count is 0)
         {
             return;
         }
@@ -131,7 +131,7 @@ public class SecurityService : ISecurityService, IDisposable
             }
         }
 
-        if (expired == null)
+        if (expired is null)
         {
             return;
         }
@@ -145,7 +145,7 @@ public class SecurityService : ISecurityService, IDisposable
     private async Task<ConnectionAuthorizationDecision> AuthorizeConnectionAsync(Socket client)
     {
         var creds = _peerCredentials.GetCredentials(client);
-        if (creds == null)
+        if (creds is null)
         {
             Log.Warning("[Security] Failed to get peer credentials, rejecting connection");
             _auditLogger.LogSecurityViolation(0, 0, "PEER_CRED_FAILED");
@@ -165,7 +165,7 @@ public class SecurityService : ISecurityService, IDisposable
         if (uid == 0)
         {
             Log.Warning("[Security] Root connection rejected (UID=0)");
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "ROOT_REJECTED");
+            _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "ROOT_REJECTED");
             return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "ROOT_REJECTED");
         }
 
@@ -179,7 +179,7 @@ public class SecurityService : ISecurityService, IDisposable
         if (!_peerCredentials.IsUserInGroup(uid, "crossmacro"))
         {
             Log.Warning("[Security] UID {Uid} is not in 'crossmacro' group", uid);
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "NOT_IN_GROUP");
+            _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "NOT_IN_GROUP");
             return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "NOT_IN_GROUP");
         }
 
@@ -210,7 +210,7 @@ public class SecurityService : ISecurityService, IDisposable
         {
             Log.Warning(ex, "[Security] Polkit authorization check failed for UID {Uid}", uid);
             RemoveCachedAuthorization(uid);
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "POLKIT_ERROR");
+            _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "POLKIT_ERROR");
             return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "POLKIT_ERROR");
         }
 
@@ -218,7 +218,7 @@ public class SecurityService : ISecurityService, IDisposable
         {
             Log.Warning("[Security] Polkit authorization denied for UID {Uid}", uid);
             RemoveCachedAuthorization(uid);
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, false, "POLKIT_DENIED");
+            _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "POLKIT_DENIED");
             return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "POLKIT_DENIED");
         }
 
@@ -245,12 +245,12 @@ public class SecurityService : ISecurityService, IDisposable
         string? Reason)
     {
         public static ConnectionAuthorizationDecision Allow(uint uid, int pid, string? executable) =>
-            new(true, uid, pid, executable, null);
+            new(IsAuthorized: true, uid, pid, executable, Reason: null);
 
         public static ConnectionAuthorizationDecision Reject(string reason) =>
-            new(false, 0, 0, null, reason);
+            new(IsAuthorized: false, 0, 0, Executable: null, reason);
 
         public static ConnectionAuthorizationDecision Reject(uint uid, int pid, string? executable, string reason) =>
-            new(false, uid, pid, executable, reason);
+            new(IsAuthorized: false, uid, pid, executable, reason);
     }
 }

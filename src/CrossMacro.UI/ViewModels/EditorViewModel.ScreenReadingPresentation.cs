@@ -17,9 +17,9 @@ public partial class EditorViewModel
 
     public IReadOnlyList<EditorActionScreenTargetColorSource> ScreenTargetColorSources => EditorScreenTargetColorSources;
     public IReadOnlyList<EditorImageMatchMode> ImageMatchModes { get; } = Enum.GetValues<EditorImageMatchMode>();
-    public bool ShowPixelColorFields => SelectedAction?.Type == EditorActionType.PixelColor;
-    public bool ShowWaitColorFields => SelectedAction?.Type == EditorActionType.WaitColor;
-    public bool ShowPixelSearchFields => SelectedAction?.Type == EditorActionType.PixelSearch;
+    public bool ShowPixelColorFields => (SelectedAction?.Type) is EditorActionType.PixelColor;
+    public bool ShowWaitColorFields => (SelectedAction?.Type) is EditorActionType.WaitColor;
+    public bool ShowPixelSearchFields => (SelectedAction?.Type) is EditorActionType.PixelSearch;
     public bool ShowImageSearchFields => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
     public WriteableBitmap? SelectedImageAssetPreview => _selectedImageAssetPreview;
     public bool ShowSelectedImageAssetPreview => ShowImageSearchFields && SelectedImageAssetPreview is not null;
@@ -31,14 +31,14 @@ public partial class EditorViewModel
     public IReadOnlyList<string> AvailableColorVariableNames => _availableColorVariableNames;
     public bool HasAvailableColorVariableNames => AvailableColorVariableNames.Count > 0;
     public bool ShowScreenTargetColorHexInput => ShowScreenReadingColorFields
-        && SelectedAction?.ScreenTargetColorSource == EditorActionScreenTargetColorSource.ManualHex;
+&& (SelectedAction?.ScreenTargetColorSource) is EditorActionScreenTargetColorSource.ManualHex;
     public bool ShowScreenTargetColorVariableInput => ShowScreenReadingColorFields
-        && SelectedAction?.ScreenTargetColorSource == EditorActionScreenTargetColorSource.Variable;
+&& (SelectedAction?.ScreenTargetColorSource) is EditorActionScreenTargetColorSource.Variable;
     public bool ShowScreenTargetColorVariablePicker => ShowScreenTargetColorVariableInput && HasAvailableColorVariableNames;
-    public bool ShowScreenReadingRawAssistance => SelectedAction?.Type == EditorActionType.RawScriptStep
-        && TryGetRawScreenReadingHint(SelectedAction.Text, out _);
-    public string ScreenReadingRawHint => SelectedAction?.Type == EditorActionType.RawScriptStep
-        && TryGetRawScreenReadingHint(SelectedAction.Text, out var hint)
+    public bool ShowScreenReadingRawAssistance => (SelectedAction?.Type) is EditorActionType.RawScriptStep
+&& TryGetRawScreenReadingHint(SelectedAction.Text, out _);
+    public string ScreenReadingRawHint => (SelectedAction?.Type) is EditorActionType.RawScriptStep
+&& TryGetRawScreenReadingHint(SelectedAction.Text, out var hint)
             ? hint
             : string.Empty;
     public bool ShowScreenReadingColorPreview => !string.IsNullOrWhiteSpace(ScreenReadingColorPreviewHex);
@@ -81,7 +81,7 @@ public partial class EditorViewModel
 
     private void RefreshSelectedImageAssetPreview()
     {
-        SetSelectedImageAssetPreview(null);
+        SetSelectedImageAssetPreview(preview: null);
         if (!ShowImageSearchFields)
         {
             return;
@@ -156,14 +156,14 @@ public partial class EditorViewModel
         }
 
         if (SelectedAction.TryGetScreenReadingPayload(out var payload)
-            && payload.UsesTargetColor
-            && payload.ScreenTargetColorSource == EditorActionScreenTargetColorSource.ManualHex)
+&& payload.UsesTargetColor
+&& payload.ScreenTargetColorSource is EditorActionScreenTargetColorSource.ManualHex)
         {
             return NormalizePreviewColor(payload.ScreenColorHex);
         }
 
-        if (SelectedAction.Type == EditorActionType.RawScriptStep
-            && TryExtractRawScreenReadingColor(SelectedAction.Text, out var colorHex))
+        if (SelectedAction.Type is EditorActionType.RawScriptStep
+&& TryExtractRawScreenReadingColor(SelectedAction.Text, out var colorHex))
         {
             return colorHex;
         }
@@ -180,7 +180,7 @@ public partial class EditorViewModel
         }
 
         var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length == 0)
+        if (tokens.Length is 0)
         {
             return false;
         }
@@ -196,7 +196,7 @@ public partial class EditorViewModel
             "imagesearch" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             "imageclick" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             "waitimage" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            _ => string.Empty
+            _ => string.Empty,
         };
 
         return hint.Length > 0;
@@ -211,7 +211,7 @@ public partial class EditorViewModel
         }
 
         var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length == 0)
+        if (tokens.Length is 0)
         {
             return false;
         }
@@ -224,7 +224,7 @@ public partial class EditorViewModel
             "imagesearch" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             "imageclick" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             "waitimage" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            _ => string.Empty
+            _ => string.Empty,
         };
 
         return hint.Length > 0;
@@ -257,7 +257,7 @@ public partial class EditorViewModel
     private static string NormalizePreviewColor(string? value)
     {
         var color = (value ?? string.Empty).Trim().ToUpperInvariant();
-        if (color.Length != 6 || color.Any(ch => !Uri.IsHexDigit(ch)))
+        if (color.Length is not 6 || color.Any(ch => !Uri.IsHexDigit(ch)))
         {
             return string.Empty;
         }

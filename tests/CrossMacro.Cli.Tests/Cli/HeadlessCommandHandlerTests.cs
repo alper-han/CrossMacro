@@ -19,7 +19,7 @@ public class HeadlessCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Headless mode stopped."
+                Message = "Headless mode stopped.",
             });
 
         var handler = new HeadlessCommandHandler(runtime, preflight);
@@ -42,7 +42,7 @@ public class HeadlessCommandHandlerTests
                 Success = false,
                 ExitCode = CliExitCode.EnvironmentError,
                 Message = "Failed to start headless mode.",
-                Errors = ["unsupported display"]
+                Errors = ["unsupported display"],
             });
 
         var handler = new HeadlessCommandHandler(runtime, preflight);

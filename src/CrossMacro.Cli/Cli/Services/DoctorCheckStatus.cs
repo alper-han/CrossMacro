@@ -4,5 +4,5 @@ public enum DoctorCheckStatus
 {
     Pass,
     Warn,
-    Fail
+    Fail,
 }

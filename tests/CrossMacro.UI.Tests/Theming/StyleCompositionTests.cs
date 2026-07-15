@@ -29,6 +29,6 @@ public partial class StyleCompositionTests
             "/Styles/Components/TemplateOverrides.axaml");
     }
 
-    [GeneratedRegex("<StyleInclude\\s+Source=\"([^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    [GeneratedRegex("<StyleInclude\\s+Source=\"([^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex StyleIncludeRegex();
 }

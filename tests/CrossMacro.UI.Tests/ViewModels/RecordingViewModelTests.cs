@@ -26,7 +26,7 @@ public class RecordingViewModelTests
         _settingsService = Substitute.For<ISettingsService>();
         _localizationService = Substitute.For<ILocalizationService>();
         _runtimeContext = Substitute.For<IRuntimeContext>();
-        _runtimeContext.IsLinux.Returns(true);
+        _runtimeContext.IsLinux.Returns(returnThis: true);
         _localizationService["Recording_StatusReady"].Returns("[Recording_StatusReady]");
         _localizationService["Recording_StatusRecording"].Returns("[Recording_StatusRecording]");
         _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents] {0}");
@@ -35,10 +35,10 @@ public class RecordingViewModelTests
         _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
 
         // Setup default settings
-        _settingsService.Current.Returns(new AppSettings 
-        { 
-            IsMouseRecordingEnabled = true, 
-            IsKeyboardRecordingEnabled = true 
+        _settingsService.Current.Returns(new AppSettings
+        {
+            IsMouseRecordingEnabled = true,
+            IsKeyboardRecordingEnabled = true,
         });
         _settingsService.SaveAsync().Returns(Task.CompletedTask);
 
@@ -123,8 +123,8 @@ public class RecordingViewModelTests
             Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<CancellationToken>());
-        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
-        _hotkeyService.DidNotReceive().SetPlaybackPauseHotkeysEnabled(true);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: false);
+        _hotkeyService.DidNotReceive().SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
 
     [Fact]
@@ -171,8 +171,8 @@ public class RecordingViewModelTests
             Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<CancellationToken>());
-        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
-        _hotkeyService.DidNotReceive().SetPlaybackPauseHotkeysEnabled(true);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: false);
+        _hotkeyService.DidNotReceive().SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
 
     [Fact]
@@ -187,8 +187,8 @@ public class RecordingViewModelTests
         // Assert
         Assert.False(_viewModel.IsRecording);
         await _recorder.DidNotReceive().StartRecordingAsync(
-            Arg.Any<bool>(), 
-            Arg.Any<bool>(), 
+            Arg.Any<bool>(),
+            Arg.Any<bool>(),
             Arg.Any<int[]>());
     }
 
@@ -201,7 +201,7 @@ public class RecordingViewModelTests
         _recorder.StopRecording().Returns(expectedMacro);
 
         // Manually set IsRecording to true via reflection or by calling StartRecordingAsync
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
 
         // Act
         var result = _viewModel.StopRecording();
@@ -209,7 +209,7 @@ public class RecordingViewModelTests
         // Assert
         Assert.False(_viewModel.IsRecording); // Should be false after stop
         Assert.Equal(expectedMacro, result);
-        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public class RecordingViewModelTests
         expectedMacro.Events.Add(new MacroEvent { Type = EventType.MouseMove });
         _recorder.StopRecording().Returns(expectedMacro);
         _viewModel.RecordingCompleted += (_, _) => throw new NullReferenceException("handler failure");
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
 
         // Act
         var result = _viewModel.StopRecording();
@@ -228,7 +228,7 @@ public class RecordingViewModelTests
         // Assert
         Assert.Equal(expectedMacro, result);
         Assert.Equal("[Recording_StatusRecordedEvents] 1", _viewModel.RecordingStatus);
-        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
 
     [Fact]
@@ -240,10 +240,10 @@ public class RecordingViewModelTests
             {
                 new MacroEvent { Type = EventType.MouseMove },
                 new MacroEvent { Type = EventType.KeyPress }
-            }
+            },
         };
         _recorder.StopRecording().Returns(recordedMacro);
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
 
         _viewModel.StopRecording();
 
@@ -264,7 +264,7 @@ public class RecordingViewModelTests
             {
                 new MacroEvent { Type = EventType.MouseMove },
                 new MacroEvent { Type = EventType.KeyPress }
-            }
+            },
         };
         _recorder.StopRecording().Returns(recordedMacro);
         _viewModel.CanStartRecordingExternal = true;
@@ -288,7 +288,7 @@ public class RecordingViewModelTests
     {
         // Arrange
         _recorder.StopRecording().Returns(new MacroSequence { Events = null! });
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
 
         // Act
         var result = _viewModel.StopRecording();
@@ -296,14 +296,14 @@ public class RecordingViewModelTests
         // Assert
         Assert.Null(result);
         Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
-        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
 
     [Fact]
     public void StopRecording_WhenNotRecording_ReturnsNull()
     {
         // Arrange
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, false);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: false);
 
         // Act
         var result = _viewModel.StopRecording();
@@ -317,7 +317,7 @@ public class RecordingViewModelTests
     public void ToggleRecording_WhenRecording_Stops()
     {
         // Arrange
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
         _recorder.StopRecording().Returns(new MacroSequence());
 
         // Act
@@ -333,7 +333,7 @@ public class RecordingViewModelTests
     {
         // Arrange
         _viewModel.CanStartRecordingExternal = true;
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, false);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: false);
 
         // Act
         _viewModel.ToggleRecording();
@@ -350,8 +350,8 @@ public class RecordingViewModelTests
         _viewModel.IsKeyboardRecordingEnabled = false;
 
         // Act
-        var canExecute = _viewModel.ToggleRecordingCommand.CanExecute(null);
-        _viewModel.ToggleRecordingCommand.Execute(null);
+        var canExecute = _viewModel.ToggleRecordingCommand.CanExecute(parameter: null);
+        _viewModel.ToggleRecordingCommand.Execute(parameter: null);
 
         // Assert
         Assert.False(canExecute);
@@ -366,10 +366,10 @@ public class RecordingViewModelTests
         _viewModel.CanStartRecordingExternal = false;
         _viewModel.IsMouseRecordingEnabled = false;
         _viewModel.IsKeyboardRecordingEnabled = false;
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
 
         // Assert
-        Assert.True(_viewModel.ToggleRecordingCommand.CanExecute(null));
+        Assert.True(_viewModel.ToggleRecordingCommand.CanExecute(parameter: null));
     }
 
     [Fact]
@@ -404,8 +404,8 @@ public class RecordingViewModelTests
         Assert.True(_viewModel.CanStartRecording);
         Assert.True(_viewModel.CanToggleRecording);
         Assert.Equal(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
-        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(false);
-        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: false);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
 
     [Fact]
@@ -435,13 +435,13 @@ public class RecordingViewModelTests
         var settingsService = Substitute.For<ISettingsService>();
         settingsService.Current.Returns(new AppSettings
         {
-            ForceRelativeCoordinates = true
+            ForceRelativeCoordinates = true,
         });
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsLinux.Returns(false);
-        runtimeContext.IsWindows.Returns(false);
-        runtimeContext.IsMacOS.Returns(false);
+        runtimeContext.IsLinux.Returns(returnThis: false);
+        runtimeContext.IsWindows.Returns(returnThis: false);
+        runtimeContext.IsMacOS.Returns(returnThis: false);
 
         var viewModel = new RecordingViewModel(
             _recorder,
@@ -460,13 +460,13 @@ public class RecordingViewModelTests
         var settingsService = Substitute.For<ISettingsService>();
         settingsService.Current.Returns(new AppSettings
         {
-            ForceRelativeCoordinates = true
+            ForceRelativeCoordinates = true,
         });
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsLinux.Returns(false);
-        runtimeContext.IsWindows.Returns(false);
-        runtimeContext.IsMacOS.Returns(true);
+        runtimeContext.IsLinux.Returns(returnThis: false);
+        runtimeContext.IsWindows.Returns(returnThis: false);
+        runtimeContext.IsMacOS.Returns(returnThis: true);
 
         var viewModel = new RecordingViewModel(
             _recorder,
@@ -495,7 +495,7 @@ public class RecordingViewModelTests
     {
         // Arrange
         _recorder.StopRecording().Returns(_ => throw new InvalidOperationException("stop failed"));
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, true);
+        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
 
         // Act
         var result = _viewModel.StopRecording();
@@ -504,7 +504,7 @@ public class RecordingViewModelTests
         Assert.Null(result);
         Assert.False(_viewModel.IsRecording);
         Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
-        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(true);
+        _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
 
     [Fact]
@@ -519,7 +519,7 @@ public class RecordingViewModelTests
                 new MacroEvent { Type = EventType.ButtonPress },
                 new MacroEvent { Type = EventType.KeyPress },
                 new MacroEvent { Type = EventType.KeyRelease }
-            }
+            },
         };
 
         // Act
@@ -541,11 +541,11 @@ public class RecordingViewModelTests
             {
                 new MacroEvent { Type = EventType.MouseMove },
                 new MacroEvent { Type = EventType.KeyPress }
-            }
+            },
         };
 
         _viewModel.SetMacro(macro);
-        _viewModel.SetMacro(null);
+        _viewModel.SetMacro(macro: null);
 
         Assert.Equal(0, _viewModel.EventCount);
         Assert.Equal(0, _viewModel.MouseEventCount);

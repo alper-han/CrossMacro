@@ -27,7 +27,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     private readonly IManageShortcut? _manageShortcut;
     private ShortcutTask? _selectedTask;
     private bool _disposed;
-    
+
     public ObservableCollection<ShortcutTask> Tasks => _shortcutService.Tasks;
 
     public IGlobalHotkeyService GlobalHotkeyService => _hotkeyService;
@@ -37,7 +37,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     public Task InitializationTask { get; }
 
     public string TaskCountText => string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_ItemsText"], Tasks.Count);
-    
+
     public ShortcutTask? SelectedTask
     {
         get => _selectedTask;
@@ -45,13 +45,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         {
             if (_selectedTask != value)
             {
-                if (_selectedTask != null)
+                if (_selectedTask is not null)
                 {
                     _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
                 }
 
                 _selectedTask = value;
-                if (_selectedTask != null)
+                if (_selectedTask is not null)
                 {
                     _selectedTask.PropertyChanged += OnSelectedTaskPropertyChanged;
                 }
@@ -72,15 +72,15 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             RaiseOnUiThread(OnSelectedTaskStatusChanged);
         }
     }
-    
-    public bool HasSelectedTask => SelectedTask != null;
-    
+
+    public bool HasSelectedTask => SelectedTask is not null;
+
     public string? SelectedMacroFilePath
     {
         get => string.IsNullOrEmpty(SelectedTask?.MacroFilePath) ? null : SelectedTask.MacroFilePath;
         set
         {
-            if (SelectedTask != null && SelectedTask.MacroFilePath != (value ?? ""))
+            if (SelectedTask is not null && !string.Equals(SelectedTask.MacroFilePath, value ?? "", StringComparison.Ordinal))
             {
                 SelectedTask.MacroFilePath = value ?? "";
                 OnPropertyChanged();
@@ -89,18 +89,18 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
-    public string SelectedMacroFileName => 
-        string.IsNullOrEmpty(SelectedTask?.MacroFilePath) 
-            ? _localizationService["Shortcut_NoFileSelected"] 
+
+    public string SelectedMacroFileName =>
+        string.IsNullOrEmpty(SelectedTask?.MacroFilePath)
+            ? _localizationService["Shortcut_NoFileSelected"]
             : Path.GetFileName(SelectedTask.MacroFilePath);
-    
+
     public string SelectedHotkeyString
     {
         get => SelectedTask?.HotkeyString ?? "";
         set
         {
-            if (SelectedTask != null && SelectedTask.HotkeyString != value)
+            if (SelectedTask is not null && !string.Equals(SelectedTask.HotkeyString, value, StringComparison.Ordinal))
             {
                 SelectedTask.HotkeyString = value;
                 OnPropertyChanged();
@@ -115,10 +115,10 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)
         ? _localizationService["Shortcut_StatusPlaceholder"]
         : SelectedTask.LastStatus!;
-    
+
     // Events for global status
     public event EventHandler<string>? StatusChanged;
-    
+
     public ShortcutViewModel(
         IShortcutService shortcutService,
         IDialogService dialogService,
@@ -130,12 +130,12 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         _hotkeyService = hotkeyService;
         _localizationService = localizationService;
         _localizationService.CultureChanged += OnCultureChanged;
-        
+
         // Subscribe to shortcut execution events
         _shortcutService.ShortcutStarting += OnShortcutStarting;
         _shortcutService.ShortcutExecuted += OnShortcutExecuted;
         _shortcutService.Tasks?.CollectionChanged += OnTasksCollectionChanged;
-        
+
         // Load saved shortcuts and start listening
         InitializationTask = InitializeAsyncSafe();
     }
@@ -150,7 +150,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     {
         _manageShortcut = manageShortcut;
     }
-    
+
     private async Task InitializeAsyncSafe()
     {
         try
@@ -175,13 +175,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedHotkeyString));
         OnSelectedTaskStatusChanged();
     }
-    
+
     [RelayCommand]
     private async Task AddTaskAsync()
     {
         var task = new ShortcutTask
         {
-            Name = string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_DefaultTaskName"], Tasks.Count + 1)
+            Name = string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_DefaultTaskName"], Tasks.Count + 1),
         };
         if (_manageShortcut is not null)
         {
@@ -194,18 +194,18 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         SelectedTask = task;
         OnPropertyChanged(nameof(TaskCountText));
     }
-    
+
     [RelayCommand]
     private async Task RemoveTaskAsync(ShortcutTask? task)
     {
-        if (task == null) return;
-        
+        if (task is null) return;
+
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["Shortcut_DeleteTitle"],
             string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_DeleteMessage"], task.Name));
-            
+
         if (!confirmed) return;
-        
+
         if (_manageShortcut is not null)
         {
             var selectedTaskId = SelectedTask?.Id;
@@ -232,36 +232,36 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             }
         });
     }
-    
+
     [RelayCommand]
     private void SelectTask(ShortcutTask? task)
     {
-        if (task != null)
+        if (task is not null)
         {
             SelectedTask = SelectedTask?.Id == task.Id ? null : task;
         }
     }
-    
+
     [RelayCommand]
     private async Task BrowseMacroAsync()
     {
-        if (SelectedTask == null) return;
-        
+        if (SelectedTask is null) return;
+
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = _localizationService["Shortcut_OpenMacroDialogFilter"], Extensions = new[] { "macro" } }
+            new FileDialogFilter { Name = _localizationService["Shortcut_OpenMacroDialogFilter"], Extensions = new[] { "macro" } },
         };
-        
+
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
             _localizationService["Shortcut_OpenMacroDialogTitle"],
             filters);
-        
+
         if (!string.IsNullOrEmpty(filePath))
         {
             SelectedMacroFilePath = filePath;
         }
     }
-    
+
     [RelayCommand]
     private async Task SaveAsync()
     {
@@ -301,7 +301,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public void OnHotkeyChanged(string newHotkey)
     {
         SelectedHotkeyString = newHotkey;
@@ -333,13 +333,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         }
         await SaveChangesAsync(showSuccessStatus: false, rollback: () => _shortcutService.SetTaskEnabled(task.Id, previousEnabled));
     }
-    
+
     private void OnShortcutStarting(object? sender, ShortcutTask task)
     {
         Dispatcher.UIThread.Post(() =>
         {
             RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusRunning"], task.Name));
-            
+
             if (SelectedTask?.Id == task.Id)
             {
                 OnPropertyChanged(nameof(SelectedTask));
@@ -347,16 +347,16 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             }
         });
     }
-    
+
     private void OnShortcutExecuted(object? sender, ShortcutExecutedEventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            var statusText = e.Success 
+            var statusText = e.Success
                 ? string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusCompleted"], e.Task.Name)
                 : string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusFailed"], e.Task.Name, e.Message);
             RaiseStatus(statusText);
-            
+
             if (SelectedTask?.Id == e.Task.Id)
             {
                 OnPropertyChanged(nameof(SelectedTask));
@@ -378,7 +378,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 
     private static void RaiseOnUiThread(Action action)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             action();
             return;
@@ -389,7 +389,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 
     private void RaiseStatus(string message)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             StatusChanged?.Invoke(this, message);
             return;
@@ -405,16 +405,16 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedTask));
         OnSelectedTaskStatusChanged();
     }
-    
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        
+
         _shortcutService.ShortcutStarting -= OnShortcutStarting;
         _shortcutService.ShortcutExecuted -= OnShortcutExecuted;
         _shortcutService.Tasks?.CollectionChanged -= OnTasksCollectionChanged;
-        if (_selectedTask != null)
+        if (_selectedTask is not null)
         {
             _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
         }

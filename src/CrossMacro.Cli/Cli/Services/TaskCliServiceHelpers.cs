@@ -53,7 +53,7 @@ internal static class TaskCliServiceHelpers
         cancellationToken.ThrowIfCancellationRequested();
 
         var task = getTasks().FirstOrDefault(x => getTaskId(x) == parsedTaskId);
-        if (task == null)
+        if (task is null)
         {
             return CliCommandExecutionResult.Fail(
                 CliExitCode.InvalidArguments,

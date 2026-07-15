@@ -18,10 +18,10 @@ namespace CrossMacro.Platform.Linux.Services
         private readonly X11AbsoluteCapture _absoluteCapture;
         private readonly X11RelativeCapture _relativeCapture;
         private readonly ISettingsService _settingsService;
-        
+
         // Track active capturers
         private bool _disposed;
-        
+
         public string ProviderName => "X11 Facade (Abs/Raw)";
 
         public bool IsSupported => _absoluteCapture.IsSupported || _relativeCapture.IsSupported;
@@ -30,17 +30,17 @@ namespace CrossMacro.Platform.Linux.Services
         public event EventHandler<string>? Error;
 
         public X11InputCapture(
-            X11AbsoluteCapture absoluteCapture, 
+            X11AbsoluteCapture absoluteCapture,
             X11RelativeCapture relativeCapture,
             ISettingsService settingsService)
         {
             _absoluteCapture = absoluteCapture;
             _relativeCapture = relativeCapture;
             _settingsService = settingsService;
-            
+
             _absoluteCapture.InputReceived += (s, e) => InputReceived?.Invoke(this, e);
             _absoluteCapture.Error += (s, e) => Error?.Invoke(this, e);
-            
+
             _relativeCapture.InputReceived += (s, e) => InputReceived?.Invoke(this, e);
             _relativeCapture.Error += (s, e) => Error?.Invoke(this, e);
         }

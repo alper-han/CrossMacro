@@ -154,7 +154,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         _session = new PlaybackSessionResourceOwner(_playbackWaitAsync, _inputSimulatorFactory, _simulatorPool);
         _runtimeVariables = _session.Variables;
 
-        if (_positionProvider != null)
+        if (_positionProvider is not null)
         {
             if (_positionProvider.IsSupported)
             {
@@ -166,7 +166,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             }
         }
 
-        if (_simulatorPool != null)
+        if (_simulatorPool is not null)
         {
             Log.Information("[MacroPlayer] Using InputSimulatorPool for zero-delay device acquisition");
         }
@@ -216,7 +216,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
     public async Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (macro == null)
+        if (macro is null)
             throw new ArgumentNullException(nameof(macro));
 
         if (IsPlaying)
@@ -239,7 +239,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         double normalizedSpeed = PlaybackOptions.NormalizeSpeedMultiplier(options.SpeedMultiplier);
 
         int repeatCount = options.Loop ? options.RepeatCount : 1;
-        bool infiniteLoop = options.Loop && repeatCount == 0;
+        bool infiniteLoop = options.Loop && repeatCount is 0;
         TotalLoops = infiniteLoop ? 0 : repeatCount;
         CurrentLoop = 1;
 
@@ -253,13 +253,13 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
         try
         {
-            if (macro.Events.Count == 0 && HasOnlyRuntimeScriptSteps(macro))
+            if (macro.Events.Count is 0 && HasOnlyRuntimeScriptSteps(macro))
             {
                 await PlayRuntimeScriptOnlyLoopAsync(macro, options, normalizedSpeed, repeatCount, infiniteLoop, _session.Token);
                 return;
             }
 
-            if (macro.Events.Count == 0 && !HasRuntimeScriptSteps(macro))
+            if (macro.Events.Count is 0 && !HasRuntimeScriptSteps(macro))
             {
                 await ExecuteScreenReadScriptStepsAsync(macro, _session.Token);
                 return;
@@ -325,7 +325,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
                         await _timingService.WaitAsync(delayMs, this, _session.Token);
                         IsWaitingBetweenLoops = false;
                     }
-                    else if ((iteration + 1) % IterationYieldInterval == 0)
+                    else if ((iteration + 1) % IterationYieldInterval is 0)
                     {
                         await Task.Yield();
                     }
@@ -349,7 +349,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
     private async Task CacheResolutionAsync()
     {
-        if (!_resolutionCached && _positionProvider != null)
+        if (!_resolutionCached && _positionProvider is not null)
         {
             try
             {
@@ -369,7 +369,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             }
         }
 
-        if (_positionProvider != null && !_positionProvider.IsSupported)
+        if (_positionProvider is not null && !_positionProvider.IsSupported)
         {
             Log.Information(
                 "[MacroPlayer] Position provider {ProviderName} is resolution-only for playback; absolute playback will require an absolute-capable input simulator",
@@ -441,7 +441,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         var state = new PlaybackRunState
         {
-            ObservedPauseResumeVersion = _session.PauseResumeVersion
+            ObservedPauseResumeVersion = _session.PauseResumeVersion,
         };
         int totalEvents = macro.Events.Count;
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
@@ -469,7 +469,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         var state = new PlaybackRunState
         {
-            ObservedPauseResumeVersion = _session.PauseResumeVersion
+            ObservedPauseResumeVersion = _session.PauseResumeVersion,
         };
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
         var screenReadExecutor = new RunScriptScreenReadExecutor(
@@ -525,7 +525,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         var state = new PlaybackRunState
         {
-            ObservedPauseResumeVersion = _session.PauseResumeVersion
+            ObservedPauseResumeVersion = _session.PauseResumeVersion,
         };
         int totalEvents = macro.Events.Count;
         int eventIndex = 0;
@@ -625,13 +625,12 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
             state.ObservedPauseResumeVersion = currentPauseResumeVersion;
             if (state.HasTimelineAnchor)
             {
-                var elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
-                state.ScheduledElapsedMs = elapsedSinceAnchorMs;
+                state.ScheduledElapsedMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
             }
         }
 
         state.EventCount++;
-        if (state.EventCount % YieldInterval == 0)
+        if (state.EventCount % YieldInterval is 0)
         {
             await Task.Yield();
         }
@@ -737,7 +736,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
 
     private async Task ExecuteScreenReadScriptStepsAsync(MacroSequence macro, CancellationToken cancellationToken)
     {
-        if (macro.ScriptSteps.Count == 0 || !HasRuntimeScriptSteps(macro))
+        if (macro.ScriptSteps.Count is 0 || !HasRuntimeScriptSteps(macro))
         {
             return;
         }
@@ -808,7 +807,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
                     await _timingService.WaitAsync(delayMs, this, cancellationToken);
                     IsWaitingBetweenLoops = false;
                 }
-                else if ((iteration + 1) % IterationYieldInterval == 0)
+                else if ((iteration + 1) % IterationYieldInterval is 0)
                 {
                     await Task.Yield();
                 }
@@ -877,7 +876,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
     {
         if (options.UseRandomRepeatDelay)
         {
-            return ResolveDelayMs(0, true, options.RepeatDelayMinMs, options.RepeatDelayMaxMs);
+            return ResolveDelayMs(0, hasRandomDelay: true, options.RepeatDelayMinMs, options.RepeatDelayMaxMs);
         }
 
         return Math.Max(0, options.RepeatDelayMs);
@@ -950,7 +949,7 @@ public class MacroPlayer : IMacroPlayer, IDisposable, IPlaybackPauseToken, IRunS
         _disposed = true;
 
         Stop();
-        _session.AttachInputState(null, null, null);
+        _session.AttachInputState(executor: null, buttons: null, keys: null);
         _eventExecutor?.Dispose();
         _session.Dispose();
 

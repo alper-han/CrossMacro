@@ -37,7 +37,7 @@ internal sealed class DirectPkexecHostCommandLauncher : IPrivilegedHostCommandLa
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
 
         startInfo.ArgumentList.Add("sh");

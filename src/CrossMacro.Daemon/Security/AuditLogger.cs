@@ -9,7 +9,7 @@ namespace CrossMacro.Daemon.Security;
 /// <summary>
 /// Audit logger for security-relevant events.
 /// Logs connection attempts, capture operations, and simulation events.
-/// 
+///
 /// NOTE: This class is designed specifically for the Linux daemon and uses
 /// Linux-specific paths (systemd runtime directory, XDG state home).
 /// It is not intended to be used on Windows or macOS.
@@ -35,7 +35,7 @@ public class AuditLogger
         _logPath = Path.Combine(_logDirectory, "audit.log");
         _logSimulations = logSimulations;
         _maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
-        
+
         EnsureLogDirectory();
         Log.Information("[AuditLogger] Audit log path: {Path}", _logPath);
     }
@@ -46,21 +46,21 @@ public class AuditLogger
         // 1. RUNTIME_DIRECTORY (set by systemd) - /run/crossmacro
         // 2. /run/crossmacro if exists (systemd managed)
         // 3. XDG_STATE_HOME/crossmacro (user-level fallback)
-        
+
         var runtimeDir = Environment.GetEnvironmentVariable("RUNTIME_DIRECTORY");
         if (!string.IsNullOrEmpty(runtimeDir) && Directory.Exists(runtimeDir))
         {
             return runtimeDir;
         }
-        
+
         // Check if systemd created the directory
         if (Directory.Exists(LinuxSystemPaths.RuntimeDirectory))
         {
             return LinuxSystemPaths.RuntimeDirectory;
         }
-        
+
         // Fallback to XDG state home (writable by current user)
-        var stateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME") 
+        var stateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/state");
         return Path.Combine(stateHome, "crossmacro");
     }
@@ -87,8 +87,8 @@ public class AuditLogger
     public void LogConnectionAttempt(uint uid, int pid, string? executable, bool success, string? reason = null)
     {
         var action = success ? "CONNECT_OK" : "CONNECT_DENIED";
-        var details = executable != null ? FormatField("exe", executable) : "";
-        if (!success && reason != null)
+        var details = executable is not null ? FormatField("exe", executable) : "";
+        if (!success && reason is not null)
         {
             details += $" {FormatField("reason", reason)}";
         }
@@ -166,7 +166,7 @@ public class AuditLogger
                 '|' => "\\|",
                 '=' => "\\=",
                 _ when char.IsControl(character) => $"\\u{(int)character:X4}",
-                _ => character
+                _ => character,
             });
         }
 
@@ -180,7 +180,7 @@ public class AuditLogger
             lock (_lock)
             {
                 RotateIfNeeded();
-                
+
                 var timestamp = DateTime.UtcNow.ToString("O");
                 var line = string.IsNullOrEmpty(details)
                     ? $"{timestamp}|UID={uid}|PID={pid}|{action}"
@@ -199,7 +199,7 @@ public class AuditLogger
 
     private void EnsureWriter()
     {
-        if (_writer == null)
+        if (_writer is null)
         {
             try
             {
@@ -217,7 +217,7 @@ public class AuditLogger
         try
         {
             if (!File.Exists(_logPath)) return;
-            
+
             var fileInfo = new FileInfo(_logPath);
             if (fileInfo.Length > _maxFileSizeBytes)
             {
@@ -227,7 +227,7 @@ public class AuditLogger
                 // Rotate: audit.log -> audit.log.1, audit.log.1 -> audit.log.2, etc.
                 for (int i = 5; i >= 1; i--)
                 {
-                    var oldPath = i == 1 ? _logPath : $"{_logPath}.{i - 1}";
+                    var oldPath = i is 1 ? _logPath : $"{_logPath}.{i - 1}";
                     var newPath = $"{_logPath}.{i}";
                     if (File.Exists(oldPath))
                     {

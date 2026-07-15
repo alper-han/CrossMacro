@@ -32,14 +32,14 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
         }
 
         var steps = loadResult.Steps!;
-        if (steps.Count == 0)
+        if (steps.Count is 0)
         {
             return new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "No run steps provided.",
-                Errors = ["Use --step at least once."]
+                Errors = ["Use --step at least once."],
             };
         }
 
@@ -49,14 +49,14 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             request.CountdownSeconds,
             request.DryRun), cancellationToken);
 
-        if (result.Status == RunExecutionStatus.InvalidArguments)
+        if (result.Status is RunExecutionStatus.InvalidArguments)
         {
             return new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Run script parsing failed.",
-                Errors = result.Errors
+                Errors = result.Errors,
             };
         }
 
@@ -73,13 +73,13 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 Message = "Run script validation failed.",
                 Errors = result.Errors,
                 Warnings = result.Warnings,
-                Data = data
+                Data = data,
             },
             RunExecutionStatus.Cancelled => new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = CliExitCode.Cancelled,
-                Message = "Run script execution cancelled."
+                Message = "Run script execution cancelled.",
             },
             RunExecutionStatus.AbsolutePlaybackUnsupported => new MacroExecutionResult
             {
@@ -88,7 +88,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 Message = "Absolute coordinate playback is not supported in this session.",
                 Errors = ["This run script contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or change the script to use relative coordinates."],
                 Warnings = result.Warnings,
-                Data = data
+                Data = data,
             },
             RunExecutionStatus.InputInjectionPermissionRequired => new MacroExecutionResult
             {
@@ -97,7 +97,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 Message = "Playback permission is missing.",
                 Errors = [result.ErrorMessage ?? "macOS playback permission is missing."],
                 Warnings = result.Warnings,
-                Data = data
+                Data = data,
             },
             RunExecutionStatus.Succeeded when request.DryRun => new MacroExecutionResult
             {
@@ -105,7 +105,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 ExitCode = CliExitCode.Success,
                 Message = "Run script parsed successfully (dry-run).",
                 Warnings = result.Warnings,
-                Data = data
+                Data = data,
             },
             RunExecutionStatus.Succeeded => new MacroExecutionResult
             {
@@ -113,7 +113,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 ExitCode = CliExitCode.Success,
                 Message = "Run script execution complete.",
                 Warnings = result.Warnings,
-                Data = data
+                Data = data,
             },
             _ => new MacroExecutionResult
             {
@@ -123,7 +123,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
                 Errors = [result.ErrorMessage ?? "Unknown runtime error."],
                 Warnings = result.Warnings,
                 Data = data
-            }
+            },
         };
     }
 
@@ -138,7 +138,7 @@ public sealed class RunScriptExecutionService : IRunScriptExecutionService
             CoordinateModeSummary.Absolute => "absolute",
             CoordinateModeSummary.Relative => "relative",
             CoordinateModeSummary.Mixed => "mixed",
-            _ => "none"
+            _ => "none",
         };
 
         return new RunScriptExecutionData(

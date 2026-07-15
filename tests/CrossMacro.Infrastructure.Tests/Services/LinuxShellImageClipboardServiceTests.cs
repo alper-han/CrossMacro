@@ -43,7 +43,7 @@ public sealed class LinuxShellImageClipboardServiceTests
         var originalWaylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
         try
         {
-            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", null);
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", value: null);
             var runner = Substitute.For<IProcessRunner>();
             runner.CheckCommandAsync("xclip", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             var service = new LinuxShellImageClipboardService(runner);

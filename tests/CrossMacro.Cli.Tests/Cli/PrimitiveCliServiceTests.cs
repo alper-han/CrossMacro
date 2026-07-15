@@ -81,7 +81,7 @@ public sealed class PrimitiveCliServiceTests
             [
                 new WindowInfo { Address = "0x1", Title = "Docs - Firefox", Class = "firefox" },
                 new WindowInfo { Address = "0x2", Title = "Editor", Class = "Code" }
-            ]
+            ],
         };
         var service = new WindowCliService(manager);
 
@@ -163,7 +163,7 @@ public sealed class PrimitiveCliServiceTests
         {
             var reader = new FakeScreenPixelReader
             {
-                ImageMatch = new ScreenImageMatch(new ScreenPoint(7, 8), 0.95)
+                ImageMatch = new ScreenImageMatch(new ScreenPoint(7, 8), 0.95),
             };
             var service = new ScreenCliService(reader, new FakeMousePositionProvider());
 
@@ -217,7 +217,7 @@ public sealed class PrimitiveCliServiceTests
 
 			Assert.False(result.Success);
 			Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-			Assert.Contains("Invalid options", result.Message);
+			Assert.Contains("Invalid options", result.Message, StringComparison.Ordinal);
 		}
 	}
 
@@ -255,7 +255,7 @@ public sealed class PrimitiveCliServiceTests
             {
                 ImageSearchResult = ScreenReadResult<ScreenImageMatch>.Failure(
                     ScreenReadErrorKind.Canceled,
-                    "image search canceled")
+                    "image search canceled"),
             };
             var service = new ScreenCliService(reader, new FakeMousePositionProvider());
 
@@ -302,7 +302,7 @@ public sealed class PrimitiveCliServiceTests
         {
             var reader = new FakeScreenPixelReader
             {
-                ImageMatch = new ScreenImageMatch(new ScreenPoint(9, 10), 0.91)
+                ImageMatch = new ScreenImageMatch(new ScreenPoint(9, 10), 0.91),
             };
             var service = new ScreenCliService(reader, new FakeMousePositionProvider());
 
@@ -368,7 +368,7 @@ public sealed class PrimitiveCliServiceTests
         {
             var reader = new FakeScreenPixelReader
             {
-                ImageMatch = new ScreenImageMatch(new ScreenPoint(20, 30), 0.97)
+                ImageMatch = new ScreenImageMatch(new ScreenPoint(20, 30), 0.97),
             };
             var input = new FakeInputSimulator();
             reader.ClickInput = input;
@@ -405,7 +405,7 @@ public sealed class PrimitiveCliServiceTests
         {
             var reader = new FakeScreenPixelReader
             {
-                ImageMatch = new ScreenImageMatch(new ScreenPoint(20, 30), 0.97)
+                ImageMatch = new ScreenImageMatch(new ScreenPoint(20, 30), 0.97),
             };
             var input = new FakeInputSimulator { SupportsAbsoluteCoordinates = false };
             reader.ClickPosition = (10, 20);
@@ -714,7 +714,7 @@ public sealed class PrimitiveCliServiceTests
             0x00,
             0x00,
             0x00,
-            0x6C, 0xF7, 0xBC, 0x13
+            0x6C, 0xF7, 0xBC, 0x13,
         ];
     }
 
@@ -797,7 +797,7 @@ public sealed class PrimitiveCliServiceTests
             {
                 return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.InvalidArguments, $"Image file is not a supported PNG: {ex.Message}");
             }
-            var result = await SearchImageAsync(request.Region, template, ScreenImageMatchOptions.Create(request.Region, request.Similarity, request.Downsample, request.MatchMode == ScreenImageMatchMode.Best ? ScreenImageMatchSelectionMode.BestMatch : ScreenImageMatchSelectionMode.FirstThresholdMatch, request.ScaleAware), new ScreenReadOptions(request.Timeout, ScreenReadOptions.Default.PollInterval, cancellationToken));
+            var result = await SearchImageAsync(request.Region, template, ScreenImageMatchOptions.Create(request.Region, request.Similarity, request.Downsample, request.MatchMode is ScreenImageMatchMode.Best ? ScreenImageMatchSelectionMode.BestMatch : ScreenImageMatchSelectionMode.FirstThresholdMatch, request.ScaleAware), new ScreenReadOptions(request.Timeout, ScreenReadOptions.Default.PollInterval, cancellationToken));
             return result.IsSuccess ? ScreenImageAutomationResult.FoundAt(result.Value.Point, result.Value.Score) : ScreenImageAutomationResult.Failure(result.ErrorKind!.Value, result.ErrorMessage!);
         }
 
@@ -820,8 +820,8 @@ public sealed class PrimitiveCliServiceTests
             {
                 ClickInput.MoveAbsolute(result.Point!.Value.X + 1, result.Point.Value.Y + 2);
             }
-            ClickInput.MouseButton(buttonCode, true);
-            ClickInput.MouseButton(buttonCode, false);
+            ClickInput.MouseButton(buttonCode, pressed: true);
+            ClickInput.MouseButton(buttonCode, pressed: false);
             ClickInput.Sync();
             return ScreenImageAutomationResult.FoundAt(new ScreenPoint(result.Point.Value.X + 1, result.Point.Value.Y + 2), result.Score!.Value);
         }

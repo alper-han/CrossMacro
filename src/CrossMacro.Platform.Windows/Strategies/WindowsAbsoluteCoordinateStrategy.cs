@@ -35,10 +35,10 @@ public class WindowsAbsoluteCoordinateStrategy : ICoordinateStrategy
 
     public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
     {
-        if (e.Type == InputEventType.Sync)
+        if (e.Type is InputEventType.Sync)
             return (0, 0);
 
-        if (e.Type != InputEventType.MouseMove)
+        if (e.Type is not InputEventType.MouseMove)
             return (_lastX, _lastY);
 
         if (User32.GetCursorPos(out POINT pt))

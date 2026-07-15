@@ -40,7 +40,7 @@ public class MacroFileManager : IMacroFileManager
     {
         Header,
         Script,
-        Events
+        Events,
     }
 
     public MacroFileManager(
@@ -52,7 +52,7 @@ public class MacroFileManager : IMacroFileManager
         _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
         _scriptValidationService = scriptValidationService;
     }
-    
+
     /// <summary>
     /// Saves a macro sequence to a custom text file (.macro)
     /// </summary>
@@ -66,16 +66,16 @@ public class MacroFileManager : IMacroFileManager
     {
         ArgumentNullException.ThrowIfNull(document);
         var macro = Canonical.PersistedMacroCodec.Decode(document);
-            
+
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentException("File path cannot be empty", nameof(filePath));
-        
+
         if (!macro.IsValid())
             throw new InvalidOperationException("Cannot save invalid macro sequence");
 
         ValidateScriptStepsBeforeSave(macro);
         var imageAssets = ValidateImagesBeforeSave(macro);
-        
+
         var directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
@@ -93,7 +93,7 @@ public class MacroFileManager : IMacroFileManager
                 65536,
                 FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
-                using (var writer = new StreamWriter(temporaryStream, new UTF8Encoding(false), 1024, leaveOpen: true))
+                using (var writer = new StreamWriter(temporaryStream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true))
                 {
                     await writer.WriteLineAsync($"# Name: {macro.Name}");
                     await writer.WriteLineAsync($"# Created: {macro.CreatedAt:O}");
@@ -172,12 +172,12 @@ public class MacroFileManager : IMacroFileManager
                     await writer.FlushAsync();
                 }
 
-                temporaryStream.Flush(true);
+                temporaryStream.Flush(flushToDisk: true);
             }
 
             if (File.Exists(filePath))
             {
-                File.Replace(temporaryPath, filePath, null);
+                File.Replace(temporaryPath, filePath, destinationBackupFileName: null);
             }
             else
             {
@@ -217,12 +217,12 @@ public class MacroFileManager : IMacroFileManager
 
     private static string ToCoordinateModeToken(MouseCoordinateMode mode)
     {
-        return mode == MouseCoordinateMode.Absolute ? "abs" : "rel";
+        return mode is MouseCoordinateMode.Absolute ? "abs" : "rel";
     }
 
     private void ValidateScriptStepsBeforeSave(MacroSequence macro)
     {
-        if (macro.ScriptSteps == null)
+        if (macro.ScriptSteps is null)
         {
             return;
         }
@@ -239,7 +239,7 @@ public class MacroFileManager : IMacroFileManager
             steps.Add(new RunScriptStep(step, SourceIndex: index));
         }
 
-        if (steps.Count == 0)
+        if (steps.Count is 0)
         {
             return;
         }
@@ -275,16 +275,16 @@ public class MacroFileManager : IMacroFileManager
     {
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentException("File path cannot be empty", nameof(filePath));
-        
+
         if (!File.Exists(filePath))
             throw new FileNotFoundException("Macro file not found", filePath);
-        
+
         ValidateMacroFile(filePath);
         var macro = new MacroSequence();
         await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 65536);
         var lineReader = new BoundedLineReader(reader, MaxMacroLineChars);
-        
+
         int currentDelay = 0;
         bool currentHasRandomDelay = false;
         int currentRandomDelayMinMs = 0;
@@ -309,7 +309,7 @@ public class MacroFileManager : IMacroFileManager
 
             pendingScriptStep = null;
         }
-        
+
         while (await lineReader.ReadLineAsync().ConfigureAwait(false) is { } line)
         {
             lineNumber++;
@@ -335,7 +335,7 @@ public class MacroFileManager : IMacroFileManager
                 continue;
             }
 
-            if (section == MacroFileReadSection.Script)
+            if (section is MacroFileReadSection.Script)
             {
                 if (trimmed.StartsWith("#", StringComparison.Ordinal))
                 {
@@ -361,25 +361,37 @@ public class MacroFileManager : IMacroFileManager
 
             if (trimmed.StartsWith("#", StringComparison.Ordinal))
             {
-                if (section != MacroFileReadSection.Header)
+                if (section is not MacroFileReadSection.Header)
                 {
                     continue;
                 }
 
                 // Parse Header
-                if (line.StartsWith("# Name: "))
+                if (line.StartsWith("# Name: ", StringComparison.Ordinal))
+                {
                     macro.Name = line.Substring(8).Trim();
-                else if (line.StartsWith("# Created: ") && DateTime.TryParse(line.Substring(11).Trim(), out var date))
+                }
+                else if (line.StartsWith("# Created: ", StringComparison.Ordinal) && DateTime.TryParse(line.Substring(11).Trim(), out var date))
+                {
                     macro.CreatedAt = date;
-                else if (line.StartsWith("# DurationMs: ") && long.TryParse(line.Substring(14).Trim(), out var duration))
+                }
+                else if (line.StartsWith("# DurationMs: ", StringComparison.Ordinal) && long.TryParse(line.Substring(14).Trim(), out var duration))
+                {
                     macro.TotalDurationMs = duration;
-                else if (line.StartsWith("# IsAbsolute: ") && bool.TryParse(line.Substring(14).Trim(), out var isAbsolute))
+                }
+                else if (line.StartsWith("# IsAbsolute: ", StringComparison.Ordinal) && bool.TryParse(line.Substring(14).Trim(), out var isAbsolute))
+                {
                     macro.IsAbsoluteCoordinates = isAbsolute;
-                else if (line.StartsWith("# SkipInitialZero: ") && bool.TryParse(line.Substring(19).Trim(), out var skipZero))
+                }
+                else if (line.StartsWith("# SkipInitialZero: ", StringComparison.Ordinal) && bool.TryParse(line.Substring(19).Trim(), out var skipZero))
+                {
                     macro.SkipInitialZeroZero = skipZero;
+                }
                 else if (line.StartsWith(TrailingDelayHeader, StringComparison.Ordinal)
-                    && int.TryParse(line.Substring(TrailingDelayHeader.Length).Trim(), out var trailingDelay))
+                                    && int.TryParse(line.Substring(TrailingDelayHeader.Length).Trim(), out var trailingDelay))
+                {
                     macro.TrailingDelayMs = trailingDelay;
+                }
                 else if (line.StartsWith(TrailingRandomDelayHeader, StringComparison.Ordinal))
                 {
                     var trailingRandomParts = line.Substring(TrailingRandomDelayHeader.Length).Trim().Split(',');
@@ -417,23 +429,23 @@ public class MacroFileManager : IMacroFileManager
                 {
                     TryAddImageMetadata(macro, line, ref totalEncodedImageChars);
                 }
-                
+
                 continue;
             }
 
-            if (section == MacroFileReadSection.Script)
+            if (section is MacroFileReadSection.Script)
             {
                 continue;
             }
-            
+
             // Parse Event
             var parts = line.Split(',');
-            if (parts.Length == 0) continue;
-            
+            if (parts.Length is 0) continue;
+
             string type = parts[0].ToUpperInvariant();
-            
+
             // Handle Wait
-            if ((type == "W" || type == "WAIT") && parts.Length >= 2)
+            if ((type is "W" or "WAIT") && parts.Length >= 2)
             {
                 if (int.TryParse(parts[1], out int delay))
                 {
@@ -441,7 +453,7 @@ public class MacroFileManager : IMacroFileManager
                 }
                 continue;
             }
-            if ((type == "WR" || type == "WAITRANDOM") && parts.Length >= 3)
+            if ((type is "WR" or "WAITRANDOM") && parts.Length >= 3)
             {
                 if (int.TryParse(parts[1], out int randomMinDelay) && int.TryParse(parts[2], out int randomMaxDelay))
                 {
@@ -451,7 +463,7 @@ public class MacroFileManager : IMacroFileManager
                 }
                 continue;
             }
-            
+
             try
             {
                 var ev = new MacroEvent
@@ -459,12 +471,12 @@ public class MacroFileManager : IMacroFileManager
                     DelayMs = currentDelay,
                     HasRandomDelay = currentHasRandomDelay,
                     RandomDelayMinMs = currentRandomDelayMinMs,
-                    RandomDelayMaxMs = currentRandomDelayMaxMs
+                    RandomDelayMaxMs = currentRandomDelayMaxMs,
                 };
                 bool validEvent = false;
 
                 // Handle Move
-                if ((type == "M" || type == "MOVE") && parts.Length >= 3)
+                if ((type is "M" or "MOVE") && parts.Length >= 3)
                 {
                     var coordinateIndex = 1;
                     if (!int.TryParse(parts[coordinateIndex], out var x))
@@ -486,9 +498,7 @@ public class MacroFileManager : IMacroFileManager
                     validEvent = true;
                 }
                 // Handle Button Events
-                else if ((type == "P" || type == "PRESS" || 
-                          type == "R" || type == "RELEASE" || 
-                          type == "C" || type == "CLICK") && parts.Length >= 4)
+                else if ((type is "P" or "PRESS" or "R" or "RELEASE" or "C" or "CLICK") && parts.Length >= 4)
                 {
                     var coordinateIndex = 1;
                     MouseCoordinateMode? coordinateMode = null;
@@ -504,12 +514,12 @@ public class MacroFileManager : IMacroFileManager
                         x = int.Parse(parts[coordinateIndex]);
                     }
 
-                    ev.Type = type switch 
+                    ev.Type = type switch
                     {
                         "P" or "PRESS" => EventType.ButtonPress,
                         "R" or "RELEASE" => EventType.ButtonRelease,
                         "C" or "CLICK" => EventType.Click,
-                        _ => EventType.Click
+                        _ => EventType.Click,
                     };
                     ev.X = x;
                     ev.Y = int.Parse(parts[coordinateIndex + 1]);
@@ -523,7 +533,7 @@ public class MacroFileManager : IMacroFileManager
                     validEvent = true;
                 }
                 // Handle Keyboard Events
-                else if ((type == "KP" || type == "KEYPRESS") && parts.Length >= 2)
+                else if ((type is "KP" or "KEYPRESS") && parts.Length >= 2)
                 {
                     ev.Type = EventType.KeyPress;
                     ev.KeyCode = int.Parse(parts[1]);
@@ -532,7 +542,7 @@ public class MacroFileManager : IMacroFileManager
                     ev.Y = 0;
                     validEvent = true;
                 }
-                else if ((type == "KR" || type == "KEYRELEASE") && parts.Length >= 2)
+                else if ((type is "KR" or "KEYRELEASE") && parts.Length >= 2)
                 {
                     ev.Type = EventType.KeyRelease;
                     ev.KeyCode = int.Parse(parts[1]);
@@ -541,7 +551,7 @@ public class MacroFileManager : IMacroFileManager
                     ev.Y = 0;
                     validEvent = true;
                 }
-                
+
                 if (validEvent)
                 {
                     if (macro.Events.Count >= MaxMacroEvents)
@@ -562,7 +572,7 @@ public class MacroFileManager : IMacroFileManager
                     {
                         ev.Timestamp = 0;
                     }
-                    
+
                     macro.Events.Add(ev);
                     currentDelay = 0; // Reset delay after consuming it
                     currentHasRandomDelay = false;
@@ -591,11 +601,11 @@ public class MacroFileManager : IMacroFileManager
         CommitPendingScriptStep();
 
         MarkLegacyCurrentPositionEvents(macro);
-        
+
         // Recalculate stats
         macro.CalculateDuration();
-        macro.MouseMoveCount = macro.Events.Count(e => e.Type == EventType.MouseMove);
-        macro.ClickCount = macro.Events.Count(e => e.Type != EventType.MouseMove);
+        macro.MouseMoveCount = macro.Events.Count(e => e.Type is EventType.MouseMove);
+        macro.ClickCount = macro.Events.Count(e => e.Type is not EventType.MouseMove);
 
         ValidateImageReferences(macro.ScriptSteps, macro.Images, "Loaded macro");
         return macro;
@@ -660,7 +670,7 @@ public class MacroFileManager : IMacroFileManager
 
     private List<KeyValuePair<string, string>> ValidateImagesBeforeSave(MacroSequence macro)
     {
-        if (macro.Images is null || macro.Images.Count == 0)
+        if (macro.Images is null || macro.Images.Count is 0)
         {
             ValidateImageReferences(macro.ScriptSteps, new Dictionary<string, string>(StringComparer.Ordinal), "Saved macro");
             return [];
@@ -676,7 +686,7 @@ public class MacroFileManager : IMacroFileManager
             }
 
             var encoded = image.Value?.Trim();
-            if (encoded is null || encoded.Length == 0 || encoded.Any(char.IsWhiteSpace))
+            if (encoded is null || encoded.Length is 0 || encoded.Any(char.IsWhiteSpace))
             {
                 throw new InvalidDataException($"Image asset '{image.Key}': Image asset metadata is malformed.");
             }
@@ -748,9 +758,9 @@ public class MacroFileManager : IMacroFileManager
                 {
                     _bufferLength = await _reader.ReadAsync(_buffer.AsMemory()).ConfigureAwait(false);
                     _bufferPosition = 0;
-                    if (_bufferLength == 0)
+                    if (_bufferLength is 0)
                     {
-                        return builder.Length == 0 ? null : builder.ToString();
+                        return builder.Length is 0 ? null : builder.ToString();
                     }
                 }
 
@@ -840,9 +850,9 @@ public class MacroFileManager : IMacroFileManager
         {
             var ev = macro.Events[index];
 
-            if (ev.Type == EventType.MouseMove)
+            if (ev.Type is EventType.MouseMove)
             {
-                if (ev.X != 0 || ev.Y != 0)
+                if (ev.X is not 0 || ev.Y is not 0)
                 {
                     break;
                 }
@@ -860,7 +870,7 @@ public class MacroFileManager : IMacroFileManager
                 break;
             }
 
-            if (ev.X != 0 || ev.Y != 0)
+            if (ev.X is not 0 || ev.Y is not 0)
             {
                 if (!markedAny)
                 {

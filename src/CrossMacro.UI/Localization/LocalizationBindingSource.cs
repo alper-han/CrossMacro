@@ -24,7 +24,7 @@ public sealed class LocalizationBindingSource : ObservableObject
             return;
         }
 
-        if (_service != null)
+        if (_service is not null)
         {
             _service.CultureChanged -= OnCultureChanged;
         }

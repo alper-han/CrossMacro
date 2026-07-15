@@ -36,7 +36,7 @@ public class LocalizationServiceTests
     [Fact]
     public void ResolveCulture_WhenNullOrAutoProvided_FallsBackToEnglish()
     {
-        LocalizationService.ResolveCulture(null).Name.Should().Be("en");
+        LocalizationService.ResolveCulture(cultureName: null).Name.Should().Be("en");
         LocalizationService.ResolveCulture(string.Empty).Name.Should().Be("en");
         LocalizationService.ResolveCulture("auto").Name.Should().Be("en");
     }

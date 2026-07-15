@@ -108,11 +108,11 @@ public class HotkeyMatcherTests
         // Arrange
         var mapping = new HotkeyMapping { MainKey = 30 };
         var currentModifiers = new HashSet<int>();
-        var action = "DebounceTest";
+        const string action = "DebounceTest";
 
         // Act
         var first = _matcher.TryMatch(30, currentModifiers, mapping, action);
-        
+
         // Immediate second call
         var second = _matcher.TryMatch(30, currentModifiers, mapping, action);
 

@@ -9,7 +9,7 @@ public static class MacroPositionSemantics
 {
     public static bool HasCurrentPositionEvents(MacroSequence macro)
     {
-        if (macro == null)
+        if (macro is null)
         {
             return false;
         }
@@ -25,12 +25,12 @@ public static class MacroPositionSemantics
             return false;
         }
 
-        return ev.UseCurrentPosition || (useLegacyInterpretation && ev.X == 0 && ev.Y == 0);
+        return ev.UseCurrentPosition || (useLegacyInterpretation && ev.X is 0 && ev.Y is 0);
     }
 
     public static bool IsCoordinateBearing(MacroEvent ev)
     {
-        if (ev.Type == EventType.MouseMove)
+        if (ev.Type is EventType.MouseMove)
         {
             return true;
         }
@@ -55,17 +55,17 @@ public static class MacroPositionSemantics
 
     public static bool HasAnyAbsoluteCoordinateEvents(MacroSequence macro)
     {
-        if (macro == null)
+        if (macro is null)
         {
             return false;
         }
 
-        return macro.Events.Any(ev => ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) == MouseCoordinateMode.Absolute);
+        return macro.Events.Any(ev => ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Absolute);
     }
 
     public static CoordinateModeSummary GetCoordinateModeSummary(MacroSequence macro)
     {
-        if (macro == null)
+        if (macro is null)
         {
             return CoordinateModeSummary.None;
         }
@@ -101,9 +101,8 @@ public static class MacroPositionSemantics
 
     public static bool IsLegacyCurrentPositionMacro(MacroSequence macro)
     {
-        if (macro == null
-            || macro.IsAbsoluteCoordinates
-            || !macro.SkipInitialZeroZero)
+        if (macro is null || macro.IsAbsoluteCoordinates
+|| !macro.SkipInitialZeroZero)
         {
             return false;
         }
@@ -117,9 +116,9 @@ public static class MacroPositionSemantics
                 return false;
             }
 
-            if (ev.Type == EventType.MouseMove)
+            if (ev.Type is EventType.MouseMove)
             {
-                if (ev.X != 0 || ev.Y != 0)
+                if (ev.X is not 0 || ev.Y is not 0)
                 {
                     return false;
                 }
@@ -132,7 +131,7 @@ public static class MacroPositionSemantics
                 continue;
             }
 
-            if (ev.X != 0 || ev.Y != 0)
+            if (ev.X is not 0 || ev.Y is not 0)
             {
                 return false;
             }

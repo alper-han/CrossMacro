@@ -20,7 +20,7 @@ public readonly record struct LinuxCapabilitySnapshot(
 
     public bool IsWayland => Compositor is not CompositorType.X11 and not CompositorType.Unknown;
 
-    public bool IsX11 => Compositor == CompositorType.X11;
+    public bool IsX11 => Compositor is CompositorType.X11;
 
     public bool HasPortalAndPipeWire => ScreenReading.Portal.IsAvailable;
 

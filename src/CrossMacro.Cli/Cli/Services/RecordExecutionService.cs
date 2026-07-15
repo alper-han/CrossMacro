@@ -18,12 +18,12 @@ public sealed class RecordExecutionService : IRecordExecutionService
     {
         Succeeded = 0,
         Canceled = 1,
-        Faulted = 2
+        Faulted = 2,
     }
 
     private readonly record struct StartupOutcome(StartupOutcomeState State, Exception? Error)
     {
-        public static StartupOutcome Succeeded() => new(StartupOutcomeState.Succeeded, null);
+        public static StartupOutcome Succeeded() => new(StartupOutcomeState.Succeeded, Error: null);
         public static StartupOutcome Canceled(Exception? error = null) => new(StartupOutcomeState.Canceled, error);
         public static StartupOutcome Faulted(Exception? error = null) => new(StartupOutcomeState.Faulted, error);
     }
@@ -74,7 +74,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
 
         var warnings = new List<string>();
         var captureMode = await ResolveCaptureModeAsync(request.CoordinateMode, warnings, cancellationToken);
-        var forceRelative = captureMode == RecordCoordinateMode.Relative;
+        var forceRelative = captureMode is RecordCoordinateMode.Relative;
         var skipInitialZero = forceRelative && request.SkipInitialZero;
 
         if (!forceRelative && request.SkipInitialZero)
@@ -114,11 +114,11 @@ public sealed class RecordExecutionService : IRecordExecutionService
         try
         {
             var startupOutcome = await WaitForStartupOutcomeAsync(startupOutcomeTask, cancellationToken);
-            if (startupOutcome.State == StartupOutcomeState.Canceled)
+            if (startupOutcome.State is StartupOutcomeState.Canceled)
             {
                 cancelledBeforeStart = true;
             }
-            else if (startupOutcome.State == StartupOutcomeState.Faulted)
+            else if (startupOutcome.State is StartupOutcomeState.Faulted)
             {
                 startupRuntimeException = startupOutcome.Error ?? new InvalidOperationException("Unknown capture startup error.");
             }
@@ -169,11 +169,11 @@ public sealed class RecordExecutionService : IRecordExecutionService
             if (settledStartupOutcome.HasValue)
             {
                 var outcome = settledStartupOutcome.Value;
-                if (outcome.State == StartupOutcomeState.Faulted)
+                if (outcome.State is StartupOutcomeState.Faulted)
                 {
                     startupRuntimeException ??= outcome.Error ?? new InvalidOperationException("Unknown capture startup error.");
                 }
-                else if (outcome.State == StartupOutcomeState.Canceled)
+                else if (outcome.State is StartupOutcomeState.Canceled)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -197,12 +197,12 @@ public sealed class RecordExecutionService : IRecordExecutionService
 
         var hasRecordedEvents = sequence is { Events.Count: > 0 };
 
-        if (startupRuntimeException != null)
+        if (startupRuntimeException is not null)
         {
             return Fail(CliExitCode.EnvironmentError, "Failed to start recording.", [startupRuntimeException.Message], warnings);
         }
 
-        if (stopException != null)
+        if (stopException is not null)
         {
             return Fail(CliExitCode.RuntimeError, "Recording failed while stopping.", [stopException.Message], warnings);
         }
@@ -236,7 +236,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
                 ExitCode = CliExitCode.Success,
                 Message = "Recording completed.",
                 Warnings = warnings,
-                Data = data
+                Data = data,
             };
         }
 
@@ -245,12 +245,12 @@ public sealed class RecordExecutionService : IRecordExecutionService
             return Fail(CliExitCode.Cancelled, "Recording cancelled before start.");
         }
 
-        if (sequence == null)
+        if (sequence is null)
         {
             return Fail(CliExitCode.RuntimeError, "Recording did not produce a macro.");
         }
 
-        if (sequence.Events.Count == 0)
+        if (sequence.Events.Count is 0)
         {
             return Fail(CliExitCode.RuntimeError, "No events were recorded.", warnings: warnings);
         }
@@ -348,12 +348,12 @@ public sealed class RecordExecutionService : IRecordExecutionService
         List<string> warnings,
         CancellationToken cancellationToken)
     {
-        if (requestedMode == RecordCoordinateMode.Relative)
+        if (requestedMode is RecordCoordinateMode.Relative)
         {
             return RecordCoordinateMode.Relative;
         }
 
-        if (requestedMode == RecordCoordinateMode.Absolute)
+        if (requestedMode is RecordCoordinateMode.Absolute)
         {
             var absoluteSupported = await CanUseAbsoluteModeAsync(cancellationToken);
             if (absoluteSupported)
@@ -405,7 +405,7 @@ public sealed class RecordExecutionService : IRecordExecutionService
             ExitCode = exitCode,
             Message = message,
             Errors = errors ?? [],
-            Warnings = warnings ?? []
+            Warnings = warnings ?? [],
         };
     }
 }

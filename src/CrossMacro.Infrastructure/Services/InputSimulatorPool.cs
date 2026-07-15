@@ -31,7 +31,7 @@ public class InputSimulatorPool : IInputSimulatorPool
     /// <summary>
     /// Indicates whether the pool has at least one warm device ready.
     /// </summary>
-    public bool HasWarmDevice => _warmRelativeDevice != null || _warmAbsoluteDevice != null;
+    public bool HasWarmDevice => _warmRelativeDevice is not null || _warmAbsoluteDevice is not null;
 
     /// <summary>Completes when replacement work already queued by the pool has settled.</summary>
     public Task Completion
@@ -44,7 +44,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                 tasks = [.. _replacementTasks];
             }
 
-            return tasks.Length == 0 ? Task.CompletedTask : Task.WhenAll(tasks);
+            return tasks.Length is 0 ? Task.CompletedTask : Task.WhenAll(tasks);
         }
     }
 
@@ -90,7 +90,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                         return;
                     }
 
-                    if (_warmRelativeDevice == null)
+                    if (_warmRelativeDevice is null)
                     {
                         _warmRelativeDevice = _factory();
                         _warmRelativeDevice.Initialize(0, 0);
@@ -116,7 +116,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                             return;
                         }
 
-                        if (_warmAbsoluteDevice == null)
+                        if (_warmAbsoluteDevice is null)
                         {
                             _warmAbsoluteDevice = _factory();
                             _warmAbsoluteDevice.Initialize(screenWidth, screenHeight);
@@ -171,7 +171,7 @@ public class InputSimulatorPool : IInputSimulatorPool
         {
             if (needsAbsolute)
             {
-                if (_warmAbsoluteDevice != null && _absoluteWidth == screenWidth && _absoluteHeight == screenHeight)
+                if (_warmAbsoluteDevice is not null && _absoluteWidth == screenWidth && _absoluteHeight == screenHeight)
                 {
                     device = _warmAbsoluteDevice;
                     _warmAbsoluteDevice = null;
@@ -181,7 +181,7 @@ public class InputSimulatorPool : IInputSimulatorPool
             }
             else
             {
-                if (_warmRelativeDevice != null)
+                if (_warmRelativeDevice is not null)
                 {
                     device = _warmRelativeDevice;
                     _warmRelativeDevice = null;
@@ -191,7 +191,7 @@ public class InputSimulatorPool : IInputSimulatorPool
             }
         }
 
-        if (device != null)
+        if (device is not null)
         {
             QueueWarmUpReplacement(screenWidth, screenHeight);
             return device;
@@ -315,7 +315,7 @@ public class InputSimulatorPool : IInputSimulatorPool
 
                 if (needsAbsolute)
                 {
-                    if (_warmAbsoluteDevice == null || _absoluteWidth != screenWidth || _absoluteHeight != screenHeight)
+                    if (_warmAbsoluteDevice is null || _absoluteWidth != screenWidth || _absoluteHeight != screenHeight)
                     {
                         _warmAbsoluteDevice?.Dispose();
                         _warmAbsoluteDevice = _factory();
@@ -327,7 +327,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                 }
                 else
                 {
-                    if (_warmRelativeDevice == null)
+                    if (_warmRelativeDevice is null)
                     {
                         _warmRelativeDevice = _factory();
                         _warmRelativeDevice.Initialize(0, 0);
@@ -362,7 +362,7 @@ public class InputSimulatorPool : IInputSimulatorPool
         if (_disposed) return;
         _disposed = true;
 
-        var warmUpCts = Interlocked.Exchange(ref _warmUpCts, null);
+        var warmUpCts = Interlocked.Exchange(ref _warmUpCts, value: null);
         warmUpCts?.Cancel();
         warmUpCts?.Dispose();
         _shutdownCts.Cancel();

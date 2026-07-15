@@ -20,11 +20,11 @@ public class SettingsCommandHandlersTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "playback.speed=1"
+                Message = "playback.speed=1",
             });
 
         var handler = new SettingsGetCommandHandler(service);
-        var result = await handler.ExecuteAsync(new SettingsGetCliOptions("playback.speed", true), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new SettingsGetCliOptions("playback.speed", JsonOutput: true), CancellationToken.None);
 
         Assert.True(result.Success);
     }
@@ -38,11 +38,11 @@ public class SettingsCommandHandlersTests
             {
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
-                Message = "Invalid settings value."
+                Message = "Invalid settings value.",
             });
 
         var handler = new SettingsSetCommandHandler(service);
-        var result = await handler.ExecuteAsync(new SettingsSetCliOptions("playback.loopCount", "-1", true), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new SettingsSetCliOptions("playback.loopCount", "-1", JsonOutput: true), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
@@ -52,7 +52,7 @@ public class SettingsCommandHandlersTests
     public async Task SettingsGetHandler_WhenGetAllTextMode_FormatsAsKeyValueLines()
     {
         var service = Substitute.For<ISettingsCliService>();
-        service.GetAsync(null, Arg.Any<CancellationToken>())
+        service.GetAsync(key: null, Arg.Any<CancellationToken>())
             .Returns(new SettingsCommandResult
             {
                 Success = true,
@@ -62,15 +62,15 @@ public class SettingsCommandHandlersTests
                 {
                     ["playback.speed"] = 1.5,
                     ["playback.loop"] = true
-                }
+                },
             });
 
         var handler = new SettingsGetCommandHandler(service);
-        var result = await handler.ExecuteAsync(new SettingsGetCliOptions(null, JsonOutput: false), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new SettingsGetCliOptions(Key: null, JsonOutput: false), CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Contains("playback.speed=1.5", result.Message);
-        Assert.Contains("playback.loop=True", result.Message);
+        Assert.Contains("playback.speed=1.5", result.Message, StringComparison.Ordinal);
+        Assert.Contains("playback.loop=True", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class SettingsCommandHandlersTests
                 Success = true,
                 ExitCode = CliExitCode.Success,
                 Message = "Supported settings keys loaded.",
-                Data = new List<string> { "ui.theme" }
+                Data = new List<string> { "ui.theme" },
             });
 
         var handler = new SettingsListKeysCommandHandler(service);
@@ -101,7 +101,7 @@ public class SettingsCommandHandlersTests
             {
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
-                Message = "Unknown settings key."
+                Message = "Unknown settings key.",
             });
 
         var handler = new SettingsResetCommandHandler(service);

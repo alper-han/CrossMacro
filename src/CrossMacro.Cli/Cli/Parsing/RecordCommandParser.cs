@@ -21,7 +21,7 @@ internal static class RecordCommandParser
 
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "record", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }

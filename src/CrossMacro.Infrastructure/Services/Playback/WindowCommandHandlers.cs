@@ -55,7 +55,7 @@ internal static class WindowCommandHelpers
     public static string StripDollar(string token) => token.StartsWith('$') ? token[1..] : token;
 
     public static bool IsValidVarName(string name) =>
-        name.Length > 0 && (char.IsLetter(name[0]) || name[0] == '_') && 
+        name.Length > 0 && (char.IsLetter(name[0]) || name[0] == '_') &&
         name.AsSpan().IndexOfAnyExcept("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_".AsSpan()) < 0;
 
     public static string Unquote(string s)

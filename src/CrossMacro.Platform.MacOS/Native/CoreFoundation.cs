@@ -18,7 +18,7 @@ internal static class CoreFoundation
 
     [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
     public static extern int CFRunLoopRunInMode(IntPtr mode, double seconds, bool returnAfterSourceHandled);
-    
+
     [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
     public static extern void CFRunLoopRun();
 
@@ -30,7 +30,7 @@ internal static class CoreFoundation
 
     [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
     public static extern IntPtr CFRetain(IntPtr cf);
-    
+
     [DllImport(CoreFoundationLib)]
     public static extern IntPtr CFDataGetBytePtr(IntPtr cfData);
 

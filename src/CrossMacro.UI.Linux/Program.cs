@@ -111,7 +111,7 @@ internal static class Program
                 : sp.GetRequiredService<PlatformLinuxImageClipboard>());
         services.AddCrossMacroCommonRuntimeServices();
         services.AddCrossMacroSharedPostPlatformRuntimeServices(
-            sp => runtimeProfile == CliRuntimeProfile.Persistent
+            sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
     }
@@ -156,7 +156,7 @@ internal static class Program
 
         builder.UseWindowingSubsystem(() =>
         {
-            if (SelectLinuxWindowingBackend(environment) == "Wayland")
+            if (SelectLinuxWindowingBackend(environment) is "Wayland")
             {
                 try
                 {

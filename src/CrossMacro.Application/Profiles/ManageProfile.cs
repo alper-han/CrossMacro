@@ -37,7 +37,7 @@ public sealed class ManageProfile : IManageProfile
     public Task<ProfileResult> ListAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(CreateResult(null));
+        return Task.FromResult(CreateResult(profile: null));
     }
 
     public Task<ProfileResult> CurrentAsync(CancellationToken cancellationToken = default)

@@ -25,7 +25,7 @@ public sealed class CliCommandExecutionResult
             ExitCode = (int)CliExitCode.Success,
             Message = message,
             Data = data,
-            Warnings = warnings ?? []
+            Warnings = warnings ?? [],
         };
 
     public static CliCommandExecutionResult Fail(
@@ -41,6 +41,6 @@ public sealed class CliCommandExecutionResult
             Message = message,
             Errors = errors ?? [],
             Warnings = warnings ?? [],
-            Data = data
+            Data = data,
         };
 }

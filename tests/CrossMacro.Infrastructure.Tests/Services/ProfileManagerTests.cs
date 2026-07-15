@@ -42,7 +42,7 @@ public sealed class ProfileManagerTests : IDisposable
                 PlaybackSpeed = 2.5,
                 IsLooping = true,
                 EnableTextExpansion = true,
-                CheckForUpdates = true
+                CheckForUpdates = true,
             },
             CrossMacroJsonContext.Default.ProfileSettings);
         await WriteJsonAsync(
@@ -51,7 +51,7 @@ public sealed class ProfileManagerTests : IDisposable
             {
                 RecordingHotkey = "Ctrl+Alt+R",
                 PlaybackHotkey = "Ctrl+Alt+P",
-                PauseHotkey = "Ctrl+Alt+Space"
+                PauseHotkey = "Ctrl+Alt+Space",
             },
             CrossMacroJsonContext.Default.HotkeySettings);
         await WriteJsonAsync(
@@ -101,7 +101,7 @@ public sealed class ProfileManagerTests : IDisposable
             registryPath,
             new ProfileRegistry
             {
-                Profiles = [new ProfileInfo { Id = "../outside", Name = "Outside" }]
+                Profiles = [new ProfileInfo { Id = "../outside", Name = "Outside" }],
             },
             CrossMacroJsonContext.Default.ProfileRegistry);
 
@@ -146,7 +146,7 @@ public sealed class ProfileManagerTests : IDisposable
             Field = TriggerField.WindowTitle,
             MatchMode = TriggerMatchMode.Contains,
             Value = "Editor",
-            Action = TriggerAction.SwitchProfile
+            Action = TriggerAction.SwitchProfile,
         };
         await WriteJsonAsync(
             Path.Combine(_tempPath, ConfigFileNames.Triggers),

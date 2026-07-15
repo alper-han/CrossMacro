@@ -93,7 +93,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         // Setup status update timer
         _statusUpdateTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(100)
+            Interval = TimeSpan.FromMilliseconds(100),
         };
         _statusUpdateTimer.Tick += OnStatusUpdateTimerTick;
     }
@@ -148,7 +148,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 : _sequenceMacroName;
             var macroIndex = Math.Max(1, _sequenceMacroIndex);
             var macroCount = Math.Max(1, _sequenceMacroCount);
-            var cycleText = _sequenceTotalCycles == 0
+            var cycleText = _sequenceTotalCycles is 0
                 ? string.Format(
                     _localizationService.CurrentCulture,
                     _localizationService["Playback_SequenceCycleInfinite"],
@@ -183,7 +183,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (totalLoops == 0)
+        if (totalLoops is 0)
         {
             PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusLoopInfinite"], currentLoop);
         }
@@ -328,7 +328,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             var previousMax = _loopDelayMaxMs ?? 0;
 
             _useRandomLoopDelay = value;
-            if (value && previousMin == 0 && previousMax == 0)
+            if (value && previousMin is 0 && previousMax is 0)
             {
                 var seededDelay = NormalizeDelayInput(LoopDelayMs);
                 UpdateLoopDelayRange(seededDelay, seededDelay);
@@ -468,7 +468,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         get => _playbackStatus;
         private set
         {
-            if (_playbackStatus != value)
+            if (!string.Equals(_playbackStatus, value, StringComparison.Ordinal))
             {
                 _playbackStatus = value;
                 OnPropertyChanged();
@@ -580,7 +580,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 IsPlaying = false;
                 IsPaused = false;
 
-                if (_dialogService != null)
+                if (_dialogService is not null)
                 {
                     await _dialogService.ShowMessageAsync(
                         _localizationService["Playback_AbsoluteCoordinatesUnsupportedTitle"],
@@ -594,7 +594,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 IsPlaying = false;
                 IsPaused = false;
 
-                if (_dialogService != null)
+                if (_dialogService is not null)
                 {
                     await _dialogService.ShowMessageAsync(
                         _localizationService["Playback_PermissionRequiredTitle"],
@@ -632,7 +632,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         _player.Stop();
         PlaybackStatus = _localizationService["Playback_StatusStopped"];
 
-        if (_playbackCts == null)
+        if (_playbackCts is null)
         {
             IsPlaying = false;
         }
@@ -677,7 +677,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _statusUpdateTimer?.Stop();
-        if (_statusUpdateTimer != null)
+        if (_statusUpdateTimer is not null)
         {
             _statusUpdateTimer.Tick -= OnStatusUpdateTimerTick;
             _statusUpdateTimer = null;
@@ -701,7 +701,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             RepeatDelayMs = LoopDelayMs ?? 0,
             UseRandomRepeatDelay = UseRandomLoopDelay,
             RepeatDelayMinMs = LoopDelayMinMs ?? 0,
-            RepeatDelayMaxMs = LoopDelayMaxMs ?? 0
+            RepeatDelayMaxMs = LoopDelayMaxMs ?? 0,
         };
     }
 
@@ -717,7 +717,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             RepeatDelayMs = 0,
             UseRandomRepeatDelay = false,
             RepeatDelayMinMs = 0,
-            RepeatDelayMaxMs = 0
+            RepeatDelayMaxMs = 0,
         };
     }
 
@@ -752,7 +752,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (playbackMode == LoadedMacroPlaybackMode.AdvanceSelection)
+        if (playbackMode is LoadedMacroPlaybackMode.AdvanceSelection)
         {
             _loadedMacroSession.SelectNext();
         }
@@ -762,7 +762,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         IReadOnlyList<LoadedMacroListItem> sequenceSnapshot,
         CancellationToken cancellationToken)
     {
-        if (sequenceSnapshot.Count == 0)
+        if (sequenceSnapshot.Count is 0)
         {
             return;
         }
@@ -772,7 +772,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         _sequenceTotalCycles = IsLooping ? LoopCount : 1;
 
         var startItemSessionId = sequenceSnapshot[0].SessionId;
-        var infiniteCycles = IsLooping && LoopCount == 0;
+        var infiniteCycles = IsLooping && LoopCount is 0;
         var completedCycles = 0;
 
         try

@@ -30,7 +30,7 @@ internal static class IpcHandshakeCodec
             throw new IOException("Invalid handshake string length.");
         }
 
-        if (byteCount == 0)
+        if (byteCount is 0)
         {
             return string.Empty;
         }
@@ -49,7 +49,7 @@ internal static class IpcHandshakeCodec
         {
             var currentByte = await ReadByteAsync(stream, token).ConfigureAwait(false);
             result |= (currentByte & 0x7F) << shift;
-            if ((currentByte & 0x80) == 0)
+            if ((currentByte & 0x80) is 0)
             {
                 return result;
             }
@@ -66,7 +66,7 @@ internal static class IpcHandshakeCodec
         while (offset < buffer.Length)
         {
             var read = await stream.ReadAsync(buffer.AsMemory(offset, buffer.Length - offset), token).ConfigureAwait(false);
-            if (read == 0)
+            if (read is 0)
             {
                 throw new EndOfStreamException("Daemon closed the connection during handshake.");
             }

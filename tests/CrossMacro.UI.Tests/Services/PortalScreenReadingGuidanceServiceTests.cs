@@ -67,7 +67,7 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         var dialog = new RecordingDialogService();
         var service = new PortalScreenReadingGuidanceService(
             dialog,
-            new StaticSettingsService(null),
+            new StaticSettingsService(restoreToken: null),
             new ThrowingDiagnosticProvider());
 
         await service.ShowBeforePortalWarmupAsync();
@@ -81,7 +81,7 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         var dialog = new RecordingDialogService();
         var service = new PortalScreenReadingGuidanceService(
             dialog,
-            new StaticSettingsService(null));
+            new StaticSettingsService(restoreToken: null));
 
         await service.ShowBeforePortalWarmupAsync();
 
@@ -103,13 +103,13 @@ public sealed class PortalScreenReadingGuidanceServiceTests
     [Fact]
     public void PortalGuidanceMessage_ExplainsPortalSelectionWithoutClaimingControl()
     {
-        var message = UIStrings.PortalScreenReadingGuidanceMessage;
+        const string message = UIStrings.PortalScreenReadingGuidanceMessage;
 
-        Assert.Contains("system screen-sharing portal dialog next", message);
-        Assert.Contains("monitor or screen sources", message);
-        Assert.Contains("select every monitor", message);
-        Assert.Contains("cannot choose or force", message);
-        Assert.Contains("saved permission may be reused", message);
+        Assert.Contains("system screen-sharing portal dialog next", message, StringComparison.Ordinal);
+        Assert.Contains("monitor or screen sources", message, StringComparison.Ordinal);
+        Assert.Contains("select every monitor", message, StringComparison.Ordinal);
+        Assert.Contains("cannot choose or force", message, StringComparison.Ordinal);
+        Assert.Contains("saved permission may be reused", message, StringComparison.Ordinal);
     }
 
     private static PortalScreenReadingGuidanceService CreateService(

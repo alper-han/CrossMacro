@@ -92,7 +92,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
                 .Where(static rectangle => rectangle.Width > 0 && rectangle.Height > 0)
                 .ToArray();
 
-            if (usableOutputs.Length == 0)
+            if (usableOutputs.Length is 0)
             {
                 return false;
             }
@@ -130,7 +130,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
         foreach (var rawLine in kdl.Split('\n', StringSplitOptions.TrimEntries))
         {
             var line = rawLine.Trim();
-            if (line.Length == 0)
+            if (line.Length is 0)
             {
                 continue;
             }
@@ -145,18 +145,18 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
                 continue;
             }
 
-            if (currentOutput == null)
+            if (currentOutput is null)
             {
                 continue;
             }
 
-            if (line == "modes {")
+            if (line is "modes {")
             {
                 inModes = true;
                 continue;
             }
 
-            if (line == "}")
+            if (line is "}")
             {
                 if (inModes)
                 {
@@ -224,7 +224,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
         startInfo.ArgumentList.Add("list");
         startInfo.ArgumentList.Add("--kdl");
@@ -242,7 +242,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             var stdout = await stdoutTask.ConfigureAwait(false);
             var stderr = await stderrTask.ConfigureAwait(false);
 
-            if (process.ExitCode == 0)
+            if (process.ExitCode is 0)
             {
                 return stdout;
             }
@@ -299,19 +299,19 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
         GC.SuppressFinalize(this);
     }
 
-    [GeneratedRegex("^output\\s+\\\"([^\\\"]+)\\\"\\s+enabled=#(true|false)\\s*\\{")]
+    [GeneratedRegex("^output\\s+\\\"([^\\\"]+)\\\"\\s+enabled=#(true|false)\\s*\\{", RegexOptions.NonBacktracking)]
     private static partial Regex OutputLineRegex();
 
-    [GeneratedRegex("^position\\s+(-?\\d+)\\s+(-?\\d+)$")]
+    [GeneratedRegex("^position\\s+(-?\\d+)\\s+(-?\\d+)$", RegexOptions.NonBacktracking)]
     private static partial Regex PositionLineRegex();
 
-    [GeneratedRegex("^scale\\s+([0-9]+(?:\\.[0-9]+)?)$")]
+    [GeneratedRegex("^scale\\s+([0-9]+(?:\\.[0-9]+)?)$", RegexOptions.NonBacktracking)]
     private static partial Regex ScaleLineRegex();
 
-    [GeneratedRegex("^transform\\s+\\\"([^\\\"]+)\\\"$")]
+    [GeneratedRegex("^transform\\s+\\\"([^\\\"]+)\\\"$", RegexOptions.NonBacktracking)]
     private static partial Regex TransformLineRegex();
 
-    [GeneratedRegex("^mode\\s+(\\d+)\\s+(\\d+)\\s+\\d+\\b.*\\bcurrent=#true\\b")]
+    [GeneratedRegex("^mode\\s+(\\d+)\\s+(\\d+)\\s+\\d+\\b.*\\bcurrent=#true\\b", RegexOptions.NonBacktracking)]
     private static partial Regex ModeLineRegex();
 
     private sealed class CosmicOutput

@@ -33,7 +33,7 @@ public sealed class SettingsCliService : ISettingsCliService
                 Success = true,
                 ExitCode = CliExitCode.Success,
                 Message = "Settings loaded.",
-                Data = BuildSettingsDictionary(settings)
+                Data = BuildSettingsDictionary(settings),
             });
         }
 
@@ -44,7 +44,7 @@ public sealed class SettingsCliService : ISettingsCliService
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Unknown settings key.",
-                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", GetSupportedKeys())}"]
+                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", GetSupportedKeys())}"],
             });
         }
 
@@ -53,7 +53,7 @@ public sealed class SettingsCliService : ISettingsCliService
             Success = true,
             ExitCode = CliExitCode.Success,
             Message = $"{key}={value}",
-            Data = new SettingsValueData(key, value)
+            Data = new SettingsValueData(key, value),
         });
     }
 
@@ -67,17 +67,17 @@ public sealed class SettingsCliService : ISettingsCliService
             {
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
-                Message = "Missing settings key."
+                Message = "Missing settings key.",
             };
         }
 
-        if (value == null)
+        if (value is null)
         {
             return new SettingsCommandResult
             {
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
-                Message = "Missing settings value."
+                Message = "Missing settings value.",
             };
         }
 
@@ -90,7 +90,7 @@ public sealed class SettingsCliService : ISettingsCliService
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Unknown settings key.",
-                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", GetSupportedKeys())}"]
+                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", GetSupportedKeys())}"],
             };
         }
 
@@ -101,7 +101,7 @@ public sealed class SettingsCliService : ISettingsCliService
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Invalid settings value.",
-                Errors = [errorMessage]
+                Errors = [errorMessage],
             };
         }
 
@@ -116,7 +116,7 @@ public sealed class SettingsCliService : ISettingsCliService
                 Success = false,
                 ExitCode = CliExitCode.RuntimeError,
                 Message = "Failed to save settings.",
-                Errors = [ex.Message]
+                Errors = [ex.Message],
             };
         }
 
@@ -127,7 +127,7 @@ public sealed class SettingsCliService : ISettingsCliService
             Success = true,
             ExitCode = CliExitCode.Success,
             Message = $"{key} updated.",
-            Data = new SettingsMutationData(key, beforeValue, afterValue)
+            Data = new SettingsMutationData(key, beforeValue, afterValue),
         };
     }
 
@@ -139,7 +139,7 @@ public sealed class SettingsCliService : ISettingsCliService
             Success = true,
             ExitCode = CliExitCode.Success,
             Message = "Supported settings keys loaded.",
-            Data = GetSupportedKeys().ToList()
+            Data = GetSupportedKeys().ToList(),
         });
     }
 
@@ -153,7 +153,7 @@ public sealed class SettingsCliService : ISettingsCliService
             {
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
-                Message = "Missing settings key."
+                Message = "Missing settings key.",
             };
         }
 
@@ -165,7 +165,7 @@ public sealed class SettingsCliService : ISettingsCliService
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Unknown settings key.",
-                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", GetSupportedKeys())}"]
+                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", GetSupportedKeys())}"],
             };
         }
 
@@ -177,7 +177,7 @@ public sealed class SettingsCliService : ISettingsCliService
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Settings key cannot be reset.",
-                Errors = [errorMessage]
+                Errors = [errorMessage],
             };
         }
 
@@ -192,7 +192,7 @@ public sealed class SettingsCliService : ISettingsCliService
                 Success = false,
                 ExitCode = CliExitCode.RuntimeError,
                 Message = "Failed to save settings.",
-                Errors = [ex.Message]
+                Errors = [ex.Message],
             };
         }
 
@@ -203,7 +203,7 @@ public sealed class SettingsCliService : ISettingsCliService
             Success = true,
             ExitCode = CliExitCode.Success,
             Message = $"{key} reset.",
-            Data = new SettingsMutationData(key, beforeValue, afterValue)
+            Data = new SettingsMutationData(key, beforeValue, afterValue),
         };
     }
 
@@ -227,7 +227,7 @@ public sealed class SettingsCliService : ISettingsCliService
             "ui.trayIcon",
             "ui.startMinimized",
             "updates.checkForUpdates",
-            "screen.portalRestoreToken"
+            "screen.portalRestoreToken",
         ];
     }
 
@@ -251,7 +251,7 @@ public sealed class SettingsCliService : ISettingsCliService
             ["ui.trayIcon"] = settings.EnableTrayIcon,
             ["ui.startMinimized"] = settings.StartMinimized,
             ["updates.checkForUpdates"] = settings.CheckForUpdates,
-            ["screen.portalRestoreToken"] = string.IsNullOrEmpty(settings.PortalScreenCastRestoreToken) ? "empty" : "set"
+            ["screen.portalRestoreToken"] = string.IsNullOrEmpty(settings.PortalScreenCastRestoreToken) ? "empty" : "set",
         };
     }
 
@@ -373,7 +373,7 @@ public sealed class SettingsCliService : ISettingsCliService
             case "logging.level":
             {
                 var normalized = AllowedLogLevels.FirstOrDefault(x => string.Equals(x, rawValue, StringComparison.OrdinalIgnoreCase));
-                if (normalized == null)
+                if (normalized is null)
                 {
                     errorMessage = $"Invalid value for {key}: {rawValue}. Allowed: {string.Join(", ", AllowedLogLevels)}.";
                     return false;

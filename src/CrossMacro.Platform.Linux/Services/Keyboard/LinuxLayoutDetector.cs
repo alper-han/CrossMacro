@@ -44,10 +44,10 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         _isHyprland = !string.IsNullOrEmpty(environment.HyprlandInstanceSignature);
         var desktop = environment.CurrentDesktop?.ToUpperInvariant() ?? "";
         var session = environment.GdmSession?.ToUpperInvariant() ?? "";
-        _isKde = desktop.Contains("KDE") || desktop.Contains("PLASMA");
-        _isGnome = desktop.Contains("GNOME") || desktop.Contains("UNITY");
-        _isNiri = desktop.Contains("NIRI") || session.Contains("NIRI") || !string.IsNullOrEmpty(environment.NiriSocket);
-        
+        _isKde = desktop.Contains("KDE", StringComparison.Ordinal) || desktop.Contains("PLASMA", StringComparison.Ordinal);
+        _isGnome = desktop.Contains("GNOME", StringComparison.Ordinal) || desktop.Contains("UNITY", StringComparison.Ordinal);
+        _isNiri = desktop.Contains("NIRI", StringComparison.Ordinal) || session.Contains("NIRI", StringComparison.Ordinal) || !string.IsNullOrEmpty(environment.NiriSocket);
+
         if (_isHyprland)
             Log.Information("[LayoutDetector] Environment: Hyprland");
         else if (_isKde)
@@ -164,11 +164,11 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
             if (!uint.TryParse(currentIndexStr, out var index)) index = 0;
 
             var sourcesOutput = ProcessHelper.ExecuteCommand("gsettings", "get org.gnome.desktop.input-sources sources")?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(sourcesOutput) || sourcesOutput == "@as []") return null;
+            if (string.IsNullOrWhiteSpace(sourcesOutput) || sourcesOutput is "@as []") return null;
 
             var content = sourcesOutput.Trim('[', ']');
             var tuples = content.Split(new[] { "), (", "),(" }, StringSplitOptions.RemoveEmptyEntries);
-            
+
             if (index < (uint)tuples.Length)
             {
                 var currentTuple = tuples[index].Trim('(', ')', ' ');
@@ -211,7 +211,7 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
 
                 foreach (var kb in keyboards.EnumerateArray())
                 {
-                    if (kb.TryGetProperty("layout", out var layout) && 
+                    if (kb.TryGetProperty("layout", out var layout) &&
                         !string.IsNullOrWhiteSpace(layout.GetString()))
                     {
                         return layout.GetString();

@@ -94,7 +94,7 @@ public static class CliGuiRuntime
     private static int RunGuiMode(Func<IDisposable?> tryAcquireSingleInstanceGuard, Func<int> startGui)
     {
         using var guiInstanceGuard = tryAcquireSingleInstanceGuard();
-        if (guiInstanceGuard == null)
+        if (guiInstanceGuard is null)
         {
             Log.Warning("Could not acquire single-instance lock; another instance may already be running.");
             return (int)CliExitCode.EnvironmentError;
@@ -154,14 +154,14 @@ public static class CliGuiRuntime
         }
 
         using var cliInstanceGuard = tryAcquireSingleInstanceGuard();
-        if (cliInstanceGuard == null)
+        if (cliInstanceGuard is null)
         {
             var conflictResult = CliCommandExecutionResult.Fail(
                 CliExitCode.EnvironmentError,
                 "Another CrossMacro runtime instance is already running.",
                 errors:
                 [
-                    "Headless mode cannot start while another GUI/headless runtime holds the single-instance lock."
+                    "Headless mode cannot start while another GUI/headless runtime holds the single-instance lock.",
                 ]);
             CliOutputFormatter.Write(conflictResult, options.JsonOutput);
             return (int)CliExitCode.EnvironmentError;

@@ -186,7 +186,7 @@ public sealed class RunScriptShellRuntimeTests
     [Fact]
     public async Task ExecuteStepAsync_WhenRunnerIsMissing_ThrowsMeaningfulError()
     {
-        var executor = Executor(null);
+        var executor = Executor(runner: null);
 
         var act = async () => await executor.ExecuteStepAsync("shell \"echo ok\"", 1, Vars(), CancellationToken.None);
 
@@ -203,7 +203,7 @@ public sealed class RunScriptShellRuntimeTests
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"));
         var macro = new MacroSequence
         {
-            ScriptSteps = ["shell \"printf ok\""]
+            ScriptSteps = ["shell \"printf ok\""],
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
@@ -228,11 +228,11 @@ public sealed class RunScriptShellRuntimeTests
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(false);
+        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
         keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
         var positionProvider = Substitute.For<IMousePositionProvider>();
         positionProvider.ProviderName.Returns("fake-position");
-        positionProvider.IsSupported.Returns(true);
+        positionProvider.IsSupported.Returns(returnThis: true);
 
         return new MacroPlayer(
             positionProvider,
@@ -264,7 +264,7 @@ public sealed class RunScriptShellRuntimeTests
             {
                 ShellCommandResult result => Task.FromResult(result),
                 Exception exception => Task.FromException<ShellCommandResult>(exception),
-                _ => throw new InvalidOperationException("Unsupported fake shell outcome.")
+                _ => throw new InvalidOperationException("Unsupported fake shell outcome."),
             };
         }
     }

@@ -71,7 +71,7 @@ public partial class EditorViewModel
 
             foreach (var variableName in screenReadingPayload.GetOutputVariableNames())
             {
-                if (screenReadingPayload.GetOutputVariableRole(variableName) == EditorActionScreenReadingVariableRole.Color)
+                if (screenReadingPayload.GetOutputVariableRole(variableName) is EditorActionScreenReadingVariableRole.Color)
                 {
                     AddIfValidVariableName(names, variableName);
                 }
@@ -136,13 +136,13 @@ public partial class EditorViewModel
 
     private void ClearVariableSuggestionSelections()
     {
-        SetSuggestionValue(ref _selectedSetVariableSuggestion, nameof(SelectedSetVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedIncDecVariableSuggestion, nameof(SelectedIncDecVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedConditionLeftVariableSuggestion, nameof(SelectedConditionLeftVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedConditionRightVariableSuggestion, nameof(SelectedConditionRightVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedForVariableSuggestion, nameof(SelectedForVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedClipboardVariableSuggestion, nameof(SelectedClipboardVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedScreenTargetColorVariableSuggestion, nameof(SelectedScreenTargetColorVariableSuggestion), null);
+        SetSuggestionValue(ref _selectedSetVariableSuggestion, nameof(SelectedSetVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedIncDecVariableSuggestion, nameof(SelectedIncDecVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedConditionLeftVariableSuggestion, nameof(SelectedConditionLeftVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedConditionRightVariableSuggestion, nameof(SelectedConditionRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedForVariableSuggestion, nameof(SelectedForVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedClipboardVariableSuggestion, nameof(SelectedClipboardVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedScreenTargetColorVariableSuggestion, nameof(SelectedScreenTargetColorVariableSuggestion), value: null);
     }
 
     private void SetSuggestionValue(ref string? targetField, string propertyName, string? value)
@@ -220,7 +220,7 @@ public partial class EditorViewModel
             token = token[1..];
         }
 
-        if (Regex.IsMatch(token, @"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant))
+        if (Regex.IsMatch(token, @"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking))
         {
             target.Add(token);
         }

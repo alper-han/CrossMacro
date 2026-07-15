@@ -41,7 +41,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
         _socketPath = TryNormalizeSocketPath(socketPath, runtimeDirectory, out var normalizedSocketPath)
             ? normalizedSocketPath
             : null;
-        IsAvailable = _socketPath != null && File.Exists(_socketPath);
+        IsAvailable = _socketPath is not null && File.Exists(_socketPath);
 
         if (IsAvailable)
         {
@@ -100,7 +100,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
 
     public async Task<string?> SendRequestAsync(string requestJson, CancellationToken cancellationToken = default)
     {
-        if (_disposed || !IsAvailable || _socketPath == null)
+        if (_disposed || !IsAvailable || _socketPath is null)
         {
             return null;
         }

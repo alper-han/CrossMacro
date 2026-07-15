@@ -8,7 +8,7 @@ public enum ScriptValueType
     Number = 0,
     Text = 1,
     Boolean = 2,
-    VariableReference = 3
+    VariableReference = 3,
 }
 
 /// <summary>
@@ -17,7 +17,7 @@ public enum ScriptValueType
 public enum ScriptNumericSourceType
 {
     Number = 0,
-    VariableReference = 1
+    VariableReference = 1,
 }
 
 /// <summary>
@@ -29,7 +29,7 @@ public enum ScriptOperandType
     Number = 1,
     Text = 2,
     Boolean = 3,
-    Color = 4
+    Color = 4,
 }
 
 /// <summary>
@@ -42,5 +42,5 @@ public enum ScriptConditionOperator
     GreaterThan = 2,
     GreaterThanOrEqual = 3,
     LessThan = 4,
-    LessThanOrEqual = 5
+    LessThanOrEqual = 5,
 }

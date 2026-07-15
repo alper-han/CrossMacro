@@ -29,8 +29,8 @@ public class HeadlessRuntimeServiceTests
         var hotkeyActions = Substitute.For<IHeadlessHotkeyActionService>();
         var hotkeyActionsStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var hotkeyActionsStopped = false;
-        textExpansion.IsRunning.Returns(true);
-        hotkeyActions.IsRunning.Returns(true);
+        textExpansion.IsRunning.Returns(returnThis: true);
+        hotkeyActions.IsRunning.Returns(returnThis: true);
         hotkeyActions.When(x => x.Start()).Do(_ => hotkeyActionsStarted.TrySetResult());
         hotkeyActions.StopAsync(Arg.Any<CancellationToken>()).Returns(_ =>
         {
@@ -82,8 +82,8 @@ public class HeadlessRuntimeServiceTests
         var warmup = Substitute.For<IScreenReadingWarmupService>();
         var warmupStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        textExpansion.IsRunning.Returns(true);
-        hotkeyActions.IsRunning.Returns(true);
+        textExpansion.IsRunning.Returns(returnThis: true);
+        hotkeyActions.IsRunning.Returns(returnThis: true);
         warmup.WarmUpPortalSessionAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         warmup.When(x => x.WarmUpPortalSessionAsync(Arg.Any<CancellationToken>()))
             .Do(_ => warmupStarted.TrySetResult());
@@ -122,8 +122,8 @@ public class HeadlessRuntimeServiceTests
         var allowStopToComplete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var globalHotkeysStoppedBeforeHotkeyActions = false;
 
-        textExpansion.IsRunning.Returns(true);
-        hotkeyActions.IsRunning.Returns(true);
+        textExpansion.IsRunning.Returns(returnThis: true);
+        hotkeyActions.IsRunning.Returns(returnThis: true);
         hotkeyActions.When(x => x.Start()).Do(_ => hotkeyActionsStarted.SetResult());
         hotkeyActions.StopAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
         {

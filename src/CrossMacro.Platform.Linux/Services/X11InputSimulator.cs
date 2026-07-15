@@ -23,7 +23,7 @@ namespace CrossMacro.Platform.Linux.Services
         {
             try
             {
-                _display = X11Native.XOpenDisplay(null);
+                _display = X11Native.XOpenDisplay(display: null);
                 if (_display == IntPtr.Zero)
                 {
                     Log.Warning("[X11InputSimulator] Failed to open X Display");
@@ -73,7 +73,7 @@ namespace CrossMacro.Platform.Linux.Services
             try
             {
                 int result = X11Native.XTestFakeRelativeMotionEvent(_display, dx, dy, 0);
-                if (result != 0)
+                if (result is not 0)
                 {
                      X11Native.XFlush(_display);
                      return;
@@ -98,12 +98,12 @@ namespace CrossMacro.Platform.Linux.Services
             uint x11Button = 0;
             switch(button)
             {
-                case UInputNative.BTN_LEFT: x11Button = 1; break; 
-                case UInputNative.BTN_RIGHT: x11Button = 3; break; 
-                case UInputNative.BTN_MIDDLE: x11Button = 2; break; 
-                case UInputNative.BTN_SIDE: x11Button = 8; break; 
-                case UInputNative.BTN_EXTRA: x11Button = 9; break; 
-                default: 
+                case UInputNative.BTN_LEFT: x11Button = 1; break;
+                case UInputNative.BTN_RIGHT: x11Button = 3; break;
+                case UInputNative.BTN_MIDDLE: x11Button = 2; break;
+                case UInputNative.BTN_SIDE: x11Button = 8; break;
+                case UInputNative.BTN_EXTRA: x11Button = 9; break;
+                default:
                     break;
             }
 
@@ -127,9 +127,9 @@ namespace CrossMacro.Platform.Linux.Services
             {
                  button = delta > 0 ? 4u : 5u;
             }
-            
-            X11Native.XTestFakeButtonEvent(_display, button, true, 0);
-            X11Native.XTestFakeButtonEvent(_display, button, false, 0);
+
+            X11Native.XTestFakeButtonEvent(_display, button, is_press: true, 0);
+            X11Native.XTestFakeButtonEvent(_display, button, is_press: false, 0);
             X11Native.XFlush(_display);
         }
 
@@ -151,7 +151,7 @@ namespace CrossMacro.Platform.Linux.Services
         public void Dispose()
         {
             if (_disposed) return;
-            
+
             if (_display != IntPtr.Zero)
             {
                 X11Native.XCloseDisplay(_display);

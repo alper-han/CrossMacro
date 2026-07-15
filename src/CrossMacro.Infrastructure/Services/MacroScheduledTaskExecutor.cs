@@ -44,13 +44,13 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                     task.LastRunTime = _timeProvider.UtcNow;
                     UpdateScheduleAfterAttempt(task);
                 });
-                
-                RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, "Macro file not found"));
+
+                RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Macro file not found"));
                 return;
             }
-            
+
             var macro = await _fileManager.LoadAsync(task.MacroFilePath);
-            if (macro == null)
+            if (macro is null)
             {
                 await SafeUpdateAsync(() =>
                 {
@@ -58,10 +58,10 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                     task.LastRunTime = _timeProvider.UtcNow;
                     UpdateScheduleAfterAttempt(task);
                 });
-                RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, "Failed to load macro"));
+                RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Failed to load macro"));
                 return;
             }
-            
+
             // Update status immediately before execution starts
             await SafeUpdateAsync(() =>
             {
@@ -69,18 +69,18 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 task.LastRunTime = _timeProvider.UtcNow;
             });
             RaiseTaskStarting(task);
-            
+
             // Create new player instance for this execution to avoid conflicts
             using var player = _playerFactory();
-            
+
             // Apply task-specific playback speed
             var options = new PlaybackOptions
             {
-                SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(task.PlaybackSpeed)
+                SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(task.PlaybackSpeed),
             };
-            
+
             await player.PlayAsync(macro, options, cancellationToken);
-            
+
             // Update status after successful completion
             await SafeUpdateAsync(() =>
             {
@@ -88,10 +88,10 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 task.LastStatus = "Success";
                 UpdateScheduleAfterAttempt(task);
             });
-            
-            RaiseTaskExecuted(new TaskExecutedEventArgs(task, true, "Executed successfully"));
+
+            RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: true, "Executed successfully"));
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("progress"))
+        catch (InvalidOperationException ex) when (ex.Message.Contains("progress", StringComparison.Ordinal))
         {
             // Playback already in progress - reschedule for next interval
             await SafeUpdateAsync(() =>
@@ -99,7 +99,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 task.LastStatus = "Skipped (playback busy)";
                 UpdateScheduleAfterAttempt(task);
             });
-            RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, "Playback was busy, will retry"));
+            RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Playback was busy, will retry"));
         }
         catch (OperationCanceledException)
         {
@@ -109,7 +109,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 task.LastRunTime = _timeProvider.UtcNow;
                 UpdateScheduleAfterAttempt(task);
             });
-            RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, "Cancelled"));
+            RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Cancelled"));
         }
         catch (Exception ex)
         {
@@ -119,7 +119,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
                 task.LastRunTime = _timeProvider.UtcNow;
                 UpdateScheduleAfterAttempt(task);
             });
-            RaiseTaskExecuted(new TaskExecutedEventArgs(task, false, ex.Message));
+            RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, ex.Message));
         }
     }
 
@@ -131,7 +131,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             return;
         }
 
-        if (task.Type == ScheduleType.SpecificTime)
+        if (task.Type is ScheduleType.SpecificTime)
         {
             task.IsEnabled = false;
             task.NextRunTime = null;
@@ -140,7 +140,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
 
     private Task SafeUpdateAsync(Action action)
     {
-        if (_syncContext == null || SynchronizationContext.Current == _syncContext)
+        if (_syncContext is null || SynchronizationContext.Current == _syncContext)
         {
             action();
             return Task.CompletedTask;
@@ -158,7 +158,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             {
                 completion.TrySetException(ex);
             }
-        }, null);
+        }, state: null);
         return completion.Task;
     }
 

@@ -20,9 +20,9 @@ public class LinuxKeyCodeMapper : ILinuxKeyCodeMapper
         {
             29 => "Ctrl", 97 => "Ctrl", 42 => "Shift", 54 => "Shift",
             56 => "Alt", 100 => "AltGr", 125 => "Super", 126 => "Super",
-            _ => null
+            _ => null,
         };
-        if (modifierName != null) return modifierName;
+        if (modifierName is not null) return modifierName;
 
         // 2. Special/Navigation keys
         var special = keyCode switch
@@ -33,14 +33,14 @@ public class LinuxKeyCodeMapper : ILinuxKeyCodeMapper
             103 => "Up", 108 => "Down", 105 => "Left", 106 => "Right",
             58 => "CapsLock", 69 => "NumLock", 70 => "ScrollLock",
             99 => "PrintScreen", 119 => "Pause", 127 => "Menu",
-            _ => null
+            _ => null,
         };
-        if (special != null) return special;
+        if (special is not null) return special;
 
         // 3. Function keys (F1-F10: 59-68, F11: 87, F12: 88, F13-F24: 183-194)
         if (keyCode >= 59 && keyCode <= 68) return "F" + (keyCode - 58);
-        if (keyCode == 87) return "F11";
-        if (keyCode == 88) return "F12";
+        if (keyCode is 87) return "F11";
+        if (keyCode is 88) return "F12";
         if (keyCode >= 183 && keyCode <= 194) return "F" + (keyCode - 170);
 
         // 4. Numpad
@@ -51,19 +51,19 @@ public class LinuxKeyCodeMapper : ILinuxKeyCodeMapper
             79 => "Numpad1", 80 => "Numpad2", 81 => "Numpad3",
             82 => "Numpad0", 83 => "Numpad.", 96 => "NumpadEnter",
             98 => "Numpad/", 55 => "Numpad*", 117 => "Numpad=",
-            _ => null
+            _ => null,
         };
-        if (numpad != null) return numpad;
+        if (numpad is not null) return numpad;
 
         // 5. Try XKB for character keys
-        if (_xkbState?.IsInitialized == true)
+        if ((_xkbState?.IsInitialized) is true)
         {
             var utf8 = _xkbState.GetUtf8String((uint)(keyCode + 8));
-            if (!string.IsNullOrEmpty(utf8)) return utf8.Length == 1 ? utf8.ToUpper() : utf8;
+            if (!string.IsNullOrEmpty(utf8)) return utf8.Length is 1 ? utf8.ToUpper() : utf8;
         }
 
         // 6. Digits fallback
-        if (keyCode == 11) return "0";
+        if (keyCode is 11) return "0";
         if (keyCode >= 2 && keyCode <= 10) return (keyCode - 1).ToString();
 
         // 7. Letters fallback (QWERTY)
@@ -92,7 +92,7 @@ public class LinuxKeyCodeMapper : ILinuxKeyCodeMapper
             "Numpad4" => 75, "Numpad5" => 76, "Numpad6" => 77, "Numpad+" => 78,
             "Numpad1" => 79, "Numpad2" => 80, "Numpad3" => 81,
             "Numpad0" => 82, "Numpad." => 83, "NumpadEnter" => 96, "Numpad/" => 98, "Numpad*" => 55,
-            _ => -1
+            _ => -1,
         };
         if (special != -1) return special;
 
@@ -100,8 +100,8 @@ public class LinuxKeyCodeMapper : ILinuxKeyCodeMapper
         if (keyName.StartsWith("F", StringComparison.OrdinalIgnoreCase) && int.TryParse(keyName[1..], out var fNum))
         {
             if (fNum >= 1 && fNum <= 10) return 59 + fNum - 1;
-            if (fNum == 11) return 87;
-            if (fNum == 12) return 88;
+            if (fNum is 11) return 87;
+            if (fNum is 12) return 88;
             if (fNum >= 13 && fNum <= 24) return 183 + fNum - 13;
         }
 

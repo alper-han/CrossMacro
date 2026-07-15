@@ -32,7 +32,7 @@ internal static class TriggerCommandParser
             "remove" => ParseTaskIdCommand(args, TriggerCliAction.Remove, "trigger.remove"),
             "enable" => ParseTaskIdCommand(args, TriggerCliAction.Enable, "trigger.enable"),
             "disable" => ParseTaskIdCommand(args, TriggerCliAction.Disable, "trigger.disable"),
-            _ => CliParseResult.Error($"Unknown trigger subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2))
+            _ => CliParseResult.Error($"Unknown trigger subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 
@@ -177,7 +177,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerField>(fieldStr, true, out var field))
+            if (!Enum.TryParse<TriggerField>(fieldStr, ignoreCase: true, out var field))
             {
                 result = CliParseHelpers.Error($"Invalid trigger field: {fieldStr}. Expected: WindowClass, WindowTitle, Workspace, ProcessName, None", state.JsonOutput);
                 return true;
@@ -196,7 +196,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerMatchMode>(modeStr, true, out var mode))
+            if (!Enum.TryParse<TriggerMatchMode>(modeStr, ignoreCase: true, out var mode))
             {
                 result = CliParseHelpers.Error($"Invalid match mode: {modeStr}. Expected: Equals, Contains, Regex", state.JsonOutput);
                 return true;
@@ -215,7 +215,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerAction>(actionStr, true, out var action))
+            if (!Enum.TryParse<TriggerAction>(actionStr, ignoreCase: true, out var action))
             {
                 result = CliParseHelpers.Error($"Invalid action: {actionStr}. Expected: SwitchProfile, RunMacro", state.JsonOutput);
                 return true;
@@ -234,7 +234,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerFireMode>(modeStr, true, out var mode))
+            if (!Enum.TryParse<TriggerFireMode>(modeStr, ignoreCase: true, out var mode))
             {
                 result = CliParseHelpers.Error($"Invalid fire mode: {modeStr}. Expected: OnceOnChange, EveryMatch, OnEnter, OnExit", state.JsonOutput);
                 return true;

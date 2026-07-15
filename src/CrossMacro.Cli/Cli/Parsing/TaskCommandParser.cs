@@ -49,7 +49,7 @@ internal static class TaskCommandParser
 
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, $"{commandName}.list", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }
@@ -103,7 +103,7 @@ internal static class TaskCommandParser
 
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, $"{commandName}.run", ref jsonOutput, ref logLevel, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }

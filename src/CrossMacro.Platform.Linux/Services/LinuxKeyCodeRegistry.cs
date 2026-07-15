@@ -12,7 +12,7 @@ public static class LinuxKeyCodeRegistry
     /// Maximum key code value (KEY_MAX from input-event-codes.h)
     /// </summary>
     public const int KEY_MAX = 0x2FF;
-    
+
     /// <summary>
     /// Static lookup table: key code → key name
     /// </summary>
@@ -20,7 +20,7 @@ public static class LinuxKeyCodeRegistry
     {
         // Reserved
         { 0, "KEY_RESERVED" },
-        
+
         // Function row
         { 1, "KEY_ESC" },
         { 2, "KEY_1" },
@@ -37,7 +37,7 @@ public static class LinuxKeyCodeRegistry
         { 13, "KEY_EQUAL" },
         { 14, "KEY_BACKSPACE" },
         { 15, "KEY_TAB" },
-        
+
         // QWERTY row 1
         { 16, "KEY_Q" },
         { 17, "KEY_W" },
@@ -53,7 +53,7 @@ public static class LinuxKeyCodeRegistry
         { 27, "KEY_RIGHTBRACE" },
         { 28, "KEY_ENTER" },
         { 29, "KEY_LEFTCTRL" },
-        
+
         // QWERTY row 2
         { 30, "KEY_A" },
         { 31, "KEY_S" },
@@ -69,7 +69,7 @@ public static class LinuxKeyCodeRegistry
         { 41, "KEY_GRAVE" },
         { 42, "KEY_LEFTSHIFT" },
         { 43, "KEY_BACKSLASH" },
-        
+
         // QWERTY row 3
         { 44, "KEY_Z" },
         { 45, "KEY_X" },
@@ -86,7 +86,7 @@ public static class LinuxKeyCodeRegistry
         { 56, "KEY_LEFTALT" },
         { 57, "KEY_SPACE" },
         { 58, "KEY_CAPSLOCK" },
-        
+
         // Function keys F1-F10
         { 59, "KEY_F1" },
         { 60, "KEY_F2" },
@@ -98,11 +98,11 @@ public static class LinuxKeyCodeRegistry
         { 66, "KEY_F8" },
         { 67, "KEY_F9" },
         { 68, "KEY_F10" },
-        
+
         // Lock keys
         { 69, "KEY_NUMLOCK" },
         { 70, "KEY_SCROLLLOCK" },
-        
+
         // Numpad
         { 71, "KEY_KP7" },
         { 72, "KEY_KP8" },
@@ -117,7 +117,7 @@ public static class LinuxKeyCodeRegistry
         { 81, "KEY_KP3" },
         { 82, "KEY_KP0" },
         { 83, "KEY_KPDOT" },
-        
+
         // International keys
         { 85, "KEY_ZENKAKUHANKAKU" },
         { 86, "KEY_102ND" },
@@ -162,7 +162,7 @@ public static class LinuxKeyCodeRegistry
         { 125, "KEY_LEFTMETA" },
         { 126, "KEY_RIGHTMETA" },
         { 127, "KEY_COMPOSE" },
-        
+
         // System control
         { 128, "KEY_STOP" },
         { 129, "KEY_AGAIN" },
@@ -219,7 +219,7 @@ public static class LinuxKeyCodeRegistry
         { 180, "KEY_KPRIGHTPAREN" },
         { 181, "KEY_NEW" },
         { 182, "KEY_REDO" },
-        
+
         // Extended Function Keys
         { 183, "KEY_F13" },
         { 184, "KEY_F14" },
@@ -233,7 +233,7 @@ public static class LinuxKeyCodeRegistry
         { 192, "KEY_F22" },
         { 193, "KEY_F23" },
         { 194, "KEY_F24" },
-        
+
         // More system keys
         { 200, "KEY_PLAYCD" },
         { 201, "KEY_PAUSECD" },
@@ -284,7 +284,7 @@ public static class LinuxKeyCodeRegistry
         { 246, "KEY_WWAN" },
         { 247, "KEY_RFKILL" },
         { 248, "KEY_MICMUTE" },
-        
+
         // Mouse buttons (BTN_MISC to BTN_MOUSE range: 0x100-0x11F)
         { 0x110, "BTN_LEFT" },
         { 0x111, "BTN_RIGHT" },
@@ -294,7 +294,7 @@ public static class LinuxKeyCodeRegistry
         { 0x115, "BTN_FORWARD" },
         { 0x116, "BTN_BACK" },
         { 0x117, "BTN_TASK" },
-        
+
         // Gamepad buttons (BTN_GAMEPAD range: 0x130-0x13F)
         { 0x130, "BTN_SOUTH" },
         { 0x131, "BTN_EAST" },
@@ -311,7 +311,7 @@ public static class LinuxKeyCodeRegistry
         { 0x13C, "BTN_MODE" },
         { 0x13D, "BTN_THUMBL" },
         { 0x13E, "BTN_THUMBR" },
-        
+
         // Touch button
         { 0x14A, "BTN_TOUCH" },
         { 0x14B, "BTN_STYLUS" },
@@ -328,11 +328,11 @@ public static class LinuxKeyCodeRegistry
     {
         if (KeyNames.TryGetValue(keyCode, out var name))
             return name;
-        
+
         // Generate name for unknown codes
         if (keyCode >= 0x100 && keyCode < 0x120)
             return $"BTN_{keyCode:X3}";
-        
+
         return $"KEY_{keyCode}";
     }
 
@@ -347,13 +347,13 @@ public static class LinuxKeyCodeRegistry
     public static string GetDisplayName(int keyCode)
     {
         var name = GetKeyName(keyCode);
-        
+
         // Remove KEY_ or BTN_ prefix for display
-        if (name.StartsWith("KEY_"))
+        if (name.StartsWith("KEY_", StringComparison.Ordinal))
             return name[4..];
-        if (name.StartsWith("BTN_"))
+        if (name.StartsWith("BTN_", StringComparison.Ordinal))
             return name[4..];
-        
+
         return name;
     }
 }

@@ -11,12 +11,12 @@ public sealed record ScreenshotCaptureResult(
     ScreenshotCaptureData? Data)
 {
     public static ScreenshotCaptureResult Ok(ScreenshotCaptureData data) =>
-        new(true, null, null, string.Empty, [], data);
+        new(Success: true, FailureKind: null, ScreenReadErrorKind: null, string.Empty, [], data);
 
     public static ScreenshotCaptureResult Fail(
         ScreenshotCaptureFailureKind failureKind,
         string message,
         IReadOnlyList<string> details,
         ScreenReadErrorKind? screenReadErrorKind = null) =>
-        new(false, failureKind, screenReadErrorKind, message, details, null);
+        new(Success: false, failureKind, screenReadErrorKind, message, details, Data: null);
 }

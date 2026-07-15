@@ -21,7 +21,7 @@ public partial class FilesViewModel : ViewModelBase
         Ready,
         LoadCancelled,
         SaveCancelled,
-        Other
+        Other,
     }
 
     private const string DefaultMacroName = MacroNameDefaults.NewRecordedMacroName;
@@ -102,9 +102,9 @@ public partial class FilesViewModel : ViewModelBase
         {
             var normalized = string.IsNullOrWhiteSpace(value) ? DefaultMacroName : value.Trim();
             var selectedItem = _loadedMacroSession.SelectedMacroItem;
-            if (selectedItem != null)
+            if (selectedItem is not null)
             {
-                if (selectedItem.Name == normalized)
+                if (string.Equals(selectedItem.Name, normalized, StringComparison.Ordinal))
                 {
                     return;
                 }
@@ -114,7 +114,7 @@ public partial class FilesViewModel : ViewModelBase
                 return;
             }
 
-            if (_macroName == normalized)
+            if (string.Equals(_macroName, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -130,7 +130,7 @@ public partial class FilesViewModel : ViewModelBase
         set
         {
             var selectedItem = _loadedMacroSession.SelectedMacroItem;
-            if (selectedItem == null)
+            if (selectedItem is null)
             {
                 return;
             }
@@ -183,7 +183,7 @@ public partial class FilesViewModel : ViewModelBase
 
     public bool IsSelectedOnlyMode
     {
-        get => _loadedMacroSession.PlaybackMode == LoadedMacroPlaybackMode.SelectedOnly;
+        get => _loadedMacroSession.PlaybackMode is LoadedMacroPlaybackMode.SelectedOnly;
         set
         {
             if (value)
@@ -195,7 +195,7 @@ public partial class FilesViewModel : ViewModelBase
 
     public bool IsAdvanceSelectionMode
     {
-        get => _loadedMacroSession.PlaybackMode == LoadedMacroPlaybackMode.AdvanceSelection;
+        get => _loadedMacroSession.PlaybackMode is LoadedMacroPlaybackMode.AdvanceSelection;
         set
         {
             if (value)
@@ -207,7 +207,7 @@ public partial class FilesViewModel : ViewModelBase
 
     public bool IsSequentialCycleMode
     {
-        get => _loadedMacroSession.PlaybackMode == LoadedMacroPlaybackMode.SequentialCycle;
+        get => _loadedMacroSession.PlaybackMode is LoadedMacroPlaybackMode.SequentialCycle;
         set
         {
             if (value)
@@ -224,7 +224,7 @@ public partial class FilesViewModel : ViewModelBase
         get => _status;
         private set
         {
-            if (_status != value)
+            if (!string.Equals(_status, value, StringComparison.Ordinal))
             {
                 _status = value;
                 OnPropertyChanged();
@@ -238,7 +238,7 @@ public partial class FilesViewModel : ViewModelBase
     /// </summary>
     public void SetMacro(MacroSequence? macro)
     {
-        if (macro == null)
+        if (macro is null)
         {
             return;
         }
@@ -253,7 +253,7 @@ public partial class FilesViewModel : ViewModelBase
     /// </summary>
     public LoadedMacroListItem? UpsertMacro(Guid? sessionId, MacroSequence? macro, string? sourcePath = null)
     {
-        if (macro == null)
+        if (macro is null)
         {
             return null;
         }
@@ -261,7 +261,7 @@ public partial class FilesViewModel : ViewModelBase
         if (sessionId.HasValue)
         {
             var updatedItem = _loadedMacroSession.UpdateMacro(sessionId.Value, macro, sourcePath);
-            if (updatedItem != null)
+            if (updatedItem is not null)
             {
                 return updatedItem;
             }
@@ -276,7 +276,7 @@ public partial class FilesViewModel : ViewModelBase
     /// </summary>
     public void UpsertSelectedMacro(MacroSequence? macro)
     {
-        if (macro == null)
+        if (macro is null)
         {
             return;
         }
@@ -297,14 +297,14 @@ public partial class FilesViewModel : ViewModelBase
     public async Task SaveMacroAsync()
     {
         var currentItem = SelectedMacroItem;
-        if (currentItem == null || !CanSaveMacro)
+        if (currentItem is null || !CanSaveMacro)
         {
             return;
         }
 
         var currentMacro = currentItem.Macro;
         var macroNameToSave = currentItem.Name;
-        if (currentMacro == null || string.IsNullOrWhiteSpace(macroNameToSave))
+        if (currentMacro is null || string.IsNullOrWhiteSpace(macroNameToSave))
         {
             return;
         }
@@ -314,7 +314,7 @@ public partial class FilesViewModel : ViewModelBase
             var filters =
                 new[]
                 {
-                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = new[] { "macro" } }
+                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = new[] { "macro" } },
                 };
 
             var baseName = macroNameToSave.EndsWith(".macro", StringComparison.OrdinalIgnoreCase)
@@ -352,7 +352,7 @@ public partial class FilesViewModel : ViewModelBase
             var filters =
                 new[]
                 {
-                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = new[] { "macro" } }
+                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = new[] { "macro" } },
                 };
 
             var filePath = await _dialogService.ShowOpenFileDialogAsync(_localizationService["Files_LoadDialogTitle"], filters);
@@ -364,7 +364,7 @@ public partial class FilesViewModel : ViewModelBase
             }
 
             var macro = await _fileManager.LoadAsync(filePath);
-            if (macro == null)
+            if (macro is null)
             {
                 SetTransientStatus(_localizationService["Files_StatusLoadUnreadable"]);
                 return;
@@ -390,13 +390,13 @@ public partial class FilesViewModel : ViewModelBase
         var snapshot = macro.Clone();
         snapshot.Name = name;
         NormalizeCurrentPositionMouseButtonEvents(snapshot);
-        snapshot.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(snapshot) == CoordinateModeSummary.Absolute;
+        snapshot.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(snapshot) is CoordinateModeSummary.Absolute;
         return snapshot;
     }
 
     private static void NormalizeCurrentPositionMouseButtonEvents(MacroSequence macro)
     {
-        if (macro.Events == null)
+        if (macro.Events is null)
         {
             return;
         }
@@ -419,7 +419,7 @@ public partial class FilesViewModel : ViewModelBase
     [RelayCommand]
     private async Task RemoveLoadedMacroAsync(LoadedMacroListItem? item)
     {
-        if (item == null)
+        if (item is null)
         {
             return;
         }
@@ -446,7 +446,7 @@ public partial class FilesViewModel : ViewModelBase
             return;
         }
 
-        if (_loadedMacroSession.SelectedMacroItem != null)
+        if (_loadedMacroSession.SelectedMacroItem is not null)
         {
             return;
         }
@@ -522,7 +522,7 @@ public partial class FilesViewModel : ViewModelBase
     private void SyncFromSelectedMacro()
     {
         var currentMacro = GetCurrentMacro();
-        if (currentMacro != null && !string.IsNullOrWhiteSpace(currentMacro.Name))
+        if (currentMacro is not null && !string.IsNullOrWhiteSpace(currentMacro.Name))
         {
             _macroName = currentMacro.Name;
         }
@@ -559,7 +559,7 @@ public partial class FilesViewModel : ViewModelBase
             FilesStatusKind.Ready => _localizationService["Files_StatusReady"],
             FilesStatusKind.LoadCancelled => _localizationService["Files_StatusLoadCancelled"],
             FilesStatusKind.SaveCancelled => _localizationService["Files_StatusSaveCancelled"],
-            _ => _status
+            _ => _status,
         };
     }
 }

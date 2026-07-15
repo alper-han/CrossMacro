@@ -13,5 +13,5 @@ public enum EditorActionVisualKind
     Timing,
     ControlFlow,
     Variable,
-    Raw
+    Raw,
 }

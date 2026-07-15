@@ -33,7 +33,7 @@ public sealed class PersistedMacroDocument : Canonical.PersistedMacroDocument
             TrailingDelayMs = document.TrailingDelayMs,
             HasTrailingRandomDelay = document.HasTrailingRandomDelay,
             TrailingDelayMinMs = document.TrailingDelayMinMs,
-            TrailingDelayMaxMs = document.TrailingDelayMaxMs
+            TrailingDelayMaxMs = document.TrailingDelayMaxMs,
         };
     }
 }
@@ -56,7 +56,7 @@ public sealed class PersistedMacroEvent : Canonical.PersistedMacroEvent
             RandomDelayMaxMs = result.RandomDelayMaxMs,
             KeyCode = result.KeyCode,
             CoordinateMode = result.CoordinateMode,
-            UseCurrentPosition = result.UseCurrentPosition
+            UseCurrentPosition = result.UseCurrentPosition,
         };
     }
 }

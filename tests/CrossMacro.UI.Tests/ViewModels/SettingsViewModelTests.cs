@@ -52,14 +52,14 @@ public class SettingsViewModelTests
                 callInfo[1] = string.Empty;
                 return true;
             });
-        
+
         // Setup initial settings
         _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, StartMinimized = false, EnableTextExpansion = false, Theme = "Classic" });
         _settingsService.SaveAsync().Returns(Task.CompletedTask);
 
         _viewModel = new SettingsViewModel(
-            _hotkeyService, 
-            _settingsService, 
+            _hotkeyService,
+            _settingsService,
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
@@ -133,7 +133,7 @@ public class SettingsViewModelTests
             _runtimeContext,
             localizationService);
 
-        vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code == "ja");
+        vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code is "ja");
 
         vm.SelectedLanguage.Should().Be("ja");
         _settingsService.Current.Language.Should().Be("ja");
@@ -157,7 +157,7 @@ public class SettingsViewModelTests
             _runtimeContext,
             localizationService);
 
-        var selectedBefore = vm.AvailableLanguages.Single(option => option.Code == "zh");
+        var selectedBefore = vm.AvailableLanguages.Single(option => option.Code is "zh");
 
         vm.SelectedLanguageOption = selectedBefore;
         localizationService["Language_Chinese"].Returns("中文");
@@ -165,8 +165,8 @@ public class SettingsViewModelTests
 
         vm.SelectedLanguage = "en";
 
-        vm.AvailableLanguages.Single(option => option.Code == "zh").Should().BeSameAs(selectedBefore);
-        vm.SelectedLanguageOption.Should().BeSameAs(vm.AvailableLanguages.Single(option => option.Code == "en"));
+        vm.AvailableLanguages.Single(option => option.Code is "zh").Should().BeSameAs(selectedBefore);
+        vm.SelectedLanguageOption.Should().BeSameAs(vm.AvailableLanguages.Single(option => option.Code is "en"));
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public class SettingsViewModelTests
             StartMinimized = false,
             EnableTextExpansion = false,
             Theme = "Classic",
-            Language = "auto"
+            Language = "auto",
         });
 
         var vm = new SettingsViewModel(
@@ -220,7 +220,7 @@ public class SettingsViewModelTests
         // Assert
         _hotkeySettings.RecordingHotkey.Should().Be("F12");
         _viewModel.RecordingHotkey.Should().Be("F12");
-        
+
         // Since service is not running in test, UpdateHotkeys might catch exception or skip?
         // Code: if (_hotkeyService.IsRunning) UpdateHotkeys...
         // Let's assume IsRunning = false by default mock.
@@ -231,7 +231,7 @@ public class SettingsViewModelTests
     public void HotkeyChange_WhenServiceRunning_UpdatesHotkeys()
     {
         // Arrange
-        _hotkeyService.IsRunning.Returns(true);
+        _hotkeyService.IsRunning.Returns(returnThis: true);
 
         // Act
         _viewModel.PlaybackHotkey = "Ctrl+P";
@@ -329,7 +329,7 @@ public class SettingsViewModelTests
             EnableTrayIcon = false,
             StartMinimized = false,
             EnableTextExpansion = false,
-            Theme = "Classic"
+            Theme = "Classic",
         };
         _settingsService.Current.Returns(settings);
 
@@ -373,7 +373,7 @@ public class SettingsViewModelTests
 
         // Act - Disable
         _viewModel.EnableTextExpansion = false;
-        
+
         // Assert - Disable
         _settingsService.Current.EnableTextExpansion.Should().BeFalse();
         await stopCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -579,7 +579,7 @@ public class SettingsViewModelTests
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = CreateProfileLocalizationService();
         dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
-            .Returns(false);
+            .Returns(returnThis: false);
 
         var vm = new SettingsViewModel(
             _hotkeyService,
@@ -594,7 +594,7 @@ public class SettingsViewModelTests
             profileManager: profileManager,
             dialogService: dialogService)
         {
-            SelectedProfile = workProfile
+            SelectedProfile = workProfile,
         };
 
         await vm.DeleteSelectedProfileAsync();
@@ -620,7 +620,7 @@ public class SettingsViewModelTests
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = CreateProfileLocalizationService();
         dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
-            .Returns(true);
+            .Returns(returnThis: true);
 
         var vm = new SettingsViewModel(
             _hotkeyService,
@@ -635,7 +635,7 @@ public class SettingsViewModelTests
             profileManager: profileManager,
             dialogService: dialogService)
         {
-            SelectedProfile = workProfile
+            SelectedProfile = workProfile,
         };
 
         await vm.DeleteSelectedProfileAsync();

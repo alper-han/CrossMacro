@@ -32,7 +32,7 @@ public sealed class PortalScreenCastClientRestoreTokenTests
     {
         var results = new Dictionary<string, VariantValue>
         {
-            ["restore_token"] = VariantValue.String("next-token")
+            ["restore_token"] = VariantValue.String("next-token"),
         };
 
         var token = PortalScreenCastClient.TryGetResponseString(results, "restore_token");

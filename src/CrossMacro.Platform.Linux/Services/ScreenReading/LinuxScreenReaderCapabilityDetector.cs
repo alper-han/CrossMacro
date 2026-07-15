@@ -75,8 +75,7 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
         var wlrSupport = ProbeWlrScreencopySupport();
         var portalSupport = _portalScreenCastProbe.ProbeSupport();
         var kWinSupport = _kWinScreenShotProbe.ProbeSupport();
-        var isGnomeExtensionAvailable = _gnomePositionProvider.IsSupported && 
-            _gnomePositionProvider.CurrentExtensionStatus?.Code == CrossMacro.Core.Services.ExtensionStatusCode.Enabled;
+        var isGnomeExtensionAvailable = _gnomePositionProvider.IsSupported && (_gnomePositionProvider.CurrentExtensionStatus?.Code) is CrossMacro.Core.Services.ExtensionStatusCode.Enabled;
 
         return new LinuxScreenReaderCapabilitySnapshot(
             kWinSupport.IsSupported

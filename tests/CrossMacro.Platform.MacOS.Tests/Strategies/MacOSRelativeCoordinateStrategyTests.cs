@@ -16,18 +16,18 @@ public class MacOSRelativeCoordinateStrategyTests
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
-            Value = 115
+            Value = 115,
         });
         strategy.ProcessPosition(new InputCaptureEventArgs
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
-            Value = 190
+            Value = 190,
         });
 
         var result = strategy.ProcessPosition(new InputCaptureEventArgs
         {
-            Type = InputEventType.Sync
+            Type = InputEventType.Sync,
         });
 
         Assert.Equal((15, -10), result);
@@ -58,7 +58,7 @@ public class MacOSRelativeCoordinateStrategyTests
         {
             Type = InputEventType.MouseButton,
             Code = InputEventCode.BTN_LEFT,
-            Value = 1
+            Value = 1,
         });
 
         Assert.Equal((2, 5), result);
@@ -75,21 +75,21 @@ public class MacOSRelativeCoordinateStrategyTests
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
-            Value = 12
+            Value = 12,
         });
 
         var buttonResult = strategy.ProcessPosition(new InputCaptureEventArgs
         {
             Type = InputEventType.MouseButton,
             Code = InputEventCode.BTN_LEFT,
-            Value = 1
+            Value = 1,
         });
 
         strategy.ProcessPosition(new InputCaptureEventArgs
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
-            Value = 15
+            Value = 15,
         });
 
         Assert.Equal((0, 0), buttonResult);
@@ -102,13 +102,13 @@ public class MacOSRelativeCoordinateStrategyTests
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
-            Value = x
+            Value = x,
         });
         strategy.ProcessPosition(new InputCaptureEventArgs
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
-            Value = y
+            Value = y,
         });
     }
 
@@ -116,7 +116,7 @@ public class MacOSRelativeCoordinateStrategyTests
     {
         return strategy.ProcessPosition(new InputCaptureEventArgs
         {
-            Type = InputEventType.Sync
+            Type = InputEventType.Sync,
         });
     }
 }

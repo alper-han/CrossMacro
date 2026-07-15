@@ -39,7 +39,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
             try
             {
                 var response = await _ipcClient.SendCommandAsync(CursorPosCommand).ConfigureAwait(false);
-                if (response == null) return null;
+                if (response is null) return null;
                 return ParseCursorPosition(response);
             }
             catch (Exception ex)
@@ -57,7 +57,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
             try
             {
                 var response = await _ipcClient.SendCommandAsync(MonitorsCommand).ConfigureAwait(false);
-                if (response == null) return null;
+                if (response is null) return null;
                 return ParseMonitors(response);
             }
             catch (Exception ex)
@@ -75,14 +75,12 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
             int maxWidth = 0;
             int maxHeight = 0;
 
-            var monitorBlocks = output.Split("Monitor ", StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var block in monitorBlocks)
+            foreach (var block in output.Split("Monitor ", StringSplitOptions.RemoveEmptyEntries))
             {
                 try
                 {
                     var lines = block.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                    
+
                     int width = 0;
                     int height = 0;
                     int posX = 0;
@@ -93,34 +91,31 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                     foreach (var line in lines)
                     {
                         var trimmed = line.Trim();
-                        
-                        if (trimmed.Contains('x') && trimmed.Contains("at") && !resolutionFound)
+
+                        if (trimmed.Contains('x') && trimmed.Contains("at", StringComparison.Ordinal) && !resolutionFound)
                         {
                             var parts = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                             if (parts.Length >= 3)
                             {
                                 var resPart = parts[0].Split('@')[0].Split('x');
                                 var atIndex = Array.IndexOf(parts, "at");
-                                
-                                if (resPart.Length == 2 && atIndex >= 0 && atIndex + 1 < parts.Length)
+
+                                if (resPart.Length is 2 && atIndex >= 0 && atIndex + 1 < parts.Length)
                                 {
                                     var posPart = parts[atIndex + 1].Split('x');
-                                    
-                                    if (posPart.Length == 2)
-                                    {
-                                        if (int.TryParse(resPart[0], out width) &&
+
+                                    if (posPart.Length is 2 && int.TryParse(resPart[0], out width) &&
                                             int.TryParse(resPart[1], out height) &&
                                             int.TryParse(posPart[0], out posX) &&
                                             int.TryParse(posPart[1], out posY))
-                                        {
-                                            resolutionFound = true;
-                                        }
+                                    {
+                                        resolutionFound = true;
                                     }
                                 }
                             }
                         }
-                        
-                        if (trimmed.StartsWith("scale:"))
+
+                        if (trimmed.StartsWith("scale:", StringComparison.Ordinal))
                         {
                             var scalePart = trimmed.Substring("scale:".Length).Trim();
                             if (double.TryParse(scalePart, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double s))
@@ -154,28 +149,28 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                 return null;
 
             ReadOnlySpan<char> span = response.AsSpan().Trim();
-            
+
             int commaIndex = span.IndexOf(',');
             if (commaIndex <= 0)
             {
                 Log.Warning("[HyprlandPositionProvider] Failed to parse cursor position: {Response}", response);
                 return null;
             }
-            
+
             var xSpan = span.Slice(0, commaIndex).Trim();
             if (!double.TryParse(xSpan, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double x))
             {
                 Log.Warning("[HyprlandPositionProvider] Failed to parse X coordinate: {Response}", response);
                 return null;
             }
-            
+
             var ySpan = span.Slice(commaIndex + 1).Trim();
             if (!double.TryParse(ySpan, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double y))
             {
                 Log.Warning("[HyprlandPositionProvider] Failed to parse Y coordinate: {Response}", response);
                 return null;
             }
-            
+
             return ((int)Math.Round(x), (int)Math.Round(y));
         }
 
@@ -183,7 +178,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
         {
             if (_disposed)
                 return;
-                
+
             _disposed = true;
             GC.SuppressFinalize(this);
         }

@@ -19,37 +19,37 @@ public class LoggingExtensionsTests
         public bool IsEnabled(CoreLogging.CoreLogLevel level) => true;
 
         public void Verbose(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Debug(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Information(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Warning(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Error(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Fatal(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
@@ -67,13 +67,13 @@ public class LoggingExtensionsTests
 
             var key = Guid.NewGuid().ToString();
             var message = $"Test message {Guid.NewGuid():N} {{0}}";
-            var arg = "Arg";
+            const string arg = "Arg";
 
             LoggingExtensions.LogOnce(key, message, arg);
             LoggingExtensions.LogOnce(key, message, arg);
             LoggingExtensions.LogOnce(key, message, arg);
 
-            Assert.Single(logger.Entries, e => e.MessageTemplate == message);
+            Assert.Single(logger.Entries, e => string.Equals(e.MessageTemplate, message, StringComparison.Ordinal));
         }
     }
 
@@ -88,12 +88,12 @@ public class LoggingExtensionsTests
             var key1 = Guid.NewGuid().ToString();
             var key2 = Guid.NewGuid().ToString();
             var message = $"Test message {Guid.NewGuid():N} {{0}}";
-            var arg = "Arg";
+            const string arg = "Arg";
 
             LoggingExtensions.LogOnce(key1, message, arg);
             LoggingExtensions.LogOnce(key2, message, arg);
 
-            Assert.Equal(2, logger.Entries.Count(e => e.MessageTemplate == message));
+            Assert.Equal(2, logger.Entries.Count(e => string.Equals(e.MessageTemplate, message, StringComparison.Ordinal)));
         }
     }
 }

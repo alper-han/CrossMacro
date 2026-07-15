@@ -26,7 +26,7 @@ public class ProfileManager : IProfileManager
         ConfigFileNames.Shortcuts,
         ConfigFileNames.Schedules,
         ConfigFileNames.TextExpansions,
-        ConfigFileNames.Triggers
+        ConfigFileNames.Triggers,
     ];
 
     private static readonly string[] MigratedProfileConfigFiles =
@@ -35,7 +35,7 @@ public class ProfileManager : IProfileManager
         ConfigFileNames.Shortcuts,
         ConfigFileNames.Schedules,
         ConfigFileNames.TextExpansions,
-        ConfigFileNames.Triggers
+        ConfigFileNames.Triggers,
     ];
 
     private readonly string _configRootPath;
@@ -136,12 +136,7 @@ public class ProfileManager : IProfileManager
 
             ApplyRegistrySnapshot();
 
-            if (_settingsService != null
-                || _hotkeyConfigService != null
-                || _shortcutService != null
-                || _triggerService != null
-                || _scheduledTaskRepository != null
-                || _textExpansionStorageService != null)
+            if (_settingsService is not null || _hotkeyConfigService is not null || _shortcutService is not null || _triggerService is not null || _scheduledTaskRepository is not null || _textExpansionStorageService is not null)
             {
                 await ReloadProfileServicesAsync(GetProfileDirectory(_registry.ActiveProfile)).ConfigureAwait(false);
             }
@@ -247,17 +242,17 @@ public class ProfileManager : IProfileManager
 
     private async Task ReloadProfileServicesAsync(string profileDir)
     {
-        if (_settingsService != null)
+        if (_settingsService is not null)
         {
             await _settingsService.ReloadAsync(profileDir).ConfigureAwait(false);
         }
 
-        if (_hotkeyConfigService != null)
+        if (_hotkeyConfigService is not null)
         {
             await _hotkeyConfigService.ReloadAsync(profileDir).ConfigureAwait(false);
 
             // Mutate the singleton HotkeySettings object with values from the new profile
-            if (_hotkeySettings != null)
+            if (_hotkeySettings is not null)
             {
                 var loaded = _hotkeyConfigService.Load();
                 _hotkeySettings.RecordingHotkey = loaded.RecordingHotkey;
@@ -271,27 +266,27 @@ public class ProfileManager : IProfileManager
             }
         }
 
-        if (_shortcutService != null)
+        if (_shortcutService is not null)
         {
             await _shortcutService.ReloadAsync(profileDir).ConfigureAwait(false);
         }
 
-        if (_triggerService != null)
+        if (_triggerService is not null)
         {
             await _triggerService.ReloadAsync(profileDir).ConfigureAwait(false);
         }
 
-        if (_scheduledTaskRepository != null)
+        if (_scheduledTaskRepository is not null)
         {
             await _scheduledTaskRepository.ReloadAsync(profileDir).ConfigureAwait(false);
         }
 
-        if (_schedulerService != null)
+        if (_schedulerService is not null)
         {
             await _schedulerService.LoadAsync().ConfigureAwait(false);
         }
 
-        if (_textExpansionStorageService != null)
+        if (_textExpansionStorageService is not null)
         {
             await _textExpansionStorageService.ReloadAsync(profileDir).ConfigureAwait(false);
         }
@@ -304,12 +299,12 @@ public class ProfileManager : IProfileManager
         bool textExpansionWasRunning,
         bool triggerWasMonitoring)
     {
-        if (hotkeyWasRunning && _hotkeyService != null)
+        if (hotkeyWasRunning && _hotkeyService is not null)
         {
             try
             {
                 _hotkeyService.Start();
-                if (_hotkeySettings != null)
+                if (_hotkeySettings is not null)
                 {
                     _hotkeyService.ApplyHotkeys(
                         _hotkeySettings.RecordingHotkey,
@@ -320,27 +315,26 @@ public class ProfileManager : IProfileManager
             catch (Exception ex) { Log.Warning(ex, "Failed to restart hotkey service after profile switch"); }
         }
 
-        if (shortcutWasListening && _shortcutService != null)
+        if (shortcutWasListening && _shortcutService is not null)
         {
             try { _shortcutService.Start(); }
             catch (Exception ex) { Log.Warning(ex, "Failed to restart shortcut service after profile switch"); }
         }
 
-        if (triggerWasMonitoring && _triggerService != null)
+        if (triggerWasMonitoring && _triggerService is not null)
         {
             try { _triggerService.Start(); }
             catch (Exception ex) { Log.Warning(ex, "Failed to restart trigger service after profile switch"); }
         }
 
-        if (schedulerWasRunning && _schedulerService != null)
+        if (schedulerWasRunning && _schedulerService is not null)
         {
             try { _schedulerService.Start(); }
             catch (Exception ex) { Log.Warning(ex, "Failed to restart scheduler after profile switch"); }
         }
 
         // Restart text expansion only if it was running AND the new profile has it enabled
-        if (textExpansionWasRunning && _textExpansionService != null
-            && (_settingsService?.Current.EnableTextExpansion ?? false))
+        if (textExpansionWasRunning && _textExpansionService is not null && (_settingsService?.Current.EnableTextExpansion ?? false))
         {
             try { _textExpansionService.Start(); }
             catch (Exception ex) { Log.Warning(ex, "Failed to restart text expansion after profile switch"); }
@@ -363,7 +357,7 @@ public class ProfileManager : IProfileManager
             {
                 Id = GenerateSlug(displayName),
                 Name = displayName.Trim(),
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             await CreateProfileFilesAsync(profile.Id).ConfigureAwait(false);
@@ -460,7 +454,7 @@ public class ProfileManager : IProfileManager
         }
 
         var current = new DirectoryInfo(profileDirectory);
-        while (current != null)
+        while (current is not null)
         {
             if (current.Exists && current.Attributes.HasFlag(FileAttributes.ReparsePoint))
             {
@@ -487,7 +481,7 @@ public class ProfileManager : IProfileManager
                 or >= 'A' and <= 'Z'
                 or >= '0' and <= '9'
                 or '-';
-            if (!valid || (index == 0 && character == '-') || (index == profileId.Length - 1 && character == '-'))
+            if (!valid || (index is 0 && character == '-') || (index == profileId.Length - 1 && character == '-'))
             {
                 throw new InvalidDataException($"Profile id '{profileId}' contains unsupported path characters.");
             }
@@ -497,7 +491,7 @@ public class ProfileManager : IProfileManager
     private static void ValidateRootAncestors(string path, string description)
     {
         var current = new DirectoryInfo(Path.GetFullPath(path));
-        while (current != null)
+        while (current is not null)
         {
             if (current.Exists && current.Attributes.HasFlag(FileAttributes.ReparsePoint))
             {
@@ -647,7 +641,7 @@ public class ProfileManager : IProfileManager
             ValidateProfileId(_registry.ActiveProfile);
         }
 
-        if (_registry.Profiles.Count == 0)
+        if (_registry.Profiles.Count is 0)
         {
             _registry.Profiles.Add(CreateDefaultProfileInfo());
         }
@@ -671,7 +665,7 @@ public class ProfileManager : IProfileManager
             {
                 Id = profile.Id,
                 Name = profile.Name,
-                CreatedAt = profile.CreatedAt
+                CreatedAt = profile.CreatedAt,
             })
             .ToList();
 
@@ -704,7 +698,7 @@ public class ProfileManager : IProfileManager
         }
 
         var baseSlug = builder.ToString().Trim('-');
-        if (baseSlug.Length == 0)
+        if (baseSlug.Length is 0)
         {
             baseSlug = "profile";
         }
@@ -744,7 +738,7 @@ public class ProfileManager : IProfileManager
         {
             Version = 1,
             ActiveProfile = DefaultProfileId,
-            Profiles = [CreateDefaultProfileInfo()]
+            Profiles = [CreateDefaultProfileInfo()],
         };
     }
 
@@ -754,7 +748,7 @@ public class ProfileManager : IProfileManager
         {
             Id = DefaultProfileId,
             Name = DefaultProfileName,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
         };
     }
 }

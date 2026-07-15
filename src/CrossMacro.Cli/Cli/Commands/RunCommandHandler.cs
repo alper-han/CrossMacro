@@ -40,7 +40,7 @@ public sealed class RunCommandHandler : CliCommandHandlerBase<RunCliOptions>
             StepFilePath = options.StepFilePath,
             SpeedMultiplier = options.SpeedMultiplier,
             CountdownSeconds = options.CountdownSeconds,
-            DryRun = options.DryRun
+            DryRun = options.DryRun,
         }, cancellationToken);
 
         return result.Success

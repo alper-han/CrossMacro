@@ -15,7 +15,7 @@ public sealed class LinuxInputProbeUtilitiesTests
     [LinuxFact]
     public void ResolveAvailableSocketPath_WhenDefaultSocketExists_ReturnsDefaultSocketPath()
     {
-        var socketPath = LinuxInputProbeUtilities.ResolveAvailableSocketPath(path => path == IpcProtocol.DefaultSocketPath);
+        var socketPath = LinuxInputProbeUtilities.ResolveAvailableSocketPath(path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal));
 
         Assert.Equal(IpcProtocol.DefaultSocketPath, socketPath);
     }
@@ -31,7 +31,7 @@ public sealed class LinuxInputProbeUtilitiesTests
     [LinuxFact]
     public void HasUInputWriteAccess_WhenAlternatePathWritable_ReturnsTrue()
     {
-        var result = LinuxInputProbeUtilities.HasUInputWriteAccess(path => path == LinuxConstants.UInputAlternatePath);
+        var result = LinuxInputProbeUtilities.HasUInputWriteAccess(path => string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal));
 
         Assert.True(result);
     }
@@ -40,7 +40,7 @@ public sealed class LinuxInputProbeUtilitiesTests
     public void HasReadableInputEventAccess_WhenReadableCandidateExists_ReturnsTrue()
     {
         var result = LinuxInputProbeUtilities.HasReadableInputEventAccess(
-            canOpenForRead: path => path == "/dev/input/event7",
+            canOpenForRead: path => path is "/dev/input/event7",
             getInputEventCandidates: () => ["/dev/input/event5", "/dev/input/event7"]);
 
         Assert.True(result);

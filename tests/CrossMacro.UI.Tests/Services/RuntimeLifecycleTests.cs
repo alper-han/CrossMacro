@@ -12,7 +12,7 @@ public sealed class RuntimeLifecycleTests
         [
             Step("first", events),
             Step("second", events),
-            Step("third", events)
+            Step("third", events),
         ]);
 
         await lifecycle.StartAsync(CancellationToken.None);
@@ -37,7 +37,7 @@ public sealed class RuntimeLifecycleTests
                 {
                     events.Add("stop:second");
                     return Task.CompletedTask;
-                })
+                }),
         ]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => lifecycle.StartAsync(CancellationToken.None));
@@ -52,7 +52,7 @@ public sealed class RuntimeLifecycleTests
         var lifecycle = new RuntimeLifecycle(
         [
             FailingStopStep("first", stopped),
-            FailingStopStep("second", stopped)
+            FailingStopStep("second", stopped),
         ]);
 
         await lifecycle.StartAsync(CancellationToken.None);

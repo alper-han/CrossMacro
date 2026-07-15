@@ -37,7 +37,7 @@ public class SettingsCliServiceTests
             EnableTrayIcon = false,
             StartMinimized = false,
             CheckForUpdates = false,
-            PortalScreenCastRestoreToken = "secret-token"
+            PortalScreenCastRestoreToken = "secret-token",
         };
         _settingsService.Current.Returns(_current);
         _settingsService.Load().Returns(_current);

@@ -51,7 +51,7 @@ public class RelativeCoordinateStrategy : IRelativeCoordinateStrategy
             case InputEventType.MouseButton:
             case InputEventType.MouseScroll:
             case InputEventType.Key:
-                if (_pendingX != 0 || _pendingY != 0)
+                if (_pendingX is not 0 || _pendingY is not 0)
                 {
                     _lastX = _pendingX;
                     _lastY = _pendingY;

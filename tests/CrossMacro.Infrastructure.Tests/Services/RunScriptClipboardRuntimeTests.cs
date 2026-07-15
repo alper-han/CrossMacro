@@ -63,7 +63,7 @@ public sealed class RunScriptClipboardRuntimeTests
     public async Task ExecuteStepAsync_WhenClipboardServiceIsUnsupported_ThrowsMeaningfulError()
     {
         var clipboard = Substitute.For<IClipboardService>();
-        clipboard.IsSupported.Returns(false);
+        clipboard.IsSupported.Returns(returnThis: false);
         var executor = new RunScriptClipboardExecutor(clipboard);
 
         var act = async () => await executor.ExecuteStepAsync("clipboard set value", 1, Vars(), CancellationToken.None);
@@ -105,7 +105,7 @@ public sealed class RunScriptClipboardRuntimeTests
     [Fact]
     public async Task ExecuteStepAsync_WhenClipboardServiceIsMissing_ThrowsMeaningfulError()
     {
-        var executor = new RunScriptClipboardExecutor(null);
+        var executor = new RunScriptClipboardExecutor(clipboardService: null);
 
         var act = async () => await executor.ExecuteStepAsync("clipboard set value", 1, Vars(), CancellationToken.None);
 
@@ -119,7 +119,7 @@ public sealed class RunScriptClipboardRuntimeTests
     private static IClipboardService SupportedClipboard()
     {
         var clipboard = Substitute.For<IClipboardService>();
-        clipboard.IsSupported.Returns(true);
+        clipboard.IsSupported.Returns(returnThis: true);
         return clipboard;
     }
 }

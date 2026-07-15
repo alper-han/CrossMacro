@@ -30,7 +30,7 @@ public class TriggerCliServiceTests
                 Action = TriggerAction.SwitchProfile,
                 TargetProfileId = "dev",
                 IsEnabled = true
-            }
+            },
         }));
 
         var service = new TriggerCliService(triggerService);
@@ -96,7 +96,7 @@ public class TriggerCliServiceTests
             MatchMode = TriggerMatchMode.Equals,
             Value = "old",
             Action = TriggerAction.SwitchProfile,
-            TargetProfileId = "old-profile"
+            TargetProfileId = "old-profile",
         };
         var triggerService = Substitute.For<IManageTrigger>();
         triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask> { task }));
@@ -145,7 +145,7 @@ public class TriggerCliServiceTests
         var triggerService = Substitute.For<IManageTrigger>();
         triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>
         {
-            new() { Id = id, Name = "Trigger", Action = TriggerAction.SwitchProfile, TargetProfileId = "dev", IsEnabled = true }
+            new() { Id = id, Name = "Trigger", Action = TriggerAction.SwitchProfile, TargetProfileId = "dev", IsEnabled = true },
         }));
         var service = new TriggerCliService(triggerService);
 
@@ -154,6 +154,6 @@ public class TriggerCliServiceTests
             CancellationToken.None);
 
         Assert.True(result.Success);
-        await triggerService.Received(1).SetEnabledAsync(new TaskRequest(id, false), CancellationToken.None);
+        await triggerService.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: false), CancellationToken.None);
     }
 }

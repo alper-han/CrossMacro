@@ -37,7 +37,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
         {
             case InputEventType.MouseMove:
                 if (!_recordMouse) return null;
-                if (pos.X == 0 && pos.Y == 0) return null;
+                if (pos.X is 0 && pos.Y is 0) return null;
 
                 if (_isAbsoluteCoordinates)
                 {
@@ -56,7 +56,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
                     Timestamp = timestamp,
                     X = pos.X,
                     Y = pos.Y,
-                    CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative
+                    CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
                 };
 
             case InputEventType.MouseScroll:
@@ -69,7 +69,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
                         Button = args.Value > 0 ? MouseButton.ScrollRight : MouseButton.ScrollLeft,
                         Timestamp = timestamp,
                         X = pos.X,
-                        Y = pos.Y
+                        Y = pos.Y,
                     };
                 }
 
@@ -79,7 +79,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
                     Button = args.Value > 0 ? MouseButton.ScrollUp : MouseButton.ScrollDown,
                     Timestamp = timestamp,
                     X = pos.X,
-                    Y = pos.Y
+                    Y = pos.Y,
                 };
 
             case InputEventType.MouseButton:
@@ -92,7 +92,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
 
             case InputEventType.Sync:
                 if (!_recordMouse) return null;
-                if (pos.X == 0 && pos.Y == 0) return null;
+                if (pos.X is 0 && pos.Y is 0) return null;
 
                 return new MacroEvent
                 {
@@ -100,7 +100,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
                     Timestamp = timestamp,
                     X = pos.X,
                     Y = pos.Y,
-                    CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative
+                    CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
                 };
 
             case InputEventType.Unknown:
@@ -117,7 +117,7 @@ public class StandardInputEventProcessor : IInputEventProcessor
             Timestamp = timestamp,
             X = x,
             Y = y,
-            CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative
+            CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
         };
 
         if (e.Code == InputEventCode.BTN_LEFT) buttonEvent.Button = MouseButton.Left;
@@ -127,25 +127,25 @@ public class StandardInputEventProcessor : IInputEventProcessor
         else if (e.Code == InputEventCode.BTN_EXTRA) buttonEvent.Button = MouseButton.Side2;
         else return null;
 
-        buttonEvent.Type = e.Value == 1 ? EventType.ButtonPress : EventType.ButtonRelease;
+        buttonEvent.Type = e.Value is 1 ? EventType.ButtonPress : EventType.ButtonRelease;
         return buttonEvent;
     }
 
     private MacroEvent? ProcessKeyEvent(InputCaptureEventArgs e, long timestamp)
     {
-        if (_ignoredKeys != null && _ignoredKeys.Contains(e.Code))
+        if (_ignoredKeys is not null && _ignoredKeys.Contains(e.Code))
         {
             return null;
         }
 
-        if (e.Value != 0 && e.Value != 1) return null;
+        if (e.Value is not (0 or 1)) return null;
 
         return new MacroEvent
         {
             Timestamp = timestamp,
-            Type = e.Value == 1 ? EventType.KeyPress : EventType.KeyRelease,
+            Type = e.Value is 1 ? EventType.KeyPress : EventType.KeyRelease,
             KeyCode = e.Code,
-            Button = MouseButton.None
+            Button = MouseButton.None,
         };
     }
 }

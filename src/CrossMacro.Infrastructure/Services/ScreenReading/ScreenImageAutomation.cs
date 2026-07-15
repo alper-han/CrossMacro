@@ -78,7 +78,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
                     return ToResult(result);
                 }
 
-                if (result.ErrorKind != ScreenReadErrorKind.CaptureTimeout)
+                if (result.ErrorKind is not ScreenReadErrorKind.CaptureTimeout)
                 {
                     return ToResult(result);
                 }
@@ -127,8 +127,8 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
                 }
 
                 var point = new ScreenPoint(
-                    checked(result.Value.Point.X + setup.Template!.LogicalBounds.Width / 2),
-                    checked(result.Value.Point.Y + setup.Template.LogicalBounds.Height / 2));
+                    checked(result.Value.Point.X + (setup.Template!.LogicalBounds.Width / 2)),
+                    checked(result.Value.Point.Y + (setup.Template.LogicalBounds.Height / 2)));
                 simulator.Initialize(width, height);
                 var movement = await _movementResolver.ResolveAsync(simulator, point, cancellationToken).ConfigureAwait(false);
                 if (!movement.IsSuccess)
@@ -136,7 +136,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
                     return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.Unsupported, movement.ErrorMessage ?? "Image click movement could not be resolved.");
                 }
 
-                if (movement.CoordinateMode == MouseCoordinateMode.Absolute)
+                if (movement.CoordinateMode is MouseCoordinateMode.Absolute)
                 {
                     simulator.MoveAbsolute(movement.X, movement.Y);
                 }
@@ -145,8 +145,8 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
                     simulator.MoveRelative(movement.X, movement.Y);
                 }
 
-                simulator.MouseButton(buttonCode, true);
-                simulator.MouseButton(buttonCode, false);
+                simulator.MouseButton(buttonCode, pressed: true);
+                simulator.MouseButton(buttonCode, pressed: false);
                 simulator.Sync();
                 return ScreenImageAutomationResult.FoundAt(point, result.Value.Score);
             }
@@ -184,7 +184,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
                 request.Region,
                 request.Similarity,
                 request.Downsample,
-                request.MatchMode == ScreenImageMatchMode.Best
+                request.MatchMode is ScreenImageMatchMode.Best
                     ? ScreenImageMatchSelectionMode.BestMatch
                     : ScreenImageMatchSelectionMode.FirstThresholdMatch,
                 request.ScaleAware);
@@ -230,9 +230,9 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
         ScreenImageAutomationResult? Error)
     {
         public static ImageSearchSetup Success(IScreenImageSearchReader reader, ScreenFrame template, ScreenImageMatchOptions options) =>
-            new(reader, template, options.SearchRegion, options, null);
+            new(reader, template, options.SearchRegion, options, Error: null);
 
         public static ImageSearchSetup Failure(ScreenImageAutomationResult error) =>
-            new(null, null, null, null, error);
+            new(Reader: null, Template: null, Region: null, Options: null, error);
     }
 }

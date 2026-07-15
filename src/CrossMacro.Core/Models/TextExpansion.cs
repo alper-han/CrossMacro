@@ -9,17 +9,17 @@ public class TextExpansion
     /// The trigger text that will be replaced (e.g., ":mail")
     /// </summary>
     public string Trigger { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// The replacement text that will be inserted (e.g., "example@email.com")
     /// </summary>
     public string Replacement { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Whether this expansion is currently enabled
     /// </summary>
     public bool IsEnabled { get; set; } = true;
-    
+
     /// <summary>
     /// The method used to paste the replacement text
     /// </summary>
@@ -41,7 +41,7 @@ public class TextExpansion
     public TextExpansion()
     {
     }
-    
+
     /// <summary>
     /// Creates a new text expansion with the specified trigger and replacement
     /// </summary>
@@ -75,7 +75,7 @@ public enum TextInsertionMode
     /// <summary>
     /// Insert by simulating direct typing without using the clipboard
     /// </summary>
-    DirectTyping
+    DirectTyping,
 }
 
 /// <summary>
@@ -91,7 +91,7 @@ public enum DirectTypingMethod
     /// <summary>
     /// Send each key separately for better compatibility on sensitive input stacks.
     /// </summary>
-    CompatibleKeyByKey
+    CompatibleKeyByKey,
 }
 
 /// <summary>
@@ -103,14 +103,14 @@ public enum PasteMethod
     /// Standard GUI paste (Ctrl+V on Linux/Windows, Command+V on macOS)
     /// </summary>
     CtrlV,
-    
+
     /// <summary>
     /// Terminal paste (Ctrl+Shift+V)
     /// </summary>
     CtrlShiftV,
-    
+
     /// <summary>
     /// Legacy paste (Shift+Insert)
     /// </summary>
-    ShiftInsert
+    ShiftInsert,
 }

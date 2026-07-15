@@ -30,7 +30,7 @@ internal static class ProfileCommandParser
             "switch" => ParseOneOperand(args, ProfileCliAction.Switch, "profile.switch", "profile switch requires <name-or-id>."),
             "rename" => ParseRename(args),
             "delete" => ParseDelete(args),
-            _ => CliParseResult.Error($"Unknown profile subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2))
+            _ => CliParseResult.Error($"Unknown profile subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 
@@ -183,7 +183,7 @@ internal static class ProfileCommandParser
             "profile.switch" => "crossmacro profile switch <name-or-id> [--json] [--log-level <level>]",
             "profile.rename" => "crossmacro profile rename <name-or-id> <new-name> [--json] [--log-level <level>]",
             "profile.delete" => "crossmacro profile delete <name-or-id> --force [--json] [--log-level <level>]",
-            _ => "crossmacro profile [subcommand] [--json] [--log-level <level>]"
+            _ => "crossmacro profile [subcommand] [--json] [--log-level <level>]",
         };
     }
 }

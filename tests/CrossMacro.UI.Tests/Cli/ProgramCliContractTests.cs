@@ -309,8 +309,7 @@ public class ProgramCliContractTests
         }
 
         var normalized = stderr.Replace("\r\n", "\n", StringComparison.Ordinal);
-        var lines = normalized.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var line in lines)
+        foreach (var line in normalized.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             Assert.StartsWith("[CrossMacro]", line, StringComparison.Ordinal);
         }

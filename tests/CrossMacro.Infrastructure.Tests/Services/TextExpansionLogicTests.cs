@@ -20,12 +20,12 @@ public class TextExpansionLogicTests
     private readonly ITextExpansionStorageService _storageService;
     private readonly IKeyboardLayoutService _layoutService;
     private readonly IInputCapture _inputCapture;
-    
+
     // Components (Real or Mocked as needed)
     private readonly InputProcessor _inputProcessor;
     private readonly TextBufferState _bufferState;
     private readonly ITextExpansionExecutor _executor;
-    
+
     private readonly TextExpansionService _service;
 
     public TextExpansionLogicTests()
@@ -36,7 +36,7 @@ public class TextExpansionLogicTests
         _storageService = Substitute.For<ITextExpansionStorageService>();
         _layoutService = Substitute.For<IKeyboardLayoutService>();
         _inputCapture = Substitute.For<IInputCapture>();
-        
+
         // Use Real Logic Components to test the flow
         _inputProcessor = new InputProcessor(_layoutService);
         _bufferState = new TextBufferState();
@@ -49,7 +49,7 @@ public class TextExpansionLogicTests
             _inputProcessor,
             _bufferState,
             _executor);
-            
+
         // Default mock for typing
         _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
             .Returns((char?)null); // Default null unless specified
@@ -71,7 +71,7 @@ public class TextExpansionLogicTests
                 expansionTriggered.TrySetResult(true);
                 return Task.CompletedTask;
             });
-        
+
         SetupKey(30, 'a');
         SetupKey(48, 'b');
         SetupKey(46, 'c');
@@ -85,7 +85,7 @@ public class TextExpansionLogicTests
         // Assert
         await _executor.Received(1).ExpandAsync(expansion);
     }
-    
+
     [Fact]
     public async Task Buffer_Clears_AfterMatch()
     {
@@ -96,23 +96,23 @@ public class TextExpansionLogicTests
         var firstExpansionStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var firstExpansionAllowedToFinish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondExpansionTriggered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        
+
         _executor
             .ExpandAsync(expansion)
             .Returns(async _ =>
             {
                 var currentCount = Interlocked.Increment(ref expansionCount);
-                if (currentCount == 1)
+                if (currentCount is 1)
                 {
                     firstExpansionStarted.TrySetResult(true);
                     await firstExpansionAllowedToFinish.Task;
                 }
-                else if (currentCount == 2)
+                else if (currentCount is 2)
                 {
                     secondExpansionTriggered.TrySetResult(true);
                 }
             });
-        
+
         SetupKey(30, 'a');
         SetupKey(48, 'b');
         SetupKey(46, 'c');
@@ -135,7 +135,7 @@ public class TextExpansionLogicTests
         RaiseKey(48);
         RaiseKey(46);
         await secondExpansionTriggered.Task.WaitAsync(TestTimeout);
-        
+
         // Assert - Should trigger again
         await _executor.Received(2).ExpandAsync(expansion);
     }
@@ -149,7 +149,7 @@ public class TextExpansionLogicTests
     private void RaiseKey(int code)
     {
         _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(
-            this, 
+            this,
             new InputCaptureEventArgs { Type = InputEventType.Key, Code = code, Value = 1 }); // Press
 
         _inputCapture.InputReceived += Raise.Event<EventHandler<InputCaptureEventArgs>>(

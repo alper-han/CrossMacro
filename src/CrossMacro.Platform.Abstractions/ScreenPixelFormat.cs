@@ -7,5 +7,5 @@ public enum ScreenPixelFormat
     Xrgb8888,
     Bgra8888,
     Abgr8888,
-    Xbgr8888
+    Xbgr8888,
 }

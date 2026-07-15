@@ -27,7 +27,7 @@ public static class ScriptBlockStructureValidator
                 continue;
             }
 
-            if (type != EditorActionType.BlockEnd)
+            if (type is not EditorActionType.BlockEnd)
             {
                 if (EditorActionScriptClassifier.IsLoopControlAction(type) && !HasEnclosingLoop(blockStack))
                 {
@@ -37,7 +37,7 @@ public static class ScriptBlockStructureValidator
                 continue;
             }
 
-            if (blockStack.Count == 0)
+            if (blockStack.Count is 0)
             {
                 errors.Add($"Action {index + 1}: unexpected block end '}}'.");
                 continue;
@@ -55,19 +55,19 @@ public static class ScriptBlockStructureValidator
 
         for (var index = 0; index < actions.Count; index++)
         {
-            if (actions[index].Type != EditorActionType.ElseBlockStart)
+            if (actions[index].Type is not EditorActionType.ElseBlockStart)
             {
                 continue;
             }
 
-            if (index == 0 || actions[index - 1].Type != EditorActionType.BlockEnd)
+            if (index is 0 || actions[index - 1].Type is not EditorActionType.BlockEnd)
             {
                 errors.Add($"Action {index + 1}: else block must come right after the closing brace of an if block.");
                 continue;
             }
 
             if (!blockEndToStart.TryGetValue(index - 1, out var startIndex)
-                || actions[startIndex].Type != EditorActionType.IfBlockStart)
+|| actions[startIndex].Type is not EditorActionType.IfBlockStart)
             {
                 errors.Add($"Action {index + 1}: else block is only valid after an if block.");
             }
@@ -89,7 +89,7 @@ public sealed class ScriptBlockStructureValidationResult
         Errors = errors ?? throw new ArgumentNullException(nameof(errors));
     }
 
-    public bool IsValid => Errors.Count == 0;
+    public bool IsValid => Errors.Count is 0;
 
     public IReadOnlyList<string> Errors { get; }
 }

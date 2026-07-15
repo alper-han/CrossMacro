@@ -84,7 +84,7 @@ public class CliCommandRouterTests
 
         Assert.False(result.ShouldStartGui);
         Assert.False(result.IsSuccess);
-        Assert.Contains("Unknown option", result.ErrorMessage);
+        Assert.Contains("Unknown option", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public class CliCommandRouterTests
 
         Assert.False(result.ShouldStartGui);
         Assert.False(result.IsSuccess);
-        Assert.Contains("Unknown command", result.ErrorMessage);
+        Assert.Contains("Unknown command", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class CliCommandRouterTests
 
         Assert.False(result.ShouldStartGui);
         Assert.False(result.IsSuccess);
-        Assert.Contains("Unknown option", result.ErrorMessage);
+        Assert.Contains("Unknown option", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public class CliCommandRouterTests
 
             Assert.False(result.ShouldStartGui);
             Assert.False(result.IsSuccess);
-            Assert.Contains("Unknown command", result.ErrorMessage);
+            Assert.Contains("Unknown command", result.ErrorMessage, StringComparison.Ordinal);
         }
         finally
         {
@@ -210,7 +210,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["play", "/tmp/test.macro", "--detach"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Unknown option for play", result.ErrorMessage);
+        Assert.Contains("Unknown option for play", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -280,7 +280,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["play", "/tmp/test.macro", "--repeat", "-2"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("--repeat must be >= 0", result.ErrorMessage);
+        Assert.Contains("--repeat must be >= 0", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -302,7 +302,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["doctor", "--log-level", "trace"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Invalid value for --log-level", result.ErrorMessage);
+        Assert.Contains("Invalid value for --log-level", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -317,7 +317,7 @@ public class CliCommandRouterTests
             "--skip-initial-zero",
             "--duration", "10",
             "--json",
-            "--log-level", "warning"
+            "--log-level", "warning",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -339,7 +339,7 @@ public class CliCommandRouterTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("record requires --output <macro-file>.", result.ErrorMessage);
-        Assert.Contains("Usage: crossmacro record (--output|-o) <macro-file>", result.ErrorDetails[0]);
+        Assert.Contains("Usage: crossmacro record (--output|-o) <macro-file>", result.ErrorDetails[0], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -348,7 +348,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["record", "--output", "/tmp/a.macro", "--mode", "invalid"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Invalid value for --mode", result.ErrorMessage);
+        Assert.Contains("Invalid value for --mode", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public class CliCommandRouterTests
             "--countdown", "2",
             "--timeout", "30",
             "--dry-run",
-            "--json"
+            "--json",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -397,7 +397,7 @@ public class CliCommandRouterTests
             "move", "abs", "100", "200",
             "click", "left",
             "delay", "40",
-            "type", "hello"
+            "type", "hello",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -415,7 +415,7 @@ public class CliCommandRouterTests
         var result = _router.Parse([
             "run",
             "move", "abs", "100", "200",
-            "click", "current", "left"
+            "click", "current", "left",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -434,7 +434,7 @@ public class CliCommandRouterTests
             "repeat", "$n", "{",
             "click", "left",
             "delay", "random", "10", "20",
-            "}"
+            "}",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -460,7 +460,7 @@ public class CliCommandRouterTests
             "}",
             "for", "n", "from", "1", "to", "5", "step", "2", "{",
             "click", "right",
-            "}"
+            "}",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -481,7 +481,7 @@ public class CliCommandRouterTests
             "}",
             "for", "i", "from", "1", "to", "2", "{",
             "break",
-            "}"
+            "}",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -502,7 +502,7 @@ public class CliCommandRouterTests
             "run",
             "set", "step", "2",
             "inc", "i", "$step",
-            "click", "left"
+            "click", "left",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -520,7 +520,7 @@ public class CliCommandRouterTests
             "pixelcolor", "1", "2", "sampled",
             "waitcolor", "3", "4", "00FF00", "100", "wait_ok",
             "pixelsearch", "0", "0", "10", "10", "FF0000", "found", "found_x", "found_y", "tolerance", "26",
-            "click", "left"
+            "click", "left",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -541,7 +541,7 @@ public class CliCommandRouterTests
             "waitcolor", "3", "4", "00FF00",
             "pixelsearch", "0", "0", "10", "10", "FF0000", "tolerance", "26",
             "pixelsearch", "1", "2", "11", "12", "00FF00", "found_x", "found_y", "tolerance", "7",
-            "click", "left"
+            "click", "left",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -560,7 +560,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["run", "pixelcolorful", "1", "2", "sampled"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Unknown inline run step command: pixelcolorful", result.ErrorMessage);
+        Assert.Contains("Unknown inline run step command: pixelcolorful", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -569,11 +569,11 @@ public class CliCommandRouterTests
         var result = _router.Parse([
             "run",
             "repeat", "3",
-            "click", "left"
+            "click", "left",
         ]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Invalid inline step syntax for repeat", result.ErrorMessage);
+        Assert.Contains("Invalid inline step syntax for repeat", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -582,7 +582,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["run", "move", "abs", "100"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Invalid inline step syntax for move", result.ErrorMessage);
+        Assert.Contains("Invalid inline step syntax for move", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -593,8 +593,8 @@ public class CliCommandRouterTests
         Assert.False(result.IsSuccess);
         Assert.Equal("run requires at least one --step argument or --file.", result.ErrorMessage);
         Assert.Equal(2, result.ErrorDetails.Count);
-        Assert.Contains("Usage: crossmacro run --step <step>", result.ErrorDetails[0]);
-        Assert.Contains("Usage: crossmacro run <step-command>", result.ErrorDetails[1]);
+        Assert.Contains("Usage: crossmacro run --step <step>", result.ErrorDetails[0], StringComparison.Ordinal);
+        Assert.Contains("Usage: crossmacro run <step-command>", result.ErrorDetails[1], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -603,7 +603,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["run", "--step", "click left", "--speed", "0.09"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("--speed must be between 0.1 and 10.", result.ErrorMessage);
+        Assert.Contains("--speed must be between 0.1 and 10.", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -612,7 +612,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["run", "--step", "click left", "--speed", "10.01"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("--speed must be between 0.1 and 10.", result.ErrorMessage);
+        Assert.Contains("--speed must be between 0.1 and 10.", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -629,10 +629,10 @@ public class CliCommandRouterTests
     {
         var usage = _router.GetUsage("run");
 
-        Assert.Contains("pixelcolor <x> <y> [var]", usage);
-        Assert.Contains("pixelcolor rel <dx> <dy> [var]", usage);
-        Assert.Contains("waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]", usage);
-        Assert.Contains("pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]", usage);
+        Assert.Contains("pixelcolor <x> <y> [var]", usage, StringComparison.Ordinal);
+        Assert.Contains("pixelcolor rel <dx> <dy> [var]", usage, StringComparison.Ordinal);
+        Assert.Contains("waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]", usage, StringComparison.Ordinal);
+        Assert.Contains("pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]", usage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -640,15 +640,15 @@ public class CliCommandRouterTests
     {
         var usage = _router.GetUsage("run");
 
-        Assert.Contains("shell \"<command>\" [retries] [backoff_ms] [timeout_ms]", usage);
-        Assert.Contains("shell capture \"<command>\" exit_var stdout_var stderr_var", usage);
-        Assert.Contains("shell input \"<stdin text>\" \"<command>\"", usage);
-        Assert.Contains("shell capture-input \"<stdin text>\" \"<command>\" exit_var stdout_var stderr_var", usage);
-        Assert.Contains("Capture modes do not fail on non-zero exits", usage);
-        Assert.Contains("capped at 65536 characters", usage);
-        Assert.Contains("only run trusted macros", usage);
-        Assert.Contains("Flatpak builds disable shell steps", usage);
-        Assert.Contains("Use $$NAME to pass $NAME to the shell", usage);
+        Assert.Contains("shell \"<command>\" [retries] [backoff_ms] [timeout_ms]", usage, StringComparison.Ordinal);
+        Assert.Contains("shell capture \"<command>\" exit_var stdout_var stderr_var", usage, StringComparison.Ordinal);
+        Assert.Contains("shell input \"<stdin text>\" \"<command>\"", usage, StringComparison.Ordinal);
+        Assert.Contains("shell capture-input \"<stdin text>\" \"<command>\" exit_var stdout_var stderr_var", usage, StringComparison.Ordinal);
+        Assert.Contains("Capture modes do not fail on non-zero exits", usage, StringComparison.Ordinal);
+        Assert.Contains("capped at 65536 characters", usage, StringComparison.Ordinal);
+        Assert.Contains("only run trusted macros", usage, StringComparison.Ordinal);
+        Assert.Contains("Flatpak builds disable shell steps", usage, StringComparison.Ordinal);
+        Assert.Contains("Use $$NAME to pass $NAME to the shell", usage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -726,10 +726,10 @@ public class CliCommandRouterTests
     {
         var usage = _router.GetUsage("run");
 
-        Assert.Contains("--file <steps-file>", usage);
-        Assert.Contains("type <text>", usage);
-        Assert.Contains("break | continue", usage);
-        Assert.Contains("Examples:", usage);
+        Assert.Contains("--file <steps-file>", usage, StringComparison.Ordinal);
+        Assert.Contains("type <text>", usage, StringComparison.Ordinal);
+        Assert.Contains("break | continue", usage, StringComparison.Ordinal);
+        Assert.Contains("Examples:", usage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -873,7 +873,7 @@ public class CliCommandRouterTests
             "CompatibleKeyByKey",
             "--profile",
             "work",
-            "--json"
+            "--json",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -970,7 +970,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["schedule", "add", "--name", "Bad", "--macro", "/tmp/demo.macro", "--interval", "10m", "--at", "2026-07-05T18:00:00"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Use only one schedule form", result.ErrorMessage);
+        Assert.Contains("Use only one schedule form", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1068,7 +1068,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["shortcut", "add", "--name", "Demo", "--macro", "/tmp/demo.macro"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("shortcut add requires", result.ErrorMessage);
+        Assert.Contains("shortcut add requires", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1095,18 +1095,18 @@ public class CliCommandRouterTests
     public void Parse_WhenTriggerAdd_ReturnsOptions()
     {
         var result = _router.Parse([
-            "trigger", "add", 
-            "--name", "Firefox Dev", 
-            "--field", "WindowTitle", 
-            "--match-mode", "Regex", 
-            "--value", ".*Firefox.*", 
-            "--action", "SwitchProfile", 
-            "--profile", "dev", 
-            "--fire-mode", "OnceOnChange", 
-            "--cooldown-ms", "1000", 
-            "--debounce-ms", "250", 
-            "--enabled", "true", 
-            "--json"
+            "trigger", "add",
+            "--name", "Firefox Dev",
+            "--field", "WindowTitle",
+            "--match-mode", "Regex",
+            "--value", ".*Firefox.*",
+            "--action", "SwitchProfile",
+            "--profile", "dev",
+            "--fire-mode", "OnceOnChange",
+            "--cooldown-ms", "1000",
+            "--debounce-ms", "250",
+            "--enabled", "true",
+            "--json",
         ]);
 
         Assert.True(result.IsSuccess);
@@ -1145,7 +1145,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["trigger", "add", "--name", "Firefox Dev", "--field", "WindowTitle"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("trigger add requires", result.ErrorMessage);
+        Assert.Contains("trigger add requires", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1198,9 +1198,9 @@ public class CliCommandRouterTests
     {
         var usage = _router.GetUsage("settings");
 
-        Assert.Contains("Supported Keys:", usage);
-        Assert.Contains("playback.speed", usage);
-        Assert.Contains("logging.level", usage);
+        Assert.Contains("Supported Keys:", usage, StringComparison.Ordinal);
+        Assert.Contains("playback.speed", usage, StringComparison.Ordinal);
+        Assert.Contains("logging.level", usage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1208,8 +1208,8 @@ public class CliCommandRouterTests
     {
         var usage = _router.GetUsage("settings.set");
 
-        Assert.Contains("Value Notes:", usage);
-        Assert.Contains("Debug|Information|Warning|Error", usage);
+        Assert.Contains("Value Notes:", usage, StringComparison.Ordinal);
+        Assert.Contains("Debug|Information|Warning|Error", usage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1217,16 +1217,16 @@ public class CliCommandRouterTests
     {
         var usage = _router.GetUsage();
 
-        Assert.Contains("crossmacro [--start-minimized]", usage);
-        Assert.Contains("record (--output|-o)", usage);
-        Assert.Contains("crossmacro clipboard get", usage);
-        Assert.Contains("crossmacro clipboard clear", usage);
-        Assert.Contains("crossmacro window active|list", usage);
-        Assert.Contains("crossmacro screen pixel|wait-color|search-color|search-image|wait-image|image-click", usage);
-        Assert.Contains("crossmacro screenshot", usage);
-        Assert.Contains("crossmacro profile", usage);
-        Assert.Contains("crossmacro text-expansion", usage);
-        Assert.Contains("crossmacro --headless", usage);
+        Assert.Contains("crossmacro [--start-minimized]", usage, StringComparison.Ordinal);
+        Assert.Contains("record (--output|-o)", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro clipboard get", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro clipboard clear", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro window active|list", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro screen pixel|wait-color|search-color|search-image|wait-image|image-click", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro screenshot", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro profile", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro text-expansion", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro --headless", usage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1271,7 +1271,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["clipboard", "clear", "extra"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("clipboard clear", result.ErrorMessage);
+        Assert.Contains("clipboard clear", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1280,7 +1280,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["clipboard", "set", "hello", "--file", "/tmp/message.txt"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("either <text> or --file", result.ErrorMessage);
+        Assert.Contains("either <text> or --file", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1310,7 +1310,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["window", "focus", "--title", "A", "--class", "B"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Only one window selector", result.ErrorMessage);
+        Assert.Contains("Only one window selector", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1380,7 +1380,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["screen", "search-color", "0", "0", "10", "20", "FF0000", "--tolerance", "256"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("--tolerance", result.ErrorMessage);
+        Assert.Contains("--tolerance", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1407,23 +1407,23 @@ public class CliCommandRouterTests
         var badMatchMode = _router.Parse(["screen", "search-image", "/tmp/template.png", "--matchmode", "middle"]);
 
 		Assert.False(badSimilarity.IsSuccess);
-		Assert.Contains("--similarity", badSimilarity.ErrorMessage);
+		Assert.Contains("--similarity", badSimilarity.ErrorMessage, StringComparison.Ordinal);
 		Assert.False(badSimilarityNaN.IsSuccess);
-		Assert.Contains("--similarity", badSimilarityNaN.ErrorMessage);
+		Assert.Contains("--similarity", badSimilarityNaN.ErrorMessage, StringComparison.Ordinal);
 		Assert.False(badSimilarityInfinity.IsSuccess);
-		Assert.Contains("--similarity", badSimilarityInfinity.ErrorMessage);
+		Assert.Contains("--similarity", badSimilarityInfinity.ErrorMessage, StringComparison.Ordinal);
 		Assert.False(badSimilarityNegativeInfinity.IsSuccess);
-		Assert.Contains("--similarity", badSimilarityNegativeInfinity.ErrorMessage);
+		Assert.Contains("--similarity", badSimilarityNegativeInfinity.ErrorMessage, StringComparison.Ordinal);
 		Assert.False(badDownsample.IsSuccess);
-		Assert.Contains("--downsample", badDownsample.ErrorMessage);
+		Assert.Contains("--downsample", badDownsample.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badRegion.IsSuccess);
-        Assert.Contains("--region", badRegion.ErrorMessage);
+        Assert.Contains("--region", badRegion.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badWaitTimeout.IsSuccess);
-        Assert.Contains("--timeout-ms", badWaitTimeout.ErrorMessage);
+        Assert.Contains("--timeout-ms", badWaitTimeout.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badImageClickButton.IsSuccess);
-        Assert.Contains("--button", badImageClickButton.ErrorMessage);
+        Assert.Contains("--button", badImageClickButton.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badMatchMode.IsSuccess);
-        Assert.Contains("--matchmode", badMatchMode.ErrorMessage);
+        Assert.Contains("--matchmode", badMatchMode.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1471,7 +1471,7 @@ public class CliCommandRouterTests
         var result = _router.Parse(["screenshot", "--region", "1", "2", "3", "4"]);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("--output", result.ErrorMessage);
-        Assert.Contains("--clipboard", result.ErrorMessage);
+        Assert.Contains("--output", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("--clipboard", result.ErrorMessage, StringComparison.Ordinal);
     }
 }

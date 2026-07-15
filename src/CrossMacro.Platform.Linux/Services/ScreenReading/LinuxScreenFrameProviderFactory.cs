@@ -30,7 +30,7 @@ public sealed class LinuxScreenFrameProviderFactory
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
         IX11ScreenCaptureSupportProbe x11SupportProbe,
         Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
-        : this(environmentDetector, runtimeContext, capabilityDetector, null, extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory, true)
+        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider: null, extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory, _: true)
     {
     }
 
@@ -46,7 +46,7 @@ public sealed class LinuxScreenFrameProviderFactory
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
         IX11ScreenCaptureSupportProbe x11SupportProbe,
         Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
-        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory, true)
+        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory, _: true)
     {
     }
 
@@ -105,12 +105,12 @@ public sealed class LinuxScreenFrameProviderFactory
     {
         var capabilitySnapshot = _snapshotProvider?.GetSnapshot();
         var compositor = capabilitySnapshot?.Compositor ?? _environmentDetector.DetectedCompositor;
-        if (capabilitySnapshot?.IsWayland == true || capabilitySnapshot is null && _environmentDetector.IsWayland)
+        if ((capabilitySnapshot?.IsWayland) is true || (capabilitySnapshot is null && _environmentDetector.IsWayland))
         {
             return CreateWaylandProvider(capabilitySnapshot);
         }
 
-        if (capabilitySnapshot?.IsX11 == true || capabilitySnapshot is null && _environmentDetector.IsX11)
+        if ((capabilitySnapshot?.IsX11) is true || (capabilitySnapshot is null && _environmentDetector.IsX11))
         {
             return _x11Factory(_x11SupportProbe.ProbeSupport());
         }
@@ -145,7 +145,7 @@ public sealed class LinuxScreenFrameProviderFactory
             }
 
             lastUnavailable = capability;
-            if (permissionDenied is null && capability.ErrorKind == ScreenReadErrorKind.PermissionDenied)
+            if (permissionDenied is null && capability.ErrorKind is ScreenReadErrorKind.PermissionDenied)
             {
                 permissionDenied = capability;
             }
@@ -174,7 +174,7 @@ public sealed class LinuxScreenFrameProviderFactory
         LinuxScreenReaderBackend.WlrScreencopy => wlrFactory(ToWlrSupport(capability)),
         LinuxScreenReaderBackend.Portal => portalFactory(ToPortalSupport(capability)),
         LinuxScreenReaderBackend.GnomeExtension => gnomeFactory(ToGnomeSupport(capability)),
-        _ => throw new ArgumentOutOfRangeException(nameof(capability), capability.Backend, "Unknown Linux screen reader backend.")
+        _ => throw new ArgumentOutOfRangeException(nameof(capability), capability.Backend, "Unknown Linux screen reader backend."),
     };
 
     private static GnomeExtensionSupportResult ToGnomeSupport(LinuxScreenReaderBackendCapability capability) =>

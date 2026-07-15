@@ -34,7 +34,7 @@ internal sealed class MainWindowNavigationCatalog
             CreateNavigationItem("Navigation_Shortcuts", AppIcon.Keyboard, shortcuts),
             CreateNavigationItem("Navigation_Schedule", AppIcon.Clock, schedule),
             CreateNavigationItem("Navigation_Triggers", AppIcon.Trigger, triggers),
-            CreateNavigationItem("Navigation_Editor", AppIcon.Tools, editor)
+            CreateNavigationItem("Navigation_Editor", AppIcon.Tools, editor),
         };
     }
 
@@ -42,7 +42,7 @@ internal sealed class MainWindowNavigationCatalog
     {
         return new ObservableCollection<NavigationItem>
         {
-            CreateNavigationItem("Navigation_Settings", AppIcon.Settings, settings)
+            CreateNavigationItem("Navigation_Settings", AppIcon.Settings, settings),
         };
     }
 
@@ -61,7 +61,7 @@ internal sealed class MainWindowNavigationCatalog
             LocalizationKey = localizationKey,
             Label = _localizationService[localizationKey],
             Icon = icon,
-            ViewModel = viewModel
+            ViewModel = viewModel,
         };
     }
 

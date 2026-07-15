@@ -9,13 +9,13 @@ public class HotkeyMatcher : IHotkeyMatcher
 {
     private readonly Dictionary<string, DateTime> _lastHotkeyPressTimes = new();
     private readonly Lock _lock = new();
-    
+
     private const int DefaultDebounceMs = 300;
-    
+
     public int DebounceIntervalMs { get; set; } = DefaultDebounceMs;
-    
+
     private TimeSpan DebounceInterval => TimeSpan.FromMilliseconds(DebounceIntervalMs);
-    
+
     public bool TryMatch(int keyCode, IReadOnlySet<int> modifiers, HotkeyMapping mapping, string actionName)
     {
         // Check if the main key matches
@@ -34,19 +34,16 @@ public class HotkeyMatcher : IHotkeyMatcher
         var now = DateTime.UtcNow;
         using (_lock.EnterScope())
         {
-            if (_lastHotkeyPressTimes.TryGetValue(actionName, out var lastTime))
+            if (_lastHotkeyPressTimes.TryGetValue(actionName, out var lastTime) && now - lastTime < DebounceInterval)
             {
-                if (now - lastTime < DebounceInterval)
-                {
-                    return false;
-                }
+                return false;
             }
             _lastHotkeyPressTimes[actionName] = now;
         }
 
         return true;
     }
-    
+
     public void ResetDebounce()
     {
         using (_lock.EnterScope())

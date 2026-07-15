@@ -16,5 +16,5 @@ public enum WindowCommandMode
     WorkspaceGet,
     WorkspaceSwitch,
     WorkspaceMoveActive,
-    WorkspaceMoveWindow
+    WorkspaceMoveWindow,
 }

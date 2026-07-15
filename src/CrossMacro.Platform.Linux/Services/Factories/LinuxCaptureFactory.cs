@@ -28,8 +28,8 @@ public class LinuxCaptureFactory
         Func<LinuxIpcInputCapture> ipcFactory,
         Func<X11InputCapture> x11Factory)
         : this(
-            null,
-            null,
+environmentDetector: null,
+capabilityDetector: null,
             snapshotProvider,
             legacyFactory,
             ipcFactory,
@@ -44,7 +44,7 @@ public class LinuxCaptureFactory
         Func<LinuxInputCapture> legacyFactory,
         Func<LinuxIpcInputCapture> ipcFactory,
         Func<X11InputCapture> x11Factory)
-        : this(environmentDetector, capabilityDetector, null, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported)
+        : this(environmentDetector, capabilityDetector, snapshotProvider: null, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported)
     {
     }
 
@@ -55,7 +55,7 @@ public class LinuxCaptureFactory
         Func<LinuxIpcInputCapture> ipcFactory,
         Func<X11InputCapture> x11Factory,
         Func<X11InputCapture, bool> x11IsSupported)
-        : this(environmentDetector, capabilityDetector, null, legacyFactory, ipcFactory, x11Factory, x11IsSupported)
+        : this(environmentDetector, capabilityDetector, snapshotProvider: null, legacyFactory, ipcFactory, x11Factory, x11IsSupported)
     {
     }
 
@@ -102,7 +102,7 @@ public class LinuxCaptureFactory
                 x11 is not null && _x11IsSupported(x11),
                 forCapture: true);
 
-            if (selection.Reason == "native-x11")
+            if (selection.Reason is "native-x11")
             {
                 return x11!;
             }
@@ -111,7 +111,7 @@ public class LinuxCaptureFactory
             {
                 InputProviderMode.Daemon => _ipcFactory(),
                 InputProviderMode.Legacy => _legacyFactory(),
-                _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage(snapshot))
+                _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage(snapshot)),
             };
         }
 
@@ -120,7 +120,7 @@ public class LinuxCaptureFactory
         {
             var mode = _capabilityDetector.DetermineMode();
 
-            if (mode == InputProviderMode.Daemon)
+            if (mode is InputProviderMode.Daemon)
             {
                 LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Daemon",
                     "[LinuxCaptureFactory] Wayland detected ({0}), using IPC Capture (Daemon mode)",
@@ -128,7 +128,7 @@ public class LinuxCaptureFactory
                 return _ipcFactory();
             }
 
-            if (mode == InputProviderMode.None)
+            if (mode is InputProviderMode.None)
             {
                 var reason = BuildUnavailableCaptureMessage();
                 LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_None",
@@ -171,7 +171,7 @@ public class LinuxCaptureFactory
         {
             InputProviderMode.Legacy when _capabilityDetector.CanReadInputEvents => _legacyFactory(),
             InputProviderMode.Daemon => _ipcFactory(),
-            _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage())
+            _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage()),
         };
     }
 
@@ -193,7 +193,7 @@ public class LinuxCaptureFactory
                     : "No usable Linux input capture backend is available: daemon handshake timed out and no direct input fallback is available.",
                 _ => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
                     ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
-                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
             };
         }
 
@@ -208,7 +208,7 @@ public class LinuxCaptureFactory
             LinuxDaemonHandshakeStatus.PermissionDenied => "No usable Linux input capture backend is available: daemon socket permission denied and no readable input events were found.",
             LinuxDaemonHandshakeStatus.Timeout => "No usable Linux input capture backend is available: daemon handshake timed out and no direct input fallback is available.",
             _ when snapshot.Input.CanUseDirectUInput && !snapshot.Input.CanReadInputEvents => "No usable Linux input capture backend is available: direct input events are not readable.",
-            _ => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found."
+            _ => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
         };
 
 }

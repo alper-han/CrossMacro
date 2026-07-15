@@ -20,12 +20,12 @@ public sealed class DoctorCommandHandler : CliCommandHandlerBase<DoctorCliOption
         var report = await _doctorService.RunAsync(options.Verbose, cancellationToken);
 
         var warningMessages = report.Checks
-            .Where(x => x.Status == DoctorCheckStatus.Warn)
+            .Where(x => x.Status is DoctorCheckStatus.Warn)
             .Select(x => $"{x.Name}: {x.Message}")
             .ToArray();
 
         var errorMessages = report.Checks
-            .Where(x => x.Status == DoctorCheckStatus.Fail)
+            .Where(x => x.Status is DoctorCheckStatus.Fail)
             .Select(x => $"{x.Name}: {x.Message}")
             .ToArray();
 

@@ -8,7 +8,7 @@ public sealed class CliParseResult
         Help,
         Version,
         Success,
-        Error
+        Error,
     }
 
     private static readonly IReadOnlyList<string> EmptyErrorDetails = [];
@@ -25,29 +25,29 @@ public sealed class CliParseResult
     public bool PrefersJsonOutput { get; private init; }
     public bool ShowTopLevelUsageInTextMode { get; private init; }
 
-    public bool ShouldStartGui => Kind == ParseResultKind.Gui;
+    public bool ShouldStartGui => Kind is ParseResultKind.Gui;
     public bool IsSuccess => Kind is ParseResultKind.Gui or ParseResultKind.Help or ParseResultKind.Version or ParseResultKind.Success;
-    public bool ShowHelp => Kind == ParseResultKind.Help;
-    public bool ShowVersion => Kind == ParseResultKind.Version;
+    public bool ShowHelp => Kind is ParseResultKind.Help;
+    public bool ShowVersion => Kind is ParseResultKind.Version;
 
     public static CliParseResult Gui() => new() { Kind = ParseResultKind.Gui };
 
     public static CliParseResult Help(string? topic = null) => new()
     {
         Kind = ParseResultKind.Help,
-        HelpTopic = topic
+        HelpTopic = topic,
     };
 
     public static CliParseResult Version() => new()
     {
-        Kind = ParseResultKind.Version
+        Kind = ParseResultKind.Version,
     };
 
     public static CliParseResult Success(CliCommandOptions options) => new()
     {
         Kind = ParseResultKind.Success,
         Options = options,
-        PrefersJsonOutput = options.JsonOutput
+        PrefersJsonOutput = options.JsonOutput,
     };
 
     public static CliParseResult Error(
@@ -60,7 +60,7 @@ public sealed class CliParseResult
         ErrorMessage = message,
         ErrorDetails = errorDetails ?? EmptyErrorDetails,
         PrefersJsonOutput = prefersJsonOutput,
-        ShowTopLevelUsageInTextMode = showTopLevelUsageInTextMode
+        ShowTopLevelUsageInTextMode = showTopLevelUsageInTextMode,
     };
 
 }

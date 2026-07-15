@@ -10,7 +10,7 @@ public enum RecordCoordinateMode
 {
     Auto = 0,
     Absolute = 1,
-    Relative = 2
+    Relative = 2,
 }
 
 public sealed record MacroValidateCliOptions(string MacroFilePath, bool JsonOutput = false, string? LogLevel = null)
@@ -54,7 +54,7 @@ public enum ProfileCliAction
     Create,
     Switch,
     Rename,
-    Delete
+    Delete,
 }
 
 public sealed record ProfileCliOptions(
@@ -73,7 +73,7 @@ public enum TextExpansionCliAction
     Remove,
     Enable,
     Disable,
-    Test
+    Test,
 }
 
 public sealed record TextExpansionCliOptions(
@@ -101,7 +101,7 @@ public enum ScheduleCliAction
     Remove,
     Enable,
     Disable,
-    Next
+    Next,
 }
 
 public sealed record ScheduleCliOptions(
@@ -132,7 +132,7 @@ public enum ShortcutCliAction
     Remove,
     Enable,
     Disable,
-    Bind
+    Bind,
 }
 
 public sealed record ShortcutCliOptions(
@@ -182,7 +182,7 @@ public enum ClipboardCliAction
 {
     Get,
     Set,
-    Clear
+    Clear,
 }
 
 public sealed record ClipboardCliOptions(
@@ -210,14 +210,14 @@ public enum WindowCliAction
     WorkspaceGet,
     WorkspaceSwitch,
     WorkspaceMoveActive,
-    WorkspaceMoveWindow
+    WorkspaceMoveWindow,
 }
 
 public enum WindowSelectorKind
 {
     Address,
     Title,
-    Class
+    Class,
 }
 
 public sealed record WindowSelector(WindowSelectorKind Kind, string Value);
@@ -242,12 +242,12 @@ public enum ScreenCliAction
     SearchColor,
     SearchImage,
     WaitImage,
-    ImageClick
+    ImageClick,
 }
 
 public enum ScreenshotCliAction
 {
-    Capture
+    Capture,
 }
 
 public sealed record ScreenshotCliOptions(
@@ -295,7 +295,7 @@ public enum TriggerCliAction
     Edit,
     Remove,
     Enable,
-    Disable
+    Disable,
 }
 
 public sealed record TriggerCliOptions(

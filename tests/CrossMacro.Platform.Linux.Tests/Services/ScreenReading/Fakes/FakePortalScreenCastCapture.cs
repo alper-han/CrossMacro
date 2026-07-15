@@ -41,7 +41,7 @@ internal sealed class FakePortalScreenCastCapture : IPortalScreenCastCapture
 
     public Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenReadOptions options)
     {
-        return CaptureSupportedAsync(null, options);
+        return CaptureSupportedAsync(region: null, options);
     }
 
     public Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)

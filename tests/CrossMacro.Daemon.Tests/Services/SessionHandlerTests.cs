@@ -159,8 +159,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(101);
-        writer.Write(true);
-        writer.Write(false);
+        writer.Write(value: true);
+        writer.Write(value: false);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -200,11 +200,7 @@ public sealed class SessionHandlerTests
         Assert.Contains(
             security.SimulationCalls,
             call =>
-                call.Uid == 1001u &&
-                call.Pid == 4321 &&
-                call.Type == CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY &&
-                call.Code == CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT &&
-                call.Value == 1);
+                call.Uid is 1001u && call.Pid is 4321 && call.Type == CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY && call.Code == CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT && call.Value is 1);
     }
 
     [LinuxFact]
@@ -387,8 +383,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(909);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -428,7 +424,7 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(1919);
-        writer.Write(true);
+        writer.Write(value: true);
         writer.Flush();
         socketPair.Client.Shutdown(SocketShutdown.Send);
 
@@ -594,8 +590,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(202);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         await captureManager.WaitForStartCaptureAsync(TimeSpan.FromSeconds(2));
@@ -606,7 +602,7 @@ public sealed class SessionHandlerTests
         {
             type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
             code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
-            value = 1
+            value = 1,
         });
 
         Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
@@ -629,7 +625,7 @@ public sealed class SessionHandlerTests
         {
             type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
             code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
-            value = 1
+            value = 1,
         });
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
@@ -651,8 +647,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(404);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         await captureManager.WaitForStartCaptureAsync(TimeSpan.FromSeconds(2));
@@ -697,8 +693,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(606);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStartFailed, (IpcOpCode)reader.ReadByte());
@@ -736,8 +732,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(808);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStartFailed, (IpcOpCode)reader.ReadByte());
@@ -778,8 +774,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(707);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -827,8 +823,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(501);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -839,19 +835,19 @@ public sealed class SessionHandlerTests
             {
                 type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
                 code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
-                value = 1
+                value = 1,
             },
             currentGenerationEvent: new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
             {
                 type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
                 code = 30,
-                value = 1
+                value = 1,
             });
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(502);
-        writer.Write(false);
-        writer.Write(true);
+        writer.Write(value: false);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
@@ -899,8 +895,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(1001);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -915,7 +911,7 @@ public sealed class SessionHandlerTests
         {
             type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
             code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
-            value = 1
+            value = 1,
         });
 
         AssertNoMessageAvailable(stream, reader, TimeSpan.FromMilliseconds(200));
@@ -924,13 +920,13 @@ public sealed class SessionHandlerTests
         {
             type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY,
             code = 30,
-            value = 1
+            value = 1,
         });
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(1002);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -985,8 +981,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(1015);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -1034,8 +1030,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(1017);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -1051,7 +1047,7 @@ public sealed class SessionHandlerTests
         var security = new FakeSecurityService();
         var virtualDevice = new FakeVirtualDeviceManager
         {
-            ThrowOnReconfigure = new InvalidOperationException("resolution rejected")
+            ThrowOnReconfigure = new InvalidOperationException("resolution rejected"),
         };
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
@@ -1074,8 +1070,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(1717);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -1100,7 +1096,7 @@ public sealed class SessionHandlerTests
         var security = new FakeSecurityService();
         var virtualDevice = new FakeVirtualDeviceManager
         {
-            ThrowOnSendEvent = new InvalidOperationException("send failed")
+            ThrowOnSendEvent = new InvalidOperationException("send failed"),
         };
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
@@ -1123,8 +1119,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(1818);
-        writer.Write(true);
-        writer.Write(false);
+        writer.Write(value: true);
+        writer.Write(value: false);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
@@ -1172,8 +1168,8 @@ public sealed class SessionHandlerTests
 
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(303);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         await captureManager.WaitForStartCaptureAsync(TimeSpan.FromSeconds(2));
@@ -1184,7 +1180,7 @@ public sealed class SessionHandlerTests
         {
             type = 0x99,
             code = 123,
-            value = 77
+            value = 77,
         });
 
         Assert.Equal(IpcOpCode.InputEvent, (IpcOpCode)reader.ReadByte());
@@ -1238,12 +1234,12 @@ public sealed class SessionHandlerTests
         {
             ConfigureCalls.Add((width, height));
 
-            if (width == 0 && height == 0 && ThrowOnInitialConfigure != null)
+            if (width is 0 && height is 0 && ThrowOnInitialConfigure is not null)
             {
                 throw ThrowOnInitialConfigure;
             }
 
-            if ((width != 0 || height != 0) && ThrowOnReconfigure != null)
+            if ((width is not 0 || height is not 0) && ThrowOnReconfigure is not null)
             {
                 throw ThrowOnReconfigure;
             }
@@ -1260,7 +1256,7 @@ public sealed class SessionHandlerTests
         {
             SentEvents.Add((type, code, value));
 
-            if (ThrowOnSendEvent != null)
+            if (ThrowOnSendEvent is not null)
             {
                 throw ThrowOnSendEvent;
             }
@@ -1325,7 +1321,7 @@ public sealed class SessionHandlerTests
 
         public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event> onEvent)
         {
-            if (_startException != null)
+            if (_startException is not null)
             {
                 var exception = _startException;
                 _startException = null;
@@ -1341,7 +1337,7 @@ public sealed class SessionHandlerTests
             {
                 onEvent(_emitDuringStartEvent);
             }
-            if (_emitSequenceDuringStart != null)
+            if (_emitSequenceDuringStart is not null)
             {
                 foreach (var inputEvent in _emitSequenceDuringStart)
                 {
@@ -1472,7 +1468,7 @@ public sealed class SessionHandlerTests
 
         public void ConfigureEmitSequenceDuringStart(params CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event[] events)
         {
-            _emitSequenceDuringStart = events.Length == 0 ? null : events;
+            _emitSequenceDuringStart = events.Length is 0 ? null : events;
         }
 
         public void ConfigureEmitPreviousAndCurrentEventsOnNextStart(
@@ -1578,8 +1574,8 @@ public sealed class SessionHandlerTests
     {
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(requestId);
-        writer.Write(true);
-        writer.Write(true);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());

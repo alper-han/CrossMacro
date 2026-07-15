@@ -8,7 +8,7 @@ namespace CrossMacro.Platform.Windows.Services;
 public class WindowsEnvironmentInfoProvider : IEnvironmentInfoProvider
 {
     public DisplayEnvironment CurrentEnvironment => DisplayEnvironment.Windows;
-    
+
     /// <summary>
     /// Windows always uses its own window decorations with close button.
     /// </summary>

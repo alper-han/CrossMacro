@@ -13,5 +13,5 @@ public enum CliRuntimeProfile
     /// <summary>
     /// Long-running command mode (headless) where runtime services remain active.
     /// </summary>
-    Persistent = 1
+    Persistent = 1,
 }

@@ -35,7 +35,7 @@ public static unsafe class XkbNative
         IntPtr context,
         ref xkb_rule_names names,
         int flags);
-        
+
     [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr xkb_keymap_new_from_string(
         IntPtr context,
@@ -51,7 +51,7 @@ public static unsafe class XkbNative
 
     [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint xkb_keymap_mod_get_index(
-        IntPtr keymap, 
+        IntPtr keymap,
         [MarshalAs(UnmanagedType.LPStr)] string name);
 
     [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
@@ -63,7 +63,7 @@ public static unsafe class XkbNative
         uint keycode,
         byte* buffer,
         uint size);
-        
+
     [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint xkb_state_key_get_one_sym(
         IntPtr state,
@@ -85,9 +85,9 @@ public static unsafe class XkbNative
         // 64 bytes should be way more than enough for any single key
         byte* buffer = stackalloc byte[64];
         int len = xkb_state_key_get_utf8(state, keycode, buffer, 64);
-        
+
         if (len <= 0) return string.Empty;
-        
+
         return System.Text.Encoding.UTF8.GetString(buffer, len);
     }
 }

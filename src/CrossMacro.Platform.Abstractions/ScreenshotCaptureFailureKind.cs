@@ -6,5 +6,5 @@ public enum ScreenshotCaptureFailureKind
     CaptureFailed,
     FileWriteFailed,
     ClipboardUnsupported,
-    ClipboardWriteFailed
+    ClipboardWriteFailed,
 }

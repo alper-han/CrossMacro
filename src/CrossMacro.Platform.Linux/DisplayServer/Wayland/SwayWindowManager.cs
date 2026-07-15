@@ -33,11 +33,11 @@ public sealed class SwayWindowManager : IWindowManager
         try
         {
             var rootNode = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayNodeDto);
-            if (rootNode == null)
+            if (rootNode is null)
                 return null;
 
             var focusedNode = FindFocusedNode(rootNode);
-            return focusedNode != null ? MapWindow(focusedNode, "") : null;
+            return focusedNode is not null ? MapWindow(focusedNode, "") : null;
         }
         catch (Exception ex)
         {
@@ -55,7 +55,7 @@ public sealed class SwayWindowManager : IWindowManager
         try
         {
             var rootNode = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayNodeDto);
-            if (rootNode == null)
+            if (rootNode is null)
                 return [];
 
             var windows = new List<WindowInfo>();
@@ -153,7 +153,7 @@ public sealed class SwayWindowManager : IWindowManager
         try
         {
             var workspaces = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayWorkspaceDtoArray);
-            if (workspaces == null) return null;
+            if (workspaces is null) return null;
 
             foreach (var ws in workspaces)
             {
@@ -190,26 +190,26 @@ public sealed class SwayWindowManager : IWindowManager
 
     private static SwayNodeDto? FindFocusedNode(SwayNodeDto node)
     {
-        if (node.Focused && (node.Type == "con" || node.Type == "floating_con"))
+        if (node.Focused && (node.Type is "con" or "floating_con"))
         {
             return node;
         }
 
-        if (node.Nodes != null)
+        if (node.Nodes is not null)
         {
             foreach (var child in node.Nodes)
             {
                 var found = FindFocusedNode(child);
-                if (found != null) return found;
+                if (found is not null) return found;
             }
         }
 
-        if (node.FloatingNodes != null)
+        if (node.FloatingNodes is not null)
         {
             foreach (var child in node.FloatingNodes)
             {
                 var found = FindFocusedNode(child);
-                if (found != null) return found;
+                if (found is not null) return found;
             }
         }
 
@@ -218,20 +218,20 @@ public sealed class SwayWindowManager : IWindowManager
 
     private static void CollectWindows(SwayNodeDto node, List<WindowInfo> list, string currentWorkspace)
     {
-        if (node.Type == "workspace" && !string.IsNullOrEmpty(node.Name))
+        if (node.Type is "workspace" && !string.IsNullOrEmpty(node.Name))
         {
             currentWorkspace = node.Name;
         }
 
-        if (node.Type == "con" || node.Type == "floating_con")
+        if (node.Type is "con" or "floating_con")
         {
-            if (!string.IsNullOrEmpty(node.Name) || !string.IsNullOrEmpty(node.AppId) || node.WindowProperties != null)
+            if (!string.IsNullOrEmpty(node.Name) || !string.IsNullOrEmpty(node.AppId) || node.WindowProperties is not null)
             {
                 list.Add(MapWindow(node, currentWorkspace));
             }
         }
 
-        if (node.Nodes != null)
+        if (node.Nodes is not null)
         {
             foreach (var child in node.Nodes)
             {
@@ -239,7 +239,7 @@ public sealed class SwayWindowManager : IWindowManager
             }
         }
 
-        if (node.FloatingNodes != null)
+        if (node.FloatingNodes is not null)
         {
             foreach (var child in node.FloatingNodes)
             {
@@ -251,7 +251,7 @@ public sealed class SwayWindowManager : IWindowManager
     private static WindowInfo MapWindow(SwayNodeDto node, string workspace)
     {
         string windowClass = node.AppId ?? node.WindowProperties?.Class ?? string.Empty;
-        
+
         return new WindowInfo
         {
             Address = node.Id.ToString(),
@@ -263,13 +263,13 @@ public sealed class SwayWindowManager : IWindowManager
             IsFocused = node.Focused,
             IsFullscreen = node.FullscreenMode > 0,
             IsMaximized = false,
-            IsFloating = node.Type == "floating_con",
+            IsFloating = node.Type is "floating_con",
             IsPinned = node.Sticky,
-            IsHidden = workspace == "__i3_scratch",
+            IsHidden = workspace is "__i3_scratch",
             X = node.Rect?.X ?? 0,
             Y = node.Rect?.Y ?? 0,
             Width = node.Rect?.Width ?? 0,
-            Height = node.Rect?.Height ?? 0
+            Height = node.Rect?.Height ?? 0,
         };
     }
 
@@ -279,7 +279,7 @@ public sealed class SwayWindowManager : IWindowManager
         try
         {
             var results = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayCommandResultDtoArray);
-            if (results != null && results.Length > 0)
+            if (results is not null && results.Length > 0)
             {
                 // Return true if the first command in the chain succeeded
                 return results[0].Success;

@@ -158,7 +158,7 @@ internal sealed class WaylandLibrary : IDisposable
         while (true)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (_displayPrepareRead(display) == 0)
+            if (_displayPrepareRead(display) is 0)
             {
                 var readEvents = false;
                 try
@@ -172,7 +172,7 @@ internal sealed class WaylandLibrary : IDisposable
                     var pollFd = new PollFd
                     {
                         FileDescriptor = _displayGetFd(display),
-                        Events = (short)(PollIn | (flushResult < 0 ? PollOut : 0))
+                        Events = (short)(PollIn | (flushResult < 0 ? PollOut : 0)),
                     };
                     if (pollFd.FileDescriptor < 0)
                     {
@@ -190,17 +190,17 @@ internal sealed class WaylandLibrary : IDisposable
                         throw new IOException($"poll on Wayland display failed errno={Marshal.GetLastPInvokeError()}.");
                     }
 
-                    if (result == 0)
+                    if (result is 0)
                     {
                         continue;
                     }
 
-                    if ((pollFd.Revents & (PollError | PollHangup)) != 0)
+                    if ((pollFd.Revents & (PollError | PollHangup)) is not 0)
                     {
                         throw new IOException("Wayland display connection closed while waiting for events.");
                     }
 
-                    if ((pollFd.Revents & PollIn) == 0)
+                    if ((pollFd.Revents & PollIn) is 0)
                     {
                         continue;
                     }

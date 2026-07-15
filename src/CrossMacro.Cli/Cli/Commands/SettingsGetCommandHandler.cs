@@ -19,14 +19,14 @@ public sealed class SettingsGetCommandHandler : CliCommandHandlerBase<SettingsGe
     {
         var result = await _settingsCliService.GetAsync(options.Key, cancellationToken);
 
-        if (result.Success && !options.JsonOutput && (options.Key == null || options.All) && result.Data is Dictionary<string, object?> allSettings)
+        if (result.Success && !options.JsonOutput && (options.Key is null || options.All) && result.Data is Dictionary<string, object?> allSettings)
         {
             var lines = allSettings
                 .OrderBy(x => x.Key)
                 .Select(x => $"{x.Key}={x.Value}")
                 .ToArray();
 
-            var message = lines.Length == 0
+            var message = lines.Length is 0
                 ? "No settings available."
                 : string.Join("\n", lines);
 

@@ -34,14 +34,14 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     private readonly IMouseButtonMapper _mouseButtonMapper;
     private readonly Func<IInputCapture>? _inputCaptureFactory;
     private readonly HotkeyPersistenceQueue _persistenceQueue;
-    
+
     // Hotkey mappings
     private HotkeyMapping _recordingHotkey = new();
     private HotkeyMapping _playbackHotkey = new();
     private HotkeyMapping _pauseHotkey = new();
-    
+
     private bool _playbackPauseHotkeysEnabled = true;
-    
+
     // Events
     public event EventHandler? ToggleRecordingRequested;
     public event EventHandler? TogglePlaybackRequested;
@@ -49,7 +49,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived;
     public event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased;
     public event EventHandler<string>? ErrorOccurred;
-    
+
     // Properties
     public int RecordingHotkeyCode => _recordingHotkey.MainKey;
     public int PlaybackHotkeyCode => _playbackHotkey.MainKey;
@@ -78,7 +78,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         _mouseButtonMapper = mouseButtonMapper;
         _inputCaptureFactory = inputCaptureFactory;
         _persistenceQueue = new HotkeyPersistenceQueue(_configService, ReportPersistenceFailure);
-        
+
         var settings = _configService.Load();
         UpdateHotkeys(settings.RecordingHotkey, settings.PlaybackHotkey, settings.PauseHotkey, save: false);
     }
@@ -89,7 +89,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         {
             if (_isRunning) return;
 
-            if (_inputCaptureFactory == null)
+            if (_inputCaptureFactory is null)
             {
                 throw new InvalidOperationException("No input capture factory configured");
             }
@@ -145,7 +145,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             _recordingHotkey = _hotkeyParser.Parse(recordingHotkey);
             _playbackHotkey = _hotkeyParser.Parse(playbackHotkey);
             _pauseHotkey = _hotkeyParser.Parse(pauseHotkey);
-            
+
             Log.Information("[GlobalHotkeyService] Updated hotkeys: Recording={Recording}, Playback={Playback}, Pause={Pause}",
                 recordingHotkey, playbackHotkey, pauseHotkey);
         }
@@ -156,7 +156,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             {
                 RecordingHotkey = recordingHotkey,
                 PlaybackHotkey = playbackHotkey,
-                PauseHotkey = pauseHotkey
+                PauseHotkey = pauseHotkey,
             }));
         }
     }
@@ -168,14 +168,14 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             throw new InvalidOperationException(LastError ?? "Global hotkey capture is not running.");
         }
 
-        if (_inputCaptureFactory == null)
+        if (_inputCaptureFactory is null)
         {
             throw new InvalidOperationException("No input capture factory configured");
         }
 
         _captureTcs = new TaskCompletionSource<string>();
         _isCapturing = true;
-        
+
         _modifierTracker.Clear();
 
         using (cancellationToken.Register(() => _captureTcs.TrySetCanceled()))
@@ -194,27 +194,27 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private void OnInputReceived(object? sender, InputCaptureEventArgs e)
     {
-        if (e.Type == InputEventType.Key)
+        if (e.Type is InputEventType.Key)
         {
             HandleKeyboardInput(e);
             return;
         }
-        
-        if (e.Type == InputEventType.MouseButton)
+
+        if (e.Type is InputEventType.MouseButton)
         {
             HandleMouseButtonInput(e);
         }
     }
-    
+
     private void HandleKeyboardInput(InputCaptureEventArgs e)
     {
-        if (e.Value == 1)
+        if (e.Value is 1)
         {
             _modifierTracker.OnKeyPressed(e.Code);
             Log.Debug("[GlobalHotkeyService] Key pressed: Code={Code}, CurrentModifiers=[{Modifiers}]",
                 e.Code, string.Join("+", _modifierTracker.CurrentModifiers));
         }
-        else if (e.Value == 0)
+        else if (e.Value is 0)
         {
             var releaseModifiers = _modifierTracker.CurrentModifiers;
             // Always fire RawKeyReleased for all keys (including modifiers)
@@ -223,7 +223,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             _modifierTracker.OnKeyReleased(e.Code);
         }
 
-        if (e.Value != 1)
+        if (e.Value is not 1)
             return;
 
         // Skip if this is a modifier key
@@ -240,7 +240,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         Log.Debug("[GlobalHotkeyService] Hotkey candidate: {HotkeyString} (Code={Code})", hotkeyString, e.Code);
 
-        if (_isCapturing && _captureTcs != null)
+        if (_isCapturing && _captureTcs is not null)
         {
             Log.Debug("[GlobalHotkeyService] Captured hotkey: {HotkeyString}", hotkeyString);
             Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
@@ -272,12 +272,12 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         // Broadcast raw input
         RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
     }
-    
+
     private void HandleMouseButtonInput(InputCaptureEventArgs e)
     {
         var currentModifiers = _modifierTracker.CurrentModifiers;
 
-        if (e.Value == 0)
+        if (e.Value is 0)
         {
             // Always fire RawKeyReleased for mouse buttons
             // so RunWhileHeld shortcuts can stop when the button is released
@@ -285,32 +285,32 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             return;
         }
 
-        if (e.Value != 1)
+        if (e.Value is not 1)
             return;
-        
+
         // Block pure left/right click without modifiers
         if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)
             return;
-        
+
         var mouseButtonName = _mouseButtonMapper.GetMouseButtonName(e.Code);
         if (string.IsNullOrEmpty(mouseButtonName))
             return;
-        
+
         var hotkeyString = _hotkeyStringBuilder.BuildForMouse(mouseButtonName, currentModifiers);
-        
-        if (_isCapturing && _captureTcs != null)
+
+        if (_isCapturing && _captureTcs is not null)
         {
             Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
             return;
         }
-        
+
         // Check hotkey matches
         if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _recordingHotkey, "Recording"))
         {
             Log.Information("[GlobalHotkeyService] Recording Hotkey Pressed");
             ToggleRecordingRequested?.Invoke(this, EventArgs.Empty);
         }
-        
+
         if (_playbackPauseHotkeysEnabled)
         {
             if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _playbackHotkey, "Playback"))
@@ -318,14 +318,14 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 Log.Information("[GlobalHotkeyService] Playback Hotkey Pressed");
                 TogglePlaybackRequested?.Invoke(this, EventArgs.Empty);
             }
-            
+
             if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _pauseHotkey, "Pause"))
             {
                 Log.Information("[GlobalHotkeyService] Pause Hotkey Pressed");
                 TogglePauseRequested?.Invoke(this, EventArgs.Empty);
             }
         }
-        
+
         RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
     }
 
@@ -451,7 +451,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     private async Task TryRestartCaptureAsync(string cause)
     {
-        if (Interlocked.CompareExchange(ref _restartInProgress, 1, 0) != 0)
+        if (Interlocked.CompareExchange(ref _restartInProgress, 1, 0) is not 0)
         {
             return;
         }
@@ -462,7 +462,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
             using (_lock.EnterScope())
             {
-                if (!_isRunning || _inputCaptureFactory == null)
+                if (!_isRunning || _inputCaptureFactory is null)
                 {
                     return;
                 }
@@ -509,7 +509,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         public void Enqueue(HotkeyConfigurationSaveRequest request)
         {
-            if (Volatile.Read(ref _disposed) != 0 || !_requests.Writer.TryWrite(request))
+            if (Volatile.Read(ref _disposed) is not 0 || !_requests.Writer.TryWrite(request))
             {
                 _reportFailure("Hotkey configuration save was discarded because the service is shutting down.");
             }
@@ -517,7 +517,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            if (Interlocked.Exchange(ref _disposed, 1) is not 0)
             {
                 return;
             }

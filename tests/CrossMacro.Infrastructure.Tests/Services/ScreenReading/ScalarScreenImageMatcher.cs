@@ -6,7 +6,7 @@ namespace CrossMacro.Infrastructure.Tests.Services.ScreenReading;
 internal enum ScalarMatchSelection
 {
     FirstThresholdMatch,
-    BestMatch
+    BestMatch,
 }
 
 internal static class ScalarScreenImageMatcher
@@ -44,17 +44,17 @@ internal static class ScalarScreenImageMatcher
                     continue;
                 }
 
-                var candidate = new ScreenImageMatch(new ScreenPoint(x, y), 1.0 - sad / maximumSad);
-                if (selection == ScalarMatchSelection.FirstThresholdMatch)
+                var candidate = new ScreenImageMatch(new ScreenPoint(x, y), 1.0 - (sad / maximumSad));
+                if (selection is ScalarMatchSelection.FirstThresholdMatch)
                 {
                     return candidate;
                 }
 
                 if (best is null
                     || sad < bestSad
-                    || sad == bestSad
+                    || (sad == bestSad
                         && (candidate.Point.Y < best.Value.Point.Y
-                            || candidate.Point.Y == best.Value.Point.Y && candidate.Point.X < best.Value.Point.X))
+                            || (candidate.Point.Y == best.Value.Point.Y && candidate.Point.X < best.Value.Point.X))))
                 {
                     best = candidate;
                     bestSad = sad;

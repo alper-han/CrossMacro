@@ -29,7 +29,7 @@ public class PlayCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Macro is valid."
+                Message = "Macro is valid.",
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
@@ -55,7 +55,7 @@ public class PlayCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Macro is valid."
+                Message = "Macro is valid.",
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
@@ -77,7 +77,7 @@ public class PlayCommandHandlerTests
                 Success = false,
                 ExitCode = CliExitCode.RuntimeError,
                 Message = "Playback failed.",
-                Errors = ["simulator error"]
+                Errors = ["simulator error"],
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
@@ -111,7 +111,7 @@ public class PlayCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Playback complete."
+                Message = "Playback complete.",
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);

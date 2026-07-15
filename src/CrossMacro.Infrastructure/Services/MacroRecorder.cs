@@ -64,21 +64,21 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         var ignoredKeysList = ignoredKeys?.ToList();
         Log.Debug("[MacroRecorder] Configuration: Mouse={Mouse}, Keyboard={Keyboard}, RequestedAbsolute={RequestedAbsolute}, ForceRelative={ForceRelative}, SkipInitialZero={SkipZero}, IgnoredKeys={IgnoredKeys}",
             recordMouse, recordKeyboard, useAbsoluteCoordinates, forceRelative, skipInitialZero,
-            ignoredKeysList != null ? string.Join(",", ignoredKeysList) : "none");
+            ignoredKeysList is not null ? string.Join(",", ignoredKeysList) : "none");
 
         _currentSequence = new MacroSequence
         {
             Name = MacroNameDefaults.NewRecordedMacroName,
             CreatedAt = DateTime.UtcNow,
             IsAbsoluteCoordinates = useAbsoluteCoordinates,
-            SkipInitialZeroZero = skipInitialZero
+            SkipInitialZeroZero = skipInitialZero,
         };
 
         _stopwatch = Stopwatch.StartNew();
 
         try
         {
-            if (_inputCaptureFactory == null)
+            if (_inputCaptureFactory is null)
             {
                 throw new InvalidOperationException("No input capture factory configured. Please provide IInputCapture factory via DI.");
             }
@@ -108,7 +108,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
             // 3. Initialize Processor
             _currentProcessor = _processorFactory(_currentStrategy);
-            _currentProcessor.Configure(recordMouse, recordKeyboard, ignoredKeys != null ? new HashSet<int>(ignoredKeys) : null, useAbsoluteCoordinates);
+            _currentProcessor.Configure(recordMouse, recordKeyboard, ignoredKeys is not null ? new HashSet<int>(ignoredKeys) : null, useAbsoluteCoordinates);
 
             // 4. Initialize Capture
             _inputCapture = _inputCaptureFactory();
@@ -147,13 +147,13 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         MacroEvent? recordedEvent = null;
         using (_eventLock.EnterScope())
         {
-            if (!_isRecording || _currentSequence == null || _stopwatch == null || _currentProcessor == null) return;
+            if (!_isRecording || _currentSequence is null || _stopwatch is null || _currentProcessor is null) return;
 
             try
             {
                 var macroEvent = _currentProcessor.Process(e, _stopwatch.ElapsedMilliseconds);
 
-                if (macroEvent != null)
+                if (macroEvent is not null)
                 {
                     AddMacroEvent(macroEvent.Value);
                     recordedEvent = macroEvent.Value;
@@ -173,7 +173,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     private void AddMacroEvent(MacroEvent macroEvent)
     {
-        if (_currentSequence != null)
+        if (_currentSequence is not null)
         {
             if (_currentSequence.Events.Count > 0)
             {
@@ -218,7 +218,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
         CleanupComponents();
 
-        if (_currentSequence != null && _stopwatch != null)
+        if (_currentSequence is not null && _stopwatch is not null)
         {
             FinalizeSequence(_currentSequence, _stopwatch);
         }
@@ -232,11 +232,9 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         sequence.RecordedAt = DateTime.UtcNow;
         sequence.ActualDuration = stopwatch.Elapsed;
 
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type == EventType.MouseMove);
+        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
         sequence.ClickCount = sequence.Events.Count(e =>
-            e.Type == EventType.Click ||
-            e.Type == EventType.ButtonPress ||
-            e.Type == EventType.ButtonRelease);
+            e.Type is EventType.Click or EventType.ButtonPress or EventType.ButtonRelease);
 
         if (stopwatch.Elapsed.TotalSeconds > 0)
         {
@@ -244,9 +242,9 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         }
 
         // Debug: Count event types
-        var moveCount = sequence.Events.Count(e => e.Type == EventType.MouseMove);
-        var buttonCount = sequence.Events.Count(e => e.Type == EventType.ButtonPress || e.Type == EventType.ButtonRelease);
-        var nonZeroMoves = sequence.Events.Where(e => e.Type == EventType.MouseMove && (e.X != 0 || e.Y != 0)).Take(5).ToList();
+        var moveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
+        var buttonCount = sequence.Events.Count(e => e.Type is EventType.ButtonPress or EventType.ButtonRelease);
+        var nonZeroMoves = sequence.Events.Where(e => e.Type is EventType.MouseMove && (e.X is not 0 || e.Y is not 0)).Take(5).ToList();
 
         Log.Information("[MacroRecorder] Recording completed: Duration={Duration:F2}s, TotalEvents={Events}, MouseMoves={Moves}, Buttons={Buttons}",
             stopwatch.Elapsed.TotalSeconds, sequence.Events.Count, moveCount, buttonCount);
@@ -266,7 +264,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     private void CleanupComponents()
     {
-        if (_inputCapture != null)
+        if (_inputCapture is not null)
         {
             try
             {
@@ -282,7 +280,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             _inputCapture = null;
         }
 
-        if (_currentStrategy != null)
+        if (_currentStrategy is not null)
         {
              try
              {
@@ -314,7 +312,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     private void PerformCornerReset()
     {
-        if (_inputSimulatorFactory == null)
+        if (_inputSimulatorFactory is null)
         {
             Log.Warning("[MacroRecorder] Relative recording requires corner reset, but no input simulator is available.");
             return;

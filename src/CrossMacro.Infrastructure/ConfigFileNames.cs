@@ -10,17 +10,17 @@ public static class ConfigFileNames
     /// Application settings file.
     /// </summary>
     public const string Settings = "settings.json";
-    
+
     /// <summary>
     /// Scheduled tasks file.
     /// </summary>
     public const string Schedules = "schedules.json";
-    
+
     /// <summary>
     /// Keyboard shortcuts file.
     /// </summary>
     public const string Shortcuts = "shortcuts.json";
-    
+
     /// <summary>
     /// Text expansions file.
     /// </summary>
@@ -30,7 +30,7 @@ public static class ConfigFileNames
     /// Window-state triggers file.
     /// </summary>
     public const string Triggers = "triggers.json";
-    
+
     /// <summary>
     /// Hotkey configuration file.
     /// </summary>

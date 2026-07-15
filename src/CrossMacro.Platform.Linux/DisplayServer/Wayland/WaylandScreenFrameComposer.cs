@@ -161,11 +161,11 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
                 var sourceX = Clamp((int)((sourceLogicalX + 0.5d) * scaleX), 0, sourcePhysicalWidth - 1);
                 var targetX = intersection.X - LogicalBounds.X + logicalX;
 
-                var sourceOffset = checked(sourceY * sourceStride + sourceX * sourceBytesPerPixel);
-                var targetOffset = checked(targetY * Stride + targetX * ScreenFrame.GetBytesPerPixel(TargetPixelFormat));
+                var sourceOffset = checked((sourceY * sourceStride) + (sourceX * sourceBytesPerPixel));
+                var targetOffset = checked((targetY * Stride) + (targetX * ScreenFrame.GetBytesPerPixel(TargetPixelFormat)));
 
                 WriteBgraPixel(sourcePixels, sourceOffset, sourceFormat, targetPixels, targetOffset);
-                targetValidPixelMask[checked(targetY * LogicalBounds.Width + targetX)] = ValidPixel;
+                targetValidPixelMask[checked((targetY * LogicalBounds.Width) + targetX)] = ValidPixel;
             }
         }
     }

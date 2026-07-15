@@ -17,7 +17,7 @@ public sealed class FlatpakHostClipboardServiceTests
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true },
-            HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true }
+            HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true },
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("wayland"));
 
@@ -37,7 +37,7 @@ public sealed class FlatpakHostClipboardServiceTests
         {
             CheckResults = { ["flatpak-spawn"] = true },
             HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true },
-            ReadResult = "host-value"
+            ReadResult = "host-value",
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("wayland"));
 
@@ -45,7 +45,7 @@ public sealed class FlatpakHostClipboardServiceTests
 
         Assert.Equal("host-value", result);
         Assert.Contains(runner.ReadCalls, call =>
-            call.Command == "flatpak-spawn" && call.Args == "--host wl-paste --no-newline");
+            call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class FlatpakHostClipboardServiceTests
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true },
-            HostCommandResults = { ["xclip"] = true }
+            HostCommandResults = { ["xclip"] = true },
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("x11"));
 
@@ -71,7 +71,7 @@ public sealed class FlatpakHostClipboardServiceTests
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true },
-            HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true, ["xclip"] = true }
+            HostCommandResults = { ["wl-copy"] = true, ["wl-paste"] = true, ["xclip"] = true },
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("x11"));
 
@@ -88,11 +88,11 @@ public sealed class FlatpakHostClipboardServiceTests
         var runner = new FakeProcessRunner
         {
             CheckResults = { ["flatpak-spawn"] = true },
-            HostCommandResults = { ["xclip"] = true }
+            HostCommandResults = { ["xclip"] = true },
         };
         var service = new FlatpakHostClipboardService(
             runner,
-            new TestRuntimeContext(null),
+            new TestRuntimeContext(sessionType: null),
                 name => string.Equals(name, "WAYLAND_DISPLAY", StringComparison.Ordinal) ? "wayland-1" : null);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetTextAsync("hello"));
@@ -106,7 +106,7 @@ public sealed class FlatpakHostClipboardServiceTests
     {
         var runner = new FakeProcessRunner
         {
-            CheckResults = { ["flatpak-spawn"] = true }
+            CheckResults = { ["flatpak-spawn"] = true },
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("wayland"));
 
@@ -185,7 +185,7 @@ public sealed class FlatpakHostClipboardServiceTests
             var joinedArgs = string.Join(' ', args);
             ReadCalls.Add((command, joinedArgs));
 
-            if (command == "flatpak-spawn" && args.Length >= 4 && args[0] == "--host" && args[1] == "sh")
+            if (command is "flatpak-spawn" && args.Length >= 4 && args[0] is "--host" && args[1] is "sh")
             {
                 foreach (var item in HostCommandResults)
                 {

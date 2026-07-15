@@ -21,7 +21,7 @@ public class EditorActionValidatorTests
         keyCodeMapper.GetKeyCode("AltGr").Returns(100);
         keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(call => call.Arg<char>());
         keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(call => char.IsUpper(call.Arg<char>()));
-        keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(false);
+        keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(returnThis: false);
 
         _validator = new EditorActionValidator(new EditorActionConverter(keyCodeMapper));
     }
@@ -33,7 +33,7 @@ public class EditorActionValidatorTests
         var action = new EditorAction
         {
             Type = EditorActionType.MouseClick,
-            Button = MouseButton.ScrollUp
+            Button = MouseButton.ScrollUp,
         };
 
         // Act
@@ -51,7 +51,7 @@ public class EditorActionValidatorTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = string.Join('\n', Enumerable.Repeat(new string('x', 1_000), 20))
+            Text = string.Join('\n', Enumerable.Repeat(new string('x', 1_000), 20)),
         };
 
         // Act
@@ -159,7 +159,7 @@ public class EditorActionValidatorTests
             ShellStandardErrorVariableName = "stderr",
             ShellRetries = 1,
             ShellBackoffMs = 20,
-            ShellTimeoutMs = 1000
+            ShellTimeoutMs = 1000,
         };
 
         var result = _validator.Validate(action);
@@ -177,7 +177,7 @@ public class EditorActionValidatorTests
             ShellCommand = "echo ok",
             ShellExitCodeVariableName = "1exit",
             ShellStandardOutputVariableName = "stdout",
-            ShellStandardErrorVariableName = "stderr"
+            ShellStandardErrorVariableName = "stderr",
         };
 
         var result = _validator.Validate(action);
@@ -204,7 +204,7 @@ public class EditorActionValidatorTests
             Type = EditorActionType.WindowCommand,
             WindowCommandMode = WindowCommandMode.Active,
             WindowActiveField = "title",
-            WindowOutputVariable = "1bad"
+            WindowOutputVariable = "1bad",
         };
 
         var result = _validator.Validate(action);
@@ -222,7 +222,7 @@ public class EditorActionValidatorTests
             WindowCommandMode = WindowCommandMode.Search,
             WindowSelectorKind = "title",
             WindowSelectorValue = string.Empty,
-            WindowOutputVariable = "addr"
+            WindowOutputVariable = "addr",
         };
 
         var result = _validator.Validate(action);
@@ -246,15 +246,15 @@ public class EditorActionValidatorTests
             Type = EditorActionType.WindowCommand,
             WindowCommandMode = mode,
             WindowSelectorKind = mode is WindowCommandMode.Focus or WindowCommandMode.Close ? "active" : "title",
-            WindowSelectorValue = mode == WindowCommandMode.WorkspaceMoveWindow ? "0x123" : "Firefox",
+            WindowSelectorValue = mode is WindowCommandMode.WorkspaceMoveWindow ? "0x123" : "Firefox",
             WindowActiveField = "title",
-            WindowOutputVariable = mode == WindowCommandMode.WorkspaceGet ? "workspaceName" : "windowAddress",
+            WindowOutputVariable = mode is WindowCommandMode.WorkspaceGet ? "workspaceName" : "windowAddress",
             WindowTimeoutMs = 2500,
             WindowX = 100,
             WindowY = 200,
             WindowWidth = 800,
             WindowHeight = 600,
-            WindowWorkspace = "2"
+            WindowWorkspace = "2",
         };
     }
 
@@ -267,7 +267,7 @@ public class EditorActionValidatorTests
             Type = EditorActionType.Delay,
             UseRandomDelay = true,
             RandomDelayMinMs = 100,
-            RandomDelayMaxMs = 250
+            RandomDelayMaxMs = 250,
         };
 
         // Act
@@ -287,7 +287,7 @@ public class EditorActionValidatorTests
             Type = EditorActionType.Delay,
             UseRandomDelay = true,
             RandomDelayMinMs = 300,
-            RandomDelayMaxMs = 100
+            RandomDelayMaxMs = 100,
         };
 
         // Act
@@ -308,7 +308,7 @@ public class EditorActionValidatorTests
             ScreenY = 2,
             ScreenColorHex = "00FF00",
             ScreenTimeoutMs = 100,
-            ScreenColorVariableName = "1invalid"
+            ScreenColorVariableName = "1invalid",
         };
 
         var result = _validator.Validate(action);
@@ -331,7 +331,7 @@ public class EditorActionValidatorTests
             ScreenTolerance = 0,
             ScreenFoundVariableName = "1invalid",
             ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y"
+            ScreenFoundYVariableName = "found_y",
         };
 
         var result = _validator.Validate(action);
@@ -361,7 +361,7 @@ public class EditorActionValidatorTests
                 ScreenX = -5,
                 ScreenY = 8,
                 ScreenColorVariableName = "sample_color"
-            }
+            },
         ];
 
         yield return
@@ -374,7 +374,7 @@ public class EditorActionValidatorTests
                 ScreenColorHex = "00FF00",
                 ScreenTimeoutMs = 100,
                 ScreenColorVariableName = "wait_ok"
-            }
+            },
         ];
 
         yield return
@@ -391,7 +391,7 @@ public class EditorActionValidatorTests
                 ScreenFoundVariableName = "found",
                 ScreenFoundXVariableName = "found_x",
                 ScreenFoundYVariableName = "found_y"
-            }
+            },
         ];
     }
 
@@ -437,7 +437,7 @@ public class EditorActionValidatorTests
                 ScreenY = 2,
                 ScreenColorHex = "00FF00",
                 ScreenTimeoutMs = 100,
-                ScreenColorVariableName = "result"
+                ScreenColorVariableName = "result",
             },
             EditorActionType.PixelSearch => new EditorAction
             {
@@ -450,9 +450,9 @@ public class EditorActionValidatorTests
                 ScreenTolerance = 0,
                 ScreenFoundVariableName = "found",
                 ScreenFoundXVariableName = "found_x",
-                ScreenFoundYVariableName = "found_y"
+                ScreenFoundYVariableName = "found_y",
             },
-            _ => throw new ArgumentOutOfRangeException(nameof(actionType), actionType, null)
+            _ => throw new ArgumentOutOfRangeException(nameof(actionType), actionType, message: null),
         };
     }
 
@@ -481,7 +481,7 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 10, Y = 10 },
-            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = false, X = 1, Y = 1 }
+            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = false, X = 1, Y = 1 },
         };
 
         // Act
@@ -499,7 +499,7 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.MouseClick, IsAbsolute = true, X = 100, Y = 200, Button = MouseButton.Left },
-            new EditorAction { Type = EditorActionType.MouseDown, IsAbsolute = false, X = 0, Y = 0, Button = MouseButton.Left }
+            new EditorAction { Type = EditorActionType.MouseDown, IsAbsolute = false, X = 0, Y = 0, Button = MouseButton.Left },
         };
 
         // Act
@@ -523,7 +523,7 @@ public class EditorActionValidatorTests
                 Button = MouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false
-            }
+            },
         };
 
         // Act
@@ -547,7 +547,7 @@ public class EditorActionValidatorTests
                 Button = MouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false
-            }
+            },
         };
 
         // Act
@@ -571,7 +571,7 @@ public class EditorActionValidatorTests
                 Button = MouseButton.Left,
                 UseCurrentPosition = true,
                 IsAbsolute = false
-            }
+            },
         };
 
         // Act
@@ -591,7 +591,7 @@ public class EditorActionValidatorTests
             Type = EditorActionType.MouseClick,
             Button = MouseButton.Left,
             UseCurrentPosition = true,
-            IsAbsolute = true
+            IsAbsolute = true,
         };
 
         // Act
@@ -611,7 +611,7 @@ public class EditorActionValidatorTests
             Type = EditorActionType.MouseDown,
             IsAbsolute = true,
             UseCurrentPosition = true,
-            Button = MouseButton.Left
+            Button = MouseButton.Left,
         };
 
         // Act
@@ -631,7 +631,7 @@ public class EditorActionValidatorTests
             Type = EditorActionType.SetVariable,
             ScriptVariableName = "count",
             ScriptValueType = ScriptValueType.Number,
-            ScriptValue = "10"
+            ScriptValue = "10",
         };
 
         // Act
@@ -651,7 +651,7 @@ public class EditorActionValidatorTests
             Type = EditorActionType.SetVariable,
             ScriptVariableName = "1count",
             ScriptValueType = ScriptValueType.Number,
-            ScriptValue = "10"
+            ScriptValue = "10",
         };
 
         // Act
@@ -676,7 +676,7 @@ public class EditorActionValidatorTests
             ForEndValue = "maxCount",
             ForHasStep = true,
             ForStepType = ScriptNumericSourceType.Number,
-            ForStepValue = "1"
+            ForStepValue = "1",
         };
 
         // Act
@@ -695,7 +695,7 @@ public class EditorActionValidatorTests
         {
             Type = EditorActionType.RepeatBlockStart,
             ScriptNumericSourceType = ScriptNumericSourceType.Number,
-            ScriptNumericValue = "-1"
+            ScriptNumericValue = "-1",
         };
 
         // Act
@@ -720,7 +720,7 @@ public class EditorActionValidatorTests
             ForEndValue = "10",
             ForHasStep = true,
             ForStepType = ScriptNumericSourceType.Number,
-            ForStepValue = "0"
+            ForStepValue = "0",
         };
 
         // Act
@@ -745,7 +745,7 @@ public class EditorActionValidatorTests
             ForEndValue = "10",
             ForHasStep = true,
             ForStepType = ScriptNumericSourceType.VariableReference,
-            ForStepValue = "1"
+            ForStepValue = "1",
         };
 
         // Act
@@ -767,7 +767,7 @@ public class EditorActionValidatorTests
             ScriptLeftOperand = "$name",
             ScriptConditionOperator = ScriptConditionOperator.Equals,
             ScriptRightOperandType = ScriptOperandType.Text,
-            ScriptRightOperand = "$foo"
+            ScriptRightOperand = "$foo",
         };
 
         var result = _validator.Validate(action);
@@ -786,7 +786,7 @@ public class EditorActionValidatorTests
             ScriptLeftOperand = "color",
             ScriptConditionOperator = ScriptConditionOperator.Equals,
             ScriptRightOperandType = ScriptOperandType.Color,
-            ScriptRightOperand = "1c1c1c"
+            ScriptRightOperand = "1c1c1c",
         };
 
         var result = _validator.Validate(action);
@@ -813,7 +813,7 @@ public class EditorActionValidatorTests
 				ScreenFoundYVariableName = "found_y",
 				ScreenTimeoutMs = 1500,
 				ImageSearchSimilarity = similarity,
-				ImageSearchDownsample = 1
+				ImageSearchDownsample = 1,
 			};
 
 			var result = _validator.Validate(action);
@@ -841,7 +841,7 @@ public class EditorActionValidatorTests
 				ScreenFoundYVariableName = "found_y",
 				ScreenTimeoutMs = 1500,
 				ImageSearchSimilarity = similarity,
-				ImageSearchDownsample = 1
+				ImageSearchDownsample = 1,
 			};
 
 			var result = _validator.Validate(action);
@@ -865,7 +865,7 @@ public class EditorActionValidatorTests
 			ScreenFoundVariableName = "found",
 			ScreenFoundXVariableName = "found_x",
 			ScreenFoundYVariableName = "found_y",
-			Button = button
+			Button = button,
 		};
 
 		var result = _validator.Validate(action);
@@ -884,7 +884,7 @@ public class EditorActionValidatorTests
             ScriptLeftOperand = "color",
             ScriptConditionOperator = ScriptConditionOperator.Equals,
             ScriptRightOperandType = ScriptOperandType.Color,
-            ScriptRightOperand = "GGGGGG"
+            ScriptRightOperand = "GGGGGG",
         };
 
         var result = _validator.Validate(action);
@@ -900,7 +900,7 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.ElseBlockStart },
-            new EditorAction { Type = EditorActionType.BlockEnd }
+            new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
         // Act
@@ -922,7 +922,7 @@ public class EditorActionValidatorTests
             new EditorAction { Type = EditorActionType.BlockEnd },
             new EditorAction { Type = EditorActionType.ElseBlockStart },
             new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
-            new EditorAction { Type = EditorActionType.BlockEnd }
+            new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
         // Act
@@ -941,7 +941,7 @@ public class EditorActionValidatorTests
             new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
             new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 100 },
-            new EditorAction { Type = EditorActionType.BlockEnd }
+            new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
         // Act
@@ -961,7 +961,7 @@ public class EditorActionValidatorTests
             new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 100, Y = 100 },
             new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = false, IsAbsolute = true, X = 100, Y = 100 },
-            new EditorAction { Type = EditorActionType.BlockEnd }
+            new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
         // Act
@@ -978,7 +978,7 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.Break },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false }
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
         };
 
         // Act
@@ -1001,7 +1001,7 @@ public class EditorActionValidatorTests
             new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
             new EditorAction { Type = EditorActionType.Continue },
             new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Right, UseCurrentPosition = true, IsAbsolute = false },
-            new EditorAction { Type = EditorActionType.BlockEnd }
+            new EditorAction { Type = EditorActionType.BlockEnd },
         };
 
         // Act
@@ -1018,7 +1018,7 @@ public class EditorActionValidatorTests
         var actions = new[]
         {
             new EditorAction { Type = EditorActionType.Continue },
-            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false }
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
         };
 
         // Act

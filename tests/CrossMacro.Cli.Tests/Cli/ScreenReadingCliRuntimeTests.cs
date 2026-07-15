@@ -22,7 +22,7 @@ public sealed class ScreenReadingCliRuntimeTests
 
         var result = await runService.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["pixelcolor 500 300 mycolor"]
+            Steps = ["pixelcolor 500 300 mycolor"],
         }, CancellationToken.None);
 
         Assert.Same(screenReader, resolved);
@@ -42,7 +42,7 @@ public sealed class ScreenReadingCliRuntimeTests
 
         var result = await runService.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["waitcolor 500 300 00FF00 5000"]
+            Steps = ["waitcolor 500 300 00FF00 5000"],
         }, CancellationToken.None);
 
         Assert.True(result.Success, string.Join("; ", result.Errors));
@@ -57,7 +57,7 @@ public sealed class ScreenReadingCliRuntimeTests
     {
         var screenReader = new RecordingScreenPixelReader
         {
-            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(3, 4), new ScreenPixelColor(0x10, 0x20, 0x30))
+            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(3, 4), new ScreenPixelColor(0x10, 0x20, 0x30)),
         };
 
         await using var provider = BuildProvider(screenReader);
@@ -65,7 +65,7 @@ public sealed class ScreenReadingCliRuntimeTests
 
         var result = await runService.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["pixelsearch 0 0 1920 1080 FF0000 found_x found_y"]
+            Steps = ["pixelsearch 0 0 1920 1080 FF0000 found_x found_y"],
         }, CancellationToken.None);
 
         Assert.True(result.Success, string.Join("; ", result.Errors));
@@ -80,7 +80,7 @@ public sealed class ScreenReadingCliRuntimeTests
     {
         var screenReader = new RecordingScreenPixelReader
         {
-            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(3, 4), new ScreenPixelColor(0x10, 0x20, 0x30))
+            SearchMatch = new ScreenPixelSearchMatch(new ScreenPoint(3, 4), new ScreenPixelColor(0x10, 0x20, 0x30)),
         };
 
         await using var provider = BuildProvider(screenReader);
@@ -88,7 +88,7 @@ public sealed class ScreenReadingCliRuntimeTests
 
         var result = await runService.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["pixelsearch 0 0 1920 1080 FF0000 found_x found_y tolerance 26"]
+            Steps = ["pixelsearch 0 0 1920 1080 FF0000 found_x found_y tolerance 26"],
         }, CancellationToken.None);
 
         Assert.True(result.Success, string.Join("; ", result.Errors));
@@ -106,7 +106,7 @@ public sealed class ScreenReadingCliRuntimeTests
 
         var result = await runService.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["pixelcolor 1"]
+            Steps = ["pixelcolor 1"],
         }, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -128,7 +128,7 @@ public sealed class ScreenReadingCliRuntimeTests
 
         var runResult = await runService.ExecuteAsync(new RunExecutionRequest
         {
-            Steps = ["pixelcolor 1 2 sampled"]
+            Steps = ["pixelcolor 1 2 sampled"],
         }, CancellationToken.None);
 
         Assert.False(screenReader.IsSupported);

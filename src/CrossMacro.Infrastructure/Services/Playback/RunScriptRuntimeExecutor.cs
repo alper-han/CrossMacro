@@ -17,7 +17,7 @@ internal sealed class RunScriptRuntimeExecutor
     {
         None,
         Break,
-        Continue
+        Continue,
     }
 
     private readonly IKeyCodeMapper _keyCodeMapper;
@@ -101,7 +101,7 @@ internal sealed class RunScriptRuntimeExecutor
                     : falseStart >= 0
                         ? await ExecuteRangeAsync(steps, falseStart, falseEnd, request, cancellationToken)
                         : LoopControlSignal.None;
-                if (signal != LoopControlSignal.None)
+                if (signal is not LoopControlSignal.None)
                 {
                     return signal;
                 }
@@ -123,12 +123,12 @@ internal sealed class RunScriptRuntimeExecutor
                     }
 
                     var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken);
-                    if (signal == LoopControlSignal.Break)
+                    if (signal is LoopControlSignal.Break)
                     {
                         break;
                     }
 
-                    if (signal == LoopControlSignal.Continue)
+                    if (signal is LoopControlSignal.Continue)
                     {
                         continue;
                     }
@@ -145,12 +145,12 @@ internal sealed class RunScriptRuntimeExecutor
                 for (var i = 0; i < repeatCount; i++)
                 {
                     var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken);
-                    if (signal == LoopControlSignal.Break)
+                    if (signal is LoopControlSignal.Break)
                     {
                         break;
                     }
 
-                    if (signal == LoopControlSignal.Continue)
+                    if (signal is LoopControlSignal.Continue)
                     {
                         continue;
                     }
@@ -164,7 +164,7 @@ internal sealed class RunScriptRuntimeExecutor
             {
                 var bodyStart = index + 1;
                 var bodyEnd = FindBlockEnd(steps, bodyStart, end);
-                if (forStep == 0)
+                if (forStep is 0)
                 {
                     throw new InvalidOperationException("For step cannot be 0.");
                 }
@@ -173,12 +173,12 @@ internal sealed class RunScriptRuntimeExecutor
                 {
                     _runtimeVariables[forVariableName] = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken);
-                    if (signal == LoopControlSignal.Break)
+                    if (signal is LoopControlSignal.Break)
                     {
                         break;
                     }
 
-                    if (signal == LoopControlSignal.Continue)
+                    if (signal is LoopControlSignal.Continue)
                     {
                         continue;
                     }
@@ -268,7 +268,7 @@ internal sealed class RunScriptRuntimeExecutor
         var resolvedStep = ResolveVariables(step);
         var compiler = new RunScriptCompiler(_keyCodeMapper);
         var compileResult = compiler.Compile([new RunScriptStep(resolvedStep)]);
-        if (!compileResult.Success || compileResult.Sequence == null)
+        if (!compileResult.Success || compileResult.Sequence is null)
         {
             throw new InvalidOperationException($"Step {stepNumber}: {compileResult.ErrorMessage}");
         }
@@ -295,7 +295,7 @@ internal sealed class RunScriptRuntimeExecutor
             else
             {
                 var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (parts.Length != 2)
+                if (parts.Length is not 2)
                 {
                     throw new InvalidOperationException("Invalid set syntax. Expected: set <name> <value> or set <name>=<value>.");
                 }
@@ -328,13 +328,13 @@ internal sealed class RunScriptRuntimeExecutor
                 throw new InvalidOperationException($"Variable '{variableName}' must exist and be an integer for inc/dec.");
             }
 
-            var amountToken = parts.Length == 2 ? ResolveVariables(parts[1]) : "1";
+            var amountToken = parts.Length is 2 ? ResolveVariables(parts[1]) : "1";
             if (!int.TryParse(amountToken, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var amount))
             {
                 throw new InvalidOperationException($"Invalid inc/dec amount '{amountToken}'. Expected integer.");
             }
 
-            _runtimeVariables[variableName] = (existingInt + sign * amount).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _runtimeVariables[variableName] = (existingInt + (sign * amount)).ToString(System.Globalization.CultureInfo.InvariantCulture);
             return true;
         }
 
@@ -350,7 +350,7 @@ internal sealed class RunScriptRuntimeExecutor
             return false;
         }
 
-        if (parts.Length == 2 && int.TryParse(ResolveVariables(parts[1]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var fixedDelay))
+        if (parts.Length is 2 && int.TryParse(ResolveVariables(parts[1]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var fixedDelay))
         {
             delayMs = Math.Max(0, fixedDelay);
             return true;
@@ -358,21 +358,21 @@ internal sealed class RunScriptRuntimeExecutor
 
         if (parts.Length is 3 or 4 && string.Equals(parts[1], "random", StringComparison.OrdinalIgnoreCase))
         {
-            if (parts.Length == 3)
+            if (parts.Length is 3)
             {
                 var range = ResolveVariables(parts[2]).Split("..", 2, StringSplitOptions.TrimEntries);
-                if (range.Length == 2
-                    && int.TryParse(range[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var rangeMin)
-                    && int.TryParse(range[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var rangeMax))
+                if (range.Length is 2
+&& int.TryParse(range[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var rangeMin)
+&& int.TryParse(range[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var rangeMax))
                 {
                     delayMs = request.ResolveDelayMs(0, true, rangeMin, rangeMax);
                     return true;
                 }
             }
 
-            if (parts.Length == 4
-                && int.TryParse(ResolveVariables(parts[2]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var min)
-                && int.TryParse(ResolveVariables(parts[3]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var max))
+            if (parts.Length is 4
+&& int.TryParse(ResolveVariables(parts[2]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var min)
+&& int.TryParse(ResolveVariables(parts[3]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var max))
             {
                 delayMs = request.ResolveDelayMs(0, true, min, max);
                 return true;
@@ -424,7 +424,7 @@ internal sealed class RunScriptRuntimeExecutor
         }
 
         var parts = step[..^1].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 6 && parts.Length != 8)
+        if (parts.Length is not (6 or 8))
         {
             throw new InvalidOperationException("Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {");
         }
@@ -439,7 +439,7 @@ internal sealed class RunScriptRuntimeExecutor
 
         start = ParseInteger(ResolveVariables(parts[3]), "for start");
         end = ParseInteger(ResolveVariables(parts[5]), "for end");
-        if (parts.Length == 8)
+        if (parts.Length is 8)
         {
             if (!string.Equals(parts[6], "step", StringComparison.OrdinalIgnoreCase))
             {
@@ -485,7 +485,7 @@ internal sealed class RunScriptRuntimeExecutor
 
             if (RunScriptSyntax.IsBlockEndToken(step))
             {
-                if (depth == 0)
+                if (depth is 0)
                 {
                     return i;
                 }
@@ -509,7 +509,7 @@ internal sealed class RunScriptRuntimeExecutor
         if (parsedCondition.OperatorToken is "==" or "!=")
         {
             var equal = ValuesEqual(left, right);
-            return parsedCondition.OperatorToken == "==" ? equal : !equal;
+            return parsedCondition.OperatorToken is "==" ? equal : !equal;
         }
 
         if (!int.TryParse(left, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var leftInt)
@@ -524,7 +524,7 @@ internal sealed class RunScriptRuntimeExecutor
             ">=" => leftInt >= rightInt,
             "<" => leftInt < rightInt,
             "<=" => leftInt <= rightInt,
-            _ => throw new InvalidOperationException($"Unsupported condition operator '{parsedCondition.OperatorToken}'.")
+            _ => throw new InvalidOperationException($"Unsupported condition operator '{parsedCondition.OperatorToken}'."),
         };
     }
 

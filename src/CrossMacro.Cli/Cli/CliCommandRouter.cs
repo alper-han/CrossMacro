@@ -66,7 +66,7 @@ public sealed class CliCommandRouter
         "--match-mode",
         "--cooldown-ms",
         "--debounce-ms",
-        "--fire-mode"
+        "--fire-mode",
     };
 
     private static readonly RootCommandDescriptor[] RootCommands =
@@ -86,7 +86,7 @@ public sealed class CliCommandRouter
         new("window", WindowCommandParser.Parse),
         new("screen", ScreenCommandParser.Parse),
         new("screenshot", ScreenshotCommandParser.Parse),
-        new("headless", HeadlessCommandParser.Parse, "--headless")
+        new("headless", HeadlessCommandParser.Parse, "--headless"),
     ];
 
     private static readonly Dictionary<string, RootCommandDescriptor> RootCommandLookup = BuildRootCommandLookup();
@@ -123,14 +123,14 @@ public sealed class CliCommandRouter
         "  crossmacro screenshot ((--output|-o) <path>|--clipboard) [--region <x> <y> <width> <height>] [--json] [--log-level <level>]",
         string.Empty,
         "  crossmacro headless [--json] [--log-level <level>]",
-        "  crossmacro --headless [--json] [--log-level <level>]"
+        "  crossmacro --headless [--json] [--log-level <level>]",
     ];
 
     private static readonly string TopLevelUsageText = BuildTopLevelUsageText();
 
     private static readonly HashSet<string> KnownGuiStartupOptionTokens = new(StringComparer.OrdinalIgnoreCase)
     {
-        "--start-minimized"
+        "--start-minimized",
     };
 
     private static readonly string[] KnownGuiStartupOptionPrefixes =
@@ -140,12 +140,12 @@ public sealed class CliCommandRouter
         "--tty",
         "--display",
         "--x11",
-        "--wayland"
+        "--wayland",
     ];
 
     public CliParseResult Parse(string[] args)
     {
-        if (args == null || args.Length == 0)
+        if (args is null || args.Length is 0)
         {
             return CliParseResult.Gui();
         }

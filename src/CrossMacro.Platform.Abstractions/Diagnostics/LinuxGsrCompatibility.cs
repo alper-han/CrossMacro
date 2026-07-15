@@ -21,7 +21,7 @@ public static class LinuxGsrCompatibility
         foreach (var rawLine in inputDevicesContent.Split('\n'))
         {
             var line = rawLine.Trim();
-            if (line.Length == 0)
+            if (line.Length is 0)
             {
                 if (hasMatchingName && hasKeyboardHandler && hasEventHandler)
                 {

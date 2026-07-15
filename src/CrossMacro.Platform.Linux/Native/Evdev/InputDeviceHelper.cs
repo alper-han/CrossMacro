@@ -10,7 +10,7 @@ namespace CrossMacro.Platform.Linux.Native.Evdev;
 
 public class InputDeviceHelper
 {
-    private static readonly Regex MouseHandlerRegex = new(@"\bmouse\d+\b", RegexOptions.Compiled);
+    private static readonly Regex MouseHandlerRegex = new(@"\bmouse\d+\b", RegexOptions.Compiled | RegexOptions.NonBacktracking);
 
     public class InputDevice
     {
@@ -49,7 +49,7 @@ public class InputDeviceHelper
         List<InputDevice> skippedDevices = [];
         List<(InputDevice device, int errno)> inaccessibleDevices = [];
         var readErrors = 0;
-        var inputDir = "/dev/input";
+        const string inputDir = "/dev/input";
 
         Log.Information("[InputDeviceHelper] Scanning input devices in {InputDir}...", inputDir);
 
@@ -96,11 +96,11 @@ public class InputDeviceHelper
                     skippedDevices.Add(device);
                 }
             }
-            catch (DeviceOpenException ex) when (ex.Errno == 13 || ex.Errno == 16)
+            catch (DeviceOpenException ex) when (ex.Errno is 13 or 16)
             {
                 inaccessibleDevices.Add((CreateInaccessiblePlaceholder(file), ex.Errno));
             }
-            catch (DeviceOpenException ex) when (ex.Errno == 2)
+            catch (DeviceOpenException ex) when (ex.Errno is 2)
             {
                 Log.Debug("[InputDeviceHelper] Device file {File} disappeared before it could be opened (race condition).", file);
             }
@@ -130,7 +130,7 @@ public class InputDeviceHelper
             Log.Warning("[InputDeviceHelper] --- Inaccessible Devices ---");
             foreach (var (dev, errno) in inaccessibleDevices)
             {
-                if (errno == 16)
+                if (errno is 16)
                 {
                     Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) - Device is exclusively grabbed. Run: sudo fuser -v {Path}",
                         dev.DeviceType, dev.Name, dev.Path, dev.Path);
@@ -189,7 +189,7 @@ public class InputDeviceHelper
                     BusType = busType,
                     VendorId = vendorId,
                     ProductId = productId,
-                    Version = version
+                    Version = version,
                 };
             }
 
@@ -209,7 +209,7 @@ public class InputDeviceHelper
                     BusType = busType,
                     VendorId = vendorId,
                     ProductId = productId,
-                    Version = version
+                    Version = version,
                 };
             }
 
@@ -230,7 +230,7 @@ public class InputDeviceHelper
                 BusType = busType,
                 VendorId = vendorId,
                 ProductId = productId,
-                Version = version
+                Version = version,
             };
 
             Log.Debug("[InputDeviceHelper] Analyzed: {Path} - {Name} | Type: {Type} | Bus: {Bus} | VID:0x{VID:X4} PID:0x{PID:X4}",
@@ -282,7 +282,7 @@ public class InputDeviceHelper
             0x1D => "RMI",
             0x1E => "CEC",
             0x1F => "Intel_ISHTP",
-            _ => $"Unknown(0x{busType:X2})"
+            _ => $"Unknown(0x{busType:X2})",
         };
     }
 
@@ -292,15 +292,21 @@ public class InputDeviceHelper
             name.Equals("Sleep Button", StringComparison.OrdinalIgnoreCase) ||
             name.Equals("Video Bus", StringComparison.OrdinalIgnoreCase) ||
             name.Contains("Lid Switch", StringComparison.OrdinalIgnoreCase))
+        {
             return true;
+        }
 
         if (name.EndsWith(" Consumer Control", StringComparison.OrdinalIgnoreCase) ||
             name.EndsWith(" System Control", StringComparison.OrdinalIgnoreCase))
+        {
             return true;
+        }
 
         if (name.Contains("WMI", StringComparison.OrdinalIgnoreCase) &&
             name.Contains("hotkeys", StringComparison.OrdinalIgnoreCase))
+        {
             return true;
+        }
 
         if (name.Contains("AVRCP", StringComparison.OrdinalIgnoreCase))
             return true;
@@ -313,9 +319,7 @@ public class InputDeviceHelper
         if (string.IsNullOrEmpty(procContent)) return false;
 
         var eventName = Path.GetFileName(devicePath);
-        var blocks = procContent.Split(["\n\n"], StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var block in blocks)
+        foreach (var block in procContent.Split(["\n\n"], StringSplitOptions.RemoveEmptyEntries))
         {
             if (!block.Contains(eventName, StringComparison.Ordinal))
                 continue;
@@ -325,14 +329,14 @@ public class InputDeviceHelper
 
             using var reader = new StringReader(block);
             string? line;
-            while ((line = reader.ReadLine()) != null)
+            while ((line = reader.ReadLine()) is not null)
             {
-                if (line.StartsWith("N: Name=") && line.Contains(deviceName))
+                if (line.StartsWith("N: Name=", StringComparison.Ordinal) && line.Contains(deviceName, StringComparison.Ordinal))
                     nameMatches = true;
 
-                if (line.StartsWith("H: Handlers=") && line.Contains(eventName))
+                if (line.StartsWith("H: Handlers=", StringComparison.Ordinal) && line.Contains(eventName, StringComparison.Ordinal))
                 {
-                    hasHandler = handlerType == "mouse"
+                    hasHandler = handlerType is "mouse"
                         ? MouseHandlerRegex.IsMatch(line)
                         : line.Contains("kbd", StringComparison.Ordinal);
                 }
@@ -348,11 +352,15 @@ public class InputDeviceHelper
     {
         if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_REL) ||
             !HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
+        {
             return false;
+        }
 
         if (!HasCapability(fd, UInputNative.EV_REL, UInputNative.REL_X) ||
             !HasCapability(fd, UInputNative.EV_REL, UInputNative.REL_Y))
+        {
             return false;
+        }
 
         for (int btn = UInputNative.BTN_LEFT; btn <= UInputNative.BTN_TASK; btn++)
         {
@@ -366,7 +374,9 @@ public class InputDeviceHelper
     {
         if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_ABS) ||
             !HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
+        {
             return false;
+        }
 
         bool hasButton = HasCapability(fd, UInputNative.EV_KEY, UInputNative.BTN_TOUCH) ||
                          HasCapability(fd, UInputNative.EV_KEY, UInputNative.BTN_LEFT);
@@ -408,7 +418,7 @@ public class InputDeviceHelper
         int byteIndex = code / 8;
         int bitIndex = code % 8;
 
-        return byteIndex < mask.Length && (mask[byteIndex] & (1 << bitIndex)) != 0;
+        return byteIndex < mask.Length && (mask[byteIndex] & (1 << bitIndex)) is not 0;
     }
 
     public static Dictionary<int, string> GetSupportedKeyCodes(string devicePath)
@@ -433,7 +443,7 @@ public class InputDeviceHelper
                 int byteIndex = keyCode / 8;
                 int bitIndex = keyCode % 8;
 
-                if (byteIndex < keyMask.Length && (keyMask[byteIndex] & (1 << bitIndex)) != 0)
+                if (byteIndex < keyMask.Length && (keyMask[byteIndex] & (1 << bitIndex)) is not 0)
                     result[keyCode] = $"KEY_{keyCode}";
             }
         }
@@ -450,7 +460,9 @@ public class InputDeviceHelper
         if (deviceName.Contains("Virtual", StringComparison.OrdinalIgnoreCase) ||
             deviceName.Contains("uinput", StringComparison.OrdinalIgnoreCase) ||
             deviceName.Contains("CrossMacro", StringComparison.OrdinalIgnoreCase))
+        {
             return true;
+        }
 
         try
         {
@@ -460,7 +472,7 @@ public class InputDeviceHelper
             if (Directory.Exists(sysPath))
             {
                 var realPath = new DirectoryInfo(sysPath).FullName;
-                if (realPath.Contains("/sys/devices/virtual/"))
+                if (realPath.Contains("/sys/devices/virtual/", StringComparison.Ordinal))
                     return true;
             }
         }
@@ -483,7 +495,7 @@ public class InputDeviceHelper
             VendorId = 0,
             ProductId = 0,
             BusType = 0,
-            Version = 0
+            Version = 0,
         };
     }
 

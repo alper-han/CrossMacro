@@ -21,7 +21,7 @@ public sealed class DesktopQuickSetupGateServiceTests
 
         var handled = await service.TryHandleAsync(
             desktop,
-            new DesktopStartupPreferences(false, false, false),
+            new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false),
             unsupportedSessionReason: null,
             startDesktopRuntimeAsync: (_, _) =>
             {

@@ -92,27 +92,27 @@ namespace CrossMacro.Platform.Linux.Services
         {
             public static DaemonHandshakeProbeResult Success()
             {
-                return new(true, false, null, LinuxDaemonHandshakeStatus.Success);
+                return new(Succeeded: true, TimedOut: false, Failure: null, LinuxDaemonHandshakeStatus.Success);
             }
 
             public static DaemonHandshakeProbeResult Failed(Exception? failure = null)
             {
-                return new(false, false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
+                return new(Succeeded: false, TimedOut: false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
             }
 
             public static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
             {
-                if (status == LinuxDaemonHandshakeStatus.Success)
+                if (status is LinuxDaemonHandshakeStatus.Success)
                 {
                     throw new ArgumentException("Use Success for successful daemon handshakes.", nameof(status));
                 }
 
-                return new(false, status == LinuxDaemonHandshakeStatus.Timeout, failure, status);
+                return new(Succeeded: false, status is LinuxDaemonHandshakeStatus.Timeout, failure, status);
             }
 
             public static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
             {
-                return new(false, true, failure, LinuxDaemonHandshakeStatus.Timeout);
+                return new(Succeeded: false, TimedOut: true, failure, LinuxDaemonHandshakeStatus.Timeout);
             }
         }
 
@@ -155,14 +155,14 @@ namespace CrossMacro.Platform.Linux.Services
                 return true;
             }
 
-            bool hasDaemon = environment.UseDaemon == "1";
+            bool hasDaemon = environment.UseDaemon is "1";
 
             var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
             bool isWaylandSession = string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
             bool isX11Session = string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
 
             // X11 session - always supported
-            if (compositor == CompositorType.X11 || isX11Session)
+            if (compositor is CompositorType.X11 || isX11Session)
             {
                 Log.Information("[LinuxDisplaySessionService] Flatpak running on X11. Supported.");
                 return true;

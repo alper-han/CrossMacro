@@ -14,7 +14,7 @@ public static class ProcessHelper
     /// </summary>
     public static string? ExecuteCommand(string fileName, string arguments = "")
     {
-        try 
+        try
         {
             var startInfo = new ProcessStartInfo
             {
@@ -22,15 +22,15 @@ public static class ProcessHelper
                 Arguments = arguments,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             };
 
             using var process = Process.Start(startInfo);
-            if (process != null)
+            if (process is not null)
             {
                 var output = process.StandardOutput.ReadToEnd();
                 process.WaitForExit();
-                if (process.ExitCode == 0) return output.Trim();
+                if (process.ExitCode is 0) return output.Trim();
             }
         }
         catch (System.ComponentModel.Win32Exception)

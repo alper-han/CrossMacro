@@ -47,7 +47,7 @@ public sealed class ScreenshotCaptureServiceTests
         var clipboard = new FakeImageClipboardService();
         var service = new ScreenshotCaptureService(new FakeScreenFrameProvider(), clipboard);
 
-        var result = await service.CaptureAsync(null, copyToClipboard: true, null, CancellationToken.None);
+        var result = await service.CaptureAsync(outputPath: null, copyToClipboard: true, region: null, CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.NotNull(clipboard.PngBytes);
@@ -61,7 +61,7 @@ public sealed class ScreenshotCaptureServiceTests
         var provider = new FakeScreenFrameProvider { IsSupported = false };
         var service = new ScreenshotCaptureService(provider, new FakeImageClipboardService());
 
-        var result = await service.CaptureAsync("shot.png", copyToClipboard: false, null, CancellationToken.None);
+        var result = await service.CaptureAsync("shot.png", copyToClipboard: false, region: null, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(ScreenshotCaptureFailureKind.ProviderUnsupported, result.FailureKind);
@@ -75,11 +75,11 @@ public sealed class ScreenshotCaptureServiceTests
         var service = new ScreenshotCaptureService(
             new FakeScreenFrameProvider
             {
-                Failure = ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, "permission denied")
+                Failure = ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, "permission denied"),
             },
             new FakeImageClipboardService());
 
-        var result = await service.CaptureAsync("shot.png", copyToClipboard: false, null, CancellationToken.None);
+        var result = await service.CaptureAsync("shot.png", copyToClipboard: false, region: null, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(ScreenshotCaptureFailureKind.CaptureFailed, result.FailureKind);
@@ -94,7 +94,7 @@ public sealed class ScreenshotCaptureServiceTests
             new FakeScreenFrameProvider(),
             new FakeImageClipboardService { ThrowUnavailable = true });
 
-        var result = await service.CaptureAsync(null, copyToClipboard: true, null, CancellationToken.None);
+        var result = await service.CaptureAsync(outputPath: null, copyToClipboard: true, region: null, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(ScreenshotCaptureFailureKind.ClipboardUnsupported, result.FailureKind);

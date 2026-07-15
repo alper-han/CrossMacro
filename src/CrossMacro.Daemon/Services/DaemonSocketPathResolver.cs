@@ -25,7 +25,7 @@ public sealed class DaemonSocketPathResolver : IDaemonSocketPathResolver
 
     public string ResolveSocketPath()
     {
-        var socketPath = IpcProtocol.DefaultSocketPath;
+        const string socketPath = IpcProtocol.DefaultSocketPath;
         var socketDir = Path.GetDirectoryName(socketPath);
 
         if (!string.IsNullOrEmpty(socketDir))

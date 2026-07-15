@@ -34,7 +34,7 @@ public sealed class PlayCommandHandler : CliCommandHandlerBase<PlayCliOptions>
 
     private async Task<CliCommandExecutionResult> ExecuteInternalAsync(PlayCliOptions options, CancellationToken cancellationToken)
     {
-        var effectiveLoop = options.Loop || options.RepeatCount != 1;
+        var effectiveLoop = options.Loop || options.RepeatCount is not 1;
 
         var request = new MacroExecutionRequest
         {
@@ -44,7 +44,7 @@ public sealed class PlayCommandHandler : CliCommandHandlerBase<PlayCliOptions>
             RepeatCount = options.RepeatCount,
             RepeatDelayMs = options.RepeatDelayMs,
             CountdownSeconds = options.CountdownSeconds,
-            DryRun = options.DryRun
+            DryRun = options.DryRun,
         };
 
         var result = await _macroExecutionService.ExecuteAsync(request, cancellationToken);

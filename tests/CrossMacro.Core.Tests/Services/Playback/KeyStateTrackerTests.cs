@@ -19,7 +19,7 @@ public class KeyStateTrackerTests
     public void Press_ShouldAddKeyToPressed()
     {
         // Arrange
-        int keyCode = 30; // KEY_A
+        const int keyCode = 30; // KEY_A
 
         // Act
         _tracker.Press(keyCode);
@@ -32,7 +32,7 @@ public class KeyStateTrackerTests
     public void Release_ShouldRemoveKeyFromPressed()
     {
         // Arrange
-        int keyCode = 30;
+        const int keyCode = 30;
         _tracker.Press(keyCode);
 
         // Act
@@ -69,8 +69,8 @@ public class KeyStateTrackerTests
         _tracker.ReleaseAll(simulator);
 
         // Assert
-        simulator.Received().KeyPress(30, false);
-        simulator.Received().KeyPress(31, false);
+        simulator.Received().KeyPress(30, pressed: false);
+        simulator.Received().KeyPress(31, pressed: false);
         _tracker.PressedKeys.Should().BeEmpty();
     }
 
@@ -98,8 +98,8 @@ public class KeyStateTrackerTests
         _tracker.RestoreAll(simulator, keys);
 
         // Assert
-        simulator.Received().KeyPress(30, true);
-        simulator.Received().KeyPress(31, true);
+        simulator.Received().KeyPress(30, pressed: true);
+        simulator.Received().KeyPress(31, pressed: true);
         _tracker.PressedKeys.Should().Contain(30);
         _tracker.PressedKeys.Should().Contain(31);
     }
@@ -108,7 +108,7 @@ public class KeyStateTrackerTests
     public void Press_ShouldBeIdempotent_ForSameKey()
     {
         // Arrange
-        int keyCode = 30;
+        const int keyCode = 30;
 
         // Act
         _tracker.Press(keyCode);

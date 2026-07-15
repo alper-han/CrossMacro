@@ -28,7 +28,7 @@ public class RunCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Run script execution complete."
+                Message = "Run script execution complete.",
             });
 
         var result = await _handler.ExecuteAsync(
@@ -50,7 +50,7 @@ public class RunCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Run script execution complete."
+                Message = "Run script execution complete.",
             });
 
         var result = await _handler.ExecuteAsync(
@@ -59,7 +59,7 @@ public class RunCommandHandlerTests
                     "pixelcolor 500 300 mycolor",
                     "pixelcolor rel 0 0 underCursor",
                     "waitcolor 500 300 00FF00 5000",
-                    "pixelsearch 0 0 1920 1080 FF0000 found_x found_y"
+                    "pixelsearch 0 0 1920 1080 FF0000 found_x found_y",
                 ],
                 DryRun: true),
             CancellationToken.None);
@@ -89,7 +89,7 @@ public class RunCommandHandlerTests
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "Run script parsed successfully (dry-run)."
+                Message = "Run script parsed successfully (dry-run).",
             });
 
         var result = await _handler.ExecuteAsync(
@@ -112,7 +112,7 @@ public class RunCommandHandlerTests
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Run script parsing failed.",
-                Errors = ["Step 1: bad syntax"]
+                Errors = ["Step 1: bad syntax"],
             });
 
         var result = await _handler.ExecuteAsync(

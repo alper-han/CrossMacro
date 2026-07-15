@@ -10,7 +10,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
     }
-    
+
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
@@ -18,12 +18,12 @@ public partial class MainWindow : Window
             BeginMoveDrag(e);
         }
     }
-    
+
     private void OnMinimizeWindow(object? sender, RoutedEventArgs e)
     {
         WindowState = WindowState.Minimized;
     }
-    
+
     private void OnCloseApp(object? sender, RoutedEventArgs e)
     {
         Close();

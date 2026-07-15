@@ -37,7 +37,7 @@ public class ShortcutServiceTests : IDisposable
         _player = Substitute.For<IMacroPlayer>();
         _playerFactory = () => _player;
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
-        
+
         _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, _shortcutsFilePath);
     }
 
@@ -67,7 +67,7 @@ public class ShortcutServiceTests : IDisposable
     public void Start_SubscribesToHotkeyService()
     {
         _service.Start();
-        
+
         // We can verify this by checking if IsListening is true, 
         // verifying event subscription is hard with NSubstitute unless we inspect calls to add_Event.
         // But implementation sets IsListening.
@@ -79,7 +79,7 @@ public class ShortcutServiceTests : IDisposable
     {
         _service.Start();
         _service.Stop();
-        
+
         _service.IsListening.Should().BeFalse();
     }
 
@@ -104,12 +104,12 @@ public class ShortcutServiceTests : IDisposable
     public async Task OnRawInputReceived_ExecutesMatchingTask()
     {
         // Arrange
-        var task = new ShortcutTask 
-        { 
-            Name = "Test", 
-            MacroFilePath = "test.macro", 
+        var task = new ShortcutTask
+        {
+            Name = "Test",
+            MacroFilePath = "test.macro",
             HotkeyString = "F5",
-            PlaybackSpeed = 0.0
+            PlaybackSpeed = 0.0,
         };
         task.IsEnabled = true;
         _service.AddTask(task);
@@ -138,7 +138,7 @@ public class ShortcutServiceTests : IDisposable
         {
             // Act
             _hotkeyService.RawInputReceived += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
-                this, 
+                this,
                 new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5"));
             var result = await executed.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
@@ -158,19 +158,19 @@ public class ShortcutServiceTests : IDisposable
     public async Task OnRawInputReceived_DoesNotExecute_IfDisabled()
     {
         // Arrange
-        var task = new ShortcutTask 
-        { 
-            HotkeyString = "F5", 
-            MacroFilePath = "test.macro" 
+        var task = new ShortcutTask
+        {
+            HotkeyString = "F5",
+            MacroFilePath = "test.macro",
         };
         task.IsEnabled = false;
         _service.AddTask(task);
-        
+
         _service.Start();
 
         // Act
         _hotkeyService.RawInputReceived += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
-            this, 
+            this,
             new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5"));
 
         // Assert
@@ -185,7 +185,7 @@ public class ShortcutServiceTests : IDisposable
         {
             Name = "Held Macro",
             HotkeyString = "Ctrl+F5",
-            RunWhileHeld = true
+            RunWhileHeld = true,
         };
 
         var tempFile = Path.GetTempFileName();
@@ -198,7 +198,7 @@ public class ShortcutServiceTests : IDisposable
 
         _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
         {
-            Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, Timestamp = 0 } }
+            Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, Timestamp = 0 } },
         }));
 
         _player
@@ -251,13 +251,13 @@ public class ShortcutServiceTests : IDisposable
                 Name = "Manual Run",
                 HotkeyString = "F5",
                 MacroFilePath = tempFile,
-                IsEnabled = true
+                IsEnabled = true,
             };
 
             _service.AddTask(task);
             _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
             {
-                Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 } }
+                Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 } },
             }));
 
             var playbackStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -298,7 +298,7 @@ public class ShortcutServiceTests : IDisposable
             RepeatCount = 4,
             RepeatDelayMs = 125,
             LastStatus = "Success",
-            LastTriggeredTime = new DateTime(2026, 4, 27, 10, 30, 0, DateTimeKind.Utc)
+            LastTriggeredTime = new DateTime(2026, 4, 27, 10, 30, 0, DateTimeKind.Utc),
         };
 
         _service.AddTask(persistedTask);
@@ -351,7 +351,7 @@ public class ShortcutServiceTests : IDisposable
                 HotkeyString = "F6",
                 RunWhileHeld = true,
                 RepeatDelayMs = 42
-            }
+            },
         };
 
         await File.WriteAllTextAsync(

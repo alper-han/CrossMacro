@@ -17,7 +17,7 @@ public sealed class ScreenFramePngEncoderTests
             new byte[]
             {
                 0x00, 0x00, 0xFF, 0xFF,
-                0x00, 0xFF, 0x00, 0xFF
+                0x00, 0xFF, 0x00, 0xFF,
             });
         using var png = new MemoryStream();
 
@@ -45,7 +45,7 @@ public sealed class ScreenFramePngEncoderTests
             new byte[]
             {
                 0x00, 0x00, 0xFF, 0xFF,
-                0x00, 0xFF, 0x00, 0xFF
+                0x00, 0xFF, 0x00, 0xFF,
             });
         using var png = new MemoryStream();
         ScreenFramePngEncoder.Encode(source, png);
@@ -72,7 +72,7 @@ public sealed class ScreenFramePngEncoderTests
         var act = () => ScreenFramePngDecoder.Decode(CreateOversizedPngBytes());
 
         var exception = Assert.Throws<InvalidDataException>(act);
-        Assert.Contains("maximum supported size of 7680x4320", exception.Message);
+        Assert.Contains("maximum supported size of 7680x4320", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public sealed class ScreenFramePngEncoderTests
             0x00,
             0x00,
             0x00,
-            0x6C, 0xF7, 0xBC, 0x13
+            0x6C, 0xF7, 0xBC, 0x13,
         ];
     }
 

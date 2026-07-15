@@ -16,24 +16,24 @@ public class UInputEventExecutor : IEventExecutor
 {
     private UInputDevice? _device;
     private bool _disposed;
-    
+
     private readonly ConcurrentDictionary<ushort, byte> _pressedButtons = new();
     private readonly ConcurrentDictionary<int, byte> _pressedKeys = new();
-    
+
     public bool IsMouseButtonPressed => !_pressedButtons.IsEmpty;
-    
+
     public void Initialize(int screenWidth, int screenHeight)
     {
         _device?.Dispose();
         _device = new UInputDevice(screenWidth, screenHeight);
         _device.CreateVirtualInputDevice();
-        
+
         _pressedButtons.Clear();
         _pressedKeys.Clear();
-        
+
         Log.Information("[UInputEventExecutor] Virtual device created ({Width}x{Height})", screenWidth, screenHeight);
     }
-    
+
     public void MoveAbsolute(int x, int y)
     {
         _device?.MoveAbsolute(x, y);
@@ -48,7 +48,7 @@ public class UInputEventExecutor : IEventExecutor
 
     public void EmitButton(ushort button, bool pressed)
     {
-        if (_device == null) return;
+        if (_device is null) return;
 
         _device.EmitButton(button, pressed);
 
@@ -62,7 +62,7 @@ public class UInputEventExecutor : IEventExecutor
 
     public void EmitScroll(int value)
     {
-        if (_device == null) return;
+        if (_device is null) return;
 
         _device.SendEvent(UInputNative.EV_REL, UInputNative.REL_WHEEL, value);
         _device.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
@@ -72,7 +72,7 @@ public class UInputEventExecutor : IEventExecutor
 
     public void EmitKey(int keyCode, bool pressed)
     {
-        if (_device == null) return;
+        if (_device is null) return;
 
         _device.EmitKey(keyCode, pressed);
 
@@ -83,69 +83,69 @@ public class UInputEventExecutor : IEventExecutor
 
         Log.Debug("[UInputEventExecutor] Key: {KeyCode} State={State}", keyCode, pressed ? "Pressed" : "Released");
     }
-    
+
     public void ReleaseAll()
     {
-        if (_device == null) return;
-        
+        if (_device is null) return;
+
         // Release all tracked buttons
         var buttonsToRelease = _pressedButtons.Keys.ToArray();
         _pressedButtons.Clear();
-        
+
         foreach (var button in buttonsToRelease)
         {
             try
             {
-                _device.EmitButton(button, false);
+                _device.EmitButton(button, pressed: false);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "[UInputEventExecutor] Failed to release button {Button}", button);
             }
         }
-        
+
         // Failsafe: release common buttons
         try
         {
-            _device.EmitButton(UInputNative.BTN_LEFT, false);
-            _device.EmitButton(UInputNative.BTN_RIGHT, false);
-            _device.EmitButton(UInputNative.BTN_MIDDLE, false);
+            _device.EmitButton(UInputNative.BTN_LEFT, pressed: false);
+            _device.EmitButton(UInputNative.BTN_RIGHT, pressed: false);
+            _device.EmitButton(UInputNative.BTN_MIDDLE, pressed: false);
         }
         catch (Exception ex)
         {
             Log.Debug(ex, "[UInputEventExecutor] Failsafe button release failed");
         }
-        
+
         // Release all tracked keys
         var keysToRelease = _pressedKeys.Keys.ToArray();
         _pressedKeys.Clear();
-        
+
         foreach (var keyCode in keysToRelease)
         {
             try
             {
-                _device.EmitKey(keyCode, false);
+                _device.EmitKey(keyCode, pressed: false);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "[UInputEventExecutor] Failed to release key {KeyCode}", keyCode);
             }
         }
-        
+
         Log.Debug("[UInputEventExecutor] Released all inputs");
     }
-    
+
     public void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode)
     {
         // Handle implicit movement for mouse button events (not keyboard)
         if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click)
         {
             bool isScroll = MacroPositionSemantics.IsScrollButton(ev.Button);
-            if (!isScroll && !ev.UseCurrentPosition && coordinateMode == MouseCoordinateMode.Absolute)
+            if (!isScroll && !ev.UseCurrentPosition && coordinateMode is MouseCoordinateMode.Absolute)
             {
                 MoveAbsolute(ev.X, ev.Y);
             }
-            else if (!isScroll && !ev.UseCurrentPosition && coordinateMode == MouseCoordinateMode.Relative && (ev.X != 0 || ev.Y != 0))
+            else if (!isScroll && !ev.UseCurrentPosition && coordinateMode is MouseCoordinateMode.Relative && (ev.X is not 0 || ev.Y is not 0))
             {
                 MoveRelative(ev.X, ev.Y);
             }
@@ -155,18 +155,18 @@ public class UInputEventExecutor : IEventExecutor
         {
             case EventType.ButtonPress:
                 var pressButton = MapButton(ev.Button);
-                EmitButton(pressButton, true);
+                EmitButton(pressButton, pressed: true);
                 break;
 
             case EventType.ButtonRelease:
                 var releaseButton = MapButton(ev.Button);
-                EmitButton(releaseButton, false);
+                EmitButton(releaseButton, pressed: false);
                 break;
 
             case EventType.MouseMove:
-                if (coordinateMode == MouseCoordinateMode.Absolute)
+                if (coordinateMode is MouseCoordinateMode.Absolute)
                     MoveAbsolute(ev.X, ev.Y);
-                else if (coordinateMode == MouseCoordinateMode.Relative)
+                else if (coordinateMode is MouseCoordinateMode.Relative)
                     MoveRelative(ev.X, ev.Y);
                 break;
 
@@ -175,15 +175,15 @@ public class UInputEventExecutor : IEventExecutor
                 break;
 
             case EventType.KeyPress:
-                EmitKey(ev.KeyCode, true);
+                EmitKey(ev.KeyCode, pressed: true);
                 break;
 
             case EventType.KeyRelease:
-                EmitKey(ev.KeyCode, false);
+                EmitKey(ev.KeyCode, pressed: false);
                 break;
         }
     }
-    
+
     private void ExecuteClick(MacroEvent ev)
     {
         switch (ev.Button)
@@ -196,12 +196,12 @@ public class UInputEventExecutor : IEventExecutor
                 break;
             default:
                 var button = MapButton(ev.Button);
-                EmitButton(button, true);
-                EmitButton(button, false);
+                EmitButton(button, pressed: true);
+                EmitButton(button, pressed: false);
                 break;
         }
     }
-    
+
     private static ushort MapButton(MouseButton button)
     {
         return button switch
@@ -211,15 +211,15 @@ public class UInputEventExecutor : IEventExecutor
             MouseButton.Middle => UInputNative.BTN_MIDDLE,
             MouseButton.Side1 => UInputNative.BTN_SIDE,
             MouseButton.Side2 => UInputNative.BTN_EXTRA,
-            _ => UInputNative.BTN_LEFT
+            _ => UInputNative.BTN_LEFT,
         };
     }
-    
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        
+
         ReleaseAll();
         _device?.Dispose();
         _device = null;

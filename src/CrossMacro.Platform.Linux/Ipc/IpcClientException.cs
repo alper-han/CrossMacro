@@ -9,7 +9,7 @@ public enum IpcClientFailureReason
     PermissionDenied = 2,
     HandshakeFailed = 3,
     ProtocolMismatch = 4,
-    Timeout = 5
+    Timeout = 5,
 }
 
 public sealed class IpcClientException : Exception

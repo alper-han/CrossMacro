@@ -62,7 +62,7 @@ public class PersistedMacroDocument
             TrailingDelayMs = macro.TrailingDelayMs,
             HasTrailingRandomDelay = macro.HasTrailingRandomDelay,
             TrailingDelayMinMs = macro.TrailingDelayMinMs,
-            TrailingDelayMaxMs = macro.TrailingDelayMaxMs
+            TrailingDelayMaxMs = macro.TrailingDelayMaxMs,
         };
     }
 
@@ -88,7 +88,7 @@ public class PersistedMacroDocument
             TrailingDelayMs = TrailingDelayMs,
             HasTrailingRandomDelay = HasTrailingRandomDelay,
             TrailingDelayMinMs = TrailingDelayMinMs,
-            TrailingDelayMaxMs = TrailingDelayMaxMs
+            TrailingDelayMaxMs = TrailingDelayMaxMs,
         };
     }
 }
@@ -121,7 +121,7 @@ public class PersistedMacroEvent
         RandomDelayMaxMs = ev.RandomDelayMaxMs,
         KeyCode = ev.KeyCode,
         CoordinateMode = ev.CoordinateMode,
-        UseCurrentPosition = ev.UseCurrentPosition
+        UseCurrentPosition = ev.UseCurrentPosition,
     };
 
     public MacroEvent ToRuntime() => new()
@@ -137,7 +137,7 @@ public class PersistedMacroEvent
         RandomDelayMaxMs = RandomDelayMaxMs,
         KeyCode = KeyCode,
         CoordinateMode = CoordinateMode,
-        UseCurrentPosition = UseCurrentPosition
+        UseCurrentPosition = UseCurrentPosition,
     };
 }
 

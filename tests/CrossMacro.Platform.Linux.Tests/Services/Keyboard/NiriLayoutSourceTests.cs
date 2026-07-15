@@ -12,7 +12,7 @@ public sealed class NiriLayoutSourceTests
             """
             { "Ok": { "KeyboardLayouts": { "names": ["English (US)", "Turkish"], "current_idx": 1 } } }
             """,
-            name => name == "Turkish" ? "tr" : null);
+            name => name is "Turkish" ? "tr" : null);
 
         Assert.Equal("tr", layout);
     }
@@ -24,7 +24,7 @@ public sealed class NiriLayoutSourceTests
             """
             { "names": ["English (US)", "German"], "current_idx": 0 }
             """,
-            name => name == "English (US)" ? "us" : null);
+            name => name is "English (US)" ? "us" : null);
 
         Assert.Equal("us", layout);
     }
@@ -50,7 +50,7 @@ public sealed class NiriLayoutSourceTests
                 """
                 { "Ok": { "KeyboardLayouts": { "names": ["English (US)", "Turkish"], "current_idx": 1 } } }
                 """),
-            name => name == "Turkish" ? "tr" : null);
+            name => name is "Turkish" ? "tr" : null);
 
         var layout = source.DetectLayout();
 
@@ -61,8 +61,8 @@ public sealed class NiriLayoutSourceTests
     public void DetectLayout_ReturnsNull_WhenIpcUnavailable()
     {
         using var source = new DisposableNiriLayoutSource(
-            new FakeNiriIpcClient(null, isAvailable: false),
-            name => name == "Turkish" ? "tr" : null);
+            new FakeNiriIpcClient(response: null, isAvailable: false),
+            name => name is "Turkish" ? "tr" : null);
 
         var layout = source.DetectLayout();
 

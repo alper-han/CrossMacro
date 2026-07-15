@@ -13,13 +13,13 @@ internal sealed class DesktopPermissionGateService
 {
     internal readonly record struct GateResult(bool Handled, string? UnsupportedSessionReason)
     {
-        public static GateResult Continue() => new(false, null);
-        public static GateResult HandledByDialog() => new(true, null);
+        public static GateResult Continue() => new(Handled: false, UnsupportedSessionReason: null);
+        public static GateResult HandledByDialog() => new(Handled: true, UnsupportedSessionReason: null);
 
         public static GateResult UnsupportedSession(string reason)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-            return new(false, reason);
+            return new(Handled: false, reason);
         }
     }
 
@@ -27,7 +27,7 @@ internal sealed class DesktopPermissionGateService
     {
         None,
         InputMonitoring,
-        Accessibility
+        Accessibility,
     }
 
     private readonly IDisplaySessionService _displaySessionService;
@@ -48,7 +48,7 @@ internal sealed class DesktopPermissionGateService
         var permissionChecker = _getPermissionChecker();
         PrepareStartupPermissionRequest(permissionChecker);
         var startupGateKind = GetStartupPermissionGateKind(permissionChecker);
-        if (startupGateKind != StartupPermissionGateKind.None)
+        if (startupGateKind is not StartupPermissionGateKind.None)
         {
             var permissionResolved = await HandleStartupPermissionGateAsync(desktop, permissionChecker!, startupGateKind);
             if (!permissionResolved)
@@ -67,12 +67,12 @@ internal sealed class DesktopPermissionGateService
 
     internal static bool IsStartupPermissionBlocked(IPermissionChecker? permissionChecker)
     {
-        return GetStartupPermissionGateKind(permissionChecker) != StartupPermissionGateKind.None;
+        return GetStartupPermissionGateKind(permissionChecker) is not StartupPermissionGateKind.None;
     }
 
     internal static void PrepareStartupPermissionRequest(IPermissionChecker? permissionChecker)
     {
-        if (permissionChecker == null || !permissionChecker.IsSupported || !permissionChecker.RequiresStartupPermissionGate)
+        if (permissionChecker is null || !permissionChecker.IsSupported || !permissionChecker.RequiresStartupPermissionGate)
         {
             return;
         }
@@ -85,7 +85,7 @@ internal sealed class DesktopPermissionGateService
 
     internal static StartupPermissionGateKind GetStartupPermissionGateKind(IPermissionChecker? permissionChecker)
     {
-        if (permissionChecker == null || !permissionChecker.IsSupported)
+        if (permissionChecker is null || !permissionChecker.IsSupported)
         {
             return StartupPermissionGateKind.None;
         }
@@ -128,7 +128,7 @@ internal sealed class DesktopPermissionGateService
             dangerYes,
             dangerNo)
         {
-            WindowStartupLocation = WindowStartupLocation.CenterScreen
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
         };
     }
 
@@ -169,7 +169,7 @@ internal sealed class DesktopPermissionGateService
             try
             {
                 var currentGateKind = gateKind;
-                while (currentGateKind != StartupPermissionGateKind.None)
+                while (currentGateKind is not StartupPermissionGateKind.None)
                 {
                     var permissionDialog = CreateCenteredConfirmationDialog(
                         UIStrings.PermissionRequiredTitle,
@@ -202,7 +202,7 @@ internal sealed class DesktopPermissionGateService
                     }
 
                     currentGateKind = GetStartupPermissionGateKind(permissionChecker);
-                    if (currentGateKind != StartupPermissionGateKind.None)
+                    if (currentGateKind is not StartupPermissionGateKind.None)
                     {
                         await ShowApprovalPendingDialogAsync(bootstrapOwner, currentGateKind);
                         return;
@@ -242,13 +242,13 @@ internal sealed class DesktopPermissionGateService
             ShowInTaskbar = false,
             CanResize = false,
             WindowDecorations = WindowDecorations.None,
-            WindowStartupLocation = WindowStartupLocation.Manual
+            WindowStartupLocation = WindowStartupLocation.Manual,
         };
     }
 
     private static string GetStartupPermissionMessage(StartupPermissionGateKind gateKind)
     {
-        return gateKind == StartupPermissionGateKind.InputMonitoring
+        return gateKind is StartupPermissionGateKind.InputMonitoring
             ? UIStrings.MacOSInputMonitoringStartupBlockMessage
             : UIStrings.MacOSAccessibilityStartupBlockMessage;
     }
@@ -267,14 +267,14 @@ internal sealed class DesktopPermissionGateService
 
     private static string GetApprovalPendingMessage(StartupPermissionGateKind gateKind)
     {
-        return gateKind == StartupPermissionGateKind.InputMonitoring
+        return gateKind is StartupPermissionGateKind.InputMonitoring
             ? UIStrings.MacOSInputMonitoringApprovalPendingMessage
             : UIStrings.MacOSAccessibilityApprovalPendingMessage;
     }
 
     internal static void OpenStartupPermissionSettings(IPermissionChecker permissionChecker, StartupPermissionGateKind gateKind)
     {
-        if (gateKind != StartupPermissionGateKind.InputMonitoring)
+        if (gateKind is not StartupPermissionGateKind.InputMonitoring)
         {
             if (permissionChecker is IMacOSPermissionChecker accessibilityPermissionChecker)
             {

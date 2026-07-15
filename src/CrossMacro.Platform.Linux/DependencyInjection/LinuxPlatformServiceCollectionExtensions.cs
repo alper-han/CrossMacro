@@ -118,7 +118,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
                 return new DisplayServer.Wayland.NiriWindowManager(niriClient);
 
             var desktop = sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment.CurrentDesktop;
-            if (desktop != null)
+            if (desktop is not null)
             {
                 if (desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
                 {

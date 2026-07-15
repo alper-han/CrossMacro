@@ -90,7 +90,7 @@ public static class ScreenFramePngEncoder
     {
         for (var x = 0; x < width; x++)
         {
-            var srcOffset = rowOffset + x * bpp;
+            var srcOffset = rowOffset + (x * bpp);
             var dstOffset = x * 3;
 
             switch (format)

@@ -39,7 +39,7 @@ public static class EditorActionScriptClassifier
 
     public static bool IsOpaqueScriptAction(EditorActionType actionType)
     {
-        return actionType == EditorActionType.RawScriptStep;
+        return actionType is EditorActionType.RawScriptStep;
     }
 
     public static bool IsRuntimeEventAction(EditorActionType actionType)

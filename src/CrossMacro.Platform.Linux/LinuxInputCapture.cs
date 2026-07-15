@@ -17,12 +17,12 @@ public class LinuxInputCapture : IInputCapture
     private readonly Func<InputDeviceHelper.InputDevice, ILinuxInputReader> _readerFactory;
     private bool _disposed;
     private CancellationTokenRegistration _stopRegistration;
-    
+
     private bool _captureMouse = true;
     private bool _captureKeyboard = true;
-    
+
     public string ProviderName => "Linux Evdev";
-    
+
     public bool IsSupported
     {
         get
@@ -38,7 +38,7 @@ public class LinuxInputCapture : IInputCapture
             }
         }
     }
-    
+
     public event EventHandler<InputCaptureEventArgs>? InputReceived;
     public event EventHandler<string>? Error;
 
@@ -56,16 +56,15 @@ public class LinuxInputCapture : IInputCapture
         _deviceEnumerator = deviceEnumerator;
         _readerFactory = readerFactory;
     }
-    
+
     public void Configure(bool captureMouse, bool captureKeyboard)
     {
         _captureMouse = captureMouse;
         _captureKeyboard = captureKeyboard;
         Log.Information("[LinuxInputCapture] Configured: Mouse={Mouse}, Keyboard={Keyboard}", captureMouse, captureKeyboard);
     }
-    
 
-    
+
     public async Task StartAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -75,20 +74,20 @@ public class LinuxInputCapture : IInputCapture
             Log.Warning("[LinuxInputCapture] Already started");
             return;
         }
-        
+
         var nativeDevices = _deviceEnumerator();
-        
+
         var devicesToUse = nativeDevices.Where(ShouldCaptureDevice).ToList();
-        
-        if (devicesToUse.Count == 0)
+
+        if (devicesToUse.Count is 0)
         {
-            var errorMsg = "No matching input devices found";
+            const string errorMsg = "No matching input devices found";
             Log.Error("[LinuxInputCapture] {Error}", errorMsg);
             throw new InvalidOperationException(errorMsg);
         }
-        
+
         Log.Information("[LinuxInputCapture] Starting capture on {Count} device(s):", devicesToUse.Count);
-        
+
         foreach (var device in devicesToUse)
         {
             try
@@ -105,19 +104,19 @@ public class LinuxInputCapture : IInputCapture
                 Log.Error(ex, "[LinuxInputCapture] Failed to open {Name}", device.Name);
             }
         }
-        
-        if (_readers.Count == 0)
+
+        if (_readers.Count is 0)
         {
-            var errorMsg = "Failed to open any input devices";
+            const string errorMsg = "Failed to open any input devices";
             Log.Error("[LinuxInputCapture] {Error}", errorMsg);
             throw new InvalidOperationException(errorMsg);
         }
-        
+
         _stopRegistration.Dispose();
         _stopRegistration = ct.Register(Stop);
         await Task.CompletedTask;
     }
-    
+
     public void Stop()
     {
         if (_readers.Count > 0)
@@ -134,7 +133,7 @@ public class LinuxInputCapture : IInputCapture
                     Log.Debug(ex, "[LinuxInputCapture] Error unsubscribing from reader events");
                 }
             }
-            
+
             Parallel.ForEach(_readers, reader =>
             {
                 try
@@ -147,44 +146,44 @@ public class LinuxInputCapture : IInputCapture
                     Log.Error(ex, "[LinuxInputCapture] Error stopping reader");
                 }
             });
-            
+
             _readers.Clear();
             Log.Information("[LinuxInputCapture] Stopped all readers");
         }
-        
+
         _stopRegistration.Dispose();
     }
-    
+
     private void OnEvdevEventReceived(ILinuxInputReader reader, UInputNative.input_event e)
     {
         var eventType = e.type switch
         {
-            UInputNative.EV_KEY => UInputNative.IsMouseButton(e.code) 
-                ? InputEventType.MouseButton 
+            UInputNative.EV_KEY => UInputNative.IsMouseButton(e.code)
+                ? InputEventType.MouseButton
                 : InputEventType.Key,
             UInputNative.EV_REL => e.code is UInputNative.REL_WHEEL or UInputNative.REL_HWHEEL
-                ? InputEventType.MouseScroll 
+                ? InputEventType.MouseScroll
                 : InputEventType.MouseMove,
             UInputNative.EV_ABS when e.code == UInputNative.ABS_X || e.code == UInputNative.ABS_Y
                 => InputEventType.MouseMove,
             UInputNative.EV_SYN => InputEventType.Sync,
-            _ => InputEventType.Unknown
+            _ => InputEventType.Unknown,
         };
 
         if (!ShouldForwardEvent(eventType))
         {
             return;
         }
-        
+
         var args = new InputCaptureEventArgs
         {
             Type = eventType,
             Code = e.code,
             Value = e.value,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            DeviceName = reader.DeviceName
+            DeviceName = reader.DeviceName,
         };
-        
+
         InputReceived?.Invoke(this, args);
     }
 
@@ -197,7 +196,7 @@ public class LinuxInputCapture : IInputCapture
             InputEventType.MouseMove => _captureMouse,
             InputEventType.MouseScroll => _captureMouse,
             InputEventType.Sync => _captureMouse,
-            _ => false
+            _ => false,
         };
     }
 
@@ -210,14 +209,13 @@ public class LinuxInputCapture : IInputCapture
 
         return (_captureMouse && device.IsMouse) || (_captureKeyboard && device.IsKeyboard);
     }
-    
 
-    
+
     private void OnEvdevError(Exception ex)
     {
         Error?.Invoke(this, ex.Message);
     }
-    
+
     public void Dispose()
     {
         if (!_disposed)

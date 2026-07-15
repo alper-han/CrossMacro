@@ -16,7 +16,7 @@ public class LinuxCaptureFactoryTests
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Daemon);
 
@@ -48,10 +48,10 @@ public class LinuxCaptureFactoryTests
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Legacy);
-        capability.CanReadInputEvents.Returns(true);
+        capability.CanReadInputEvents.Returns(returnThis: true);
 
         var legacy = new LinuxInputCapture();
         using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
@@ -81,7 +81,7 @@ public class LinuxCaptureFactoryTests
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.None);
 
@@ -101,17 +101,17 @@ public class LinuxCaptureFactoryTests
         // Assert
         Assert.False(result.IsSupported);
         Assert.IsType<UnavailableInputCapture>(result);
-        Assert.Contains("No usable Linux input capture backend is available", ((UnavailableInputCapture)result).FailureMessage);
+        Assert.Contains("No usable Linux input capture backend is available", ((UnavailableInputCapture)result).FailureMessage, StringComparison.Ordinal);
     }
 
     [LinuxFact]
     public void Create_WhenWaylandAndLegacyModeWithoutReadableEvents_ReturnsUnsupportedCapture()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Legacy);
-        capability.CanReadInputEvents.Returns(false);
+        capability.CanReadInputEvents.Returns(returnThis: false);
 
         var legacyFactoryCalled = false;
 
@@ -139,10 +139,10 @@ public class LinuxCaptureFactoryTests
     public void Create_WhenWaylandAndLegacyModeWithReadableEvents_ReturnsLegacyCapture()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Legacy);
-        capability.CanReadInputEvents.Returns(true);
+        capability.CanReadInputEvents.Returns(returnThis: true);
 
         var legacy = new LinuxInputCapture();
         using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
@@ -163,7 +163,7 @@ public class LinuxCaptureFactoryTests
     public void Create_WhenX11NativeCaptureSupported_ReturnsX11BeforeCapabilityFallback()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(false);
+        env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Daemon);
@@ -190,7 +190,7 @@ public class LinuxCaptureFactoryTests
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsDaemon_ReturnsIpcCapture()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(false);
+        env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Daemon);
@@ -217,11 +217,11 @@ public class LinuxCaptureFactoryTests
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsDirectWithReadableEvents_ReturnsLegacyCapture()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(false);
+        env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.Legacy);
-        capability.CanReadInputEvents.Returns(true);
+        capability.CanReadInputEvents.Returns(returnThis: true);
 
         var legacy = new LinuxInputCapture();
         using var ipc = new LinuxIpcInputCapture(new IpcClient(() => "/tmp/non-existent.sock"), "test-capture");
@@ -245,7 +245,7 @@ public class LinuxCaptureFactoryTests
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsNone_ReturnsUnsupportedCapture()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(false);
+        env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.None);
@@ -274,18 +274,18 @@ public class LinuxCaptureFactoryTests
     public void Create_WhenWaylandPermissionDeniedAndNoReadableEvents_ReturnsDiagnosticReason()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(true);
+        env.IsWayland.Returns(returnThis: true);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
         capability.DetermineMode().Returns(InputProviderMode.None);
-        capability.CanReadInputEvents.Returns(false);
+        capability.CanReadInputEvents.Returns(returnThis: false);
         capability.GetSnapshot().Returns(new LinuxInputCapabilitySnapshot(
             "/run/crossmacro/crossmacro.sock",
-            true,
-            false,
-            false,
-            false,
-            false,
+DaemonSocketExists: true,
+DaemonHandshakeSucceeded: false,
+DaemonHandshakeTimedOut: false,
+CanUseDirectUInput: false,
+CanReadInputEvents: false,
             LinuxDaemonHandshakeProbeResult.Failed(
                 "/run/crossmacro/crossmacro.sock",
                 TimeSpan.FromSeconds(5),

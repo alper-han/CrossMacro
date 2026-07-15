@@ -43,7 +43,7 @@ public class EvdevReader : IDisposable
         lock (_lifecycleLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_session != null) return;
+            if (_session is not null) return;
 
             int fd = EvdevNative.open(_devicePath, EvdevNative.O_RDONLY | EvdevNative.O_NONBLOCK);
             if (fd < 0)
@@ -68,13 +68,13 @@ public class EvdevReader : IDisposable
         lock (_lifecycleLock)
         {
             session = _session;
-            if (session == null) return;
+            if (session is null) return;
             session.IsStopping = true;
             session.Cancellation.Cancel();
         }
 
         Task? readTask = session.ReadTask;
-        if (readTask != null && Task.CurrentId != readTask.Id)
+        if (readTask is not null && Task.CurrentId != readTask.Id)
         {
             try
             {
@@ -135,17 +135,17 @@ public class EvdevReader : IDisposable
                 {
                     var errno = Marshal.GetLastWin32Error();
 
-                    if (errno == 9)
+                    if (errno is 9)
                     {
                         break;
                     }
 
-                    if (errno == 4)
+                    if (errno is 4)
                     {
                         continue;
                     }
 
-                    if (errno == 11)
+                    if (errno is 11)
                     {
                         token.WaitHandle.WaitOne(10);
                         continue;
@@ -196,7 +196,7 @@ public class EvdevReader : IDisposable
             return;
         }
 
-        if (_lastKeyState == null)
+        if (_lastKeyState is null)
         {
             _lastKeyState = new byte[96];
             EmitCurrentKeyState(currentKeyState, token);
@@ -213,8 +213,8 @@ public class EvdevReader : IDisposable
             if (byteIndex >= currentKeyState.Length)
                 continue;
 
-            bool currentlyPressed = (currentKeyState[byteIndex] & (1 << bitIndex)) != 0;
-            bool wasPressed = (_lastKeyState[byteIndex] & (1 << bitIndex)) != 0;
+            bool currentlyPressed = (currentKeyState[byteIndex] & (1 << bitIndex)) is not 0;
+            bool wasPressed = (_lastKeyState[byteIndex] & (1 << bitIndex)) is not 0;
 
             if (token.IsCancellationRequested)
                 return;
@@ -225,7 +225,7 @@ public class EvdevReader : IDisposable
                 {
                     type = UInputNative.EV_KEY,
                     code = (ushort)keyCode,
-                    value = currentlyPressed ? 1 : 0
+                    value = currentlyPressed ? 1 : 0,
                 };
                 EventReceived?.Invoke(this, ev);
             }
@@ -245,7 +245,7 @@ public class EvdevReader : IDisposable
             if (byteIndex >= keyState.Length)
                 continue;
 
-            bool pressed = (keyState[byteIndex] & (1 << bitIndex)) != 0;
+            bool pressed = (keyState[byteIndex] & (1 << bitIndex)) is not 0;
 
             if (token.IsCancellationRequested)
                 return;
@@ -256,7 +256,7 @@ public class EvdevReader : IDisposable
                 {
                     type = UInputNative.EV_KEY,
                     code = (ushort)keyCode,
-                    value = 1
+                    value = 1,
                 };
                 EventReceived?.Invoke(this, ev);
             }

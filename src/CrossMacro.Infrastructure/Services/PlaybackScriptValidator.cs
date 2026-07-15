@@ -22,7 +22,7 @@ public sealed class PlaybackScriptValidator
             .Where(step => !string.IsNullOrWhiteSpace(step))
             .Select((step, index) => new RunScriptStep(step, SourceIndex: index))
             .ToList();
-        if (scriptSteps.Count == 0)
+        if (scriptSteps.Count is 0)
         {
             return null;
         }

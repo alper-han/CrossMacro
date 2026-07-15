@@ -82,7 +82,7 @@ public sealed class SerilogCoreLogger : ICoreLogger
             CoreLogLevel.Warning => LogEventLevel.Warning,
             CoreLogLevel.Error => LogEventLevel.Error,
             CoreLogLevel.Fatal => LogEventLevel.Fatal,
-            _ => LogEventLevel.Information
+            _ => LogEventLevel.Information,
         };
     }
 }

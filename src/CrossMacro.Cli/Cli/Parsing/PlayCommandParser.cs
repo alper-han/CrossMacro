@@ -56,7 +56,7 @@ internal static class PlayCommandParser
 
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "play", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
             {
-                if (commonResult != null)
+                if (commonResult is not null)
                 {
                     return commonResult;
                 }
@@ -157,7 +157,7 @@ internal static class PlayCommandParser
             loop = true;
         }
 
-        if (repeatProvided && repeat == 0 && !loop)
+        if (repeatProvided && repeat is 0 && !loop)
         {
             return CliParseHelpers.Error("--repeat 0 requires --loop (infinite mode).", jsonOutput);
         }

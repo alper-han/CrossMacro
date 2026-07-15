@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using CrossMacro.Core.Services; 
+using CrossMacro.Core.Services;
 using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Services;
@@ -22,7 +22,7 @@ public class WindowsMousePositionProvider : IMousePositionProvider
     {
         int w = User32.GetSystemMetrics(User32.SM_CXSCREEN);
         int h = User32.GetSystemMetrics(User32.SM_CYSCREEN);
-        
+
         if (w > 0 && h > 0)
         {
             return Task.FromResult<(int Width, int Height)?>((w, h));

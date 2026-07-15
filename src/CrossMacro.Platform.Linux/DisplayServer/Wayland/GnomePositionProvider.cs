@@ -358,7 +358,7 @@ export default class CrossMacroExtension extends Extension {
 }
 ";
         private const string ExtensionUuid = "crossmacro@zynix.net";
-        
+
         private static readonly string ExtensionPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".local", "share", "gnome-shell", "extensions", ExtensionUuid);
@@ -374,7 +374,7 @@ export default class CrossMacroExtension extends Extension {
         private bool _resolutionUnavailableLogged;
         private bool _disposed;
         private ExtensionStatusChangedEventArgs? _currentExtensionStatus;
-        
+
         public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
         public event EventHandler<string>? ExtensionStatusChanged;
 
@@ -394,8 +394,8 @@ export default class CrossMacroExtension extends Extension {
         {
             var currentDesktop = environment.CurrentDesktop;
             var session = environment.GdmSession;
-            
-            IsSupported = (currentDesktop?.Contains("GNOME", StringComparison.OrdinalIgnoreCase) ?? false) || 
+
+            IsSupported = (currentDesktop?.Contains("GNOME", StringComparison.OrdinalIgnoreCase) ?? false) ||
                           (session?.Contains("gnome", StringComparison.OrdinalIgnoreCase) ?? false);
 
             if (IsSupported)
@@ -478,12 +478,12 @@ export default class CrossMacroExtension extends Extension {
             await File.WriteAllTextAsync(filePath, expectedContent);
             return true;
         }
-        
+
         private async Task<bool> CheckExtensionEnabledAsync()
         {
             try
             {
-                if (_extensionsClient == null)
+                if (_extensionsClient is null)
                 {
                     return false;
                 }
@@ -496,12 +496,12 @@ export default class CrossMacroExtension extends Extension {
                 return false;
             }
         }
-        
+
         private async Task<bool> EnableExtensionAsync()
         {
             try
             {
-                if (_extensionsClient == null)
+                if (_extensionsClient is null)
                 {
                     return false;
                 }
@@ -514,25 +514,25 @@ export default class CrossMacroExtension extends Extension {
                 return false;
             }
         }
-        
+
         private async Task ValidateExtensionStatusAsync()
         {
             // Check if extension is enabled
             bool isEnabled = await CheckExtensionEnabledAsync();
-            
+
             if (!isEnabled)
             {
                 Log.Information("[GnomePositionProvider] Extension is not enabled, attempting to enable via DBus...");
-                
+
                 // Try to enable it
                 bool enableSuccess = await EnableExtensionAsync();
-                
+
                 if (enableSuccess)
                 {
                     // Verify it's actually enabled now
                     await Task.Delay(500); // Give it a moment
                     isEnabled = await CheckExtensionEnabledAsync();
-                    
+
                     if (isEnabled)
                     {
                         Log.Information("[GnomePositionProvider] Extension enabled and verified successfully via DBus");
@@ -556,7 +556,7 @@ export default class CrossMacroExtension extends Extension {
                 PublishExtensionStatus(ExtensionStatusCode.Enabled, "GNOME extension is already enabled");
             }
         }
-        
+
         private void NotifyExtensionIssue(string message)
         {
             Log.Warning("[GnomePositionProvider] {Message}", message);
@@ -644,7 +644,7 @@ export default class CrossMacroExtension extends Extension {
 
         public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
         {
-            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient == null)
+            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient is null)
                 return null;
 
             return await TryGetAbsolutePositionAsync(_trackerClient.GetPositionAsync).ConfigureAwait(false);
@@ -652,7 +652,7 @@ export default class CrossMacroExtension extends Extension {
 
         public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
         {
-            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient == null)
+            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient is null)
                 return null;
 
             var queryResult = await TryGetScreenResolutionAsync(
@@ -672,7 +672,7 @@ export default class CrossMacroExtension extends Extension {
 
         public async Task<(byte[] Pixels, int Stride, ScreenPixelFormat Format)?> CaptureAreaAsync(ScreenRect region)
         {
-            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient == null)
+            if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient is null)
                 return null;
 
             try
@@ -697,7 +697,7 @@ export default class CrossMacroExtension extends Extension {
 
         internal static bool TryReadEnabledState(IDictionary<string, object>? info)
         {
-            if (info == null || !info.TryGetValue("state", out var stateObj))
+            if (info is null || !info.TryGetValue("state", out var stateObj))
             {
                 return false;
             }
@@ -705,10 +705,10 @@ export default class CrossMacroExtension extends Extension {
             return stateObj switch
             {
                 double stateValue => stateValue == 1,
-                int stateValue => stateValue == 1,
+                int stateValue => stateValue is 1,
                 uint stateValue => stateValue == 1,
                 long stateValue => stateValue == 1,
-                _ => false
+                _ => false,
             };
         }
 
@@ -757,11 +757,11 @@ export default class CrossMacroExtension extends Extension {
                         Log.Debug("[GnomePositionProvider] Resolution service still unavailable: {Error}", ex.Message);
                     }
 
-                    return new ResolutionQueryResult(null, null, resolutionUnavailableLogged);
+                    return new ResolutionQueryResult(Resolution: null, CachedResolution: null, resolutionUnavailableLogged);
                 }
 
                 Log.Error(ex, "[GnomePositionProvider] Failed to get resolution");
-                return new ResolutionQueryResult(null, null, resolutionUnavailableLogged);
+                return new ResolutionQueryResult(Resolution: null, CachedResolution: null, resolutionUnavailableLogged);
             }
         }
 

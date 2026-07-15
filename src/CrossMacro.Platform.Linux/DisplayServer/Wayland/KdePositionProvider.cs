@@ -29,7 +29,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
         private readonly TaskCompletionSource<(int Width, int Height)> _resolutionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly CancellationTokenSource _cts = new();
         private Task? _initializationTask;
-        
+
         private DBusConnection? _dbusConnection;
         private KdeTrackerServiceMethodHandler? _trackerHandler;
         private KdeTrackerService? _trackerService;
@@ -93,7 +93,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
         {
             if (!Directory.Exists(ScriptDirectory))
                 Directory.CreateDirectory(ScriptDirectory);
-                
+
             return Path.Combine(ScriptDirectory, fileName);
         }
 
@@ -198,7 +198,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
             return true;
         }
 
-        internal bool IsDisposed => Volatile.Read(ref _disposed) != 0;
+        internal bool IsDisposed => Volatile.Read(ref _disposed) is not 0;
 
         private void ThrowIfDisposedOrCanceled(CancellationToken ct)
         {
@@ -212,7 +212,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 
         private void ThrowIfShutdownRequestedAfterScriptLoad(CancellationToken ct)
         {
-            if (_dbusConnection == null)
+            if (_dbusConnection is null)
             {
                 throw new InvalidOperationException("DBus session was not initialized.");
             }
@@ -231,14 +231,14 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 
         private async Task InitializeAsync(System.Threading.CancellationToken ct)
         {
-            try 
+            try
             {
                 // 1. Initialize DBus Service
                 Log.Information("[KdePositionProvider] Initializing DBus service...");
                 _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
                 await _dbusConnection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
                 ThrowIfDisposedOrCanceled(ct);
-                
+
                 _trackerService = new KdeTrackerService(ApplyPositionUpdate, ApplyResolutionUpdate);
                 _trackerHandler = new KdeTrackerServiceMethodHandler(_trackerService);
                 _dbusConnection.AddMethodHandler(_trackerHandler);
@@ -251,20 +251,20 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
 
                 // 2. Create KWin script with DBus calls
                 _tempJsFile = GetSafeScriptPath($"kde_tracker_{Guid.NewGuid()}.js");
-                
+
                 var scriptContent = BuildTrackerScriptContent();
                 scriptContent = scriptContent.Replace("__TRACKER_OBJECT_PATH__", KdeTrackerService.TrackerObjectPath, StringComparison.Ordinal);
                 await File.WriteAllTextAsync(_tempJsFile, scriptContent, ct);
                 ThrowIfDisposedOrCanceled(ct);
-                
+
                 await Task.Delay(200, ct);
                 ThrowIfDisposedOrCanceled(ct);
 
                 // 3. Load KWin script
-                try 
+                try
                 {
                     Log.Information("[KdePositionProvider] Loading KWin script via DBus...");
-                    if (_dbusConnection == null)
+                    if (_dbusConnection is null)
                     {
                         throw new InvalidOperationException("DBus session was not initialized.");
                     }
@@ -273,7 +273,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                     var scriptIdInt = await scriptingProxy.LoadScriptAsync(_tempJsFile).WaitAsync(ct).ConfigureAwait(false);
                     _scriptId = scriptIdInt.ToString();
                     ThrowIfShutdownRequestedAfterScriptLoad(ct);
-                    
+
                     if (string.IsNullOrEmpty(_scriptId) || scriptIdInt < 0)
                     {
                          Log.Error("[KdePositionProvider] Failed to load KWin script. Invalid ID: '{ScriptId}'", _scriptId);
@@ -289,7 +289,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
                     var scriptProxy = new KWinScriptClient(_dbusConnection, _scriptId);
                     await scriptProxy.RunAsync().WaitAsync(ct).ConfigureAwait(false);
                     ThrowIfShutdownRequestedAfterScriptLoad(ct);
-                    
+
                     Log.Information("[KdePositionProvider] Tracking started successfully via DBus");
                 }
                 catch (Exception ex)
@@ -392,7 +392,7 @@ console.error('[CrossMacro] Position tracking started');
                 _positionTcs.Task,
                 PositionTimeout,
                 timeout => Task.Delay(timeout)).ConfigureAwait(false);
-            if (position == null || !IsSupported || IsDisposed)
+            if (position is null || !IsSupported || IsDisposed)
             {
                 return null;
             }
@@ -409,11 +409,11 @@ console.error('[CrossMacro] Position tracking started');
                 return null;
 
             var resolution = await AwaitResolutionAsync(_resolutionTcs.Task, ResolutionTimeout, timeout => Task.Delay(timeout)).ConfigureAwait(false);
-            if (resolution != null)
+            if (resolution is not null)
             {
                 return resolution;
             }
-            
+
             Log.Warning("[KdePositionProvider] Resolution detection timed out; downgrading to unknown resolution mode.");
             return null;
         }
@@ -444,7 +444,7 @@ console.error('[CrossMacro] Position tracking started');
             }
 
             // Stop script
-            if (_dbusConnection != null)
+            if (_dbusConnection is not null)
             {
                 StopLoadedScript(
                     _scriptId,
@@ -457,12 +457,12 @@ console.error('[CrossMacro] Position tracking started');
             _dbusConnection?.Dispose();
             _cts.Dispose();
 
-            if (_tempJsFile != null && File.Exists(_tempJsFile))
+            if (_tempJsFile is not null && File.Exists(_tempJsFile))
             {
-                try 
-                { 
-                    File.Delete(_tempJsFile); 
-                } 
+                try
+                {
+                    File.Delete(_tempJsFile);
+                }
                 catch (Exception ex)
                 {
                     Log.Debug(ex, "[KdePositionProvider] Failed to delete temp script file: {File}", _tempJsFile);

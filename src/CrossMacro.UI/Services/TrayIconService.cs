@@ -25,7 +25,7 @@ public class TrayIconService : ITrayIconService
     private Window? _mainWindow;
     private bool _isExiting;
     private bool _isEnabled = true;
-    
+
     private NativeMenuItem? _startRecordingItem;
     private NativeMenuItem? _startPlaybackItem;
     private NativeMenuItem? _stopItem;
@@ -44,7 +44,7 @@ public class TrayIconService : ITrayIconService
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
     }
 
-    public bool IsAvailable => _trayIcon != null;
+    public bool IsAvailable => _trayIcon is not null;
 
     public static bool IsTraySupported(IRuntimeContext runtimeContext)
     {
@@ -67,11 +67,11 @@ public class TrayIconService : ITrayIconService
         try
         {
             var desktop = _desktopLifetimeContext.DesktopLifetime;
-            if (desktop != null)
+            if (desktop is not null)
             {
                 _mainWindow = _desktopLifetimeContext.MainWindow;
 
-                if (_mainWindow != null)
+                if (_mainWindow is not null)
                 {
                     _mainWindow.Closing += OnWindowClosing;
                 }
@@ -117,7 +117,7 @@ public class TrayIconService : ITrayIconService
             _trayIcon = new TrayIcon
             {
                 Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://CrossMacro.UI.Core/Assets/mouse-icon.png"))),
-                ToolTipText = AppConstants.AppName
+                ToolTipText = AppConstants.AppName,
             };
 
             var menu = new NativeMenu();
@@ -162,7 +162,7 @@ public class TrayIconService : ITrayIconService
             Log.Warning(ex, "Could not initialize tray icon (this is expected in Flatpak sandbox)");
 
             // Clean up partial initialization
-            if (_trayIcon != null)
+            if (_trayIcon is not null)
             {
                 try { _trayIcon.Dispose(); } catch { }
                 _trayIcon = null;
@@ -171,7 +171,7 @@ public class TrayIconService : ITrayIconService
             return false;
         }
     }
-    
+
     private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         RefreshMenuLabels(e.PropertyName);
@@ -196,7 +196,7 @@ public class TrayIconService : ITrayIconService
                 UpdateStopHeader();
                 break;
             default:
-                if (_showHideItem != null)
+                if (_showHideItem is not null)
                 {
                     _showHideItem.Header = _localizationService["Tray_ShowHide"];
                 }
@@ -205,7 +205,7 @@ public class TrayIconService : ITrayIconService
                 UpdatePlaybackHeader();
                 UpdateStopHeader();
 
-                if (_exitItem != null)
+                if (_exitItem is not null)
                 {
                     _exitItem.Header = _localizationService["Tray_Exit"];
                 }
@@ -215,7 +215,7 @@ public class TrayIconService : ITrayIconService
 
     private void UpdateRecordingHeader()
     {
-        if (_startRecordingItem != null)
+        if (_startRecordingItem is not null)
         {
             _startRecordingItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartRecording"], _viewModel.Settings.RecordingHotkey);
         }
@@ -223,7 +223,7 @@ public class TrayIconService : ITrayIconService
 
     private void UpdatePlaybackHeader()
     {
-        if (_startPlaybackItem != null)
+        if (_startPlaybackItem is not null)
         {
             _startPlaybackItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartPlayback"], _viewModel.Settings.PlaybackHotkey);
         }
@@ -231,7 +231,7 @@ public class TrayIconService : ITrayIconService
 
     private void UpdateStopHeader()
     {
-        if (_stopItem != null)
+        if (_stopItem is not null)
         {
             _stopItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_Stop"], _viewModel.Settings.PauseHotkey);
         }
@@ -249,7 +249,7 @@ public class TrayIconService : ITrayIconService
         {
             e.Cancel = true;
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
-            if (_mainWindow != null)
+            if (_mainWindow is not null)
             {
                 _mainWindow.ShowInTaskbar = false;
             }
@@ -275,7 +275,7 @@ public class TrayIconService : ITrayIconService
     private void ToggleWindowVisibility()
     {
         _mainWindow ??= _desktopLifetimeContext.MainWindow;
-        if (_mainWindow == null)
+        if (_mainWindow is null)
         {
             Log.Warning("Tray show/hide requested but main window is unavailable");
             return;
@@ -360,11 +360,11 @@ public class TrayIconService : ITrayIconService
             _isExiting = true;
 
             var desktop = _desktopLifetimeContext.DesktopLifetime;
-            if (desktop != null)
+            if (desktop is not null)
             {
                 desktop.Shutdown();
             }
-            
+
             Log.Information("Application exiting via tray menu");
         }
         catch (Exception ex)
@@ -375,7 +375,7 @@ public class TrayIconService : ITrayIconService
 
     public void Show()
     {
-        if (_trayIcon != null)
+        if (_trayIcon is not null)
         {
             _trayIcon.IsVisible = true;
         }
@@ -383,7 +383,7 @@ public class TrayIconService : ITrayIconService
 
     public void Hide()
     {
-        if (_trayIcon != null)
+        if (_trayIcon is not null)
         {
             _trayIcon.IsVisible = false;
         }
@@ -391,7 +391,7 @@ public class TrayIconService : ITrayIconService
 
     public void UpdateTooltip(string tooltip)
     {
-        if (_trayIcon != null)
+        if (_trayIcon is not null)
         {
             _trayIcon.ToolTipText = tooltip;
         }
@@ -399,15 +399,15 @@ public class TrayIconService : ITrayIconService
 
     public void SetEnabled(bool enabled)
     {
-        var isEnabled = enabled && _trayIcon != null;
+        var isEnabled = enabled && _trayIcon is not null;
         _isEnabled = isEnabled;
 
-        if (_trayIcon != null)
+        if (_trayIcon is not null)
         {
             _trayIcon.IsVisible = isEnabled;
         }
 
-        SetShutdownMode(_desktopLifetimeContext, isEnabled && _mainWindow?.IsVisible != true
+        SetShutdownMode(_desktopLifetimeContext, isEnabled && (_mainWindow?.IsVisible) is not true
             ? ShutdownMode.OnExplicitShutdown
             : ShutdownMode.OnLastWindowClose);
 
@@ -424,7 +424,7 @@ public class TrayIconService : ITrayIconService
 
     public void Dispose()
     {
-        if (_mainWindow != null)
+        if (_mainWindow is not null)
         {
             _mainWindow.Closing -= OnWindowClosing;
         }
@@ -433,10 +433,10 @@ public class TrayIconService : ITrayIconService
         {
             desktop.ShutdownRequested -= OnShutdownRequested;
         }
-        
+
         _viewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
         _localizationService.CultureChanged -= OnCultureChanged;
-        
+
         _trayIcon?.Dispose();
         Log.Debug("Tray icon service disposed");
     }

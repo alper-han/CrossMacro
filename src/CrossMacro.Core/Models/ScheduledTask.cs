@@ -13,7 +13,7 @@ public enum ScheduleType
     /// Repeats at regular intervals (seconds, minutes, hours)
     /// </summary>
     Interval,
-    
+
     /// <summary>
     /// Runs once at a specific date and time
     /// </summary>
@@ -22,7 +22,7 @@ public enum ScheduleType
     /// <summary>
     /// Repeats weekly on selected days at a specific local time
     /// </summary>
-    Weekly
+    Weekly,
 }
 
 /// <summary>
@@ -42,7 +42,7 @@ public enum ScheduleDays
 
     Weekdays = Monday | Tuesday | Wednesday | Thursday | Friday,
     Weekends = Saturday | Sunday,
-    EveryDay = Weekdays | Weekends
+    EveryDay = Weekdays | Weekends,
 }
 
 /// <summary>
@@ -52,7 +52,7 @@ public enum IntervalUnit
 {
     Seconds,
     Minutes,
-    Hours
+    Hours,
 }
 
 /// <summary>
@@ -61,7 +61,7 @@ public enum IntervalUnit
 public class ScheduledTask : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
-    
+
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -70,7 +70,7 @@ public class ScheduledTask : INotifyPropertyChanged
     /// Unique identifier for this scheduled task
     /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
-    
+
     /// <summary>
     /// Display name for the task
     /// </summary>
@@ -80,22 +80,22 @@ public class ScheduledTask : INotifyPropertyChanged
         get => _name;
         set { _name = value; OnPropertyChanged(); }
     }
-    
+
     /// <summary>
     /// Path to the macro file to execute
     /// </summary>
     private string _macroFilePath = string.Empty;
-    public string MacroFilePath 
-    { 
+    public string MacroFilePath
+    {
         get => _macroFilePath;
-        set 
-        { 
-            _macroFilePath = value; 
-            OnPropertyChanged(); 
+        set
+        {
+            _macroFilePath = value;
+            OnPropertyChanged();
             RefreshEnableState();
         }
     }
-    
+
     /// <summary>
     /// Type of schedule (Interval, DateTime, or Weekly)
     /// </summary>
@@ -110,13 +110,13 @@ public class ScheduledTask : INotifyPropertyChanged
             RefreshEnableState();
         }
     }
-    
+
     /// <summary>
     /// Playback speed multiplier (0.1 = 10x slower, 1.0 = normal, 10.0 = 10x faster)
     /// </summary>
     private double _playbackSpeed = 1.0;
-    public double PlaybackSpeed 
-    { 
+    public double PlaybackSpeed
+    {
         get => _playbackSpeed;
         set
         {
@@ -128,13 +128,13 @@ public class ScheduledTask : INotifyPropertyChanged
             }
         }
     }
-    
+
     /// <summary>
     /// Whether the task is enabled
     /// </summary>
     private bool _isEnabled;
-    public bool IsEnabled 
-    { 
+    public bool IsEnabled
+    {
         get => _isEnabled;
         set
         {
@@ -143,7 +143,7 @@ public class ScheduledTask : INotifyPropertyChanged
             {
                 return; // Don't allow enabling without required inputs
             }
-            
+
             _isEnabled = value;
             OnPropertyChanged();
             if (value)
@@ -156,15 +156,15 @@ public class ScheduledTask : INotifyPropertyChanged
             }
         }
     }
-    
+
     /// <summary>
     /// Whether the task can be enabled (has a macro file path)
     /// </summary>
     public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
-        && (Type != ScheduleType.Weekly || WeeklyDays != ScheduleDays.None);
-    
+&& (Type is not ScheduleType.Weekly || WeeklyDays is not ScheduleDays.None);
+
     // Interval settings
-    
+
     /// <summary>
     /// Interval value (used with IntervalUnit)
     /// </summary>
@@ -174,7 +174,7 @@ public class ScheduledTask : INotifyPropertyChanged
         get => _intervalValue;
         set { _intervalValue = value; OnPropertyChanged(); }
     }
-    
+
     /// <summary>
     /// Unit for the interval (Seconds, Minutes, Hours)
     /// </summary>
@@ -219,9 +219,9 @@ public class ScheduledTask : INotifyPropertyChanged
             OnPropertyChanged(nameof(IntervalMinValue));
         }
     }
-    
+
     // DateTime settings
-    
+
     /// <summary>
     /// Scheduled date and time for DateTime type
     /// </summary>
@@ -269,39 +269,39 @@ public class ScheduledTask : INotifyPropertyChanged
         get => _weeklyTime;
         set { _weeklyTime = NormalizeTimeOfDay(value); OnPropertyChanged(); }
     }
-    
+
     // State
-    
+
     /// <summary>
     /// When the task was last executed
     /// </summary>
     private DateTime? _lastRunTime;
-    public DateTime? LastRunTime 
-    { 
+    public DateTime? LastRunTime
+    {
         get => _lastRunTime;
         set { _lastRunTime = value; OnPropertyChanged(); }
     }
-    
+
     /// <summary>
     /// When the task is scheduled to run next
     /// </summary>
     private DateTime? _nextRunTime;
-    public DateTime? NextRunTime 
-    { 
+    public DateTime? NextRunTime
+    {
         get => _nextRunTime;
         set { _nextRunTime = value; OnPropertyChanged(); }
     }
-    
+
     /// <summary>
     /// Status message from last execution
     /// </summary>
     private string? _lastStatus;
-    public string? LastStatus 
-    { 
+    public string? LastStatus
+    {
         get => _lastStatus;
         set { _lastStatus = value; OnPropertyChanged(); }
     }
-    
+
     /// <summary>
     /// Calculates the interval as <see cref="TimeSpan"/>.
     /// </summary>
@@ -318,7 +318,7 @@ public class ScheduledTask : INotifyPropertyChanged
             IntervalUnit.Seconds => TimeSpan.TicksPerSecond,
             IntervalUnit.Minutes => TimeSpan.TicksPerMinute,
             IntervalUnit.Hours => TimeSpan.TicksPerHour,
-            _ => TimeSpan.TicksPerSecond
+            _ => TimeSpan.TicksPerSecond,
         };
 
         long totalTicks;
@@ -354,27 +354,25 @@ public class ScheduledTask : INotifyPropertyChanged
 
         return (int)interval.TotalMilliseconds;
     }
-    
+
     /// <summary>
     /// Calculates the next run time based on schedule type
     /// </summary>
     public void CalculateNextRunTime(DateTime? now = null)
     {
         var baseTime = now ?? DateTime.UtcNow;
-        if (Type == ScheduleType.Interval)
+        if (Type is ScheduleType.Interval)
         {
             NextRunTime = AddIntervalClamped(baseTime, GetNextIntervalDelay());
         }
-        else if (Type == ScheduleType.SpecificTime && ScheduledDateTime.HasValue)
+        else if (Type is ScheduleType.SpecificTime && ScheduledDateTime.HasValue)
         {
             // Ensure comparison uses UTC
-            var scheduledUtc = ScheduledDateTime.Value.Kind == DateTimeKind.Unspecified 
-                ? DateTime.SpecifyKind(ScheduledDateTime.Value, DateTimeKind.Local).ToUniversalTime() 
+            NextRunTime = ScheduledDateTime.Value.Kind is DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(ScheduledDateTime.Value, DateTimeKind.Local).ToUniversalTime()
                 : ScheduledDateTime.Value.ToUniversalTime();
-
-            NextRunTime = scheduledUtc;
         }
-        else if (Type == ScheduleType.Weekly)
+        else if (Type is ScheduleType.Weekly)
         {
             NextRunTime = CalculateNextWeeklyRunTime(baseTime);
         }
@@ -382,7 +380,7 @@ public class ScheduledTask : INotifyPropertyChanged
 
     private DateTime? CalculateNextWeeklyRunTime(DateTime baseTime)
     {
-        if (WeeklyDays == ScheduleDays.None)
+        if (WeeklyDays is ScheduleDays.None)
         {
             return null;
         }
@@ -391,7 +389,7 @@ public class ScheduledTask : INotifyPropertyChanged
         {
             DateTimeKind.Local => baseTime,
             DateTimeKind.Utc => baseTime.ToLocalTime(),
-            _ => DateTime.SpecifyKind(baseTime, DateTimeKind.Local)
+            _ => DateTime.SpecifyKind(baseTime, DateTimeKind.Local),
         };
         var normalizedWeeklyTime = NormalizeTimeOfDay(WeeklyTime);
 
@@ -424,7 +422,7 @@ public class ScheduledTask : INotifyPropertyChanged
             DayOfWeek.Friday => ScheduleDays.Friday,
             DayOfWeek.Saturday => ScheduleDays.Saturday,
             DayOfWeek.Sunday => ScheduleDays.Sunday,
-            _ => ScheduleDays.None
+            _ => ScheduleDays.None,
         };
     }
 

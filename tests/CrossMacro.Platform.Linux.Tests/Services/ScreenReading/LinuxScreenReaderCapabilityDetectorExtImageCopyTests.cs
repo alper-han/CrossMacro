@@ -80,7 +80,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
 
         Assert.False(snapshot.ExtImageCopy.IsAvailable);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, snapshot.ExtImageCopy.ErrorKind);
-        Assert.Contains("ext globals missing", snapshot.ExtImageCopy.ErrorMessage);
+        Assert.Contains("ext globals missing", snapshot.ExtImageCopy.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
         Assert.Equal(LinuxScreenReaderBackend.WlrScreencopy, snapshot.WlrScreencopy.Backend);
         Assert.False(snapshot.Portal.IsAvailable);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, snapshot.Portal.ErrorKind);
-        Assert.Contains("portal denied", snapshot.Portal.ErrorMessage);
+        Assert.Contains("portal denied", snapshot.Portal.ErrorMessage, StringComparison.Ordinal);
         Assert.True(snapshot.KWinScreenShot2.IsAvailable);
         Assert.Equal(LinuxScreenReaderBackend.KWinScreenShot2, snapshot.KWinScreenShot2.Backend);
     }

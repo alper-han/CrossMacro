@@ -108,8 +108,7 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
         }
 
         var mode = _capabilityDetector.DetermineMode();
-        return mode == InputProviderMode.None ||
-               (mode == InputProviderMode.Legacy && !_capabilityDetector.CanReadInputEvents);
+        return mode is InputProviderMode.None || (mode is InputProviderMode.Legacy && !_capabilityDetector.CanReadInputEvents);
     }
 
     public async Task<QuickSetupResult> RunAsync(CancellationToken cancellationToken = default)

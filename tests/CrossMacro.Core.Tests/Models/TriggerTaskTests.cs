@@ -50,7 +50,7 @@ public class TriggerTaskTests
         {
             Value = "firefox",
             Action = TriggerAction.SwitchProfile,
-            TargetProfileId = "gaming"
+            TargetProfileId = "gaming",
         };
         t.IsEnabled = true;
         t.IsEnabled.Should().BeTrue();
@@ -78,7 +78,7 @@ public class TriggerTaskTests
         {
             Field = TriggerField.None,
             Action = TriggerAction.SwitchProfile,
-            TargetProfileId = "gaming"
+            TargetProfileId = "gaming",
         };
         t.CanBeEnabled.Should().BeTrue("None field fires regardless of window state, no Value required");
     }

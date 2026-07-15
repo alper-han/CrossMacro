@@ -151,11 +151,30 @@ public class ArchitectureBoundaryTests
 
         Assert.Equal(
             [
-                "src/CrossMacro.Application/Automation/ManageTaskWorkflows.cs",
+                "src/CrossMacro.Application/Automation/IManageSchedule.cs",
+                "src/CrossMacro.Application/Automation/IManageShortcut.cs",
+                "src/CrossMacro.Application/Automation/IManageTextExpansion.cs",
+                "src/CrossMacro.Application/Automation/IManageTrigger.cs",
+                "src/CrossMacro.Application/Automation/ITextExpansionStore.cs",
+                "src/CrossMacro.Application/Automation/ManageSchedule.cs",
+                "src/CrossMacro.Application/Automation/ManageShortcut.cs",
                 "src/CrossMacro.Application/Automation/ManageTextExpansion.cs",
+                "src/CrossMacro.Application/Automation/ManageTrigger.cs",
+                "src/CrossMacro.Application/Automation/TaskCollectionResult.cs",
+                "src/CrossMacro.Application/Automation/TaskRequest.cs",
+                "src/CrossMacro.Application/Profiles/IManageProfile.cs",
                 "src/CrossMacro.Application/Profiles/ManageProfile.cs",
+                "src/CrossMacro.Application/Profiles/ProfileRequest.cs",
+                "src/CrossMacro.Application/Profiles/ProfileResult.cs",
+                "src/CrossMacro.Application/Runtime/IRunExecutionService.cs",
                 "src/CrossMacro.Application/Runtime/IRuntimeLifecycle.cs",
+                "src/CrossMacro.Application/Runtime/RunExecutionRequest.cs",
+                "src/CrossMacro.Application/Runtime/RunExecutionResult.cs",
+                "src/CrossMacro.Application/Runtime/RunExecutionStatus.cs",
                 "src/CrossMacro.Application/Runtime/RunScriptExecution.cs",
+                "src/CrossMacro.Application/Runtime/RunScriptInputStep.cs",
+                "src/CrossMacro.Application/Runtime/RuntimeLifecycle.cs",
+                "src/CrossMacro.Application/Runtime/RuntimeLifecycleStep.cs",
             ],
             applicationSource);
     }

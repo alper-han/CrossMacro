@@ -490,7 +490,7 @@ public class DoctorServiceTests
             x[0] = string.Empty;
             return true;
         });
-        var scenario = Issue44DoctorScenario.SocketPermissionDenied();
+        var scenario = LinuxDoctorInputScenario.SocketPermissionDenied();
 
         var service = CreateService(
             scenario.GetEnvironmentVariable,
@@ -710,7 +710,7 @@ public class DoctorServiceTests
             x[0] = string.Empty;
             return true;
         });
-        var scenario = Issue44DoctorScenario.DirectFallbackAvailable();
+        var scenario = LinuxDoctorInputScenario.DirectFallbackAvailable();
 
         var service = CreateService(
             scenario.GetEnvironmentVariable,
@@ -740,7 +740,7 @@ public class DoctorServiceTests
             x[0] = string.Empty;
             return true;
         });
-        var scenario = Issue44DoctorScenario.SocketPermissionDenied(directFallbackAvailable: true);
+        var scenario = LinuxDoctorInputScenario.SocketPermissionDenied(directFallbackAvailable: true);
 
         var service = CreateService(
             scenario.GetEnvironmentVariable,
@@ -778,7 +778,7 @@ public class DoctorServiceTests
             x[0] = string.Empty;
             return true;
         });
-        var scenario = Issue44DoctorScenario.SocketAccessible(
+        var scenario = LinuxDoctorInputScenario.SocketAccessible(
             LinuxDaemonGroupMembershipStatus.StaleSession,
             handshakeStatus: LinuxDaemonHandshakeStatus.PermissionDenied,
             directFallbackAvailable: false);
@@ -813,7 +813,7 @@ public class DoctorServiceTests
             x[0] = string.Empty;
             return true;
         });
-        var scenario = Issue44DoctorScenario.DirectFallbackAvailable();
+        var scenario = LinuxDoctorInputScenario.DirectFallbackAvailable();
 
         var service = CreateService(
             scenario.GetEnvironmentVariable,
@@ -849,7 +849,7 @@ public class DoctorServiceTests
             x[0] = string.Empty;
             return true;
         });
-        var scenario = Issue44DoctorScenario.SocketAccessible(
+        var scenario = LinuxDoctorInputScenario.SocketAccessible(
             LinuxDaemonGroupMembershipStatus.Member,
             handshakeStatus,
             directFallbackAvailable: false);

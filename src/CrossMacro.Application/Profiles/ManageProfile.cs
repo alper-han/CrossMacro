@@ -8,23 +8,6 @@ using CrossMacro.Core.Services;
 
 namespace CrossMacro.Application.Profiles;
 
-public sealed record ProfileRequest(string? Identifier = null, string? DisplayName = null);
-
-public sealed record ProfileResult(
-    ProfileInfo? Profile,
-    IReadOnlyList<ProfileInfo> Profiles,
-    string ActiveProfileId);
-
-public interface IManageProfile
-{
-    Task<ProfileResult> ListAsync(CancellationToken cancellationToken = default);
-    Task<ProfileResult> CurrentAsync(CancellationToken cancellationToken = default);
-    Task<ProfileResult> CreateAsync(ProfileRequest request, CancellationToken cancellationToken = default);
-    Task<ProfileResult> SwitchAsync(ProfileRequest request, CancellationToken cancellationToken = default);
-    Task<ProfileResult> RenameAsync(ProfileRequest request, CancellationToken cancellationToken = default);
-    Task<ProfileResult> DeleteAsync(ProfileRequest request, CancellationToken cancellationToken = default);
-}
-
 public sealed class ManageProfile : IManageProfile
 {
     private readonly IProfileManager _profiles;

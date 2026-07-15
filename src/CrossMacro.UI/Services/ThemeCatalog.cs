@@ -5,8 +5,6 @@ using System.Linq;
 
 namespace CrossMacro.UI.Services;
 
-public sealed record ThemeDescriptor(string Name, string ResourceKey, string SourcePath);
-
 public static class ThemeCatalog
 {
     public const string DefaultThemeName = "Mocha";

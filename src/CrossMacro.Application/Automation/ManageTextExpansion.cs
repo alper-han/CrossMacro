@@ -8,22 +8,6 @@ using CrossMacro.Core.Services;
 
 namespace CrossMacro.Application.Automation;
 
-public interface ITextExpansionStore
-{
-    Task<List<TextExpansion>> LoadAsync();
-    Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
-    Task SaveAsync(IEnumerable<TextExpansion> expansions);
-}
-
-public interface IManageTextExpansion
-{
-    Task<IReadOnlyList<TextExpansion>> ListAsync(string? profileIdentifier = null, CancellationToken cancellationToken = default);
-    Task<TextExpansion> AddAsync(TextExpansion expansion, string? profileIdentifier = null, CancellationToken cancellationToken = default);
-    Task<TextExpansion> RemoveAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default);
-    Task<TextExpansion> SetEnabledAsync(string trigger, bool enabled, string? profileIdentifier = null, CancellationToken cancellationToken = default);
-    Task<TextExpansion?> FindAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default);
-}
-
 public sealed class ManageTextExpansion : IManageTextExpansion
 {
     private readonly ITextExpansionStore _store;

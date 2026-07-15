@@ -3,18 +3,6 @@ using System.Collections.Generic;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-internal enum CaptureCommandType
-{
-    None = 0,
-    Start = 1,
-    Stop = 2,
-}
-
-internal readonly record struct CaptureCommand(
-    CaptureCommandType Type,
-    bool CaptureMouse = false,
-    bool CaptureKeyboard = false);
-
 internal sealed class CaptureSubscriptionCoordinator
 {
     private readonly Dictionary<string, (bool Mouse, bool Keyboard)> _subscriptions = new(StringComparer.Ordinal);

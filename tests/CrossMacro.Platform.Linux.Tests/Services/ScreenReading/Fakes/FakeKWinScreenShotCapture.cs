@@ -44,15 +44,3 @@ internal sealed class FakeKWinScreenShotCapture : IKWinScreenShotCapture
 
     public void Dispose() => DisposeCount++;
 }
-
-internal sealed class FakeKWinScreenShotSupportProbe : IKWinScreenShotSupportProbe
-{
-    private readonly KWinScreenShotSupportResult _support;
-
-    public FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult support)
-    {
-        _support = support;
-    }
-
-    public KWinScreenShotSupportResult ProbeSupport() => _support;
-}

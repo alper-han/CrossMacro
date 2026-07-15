@@ -336,9 +336,3 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         _dbusConnection?.Dispose();
     }
 }
-
-[JsonSerializable(typeof(WindowInfo))]
-[JsonSerializable(typeof(WindowInfo[]))]
-internal sealed partial class KdeJsonContext : JsonSerializerContext
-{
-}

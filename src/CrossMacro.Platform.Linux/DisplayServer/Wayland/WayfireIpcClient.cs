@@ -10,17 +10,6 @@ using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal interface IWayfireIpcClient : IDisposable
-{
-    bool IsAvailable { get; }
-    string? SocketPath { get; }
-    Task<string?> SendRequestAsync(string method, CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Shared IPC client for communicating with Wayfire via Unix socket.
-/// Protocol uses a 4-byte little-endian length prefix followed by JSON payload.
-/// </summary>
 public sealed class WayfireIpcClient : IWayfireIpcClient
 {
     private const int SocketTimeoutMs = 1000;

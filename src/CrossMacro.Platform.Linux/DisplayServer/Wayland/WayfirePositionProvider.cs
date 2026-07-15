@@ -418,5 +418,3 @@ public class WayfirePositionProvider : IMousePositionProvider
         GC.SuppressFinalize(this);
     }
 }
-
-internal readonly record struct OutputLayout(int OriginX, int OriginY, int Width, int Height);

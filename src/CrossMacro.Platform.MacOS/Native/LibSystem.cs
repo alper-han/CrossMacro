@@ -10,11 +10,3 @@ internal static class LibSystem
     [DllImport(LibSystemLib)]
     public static extern int pthread_main_np();
 }
-
-internal static class MacOSMainThread
-{
-    public static bool IsMainThread()
-    {
-        return !OperatingSystem.IsMacOS() || LibSystem.pthread_main_np() is 1;
-    }
-}

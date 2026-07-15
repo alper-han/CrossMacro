@@ -3,36 +3,6 @@ using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
 
-internal enum MacOSKeyboardEventRoute
-{
-    Unsupported,
-    Keyboard,
-    SystemDefined,
-}
-
-internal readonly struct MacOSSystemKeyEventPayload
-{
-    internal MacOSSystemKeyEventPayload(
-        CoreGraphics.CGEventType eventType,
-        CoreGraphics.CGEventFlags flags,
-        long subtype,
-        long data1,
-        long data2)
-    {
-        EventType = eventType;
-        Flags = flags;
-        Subtype = subtype;
-        Data1 = data1;
-        Data2 = data2;
-    }
-
-    internal CoreGraphics.CGEventType EventType { get; }
-    internal CoreGraphics.CGEventFlags Flags { get; }
-    internal long Subtype { get; }
-    internal long Data1 { get; }
-    internal long Data2 { get; }
-}
-
 internal static class MacOSSystemKeyEventFactory
 {
     internal static bool IsNSEventBridgeAvailable => MacOSSystemKeyNSEventBridge.IsAvailable;

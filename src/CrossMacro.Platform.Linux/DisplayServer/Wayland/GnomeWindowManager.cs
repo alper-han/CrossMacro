@@ -169,9 +169,3 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
         _dbusConnection?.Dispose();
     }
 }
-
-[System.Text.Json.Serialization.JsonSerializable(typeof(WindowInfo))]
-[System.Text.Json.Serialization.JsonSerializable(typeof(WindowInfo[]))]
-internal sealed partial class GnomeJsonContext : System.Text.Json.Serialization.JsonSerializerContext
-{
-}

@@ -5,27 +5,6 @@ using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-internal delegate void PortalMessageWriterAction(ref MessageWriter writer);
-
-internal interface IPortalScreenCastSessionClient : IDisposable
-{
-    Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null);
-
-    void DisposeIfNotOwnedBySession();
-}
-
-internal interface IPortalScreenCastSessionClientFactory
-{
-    Task<IPortalScreenCastSessionClient> ConnectAsync();
-}
-
-internal sealed class PortalScreenCastSessionClientFactory : IPortalScreenCastSessionClientFactory
-{
-    public static PortalScreenCastSessionClientFactory Instance { get; } = new();
-
-    public async Task<IPortalScreenCastSessionClient> ConnectAsync() => await PortalScreenCastClient.ConnectAsync().ConfigureAwait(false);
-}
-
 internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
 {
     private const string Service = "org.freedesktop.portal.Desktop";

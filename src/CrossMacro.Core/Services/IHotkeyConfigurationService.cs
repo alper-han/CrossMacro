@@ -11,9 +11,3 @@ public interface IHotkeyConfigurationService
     void Save(HotkeySettings settings);
     bool TrySave(HotkeyConfigurationSaveRequest request);
 }
-
-public sealed record HotkeyConfigurationSaveRequest(
-    string ConfigPath,
-    string RecordingHotkey,
-    string PlaybackHotkey,
-    string PauseHotkey);

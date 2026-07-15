@@ -4,21 +4,6 @@ using CrossMacro.Core.Services;
 
 namespace CrossMacro.Core.Models;
 
-public enum EditorActionScreenReadingVariableRole
-{
-    None,
-    Color,
-    Boolean,
-    Number,
-}
-
-public enum EditorActionScreenTargetColorSource
-{
-    ManualHex = 0,
-    Manual = ManualHex,
-    Variable = 1,
-}
-
 public readonly record struct EditorActionScreenReadingPayload(
     EditorActionType Type,
     bool IsAbsolute,

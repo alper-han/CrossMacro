@@ -1,13 +1,5 @@
 namespace CrossMacro.Platform.Linux.Services;
 
-public readonly record struct LinuxBackendSelection(
-    InputProviderMode Mode,
-    bool CaptureSupported,
-    string Reason)
-{
-    public bool IsSupported => Reason is "native-x11" || Mode is not InputProviderMode.None;
-}
-
 /// <summary>
 /// Pure Linux input backend policy. It intentionally keeps capture and simulation
 /// distinct because direct-device simulation does not require readable event devices.

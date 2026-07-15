@@ -8,21 +8,6 @@ using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
-internal enum RunScriptScreenReadingCommand
-{
-    PixelColor,
-    WaitColor,
-    PixelSearch,
-    ImageSearch,
-    ImageClick,
-    WaitImage,
-}
-
-internal readonly record struct PixelSearchVariableLayout(
-    string? FoundVariableName,
-    string? XVariableName,
-    string? YVariableName);
-
 internal static class RunScriptScreenReadingStepParser
 {
     public static bool TryValidateStep(string step, out string? error)

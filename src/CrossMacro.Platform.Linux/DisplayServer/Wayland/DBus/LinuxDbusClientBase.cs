@@ -5,8 +5,6 @@ using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-internal delegate void MessageWriterAction(ref MessageWriter writer);
-
 internal abstract class LinuxDbusClientBase
 {
     private readonly DBusConnection _connection;

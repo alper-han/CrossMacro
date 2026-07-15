@@ -5,27 +5,6 @@ using System.Threading.Tasks;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-internal readonly record struct PendingCaptureStartRegistration(
-    int RequestId,
-    TaskCompletionSource<bool> Completion);
-
-internal readonly record struct PendingCaptureStartFailureContext(
-    bool NotifyOnFailure,
-    bool ForceReconcileOnFailure,
-    CaptureCommand FailedCommand,
-    PendingAsyncParticipantSnapshot[] FailedAsyncParticipants,
-    CaptureCommand FailedPreviousTransportCommand,
-    bool SubscriptionRemovedSinceStart,
-    string[] RemovedConsumersSinceStart,
-    TaskCompletionSource<bool> Completion);
-
-internal readonly record struct PendingAsyncParticipantSnapshot(
-    string ConsumerId,
-    bool HadPreviousSubscription,
-    bool PreviousCaptureMouse,
-    bool PreviousCaptureKeyboard,
-    bool ShouldRestoreOnFailure);
-
 internal sealed class PendingCaptureStartRegistry
 {
     private readonly Lock _lock = new();

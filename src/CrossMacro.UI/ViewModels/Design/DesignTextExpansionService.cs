@@ -1,0 +1,26 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using CrossMacro.Application.Automation;
+using CrossMacro.Core.Models;
+using CrossMacro.Core.Services;
+using CrossMacro.UI.Localization;
+using CrossMacro.UI.Services;
+
+namespace CrossMacro.UI.ViewModels;
+
+internal sealed class DesignTextExpansionService : ITextExpansionService
+{
+    public bool IsRunning { get; private set; }
+
+    public void Start() => IsRunning = true;
+
+    public void Stop() => IsRunning = false;
+
+    public void Dispose()
+    {
+    }
+}

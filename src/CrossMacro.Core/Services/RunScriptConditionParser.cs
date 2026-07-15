@@ -3,11 +3,6 @@ using System;
 namespace CrossMacro.Core.Services;
 
 /// <summary>
-/// Parsed run-script condition expression.
-/// </summary>
-public sealed record RunScriptCondition(string LeftToken, string OperatorToken, string RightToken);
-
-/// <summary>
 /// Shared parser for run-script condition expressions.
 /// </summary>
 public static class RunScriptConditionParser

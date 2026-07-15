@@ -5,57 +5,6 @@ using System.Runtime.CompilerServices;
 namespace CrossMacro.Core.Models;
 
 /// <summary>
-/// Type of schedule for a scheduled task
-/// </summary>
-public enum ScheduleType
-{
-    /// <summary>
-    /// Repeats at regular intervals (seconds, minutes, hours)
-    /// </summary>
-    Interval,
-
-    /// <summary>
-    /// Runs once at a specific date and time
-    /// </summary>
-    SpecificTime,
-
-    /// <summary>
-    /// Repeats weekly on selected days at a specific local time
-    /// </summary>
-    Weekly,
-}
-
-/// <summary>
-/// Days of week used by weekly scheduled tasks.
-/// </summary>
-[Flags]
-public enum ScheduleDays
-{
-    None = 0,
-    Monday = 1 << 0,
-    Tuesday = 1 << 1,
-    Wednesday = 1 << 2,
-    Thursday = 1 << 3,
-    Friday = 1 << 4,
-    Saturday = 1 << 5,
-    Sunday = 1 << 6,
-
-    Weekdays = Monday | Tuesday | Wednesday | Thursday | Friday,
-    Weekends = Saturday | Sunday,
-    EveryDay = Weekdays | Weekends,
-}
-
-/// <summary>
-/// Unit of time for interval-based scheduling
-/// </summary>
-public enum IntervalUnit
-{
-    Seconds,
-    Minutes,
-    Hours,
-}
-
-/// <summary>
 /// Represents a scheduled macro task
 /// </summary>
 public class ScheduledTask : INotifyPropertyChanged

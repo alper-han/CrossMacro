@@ -5,22 +5,6 @@ using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
-public enum ScriptValidationCategory
-{
-    Compilation,
-}
-
-public sealed record ScriptValidationDiagnostic(
-    ScriptValidationCategory Category,
-    string Message,
-    int? SourceLineNumber,
-    int SourceIndex);
-
-public interface IScriptValidationService
-{
-    IReadOnlyList<ScriptValidationDiagnostic> Validate(IReadOnlyList<RunScriptStep> steps);
-}
-
 /// <summary>
 /// Infrastructure boundary for script syntax and runtime-command validation.
 /// Compilation remains owned by RunScriptCompiler; callers only consume diagnostics.

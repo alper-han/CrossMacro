@@ -1,0 +1,13 @@
+using Avalonia.Data.Converters;
+using CrossMacro.Core.Models;
+using CrossMacro.UI.Localization;
+
+namespace CrossMacro.UI.Views.Tabs;
+
+public static class ImageMatchModeConverters
+{
+    public static readonly IValueConverter DisplayText = new FuncValueConverter<EditorImageMatchMode, string>(mode =>
+        mode is EditorImageMatchMode.BestMatch
+            ? Resources.ResourceManager.GetString("Editor_ImageMatchModeBest", Resources.Culture) ?? "Best match"
+            : Resources.ResourceManager.GetString("Editor_ImageMatchModeFirst", Resources.Culture) ?? "First threshold match");
+}

@@ -4,29 +4,12 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using CrossMacro.Core.Logging;
 using CrossMacro.Core.Services;
 
 namespace CrossMacro.Infrastructure.Services;
-
-// Source-generated JSON context for trimming-safe deserialization.
-[JsonSerializable(typeof(GitHubRelease))]
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
-internal partial class GitHubJsonContext : JsonSerializerContext
-{
-}
-
-internal class GitHubRelease
-{
-    [JsonPropertyName("tag_name")]
-    public string? TagName { get; set; }
-
-    [JsonPropertyName("html_url")]
-    public string? HtmlUrl { get; set; }
-}
 
 public class GitHubUpdateService : IUpdateService
 {

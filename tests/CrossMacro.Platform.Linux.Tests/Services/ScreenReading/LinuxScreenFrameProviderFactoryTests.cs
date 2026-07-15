@@ -1,11 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
-using CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
-using NSubstitute;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 

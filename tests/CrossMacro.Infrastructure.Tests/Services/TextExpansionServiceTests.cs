@@ -1,15 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.TextExpansion;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.TextExpansion;
-using CrossMacro.TestInfrastructure;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

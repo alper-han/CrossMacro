@@ -1,7 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Windows.Services;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.Services;
 

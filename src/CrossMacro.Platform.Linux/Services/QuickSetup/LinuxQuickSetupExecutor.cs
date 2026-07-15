@@ -1,9 +1,3 @@
-using System;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Packaging.Abstractions;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 

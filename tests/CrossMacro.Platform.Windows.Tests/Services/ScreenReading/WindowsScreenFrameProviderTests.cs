@@ -1,7 +1,3 @@
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Windows.Services.ScreenReading;
-using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.Services.ScreenReading;
 

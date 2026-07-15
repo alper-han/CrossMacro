@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Linux.Native.X11;
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.X11;
 

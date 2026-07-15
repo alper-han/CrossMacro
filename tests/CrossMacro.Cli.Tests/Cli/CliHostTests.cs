@@ -1,16 +1,3 @@
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CoreLogging = CrossMacro.Core.Logging;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Cli;
-using CrossMacro.Cli.DependencyInjection;
-using CrossMacro.Infrastructure.Logging;
-using CrossMacro.Platform.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CrossMacro.Cli.Tests;
 

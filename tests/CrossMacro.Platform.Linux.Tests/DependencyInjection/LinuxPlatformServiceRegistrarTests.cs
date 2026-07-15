@@ -1,22 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
-using System.Linq;
-using System.Runtime.InteropServices;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Packaging.Abstractions;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.Platform.Linux.DependencyInjection;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.Factories;
-using CrossMacro.Platform.Linux.Services.Factories.Selectors;
-using CrossMacro.Platform.Linux.Services.QuickSetup;
-using CrossMacro.Platform.Linux.Strategies;
-using CrossMacro.Platform.Linux.Strategies.Selectors;
-using Microsoft.Extensions.DependencyInjection;
 
 public class LinuxPlatformServiceRegistrarTests
 {

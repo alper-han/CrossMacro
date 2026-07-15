@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Cli.Services;
 

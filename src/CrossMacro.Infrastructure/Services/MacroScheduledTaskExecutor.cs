@@ -1,11 +1,3 @@
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Infrastructure.Services;
 

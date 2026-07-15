@@ -1,22 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using System.Reflection;
-using CrossMacro.Application.Automation;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Logging;
-using CrossMacro.Infrastructure.DependencyInjection;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Cli.DependencyInjection;
-using CrossMacro.Cli.Services;
-using CrossMacro.Cli;
-using CrossMacro.UI.DependencyInjection;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
-using NSubstitute;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
 
@@ -275,7 +256,7 @@ public class ServiceCollectionExtensionsTests
             services.AddSingleton<IMousePositionProvider, DummyMousePositionProvider>();
             services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
             services.AddTransient<Func<IInputCapture>>(_ => () => new DummyInputCapture());
-            services.AddSingleton<IInputSimulatorPool>(sp => new InputSimulatorPool(sp.GetRequiredService<Func<IInputSimulator>>()));
+            services.AddSingleton<IInputSimulatorPool>(sp => new CrossMacro.Infrastructure.Services.InputSimulatorPool(sp.GetRequiredService<Func<IInputSimulator>>()));
         }
     }
 

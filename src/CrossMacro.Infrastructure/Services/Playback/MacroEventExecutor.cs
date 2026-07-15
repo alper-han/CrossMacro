@@ -1,8 +1,3 @@
-using System;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services.Playback;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 

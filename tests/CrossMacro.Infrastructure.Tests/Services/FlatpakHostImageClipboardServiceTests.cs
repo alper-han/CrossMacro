@@ -1,14 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Linux.Clipboard;
-using FlatpakHostImageClipboardService = CrossMacro.Platform.Linux.Clipboard.FlatpakHostImageClipboardService;
-using CrossMacro.Platform.Abstractions;
 
 public sealed class FlatpakHostImageClipboardServiceTests
 {

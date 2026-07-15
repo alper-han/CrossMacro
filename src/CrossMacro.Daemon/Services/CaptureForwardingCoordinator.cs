@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.Native.UInput;
 
 namespace CrossMacro.Daemon.Services;
 

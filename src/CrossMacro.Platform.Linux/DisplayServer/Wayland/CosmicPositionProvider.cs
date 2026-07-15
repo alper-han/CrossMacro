@@ -1,8 +1,3 @@
-using System.Diagnostics;
-using System.Globalization;
-using System.Text.RegularExpressions;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

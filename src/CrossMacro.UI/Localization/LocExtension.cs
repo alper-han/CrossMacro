@@ -1,8 +1,3 @@
-using System;
-using Avalonia;
-using Avalonia.Markup.Xaml;
-using Avalonia.Markup.Xaml.MarkupExtensions;
-using Avalonia.Metadata;
 
 namespace CrossMacro.UI.Localization;
 

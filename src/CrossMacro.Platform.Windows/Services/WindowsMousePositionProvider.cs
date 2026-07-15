@@ -1,6 +1,3 @@
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Services;
 

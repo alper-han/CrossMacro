@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

@@ -1,7 +1,3 @@
-using System.IO;
-using CrossMacro.Cli;
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services.ScreenReading;
 
 namespace CrossMacro.Cli.Tests;
 

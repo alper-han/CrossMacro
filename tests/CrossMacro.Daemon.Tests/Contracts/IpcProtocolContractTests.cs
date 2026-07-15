@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using CrossMacro.Daemon.Contracts.Ipc;
 
 namespace CrossMacro.Daemon.Tests.Contracts;
 

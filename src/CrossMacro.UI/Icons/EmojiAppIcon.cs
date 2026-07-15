@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Media;
-using CrossMacro.UI.Icons.Generated;
 
 namespace CrossMacro.UI.Icons;
 

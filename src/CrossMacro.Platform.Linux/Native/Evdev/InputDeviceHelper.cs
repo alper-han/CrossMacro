@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.Native.UInput;
 
 namespace CrossMacro.Platform.Linux.Native.Evdev;
 

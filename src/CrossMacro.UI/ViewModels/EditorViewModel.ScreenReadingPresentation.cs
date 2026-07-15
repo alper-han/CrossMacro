@@ -1,13 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using Avalonia;
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
-using CrossMacro.Core.Models;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.UI.ViewModels;
 

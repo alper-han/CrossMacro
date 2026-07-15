@@ -1,10 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
-using NSubstitute;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 

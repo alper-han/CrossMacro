@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 

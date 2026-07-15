@@ -1,10 +1,3 @@
-using System.Linq;
-using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Views.Dialogs;
 
 namespace CrossMacro.UI.Services;
 

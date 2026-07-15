@@ -1,7 +1,3 @@
-using CrossMacro.Cli;
-using CrossMacro.Cli.Commands;
-using CrossMacro.Cli.Services;
-using NSubstitute;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -23,7 +19,7 @@ public class RunCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_WhenServiceSucceeds_ReturnsSuccess()
     {
-        _runService.ExecuteAsync(Arg.Any<RunExecutionRequest>(), Arg.Any<CancellationToken>())
+        _runService.ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>())
             .Returns(new MacroExecutionResult
             {
                 Success = true,
@@ -38,14 +34,14 @@ public class RunCommandHandlerTests
         Assert.True(result.Success);
         Assert.Equal((int)CliExitCode.Success, result.ExitCode);
         await _runService.Received(1).ExecuteAsync(
-            Arg.Is<RunExecutionRequest>(x => x.Steps.Count == 2 && x.StepFilePath == "/tmp/steps.txt" && x.DryRun),
+            Arg.Is<CliRunExecutionRequest>(x => x.Steps.Count == 2 && x.StepFilePath == "/tmp/steps.txt" && x.DryRun),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenRunOptionsContainScreenReadingExamples_ForwardsExactSteps()
     {
-        _runService.ExecuteAsync(Arg.Any<RunExecutionRequest>(), Arg.Any<CancellationToken>())
+        _runService.ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>())
             .Returns(new MacroExecutionResult
             {
                 Success = true,
@@ -66,7 +62,7 @@ public class RunCommandHandlerTests
 
         Assert.True(result.Success);
         await _runService.Received(1).ExecuteAsync(
-            Arg.Is<RunExecutionRequest>(x =>
+            Arg.Is<CliRunExecutionRequest>(x =>
                 x.DryRun
                 && x.Steps.Count == 4
                 && x.Steps[0] == "pixelcolor 500 300 mycolor"
@@ -84,7 +80,7 @@ public class RunCommandHandlerTests
                 CliExitCode.EnvironmentError,
                 "Preflight check failed.",
                 ["simulator unsupported"]));
-        _runService.ExecuteAsync(Arg.Any<RunExecutionRequest>(), Arg.Any<CancellationToken>())
+        _runService.ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>())
             .Returns(new MacroExecutionResult
             {
                 Success = true,
@@ -99,14 +95,14 @@ public class RunCommandHandlerTests
         Assert.True(result.Success);
         await _preflightService.DidNotReceive().CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>());
         await _runService.Received(1).ExecuteAsync(
-            Arg.Is<RunExecutionRequest>(x => x.DryRun && x.Steps.Count == 1),
+            Arg.Is<CliRunExecutionRequest>(x => x.DryRun && x.Steps.Count == 1),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenServiceFails_PropagatesFailure()
     {
-        _runService.ExecuteAsync(Arg.Any<RunExecutionRequest>(), Arg.Any<CancellationToken>())
+        _runService.ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>())
             .Returns(new MacroExecutionResult
             {
                 Success = false,
@@ -136,6 +132,6 @@ public class RunCommandHandlerTests
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
-        await _runService.DidNotReceive().ExecuteAsync(Arg.Any<RunExecutionRequest>(), Arg.Any<CancellationToken>());
+        await _runService.DidNotReceive().ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>());
     }
 }

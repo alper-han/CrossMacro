@@ -1,10 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Startup;
-using CrossMacro.UI.Views.Tabs;
 
 namespace CrossMacro.UI.Services;
 

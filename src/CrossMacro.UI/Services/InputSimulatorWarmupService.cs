@@ -1,10 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Diagnostics;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.UI.Services;
 

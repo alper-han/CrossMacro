@@ -1,8 +1,5 @@
 namespace CrossMacro.Core.Tests.Models;
 
-using CrossMacro.Core;
-using CrossMacro.Core.Models;
-using FluentAssertions;
 
 public class HotkeySettingsTests
 {

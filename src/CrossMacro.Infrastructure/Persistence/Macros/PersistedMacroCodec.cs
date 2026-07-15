@@ -1,5 +1,3 @@
-using System;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Infrastructure.Persistence.Macros;
 

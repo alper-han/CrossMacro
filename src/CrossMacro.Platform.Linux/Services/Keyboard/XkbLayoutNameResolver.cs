@@ -1,5 +1,3 @@
-using System.Xml.Linq;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 

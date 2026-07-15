@@ -1,10 +1,5 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
-using System;
-using System.IO;
-using CrossMacro.Daemon.Services;
-using CrossMacro.Infrastructure.Linux.Native;
-using CrossMacro.TestInfrastructure;
 
 public class LinuxPermissionServiceTests
 {

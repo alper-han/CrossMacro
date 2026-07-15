@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.Services;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 

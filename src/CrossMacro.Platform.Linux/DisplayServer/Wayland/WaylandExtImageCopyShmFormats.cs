@@ -1,6 +1,3 @@
-using System.Globalization;
-using System.Text;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

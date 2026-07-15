@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
-using Microsoft.Win32.SafeHandles;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Application.Runtime;
-using CrossMacro.Cli.Serialization;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Cli.Services;
 

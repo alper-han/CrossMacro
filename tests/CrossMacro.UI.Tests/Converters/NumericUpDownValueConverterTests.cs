@@ -1,7 +1,3 @@
-using System.Globalization;
-using Avalonia.Data;
-using CrossMacro.UI.Converters;
-using FluentAssertions;
 
 namespace CrossMacro.UI.Tests.Converters;
 

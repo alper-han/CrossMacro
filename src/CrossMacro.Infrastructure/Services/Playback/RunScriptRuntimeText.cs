@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 

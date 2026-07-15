@@ -1,6 +1,3 @@
-using System.IO;
-using System.Text.Json.Nodes;
-using CrossMacro.Cli;
 
 namespace CrossMacro.Cli.Tests;
 

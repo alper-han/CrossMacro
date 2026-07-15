@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 

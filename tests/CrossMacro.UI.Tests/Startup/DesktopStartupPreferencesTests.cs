@@ -1,6 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.UI.Startup;
-using FluentAssertions;
 
 namespace CrossMacro.UI.Tests.Startup;
 

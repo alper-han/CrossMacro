@@ -1,8 +1,3 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.TextExpansion;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

@@ -1,10 +1,5 @@
 namespace CrossMacro.UI.Tests.Services;
 
-using System;
-using System.IO;
-using System.Reflection;
-using System.Threading.Tasks;
-using CrossMacro.UI.Services;
 
 public class SingleInstanceGuardTests
 {

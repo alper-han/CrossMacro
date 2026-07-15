@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Linux.Native;
 
 namespace CrossMacro.Platform.Linux;
 

@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 

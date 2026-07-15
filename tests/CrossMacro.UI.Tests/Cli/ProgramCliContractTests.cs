@@ -1,10 +1,3 @@
-using System;
-using System.IO;
-using System.Text.Json;
-using System.Threading.Tasks;
-using CrossMacro.Cli;
-using CrossMacro.Platform.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Tests.Cli;
 

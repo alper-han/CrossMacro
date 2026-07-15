@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using CrossMacro.TestInfrastructure;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 

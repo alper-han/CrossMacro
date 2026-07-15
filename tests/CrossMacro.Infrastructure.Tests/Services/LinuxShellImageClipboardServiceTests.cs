@@ -1,12 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Linux.Clipboard;
-using LinuxShellImageClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellImageClipboardService;
-using NSubstitute;
 
 [Collection("EnvironmentVariableSensitive")]
 public sealed class LinuxShellImageClipboardServiceTests
@@ -18,7 +11,7 @@ public sealed class LinuxShellImageClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
-            var runner = Substitute.For<IProcessRunner>();
+            var runner = Substitute.For<CrossMacro.Infrastructure.Services.IProcessRunner>();
             runner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             var service = new LinuxShellImageClipboardService(runner);
             byte[] png = [1, 2, 3];
@@ -44,7 +37,7 @@ public sealed class LinuxShellImageClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", value: null);
-            var runner = Substitute.For<IProcessRunner>();
+            var runner = Substitute.For<CrossMacro.Infrastructure.Services.IProcessRunner>();
             runner.CheckCommandAsync("xclip", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             var service = new LinuxShellImageClipboardService(runner);
 

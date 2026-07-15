@@ -1,11 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Cli.DependencyInjection;
-using CrossMacro.Platform.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-using Serilog;
 
 namespace CrossMacro.Cli;
 
@@ -97,7 +89,7 @@ public sealed class CliHost
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "CLI command failed");
+            SerilogLog.Error(ex, "CLI command failed");
 
             var runtimeFailure = CliCommandExecutionResult.Fail(
                 CliExitCode.RuntimeError,

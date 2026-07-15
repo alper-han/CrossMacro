@@ -1,12 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using System;
-using System.IO;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
-using Xunit;
 
 public class HotkeyConfigurationServiceTests : IDisposable
 {

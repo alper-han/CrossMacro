@@ -1,14 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Channels;
-using CrossMacro.Core.Diagnostics;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 

@@ -1,6 +1,3 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using CrossMacro.UI.Icons;
-using CrossMacro.UI.ViewModels;
 
 namespace CrossMacro.UI.Models;
 

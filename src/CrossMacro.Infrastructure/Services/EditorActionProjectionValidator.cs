@@ -1,11 +1,3 @@
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Resources;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.Playback;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 

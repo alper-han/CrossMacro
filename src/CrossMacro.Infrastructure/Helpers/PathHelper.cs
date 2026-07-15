@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Core;
 
 namespace CrossMacro.Infrastructure.Helpers;
 

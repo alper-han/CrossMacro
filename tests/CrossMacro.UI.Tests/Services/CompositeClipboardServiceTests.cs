@@ -1,17 +1,5 @@
 namespace CrossMacro.UI.Tests.Services;
 
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.Clipboard;
-using FlatpakHostClipboardService = CrossMacro.Platform.Linux.Clipboard.FlatpakHostClipboardService;
-using LinuxShellClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellClipboardService;
-using CrossMacro.UI.Services;
-using NSubstitute;
 
 [Collection("EnvironmentVariableSensitive")]
 public class CompositeClipboardServiceTests

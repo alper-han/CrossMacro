@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 

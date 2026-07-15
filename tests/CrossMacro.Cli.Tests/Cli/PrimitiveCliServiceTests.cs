@@ -1,11 +1,3 @@
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
-using CrossMacro.Infrastructure.Services.ScreenReading;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli.Tests;
 

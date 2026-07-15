@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 
 namespace CrossMacro.Core.Tests.Architecture;
 
@@ -162,6 +160,7 @@ public class ArchitectureBoundaryTests
                 "src/CrossMacro.Application/Automation/ManageTrigger.cs",
                 "src/CrossMacro.Application/Automation/TaskCollectionResult.cs",
                 "src/CrossMacro.Application/Automation/TaskRequest.cs",
+                "src/CrossMacro.Application/GlobalUsings.cs",
                 "src/CrossMacro.Application/Profiles/IManageProfile.cs",
                 "src/CrossMacro.Application/Profiles/ManageProfile.cs",
                 "src/CrossMacro.Application/Profiles/ProfileRequest.cs",

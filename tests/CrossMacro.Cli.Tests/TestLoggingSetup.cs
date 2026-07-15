@@ -1,5 +1,3 @@
-using CrossMacro.Infrastructure.Logging;
-using System.Runtime.CompilerServices;
 
 namespace CrossMacro.Cli.Tests;
 

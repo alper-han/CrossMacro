@@ -1,6 +1,3 @@
-using System;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Linux.Native.X11;
 
 namespace CrossMacro.Platform.Linux.Tests.Native.X11;
 

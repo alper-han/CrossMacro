@@ -1,8 +1,3 @@
-using System.Buffers;
-using System.Numerics;
-using System.Runtime.InteropServices;
-using System.Threading;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 

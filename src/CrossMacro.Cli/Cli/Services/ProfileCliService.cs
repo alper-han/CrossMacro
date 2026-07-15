@@ -1,9 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Application.Profiles;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Cli.Services;
 

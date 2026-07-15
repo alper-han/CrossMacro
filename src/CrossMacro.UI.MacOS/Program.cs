@@ -1,18 +1,3 @@
-using Avalonia;
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.DependencyInjection;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Logging;
-using CrossMacro.Platform.MacOS.DependencyInjection;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Services;
-using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Runtime.Versioning;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CrossMacro.UI.MacOS;
 

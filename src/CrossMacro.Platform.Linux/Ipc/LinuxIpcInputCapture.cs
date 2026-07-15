@@ -1,8 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 

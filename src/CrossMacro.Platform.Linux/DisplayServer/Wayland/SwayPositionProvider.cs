@@ -1,9 +1,3 @@
-using System;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

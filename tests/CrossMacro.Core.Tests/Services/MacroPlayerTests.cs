@@ -1,14 +1,5 @@
 namespace CrossMacro.Core.Tests.Services;
 
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Playback;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.TestInfrastructure;
-using FluentAssertions;
-using NSubstitute;
 
 /// <summary>
 /// Tests for MacroPlayer focusing on edge cases and error handling

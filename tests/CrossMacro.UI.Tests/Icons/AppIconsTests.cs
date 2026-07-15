@@ -1,9 +1,3 @@
-using System;
-using System.Globalization;
-using Avalonia;
-using CrossMacro.UI.Icons;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.Icons;
 

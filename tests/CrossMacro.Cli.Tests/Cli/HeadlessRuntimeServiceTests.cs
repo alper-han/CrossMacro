@@ -1,9 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using CrossMacro.Platform.Abstractions;
-using NSubstitute;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -79,7 +73,7 @@ public class HeadlessRuntimeServiceTests
         var shortcuts = Substitute.For<IShortcutService>();
         var textExpansion = Substitute.For<ITextExpansionService>();
         var hotkeyActions = Substitute.For<IHeadlessHotkeyActionService>();
-        var warmup = Substitute.For<IScreenReadingWarmupService>();
+        var warmup = Substitute.For<CrossMacroPlatformWarmupService>();
         var warmupStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         textExpansion.IsRunning.Returns(returnThis: true);

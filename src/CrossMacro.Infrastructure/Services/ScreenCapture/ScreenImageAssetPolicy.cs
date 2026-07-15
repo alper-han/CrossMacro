@@ -1,6 +1,5 @@
 namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 
-using CrossMacro.Platform.Abstractions;
 
 public static class ScreenImageAssetPolicy
 {

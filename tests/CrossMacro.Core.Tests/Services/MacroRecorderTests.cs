@@ -1,14 +1,5 @@
 namespace CrossMacro.Core.Tests.Services;
 
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Recording.Processors;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Platform.Abstractions;
-using FluentAssertions;
-using NSubstitute;
-using System.Threading;
 
 /// <summary>
 /// Tests for MacroRecorder focusing on initialization and error handling

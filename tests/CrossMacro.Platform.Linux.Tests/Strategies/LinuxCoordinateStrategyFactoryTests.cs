@@ -1,13 +1,3 @@
-using System.Collections.Generic;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Strategies;
-using CrossMacro.Platform.Linux.Strategies.Selectors;
-using CrossMacro.TestInfrastructure;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Strategies;
 

@@ -1,15 +1,3 @@
-using System;
-using System.Linq;
-using System.Runtime.Versioning;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.DependencyInjection;
-using CrossMacro.Platform.MacOS.Services;
-using CrossMacro.Platform.MacOS.Services.ScreenReading;
-using CrossMacro.Platform.MacOS.Strategies;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.DependencyInjection;
 

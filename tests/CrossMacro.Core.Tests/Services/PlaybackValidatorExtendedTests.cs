@@ -1,10 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using FluentAssertions;
-using Xunit;
-using System.Collections.Generic;
-using System;
 
 namespace CrossMacro.Core.Tests.Services;
 

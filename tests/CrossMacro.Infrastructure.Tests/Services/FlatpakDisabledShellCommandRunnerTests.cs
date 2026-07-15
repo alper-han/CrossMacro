@@ -1,7 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using CrossMacro.Infrastructure.Services;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

@@ -1,9 +1,3 @@
-using System.Globalization;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using FluentAssertions;
-using NSubstitute;
 
 namespace CrossMacro.UI.Tests.Localization;
 

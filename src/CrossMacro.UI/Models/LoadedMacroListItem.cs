@@ -1,11 +1,3 @@
-using System;
-using System.Globalization;
-using System.IO;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.Models;
 

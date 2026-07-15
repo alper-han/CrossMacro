@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.TestInfrastructure;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 

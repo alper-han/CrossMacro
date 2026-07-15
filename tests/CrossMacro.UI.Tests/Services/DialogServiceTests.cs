@@ -1,9 +1,5 @@
 namespace CrossMacro.UI.Tests.Services;
 
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Services;
-using NSubstitute;
 
 public class DialogServiceTests
 {

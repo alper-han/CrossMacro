@@ -1,6 +1,3 @@
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Services.ScreenReading;
 

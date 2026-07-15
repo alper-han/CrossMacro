@@ -1,10 +1,3 @@
-using System.Reflection;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.UI.DependencyInjection;
-using CrossMacro.UI.Services;
-using Microsoft.Extensions.DependencyInjection;
-using LinuxProgram = CrossMacro.UI.Linux.Program;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
 

@@ -1,9 +1,3 @@
-using System.Runtime.Versioning;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.MacOS;
-using CrossMacro.Platform.MacOS.Services;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.DependencyInjection;
 

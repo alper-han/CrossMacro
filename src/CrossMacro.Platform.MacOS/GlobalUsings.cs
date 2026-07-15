@@ -1,0 +1,17 @@
+global using CrossMacro.Core.Services;
+global using CrossMacro.Platform.Abstractions;
+global using CrossMacro.Platform.MacOS.Helpers;
+global using CrossMacro.Platform.MacOS.Native;
+global using CrossMacro.Platform.MacOS.Services.ScreenReading;
+global using CrossMacro.Platform.MacOS.Services;
+global using CrossMacro.Platform.MacOS.Strategies;
+global using Microsoft.Extensions.DependencyInjection;
+global using System.Collections.Generic;
+global using System.ComponentModel;
+global using System.Diagnostics;
+global using System.Runtime.CompilerServices;
+global using System.Runtime.InteropServices;
+global using System.Runtime.Versioning;
+global using System.Threading.Tasks;
+global using System.Threading;
+global using System;

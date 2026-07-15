@@ -1,9 +1,3 @@
-using System;
-using System.Runtime.InteropServices;
-using System.Threading;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.Native.X11;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services
 {

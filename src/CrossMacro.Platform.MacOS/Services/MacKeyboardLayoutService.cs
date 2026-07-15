@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.MacOS.Native;
-using CrossMacro.Platform.MacOS.Services;
 
 namespace CrossMacro.Platform.MacOS;
 

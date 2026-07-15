@@ -1,8 +1,3 @@
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.Services.QuickSetup;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 

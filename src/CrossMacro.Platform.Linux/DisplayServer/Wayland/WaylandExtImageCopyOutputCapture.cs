@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

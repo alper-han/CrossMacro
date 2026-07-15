@@ -1,5 +1,3 @@
-using System;
-using CrossMacro.Cli.Commands;
 
 namespace CrossMacro.Cli;
 

@@ -1,5 +1,3 @@
-using System.Linq;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.UI.ViewModels;
 

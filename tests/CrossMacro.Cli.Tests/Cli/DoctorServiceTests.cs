@@ -1,12 +1,3 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Cli.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using FluentAssertions;
-using NSubstitute;
-using System.Reflection;
-using System.Text.Json;
 
 namespace CrossMacro.Cli.Tests;
 

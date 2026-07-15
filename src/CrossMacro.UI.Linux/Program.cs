@@ -1,27 +1,3 @@
-using System;
-using Avalonia;
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Logging;
-using CrossMacro.Infrastructure.DependencyInjection;
-using CrossMacro.Platform.Linux.Clipboard;
-using CrossMacro.Platform.Linux.DependencyInjection;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.DependencyInjection;
-using CrossMacro.UI.Services;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using PlatformProcessRunner = CrossMacro.Platform.Abstractions.IProcessRunner;
-using PlatformFlatpakClipboard = CrossMacro.Platform.Linux.Clipboard.FlatpakHostClipboardService;
-using PlatformLinuxClipboard = CrossMacro.Platform.Linux.Clipboard.LinuxShellClipboardService;
-using PlatformFlatpakImageClipboard = CrossMacro.Platform.Linux.Clipboard.FlatpakHostImageClipboardService;
-using PlatformLinuxImageClipboard = CrossMacro.Platform.Linux.Clipboard.LinuxShellImageClipboardService;
-using Serilog;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CrossMacro.UI.Linux;
 

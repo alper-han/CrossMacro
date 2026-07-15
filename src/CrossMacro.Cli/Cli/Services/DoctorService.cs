@@ -1,14 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using System.Text.Json.Nodes;
 
 namespace CrossMacro.Cli.Services;
 

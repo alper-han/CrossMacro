@@ -1,6 +1,3 @@
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 

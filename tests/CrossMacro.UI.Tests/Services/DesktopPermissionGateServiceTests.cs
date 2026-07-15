@@ -1,8 +1,3 @@
-using Avalonia.Controls.ApplicationLifetimes;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI;
-using CrossMacro.UI.Services;
-using NSubstitute;
 
 namespace CrossMacro.UI.Tests.Services;
 

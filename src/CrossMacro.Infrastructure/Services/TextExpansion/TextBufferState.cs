@@ -1,9 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services.TextExpansion;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion
 {

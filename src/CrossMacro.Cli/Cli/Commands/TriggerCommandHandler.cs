@@ -1,6 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Cli.Services;
 
 namespace CrossMacro.Cli.Commands;
 

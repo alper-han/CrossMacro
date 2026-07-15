@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 

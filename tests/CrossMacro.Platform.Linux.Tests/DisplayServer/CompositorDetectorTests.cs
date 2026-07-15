@@ -1,7 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer;
 
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.Services;
 
 public sealed class CompositorDetectorTests
 {

@@ -1,7 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using Avalonia.Controls.ApplicationLifetimes;
-using CrossMacro.UI.Startup;
 
 namespace CrossMacro.UI.Services;
 

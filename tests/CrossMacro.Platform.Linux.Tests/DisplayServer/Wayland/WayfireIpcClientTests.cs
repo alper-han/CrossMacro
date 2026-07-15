@@ -1,10 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-using System.Buffers.Binary;
-using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 [Collection("EnvironmentVariableSensitive")]
 public class WayfireIpcClientTests

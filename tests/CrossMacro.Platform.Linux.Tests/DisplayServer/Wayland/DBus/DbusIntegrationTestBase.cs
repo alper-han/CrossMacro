@@ -1,7 +1,3 @@
-using System;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 

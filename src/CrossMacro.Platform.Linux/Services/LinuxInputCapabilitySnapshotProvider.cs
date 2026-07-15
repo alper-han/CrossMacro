@@ -1,8 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Platform.Linux.Native.Evdev;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services;
 

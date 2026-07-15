@@ -1,10 +1,3 @@
-using Avalonia.Controls;
-using CrossMacro.Core.Logging;
-using CrossMacro.UI.Controls;
-using CrossMacro.UI.ViewModels;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CrossMacro.UI.Views.Tabs;
 

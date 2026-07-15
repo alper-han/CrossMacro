@@ -1,13 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.TestInfrastructure;
-using FluentAssertions;
-using NSubstitute;
 
 public class CoordinateCaptureServiceTests
 {

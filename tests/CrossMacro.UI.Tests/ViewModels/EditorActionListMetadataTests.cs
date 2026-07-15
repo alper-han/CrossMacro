@@ -1,6 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.UI.ViewModels;
-using FluentAssertions;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 

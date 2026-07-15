@@ -1,12 +1,3 @@
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
-using CrossMacro.Application.Automation;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 

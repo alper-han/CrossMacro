@@ -1,5 +1,3 @@
-using System;
-using Xunit;
 
 namespace CrossMacro.TestInfrastructure;
 

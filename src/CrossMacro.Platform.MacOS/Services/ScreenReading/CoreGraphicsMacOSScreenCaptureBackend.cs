@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services.ScreenReading;
 

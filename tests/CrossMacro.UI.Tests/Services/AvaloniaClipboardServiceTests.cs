@@ -1,7 +1,5 @@
 namespace CrossMacro.UI.Tests.Services;
 
-using CrossMacro.UI.Services;
-using NSubstitute;
 
 public class AvaloniaClipboardServiceTests
 {

@@ -1,6 +1,5 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
-using CrossMacro.Daemon.Services;
 
 public class PeerCredentialsProviderTests
 {

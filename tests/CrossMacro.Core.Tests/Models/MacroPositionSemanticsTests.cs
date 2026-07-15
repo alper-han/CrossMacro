@@ -1,8 +1,5 @@
 namespace CrossMacro.Core.Tests.Models;
 
-using System.Collections.Generic;
-using CrossMacro.Core.Models;
-using FluentAssertions;
 
 public class MacroPositionSemanticsTests
 {

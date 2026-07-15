@@ -1,8 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services.Playback;
-using CrossMacro.Platform.Abstractions;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.Core.Tests.Services.Playback;
 

@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 

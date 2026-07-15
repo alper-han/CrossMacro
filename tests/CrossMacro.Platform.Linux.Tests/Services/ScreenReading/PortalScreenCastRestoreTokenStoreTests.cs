@@ -1,7 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using NSubstitute;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 

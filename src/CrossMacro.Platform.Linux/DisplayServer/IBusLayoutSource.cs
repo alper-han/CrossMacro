@@ -1,5 +1,3 @@
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.Helpers;
 
 namespace CrossMacro.Platform.Linux.DisplayServer;
 

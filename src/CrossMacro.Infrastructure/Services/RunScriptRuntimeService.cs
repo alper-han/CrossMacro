@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Application.Runtime;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.Playback;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 

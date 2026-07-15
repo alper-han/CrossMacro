@@ -1,8 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Strategies;
 

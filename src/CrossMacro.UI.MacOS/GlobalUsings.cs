@@ -1,0 +1,15 @@
+global using Avalonia;
+global using CrossMacro.Cli.Services;
+global using CrossMacro.Cli;
+global using CrossMacro.Core.Services;
+global using CrossMacro.Infrastructure.DependencyInjection;
+global using CrossMacro.Infrastructure.Logging;
+global using CrossMacro.Infrastructure.Services;
+global using CrossMacro.Platform.Abstractions;
+global using CrossMacro.Platform.MacOS.DependencyInjection;
+global using CrossMacro.UI.Services;
+global using Microsoft.Extensions.DependencyInjection;
+global using System.Runtime.Versioning;
+global using System.Threading.Tasks;
+global using System.Threading;
+global using System;

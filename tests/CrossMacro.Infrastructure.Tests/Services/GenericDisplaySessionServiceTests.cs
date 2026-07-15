@@ -1,5 +1,3 @@
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

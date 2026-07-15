@@ -1,8 +1,3 @@
-using System.Collections.ObjectModel;
-using CrossMacro.Application.Automation;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using NSubstitute;
 
 namespace CrossMacro.Cli.Tests;
 

@@ -1,13 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Cli.Services;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.TestInfrastructure;
-using NSubstitute;
 
 namespace CrossMacro.Cli.Tests;
 

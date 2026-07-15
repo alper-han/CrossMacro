@@ -1,10 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services
 {

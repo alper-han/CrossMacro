@@ -1,9 +1,3 @@
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Infrastructure.Services.Playback;
-using FluentAssertions;
-using NSubstitute;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

@@ -1,11 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Linux.Clipboard;
-using LinuxShellClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellClipboardService;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

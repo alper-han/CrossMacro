@@ -1,7 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using System;
-using System.Threading.Tasks;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading
 {

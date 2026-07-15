@@ -1,6 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Cli.Services;
 
 namespace CrossMacro.Cli.Commands;
 
@@ -34,7 +31,7 @@ public sealed class RunCommandHandler : CliCommandHandlerBase<RunCliOptions>
 
     private async Task<CliCommandExecutionResult> ExecuteInternalAsync(RunCliOptions options, CancellationToken cancellationToken)
     {
-        var result = await _runScriptExecutionService.ExecuteAsync(new RunExecutionRequest
+        var result = await _runScriptExecutionService.ExecuteAsync(new CrossMacro.Cli.Services.RunExecutionRequest
         {
             Steps = options.Steps,
             StepFilePath = options.StepFilePath,

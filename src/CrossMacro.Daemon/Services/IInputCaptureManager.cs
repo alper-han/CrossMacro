@@ -1,6 +1,3 @@
-using System;
-using CrossMacro.Platform.Linux.Native.Evdev;
-using CrossMacro.Platform.Linux.Native.UInput;
 
 namespace CrossMacro.Daemon.Services;
 

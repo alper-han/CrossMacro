@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Core;
-using CrossMacro.Infrastructure.Helpers;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.Infrastructure.Helpers;
 

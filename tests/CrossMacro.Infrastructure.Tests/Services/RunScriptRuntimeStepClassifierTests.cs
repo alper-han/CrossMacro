@@ -1,5 +1,3 @@
-using CrossMacro.Infrastructure.Services.Playback;
-using FluentAssertions;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

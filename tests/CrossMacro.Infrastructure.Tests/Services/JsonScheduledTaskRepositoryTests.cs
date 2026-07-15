@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

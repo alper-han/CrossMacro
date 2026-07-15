@@ -1,18 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
-using CrossMacro.UI.Models;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 

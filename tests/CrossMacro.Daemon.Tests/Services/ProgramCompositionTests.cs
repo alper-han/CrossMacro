@@ -1,9 +1,5 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
-using System;
-using System.Net.Sockets;
-using CrossMacro.Daemon;
-using CrossMacro.Daemon.Services;
 
 public sealed class ProgramCompositionTests
 {

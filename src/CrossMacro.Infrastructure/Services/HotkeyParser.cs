@@ -1,5 +1,3 @@
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 

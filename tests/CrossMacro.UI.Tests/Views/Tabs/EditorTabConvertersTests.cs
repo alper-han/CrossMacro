@@ -1,13 +1,5 @@
 namespace CrossMacro.UI.Tests.Views.Tabs;
 
-using System.Globalization;
-using Avalonia.Data;
-using Avalonia.Media;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Views.Tabs;
-using NSubstitute;
 
 public class EditorTabConvertersTests
 {

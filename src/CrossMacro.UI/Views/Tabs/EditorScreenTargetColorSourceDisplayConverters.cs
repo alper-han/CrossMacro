@@ -1,6 +1,3 @@
-using System;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.UI.Views.Tabs;
 

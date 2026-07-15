@@ -1,15 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Avalonia.Threading;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Models;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 

@@ -1,13 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
 public class GnomePositionProviderTests
 {

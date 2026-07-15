@@ -1,5 +1,3 @@
-using System;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 

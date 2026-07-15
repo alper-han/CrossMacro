@@ -1,7 +1,3 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using NSubstitute;
 
 namespace CrossMacro.Cli.Tests;
 

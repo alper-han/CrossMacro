@@ -1,8 +1,3 @@
-using CrossMacro.Platform.MacOS;
-using CrossMacro.Platform.Abstractions;
-using System;
-using System.Threading;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 

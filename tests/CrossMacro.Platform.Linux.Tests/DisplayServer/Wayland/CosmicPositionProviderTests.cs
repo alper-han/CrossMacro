@@ -1,6 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public sealed class CosmicPositionProviderTests
 {

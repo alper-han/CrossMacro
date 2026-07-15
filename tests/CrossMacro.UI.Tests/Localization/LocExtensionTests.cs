@@ -1,7 +1,3 @@
-using System.Collections.Generic;
-using CrossMacro.UI.Localization;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.Localization;
 

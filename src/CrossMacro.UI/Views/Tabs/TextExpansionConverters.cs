@@ -1,6 +1,3 @@
-using Avalonia.Data.Converters;
-using CrossMacro.Core.Models;
-using CrossMacro.UI.Localization;
 
 namespace CrossMacro.UI.Views.Tabs;
 

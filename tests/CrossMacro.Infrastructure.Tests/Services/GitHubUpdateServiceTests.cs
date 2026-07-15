@@ -1,13 +1,3 @@
-using System;
-using System.Net;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

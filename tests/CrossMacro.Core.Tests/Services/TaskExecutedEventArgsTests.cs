@@ -1,7 +1,5 @@
 namespace CrossMacro.Core.Tests.Services;
 
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
 
 public class TaskExecutedEventArgsTests
 {

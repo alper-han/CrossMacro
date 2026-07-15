@@ -1,4 +1,3 @@
-using CrossMacro.UI.Startup;
 
 namespace CrossMacro.UI.Tests.Startup;
 

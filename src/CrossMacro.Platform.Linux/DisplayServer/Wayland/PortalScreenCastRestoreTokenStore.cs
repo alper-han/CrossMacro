@@ -1,4 +1,3 @@
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

@@ -1,7 +1,3 @@
-using System;
-using System.Globalization;
-using CrossMacro.Core.Models;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli;
 

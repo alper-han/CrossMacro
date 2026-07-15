@@ -1,7 +1,3 @@
-using System;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 

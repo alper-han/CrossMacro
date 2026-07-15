@@ -1,9 +1,3 @@
-using System;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.Native.Evdev;
 
 namespace CrossMacro.Platform.Linux.Native.UInput;
 

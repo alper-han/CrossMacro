@@ -1,5 +1,3 @@
-using System;
-using System.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 

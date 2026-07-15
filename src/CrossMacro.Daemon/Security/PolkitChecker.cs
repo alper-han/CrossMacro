@@ -1,10 +1,3 @@
-using System;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Daemon.Contracts.Security;
 
 namespace CrossMacro.Daemon.Security;
 

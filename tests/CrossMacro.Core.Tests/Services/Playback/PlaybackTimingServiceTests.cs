@@ -1,7 +1,3 @@
-using System.Threading;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
-using FluentAssertions;
 
 namespace CrossMacro.Core.Tests.Services.Playback;
 

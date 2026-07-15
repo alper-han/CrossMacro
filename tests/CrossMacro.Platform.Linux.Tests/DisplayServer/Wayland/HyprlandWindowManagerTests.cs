@@ -1,7 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 

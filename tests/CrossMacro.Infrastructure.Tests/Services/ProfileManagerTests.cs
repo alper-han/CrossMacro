@@ -1,14 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Serialization;
-using FluentAssertions;
 
 public sealed class ProfileManagerTests : IDisposable
 {

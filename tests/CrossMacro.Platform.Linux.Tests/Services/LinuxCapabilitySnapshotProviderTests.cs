@@ -1,6 +1,3 @@
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 

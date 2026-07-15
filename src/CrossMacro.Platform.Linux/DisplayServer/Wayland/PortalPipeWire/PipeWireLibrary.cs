@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Linux.Native;
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 

@@ -1,5 +1,3 @@
-using System;
-using System.Globalization;
 
 namespace CrossMacro.Core.Services;
 

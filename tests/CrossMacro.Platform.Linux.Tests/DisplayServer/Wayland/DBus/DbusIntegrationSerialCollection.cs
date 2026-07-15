@@ -1,4 +1,3 @@
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 

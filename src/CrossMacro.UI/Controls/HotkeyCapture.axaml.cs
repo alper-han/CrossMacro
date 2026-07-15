@@ -1,15 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.Core;
 
 namespace CrossMacro.UI.Controls;
 

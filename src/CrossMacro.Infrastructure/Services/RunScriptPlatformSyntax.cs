@@ -1,7 +1,3 @@
-using System;
-using System.Globalization;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Infrastructure.Services;
 

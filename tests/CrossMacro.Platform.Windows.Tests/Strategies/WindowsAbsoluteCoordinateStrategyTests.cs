@@ -1,9 +1,3 @@
-using System.Threading;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Windows.Strategies;
-using CrossMacro.TestInfrastructure;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.Strategies;
 

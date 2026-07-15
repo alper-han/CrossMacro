@@ -1,12 +1,3 @@
-using System.Collections.Generic;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using FluentAssertions;
-using NSubstitute;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 

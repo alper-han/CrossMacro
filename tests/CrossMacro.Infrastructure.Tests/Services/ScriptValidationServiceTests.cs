@@ -1,7 +1,3 @@
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using FluentAssertions;
-using NSubstitute;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

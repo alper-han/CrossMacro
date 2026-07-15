@@ -1,17 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Threading;
-using CrossMacro.Application.Runtime;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Startup;
-using CrossMacro.UI.ViewModels;
-using CrossMacro.UI.Views;
 
 namespace CrossMacro.UI.Services;
 

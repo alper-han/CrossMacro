@@ -1,7 +1,3 @@
-using CrossMacro.Core.Models;
-using Canonical = CrossMacro.Infrastructure.Persistence.Macros;
-using Compatibility = CrossMacro.Infrastructure.Services;
-using FluentAssertions;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

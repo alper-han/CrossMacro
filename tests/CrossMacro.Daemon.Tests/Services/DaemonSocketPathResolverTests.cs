@@ -1,10 +1,5 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
-using System;
-using System.IO;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Daemon.Services;
-using CrossMacro.TestInfrastructure;
 
 public sealed class DaemonSocketPathResolverTests
 {

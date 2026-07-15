@@ -1,7 +1,3 @@
-using System;
-using System.Globalization;
-using System.Resources;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.UI.Localization;
 

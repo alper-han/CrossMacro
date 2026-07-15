@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Application.Runtime;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli.Services;
 

@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Core;
-using Serilog;
-using Serilog.Core;
-using Serilog.Events;
 
 namespace CrossMacro.Infrastructure.Logging;
 
@@ -53,9 +47,9 @@ public static class LoggerSetup
             }
         }
 
-        Log.Logger = config.CreateLogger();
+        SerilogLog.Logger = config.CreateLogger();
         CrossMacro.Core.Logging.Log.Configure(new SerilogCoreLogger());
-        Log.Debug("Logger initialized. Level: {Level}", logLevel);
+        SerilogLog.Debug("Logger initialized. Level: {Level}", logLevel);
     }
 
     /// <summary>
@@ -71,7 +65,7 @@ public static class LoggerSetup
         if (_levelSwitch.MinimumLevel != newLevel)
         {
             _levelSwitch.MinimumLevel = newLevel;
-            Log.Information("Log level changed to {Level}", logLevel);
+            SerilogLog.Information("Log level changed to {Level}", logLevel);
         }
     }
 

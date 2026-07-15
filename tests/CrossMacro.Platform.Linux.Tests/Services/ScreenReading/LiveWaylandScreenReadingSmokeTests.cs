@@ -1,14 +1,3 @@
-using System;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Infrastructure.DependencyInjection;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.Platform.Linux.DependencyInjection;
-using CrossMacro.TestInfrastructure;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 

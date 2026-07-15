@@ -1,8 +1,3 @@
-using System;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.Helpers;
-using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
 

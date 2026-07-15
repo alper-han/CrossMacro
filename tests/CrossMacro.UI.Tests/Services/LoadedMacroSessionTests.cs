@@ -1,10 +1,3 @@
-using System.Linq;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Services;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.Services;
 

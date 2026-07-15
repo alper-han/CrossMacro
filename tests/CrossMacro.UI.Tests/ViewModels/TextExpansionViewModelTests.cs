@@ -1,19 +1,3 @@
-using System.Collections.Generic;
-using System;
-using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
-using CrossMacro.Application.Automation;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Tests.Localization;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using CrossMacro.UI.Views.Tabs;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 

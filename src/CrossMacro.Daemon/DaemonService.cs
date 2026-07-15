@@ -1,14 +1,3 @@
-using System;
-using System.IO;
-using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Daemon.Services;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.Native;
-using CrossMacro.Platform.Linux.Native.Systemd;
 
 namespace CrossMacro.Daemon;
 

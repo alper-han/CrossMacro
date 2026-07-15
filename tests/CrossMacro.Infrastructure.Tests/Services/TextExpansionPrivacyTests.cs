@@ -1,21 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using CoreLogging = CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.TextExpansion;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.TextExpansion;
-using CrossMacro.TestInfrastructure;
-using NSubstitute;
-using Serilog;
-using Serilog.Core;
-using Serilog.Events;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

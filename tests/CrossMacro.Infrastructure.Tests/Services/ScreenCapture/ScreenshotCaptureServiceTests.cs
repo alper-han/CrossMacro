@@ -1,8 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services.ScreenCapture;
 
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
-using CrossMacro.Platform.Abstractions;
 
 public sealed class ScreenshotCaptureServiceTests
 {

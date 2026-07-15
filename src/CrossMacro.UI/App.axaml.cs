@@ -1,18 +1,3 @@
-using System;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Markup.Xaml;
-using Avalonia.Threading;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.DependencyInjection;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.Startup;
-using CrossMacro.UI.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
-using Serilog;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace CrossMacro.UI;
 
@@ -99,7 +84,7 @@ public partial class App : Avalonia.Application
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Desktop startup initialization failed");
+            SerilogLog.Error(ex, "Desktop startup initialization failed");
             Dispatcher.UIThread.Post(() => desktop.Shutdown(1), DispatcherPriority.Send);
         }
     }
@@ -122,7 +107,7 @@ public partial class App : Avalonia.Application
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Desktop startup failed");
+            SerilogLog.Error(ex, "Desktop startup failed");
             desktop.Shutdown(1);
         }
     }
@@ -166,7 +151,7 @@ public partial class App : Avalonia.Application
 
             if (cleanupError is not null)
             {
-                Log.Error(cleanupError, "Desktop shutdown cleanup failed");
+                SerilogLog.Error(cleanupError, "Desktop shutdown cleanup failed");
             }
         }
 

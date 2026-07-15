@@ -1,17 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Avalonia.Threading;
-using CrossMacro.Application.Profiles;
-using CrossMacro.Core.Diagnostics;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 

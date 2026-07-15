@@ -1,7 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services.TextExpansion;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

@@ -1,7 +1,3 @@
-using CrossMacro.Cli;
-using CrossMacro.Infrastructure.DependencyInjection;
-using CrossMacro.Platform.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
 

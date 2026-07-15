@@ -1,4 +1,3 @@
-using CrossMacro.Daemon.Security;
 
 namespace CrossMacro.Daemon.Tests.Security;
 

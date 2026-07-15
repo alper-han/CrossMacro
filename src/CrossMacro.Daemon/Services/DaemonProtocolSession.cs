@@ -1,5 +1,3 @@
-using System.IO;
-using CrossMacro.Platform.Linux.Native.UInput;
 
 namespace CrossMacro.Daemon.Services;
 

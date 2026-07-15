@@ -1,9 +1,3 @@
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Text;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Windows.Helpers;
-using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Services;
 

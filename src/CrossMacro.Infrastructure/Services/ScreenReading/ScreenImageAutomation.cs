@@ -1,10 +1,3 @@
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Infrastructure.Services.Playback;
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 

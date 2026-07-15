@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services;
 

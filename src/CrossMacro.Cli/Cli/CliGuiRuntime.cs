@@ -1,7 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Serilog;
 
 namespace CrossMacro.Cli;
 
@@ -58,12 +54,12 @@ public static class CliGuiRuntime
         }
         catch (Exception ex)
         {
-            Log.Fatal(ex, "Application terminated unexpectedly");
+            SerilogLog.Fatal(ex, "Application terminated unexpectedly");
             return 1;
         }
         finally
         {
-            Log.CloseAndFlush();
+            SerilogLog.CloseAndFlush();
         }
     }
 
@@ -96,7 +92,7 @@ public static class CliGuiRuntime
         using var guiInstanceGuard = tryAcquireSingleInstanceGuard();
         if (guiInstanceGuard is null)
         {
-            Log.Warning("Could not acquire single-instance lock; another instance may already be running.");
+            SerilogLog.Warning("Could not acquire single-instance lock; another instance may already be running.");
             return (int)CliExitCode.EnvironmentError;
         }
 

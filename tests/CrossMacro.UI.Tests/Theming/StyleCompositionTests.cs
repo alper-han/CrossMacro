@@ -1,6 +1,3 @@
-using System.IO;
-using System.Text.RegularExpressions;
-using FluentAssertions;
 
 namespace CrossMacro.UI.Tests.Theming;
 

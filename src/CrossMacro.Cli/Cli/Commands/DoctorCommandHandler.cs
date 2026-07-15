@@ -1,8 +1,3 @@
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Cli.Services;
-using CrossMacro.Cli.Serialization;
 
 namespace CrossMacro.Cli.Commands;
 

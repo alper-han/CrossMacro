@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 

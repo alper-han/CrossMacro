@@ -1,11 +1,3 @@
-using CrossMacro.Cli;
-using CrossMacro.Cli.DependencyInjection;
-using CrossMacro.Cli.Services;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Platform.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -20,7 +12,7 @@ public sealed class ScreenReadingCliRuntimeTests
         var resolved = provider.GetRequiredService<IScreenPixelReader>();
         var runService = provider.GetRequiredService<IRunScriptExecutionService>();
 
-        var result = await runService.ExecuteAsync(new RunExecutionRequest
+        var result = await runService.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["pixelcolor 500 300 mycolor"],
         }, CancellationToken.None);
@@ -40,7 +32,7 @@ public sealed class ScreenReadingCliRuntimeTests
         await using var provider = BuildProvider(screenReader);
         var runService = provider.GetRequiredService<IRunScriptExecutionService>();
 
-        var result = await runService.ExecuteAsync(new RunExecutionRequest
+        var result = await runService.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["waitcolor 500 300 00FF00 5000"],
         }, CancellationToken.None);
@@ -63,7 +55,7 @@ public sealed class ScreenReadingCliRuntimeTests
         await using var provider = BuildProvider(screenReader);
         var runService = provider.GetRequiredService<IRunScriptExecutionService>();
 
-        var result = await runService.ExecuteAsync(new RunExecutionRequest
+        var result = await runService.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["pixelsearch 0 0 1920 1080 FF0000 found_x found_y"],
         }, CancellationToken.None);
@@ -86,7 +78,7 @@ public sealed class ScreenReadingCliRuntimeTests
         await using var provider = BuildProvider(screenReader);
         var runService = provider.GetRequiredService<IRunScriptExecutionService>();
 
-        var result = await runService.ExecuteAsync(new RunExecutionRequest
+        var result = await runService.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["pixelsearch 0 0 1920 1080 FF0000 found_x found_y tolerance 26"],
         }, CancellationToken.None);
@@ -104,7 +96,7 @@ public sealed class ScreenReadingCliRuntimeTests
         await using var provider = BuildProvider(screenReader);
         var runService = provider.GetRequiredService<IRunScriptExecutionService>();
 
-        var result = await runService.ExecuteAsync(new RunExecutionRequest
+        var result = await runService.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["pixelcolor 1"],
         }, CancellationToken.None);
@@ -126,7 +118,7 @@ public sealed class ScreenReadingCliRuntimeTests
         var pixelResult = await screenReader.GetPixelAsync(new ScreenPoint(1, 2), ScreenReadOptions.Default);
         var runService = provider.GetRequiredService<IRunScriptExecutionService>();
 
-        var runResult = await runService.ExecuteAsync(new RunExecutionRequest
+        var runResult = await runService.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["pixelcolor 1 2 sampled"],
         }, CancellationToken.None);

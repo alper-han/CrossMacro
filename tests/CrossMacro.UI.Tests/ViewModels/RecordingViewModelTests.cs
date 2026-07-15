@@ -1,12 +1,3 @@
-using System;
-using System.Reflection;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.ViewModels;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 

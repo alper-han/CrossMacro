@@ -1,4 +1,3 @@
-using CrossMacro.Infrastructure.Services;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

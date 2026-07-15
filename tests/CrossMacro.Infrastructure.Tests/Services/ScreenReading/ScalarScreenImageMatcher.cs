@@ -1,5 +1,3 @@
-using CrossMacro.Infrastructure.Services.ScreenReading;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Tests.Services.ScreenReading;
 

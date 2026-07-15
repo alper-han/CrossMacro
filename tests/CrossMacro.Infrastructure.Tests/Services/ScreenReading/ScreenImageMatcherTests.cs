@@ -1,9 +1,6 @@
-using System.Buffers;
 
 namespace CrossMacro.Infrastructure.Tests.Services.ScreenReading;
 
-using CrossMacro.Infrastructure.Services.ScreenReading;
-using CrossMacro.Platform.Abstractions;
 
 public sealed class ScreenImageMatcherTests
 {

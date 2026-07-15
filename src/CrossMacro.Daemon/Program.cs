@@ -1,13 +1,3 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using CrossMacro.Daemon.Services;
-using CrossMacro.Platform.Linux.Native.Systemd;
-using CrossMacro.Infrastructure.Logging;
-using Serilog;
-using Serilog.Events;
 
 namespace CrossMacro.Daemon;
 
@@ -18,7 +8,7 @@ class Program
         var logLevel = Environment.GetEnvironmentVariable("CROSSMACRO_LOG_LEVEL") ?? "Information";
         LoggerSetup.Initialize(logLevel, enableFileLogging: false);
 
-        Log.Information("Starting CrossMacro.Daemon...");
+        SerilogLog.Information("Starting CrossMacro.Daemon...");
 
         using var cts = new CancellationTokenSource();
         using var sigTermInfo = CreateShutdownSignalRegistration(PosixSignal.SIGTERM, "SIGTERM", cts);
@@ -34,12 +24,12 @@ class Program
             if (levelSwitch.MinimumLevel is LogEventLevel.Debug)
             {
                 LoggerSetup.SetLogLevel("Information");
-                Log.Information("[LogLevel] Switched to Information (send SIGUSR1 again for Debug)");
+                SerilogLog.Information("[LogLevel] Switched to Information (send SIGUSR1 again for Debug)");
             }
             else
             {
                 LoggerSetup.SetLogLevel("Debug");
-                Log.Information("[LogLevel] Switched to Debug (send SIGUSR1 again for Information)");
+                SerilogLog.Information("[LogLevel] Switched to Debug (send SIGUSR1 again for Information)");
             }
         });
 
@@ -73,18 +63,18 @@ class Program
         }
         catch (OperationCanceledException)
         {
-            Log.Information("Daemon stopping...");
+            SerilogLog.Information("Daemon stopping...");
         }
         catch (Exception ex)
         {
-            Log.Fatal(ex, "Daemon crashed");
+            SerilogLog.Fatal(ex, "Daemon crashed");
         }
         finally
         {
             DisposeOwnedResources(inputCapture, virtualDevice, security);
             AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
             SystemdNotify.Stopping();
-            Log.CloseAndFlush();
+            SerilogLog.CloseAndFlush();
         }
     }
 
@@ -100,7 +90,7 @@ class Program
 
         if (errors.Count > 0)
         {
-            Log.Error(new AggregateException("Daemon resource cleanup failed.", errors), "Daemon shutdown cleanup failed");
+            SerilogLog.Error(new AggregateException("Daemon resource cleanup failed.", errors), "Daemon shutdown cleanup failed");
         }
     }
 
@@ -143,7 +133,7 @@ class Program
         return PosixSignalRegistration.Create(signal, ctx =>
         {
             ctx.Cancel = true;
-            Log.Information("Received {SignalName}, stopping daemon...", signalName);
+            SerilogLog.Information("Received {SignalName}, stopping daemon...", signalName);
             shutdown.Cancel();
         });
     }

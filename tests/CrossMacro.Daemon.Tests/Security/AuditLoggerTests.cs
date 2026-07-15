@@ -1,9 +1,5 @@
 namespace CrossMacro.Daemon.Tests.Security;
 
-using System;
-using System.IO;
-using CrossMacro.Daemon.Security;
-using CrossMacro.Infrastructure.Linux.Native;
 
 [Collection(AuditEnvironmentCollection.Name)]
 public sealed class AuditLoggerTests

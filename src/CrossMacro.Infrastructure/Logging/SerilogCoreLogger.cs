@@ -1,7 +1,3 @@
-using System;
-using CrossMacro.Core.Logging;
-using Serilog.Events;
-using SerilogLog = Serilog.Log;
 
 namespace CrossMacro.Infrastructure.Logging;
 

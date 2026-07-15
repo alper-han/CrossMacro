@@ -1,8 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-using System.Net.Sockets;
-using System.Text;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public sealed class NiriIpcClientTests
 {

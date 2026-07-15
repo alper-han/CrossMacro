@@ -1,6 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.Strategies;
 

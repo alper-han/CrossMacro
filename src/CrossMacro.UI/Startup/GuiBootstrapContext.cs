@@ -1,5 +1,3 @@
-using System;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Startup;
 

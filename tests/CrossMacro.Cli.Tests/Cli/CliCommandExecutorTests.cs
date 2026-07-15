@@ -1,9 +1,3 @@
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Cli;
-using CrossMacro.Infrastructure.Logging;
-using NSubstitute;
 
 namespace CrossMacro.Cli.Tests;
 

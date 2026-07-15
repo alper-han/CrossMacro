@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

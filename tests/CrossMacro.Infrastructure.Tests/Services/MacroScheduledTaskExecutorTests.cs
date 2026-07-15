@@ -1,12 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using CrossMacro.Core;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

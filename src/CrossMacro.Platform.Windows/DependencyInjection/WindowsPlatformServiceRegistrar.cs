@@ -1,11 +1,3 @@
-using System;
-using System.Runtime.Versioning;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Windows.Services;
-using CrossMacro.Platform.Windows.Services.ScreenReading;
-using CrossMacro.Platform.Windows.Strategies;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Windows.DependencyInjection;
 

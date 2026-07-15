@@ -1,9 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using FluentAssertions;
 
 public class MacroFileManagerTests : IDisposable
 {

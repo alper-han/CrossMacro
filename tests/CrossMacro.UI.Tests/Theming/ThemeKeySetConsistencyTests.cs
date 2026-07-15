@@ -1,5 +1,3 @@
-using System.IO;
-using FluentAssertions;
 
 namespace CrossMacro.UI.Tests.Theming;
 

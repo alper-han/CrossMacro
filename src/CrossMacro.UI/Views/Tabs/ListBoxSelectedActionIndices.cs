@@ -1,15 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Linq;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Selection;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
-using CrossMacro.UI.ViewModels;
 
 namespace CrossMacro.UI.Views.Tabs;
 

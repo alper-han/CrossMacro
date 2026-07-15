@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.Services;
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public sealed class WaylandExtImageCopySupportProbe : IExtImageCopySupportProbe

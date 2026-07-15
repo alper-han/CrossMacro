@@ -2,8 +2,6 @@
 
 namespace CrossMacro.UI.Icons.Generated
 {
-    using System;
-    using SkiaSharp;
 
     public static class SettingsEmojiIcon
     {

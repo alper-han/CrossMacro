@@ -1,5 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Cli;
 

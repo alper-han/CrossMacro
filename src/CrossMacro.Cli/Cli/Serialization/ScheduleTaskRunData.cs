@@ -1,5 +1,3 @@
-using System;
-using System.Text.Json.Serialization;
 
 namespace CrossMacro.Cli.Serialization;
 

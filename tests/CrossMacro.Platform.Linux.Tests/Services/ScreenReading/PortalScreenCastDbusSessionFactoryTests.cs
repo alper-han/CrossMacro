@@ -1,8 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
-using Microsoft.Win32.SafeHandles;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 

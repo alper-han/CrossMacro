@@ -1,5 +1,3 @@
-using System.Linq;
-using CrossMacro.UI.Icons;
 
 namespace CrossMacro.UI.ViewModels;
 

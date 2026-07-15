@@ -1,13 +1,3 @@
-using System;
-using CrossMacro.Application.Automation;
-using CrossMacro.Application.Profiles;
-using CrossMacro.Application.Runtime;
-using CrossMacro.Core.Services;
-using CrossMacro.Cli.Commands;
-using CrossMacro.Cli.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli.DependencyInjection;
 

@@ -1,6 +1,5 @@
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-using CrossMacro.Platform.Linux.Services;
 
 internal static class WaylandExtImageCopyRegistryProbe
 {

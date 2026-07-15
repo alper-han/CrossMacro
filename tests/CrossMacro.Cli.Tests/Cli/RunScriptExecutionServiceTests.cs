@@ -1,14 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using CrossMacro.Infrastructure.Services.Playback;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using NSubstitute;
-using System.IO;
-using System.Text.Json;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -31,7 +20,7 @@ public class RunScriptExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenDryRunWithBasicSteps_ReturnsSuccess()
     {
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -56,7 +45,7 @@ public class RunScriptExecutionServiceTests
     {
         _keyCodeMapper.GetKeyCode("Backspace").Returns(InputEventCode.KEY_BACKSPACE);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["pixelcolor 1 2 sampled", "tap Backspace"],
             DryRun = true,
@@ -69,7 +58,7 @@ public class RunScriptExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenDryRunHasMixedCoordinateModes_ReportsMixedCoordinateMode()
     {
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -88,7 +77,7 @@ public class RunScriptExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenEqualityConditionContainsComparatorLiteral_UsesEqualityBoundary()
     {
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -107,7 +96,7 @@ public class RunScriptExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenSetAndConditionUseEscapedDollarLiteral_TreatsAsText()
     {
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -132,7 +121,7 @@ public class RunScriptExecutionServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -163,7 +152,7 @@ public class RunScriptExecutionServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -190,7 +179,7 @@ public class RunScriptExecutionServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["click left"],
         }, CancellationToken.None);
@@ -215,7 +204,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["tap ctrl+c"],
         }, CancellationToken.None);
@@ -240,7 +229,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -267,7 +256,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -290,7 +279,7 @@ public class RunScriptExecutionServiceTests
     {
         var steps = Enumerable.Repeat("click left", 30).ToArray();
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = steps,
             DryRun = true,
@@ -308,7 +297,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -338,7 +327,7 @@ public class RunScriptExecutionServiceTests
                 return Task.CompletedTask;
             }));
 
-        var result = await service.ExecuteAsync(new RunExecutionRequest
+        var result = await service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -364,7 +353,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["type a"],
         }, CancellationToken.None);
@@ -392,7 +381,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["type cmd "],
         }, CancellationToken.None);
@@ -411,7 +400,7 @@ public class RunScriptExecutionServiceTests
     {
         _keyCodeMapper.GetKeyCodeForCharacter('x').Returns(-1);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["type x"],
         }, CancellationToken.None);
@@ -440,7 +429,7 @@ public class RunScriptExecutionServiceTests
             _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
 
-            var result = await _service.ExecuteAsync(new RunExecutionRequest
+            var result = await _service.ExecuteAsync(new CliRunExecutionRequest
             {
                 StepFilePath = tempFile,
             }, CancellationToken.None);
@@ -468,7 +457,7 @@ public class RunScriptExecutionServiceTests
                 "bad command",
             ]);
 
-            var result = await _service.ExecuteAsync(new RunExecutionRequest
+            var result = await _service.ExecuteAsync(new CliRunExecutionRequest
             {
                 StepFilePath = tempFile,
             }, CancellationToken.None);
@@ -490,7 +479,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -510,7 +499,7 @@ public class RunScriptExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenUnknownVariableUsed_ReturnsInvalidArguments()
     {
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["move abs $missing 10"],
         }, CancellationToken.None);
@@ -527,7 +516,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -551,7 +540,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -575,7 +564,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -600,7 +589,7 @@ public class RunScriptExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenBreakUsedOutsideLoop_ReturnsInvalidArguments()
     {
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -618,7 +607,7 @@ public class RunScriptExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenRepeatBlockMissingClosingBrace_ReturnsInvalidArguments()
     {
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -639,7 +628,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -665,7 +654,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -693,7 +682,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -721,7 +710,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -746,7 +735,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -768,7 +757,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -794,7 +783,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -818,7 +807,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -840,7 +829,7 @@ public class RunScriptExecutionServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenWhileNeverProgresses_ReturnsIterationLimitError()
     {
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps =
             [
@@ -862,7 +851,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new AbsolutePlaybackUnsupportedException("Relative Only")));
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["move abs 10 10"],
         }, CancellationToken.None);
@@ -879,7 +868,7 @@ public class RunScriptExecutionServiceTests
         _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InputInjectionPermissionRequiredException("permission missing")));
 
-        var result = await _service.ExecuteAsync(new RunExecutionRequest
+        var result = await _service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["type a"],
         }, CancellationToken.None);
@@ -900,7 +889,7 @@ public class RunScriptExecutionServiceTests
         });
         var service = new RunScriptExecutionService(new RunScriptRuntimeService(() => player, _keyCodeMapper));
 
-        var result = await service.ExecuteAsync(new RunExecutionRequest
+        var result = await service.ExecuteAsync(new CliRunExecutionRequest
         {
             Steps = ["click left"],
         }, CancellationToken.None);

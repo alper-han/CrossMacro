@@ -1,4 +1,3 @@
-using CrossMacro.Application.Runtime;
 
 namespace CrossMacro.Cli.Tests;
 
@@ -8,7 +7,7 @@ public sealed class RuntimeLifecycleTests
     public async Task StartAndStopAreIdempotentAndStopInReverseOrder()
     {
         var events = new List<string>();
-        var lifecycle = new RuntimeLifecycle(
+        var lifecycle = new ApplicationRuntimeLifecycle(
         [
             Step("first", events),
             Step("second", events),
@@ -26,10 +25,10 @@ public sealed class RuntimeLifecycleTests
     public async Task FailedStartRollsBackCompletedSteps()
     {
         var events = new List<string>();
-        var lifecycle = new RuntimeLifecycle(
+        var lifecycle = new ApplicationRuntimeLifecycle(
         [
             Step("first", events),
-            new RuntimeLifecycleStep(
+            new ApplicationRuntimeLifecycleStep(
                 "second",
                 _ => throw new InvalidOperationException("start failed"),
                 _ =>
@@ -49,10 +48,10 @@ public sealed class RuntimeLifecycleTests
     {
         var events = new List<string>();
         using var cts = new CancellationTokenSource();
-        var lifecycle = new RuntimeLifecycle(
+        var lifecycle = new ApplicationRuntimeLifecycle(
         [
             Step("first", events),
-            new RuntimeLifecycleStep(
+            new ApplicationRuntimeLifecycleStep(
                 "second",
                 _ =>
                 {
@@ -77,14 +76,14 @@ public sealed class RuntimeLifecycleTests
     public async Task StopAggregatesCleanupErrorsAndStillAttemptsEveryStartedStep()
     {
         var stopped = new List<string>();
-        var lifecycle = new RuntimeLifecycle(
+        var lifecycle = new ApplicationRuntimeLifecycle(
         [
-            new RuntimeLifecycleStep("first", _ => Task.CompletedTask, _ =>
+            new ApplicationRuntimeLifecycleStep("first", _ => Task.CompletedTask, _ =>
             {
                 stopped.Add("first");
                 throw new InvalidOperationException("first stop failed");
             }),
-            new RuntimeLifecycleStep("second", _ => Task.CompletedTask, _ =>
+            new ApplicationRuntimeLifecycleStep("second", _ => Task.CompletedTask, _ =>
             {
                 stopped.Add("second");
                 throw new InvalidOperationException("second stop failed");
@@ -98,7 +97,7 @@ public sealed class RuntimeLifecycleTests
         Assert.Equal(2, error.InnerExceptions.Count);
     }
 
-    private static RuntimeLifecycleStep Step(string name, ICollection<string> events) =>
+    private static ApplicationRuntimeLifecycleStep Step(string name, ICollection<string> events) =>
         new(
             name,
             _ =>

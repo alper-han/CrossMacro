@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.UI.ViewModels;
 

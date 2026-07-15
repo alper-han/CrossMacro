@@ -1,9 +1,3 @@
-using System;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.Native.UInput;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux;
 

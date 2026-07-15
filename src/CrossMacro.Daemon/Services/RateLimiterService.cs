@@ -1,5 +1,3 @@
-using System;
-using CrossMacro.Daemon.Security;
 
 namespace CrossMacro.Daemon.Services;
 

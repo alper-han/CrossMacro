@@ -1,7 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 

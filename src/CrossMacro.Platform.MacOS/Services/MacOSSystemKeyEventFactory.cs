@@ -1,5 +1,3 @@
-using System;
-using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
 

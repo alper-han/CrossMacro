@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Linux.Native.Xkb;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 

@@ -1,6 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.Strategies;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Strategies;
 

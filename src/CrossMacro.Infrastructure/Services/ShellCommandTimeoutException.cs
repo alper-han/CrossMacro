@@ -1,4 +1,3 @@
-using System;
 
 namespace CrossMacro.Infrastructure.Services;
 

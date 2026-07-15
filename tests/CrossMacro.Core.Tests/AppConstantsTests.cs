@@ -1,7 +1,5 @@
 namespace CrossMacro.Core.Tests;
 
-using CrossMacro.Core;
-using FluentAssertions;
 
 public class AppConstantsTests
 {

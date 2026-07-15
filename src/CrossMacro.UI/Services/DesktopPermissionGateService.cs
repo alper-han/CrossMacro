@@ -1,11 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Views.Dialogs;
 
 namespace CrossMacro.UI.Services;
 

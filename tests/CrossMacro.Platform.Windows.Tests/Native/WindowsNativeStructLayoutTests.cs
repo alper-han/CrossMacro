@@ -1,6 +1,3 @@
-using System;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Tests.Native;
 

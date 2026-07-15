@@ -1,8 +1,3 @@
-using System;
-using System.Buffers.Binary;
-using System.IO;
-using System.IO.Compression;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 

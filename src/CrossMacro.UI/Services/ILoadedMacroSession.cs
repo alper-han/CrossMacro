@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using CrossMacro.Core.Models;
-using CrossMacro.UI.Models;
 
 namespace CrossMacro.UI.Services;
 

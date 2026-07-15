@@ -1,8 +1,5 @@
 namespace CrossMacro.UI.Tests;
 
-using Avalonia.Controls;
-using CrossMacro.UI;
-using CrossMacro.UI.ViewModels;
 
 public class ViewLocatorTests
 {

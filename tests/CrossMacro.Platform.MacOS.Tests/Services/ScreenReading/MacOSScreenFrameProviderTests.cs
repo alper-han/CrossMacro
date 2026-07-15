@@ -1,5 +1,3 @@
-using CrossMacro.Platform.MacOS.Services.ScreenReading;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services.ScreenReading;
 

@@ -1,5 +1,3 @@
-using CoreLogging = CrossMacro.Core.Logging;
-using CrossMacro.Infrastructure.Logging;
 
 namespace CrossMacro.Cli.Tests;
 

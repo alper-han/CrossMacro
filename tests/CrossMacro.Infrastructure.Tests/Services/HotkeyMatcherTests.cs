@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 

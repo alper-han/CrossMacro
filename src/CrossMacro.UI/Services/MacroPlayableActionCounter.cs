@@ -1,6 +1,3 @@
-using System.Linq;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.UI.Services;
 

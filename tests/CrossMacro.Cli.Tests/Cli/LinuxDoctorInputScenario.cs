@@ -1,6 +1,3 @@
-using CrossMacro.Cli.Services;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Cli.Tests;
 

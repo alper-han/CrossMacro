@@ -1,15 +1,3 @@
-using System;
-using System.Collections.Specialized;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.Icons;
 
 namespace CrossMacro.UI.ViewModels;
 

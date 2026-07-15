@@ -1,9 +1,3 @@
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Platform.Abstractions;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Core.Tests.Services.Recording;
 

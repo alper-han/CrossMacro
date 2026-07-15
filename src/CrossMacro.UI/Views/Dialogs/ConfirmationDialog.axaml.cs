@@ -1,5 +1,3 @@
-using Avalonia.Controls;
-using Avalonia.Interactivity;
 
 namespace CrossMacro.UI.Views.Dialogs;
 

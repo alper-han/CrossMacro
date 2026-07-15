@@ -1,9 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using System;
-using System.Diagnostics;
-using System.Threading;
-using CrossMacro.Infrastructure.Services;
 
 public class ProcessRunnerTests
 {

@@ -1,20 +1,3 @@
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.ComponentModel;
-using System.Reflection;
-using Avalonia;
-using Avalonia.Controls;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Views.Tabs;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 

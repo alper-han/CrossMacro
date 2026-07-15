@@ -1,8 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.Native.X11;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.X11
 {

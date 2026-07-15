@@ -1,5 +1,3 @@
-using CrossMacro.Core.Models;
-using FluentAssertions;
 
 namespace CrossMacro.Core.Tests.Models;
 

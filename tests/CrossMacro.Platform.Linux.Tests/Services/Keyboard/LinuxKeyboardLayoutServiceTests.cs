@@ -1,6 +1,3 @@
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.Keyboard;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Keyboard;
 

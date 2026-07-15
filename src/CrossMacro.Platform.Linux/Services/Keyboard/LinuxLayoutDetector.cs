@@ -1,10 +1,3 @@
-using System;
-using System.Text.Json;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using CrossMacro.Platform.Linux.Helpers;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 

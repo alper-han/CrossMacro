@@ -1,5 +1,3 @@
-using System;
-using System.Threading;
 
 namespace CrossMacro.Platform.Abstractions;
 

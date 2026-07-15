@@ -1,7 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.Services;
 
 public class LinuxEnvironmentDetectorTests
 {

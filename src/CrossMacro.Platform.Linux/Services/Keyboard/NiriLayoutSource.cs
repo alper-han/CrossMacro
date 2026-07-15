@@ -1,6 +1,3 @@
-using System.Text.Json;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 

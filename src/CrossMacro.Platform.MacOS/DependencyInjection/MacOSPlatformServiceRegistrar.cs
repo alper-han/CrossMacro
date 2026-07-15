@@ -1,11 +1,3 @@
-using System;
-using System.Runtime.Versioning;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.Services;
-using CrossMacro.Platform.MacOS.Services.ScreenReading;
-using CrossMacro.Platform.MacOS.Strategies;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.MacOS.DependencyInjection;
 

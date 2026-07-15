@@ -1,4 +1,3 @@
-using System;
 
 namespace CrossMacro.Platform.Linux.Native.Evdev;
 

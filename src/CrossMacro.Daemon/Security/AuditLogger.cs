@@ -1,8 +1,3 @@
-using System;
-using System.Text;
-using System.IO;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.Native;
 
 namespace CrossMacro.Daemon.Security;
 

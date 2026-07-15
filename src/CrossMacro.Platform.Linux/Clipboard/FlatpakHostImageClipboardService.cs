@@ -1,7 +1,3 @@
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.Services;
 
 namespace CrossMacro.Platform.Linux.Clipboard;
 

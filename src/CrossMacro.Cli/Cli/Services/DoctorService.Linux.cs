@@ -1,10 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using System.Linq;
-using System.Text.Json.Nodes;
 
 namespace CrossMacro.Cli.Services;
 

@@ -1,10 +1,3 @@
-using System;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 

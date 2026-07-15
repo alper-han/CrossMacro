@@ -1,14 +1,3 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Application.Automation;
-using CrossMacro.Core.Models;
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Cli.Tests;
 

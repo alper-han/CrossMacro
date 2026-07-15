@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.MacOS.Native;
 

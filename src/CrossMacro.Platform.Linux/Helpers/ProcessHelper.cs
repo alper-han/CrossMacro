@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Helpers;
 

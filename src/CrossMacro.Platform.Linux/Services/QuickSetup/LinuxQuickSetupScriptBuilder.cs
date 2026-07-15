@@ -1,4 +1,3 @@
-using System.Text;
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 

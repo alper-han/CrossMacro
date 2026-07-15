@@ -1,4 +1,3 @@
-using CrossMacro.Application.Runtime;
 
 namespace CrossMacro.UI.Tests.Services;
 

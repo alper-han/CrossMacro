@@ -1,6 +1,3 @@
-using System;
-using CrossMacro.Daemon.Security;
-using Xunit;
 
 namespace CrossMacro.Daemon.Tests.Security;
 

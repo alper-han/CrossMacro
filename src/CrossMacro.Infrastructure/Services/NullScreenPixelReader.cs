@@ -1,6 +1,3 @@
-using System.Threading.Tasks;
-using CrossMacro.Infrastructure.Services.ScreenReading;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 

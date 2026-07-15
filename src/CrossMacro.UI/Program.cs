@@ -1,11 +1,3 @@
-using Avalonia;
-using Avalonia.Media;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Startup;
-using Microsoft.Extensions.DependencyInjection;
-using Serilog;
-using System;
-using System.Reflection;
 
 namespace CrossMacro.UI;
 
@@ -32,7 +24,7 @@ public static class Program
         var startupParseResult = GuiStartupOptionsParser.Parse(args);
 
         var bootstrapContext = new GuiBootstrapContext(configureServices, configureRuntimeServices, startupParseResult.Options);
-        Log.Information("Starting CrossMacro application");
+        SerilogLog.Information("Starting CrossMacro application");
 
         return configureAppBuilder(BuildAvaloniaApp(bootstrapContext))
             .StartWithClassicDesktopLifetime(startupParseResult.ForwardedArgs);

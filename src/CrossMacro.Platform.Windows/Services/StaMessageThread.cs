@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Services;
 

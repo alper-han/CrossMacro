@@ -1,12 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Infrastructure.Services;
-using NSubstitute;
-using System.Text.Json;
 
 namespace CrossMacro.Cli.Tests;
 

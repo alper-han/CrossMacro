@@ -1,6 +1,3 @@
-using CrossMacro.Platform.MacOS.Native;
-using CrossMacro.Platform.Abstractions;
-using System.Diagnostics;
 
 namespace CrossMacro.Platform.MacOS.Helpers;
 

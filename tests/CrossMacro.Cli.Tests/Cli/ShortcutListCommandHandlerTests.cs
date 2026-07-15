@@ -1,10 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Cli;
-using CrossMacro.Cli.Commands;
-using CrossMacro.Cli.Services;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Cli.Tests;
 

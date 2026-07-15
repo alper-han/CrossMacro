@@ -1,10 +1,3 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Windows.Strategies;
-using CrossMacro.TestInfrastructure;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.Strategies;
 

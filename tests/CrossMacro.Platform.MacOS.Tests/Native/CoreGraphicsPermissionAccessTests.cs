@@ -1,7 +1,3 @@
-using System.Reflection;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.MacOS.Native;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Native;
 

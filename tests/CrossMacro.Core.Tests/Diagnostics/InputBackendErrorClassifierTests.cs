@@ -1,6 +1,3 @@
-using System;
-using CrossMacro.Core.Diagnostics;
-using Xunit;
 
 namespace CrossMacro.Core.Tests.Diagnostics;
 

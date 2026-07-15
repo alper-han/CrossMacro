@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Linux.Services.Keyboard;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Keyboard;
 

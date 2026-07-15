@@ -1,9 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Windows.Helpers;
-using CrossMacro.Platform.Windows.Native;
-using Serilog;
 
 namespace CrossMacro.Platform.Windows.Services;
 

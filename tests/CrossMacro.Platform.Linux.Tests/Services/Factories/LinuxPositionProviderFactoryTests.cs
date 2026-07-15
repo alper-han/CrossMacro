@@ -1,14 +1,3 @@
-using System.Collections.Generic;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.Factories;
-using CrossMacro.Platform.Linux.Services.Factories.Selectors;
-using CrossMacro.TestInfrastructure;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 

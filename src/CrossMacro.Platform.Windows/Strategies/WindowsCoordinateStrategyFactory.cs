@@ -1,6 +1,3 @@
-using System;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Windows.Strategies;
 

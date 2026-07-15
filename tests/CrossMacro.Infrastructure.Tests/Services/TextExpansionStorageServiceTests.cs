@@ -1,8 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
 
 public class TextExpansionStorageServiceTests : IDisposable
 {

@@ -1,8 +1,3 @@
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Platform.Linux.Native.UInput;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests;
 

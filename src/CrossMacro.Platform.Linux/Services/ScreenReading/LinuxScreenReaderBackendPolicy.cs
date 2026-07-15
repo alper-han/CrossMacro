@@ -1,6 +1,5 @@
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-using CrossMacro.Platform.Linux.DisplayServer;
 
 internal static class LinuxScreenReaderBackendPolicy
 {

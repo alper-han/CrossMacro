@@ -1,23 +1,3 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
-using CrossMacro.Application.Automation;
-using CrossMacro.Application.Runtime;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Logging;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Playback;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
-using CrossMacro.Infrastructure.Services.ScreenReading;
-using CrossMacro.Infrastructure.Services.Recording.Processors;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Infrastructure.Services.TextExpansion;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Core.Services.TextExpansion;
-using CrossMacro.Platform.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CrossMacro.Infrastructure.DependencyInjection;
 

@@ -1,6 +1,3 @@
-using System;
-using System.Globalization;
-using Avalonia.Data.Converters;
 
 namespace CrossMacro.UI.Views.Tabs;
 

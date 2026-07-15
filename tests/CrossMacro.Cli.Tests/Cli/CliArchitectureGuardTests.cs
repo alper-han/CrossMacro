@@ -1,7 +1,3 @@
-using System;
-using System.Linq;
-using System.Reflection;
-using CrossMacro.Cli;
 
 namespace CrossMacro.Cli.Tests;
 

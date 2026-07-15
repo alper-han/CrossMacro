@@ -1,7 +1,3 @@
-using System;
-using CrossMacro.Core.Models;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.Core.Tests.Models;
 

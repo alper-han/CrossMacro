@@ -1,5 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

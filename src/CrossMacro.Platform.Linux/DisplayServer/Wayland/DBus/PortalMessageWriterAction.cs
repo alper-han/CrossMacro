@@ -1,4 +1,3 @@
-using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 

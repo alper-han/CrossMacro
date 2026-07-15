@@ -1,8 +1,4 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.MacOS.Services;
-using Microsoft.Extensions.DependencyInjection;
 
-using System.Runtime.Versioning;
 
 namespace CrossMacro.Platform.MacOS;
 

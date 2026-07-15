@@ -1,7 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.Services.Playback;
 
-using CrossMacro.Core.Models;
-using CrossMacro.Platform.Linux.Services.Playback;
 
 public class UInputEventExecutorTests
 {

@@ -1,4 +1,3 @@
-using System.Linq;
 
 namespace CrossMacro.Core.Models;
 

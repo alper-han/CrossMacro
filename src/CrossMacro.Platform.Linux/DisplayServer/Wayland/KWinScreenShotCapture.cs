@@ -1,9 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
-using CrossMacro.Platform.Linux.Services;
-using Microsoft.Win32.SafeHandles;
-using System.Runtime.InteropServices;
-using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

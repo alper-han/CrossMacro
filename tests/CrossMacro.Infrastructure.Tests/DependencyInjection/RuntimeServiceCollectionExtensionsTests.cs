@@ -1,19 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.DependencyInjection;
 
-using System;
-using System.Collections.Generic;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.TextExpansion;
-using CrossMacro.Infrastructure.DependencyInjection;
-using CrossMacro.Infrastructure.Logging;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
-using CrossMacro.Infrastructure.Services.ScreenReading;
-using CrossMacro.Infrastructure.Services.Recording.Processors;
-using CrossMacro.Infrastructure.Services.TextExpansion;
-using CrossMacro.Platform.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 public class RuntimeServiceCollectionExtensionsTests
 {

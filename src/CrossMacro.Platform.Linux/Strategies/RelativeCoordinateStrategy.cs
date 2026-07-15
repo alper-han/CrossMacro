@@ -1,6 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Strategies;
 

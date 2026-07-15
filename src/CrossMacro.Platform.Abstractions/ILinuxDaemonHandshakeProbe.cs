@@ -1,7 +1,5 @@
 namespace CrossMacro.Platform.Abstractions;
 
-using System;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 public interface ILinuxDaemonHandshakeProbe
 {

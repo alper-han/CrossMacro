@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS;
-using CrossMacro.Platform.MacOS.Native;
-using CrossMacro.Platform.MacOS.Services;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 

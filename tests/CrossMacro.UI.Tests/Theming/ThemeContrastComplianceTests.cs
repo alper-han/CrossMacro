@@ -1,7 +1,3 @@
-using System;
-using System.Globalization;
-using System.IO;
-using FluentAssertions;
 
 namespace CrossMacro.UI.Tests.Theming;
 

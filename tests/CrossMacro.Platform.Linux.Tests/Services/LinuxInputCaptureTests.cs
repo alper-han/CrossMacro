@@ -1,10 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.Native.Evdev;
-using CrossMacro.Platform.Linux.Native.UInput;
-using CrossMacro.TestInfrastructure;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 

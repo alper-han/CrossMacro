@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 

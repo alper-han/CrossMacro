@@ -1,9 +1,5 @@
 namespace CrossMacro.Infrastructure.Tests.Services.ScreenCapture;
 
-using System.Buffers.Binary;
-using System.IO.Compression;
-using CrossMacro.Infrastructure.Services.ScreenCapture;
-using CrossMacro.Platform.Abstractions;
 
 public sealed class ScreenFramePngEncoderTests
 {

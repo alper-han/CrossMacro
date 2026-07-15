@@ -1,13 +1,3 @@
-using System;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.Input;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Models;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 

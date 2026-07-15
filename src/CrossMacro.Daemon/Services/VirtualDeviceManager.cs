@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using CrossMacro.Daemon.Contracts.Ipc;
 using CrossMacro.Platform.Linux.Native.UInput;
 using CrossMacro.Core.Logging;
@@ -9,76 +11,157 @@ namespace CrossMacro.Daemon.Services;
 public class VirtualDeviceManager : IVirtualDeviceManager
 {
     private UInputDevice? _uInputDevice;
-    private readonly Lock _lock = new();
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly CancellationTokenSource _disposeCts = new();
+    private readonly object _disposeLock = new();
+    private bool _disposed;
     
     public void Configure(int width, int height)
     {
-        lock (_lock)
+        ConfigureAsync(width, height).GetAwaiter().GetResult();
+    }
+
+    public async Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
+        await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        try
         {
-            try 
+            ThrowIfDisposed();
+            try
             {
-                if (_uInputDevice != null)
-                {
-                    _uInputDevice.Dispose();
-                    _uInputDevice = null;
-                }
-                
+                _uInputDevice?.Dispose();
                 _uInputDevice = new UInputDevice(width, height);
-                _uInputDevice.CreateVirtualInputDevice();
+                await _uInputDevice.CreateVirtualInputDeviceAsync().ConfigureAwait(false);
                 Log.Information("[VirtualDeviceManager] Reconfigured UInput device with resolution {W}x{H}", width, height);
             }
             catch (Exception ex)
             {
+                _uInputDevice?.Dispose();
+                _uInputDevice = null;
                 Log.Error(ex, "[VirtualDeviceManager] Failed to configure UInput device");
                 throw;
             }
+        }
+        finally
+        {
+            _gate.Release();
         }
     }
 
     public void SendEvent(ushort type, ushort code, int value)
     {
-        lock (_lock)
-        {
-            UInputDevice? device = _uInputDevice;
-            if (device == null) return;
+        SendEventAsync(type, code, value).GetAwaiter().GetResult();
+    }
 
-            device.SendEvent(type, code, value);
+    public async Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
+        await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposed();
+            _uInputDevice?.SendEvent(type, code, value);
+        }
+        finally
+        {
+            _gate.Release();
         }
     }
 
     public void SendEvents(ReadOnlySpan<IpcSimulationRequest> events)
     {
-        lock (_lock)
+        SendEventsAsync(events.ToArray()).GetAwaiter().GetResult();
+    }
+
+    public async Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
+        await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        try
         {
-            UInputDevice? device = _uInputDevice;
+            ThrowIfDisposed();
+            var device = _uInputDevice;
             if (device == null) return;
 
             foreach (var inputEvent in events)
             {
+                linkedCts.Token.ThrowIfCancellationRequested();
                 device.SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
                 if (inputEvent.DelayAfterMs > 0)
                 {
-                    Thread.Sleep(inputEvent.DelayAfterMs);
+                    await Task.Delay(inputEvent.DelayAfterMs, linkedCts.Token).ConfigureAwait(false);
                 }
             }
+        }
+        finally
+        {
+            _gate.Release();
         }
     }
 
     public void Reset()
     {
-        lock (_lock)
+        ResetAsync().GetAwaiter().GetResult();
+    }
+
+    public async Task ResetAsync(CancellationToken cancellationToken = default)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
+        await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        try
         {
-            if (_uInputDevice != null)
-            {
-                _uInputDevice.Dispose();
-                _uInputDevice = null;
-                Log.Information("[VirtualDeviceManager] Device reset");
-            }
+            _uInputDevice?.Dispose();
+            _uInputDevice = null;
+            Log.Information("[VirtualDeviceManager] Device reset");
+        }
+        finally
+        {
+            _gate.Release();
         }
     }
 
     public void Dispose()
     {
-        Reset();
+        lock (_disposeLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _disposeCts.Cancel();
+        }
+
+        _gate.Wait();
+        try
+        {
+            _uInputDevice?.Dispose();
+            _uInputDevice = null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    private CancellationToken GetOperationToken()
+    {
+        lock (_disposeLock)
+        {
+            ThrowIfDisposed();
+            return _disposeCts.Token;
+        }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(VirtualDeviceManager));
+        }
     }
 }

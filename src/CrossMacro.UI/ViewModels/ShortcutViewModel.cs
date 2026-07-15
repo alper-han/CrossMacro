@@ -217,12 +217,20 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var wasSelected = SelectedTask?.Id == task.Id;
         _shortcutService.RemoveTask(task.Id);
-        if (SelectedTask?.Id == task.Id)
+        if (wasSelected)
         {
             SelectedTask = Tasks.FirstOrDefault();
         }
-        await SaveChangesAsync(showSuccessStatus: false);
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
+        {
+            _shortcutService.AddTask(task);
+            if (wasSelected)
+            {
+                SelectedTask = task;
+            }
+        });
     }
     
     [RelayCommand]
@@ -260,7 +268,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         await SaveChangesAsync(showSuccessStatus: true);
     }
 
-    private async Task SaveChangesAsync(bool showSuccessStatus)
+    private async Task SaveChangesAsync(bool showSuccessStatus, Action? rollback = null)
     {
         try
         {
@@ -279,6 +287,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
+            rollback?.Invoke();
             Log.Error(ex, "[ShortcutViewModel] Failed to save shortcut tasks");
             var status = string.Format(_localizationService.CurrentCulture, _localizationService["Shortcut_StatusSaveFailed"], ex.Message);
             RaiseStatus(status);
@@ -301,6 +310,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(ShortcutTask task)
     {
+        var previousEnabled = !task.IsEnabled;
         if (_manageShortcut is not null)
         {
             var selectedTaskId = SelectedTask?.Id;
@@ -321,7 +331,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         {
             _shortcutService.SetTaskEnabled(task.Id, task.IsEnabled);
         }
-        await SaveChangesAsync(showSuccessStatus: false);
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _shortcutService.SetTaskEnabled(task.Id, previousEnabled));
     }
     
     private void OnShortcutStarting(object? sender, ShortcutTask task)

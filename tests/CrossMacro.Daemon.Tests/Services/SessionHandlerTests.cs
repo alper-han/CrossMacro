@@ -1249,6 +1249,13 @@ public sealed class SessionHandlerTests
             }
         }
 
+        public Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Configure(width, height);
+            return Task.CompletedTask;
+        }
+
         public void SendEvent(ushort type, ushort code, int value)
         {
             SentEvents.Add((type, code, value));
@@ -1259,6 +1266,13 @@ public sealed class SessionHandlerTests
             }
         }
 
+        public Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SendEvent(type, code, value);
+            return Task.CompletedTask;
+        }
+
         public void SendEvents(ReadOnlySpan<IpcSimulationRequest> events)
         {
             foreach (var inputEvent in events)
@@ -1267,9 +1281,22 @@ public sealed class SessionHandlerTests
             }
         }
 
+        public Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var inputEvent in events)
+            {
+                SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
+            }
+
+            return Task.CompletedTask;
+        }
+
         public void Reset()
         {
         }
+
+        public Task ResetAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void Dispose()
         {

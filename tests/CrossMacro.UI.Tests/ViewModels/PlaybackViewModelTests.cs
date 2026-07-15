@@ -72,6 +72,7 @@ public class PlaybackViewModelTests
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
 
         _settingsService.Current.Returns(_settings);
+        _settingsService.SaveAsync().Returns(Task.CompletedTask);
         _player.CurrentLoop.Returns(1);
         _player.TotalLoops.Returns(1);
         _player.IsWaitingBetweenLoops.Returns(false);
@@ -535,7 +536,7 @@ public class PlaybackViewModelTests
     [Fact]
     public void PlaybackSpeed_WhenSaveFails_RollsBackValue()
     {
-        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+        _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.PlaybackSpeed = 2.0;
 

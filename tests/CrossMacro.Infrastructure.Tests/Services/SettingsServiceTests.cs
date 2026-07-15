@@ -268,4 +268,21 @@ public class SettingsServiceTests : IDisposable
         // Assert
         await act.Should().ThrowAsync<IOException>();
     }
+
+    [Fact]
+    public async Task SaveAsync_QueuedSnapshotsAreWrittenInCallOrder()
+    {
+        var service = new SettingsService(_tempPath);
+        await service.LoadAsync();
+
+        service.Current.PlaybackSpeed = 2.0;
+        var firstSave = service.SaveAsync();
+        service.Current.PlaybackSpeed = 3.0;
+        var secondSave = service.SaveAsync();
+
+        await Task.WhenAll(firstSave, secondSave);
+
+        var loaded = await new SettingsService(_tempPath).LoadAsync();
+        loaded.PlaybackSpeed.Should().Be(3.0);
+    }
 }

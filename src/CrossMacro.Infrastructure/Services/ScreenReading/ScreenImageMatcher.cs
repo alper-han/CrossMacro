@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -78,7 +79,7 @@ public sealed class ScreenImageMatcher : IDisposable
 
         if (options.ScaleAware)
         {
-            return FindScaleAwareMatch(frame, template, region, options, cancellationToken);
+            return FindScaleAwareMatchWithPooledFrame(frame, template, region, options, cancellationToken);
         }
 
         var sampleWidth = GetSampleCount(template.Width, options.DownsampleFactor);
@@ -116,55 +117,62 @@ public sealed class ScreenImageMatcher : IDisposable
                 $"A single image matcher candidate, including its prefilter, requires {singleCandidateWork:N0} channel comparisons, exceeding the internal limit of {MaxMatcherWork:N0}.");
         }
 
-        var maximumSad = samplePixelCount * ColorChannelCount * (double)MaxChannelDifference;
-        var allowedSad = CalculateAllowedSad(maximumSad, options.MinimumSimilarity);
-        var framePixels = NormalizeFrame(frame, cancellationToken);
-        var templatePixels = GetNormalizedTemplate(template, options.DownsampleFactor, cancellationToken);
-
-        var candidateWidth = checked((long)region.Width - template.Width + 1);
-        var candidateHeight = checked((long)region.Height - template.Height + 1);
-        var selectedCandidate = MatchCandidate.None;
-        for (long bandYOffset = 0; bandYOffset < candidateHeight; bandYOffset = checked(bandYOffset + MatcherRowBandHeight))
+        var framePixels = NormalizePooledFrame(frame, cancellationToken);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var bandHeight = Math.Min(MatcherRowBandHeight, candidateHeight - bandYOffset);
-            var startY = checked((long)region.Y + bandYOffset);
-            var endY = checked(startY + bandHeight);
-            var bandCandidate = FindBestCandidate(
-                framePixels,
-                frame,
-                templatePixels,
-                frame.LogicalBounds,
-                region.X,
-                checked((long)region.X + candidateWidth),
-                startY,
-                endY,
-                anchors,
-                allowedSad,
-                options.DownsampleFactor,
-                options.SelectionMode,
-                cancellationToken);
+            var maximumSad = samplePixelCount * ColorChannelCount * (double)MaxChannelDifference;
+            var allowedSad = CalculateAllowedSad(maximumSad, options.MinimumSimilarity);
+            var templatePixels = GetNormalizedTemplate(template, options.DownsampleFactor, cancellationToken);
 
-            if (options.SelectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch)
+            var candidateWidth = checked((long)region.Width - template.Width + 1);
+            var candidateHeight = checked((long)region.Height - template.Height + 1);
+            var selectedCandidate = MatchCandidate.None;
+            for (long bandYOffset = 0; bandYOffset < candidateHeight; bandYOffset = checked(bandYOffset + MatcherRowBandHeight))
             {
-                if (bandCandidate.HasValue)
+                cancellationToken.ThrowIfCancellationRequested();
+                var bandHeight = Math.Min(MatcherRowBandHeight, candidateHeight - bandYOffset);
+                var startY = checked((long)region.Y + bandYOffset);
+                var endY = checked(startY + bandHeight);
+                var bandCandidate = FindBestCandidate(
+                    framePixels,
+                    frame,
+                    templatePixels,
+                    frame.LogicalBounds,
+                    region.X,
+                    checked((long)region.X + candidateWidth),
+                    startY,
+                    endY,
+                    anchors,
+                    allowedSad,
+                    options.DownsampleFactor,
+                    options.SelectionMode,
+                    cancellationToken);
+
+                if (options.SelectionMode == ScreenImageMatchSelectionMode.FirstThresholdMatch)
                 {
-                    selectedCandidate = bandCandidate;
-                    break;
+                    if (bandCandidate.HasValue)
+                    {
+                        selectedCandidate = bandCandidate;
+                        break;
+                    }
+                }
+                else
+                {
+                    selectedCandidate = BetterOf(selectedCandidate, bandCandidate);
                 }
             }
-            else
+
+            if (!selectedCandidate.HasValue)
             {
-                selectedCandidate = BetterOf(selectedCandidate, bandCandidate);
+                return null;
             }
-        }
 
-        if (!selectedCandidate.HasValue)
+            return new ScreenImageMatch(new ScreenPoint(selectedCandidate.X, selectedCandidate.Y), CalculateScore(selectedCandidate.Sad, maximumSad));
+        }
+        finally
         {
-            return null;
+            ArrayPool<byte>.Shared.Return(framePixels.Pixels);
         }
-
-        return new ScreenImageMatch(new ScreenPoint(selectedCandidate.X, selectedCandidate.Y), CalculateScore(selectedCandidate.Sad, maximumSad));
     }
 
     public void Dispose()
@@ -671,9 +679,21 @@ public sealed class ScreenImageMatcher : IDisposable
         }
     }
 
-    private ScreenImageMatch? FindScaleAwareMatch(ScreenFrame frame, ScreenFrame template, ScreenRect region, ScreenImageMatchOptions options, CancellationToken cancellationToken)
+    private ScreenImageMatch? FindScaleAwareMatchWithPooledFrame(ScreenFrame frame, ScreenFrame template, ScreenRect region, ScreenImageMatchOptions options, CancellationToken cancellationToken)
     {
-        var framePixels = NormalizeFrame(frame, cancellationToken);
+        var framePixels = NormalizePooledFrame(frame, cancellationToken);
+        try
+        {
+            return FindScaleAwareMatch(frame, framePixels, template, region, options, cancellationToken);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(framePixels.Pixels);
+        }
+    }
+
+    private ScreenImageMatch? FindScaleAwareMatch(ScreenFrame frame, RgbImage framePixels, ScreenFrame template, ScreenRect region, ScreenImageMatchOptions options, CancellationToken cancellationToken)
+    {
         var baseTemplate = GetNormalizedTemplate(template, options.DownsampleFactor, cancellationToken);
         var selected = MatchCandidate.None;
 
@@ -1043,6 +1063,28 @@ public sealed class ScreenImageMatcher : IDisposable
     private static RgbImage NormalizeFrame(ScreenFrame frame, CancellationToken cancellationToken)
     {
         var target = new byte[checked(frame.Width * frame.Height * ColorChannelCount)];
+        NormalizeFrameInto(frame, target, cancellationToken);
+        return new RgbImage(frame.Width, frame.Height, target, checked(frame.Width * ColorChannelCount));
+    }
+
+    private static RgbImage NormalizePooledFrame(ScreenFrame frame, CancellationToken cancellationToken)
+    {
+        var requiredLength = checked(frame.Width * frame.Height * ColorChannelCount);
+        var target = ArrayPool<byte>.Shared.Rent(requiredLength);
+        try
+        {
+            NormalizeFrameInto(frame, target, cancellationToken);
+            return new RgbImage(frame.Width, frame.Height, target, checked(frame.Width * ColorChannelCount));
+        }
+        catch
+        {
+            ArrayPool<byte>.Shared.Return(target);
+            throw;
+        }
+    }
+
+    private static void NormalizeFrameInto(ScreenFrame frame, byte[] target, CancellationToken cancellationToken)
+    {
         var bytesPerPixel = ScreenFrame.GetBytesPerPixel(frame.PixelFormat);
         var source = frame.Pixels.Span;
         var rowLength = checked(frame.Width * ColorChannelCount);
@@ -1084,7 +1126,6 @@ public sealed class ScreenImageMatcher : IDisposable
                 NormalizeRow);
         }
 
-        return new RgbImage(frame.Width, frame.Height, target, checked(frame.Width * ColorChannelCount));
     }
 
     private static bool ShouldParallelizeRows(int width, int height) =>

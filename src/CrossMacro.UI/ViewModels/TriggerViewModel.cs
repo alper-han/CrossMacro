@@ -291,12 +291,20 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var wasSelected = SelectedTask?.Id == task.Id;
         _triggerService.RemoveTask(task.Id);
-        if (SelectedTask?.Id == task.Id)
+        if (wasSelected)
         {
             SelectedTask = Tasks.FirstOrDefault();
         }
-        await SaveChangesAsync(showSuccessStatus: false);
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
+        {
+            _triggerService.AddTask(task);
+            if (wasSelected)
+            {
+                SelectedTask = task;
+            }
+        });
     }
 
     [RelayCommand]
@@ -378,7 +386,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     private bool CanRefreshWindows() => !IsRefreshingWindows && SelectedTask?.Field != TriggerField.None;
 
-    private async Task SaveChangesAsync(bool showSuccessStatus)
+    private async Task SaveChangesAsync(bool showSuccessStatus, Action? rollback = null)
     {
         try
         {
@@ -397,6 +405,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
+            rollback?.Invoke();
             Log.Error(ex, "[TriggerViewModel] Failed to save trigger tasks");
             var status = string.Format(
                 _localizationService.CurrentCulture,
@@ -417,6 +426,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(TriggerTask task)
     {
+        var previousEnabled = !task.IsEnabled;
         if (_manageTrigger is not null)
         {
             var selectedTaskId = SelectedTask?.Id;
@@ -437,7 +447,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         {
             _triggerService.SetTaskEnabled(task.Id, task.IsEnabled);
         }
-        await SaveChangesAsync(showSuccessStatus: false);
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _triggerService.SetTaskEnabled(task.Id, previousEnabled));
     }
 
     private void OnTriggerFired(object? sender, TriggerFiredEventArgs e)

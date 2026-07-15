@@ -185,6 +185,8 @@ public class ScheduleViewModelTests
         _schedulerService.Tasks.Add(task);
         _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(true));
+        _schedulerService.When(x => x.RemoveTask(task.Id)).Do(_ => _schedulerService.Tasks.Remove(task));
+        _schedulerService.When(x => x.AddTask(task)).Do(_ => _schedulerService.Tasks.Add(task));
         _schedulerService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -203,6 +205,7 @@ public class ScheduleViewModelTests
         // Assert
         status.Should().Contain("[Schedule_StatusSaveFailed]");
         status.Should().Contain("disk full");
+        _schedulerService.Tasks.Should().Contain(task);
         await _dialogService.Received(1).ShowMessageAsync(
             "[Schedule_SaveFailedTitle]",
             Arg.Is<string>(s => s.Contains("disk full")),

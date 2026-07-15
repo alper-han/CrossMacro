@@ -28,7 +28,7 @@ public class ProcessRunner : IProcessRunner
             
             var outputTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
-            await proc.WaitForExitAsync(cancellationToken);
+            await WaitForExitOrKillAsync(proc, cancellationToken);
             await outputTask;
             await errorTask;
             return proc.ExitCode == 0;

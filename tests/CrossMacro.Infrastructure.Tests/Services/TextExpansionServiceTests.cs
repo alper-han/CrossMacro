@@ -120,6 +120,20 @@ public class TextExpansionServiceTests
         _inputCapture.Received(1).Dispose();
         Assert.False(_service.IsRunning);
     }
+
+    [Fact]
+    public async Task Start_AfterDispose_DoesNotRestartCapture()
+    {
+        _service.Start();
+        _service.Dispose();
+
+        _service.Start();
+
+        Assert.False(_service.IsRunning);
+        _storageService.Received(1).Load();
+        _inputCapture.Received(1).Configure(false, true);
+        await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
     
     [Fact]
     public void OnInputReceived_DelegatesToProcessor()
@@ -148,16 +162,21 @@ public class TextExpansionServiceTests
             {
                 callInfo[1] = expansion;
                 return true;
-            });
+        });
 
         var invocationCount = 0;
+        var firstExpansionStarted = new AsyncSignal();
         var secondExpansionStarted = new AsyncSignal();
         _executor.ExpandAsync(Arg.Any<TextExpansion>())
             .Returns(_ =>
             {
                 invocationCount++;
 
-                if (invocationCount == 2)
+                if (invocationCount == 1)
+                {
+                    firstExpansionStarted.Signal();
+                }
+                else if (invocationCount == 2)
                 {
                     secondExpansionStarted.Signal();
                 }
@@ -169,12 +188,73 @@ public class TextExpansionServiceTests
 
         // Act
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
-        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+        await firstExpansionStarted.WaitAsync(TestTimeout);
+
+        for (var attempt = 0; attempt < 100 && Volatile.Read(ref invocationCount) < 2; attempt++)
+        {
+            _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+            await Task.Delay(TimeSpan.FromMilliseconds(1));
+        }
 
         // Assert
         await secondExpansionStarted.WaitAsync(TestTimeout);
         await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansion>());
         Assert.True(_service.IsRunning);
+    }
+
+    [Fact]
+    public async Task Expansion_WhenAlreadyRunning_DropsTriggersWithoutQueueingAndRecoversForLaterTrigger()
+    {
+        _service.Start();
+
+        var expansion = new TextExpansion { Trigger = ":a", Replacement = "alpha" };
+        _storageService.GetCurrent().Returns(new List<TextExpansion> { expansion });
+        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansion>>(), out Arg.Any<TextExpansion?>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = expansion;
+                return true;
+            });
+
+        var firstStarted = new AsyncSignal();
+        var firstFinished = new AsyncSignal();
+        var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondStarted = new AsyncSignal();
+        var invocationCount = 0;
+        _executor.ExpandAsync(Arg.Any<TextExpansion>())
+            .Returns(async _ =>
+            {
+                if (Interlocked.Increment(ref invocationCount) == 1)
+                {
+                    firstStarted.Signal();
+                    await releaseFirst.Task;
+                    firstFinished.Signal();
+                }
+                else
+                {
+                    secondStarted.Signal();
+                }
+            });
+
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+        await firstStarted.WaitAsync(TestTimeout);
+
+        for (var index = 0; index < 32; index++)
+        {
+            _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+        }
+
+        Assert.Equal(1, Volatile.Read(ref invocationCount));
+        await _executor.Received(1).ExpandAsync(expansion);
+
+        releaseFirst.SetResult();
+        await firstFinished.WaitAsync(TestTimeout);
+
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+        await secondStarted.WaitAsync(TestTimeout);
+
+        Assert.Equal(2, Volatile.Read(ref invocationCount));
+        await _executor.Received(2).ExpandAsync(expansion);
     }
 
     [Fact]

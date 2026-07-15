@@ -1,4 +1,7 @@
 using CrossMacro.Daemon.Contracts.Ipc;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CrossMacro.Daemon.Services;
 
@@ -13,18 +16,26 @@ public interface IVirtualDeviceManager : IDisposable
     /// </summary>
     void Configure(int width, int height);
 
+    Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Sends a low-level input event to the virtual device.
     /// </summary>
     void SendEvent(ushort type, ushort code, int value);
 
+    Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Sends an ordered batch of low-level input events to the virtual device.
     /// </summary>
     void SendEvents(ReadOnlySpan<IpcSimulationRequest> events);
+
+    Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Resets/Disposes the current uinput device.
     /// </summary>
     void Reset();
+
+    Task ResetAsync(CancellationToken cancellationToken = default);
 }

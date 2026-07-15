@@ -163,6 +163,8 @@ public class ShortcutViewModelTests
         _shortcutService.Tasks.Add(task);
         _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(true));
+        _shortcutService.When(x => x.RemoveTask(task.Id)).Do(_ => _shortcutService.Tasks.Remove(task));
+        _shortcutService.When(x => x.AddTask(task)).Do(_ => _shortcutService.Tasks.Add(task));
         _shortcutService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -181,6 +183,7 @@ public class ShortcutViewModelTests
         // Assert
         status.Should().Contain("[Shortcut_StatusSaveFailed]");
         status.Should().Contain("disk full");
+        _shortcutService.Tasks.Should().Contain(task);
         await _dialogService.Received(1).ShowMessageAsync(
             "[Shortcut_SaveFailedTitle]",
             Arg.Is<string>(s => s.Contains("disk full")),

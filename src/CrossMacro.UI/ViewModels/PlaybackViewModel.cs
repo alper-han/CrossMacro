@@ -483,6 +483,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
     public bool CanPlayMacro => HasMacro && !IsPlaying && CanPlayMacroExternal;
 
     private bool _canPlayMacroExternal = true;
+    private int _settingsChangeVersion;
 
     /// <summary>
     /// Used by MainWindowViewModel to control if playback can start (considering recording state)
@@ -928,21 +929,29 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
     private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)
     {
+        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
+        _ = TryPersistSettingChangeAsync(changeVersion, rollback, propertyNames);
+        return true;
+    }
+
+    private async Task TryPersistSettingChangeAsync(int changeVersion, Action rollback, string[] propertyNames)
+    {
         try
         {
-            _settingsService.Save();
-            return true;
+            await _settingsService.SaveAsync();
         }
         catch (Exception ex)
         {
-            rollback();
-            foreach (var propertyName in propertyNames)
+            if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
             {
-                OnPropertyChanged(propertyName);
+                rollback();
+                foreach (var propertyName in propertyNames)
+                {
+                    OnPropertyChanged(propertyName);
+                }
             }
 
             Log.Error(ex, "[PlaybackViewModel] Failed to persist playback settings");
-            return false;
         }
     }
 }

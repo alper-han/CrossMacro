@@ -528,12 +528,20 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var wasSelected = SelectedTask?.Id == task.Id;
         _schedulerService.RemoveTask(task.Id);
-        if (SelectedTask?.Id == task.Id)
+        if (wasSelected)
         {
             SelectedTask = Tasks.FirstOrDefault();
         }
-        await SaveChangesAsync(showSuccessStatus: false);
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
+        {
+            _schedulerService.AddTask(task);
+            if (wasSelected)
+            {
+                SelectedTask = task;
+            }
+        });
         OnPropertyChanged(nameof(TaskCountText));
     }
     
@@ -572,7 +580,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         await SaveChangesAsync(showSuccessStatus: true);
     }
 
-    private async Task SaveChangesAsync(bool showSuccessStatus)
+    private async Task SaveChangesAsync(bool showSuccessStatus, Action? rollback = null)
     {
         try
         {
@@ -591,6 +599,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
+            rollback?.Invoke();
             Log.Error(ex, "[ScheduleViewModel] Failed to save scheduled tasks");
             var status = string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusSaveFailed"], ex.Message);
             RaiseStatus(status);
@@ -623,6 +632,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(ScheduledTask task)
     {
+        var previousEnabled = !task.IsEnabled;
         OnTaskEnabledChanged(task);
         if (_manageSchedule is not null)
         {
@@ -640,7 +650,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        await SaveChangesAsync(showSuccessStatus: false);
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _schedulerService.SetTaskEnabled(task.Id, previousEnabled));
     }
     
     private void OnTaskStarting(object? sender, ScheduledTask task)

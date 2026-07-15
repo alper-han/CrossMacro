@@ -20,6 +20,7 @@ public class SettingsService : ISettingsService
     private readonly string _configRootPath;
     private readonly string _globalSettingsFilePath;
     private string _profileSettingsFilePath;
+    private int _profileGeneration;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private AppSettings _currentSettings;
 
@@ -136,22 +137,32 @@ public class SettingsService : ISettingsService
 
     public async Task SaveAsync()
     {
+        var snapshot = new SaveSnapshot(
+            _globalSettingsFilePath,
+            _profileSettingsFilePath,
+            SettingsMapper.ToGlobal(_currentSettings),
+            SettingsMapper.ToProfile(_currentSettings),
+            _profileGeneration);
+
         await _saveGate.WaitAsync().ConfigureAwait(false);
         try
         {
             await FileBackedJsonStorage.WriteAsync(
-                    _globalSettingsFilePath,
-                    SettingsMapper.ToGlobal(_currentSettings),
+                    snapshot.GlobalPath,
+                    snapshot.GlobalSettings,
                     CrossMacroJsonContext.Default.GlobalSettings)
                 .ConfigureAwait(false);
 
-            await FileBackedJsonStorage.WriteAsync(
-                    _profileSettingsFilePath,
-                    SettingsMapper.ToProfile(_currentSettings),
-                    CrossMacroJsonContext.Default.ProfileSettings)
-                .ConfigureAwait(false);
+            if (snapshot.ProfileGeneration == _profileGeneration && snapshot.ProfileGeneration % 2 == 0)
+            {
+                await FileBackedJsonStorage.WriteAsync(
+                        snapshot.ProfilePath,
+                        snapshot.ProfileSettings,
+                        CrossMacroJsonContext.Default.ProfileSettings)
+                    .ConfigureAwait(false);
+            }
             
-            Log.Information("Settings saved to {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
+            Log.Information("Settings saved to {GlobalPath} and {ProfilePath}", snapshot.GlobalPath, snapshot.ProfilePath);
         }
         catch (Exception ex)
         {
@@ -195,6 +206,7 @@ public class SettingsService : ISettingsService
     public async Task ReloadAsync(string profileConfigDirectory)
     {
         await _saveGate.WaitAsync().ConfigureAwait(false);
+        _profileGeneration++;
         try
         {
             _profileSettingsFilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Settings);
@@ -212,6 +224,7 @@ public class SettingsService : ISettingsService
         }
         finally
         {
+            _profileGeneration++;
             _saveGate.Release();
         }
     }
@@ -299,4 +312,11 @@ public class SettingsService : ISettingsService
         settings.LoopDelayMinMs = loopDelayMinMs;
         settings.LoopDelayMaxMs = loopDelayMaxMs;
     }
+
+    private sealed record SaveSnapshot(
+        string GlobalPath,
+        string ProfilePath,
+        GlobalSettings GlobalSettings,
+        ProfileSettings ProfileSettings,
+        int ProfileGeneration);
 }

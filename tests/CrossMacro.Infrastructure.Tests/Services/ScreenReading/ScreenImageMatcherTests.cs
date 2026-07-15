@@ -474,6 +474,20 @@ public sealed class ScreenImageMatcherTests
     }
 
     [Fact]
+    public void FindMatch_WhenCanceledPooledNormalizationIsFollowedBySearch_RemainsCorrect()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var canceledFrame = CreateCancellableSolidFrame(new ScreenRect(0, 0, 8, 8), Black, cancellation);
+        using var template = CreateSolidFrame(new ScreenRect(0, 0, 2, 2), Black);
+
+        Assert.Throws<OperationCanceledException>(() => _matcher.FindMatch(canceledFrame, template, cancellationToken: cancellation.Token));
+
+        using var frame = CreateSolidFrame(new ScreenRect(0, 0, 8, 8), Black);
+
+        Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), _matcher.FindMatch(frame, template));
+    }
+
+    [Fact]
     public void FindMatch_WhenMatcherWorkExceedsSingleCandidateBudget_UsesRowBands()
     {
         using var frame = CreateSolidFrame(new ScreenRect(0, 0, 34_000, 10), Black);

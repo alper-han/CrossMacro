@@ -40,6 +40,7 @@ public class RecordingViewModelTests
             IsMouseRecordingEnabled = true, 
             IsKeyboardRecordingEnabled = true 
         });
+        _settingsService.SaveAsync().Returns(Task.CompletedTask);
 
         _viewModel = new RecordingViewModel(
             _recorder,
@@ -481,7 +482,7 @@ public class RecordingViewModelTests
     [Fact]
     public void IsMouseRecordingEnabled_WhenSaveFails_RollsBackValue()
     {
-        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+        _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.IsMouseRecordingEnabled = false;
 

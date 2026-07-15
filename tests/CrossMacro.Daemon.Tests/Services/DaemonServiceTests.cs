@@ -538,17 +538,25 @@ public class DaemonServiceTests
         {
         }
 
+        public Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public void SendEvent(ushort type, ushort code, int value)
         {
         }
+
+        public Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void SendEvents(ReadOnlySpan<IpcSimulationRequest> events)
         {
         }
 
+        public Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public void Reset()
         {
         }
+
+        public Task ResetAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void Dispose()
         {

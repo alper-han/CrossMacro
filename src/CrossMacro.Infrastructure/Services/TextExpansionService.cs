@@ -29,7 +29,10 @@ public class TextExpansionService : ITextExpansionService
     // Lifecycle management
     private readonly Lock _lock;
     private bool _isRunning;
-    private readonly SemaphoreSlim _expansionLock; 
+    private readonly SemaphoreSlim _expansionLock;
+    private bool _expansionInProgress;
+    private CancellationTokenSource? _expansionCancellation;
+    private bool _disposed;
     private readonly InputCaptureLifecycle _captureLifecycle;
     private int _lastCharacterKeyCode;
 
@@ -70,7 +73,7 @@ public class TextExpansionService : ITextExpansionService
 
         lock (_lock)
         {
-            if (_isRunning) return;
+            if (_disposed || _isRunning) return;
 
             try
             {
@@ -102,6 +105,8 @@ public class TextExpansionService : ITextExpansionService
     {
         lock (_lock)
         {
+            _expansionCancellation?.Cancel();
+
             if (!_isRunning && !_captureLifecycle.HasActiveResources)
             {
                 return;
@@ -120,10 +125,19 @@ public class TextExpansionService : ITextExpansionService
 
     public void Dispose()
     {
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
         Stop();
         _inputProcessor.CharacterReceived -= OnCharacterReceived;
         _inputProcessor.SpecialKeyReceived -= OnSpecialKeyReceived;
-        _expansionLock.Dispose();
     }
 
     private void OnInputCaptureError(object? sender, string error)
@@ -212,9 +226,21 @@ public class TextExpansionService : ITextExpansionService
              // Clear buffer immediately to prevent re-triggering
              _bufferState.Clear();
 
-             // Run Execution
              var triggerLastKeyCode = _lastCharacterKeyCode;
-             _ = Task.Run(() => RunExpansionSafelyAsync(match, triggerLastKeyCode));
+             CancellationTokenSource expansionCancellation;
+             lock (_lock)
+             {
+                 if (!_isRunning || _expansionInProgress)
+                 {
+                     return;
+                 }
+
+                 _expansionInProgress = true;
+                 expansionCancellation = new CancellationTokenSource();
+                 _expansionCancellation = expansionCancellation;
+             }
+
+             _ = Task.Run(() => RunExpansionSafelyAsync(match, triggerLastKeyCode, expansionCancellation));
          }
     }
 
@@ -232,10 +258,10 @@ public class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task PerformExpansionAsync(Core.Models.TextExpansion expansion, int triggerLastKeyCode)
+    private async Task PerformExpansionAsync(Core.Models.TextExpansion expansion, int triggerLastKeyCode, CancellationToken cancellationToken)
     {
         // Ensure serialization of expansions
-        await _expansionLock.WaitAsync();
+        await _expansionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // Wait for Modifiers to be released (Safety)
@@ -249,10 +275,11 @@ public class TextExpansionService : ITextExpansionService
                     break;
                 }
 
-                await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.ModifierReleasePollInterval));
+                await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.ModifierReleasePollInterval), cancellationToken).ConfigureAwait(false);
             }
 
-            await WaitForTriggerKeyReleaseAsync(triggerLastKeyCode).ConfigureAwait(false);
+            await WaitForTriggerKeyReleaseAsync(triggerLastKeyCode, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
             Log.Debug(
                 "[TextExpansionService] Executing expansion (triggerLength={TriggerLength}, replacementLength={ReplacementLength})",
@@ -279,7 +306,7 @@ public class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task WaitForTriggerKeyReleaseAsync(int keyCode)
+    private async Task WaitForTriggerKeyReleaseAsync(int keyCode, CancellationToken cancellationToken)
     {
         if (keyCode <= 0 || !_inputProcessor.IsKeyPressed(keyCode))
         {
@@ -296,7 +323,7 @@ public class TextExpansionService : ITextExpansionService
                 break;
             }
 
-            await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.DirectTypingInterElementDelay)).ConfigureAwait(false);
+            await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.DirectTypingInterElementDelay), cancellationToken).ConfigureAwait(false);
         }
 
         if (_inputProcessor.IsKeyPressed(keyCode))
@@ -308,15 +335,32 @@ public class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task RunExpansionSafelyAsync(Core.Models.TextExpansion expansion, int triggerLastKeyCode)
+    private async Task RunExpansionSafelyAsync(Core.Models.TextExpansion expansion, int triggerLastKeyCode, CancellationTokenSource expansionCancellation)
     {
+        var cancellationToken = expansionCancellation.Token;
         try
         {
-            await PerformExpansionAsync(expansion, triggerLastKeyCode).ConfigureAwait(false);
+            await PerformExpansionAsync(expansion, triggerLastKeyCode, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[TextExpansionService] Expansion failed");
+        }
+        finally
+        {
+            lock (_lock)
+            {
+                if (ReferenceEquals(_expansionCancellation, expansionCancellation))
+                {
+                    _expansionInProgress = false;
+                    _expansionCancellation = null;
+                }
+            }
+
+            expansionCancellation.Dispose();
         }
     }
 

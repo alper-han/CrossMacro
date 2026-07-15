@@ -283,6 +283,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     public bool CanToggleRecording => IsRecording || CanStartRecording;
     
     private bool _canStartRecordingExternal = true;
+    private int _settingsChangeVersion;
     
     /// <summary>
     /// Used by MainWindowViewModel to control if recording can start (considering playback state)
@@ -592,26 +593,34 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)
     {
+        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
+        _ = TryPersistSettingChangeAsync(changeVersion, rollback, propertyNames);
+        return true;
+    }
+
+    private async Task TryPersistSettingChangeAsync(int changeVersion, Action rollback, string[] propertyNames)
+    {
         try
         {
-            _settingsService.Save();
-            return true;
+            await _settingsService.SaveAsync();
         }
         catch (Exception ex)
         {
-            rollback();
-            foreach (var propertyName in propertyNames)
+            if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
             {
-                OnPropertyChanged(propertyName);
-            }
+                rollback();
+                foreach (var propertyName in propertyNames)
+                {
+                    OnPropertyChanged(propertyName);
+                }
 
-            if (Array.IndexOf(propertyNames, nameof(CanToggleRecording)) >= 0)
-            {
-                ToggleRecordingCommand.NotifyCanExecuteChanged();
+                if (Array.IndexOf(propertyNames, nameof(CanToggleRecording)) >= 0)
+                {
+                    ToggleRecordingCommand.NotifyCanExecuteChanged();
+                }
             }
 
             Log.Error(ex, "[RecordingViewModel] Failed to persist recording settings");
-            return false;
         }
     }
 }

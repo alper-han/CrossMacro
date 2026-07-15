@@ -73,6 +73,11 @@ public class PositionSyncService : IPositionSyncService
                         var actualPos = await _positionProvider.GetAbsolutePositionAsync();
                         sw.Stop();
 
+                        if (linkedCancellation.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
                         if (actualPos.HasValue)
                         {
                             var (cachedX, cachedY) = getCurrentPosition();
@@ -83,6 +88,11 @@ public class PositionSyncService : IPositionSyncService
 
                             if (totalDrift > DriftThresholdPx)
                             {
+                                if (linkedCancellation.IsCancellationRequested)
+                                {
+                                    break;
+                                }
+
                                 Log.Debug("[PositionSyncService] Position change: ({OldX},{OldY}) -> ({NewX},{NewY}), drift={Drift}px",
                                     cachedX, cachedY, actualPos.Value.X, actualPos.Value.Y, totalDrift);
 
@@ -213,8 +223,29 @@ public class PositionSyncService : IPositionSyncService
             if (!ReferenceEquals(completedTask, syncTask))
             {
                 Log.Warning("[PositionSyncService] Sync loop did not stop within {TimeoutMs}ms; shutdown will continue in background", StopTimeout.TotalMilliseconds);
+                _ = DisposeCancellationWhenCompletedAsync(syncTask, cancellation);
+                return;
             }
 
+            await syncTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        {
+        }
+        catch
+        {
+            // Faults are already handled by ObserveSyncTaskAsync.
+        }
+        finally
+        {
+            cancellation?.Dispose();
+        }
+    }
+
+    private static async Task DisposeCancellationWhenCompletedAsync(Task syncTask, CancellationTokenSource? cancellation)
+    {
+        try
+        {
             await syncTask.ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)

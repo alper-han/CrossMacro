@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CrossMacro.Application.Profiles;
@@ -48,6 +49,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     private readonly IProfileManager? _profileManager;
     private readonly IDialogService? _dialogService;
     private readonly IManageProfile? _manageProfile;
+    private int _settingsChangeVersion;
     
     private string _recordingHotkey;
     private string _playbackHotkey;
@@ -263,12 +265,10 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                     ? new[] { nameof(EnableTrayIcon), nameof(StartMinimized) }
                     : new[] { nameof(EnableTrayIcon) };
 
-                if (TryPersistSettings(
+                TryPersistSettings(
                     () => RestoreStartupPreferences(previousTrayIcon, previousStartMinimized),
-                    propertyNames))
-                {
-                    TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
-                }
+                    () => TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon),
+                    propertyNames);
             }
         }
     }
@@ -304,15 +304,10 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                     ? new[] { nameof(StartMinimized), nameof(EnableTrayIcon) }
                     : new[] { nameof(StartMinimized) };
 
-                if (TryPersistSettings(
+                TryPersistSettings(
                     () => RestoreStartupPreferences(previousTrayIcon, previousStartMinimized),
-                    propertyNames))
-                {
-                    if (trayIconStateChanged)
-                    {
-                        TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
-                    }
-                }
+                    trayIconStateChanged ? () => TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon) : null,
+                    propertyNames);
             }
         }
     }
@@ -329,19 +324,20 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                 _settingsService.Current.EnableTextExpansion = value;
                 OnPropertyChanged();
 
-                if (TryPersistSettings(
+                TryPersistSettings(
                     () => _settingsService.Current.EnableTextExpansion = previousValue,
-                    nameof(EnableTextExpansion)))
-                {
-                    if (value)
+                    () =>
                     {
-                        _textExpansionService.Start();
-                    }
-                    else
-                    {
-                        _textExpansionService.Stop();
-                    }
-                }
+                        if (_settingsService.Current.EnableTextExpansion)
+                        {
+                            _textExpansionService.Start();
+                        }
+                        else
+                        {
+                            _textExpansionService.Stop();
+                        }
+                    },
+                    nameof(EnableTextExpansion));
             }
         }
     }
@@ -657,6 +653,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        Interlocked.Increment(ref _settingsChangeVersion);
         await RunProfileOperationAsync(async () =>
         {
             if (_manageProfile is not null)
@@ -749,6 +746,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     private void OnProfileChanged(object? sender, ProfileInfo profile)
     {
+        Interlocked.Increment(ref _settingsChangeVersion);
         RefreshProfileState(profile.Id);
         RefreshProfileSpecificSettings();
     }
@@ -834,21 +832,35 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     private bool TryPersistSettings(Action rollback, params string[] propertyNames)
     {
+        return TryPersistSettings(rollback, null, propertyNames);
+    }
+
+    private bool TryPersistSettings(Action rollback, Action? onSuccess, params string[] propertyNames)
+    {
+        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
+        _ = TryPersistSettingsAsync(changeVersion, rollback, onSuccess, propertyNames);
+        return onSuccess is null;
+    }
+
+    private async Task TryPersistSettingsAsync(int changeVersion, Action rollback, Action? onSuccess, string[] propertyNames)
+    {
         try
         {
-            _settingsService.Save();
-            return true;
+            await _settingsService.SaveAsync();
+            onSuccess?.Invoke();
         }
         catch (Exception ex)
         {
-            rollback();
-            foreach (var propertyName in propertyNames)
+            if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
             {
-                OnPropertyChanged(propertyName);
+                rollback();
+                foreach (var propertyName in propertyNames)
+                {
+                    OnPropertyChanged(propertyName);
+                }
             }
 
             Log.Error(ex, "Failed to persist settings change");
-            return false;
         }
     }
 }

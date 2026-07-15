@@ -69,14 +69,13 @@ public class SessionHandler : ISessionHandler
                 new DaemonInputEventEncoder());
             var lifecycle = new SessionLifecycle(session, _security, _virtualDevice, _inputCapture);
 
-            if (!lifecycle.TryInitialize())
+            if (!await lifecycle.TryInitializeAsync(clientCts.Token).ConfigureAwait(false))
             {
                 return;
             }
 
             await Task.Run(
-                () => lifecycle.Run(uid, pid, client, clientCts.Token),
-                clientCts.Token);
+                () => lifecycle.RunAsync(uid, pid, client, clientCts.Token));
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -107,19 +106,19 @@ public class SessionHandler : ISessionHandler
             _inputCapture = inputCapture;
         }
 
-        public bool TryInitialize()
+        public async Task<bool> TryInitializeAsync(CancellationToken token)
         {
-            return TryCompleteHandshake() && TryInitializeVirtualDevice();
+            return TryCompleteHandshake() && await TryInitializeVirtualDeviceAsync(token).ConfigureAwait(false);
         }
 
-        public void Run(uint uid, int pid, Socket client, CancellationToken token)
+        public async Task RunAsync(uint uid, int pid, Socket client, CancellationToken token)
         {
             try
             {
                 while (!token.IsCancellationRequested)
                 {
                     var opcode = ReadNextOpcode();
-                    ProcessRequest(opcode, uid, pid);
+                    await ProcessRequestAsync(opcode, uid, pid, token).ConfigureAwait(false);
                 }
             }
             catch (EndOfStreamException)
@@ -129,6 +128,10 @@ public class SessionHandler : ISessionHandler
             catch (IOException ex)
             {
                 Log.Debug(ex, "[SessionHandler] Client disconnected (IOException)");
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                Log.Debug("[SessionHandler] Session canceled");
             }
             catch (Exception ex)
             {
@@ -145,11 +148,11 @@ public class SessionHandler : ISessionHandler
             return (IpcOpCode)_session.Reader.ReadByte();
         }
 
-        private void ProcessRequest(IpcOpCode opcode, uint uid, int pid)
+        private async Task ProcessRequestAsync(IpcOpCode opcode, uint uid, int pid, CancellationToken token)
         {
             try
             {
-                DispatchCommand(opcode, uid, pid);
+                await DispatchCommandAsync(opcode, uid, pid, token).ConfigureAwait(false);
             }
             catch (EndOfStreamException)
             {
@@ -204,12 +207,16 @@ public class SessionHandler : ISessionHandler
             return true;
         }
 
-        private bool TryInitializeVirtualDevice()
+        private async Task<bool> TryInitializeVirtualDeviceAsync(CancellationToken token)
         {
             try
             {
-                _virtualDevice.Configure(0, 0);
+                await _virtualDevice.ConfigureAsync(0, 0, token).ConfigureAwait(false);
                 return true;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -220,7 +227,7 @@ public class SessionHandler : ISessionHandler
             }
         }
 
-        private void DispatchCommand(IpcOpCode opcode, uint uid, int pid)
+        private async Task DispatchCommandAsync(IpcOpCode opcode, uint uid, int pid, CancellationToken token)
         {
             switch (opcode)
             {
@@ -231,13 +238,13 @@ public class SessionHandler : ISessionHandler
                     HandleStopCaptureCommand(uid, pid);
                     break;
                 case IpcOpCode.ConfigureResolution:
-                    HandleConfigureResolutionCommand();
+                    await HandleConfigureResolutionCommandAsync(token).ConfigureAwait(false);
                     break;
                 case IpcOpCode.SimulateEvent:
-                    HandleSimulateEventCommand(uid, pid);
+                    await HandleSimulateEventCommandAsync(uid, pid, token).ConfigureAwait(false);
                     break;
                 case IpcOpCode.SimulateEventBatch:
-                    HandleSimulateEventBatchCommand(uid, pid);
+                    await HandleSimulateEventBatchCommandAsync(uid, pid, token).ConfigureAwait(false);
                     break;
                 default:
                     Log.Warning("Unknown OpCode: {Op}", opcode);
@@ -318,29 +325,29 @@ public class SessionHandler : ISessionHandler
             _inputCapture.StopCapture();
         }
 
-        private void HandleConfigureResolutionCommand()
+        private async Task HandleConfigureResolutionCommandAsync(CancellationToken token)
         {
             var width = _session.Reader.ReadInt32();
             var height = _session.Reader.ReadInt32();
-            _virtualDevice.Configure(width, height);
+            await _virtualDevice.ConfigureAsync(width, height, token).ConfigureAwait(false);
         }
 
-        private void HandleSimulateEventCommand(uint uid, int pid)
+        private async Task HandleSimulateEventCommandAsync(uint uid, int pid, CancellationToken token)
         {
             var type = _session.Reader.ReadUInt16();
             var code = _session.Reader.ReadUInt16();
             var value = _session.Reader.ReadInt32();
-            _virtualDevice.SendEvent(type, code, value);
+            await _virtualDevice.SendEventAsync(type, code, value, token).ConfigureAwait(false);
             _security.LogSimulation(uid, pid, type, code, value);
         }
 
-        private void HandleSimulateEventBatchCommand(uint uid, int pid)
+        private async Task HandleSimulateEventBatchCommandAsync(uint uid, int pid, CancellationToken token)
         {
             var requestId = _session.Reader.ReadInt32();
             try
             {
                 var events = ReadSimulationBatchEvents();
-                _virtualDevice.SendEvents(events);
+                await _virtualDevice.SendEventsAsync(events, token).ConfigureAwait(false);
 
                 using (_session.WriterGate.Enter())
                 {
@@ -353,6 +360,10 @@ public class SessionHandler : ISessionHandler
                 {
                     _security.LogSimulation(uid, pid, inputEvent.Type, inputEvent.Code, inputEvent.Value);
                 }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

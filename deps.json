@@ -65,11 +65,6 @@
     "hash": "sha256-jLS1vo6V+fHsJs80HYT77oJE6IEC68fIgkLpYODjWAU="
   },
   {
-    "pname": "ExCSS",
-    "version": "4.3.1",
-    "hash": "sha256-nNn5+YEaqKSULhtDsImNEyndU/MHna7VpZNUExmo80o="
-  },
-  {
     "pname": "HarfBuzzSharp",
     "version": "8.3.1.3",
     "hash": "sha256-/+ZEhjpOs8B4tMPw3vDyuQqGGZHJEWvy3WaKMaDwmrU="
@@ -95,6 +90,11 @@
     "hash": "sha256-WNUQmLWVFSwBKT9x7UdhSz9T2FA7wibvwjuPew/3yUM="
   },
   {
+    "pname": "Meziantou.Analyzer",
+    "version": "3.0.123",
+    "hash": "sha256-2leZoAbitcvMy3OuM+vvdJH7SMou3iz9h0SGLFB1sGM="
+  },
+  {
     "pname": "MicroCom.Runtime",
     "version": "0.11.6",
     "hash": "sha256-RTr200R3sZuyxi0XQ25ox2p1kVt5R1CbH/YBs21+eNg="
@@ -115,6 +115,11 @@
     "hash": "sha256-6I5F9aYQCP7JWsNMCkvUCYvsp20Gn+eYNO2ySuKUuhY="
   },
   {
+    "pname": "Roslynator.Analyzers",
+    "version": "4.15.0",
+    "hash": "sha256-NACDl8bu5GXzS62uwSpGGhacQrqsfnsG8XSg+cS94rY="
+  },
+  {
     "pname": "Serilog",
     "version": "4.3.1",
     "hash": "sha256-TY+GaQYnyDfOGl0gi67xDyUMOuV/mjz8BU66/UsmStI="
@@ -133,11 +138,6 @@
     "pname": "Serilog.Sinks.File",
     "version": "7.0.0",
     "hash": "sha256-LxZYUoUPkCjIIVarJilnXnqQiMrFNJtoRilmzTNtUjo="
-  },
-  {
-    "pname": "ShimSkiaSharp",
-    "version": "5.1.1",
-    "hash": "sha256-dusvqnuofmzxcALMFAAsJK2a08H4WNjwXwWk368xau0="
   },
   {
     "pname": "SkiaSharp",
@@ -163,6 +163,11 @@
     "pname": "SkiaSharp.NativeAssets.Win32",
     "version": "3.119.4",
     "hash": "sha256-WlaYsbTh/cn/6YaN9odNtfpp8hpN52unGgGlQum0M5E="
+  },
+  {
+    "pname": "SonarAnalyzer.CSharp",
+    "version": "10.29.0.143774",
+    "hash": "sha256-BK4i92sF6vH7QSPPHl+fr3zRZMJqna3WaA7oodD1sTM="
   },
   {
     "pname": "Tmds.DBus.Protocol",

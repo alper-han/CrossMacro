@@ -1,11 +1,18 @@
 <Project>
   <PropertyGroup>
-    <!-- This repository doesn't use optional .NET workloads (Android/iOS/etc.).
-         Disabling the workload resolver avoids SDK-locator failures on minimal SDK distributions (e.g., Nix). -->
+    <!-- Disable the workload resolver on minimal SDK distributions. -->
     <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
     <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <Deterministic>true</Deterministic>
+    <MeziantouAnalysisMode>all-warnings</MeziantouAnalysisMode>
+    <WarningsNotAsErrors>MA0051;CA2000;S127;CA5392;CA1003</WarningsNotAsErrors>
+    <!-- Native AOT readiness defaults. -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- Expand grouped trim warnings into individual diagnostics. -->
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
     <RepositoryVersionFile>$([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)', 'VERSION'))</RepositoryVersionFile>
     <CrossMacroVersion>$([System.IO.File]::ReadAllText('$(RepositoryVersionFile)').Trim())</CrossMacroVersion>
     <Version Condition="'$(Version)' == ''">$(CrossMacroVersion)</Version>
@@ -13,12 +20,40 @@
     <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(CrossMacroVersion).0</AssemblyVersion>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
+    <PackageReference Include="Roslynator.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
   <PropertyGroup Condition="'$(ContinuousIntegrationBuild)' == '' and ('$(CI)' == 'true' or '$(CI)' == '1')">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(ContinuousIntegrationBuild)' == 'true'">
-    <WarningsAsErrors>true</WarningsAsErrors>
+    <!-- Make the adopted analyzer rule set a CI gate. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Explicit list documents the adopted analyzer rules. -->
+    <WarningsAsErrors>
+      S108;S6966;S4200;S3358;S3267;S1144;S1450;S2486;S3869;S4586;
+      RCS1194;RCS1102;
+      MA0006;MA0074;MA0076;MA0089;MA0098;MA0109;MA0110;MA0134;
+      MA0155;MA0158;MA0171;MA0191;MA0193;MA0009;MA0016;MA0048;MA0071;MA0141;MA0142;MA0148;MA0149;
+      MA0167;MA0184;MA0206;
+      CA1822;CA1000;
+      CA1416;CA1417;CA1418;CA1420;CA1422;
+      CA1831;CA1857;
+      CA2013;CA2014;CA2015;CA2017;CA2018;CA2021;CA2022;CA2023;CA2025;CA2026;
+      CA2200;CA2247;CA2259;CA2260;CA2261;CA2264;CA2265;
+      CA1001;CA1002;CA1008;CA1024;CA1028;CA1031;CA1033;CA1034;CA1051;CA1054;CA1056;CA1062;CA1063;CA1064;CA1068;
+      CA1304;CA1305;CA1307;CA1308;CA1311;CA1401;CA1508;CA1510;CA1512;CA1513;CA1711;CA1716;CA1720;CA1724;CA1725;
+      CA1805;CA1806;CA1810;CA1815;CA1816;CA1819;CA1823;CA1826;CA1838;CA1849;CA1854;CA1855;CA1859;CA1860;CA1861;CA1862;CA1863;CA1864;CA1865;CA1866;CA1867;CA1868;CA1869;CA1870;CA1871;CA1872;CA1873;CA1874;CA1875;CA1876;CA1879;CA1880;CA1881;CA1882;
+      CA2007;CA2008;CA2009;CA2012;CA2016;CA2025;CA2101;CA2201;CA2208;CA2227;CA2234;CA2263;CA5393;CA5394;
+      CA2024;
+      MA0138;MA0161;MA0162;
+      S3011;S4423;S5766;
+      IDE0011;IDE0044;IDE0051;IDE0052;IDE0058;IDE0059;IDE0060;IDE0072;IDE0079;IDE0130;IDE0161;IDE0230;IDE0250;IDE0251;IDE0290;IDE0300;IDE0301;IDE0302;IDE0320;IDE0330;IDE0360
+    </WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">

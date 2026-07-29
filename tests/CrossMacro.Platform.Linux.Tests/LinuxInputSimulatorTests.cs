@@ -50,7 +50,7 @@ public sealed class LinuxInputSimulatorTests
 
         InputSimulationStep[] steps = [new(UInputNative.EV_KEY, 30, 1)];
 
-        Assert.Throws<InvalidOperationException>(() => simulator.SimulateBatch(steps));
+        _ = Assert.Throws<InvalidOperationException>(() => simulator.SimulateBatch(steps));
     }
 
     [LinuxFact]
@@ -62,7 +62,7 @@ public sealed class LinuxInputSimulatorTests
 
         InputSimulationStep[] steps = [new(UInputNative.EV_KEY, 30, 1, IpcProtocol.MaxSimulationBatchDelayMs + 1)];
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => simulator.SimulateBatch(steps));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => simulator.SimulateBatch(steps));
         Assert.Empty(device.SentEvents);
     }
 
@@ -79,7 +79,7 @@ public sealed class LinuxInputSimulatorTests
             new(UInputNative.EV_KEY, 30, 0, 1),
         ];
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => simulator.SimulateBatch(steps));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => simulator.SimulateBatch(steps));
         Assert.Empty(device.SentEvents);
     }
 

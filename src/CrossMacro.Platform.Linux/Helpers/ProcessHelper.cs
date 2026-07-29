@@ -38,7 +38,7 @@ public static class ProcessHelper
         {
             Log.Debug("Command not found: {Command}", fileName);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to execute command: {Command} {Arguments}", fileName, arguments);
         }
@@ -65,7 +65,7 @@ public static class ProcessHelper
             using var process = Process.GetProcessById(pid);
             return process.ProcessName;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return string.Empty;
         }

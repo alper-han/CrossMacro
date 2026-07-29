@@ -1,0 +1,634 @@
+
+using CrossMacro.Cli.Services.Doctor;
+
+namespace CrossMacro.Cli.Services;
+
+public sealed partial class DoctorService : IDoctorService
+{
+    private readonly IEnvironmentInfoProvider _environmentInfoProvider;
+    private readonly IDisplayEnvironmentDiagnostic? _displayEnvironmentDiagnostic;
+    private readonly IRuntimeContext? _runtimeContext;
+    private readonly IDisplaySessionService _displaySessionService;
+    private readonly IMousePositionProvider _mousePositionProvider;
+    private readonly IDoctorProbeGroup _capabilityProbeGroup;
+    private readonly IPermissionChecker? _permissionChecker;
+    private readonly Func<string, string?> _getEnvironmentVariable;
+    private readonly Func<string, bool> _fileExists;
+    private readonly Func<string, string?> _readAllTextIfExists;
+    private readonly Func<string, bool> _canOpenForWrite;
+    private readonly Func<bool> _hasUsableReadableInputDevices;
+    private readonly Func<bool> _isLinux;
+    private readonly Func<bool> _isWindows;
+    private readonly Func<bool> _isMacOS;
+    private readonly Func<string, bool> _daemonHandshakeProbe;
+    private readonly Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>> _daemonSocketAccessProbe;
+    private readonly Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult> _daemonHandshakeDiagnosticProbe;
+    private readonly Func<string> _getConfigDirectory;
+    private readonly IScreenReadingDiagnosticProvider? _screenReadingDiagnosticProvider;
+    private readonly IMacOSScreenRecordingPermissionProbe? _macOSScreenRecordingPermissionProbe;
+
+    public DoctorService(
+        IRuntimeContext runtimeContext,
+        IDisplayEnvironmentDiagnostic displayEnvironmentDiagnostic,
+        IEnvironmentInfoProvider environmentInfoProvider,
+        IDisplaySessionService displaySessionService,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory,
+        IMousePositionProvider mousePositionProvider,
+        IPermissionChecker? permissionChecker = null,
+        Func<string, bool>? daemonHandshakeProbe = null,
+        Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>>? daemonSocketAccessProbe = null,
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
+        : this(
+            environmentInfoProvider,
+            displaySessionService,
+            inputSimulatorFactory,
+            inputCaptureFactory,
+            mousePositionProvider,
+            permissionChecker,
+            daemonHandshakeProbe,
+            daemonSocketAccessProbe,
+            daemonHandshakeDiagnosticProbe,
+            screenReadingDiagnosticProvider,
+            macOSScreenRecordingPermissionProbe,
+            getConfigDirectory)
+    {
+        _displayEnvironmentDiagnostic = displayEnvironmentDiagnostic ?? throw new ArgumentNullException(nameof(displayEnvironmentDiagnostic));
+        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+    }
+
+    public DoctorService(
+        IEnvironmentInfoProvider environmentInfoProvider,
+        IDisplaySessionService displaySessionService,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory,
+        IMousePositionProvider mousePositionProvider,
+        IPermissionChecker? permissionChecker = null,
+        Func<string, bool>? daemonHandshakeProbe = null,
+        Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>>? daemonSocketAccessProbe = null,
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
+        : this(
+            environmentInfoProvider,
+            displaySessionService,
+            Environment.GetEnvironmentVariable,
+            File.Exists,
+            CanOpenForWrite,
+            CanOpenForRead,
+            GetInputEventCandidates,
+            inputSimulatorFactory,
+            inputCaptureFactory,
+            mousePositionProvider,
+            permissionChecker,
+            OperatingSystem.IsLinux,
+            OperatingSystem.IsWindows,
+            OperatingSystem.IsMacOS,
+            daemonHandshakeProbe,
+            daemonSocketAccessProbe,
+            daemonHandshakeDiagnosticProbe,
+            ReadAllTextIfExists,
+hasUsableReadableInputDevices: null,
+            screenReadingDiagnosticProvider,
+            macOSScreenRecordingPermissionProbe,
+            getConfigDirectory)
+    { /* Empty */ }
+
+    public DoctorService(
+        IEnvironmentInfoProvider environmentInfoProvider,
+        IDisplaySessionService displaySessionService,
+        Func<string, string?> getEnvironmentVariable,
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<string, bool>? canOpenForRead,
+        Func<string[]>? getInputEventCandidates,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory,
+        IMousePositionProvider mousePositionProvider,
+        IPermissionChecker? permissionChecker = null,
+        Func<bool>? isLinux = null,
+        Func<bool>? isWindows = null,
+        Func<bool>? isMacOS = null,
+        Func<string, bool>? daemonHandshakeProbe = null,
+        Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>>? daemonSocketAccessProbe = null,
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
+        Func<string, string?>? readAllTextIfExists = null,
+        Func<bool>? hasUsableReadableInputDevices = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
+        : this(
+            environmentInfoProvider,
+            displaySessionService,
+            getEnvironmentVariable,
+            fileExists,
+            canOpenForWrite,
+            hasUsableReadableInputDevices ?? (() => HasReadableInputEventAccess(canOpenForRead ?? CanOpenForRead, getInputEventCandidates ?? GetInputEventCandidates)),
+            getInputEventCandidates ?? GetInputEventCandidates,
+            inputSimulatorFactory,
+            inputCaptureFactory,
+            mousePositionProvider,
+            permissionChecker,
+            isLinux,
+            isWindows,
+            isMacOS,
+            daemonHandshakeProbe,
+            daemonSocketAccessProbe,
+            daemonHandshakeDiagnosticProbe,
+            readAllTextIfExists,
+            screenReadingDiagnosticProvider,
+            macOSScreenRecordingPermissionProbe,
+            getConfigDirectory)
+    { /* Empty */ }
+
+    internal DoctorService(
+        IEnvironmentInfoProvider environmentInfoProvider,
+        IDisplaySessionService displaySessionService,
+        Func<string, string?> getEnvironmentVariable,
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<bool> hasUsableReadableInputDevices,
+        Func<string[]>? getInputEventCandidates,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory,
+        IMousePositionProvider mousePositionProvider,
+        IPermissionChecker? permissionChecker = null,
+        Func<bool>? isLinux = null,
+        Func<bool>? isWindows = null,
+        Func<bool>? isMacOS = null,
+        Func<string, bool>? daemonHandshakeProbe = null,
+        Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>>? daemonSocketAccessProbe = null,
+        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
+        Func<string, string?>? readAllTextIfExists = null,
+        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
+        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
+        Func<string>? getConfigDirectory = null)
+    {
+        _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
+        _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
+        _getEnvironmentVariable = getEnvironmentVariable ?? throw new ArgumentNullException(nameof(getEnvironmentVariable));
+        _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
+        _readAllTextIfExists = readAllTextIfExists ?? ReadAllTextIfExists;
+        _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
+        _hasUsableReadableInputDevices = hasUsableReadableInputDevices ?? throw new ArgumentNullException(nameof(hasUsableReadableInputDevices));
+        ArgumentNullException.ThrowIfNull(getInputEventCandidates);
+        _mousePositionProvider = mousePositionProvider ?? throw new ArgumentNullException(nameof(mousePositionProvider));
+        _capabilityProbeGroup = new DoctorCapabilityProbeGroup(new DoctorProbeContext(
+            inputSimulatorFactory ?? throw new ArgumentNullException(nameof(inputSimulatorFactory)),
+            inputCaptureFactory ?? throw new ArgumentNullException(nameof(inputCaptureFactory)),
+            _mousePositionProvider));
+        _permissionChecker = permissionChecker;
+        _isLinux = isLinux ?? OperatingSystem.IsLinux;
+        _isWindows = isWindows ?? OperatingSystem.IsWindows;
+        _isMacOS = isMacOS ?? OperatingSystem.IsMacOS;
+        _daemonHandshakeProbe = daemonHandshakeProbe ?? (_ => ProbeDaemonHandshake());
+        _daemonSocketAccessProbe = daemonSocketAccessProbe ?? ((socketPath, _) => ProbeDaemonSocketAccessAsync(socketPath));
+        _daemonHandshakeDiagnosticProbe = daemonHandshakeDiagnosticProbe ?? ProbeDaemonHandshakeDiagnostic;
+        _getConfigDirectory = getConfigDirectory ?? GetCompatibleConfigDirectory;
+        _screenReadingDiagnosticProvider = screenReadingDiagnosticProvider;
+        _macOSScreenRecordingPermissionProbe = macOSScreenRecordingPermissionProbe;
+    }
+
+    private static bool HasReadableInputEventAccess(Func<string, bool> canOpenForRead, Func<string[]> getInputEventCandidates)
+    {
+        var eventDevices = getInputEventCandidates();
+        return eventDevices.Length > 0 && eventDevices.Any(canOpenForRead);
+    }
+
+    public async Task<DoctorReport> RunAsync(bool verbose, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_isLinux() && _mousePositionProvider is not null)
+        {
+            try
+            {
+                // Wait up to 2 seconds for GNOME extension (or any other async provider) to initialize
+                _ = await Task.WhenAny(_mousePositionProvider.InitializationTask, Task.Delay(2000, cancellationToken)).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Ignore initialization failures in doctor
+            }
+        }
+
+        var checks = new List<DoctorCheck>
+        {
+            BuildPlatformCheck(),
+            BuildEnvironmentCheck(),
+            BuildConfigPathCheck(),
+            BuildDisplaySessionCheck(),
+        };
+        checks.AddRange(_capabilityProbeGroup.Run(verbose));
+
+        if (_isMacOS())
+        {
+            checks.AddRange(BuildMacOSPermissionChecks(verbose));
+        }
+
+        if (_isLinux())
+        {
+            var linuxState = await BuildLinuxInputStateAsync(cancellationToken).ConfigureAwait(false);
+            checks.Add(BuildLinuxDisplayVariablesCheck(verbose));
+            checks.Add(BuildLinuxDaemonSocketCheck(linuxState, verbose));
+            checks.Add(BuildLinuxDaemonAccessCheck(linuxState, verbose));
+            checks.Add(BuildLinuxDaemonGroupCheck(linuxState, verbose));
+            checks.Add(BuildLinuxDaemonHandshakeCheck(linuxState, verbose));
+            checks.Add(BuildLinuxUInputCheck(linuxState, verbose));
+            checks.Add(BuildLinuxInputReadinessCheck(linuxState, verbose));
+            checks.Add(BuildLinuxGsrCompatibilityCheck(linuxState, verbose));
+            if (_screenReadingDiagnosticProvider is not null)
+            {
+                checks.Add(BuildLinuxScreenReadingCheck(verbose));
+            }
+        }
+
+        return new DoctorReport
+        {
+            Checks = checks,
+        };
+    }
+
+    private static DoctorCheck BuildPlatformCheck()
+    {
+        var description = RuntimeInformation.OSDescription;
+        return new DoctorCheck
+        {
+            Name = "platform",
+            Status = DoctorCheckStatus.Pass,
+            Message = $"Platform: {description}",
+            Details = new JsonObject
+            {
+                ["osDescription"] = description,
+                ["osArchitecture"] = RuntimeInformation.OSArchitecture.ToString(),
+                ["processArchitecture"] = RuntimeInformation.ProcessArchitecture.ToString(),
+            },
+        };
+    }
+
+    private DoctorCheck BuildEnvironmentCheck()
+    {
+        return new DoctorCheck
+        {
+            Name = "display-environment",
+            Status = DoctorCheckStatus.Pass,
+            Message = $"Detected environment: {_environmentInfoProvider.CurrentEnvironment}",
+            Details = new JsonObject
+            {
+                ["currentEnvironment"] = _environmentInfoProvider.CurrentEnvironment.ToString(),
+                ["wmHandlesCloseButton"] = _environmentInfoProvider.WindowManagerHandlesCloseButton,
+            },
+        };
+    }
+
+    private DoctorCheck BuildConfigPathCheck()
+    {
+        var configDirectory = _getConfigDirectory();
+
+        try
+        {
+            _ = Directory.CreateDirectory(configDirectory);
+            var isWritable = CanWriteDirectory(configDirectory);
+
+            return new DoctorCheck
+            {
+                Name = "config-path",
+                Status = isWritable ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+                Message = isWritable
+                    ? "Config directory is writable."
+                    : "Config directory is not writable.",
+                Details = new JsonObject { ["configDirectory"] = configDirectory, ["writable"] = isWritable },
+            };
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return new DoctorCheck
+            {
+                Name = "config-path",
+                Status = DoctorCheckStatus.Fail,
+                Message = "Failed to access config directory.",
+                Details = new JsonObject { ["configDirectory"] = configDirectory, ["error"] = ex.Message },
+            };
+        }
+    }
+
+    private static string GetCompatibleConfigDirectory()
+    {
+        string configBase;
+        if (OperatingSystem.IsMacOS())
+        {
+            configBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support");
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            configBase = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        }
+        else
+        {
+            configBase = GetLinuxConfigBaseDirectory();
+        }
+
+        return Path.Combine(configBase, CrossMacro.Core.AppConstants.AppIdentifier);
+    }
+
+    private static string GetLinuxConfigBaseDirectory()
+    {
+        var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        return string.IsNullOrWhiteSpace(xdgConfigHome) || !Path.IsPathRooted(xdgConfigHome)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config")
+            : xdgConfigHome;
+    }
+
+    private DoctorCheck BuildDisplaySessionCheck()
+    {
+        var supported = _displaySessionService.IsSessionSupported(out var reason);
+
+        return new DoctorCheck
+        {
+            Name = "display-session",
+            Status = supported ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+            Message = supported ? "Display session is supported." : $"Display session is not supported: {reason}",
+            Details = new JsonObject
+            {
+                ["supported"] = supported,
+                ["reason"] = string.IsNullOrWhiteSpace(reason) ? null : reason,
+            },
+        };
+    }
+
+    private List<DoctorCheck> BuildMacOSPermissionChecks(bool verbose)
+    {
+        var checks = new List<DoctorCheck>();
+
+        if (!_isMacOS() || _isWindows() || _isLinux())
+        {
+            checks.Add(new DoctorCheck
+            {
+                Name = "macos-input-monitoring",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS Input Monitoring check was skipped outside macOS.",
+                Details = verbose ? new JsonObject { ["skipped"] = true } : null,
+            });
+
+            return checks;
+        }
+
+        if (_permissionChecker is null || !_permissionChecker.IsSupported)
+        {
+            checks.Add(BuildMacOSScreenRecordingCheck(verbose));
+            checks.Add(new DoctorCheck
+            {
+                Name = "macos-input-monitoring",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS permission checker is unavailable.",
+                Details = verbose ? new JsonObject { ["checkerAvailable"] = false } : null,
+            });
+
+            return checks;
+        }
+
+        if (_permissionChecker is not IMacOSPermissionChecker macOSPermissionChecker)
+        {
+            checks.Add(BuildMacOSScreenRecordingCheck(verbose));
+            checks.Add(new DoctorCheck
+            {
+                Name = "macos-input-monitoring",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS Input Monitoring status is unavailable from this permission checker.",
+                Details = verbose ? new JsonObject { ["checkerProvidesSeparateMacOSStatus"] = false } : null,
+            });
+
+            checks.Add(new DoctorCheck
+            {
+                Name = "macos-event-posting",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS event posting status is unavailable from this permission checker.",
+                Details = verbose ? new JsonObject { ["checkerProvidesSeparateMacOSStatus"] = false } : null,
+            });
+
+            bool trusted;
+            try
+            {
+                trusted = _permissionChecker.IsAccessibilityTrusted();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                checks.Add(new DoctorCheck
+                {
+                    Name = "macos-accessibility",
+                    Status = DoctorCheckStatus.Warn,
+                    Message = "macOS Accessibility trust probe failed.",
+                    Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
+                });
+
+                return checks;
+            }
+
+            checks.Add(BuildMacOSAccessibilityCheck(trusted, verbose));
+            return checks;
+        }
+
+        checks.Add(BuildMacOSScreenRecordingCheck(verbose));
+
+        MacOSPermissionStatus status;
+        try
+        {
+            status = macOSPermissionChecker.GetCurrentStatus();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            checks.Add(new DoctorCheck
+            {
+                Name = "macos-input-monitoring",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS permission status probe failed.",
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
+            });
+
+            return checks;
+        }
+
+        checks.Add(new DoctorCheck
+        {
+            Name = "macos-input-monitoring",
+            Status = status.ListenEventGranted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+            Message = status.ListenEventGranted
+                ? "macOS Input Monitoring permission is granted for capture and recording."
+                : "macOS Input Monitoring permission is missing. Grant CrossMacro access in System Settings > Privacy & Security > Input Monitoring for capture and recording.",
+            Details = verbose
+                ? new JsonObject
+                {
+                    ["listenEventGranted"] = status.ListenEventGranted,
+                    ["listenEventApiAvailable"] = status.ListenEventApiAvailable,
+                }
+                : null,
+        });
+
+        checks.Add(new DoctorCheck
+        {
+            Name = "macos-event-posting",
+            Status = status.PostEventGranted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+            Message = status.PostEventGranted
+                ? "macOS event posting permission is granted for playback and injection."
+                : "macOS event posting permission is missing. Allow event posting for playback and injection; macOS may show this under Accessibility.",
+            Details = verbose
+                ? new JsonObject
+                {
+                    ["postEventGranted"] = status.PostEventGranted,
+                    ["postEventApiAvailable"] = status.PostEventApiAvailable,
+                }
+                : null,
+        });
+
+        checks.Add(BuildMacOSAccessibilityCheck(status.AccessibilityGranted, verbose));
+        return checks;
+    }
+
+    private DoctorCheck BuildMacOSScreenRecordingCheck(bool verbose)
+    {
+        if (_macOSScreenRecordingPermissionProbe is null)
+        {
+            return new DoctorCheck
+            {
+                Name = "macos-screen-recording",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS Screen Recording status is unavailable from this platform backend.",
+                Details = verbose ? new JsonObject { ["probeAvailable"] = false } : null,
+            };
+        }
+
+        try
+        {
+            var preflightAvailable = _macOSScreenRecordingPermissionProbe.IsPreflightAvailable;
+            if (!preflightAvailable)
+            {
+                return new DoctorCheck
+                {
+                    Name = "macos-screen-recording",
+                    Status = DoctorCheckStatus.Warn,
+                    Message = "macOS Screen Recording preflight API is unavailable; screen-reading permission status cannot be checked.",
+                    Details = verbose
+                        ? new JsonObject
+                        {
+                            ["probeAvailable"] = true,
+                            ["preflightApiAvailable"] = false,
+                        }
+                        : null,
+                };
+            }
+
+            var granted = _macOSScreenRecordingPermissionProbe.IsGranted();
+            return new DoctorCheck
+            {
+                Name = "macos-screen-recording",
+                Status = granted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+                Message = granted
+                    ? "macOS Screen Recording permission is granted for screen reading."
+                    : "macOS Screen Recording permission is missing. Grant CrossMacro access in System Settings > Privacy & Security > Screen Recording, then restart CrossMacro.",
+                Details = verbose
+                    ? new JsonObject
+                    {
+                        ["screenRecordingGranted"] = granted,
+                        ["preflightApiAvailable"] = true,
+                    }
+                    : null,
+            };
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return new DoctorCheck
+            {
+                Name = "macos-screen-recording",
+                Status = DoctorCheckStatus.Warn,
+                Message = "macOS Screen Recording status probe failed.",
+                Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
+            };
+        }
+    }
+
+    private static DoctorCheck BuildMacOSAccessibilityCheck(bool trusted, bool verbose)
+    {
+        return new DoctorCheck
+        {
+            Name = "macos-accessibility",
+            Status = trusted ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+            Message = trusted
+                ? "macOS Accessibility trust is granted for AX features."
+                : "macOS Accessibility trust is missing for AX features. Grant CrossMacro access in System Settings > Privacy & Security > Accessibility only if AX features are needed.",
+            Details = verbose ? new JsonObject { ["accessibilityTrusted"] = trusted } : null,
+        };
+    }
+
+    private static bool CanWriteDirectory(string directory)
+    {
+        var tempFile = Path.Combine(directory, $".crossmacro-doctor-{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            using (File.Create(tempFile)) { /* Empty */ }
+
+            File.Delete(tempFile);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return false;
+        }
+    }
+
+    private static bool CanOpenForWrite(string path)
+    {
+        try
+        {
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return false;
+        }
+    }
+
+    private static bool CanOpenForRead(string path)
+    {
+        try
+        {
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return false;
+        }
+    }
+
+    private static string[] GetInputEventCandidates()
+    {
+        try
+        {
+            return Directory.Exists("/dev/input")
+                ? Directory.GetFiles("/dev/input", "event*")
+                : [];
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return [];
+        }
+    }
+
+    private static string? ReadAllTextIfExists(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? File.ReadAllText(path) : null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return null;
+        }
+    }
+}

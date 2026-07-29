@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Abstractions;
 
-public sealed record class ScreenshotCaptureData(
+public sealed record ScreenshotCaptureData(
     string? OutputPath,
     int Width,
     int Height,

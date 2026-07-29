@@ -1,22 +1,12 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-internal sealed class GnomeExtensionScreenFrame : IDisposable
+internal sealed class GnomeExtensionScreenFrame(ScreenRect logicalBounds, int stride, ScreenPixelFormat pixelFormat, byte[] pixels) : IDisposable
 {
-    public GnomeExtensionScreenFrame(ScreenRect logicalBounds, int stride, ScreenPixelFormat pixelFormat, byte[] pixels)
-    {
-        LogicalBounds = logicalBounds;
-        Stride = stride;
-        PixelFormat = pixelFormat;
-        Pixels = pixels;
-    }
+    public ScreenRect LogicalBounds { get; } = logicalBounds;
+    public int Stride { get; } = stride;
+    public ScreenPixelFormat PixelFormat { get; } = pixelFormat;
+    public byte[] Pixels { get; } = pixels;
 
-    public ScreenRect LogicalBounds { get; }
-    public int Stride { get; }
-    public ScreenPixelFormat PixelFormat { get; }
-    public byte[] Pixels { get; }
-
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

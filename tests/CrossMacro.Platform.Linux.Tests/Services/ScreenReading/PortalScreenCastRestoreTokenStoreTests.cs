@@ -4,25 +4,25 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 public sealed class PortalScreenCastRestoreTokenStoreTests
 {
     [Fact]
-    public void LoadRestoreToken_WhenStoredTokenIsBlank_ReturnsNull()
+    public async Task LoadRestoreToken_WhenStoredTokenIsBlank_ReturnsNull()
     {
         var settings = Substitute.For<ISettingsService>();
-        settings.Current.Returns(new AppSettings { PortalScreenCastRestoreToken = " " });
+        _ = settings.Current.Returns(new AppSettings { PortalScreenCastRestoreToken = " " });
         var store = new PortalScreenCastRestoreTokenStore(settings);
 
-        var token = store.LoadRestoreToken();
+        var token = await store.LoadRestoreTokenAsync(CancellationToken.None);
 
         Assert.Null(token);
     }
 
     [Fact]
-    public void LoadRestoreToken_WhenStoredTokenExists_ReturnsToken()
+    public async Task LoadRestoreToken_WhenStoredTokenExists_ReturnsToken()
     {
         var settings = Substitute.For<ISettingsService>();
-        settings.Current.Returns(new AppSettings { PortalScreenCastRestoreToken = "stored-token" });
+        _ = settings.Current.Returns(new AppSettings { PortalScreenCastRestoreToken = "stored-token" });
         var store = new PortalScreenCastRestoreTokenStore(settings);
 
-        var token = store.LoadRestoreToken();
+        var token = await store.LoadRestoreTokenAsync(CancellationToken.None);
 
         Assert.Equal("stored-token", token);
     }
@@ -31,7 +31,7 @@ public sealed class PortalScreenCastRestoreTokenStoreTests
     public async Task SaveRestoreTokenAsync_WhenTokenIsBlank_DoesNotSave()
     {
         var settings = Substitute.For<ISettingsService>();
-        settings.Current.Returns(new AppSettings());
+        _ = settings.Current.Returns(new AppSettings());
         var store = new PortalScreenCastRestoreTokenStore(settings);
 
         await store.SaveRestoreTokenAsync(" ");
@@ -43,7 +43,7 @@ public sealed class PortalScreenCastRestoreTokenStoreTests
     public async Task SaveRestoreTokenAsync_WhenTokenIsUnchanged_DoesNotSave()
     {
         var settings = Substitute.For<ISettingsService>();
-        settings.Current.Returns(new AppSettings { PortalScreenCastRestoreToken = "same-token" });
+        _ = settings.Current.Returns(new AppSettings { PortalScreenCastRestoreToken = "same-token" });
         var store = new PortalScreenCastRestoreTokenStore(settings);
 
         await store.SaveRestoreTokenAsync("same-token");
@@ -56,8 +56,8 @@ public sealed class PortalScreenCastRestoreTokenStoreTests
     {
         var current = new AppSettings { PortalScreenCastRestoreToken = "old-token" };
         var settings = Substitute.For<ISettingsService>();
-        settings.Current.Returns(current);
-        settings.SaveAsync().Returns(Task.CompletedTask);
+        _ = settings.Current.Returns(current);
+        _ = settings.SaveAsync().Returns(Task.CompletedTask);
         var store = new PortalScreenCastRestoreTokenStore(settings);
 
         await store.SaveRestoreTokenAsync("new-token");
@@ -70,7 +70,7 @@ public sealed class PortalScreenCastRestoreTokenStoreTests
     public async Task ClearRestoreTokenAsync_WhenTokenIsBlank_DoesNotSave()
     {
         var settings = Substitute.For<ISettingsService>();
-        settings.Current.Returns(new AppSettings { PortalScreenCastRestoreToken = " " });
+        _ = settings.Current.Returns(new AppSettings { PortalScreenCastRestoreToken = " " });
         var store = new PortalScreenCastRestoreTokenStore(settings);
 
         await store.ClearRestoreTokenAsync();
@@ -83,8 +83,8 @@ public sealed class PortalScreenCastRestoreTokenStoreTests
     {
         var current = new AppSettings { PortalScreenCastRestoreToken = "stale-token" };
         var settings = Substitute.For<ISettingsService>();
-        settings.Current.Returns(current);
-        settings.SaveAsync().Returns(Task.CompletedTask);
+        _ = settings.Current.Returns(current);
+        _ = settings.SaveAsync().Returns(Task.CompletedTask);
         var store = new PortalScreenCastRestoreTokenStore(settings);
 
         await store.ClearRestoreTokenAsync();

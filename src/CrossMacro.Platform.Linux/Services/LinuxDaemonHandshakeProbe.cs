@@ -7,11 +7,9 @@ internal sealed class LinuxDaemonHandshakeProbe : ILinuxDaemonHandshakeProbe
     private readonly Func<string, TimeSpan, LinuxDaemonHandshakeTransport.ProbeResult> _probeWithinBudget;
 
     public LinuxDaemonHandshakeProbe()
-        : this(LinuxDaemonHandshakeTransport.ProbeWithinBudget)
-    {
-    }
+        : this(LinuxDaemonHandshakeTransport.ProbeWithinBudget) { /* Empty */ }
 
-    internal LinuxDaemonHandshakeProbe(Func<string, TimeSpan, LinuxDaemonHandshakeTransport.ProbeResult>? probeWithinBudget = null)
+    internal LinuxDaemonHandshakeProbe(Func<string, TimeSpan, LinuxDaemonHandshakeTransport.ProbeResult>? probeWithinBudget)
     {
         _probeWithinBudget = probeWithinBudget ?? LinuxDaemonHandshakeTransport.ProbeWithinBudget;
     }

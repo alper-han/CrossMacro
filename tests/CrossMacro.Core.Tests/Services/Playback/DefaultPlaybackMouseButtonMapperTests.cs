@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services.Playback;
 
-public class DefaultPlaybackMouseButtonMapperTests
+public sealed class DefaultPlaybackMouseButtonMapperTests
 {
     private readonly DefaultPlaybackMouseButtonMapper _mapper;
 
@@ -19,7 +19,7 @@ public class DefaultPlaybackMouseButtonMapperTests
     public void Map_ShouldReturnCorrectCode_ForKnownButtons(MacroMouseButton button, int expectedCode)
     {
         var result = _mapper.Map(button);
-        result.Should().Be(expectedCode);
+        _ = result.Should().Be(expectedCode);
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class DefaultPlaybackMouseButtonMapperTests
     {
         // MacroMouseButton.None or any other unhandled value should default to Left
         var result = _mapper.Map(MacroMouseButton.None);
-        result.Should().Be(MouseButtonCode.Left);
+        _ = result.Should().Be(MouseButtonCode.Left);
     }
 
     [Theory]
@@ -39,6 +39,6 @@ public class DefaultPlaybackMouseButtonMapperTests
     {
         // Scroll buttons are not mappable to button codes, should default to Left
         var result = _mapper.Map(scrollButton);
-        result.Should().Be(MouseButtonCode.Left);
+        _ = result.Should().Be(MouseButtonCode.Left);
     }
 }

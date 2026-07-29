@@ -23,6 +23,6 @@ internal sealed class WindowMoveCommandHandler : IWindowCommandHandler
         var x = int.Parse(parts[2], CultureInfo.InvariantCulture);
         var y = int.Parse(parts[3], CultureInfo.InvariantCulture);
         await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
-        await mutator.MoveActiveWindowAsync(x, y, cancellationToken).ConfigureAwait(false);
+        _ = await mutator.MoveActiveWindowAsync(x, y, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -27,6 +27,7 @@ public sealed partial class TriggerTaskEditor : ObservableObject
 
     public void Load(TriggerTask source)
     {
+        ArgumentNullException.ThrowIfNull(source);
         _source = source;
         Id = source.Id; Name = source.Name; Field = source.Field; MatchMode = source.MatchMode;
         Value = source.Value; Action = source.Action; TargetProfileId = source.TargetProfileId;
@@ -55,7 +56,7 @@ public sealed partial class TriggerTaskEditor : ObservableObject
             LastTriggeredTime = LastTriggeredTime,
             LastStatus = LastStatus,
         };
-        if (task.IsEnabled && !task.TrySetEnabled(true))
+        if (task.IsEnabled && !task.TrySetEnabled(enabled: true))
         {
             task.IsEnabled = false;
         }
@@ -65,6 +66,7 @@ public sealed partial class TriggerTaskEditor : ObservableObject
 
     public void ApplyToCore(TriggerTask target)
     {
+        ArgumentNullException.ThrowIfNull(target);
         var mapped = ToCore();
         target.Id = mapped.Id; target.Name = mapped.Name; target.Field = mapped.Field;
         target.MatchMode = mapped.MatchMode; target.Value = mapped.Value; target.Action = mapped.Action;

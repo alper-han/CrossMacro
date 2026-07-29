@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.Converters;
 
-public class NumericUpDownValueConverterTests
+public sealed class NumericUpDownValueConverterTests
 {
     [Theory]
     [InlineData(typeof(int))]
@@ -10,7 +10,7 @@ public class NumericUpDownValueConverterTests
     {
         var result = NumericUpDownValueConverter.Instance.ConvertBack(value: null, targetType, parameter: null, CultureInfo.InvariantCulture);
 
-        result.Should().BeSameAs(BindingOperations.DoNothing);
+        _ = result.Should().BeSameAs(BindingOperations.DoNothing);
     }
 
     [Theory]
@@ -20,7 +20,7 @@ public class NumericUpDownValueConverterTests
     {
         var result = NumericUpDownValueConverter.Instance.ConvertBack(42.9m, targetType, parameter: null, CultureInfo.InvariantCulture);
 
-        result.Should().Be(42);
+        _ = result.Should().Be(42);
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public class NumericUpDownValueConverterTests
     {
         var result = NumericUpDownValueConverter.Instance.Convert(7, typeof(decimal?), parameter: null, CultureInfo.InvariantCulture);
 
-        result.Should().Be(7m);
+        _ = result.Should().Be(7m);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class NumericUpDownValueConverterTests
     {
         var result = NumericUpDownValueConverter.Instance.ConvertBack("", typeof(int), parameter: null, CultureInfo.InvariantCulture);
 
-        result.Should().BeSameAs(BindingOperations.DoNothing);
+        _ = result.Should().BeSameAs(BindingOperations.DoNothing);
     }
 
     [Theory]
@@ -48,6 +48,6 @@ public class NumericUpDownValueConverterTests
 
         var result = NumericUpDownValueConverter.Instance.ConvertBack(decimalValue, typeof(int), parameter: null, CultureInfo.InvariantCulture);
 
-        result.Should().BeSameAs(BindingOperations.DoNothing);
+        _ = result.Should().BeSameAs(BindingOperations.DoNothing);
     }
 }

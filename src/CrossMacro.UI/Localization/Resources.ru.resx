@@ -165,6 +165,9 @@
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>Поставить звезду на GitHub</value>
   </data>
+  <data name="Settings_HotkeyAlreadyAssignedTo" xml:space="preserve">
+    <value>Эта горячая клавиша уже назначена для {0}</value>
+  </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Горячая клавиша уже назначена</value>
   </data>

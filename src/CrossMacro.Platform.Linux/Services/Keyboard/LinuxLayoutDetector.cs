@@ -4,8 +4,8 @@ namespace CrossMacro.Platform.Linux.Services.Keyboard;
 /// <summary>
 /// Detects keyboard layout across different Linux desktop environments.
 /// Priority: DE-specific (Hyprland/KDE/GNOME/Niri) > IBus > X11 > localectl
-/// TODO: COSMIC does not expose a reliable native current-layout API yet; keep using fallbacks until it does.
-/// TODO: Wayfire native layout IPC exists but is not wired here yet; add it before generic fallbacks.
+/// COSMIC does not expose a reliable native current-layout API yet; fallbacks cover it.
+/// Wayfire native layout IPC exists but is not wired here; generic fallbacks apply until added.
 /// </summary>
 public class LinuxLayoutDetector : ILinuxLayoutDetector
 {
@@ -18,19 +18,13 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
     private readonly bool _isNiri;
 
     public LinuxLayoutDetector()
-        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot(), new NiriLayoutSource())
-    {
-    }
+        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot(), new NiriLayoutSource()) { /* Empty */ }
 
     public LinuxLayoutDetector(ILinuxEnvironmentVariables environmentVariables)
-        : this((environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot(), new NiriLayoutSource())
-    {
-    }
+        : this((environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot(), new NiriLayoutSource()) { /* Empty */ }
 
     internal LinuxLayoutDetector(NiriLayoutSource niriSource)
-        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot(), niriSource)
-    {
-    }
+        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot(), niriSource) { /* Empty */ }
 
     internal LinuxLayoutDetector(LinuxEnvironmentSnapshot environment, NiriLayoutSource niriSource)
     {
@@ -64,106 +58,127 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         }
     }
 
-    public string? DetectLayout()
+    public async Task<string?> DetectLayoutAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            // 1. Hyprland IPC (IBus unreliable on Hyprland)
-            if (_isHyprland)
+            string? layout = await TryDetectLayoutByEnvironmentAsync(cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(layout))
             {
-                var hyprLayout = DetectHyprlandLayout();
-                if (!string.IsNullOrWhiteSpace(hyprLayout))
-                {
-                    return hyprLayout;
-                }
+                return layout;
             }
 
-            // 2. KDE DBus (IBus often not used on KDE)
-            if (_isKde)
-            {
-                var kdeLayout = DetectKdeLayout();
-                if (!string.IsNullOrWhiteSpace(kdeLayout))
-                {
-                    return kdeLayout;
-                }
-            }
-
-            // 3. GNOME GSettings
-            if (_isGnome)
-            {
-                var gnomeLayout = DetectGnomeLayout();
-                if (!string.IsNullOrWhiteSpace(gnomeLayout))
-                {
-                    return gnomeLayout;
-                }
-            }
-
-            // 4. Niri IPC (IBus often not used on Niri)
-            if (_isNiri)
-            {
-                var niriLayout = _niriSource.DetectLayout();
-                if (!string.IsNullOrWhiteSpace(niriLayout))
-                {
-                    return niriLayout;
-                }
-            }
-
-            // 5. IBus (Works on GNOME, etc.)
             var ibusLayout = IBusLayoutSource.DetectLayout();
             if (!string.IsNullOrWhiteSpace(ibusLayout))
             {
                 return ibusLayout;
             }
 
-            // 6. X11/XWayland fallback
             var x11Layout = DetectX11Layout();
             if (!string.IsNullOrWhiteSpace(x11Layout))
             {
                 return x11Layout;
             }
 
-            // 7. System default
             return DetectLocalectlLayout();
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[LayoutDetector] Error detecting layout");
             return "us";
         }
     }
 
-    private static string? DetectKdeLayout()
+    private async Task<string?> TryDetectLayoutByEnvironmentAsync(CancellationToken cancellationToken)
+    {
+        if (_isHyprland)
+        {
+            var hyprLayout = await DetectHyprlandLayoutAsync(cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(hyprLayout))
+            {
+                return hyprLayout;
+            }
+        }
+
+        if (_isKde)
+        {
+            var kdeLayout = await DetectKdeLayoutAsync(cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(kdeLayout))
+            {
+                return kdeLayout;
+            }
+        }
+
+        if (_isGnome)
+        {
+            var gnomeLayout = DetectGnomeLayout();
+            if (!string.IsNullOrWhiteSpace(gnomeLayout))
+            {
+                return gnomeLayout;
+            }
+        }
+
+        if (_isNiri)
+        {
+            var niriLayout = await _niriSource.DetectLayoutAsync(cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(niriLayout))
+            {
+                return niriLayout;
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<string?> DetectKdeLayoutAsync(CancellationToken cancellationToken)
     {
         try
         {
-            using var session = LinuxDbusSession.ConnectAsync().GetAwaiter().GetResult();
-            var keyboard = session.CreateKdeKeyboardClient();
-            return TryResolveKdeLayout(
-                () => keyboard.GetLayoutAsync().GetAwaiter().GetResult(),
-                () => keyboard.GetLayoutsListAsync().GetAwaiter().GetResult());
+            var session = await LinuxDbusSession.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            using (session)
+            {
+                var keyboard = session.CreateKdeKeyboardClient();
+                return await TryResolveKdeLayoutAsync(
+                    () => keyboard.GetLayoutAsync(),
+                    () => keyboard.GetLayoutsListAsync(),
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug("[LayoutDetector] KDE DBus failed: {Message}", ex.Message);
         }
         return null;
     }
 
-    internal static string? TryResolveKdeLayout(
-        Func<uint> getLayout,
-        Func<(string shortName, string variant, string displayName)[]> getLayoutsList)
+    internal static async Task<string?> TryResolveKdeLayoutAsync(
+        Func<Task<uint>> getLayoutAsync,
+        Func<Task<(string shortName, string variant, string displayName)[]>> getLayoutsListAsync,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var index = getLayout();
-            var layouts = getLayoutsList();
+            var index = await getLayoutAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+            var layouts = await getLayoutsListAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
 
             if (index < layouts.Length)
             {
                 return layouts[index].shortName;
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug("[LayoutDetector] KDE DBus failed: {Message}", ex.Message);
         }
@@ -201,14 +216,14 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug("[LayoutDetector] GNOME gsettings failed: {Message}", ex.Message);
         }
         return null;
     }
 
-    private static string? DetectHyprlandLayout()
+    private static async Task<string?> DetectHyprlandLayoutAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -218,39 +233,51 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
                 return null;
             }
 
-            var json = ipcClient.SendCommandAsync("j/devices", CancellationToken.None).GetAwaiter().GetResult();
+            var json = await ipcClient.SendCommandAsync("j/devices", cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(json))
             {
                 return null;
             }
 
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("keyboards", out var keyboards))
-            {
-                foreach (var kb in keyboards.EnumerateArray())
-                {
-                    if (kb.TryGetProperty("active_layout_index", out _) &&
-                        kb.TryGetProperty("layout", out var layout) &&
-                        !string.IsNullOrWhiteSpace(layout.GetString()))
-                    {
-                        return layout.GetString();
-                    }
-                }
-
-                foreach (var kb in keyboards.EnumerateArray())
-                {
-                    if (kb.TryGetProperty("layout", out var layout) &&
-                        !string.IsNullOrWhiteSpace(layout.GetString()))
-                    {
-                        return layout.GetString();
-                    }
-                }
-            }
+            return TryParseHyprlandLayout(json);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[LayoutDetector] Hyprland IPC failed");
         }
+
+        return null;
+    }
+
+    private static string? TryParseHyprlandLayout(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.TryGetProperty("keyboards", out var keyboards))
+        {
+            foreach (var kb in keyboards.EnumerateArray())
+            {
+                if (kb.TryGetProperty("active_layout_index", out _) &&
+                    kb.TryGetProperty("layout", out var layout) &&
+                    !string.IsNullOrWhiteSpace(layout.GetString()))
+                {
+                    return layout.GetString();
+                }
+            }
+
+            foreach (var kb in keyboards.EnumerateArray())
+            {
+                if (kb.TryGetProperty("layout", out var layout) &&
+                    !string.IsNullOrWhiteSpace(layout.GetString()))
+                {
+                    return layout.GetString();
+                }
+            }
+        }
+
         return null;
     }
 
@@ -263,7 +290,7 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         }
 
         var layoutLine = output.Split('\n')
-            .FirstOrDefault(line => line.StartsWith("layout:", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(static line => line.StartsWith("layout:", StringComparison.OrdinalIgnoreCase));
         if (layoutLine is null)
         {
             return null;
@@ -282,7 +309,7 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         }
 
         var layoutLine = output.Split('\n')
-            .FirstOrDefault(line => line.Trim().StartsWith("X11 Layout:", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(static line => line.Trim().StartsWith("X11 Layout:", StringComparison.OrdinalIgnoreCase));
         if (layoutLine is null)
         {
             return null;

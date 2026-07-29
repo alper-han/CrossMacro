@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public interface IPeerCredentialsProvider
+internal interface IPeerCredentialsProvider
 {
     public (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket);
     public string? GetProcessExecutable(int pid);

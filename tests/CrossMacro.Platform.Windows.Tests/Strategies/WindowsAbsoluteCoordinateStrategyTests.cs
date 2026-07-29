@@ -1,14 +1,14 @@
 
 namespace CrossMacro.Platform.Windows.Tests.Strategies;
 
-public class WindowsAbsoluteCoordinateStrategyTests
+public sealed class WindowsAbsoluteCoordinateStrategyTests
 {
     [WindowsFact]
     public async Task InitializeAsync_WhenPositionAvailable_UsesItForNonMouseEvents()
     {
         // Arrange
         var provider = Substitute.For<IMousePositionProvider>();
-        provider.GetAbsolutePositionAsync().Returns((10, 20));
+        _ = provider.GetAbsolutePositionAsync().Returns((10, 20));
         var strategy = new WindowsAbsoluteCoordinateStrategy(provider);
 
         // Act

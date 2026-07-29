@@ -3,8 +3,8 @@ namespace CrossMacro.UI.Tests.Theming;
 
 internal static partial class ThemeTestFileHelper
 {
-    private static readonly Regex ResourceKeyRegex = ResourceKeyRegexFactory();
-    private static readonly Regex DynamicResourceRegex = DynamicResourceRegexFactory();
+    private static readonly Regex ResourceKeyRegex = ResourceKeyRegexFactory;
+    private static readonly Regex DynamicResourceRegex = DynamicResourceRegexFactory;
 
     public static string FindRepositoryRoot()
     {
@@ -32,7 +32,7 @@ internal static partial class ThemeTestFileHelper
     {
         return Directory
             .GetFiles(GetThemeDirectory(), "*.axaml", SearchOption.TopDirectoryOnly)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -68,16 +68,16 @@ internal static partial class ThemeTestFileHelper
             var content = File.ReadAllText(file);
             foreach (Match match in DynamicResourceRegex.Matches(content))
             {
-                keys.Add(match.Groups[1].Value);
+                _ = keys.Add(match.Groups[1].Value);
             }
         }
 
         return keys;
     }
 
-    [GeneratedRegex("x:Key=\"([^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
-    private static partial Regex ResourceKeyRegexFactory();
+    [GeneratedRegex("x:Key=\"(?<key>[^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    private static partial Regex ResourceKeyRegexFactory { get; }
 
-    [GeneratedRegex(@"\{DynamicResource\s+([A-Za-z0-9\._\-]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
-    private static partial Regex DynamicResourceRegexFactory();
+    [GeneratedRegex(@"\{DynamicResource\s+(?<key>[A-Za-z0-9\._\-]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    private static partial Regex DynamicResourceRegexFactory { get; }
 }

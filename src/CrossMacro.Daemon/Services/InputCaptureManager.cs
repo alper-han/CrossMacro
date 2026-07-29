@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public class InputCaptureManager : IInputCaptureManager
+internal sealed class InputCaptureManager : IInputCaptureManager
 {
     private readonly List<ILinuxCaptureReader> _readers = new();
     private readonly Lock _lock = new();
@@ -12,8 +12,7 @@ public class InputCaptureManager : IInputCaptureManager
         : this(
             () => InputDeviceHelper.GetAvailableDevices(),
             device => new EvdevCaptureReaderAdapter(new EvdevReader(device.Path, device.Name)))
-    {
-    }
+    { /* Empty */ }
 
     internal InputCaptureManager(
         Func<IReadOnlyList<InputDeviceHelper.InputDevice>> deviceEnumerator,
@@ -57,7 +56,7 @@ public class InputCaptureManager : IInputCaptureManager
                                 onEvent(e);
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (ex is not OutOfMemoryException)
                         {
                             Log.Verbose(ex, "[InputCaptureManager] Error in event callback");
                         }
@@ -65,13 +64,13 @@ public class InputCaptureManager : IInputCaptureManager
                     evReader.Start();
                     _readers.Add(evReader);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     try
                     {
                         evReader?.Dispose();
                     }
-                    catch (Exception disposeException)
+                    catch (Exception disposeException) when (disposeException is not OutOfMemoryException)
                     {
                         Log.Warning("Failed to dispose capture reader for {Path}: {Msg}", dev.Path, disposeException.Message);
                     }
@@ -118,7 +117,7 @@ public class InputCaptureManager : IInputCaptureManager
             UInputNative.EV_KEY => captureKeyboard,
             UInputNative.EV_REL => captureMouse,
             UInputNative.EV_ABS when inputEvent.code is UInputNative.ABS_X or UInputNative.ABS_Y => captureMouse,
-            UInputNative.EV_SYN => captureMouse,
+            UInputNative.EV_SYN => captureMouse || captureKeyboard,
             _ => false,
         };
     }
@@ -159,9 +158,9 @@ public class InputCaptureManager : IInputCaptureManager
             _reader.Dispose();
         }
 
-        private void OnReaderEventReceived(EvdevReader reader, UInputNative.input_event inputEvent)
+        private void OnReaderEventReceived(object? sender, EvdevInputEventArgs e)
         {
-            EventReceived?.Invoke(this, inputEvent);
+            EventReceived?.Invoke(this, e.Event);
         }
     }
 }

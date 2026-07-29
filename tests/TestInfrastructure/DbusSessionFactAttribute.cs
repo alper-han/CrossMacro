@@ -1,14 +1,15 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class DbusSessionFactAttribute : ConditionalFactAttribute
+internal sealed class DbusSessionFactAttribute : FactAttribute
 {
     public DbusSessionFactAttribute()
-        : base(
-            () => OperatingSystem.IsLinux() &&
-                  HasExecutableOnPath("dbus-daemon"),
-            "Linux + dbus-daemon")
     {
+        if (!(OperatingSystem.IsLinux() &&
+              HasExecutableOnPath("dbus-daemon")))
+        {
+            Skip = ConditionalSkipMessage.For("Linux + dbus-daemon");
+        }
     }
 
     private static bool HasExecutableOnPath(string fileName)

@@ -30,7 +30,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         {
             _source = _library.CreateExtImageSource(_registry.ExtOutputSourceManager, output, _protocol.ExtCaptureSource);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Dispose();
             throw;
@@ -42,18 +42,21 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         cancellation.ThrowIfCancellationRequested();
 
-        var session = _library.CreateExtImageSession(_registry.ExtCopyManager, _source, _protocol.ExtCopySession);
+        var sessionState = new WaylandExtImageCopySessionState();
+        var session = IntPtr.Zero;
         try
         {
-            var sessionState = WaitForSession(session, cancellation);
+            session = _library.CreateExtImageSession(_registry.ExtCopyManager, _source, _protocol.ExtCopySession);
+            WaitForSession(session, sessionState, cancellation);
             EnsureBuffer(sessionState, cancellation);
             var shm = _shm ?? throw new ObjectDisposedException(nameof(WaylandExtImageCopyOutputCapture));
             cancellation.ThrowIfCancellationRequested();
-            var frame = _library.CreateExtImageFrame(session, _protocol.ExtCopyFrame);
+            var frameState = new WaylandExtImageCopyFrameState();
+            var frame = IntPtr.Zero;
             try
             {
-                var frameState = new WaylandExtImageCopyFrameState();
-                _library.AddDispatcher(frame, frameState.DispatcherPtr);
+                frame = _library.CreateExtImageFrame(session, _protocol.ExtCopyFrame);
+                _ = _library.AddDispatcher(frame, frameState.DispatcherPtr);
                 _library.AttachExtImageFrameBuffer(frame, _buffer);
                 _library.DamageExtImageFrameBuffer(frame, 0, 0, checked((int)sessionState.Width), checked((int)sessionState.Height));
                 cancellation.ThrowIfCancellationRequested();
@@ -64,7 +67,12 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
             }
             finally
             {
-                _library.DestroyExtImageFrame(frame);
+                if (frame != IntPtr.Zero)
+                {
+                    _library.DestroyExtImageFrame(frame);
+                }
+
+                frameState.Dispose();
             }
         }
         catch (OperationCanceledException)
@@ -79,7 +87,12 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         }
         finally
         {
-            _library.DestroyExtImageSession(session);
+            if (session != IntPtr.Zero)
+            {
+                _library.DestroyExtImageSession(session);
+            }
+
+            sessionState.Dispose();
         }
     }
 
@@ -100,10 +113,9 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
 
     }
 
-    private WaylandExtImageCopySessionState WaitForSession(IntPtr session, WaylandCaptureCancellation cancellation)
+    private void WaitForSession(IntPtr session, WaylandExtImageCopySessionState sessionState, WaylandCaptureCancellation cancellation)
     {
-        var sessionState = new WaylandExtImageCopySessionState();
-        _library.AddDispatcher(session, sessionState.DispatcherPtr);
+        _ = _library.AddDispatcher(session, sessionState.DispatcherPtr);
         for (var i = 0; i < SessionRoundtripLimit && !sessionState.Done && !sessionState.Stopped; i++)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -116,7 +128,6 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
                 $"Unsupported ext-image-copy session constraints. format=0x{sessionState.ShmFormat:x8} formats={sessionState.FormatAdvertisedShmFormats()} size={sessionState.Width}x{sessionState.Height} stopped={sessionState.Stopped}.");
         }
 
-        return sessionState;
     }
 
     private void WaitForReady(WaylandExtImageCopyFrameState frameState, WaylandCaptureCancellation cancellation)
@@ -170,7 +181,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
             _bufferSessionState = sessionState;
             shm = null;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (buffer != IntPtr.Zero)
             {
@@ -237,16 +248,17 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
     }
 
     private sealed class WaylandExtImageCopySessionState
+        : IDisposable
     {
-#pragma warning disable S1450
-        private readonly SessionDispatcher _dispatcher;
-#pragma warning restore S1450
+        private GCHandle _dispatcherHandle;
         private readonly List<uint> _advertisedShmFormats = [];
+        private bool _disposed;
 
         public WaylandExtImageCopySessionState()
         {
-            _dispatcher = Dispatch;
-            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
+            var dispatcher = (SessionDispatcher)Dispatch;
+            _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
+            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
         }
 
         private delegate int SessionDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
@@ -259,6 +271,20 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         public uint ShmFormat { get; private set; }
         public bool HasSupportedShmFormat { get; private set; }
         public int Stride => checked((int)Width * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Xrgb8888));
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            if (_dispatcherHandle.IsAllocated)
+            {
+                _dispatcherHandle.Free();
+            }
+        }
 
         public string FormatAdvertisedShmFormats() => WaylandExtImageCopyShmFormats.FormatAdvertisedFormats(CollectionsMarshal.AsSpan(_advertisedShmFormats));
 
@@ -295,15 +321,16 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
     }
 
     private sealed class WaylandExtImageCopyFrameState
+        : IDisposable
     {
-#pragma warning disable S1450
-        private readonly FrameDispatcher _dispatcher;
-#pragma warning restore S1450
+        private GCHandle _dispatcherHandle;
+        private bool _disposed;
 
         public WaylandExtImageCopyFrameState()
         {
-            _dispatcher = Dispatch;
-            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
+            var dispatcher = (FrameDispatcher)Dispatch;
+            _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
+            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
         }
 
         private delegate int FrameDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
@@ -312,6 +339,20 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         public bool Ready { get; private set; }
         public bool Failed { get; private set; }
         public uint FailureReason { get; private set; }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            if (_dispatcherHandle.IsAllocated)
+            {
+                _dispatcherHandle.Free();
+            }
+        }
 
         private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
         {

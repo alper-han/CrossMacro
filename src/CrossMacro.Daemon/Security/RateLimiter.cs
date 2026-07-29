@@ -5,34 +5,26 @@ namespace CrossMacro.Daemon.Security;
 /// Rate limiter to prevent DoS attacks via excessive connection attempts.
 /// Tracks connection attempts per UID and blocks if limit is exceeded.
 /// </summary>
-public class RateLimiter
+/// <remarks>
+/// Creates a new rate limiter with specified limits.
+/// </remarks>
+/// <param name="maxConnectionsPerWindow">Maximum connections allowed in the time window</param>
+/// <param name="windowSeconds">Time window duration in seconds</param>
+/// <param name="banSeconds">Ban duration in seconds after limit exceeded</param>
+/// <param name="utcNow">Optional current time provider used for deterministic testing</param>
+internal sealed class RateLimiter(
+    int maxConnectionsPerWindow = 10,
+    int windowSeconds = 60,
+    int banSeconds = 60,
+    Func<DateTime>? utcNow = null)
 {
     private readonly Dictionary<uint, ConnectionRecord> _connectionAttempts = new();
     private readonly Lock _lock = new();
-    private readonly Func<DateTime> _utcNow;
+    private readonly Func<DateTime> _utcNow = utcNow ?? (() => DateTime.UtcNow);
 
-    private readonly int _maxConnectionsPerWindow;
-    private readonly TimeSpan _windowDuration;
-    private readonly TimeSpan _banDuration;
-
-    /// <summary>
-    /// Creates a new rate limiter with specified limits.
-    /// </summary>
-    /// <param name="maxConnectionsPerWindow">Maximum connections allowed in the time window</param>
-    /// <param name="windowSeconds">Time window duration in seconds</param>
-    /// <param name="banSeconds">Ban duration in seconds after limit exceeded</param>
-    /// <param name="utcNow">Optional current time provider used for deterministic testing</param>
-    public RateLimiter(
-        int maxConnectionsPerWindow = 10,
-        int windowSeconds = 60,
-        int banSeconds = 60,
-        Func<DateTime>? utcNow = null)
-    {
-        _maxConnectionsPerWindow = maxConnectionsPerWindow;
-        _windowDuration = TimeSpan.FromSeconds(windowSeconds);
-        _banDuration = TimeSpan.FromSeconds(banSeconds);
-        _utcNow = utcNow ?? (() => DateTime.UtcNow);
-    }
+    private readonly int _maxConnectionsPerWindow = maxConnectionsPerWindow;
+    private readonly TimeSpan _windowDuration = TimeSpan.FromSeconds(windowSeconds);
+    private readonly TimeSpan _banDuration = TimeSpan.FromSeconds(banSeconds);
 
     /// <summary>
     /// Checks if a UID is currently rate limited.
@@ -86,17 +78,15 @@ public class RateLimiter
 
                 return false;
             }
-            else
+
+            // First connection from this UID
+            _connectionAttempts[uid] = new ConnectionRecord
             {
-                // First connection from this UID
-                _connectionAttempts[uid] = new ConnectionRecord
-                {
-                    WindowStart = now,
-                    Count = 1,
-                    BannedUntil = null,
-                };
-                return false;
-            }
+                WindowStart = now,
+                Count = 1,
+                BannedUntil = null,
+            };
+            return false;
         }
     }
 
@@ -146,11 +136,11 @@ public class RateLimiter
 
         foreach (var uid in toRemove)
         {
-            _connectionAttempts.Remove(uid);
+            _ = _connectionAttempts.Remove(uid);
         }
     }
 
-    private class ConnectionRecord
+    private sealed class ConnectionRecord
     {
         public DateTime WindowStart { get; set; }
         public int Count { get; set; }

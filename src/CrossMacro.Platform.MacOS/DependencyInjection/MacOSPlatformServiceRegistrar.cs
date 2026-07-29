@@ -6,31 +6,31 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
     public void RegisterPlatformServices(IServiceCollection services)
     {
-        services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();
-        services.AddSingleton<IEnvironmentInfoProvider, MacOSEnvironmentInfoProvider>();
-        services.AddSingleton<IPlaybackBehaviorPolicy>(
+        _ = services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();
+        _ = services.AddSingleton<IEnvironmentInfoProvider, MacOSEnvironmentInfoProvider>();
+        _ = services.AddSingleton<IPlaybackBehaviorPolicy>(
             _ => new MacOSPlaybackBehaviorPolicy());
-        services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
-        services.AddSingleton<IScreenFrameProvider, MacOSScreenFrameProvider>();
-        services.AddSingleton<IMacOSScreenRecordingPermissionProbe, CoreGraphicsScreenRecordingPermissionProbe>();
-        services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
+        _ = services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
+        _ = services.AddSingleton<IScreenFrameProvider, MacOSScreenFrameProvider>();
+        _ = services.AddSingleton<IMacOSScreenRecordingPermissionProbe, CoreGraphicsScreenRecordingPermissionProbe>();
+        _ = services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
 
 #pragma warning disable CS8634 // Intentionally nullable for optional service
-        services.AddSingleton<IExtensionStatusNotifier?>(sp => null);
+        _ = services.AddSingleton<IExtensionStatusNotifier?>(_ => null);
 #pragma warning restore CS8634
 
-        services.AddTransient<Func<IInputSimulator>>(sp =>
+        _ = services.AddTransient<Func<IInputSimulator>>(sp =>
         {
             var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
             return () => new MacOSInputSimulator(MacOSPermissionRequestDelegates.RequestPostEventAccess(permissionChecker));
         });
-        services.AddTransient<Func<IInputCapture>>(sp =>
+        _ = services.AddTransient<Func<IInputCapture>>(sp =>
         {
             var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
             return () => new MacOSInputCapture(MacOSPermissionRequestDelegates.RequestListenEventAccess(permissionChecker));
         });
 
-        services.AddSingleton<ICoordinateStrategyFactory, MacOSCoordinateStrategyFactory>();
-        services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+        _ = services.AddSingleton<ICoordinateStrategyFactory, MacOSCoordinateStrategyFactory>();
+        _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
     }
 }

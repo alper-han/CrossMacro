@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Strategies;
 
-public class MacOSCoordinateStrategyFactoryTests
+public sealed class MacOSCoordinateStrategyFactoryTests
 {
     [Fact]
     public void Create_WhenAbsoluteRequested_ReturnsMacOSAbsoluteStrategy()
@@ -10,7 +10,7 @@ public class MacOSCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
 
-        Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
+        _ = Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
     }
 
     [Fact]
@@ -20,7 +20,7 @@ public class MacOSCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: true, skipInitialZero: false);
 
-        Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
+        _ = Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public class MacOSCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
 
-        Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
+        _ = Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
     }
 
     [Fact]
@@ -40,6 +40,6 @@ public class MacOSCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
 
-        Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
+        _ = Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
     }
 }

@@ -1,23 +1,15 @@
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-public sealed class ExtImageCopyCapture : IExtImageCopyCapture
+public sealed class ExtImageCopyCapture(
+    IExtImageCopySupportProbe supportProbe,
+    IExtImageCopyNativeCaptureSessionFactory sessionFactory) : IExtImageCopyCapture
 {
-    private readonly IExtImageCopySupportProbe _supportProbe;
-    private readonly IExtImageCopyNativeCaptureSessionFactory _sessionFactory;
+    private readonly IExtImageCopySupportProbe _supportProbe = supportProbe ?? throw new ArgumentNullException(nameof(supportProbe));
+    private readonly IExtImageCopyNativeCaptureSessionFactory _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
     private bool _disposed;
 
     public ExtImageCopyCapture()
-        : this(WaylandExtImageCopySupportProbe.Instance, new WaylandExtImageCopyNativeCaptureSessionFactory())
-    {
-    }
-
-    public ExtImageCopyCapture(
-        IExtImageCopySupportProbe supportProbe,
-        IExtImageCopyNativeCaptureSessionFactory sessionFactory)
-    {
-        _supportProbe = supportProbe ?? throw new ArgumentNullException(nameof(supportProbe));
-        _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
-    }
+        : this(WaylandExtImageCopySupportProbe.Instance, new WaylandExtImageCopyNativeCaptureSessionFactory()) { /* Empty */ }
 
     public ExtImageCopySupportResult ProbeSupport() => _supportProbe.ProbeSupport();
 

@@ -165,6 +165,9 @@
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>ضع نجمة على GitHub</value>
   </data>
+  <data name="Settings_HotkeyAlreadyAssignedTo" xml:space="preserve">
+    <value>مفتاح الاختصار هذا معيّن بالفعل لـ {0}</value>
+  </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>تم تعيين مفتاح التشغيل السريع بالفعل</value>
   </data>

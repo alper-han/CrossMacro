@@ -14,9 +14,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
     private bool _disposed;
 
     public CosmicPositionProvider()
-        : this(ReadCosmicRandrKdlAsync)
-    {
-    }
+        : this(ReadCosmicRandrKdlAsync) { /* Empty */ }
 
     internal CosmicPositionProvider(Func<CancellationToken, Task<string?>> readOutputTopologyAsync)
     {
@@ -57,7 +55,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             Log.Warning("[CosmicPositionProvider] Timed out while querying cosmic-randr output topology");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[CosmicPositionProvider] Failed to get screen resolution");
             return null;
@@ -130,13 +128,8 @@ output.CurrentMode is not null &&
                 continue;
             }
 
-            var outputMatch = OutputLineRegex().Match(line);
-            if (outputMatch.Success)
+            if (TryStartNewOutput(line, ref currentOutput, outputs, ref inModes))
             {
-                currentOutput = new CosmicOutput(
-                    enabled: string.Equals(outputMatch.Groups[2].Value, "true", StringComparison.OrdinalIgnoreCase));
-                outputs.Add(currentOutput);
-                inModes = false;
                 continue;
             }
 
@@ -161,49 +154,68 @@ output.CurrentMode is not null &&
                 {
                     currentOutput = null;
                 }
-
                 continue;
             }
 
-            if (line.StartsWith("mirroring ", StringComparison.Ordinal))
-            {
-                currentOutput.IsMirrored = true;
-                continue;
-            }
-
-            var positionMatch = PositionLineRegex().Match(line);
-            if (positionMatch.Success)
-            {
-                currentOutput.Position = (
-                    ParseInt32(positionMatch.Groups[1].Value),
-                    ParseInt32(positionMatch.Groups[2].Value));
-                continue;
-            }
-
-            var scaleMatch = ScaleLineRegex().Match(line);
-            if (scaleMatch.Success && double.TryParse(scaleMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
-            {
-                currentOutput.Scale = scale;
-                continue;
-            }
-
-            var transformMatch = TransformLineRegex().Match(line);
-            if (transformMatch.Success)
-            {
-                currentOutput.Transform = transformMatch.Groups[1].Value;
-                continue;
-            }
-
-            var modeMatch = ModeLineRegex().Match(line);
-            if (inModes && modeMatch.Success)
-            {
-                currentOutput.CurrentMode = (
-                    ParseInt32(modeMatch.Groups[1].Value),
-                    ParseInt32(modeMatch.Groups[2].Value));
-            }
+            TryApplyOutputLineProperty(line, currentOutput, inModes);
         }
 
         return outputs;
+    }
+
+    private static bool TryStartNewOutput(string line, ref CosmicOutput? currentOutput, List<CosmicOutput> outputs, ref bool inModes)
+    {
+        var outputMatch = OutputLineRegex.Match(line);
+        if (!outputMatch.Success)
+        {
+            return false;
+        }
+
+        currentOutput = new CosmicOutput(
+            enabled: string.Equals(outputMatch.Groups["enabled"].Value, "true", StringComparison.OrdinalIgnoreCase));
+        outputs.Add(currentOutput);
+        inModes = false;
+        return true;
+    }
+
+    private static void TryApplyOutputLineProperty(string line, CosmicOutput currentOutput, bool inModes)
+    {
+        if (line.StartsWith("mirroring ", StringComparison.Ordinal))
+        {
+            currentOutput.IsMirrored = true;
+            return;
+        }
+
+        var positionMatch = PositionLineRegex.Match(line);
+        if (positionMatch.Success)
+        {
+            currentOutput.Position = (
+                ParseInt32(positionMatch.Groups["x"].Value),
+                ParseInt32(positionMatch.Groups["y"].Value));
+            return;
+        }
+
+        var scaleMatch = ScaleLineRegex.Match(line);
+        if (scaleMatch.Success && double.TryParse(scaleMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
+        {
+            currentOutput.Scale = scale;
+            return;
+        }
+
+        var transformMatch = TransformLineRegex.Match(line);
+        if (transformMatch.Success)
+        {
+            currentOutput.Transform = transformMatch.Groups["transform"].Value;
+            return;
+        }
+
+        var modeMatch = ModeLineRegex.Match(line);
+        if (inModes && modeMatch.Success)
+        {
+            currentOutput.CurrentMode = (
+                ParseInt32(modeMatch.Groups["width"].Value),
+                ParseInt32(modeMatch.Groups["height"].Value));
+        }
     }
 
     private static int ParseInt32(string value)
@@ -228,7 +240,7 @@ output.CurrentMode is not null &&
 
         try
         {
-            process.Start();
+            _ = process.Start();
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
@@ -254,7 +266,7 @@ output.CurrentMode is not null &&
             {
                 process.Kill(entireProcessTree: true);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Debug(ex, "[CosmicPositionProvider] Failed to kill timed-out cosmic-randr process");
             }
@@ -273,7 +285,7 @@ output.CurrentMode is not null &&
         }
 
         return content.Split('\n', StringSplitOptions.TrimEntries)
-            .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
+            .FirstOrDefault(static line => !string.IsNullOrWhiteSpace(line));
     }
 
     public void Dispose()
@@ -287,29 +299,24 @@ output.CurrentMode is not null &&
         GC.SuppressFinalize(this);
     }
 
-    [GeneratedRegex("^output\\s+\\\"([^\\\"]+)\\\"\\s+enabled=#(true|false)\\s*\\{", RegexOptions.NonBacktracking)]
-    private static partial Regex OutputLineRegex();
+    [GeneratedRegex("^output\\s+\\\"(?<name>[^\\\"]+)\\\"\\s+enabled=#(?<enabled>true|false)\\s*\\{", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex OutputLineRegex { get; }
 
-    [GeneratedRegex("^position\\s+(-?\\d+)\\s+(-?\\d+)$", RegexOptions.NonBacktracking)]
-    private static partial Regex PositionLineRegex();
+    [GeneratedRegex("^position\\s+(?<x>-?\\d+)\\s+(?<y>-?\\d+)$", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex PositionLineRegex { get; }
 
-    [GeneratedRegex("^scale\\s+([0-9]+(?:\\.[0-9]+)?)$", RegexOptions.NonBacktracking)]
-    private static partial Regex ScaleLineRegex();
+    [GeneratedRegex("^scale\\s+(?<value>[0-9]+(?:\\.[0-9]+)?)$", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex ScaleLineRegex { get; }
 
-    [GeneratedRegex("^transform\\s+\\\"([^\\\"]+)\\\"$", RegexOptions.NonBacktracking)]
-    private static partial Regex TransformLineRegex();
+    [GeneratedRegex("^transform\\s+\\\"(?<transform>[^\\\"]+)\\\"$", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex TransformLineRegex { get; }
 
-    [GeneratedRegex("^mode\\s+(\\d+)\\s+(\\d+)\\s+\\d+\\b.*\\bcurrent=#true\\b", RegexOptions.NonBacktracking)]
-    private static partial Regex ModeLineRegex();
+    [GeneratedRegex("^mode\\s+(?<width>\\d+)\\s+(?<height>\\d+)\\s+\\d+\\b.*\\bcurrent=#true\\b", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex ModeLineRegex { get; }
 
-    private sealed class CosmicOutput
+    private sealed class CosmicOutput(bool enabled)
     {
-        public CosmicOutput(bool enabled)
-        {
-            Enabled = enabled;
-        }
-
-        public bool Enabled { get; }
+        public bool Enabled { get; } = enabled;
         public bool IsMirrored { get; set; }
         public (int X, int Y)? Position { get; set; }
         public (int Width, int Height)? CurrentMode { get; set; }
@@ -318,7 +325,7 @@ output.CurrentMode is not null &&
 
         public LogicalRectangle ToLogicalRectangle()
         {
-            var (modeWidth, modeHeight) = CurrentMode!.Value;
+            var (modeWidth, modeHeight) = CurrentMode ?? throw new InvalidOperationException("CurrentMode is not set.");
             if (IsQuarterTurn(Transform))
             {
                 (modeWidth, modeHeight) = (modeHeight, modeWidth);
@@ -326,7 +333,7 @@ output.CurrentMode is not null &&
 
             var width = (int)Math.Round(modeWidth / Scale, MidpointRounding.AwayFromZero);
             var height = (int)Math.Round(modeHeight / Scale, MidpointRounding.AwayFromZero);
-            var (x, y) = Position!.Value;
+            var (x, y) = Position ?? throw new InvalidOperationException("Position is not set.");
 
             return new LogicalRectangle(x, y, width, height);
         }
@@ -343,5 +350,6 @@ output.CurrentMode is not null &&
         }
     }
 
+    [StructLayout(LayoutKind.Auto)]
     private readonly record struct LogicalRectangle(int X, int Y, int Width, int Height);
 }

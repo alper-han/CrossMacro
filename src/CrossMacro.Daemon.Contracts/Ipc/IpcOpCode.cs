@@ -1,7 +1,6 @@
 namespace CrossMacro.Daemon.Contracts.Ipc;
 
-#pragma warning disable CA1028 // byte is part of the IPC wire contract; changing it changes serialized opcode bytes.
-public enum IpcOpCode : byte
+public enum IpcOpCode
 {
     /// <summary>
     /// No operation. This value is reserved and is not valid on the wire.
@@ -80,4 +79,3 @@ public enum IpcOpCode : byte
     /// </summary>
     ConfigureResolution = 0x06,
 }
-#pragma warning restore CA1028

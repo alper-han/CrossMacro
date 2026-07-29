@@ -4,6 +4,63 @@ namespace CrossMacro.UI.Tests.Services;
 public sealed class DesktopStartupRuntimeServiceTests
 {
     [Fact]
+    public async Task StartAsync_WhenWorkerOriginated_ResolvesMainWindowOutsideUiExecutionBoundary()
+    {
+        var sentinel = new InvalidOperationException(
+            "MainWindow factory reached outside the expected Avalonia UI execution boundary.");
+        var startupThreadId = 0;
+        var uiExecutionThreadId = 0;
+        var factoryThreadId = 0;
+        var service = CreateService(
+            getMainWindow: () =>
+            {
+                factoryThreadId = Environment.CurrentManagedThreadId;
+                throw sentinel;
+            },
+            getMainWindowViewModel: () =>
+                (MainWindowViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainWindowViewModel)),
+            executeOnUiThread: action => Task.Run(() =>
+            {
+                uiExecutionThreadId = Environment.CurrentManagedThreadId;
+                return action();
+            }));
+        var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
+        var startupPreferences = new DesktopStartupPreferences(
+            ShouldStartMinimized: false,
+            PersistTrayEnabled: false,
+            UseStartupTrayOnly: false);
+
+        var exception = await Record.ExceptionAsync(
+            () => Task.Factory.StartNew(
+                () =>
+                {
+                    startupThreadId = Environment.CurrentManagedThreadId;
+                    return service.StartAsync(desktop, startupPreferences);
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default).Unwrap());
+
+        Assert.Same(sentinel, exception);
+        Assert.NotEqual(startupThreadId, uiExecutionThreadId);
+        Assert.Equal(uiExecutionThreadId, factoryThreadId);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_IsIdempotentAndDoesNotDisposeInjectedRuntimeLifecycle()
+    {
+        var runtimeLifecycle = Substitute.For<IRuntimeLifecycle>();
+        var service = CreateService(runtimeLifecycle: runtimeLifecycle);
+
+        await service.DisposeAsync();
+        await service.DisposeAsync();
+        await service.StopAsync();
+
+        await runtimeLifecycle.Received(1).StopAsync(CancellationToken.None);
+        await runtimeLifecycle.DidNotReceive().DisposeAsync();
+    }
+
+    [Fact]
     public async Task CleanupAsync_AttemptsRuntimeViewModelAndProviderIndependently()
     {
         var events = new List<string>();
@@ -31,9 +88,31 @@ public sealed class DesktopStartupRuntimeServiceTests
     }
 
     [Fact]
+    public async Task CleanupAsync_AwaitsAsyncProviderDisposalBeforeCompleting()
+    {
+        var providerDisposeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var providerDisposeCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var cleanup = App.CleanupAsync(
+            () => Task.CompletedTask,
+            static () => { },
+            async () =>
+            {
+                providerDisposeStarted.SetResult();
+                await providerDisposeCompleted.Task;
+            });
+
+        await providerDisposeStarted.Task;
+
+        Assert.False(cleanup.IsCompleted);
+
+        providerDisposeCompleted.SetResult();
+        Assert.Null(await cleanup);
+    }
+
+    [Fact]
     public void CreateDisplayPlan_WhenDisplayModeIsVisible_UsesNormalWindowWithLastWindowClose()
     {
-        var service = CreateService();
         var preferences = new DesktopStartupPreferences(
             ShouldStartMinimized: false,
             PersistTrayEnabled: false,
@@ -41,18 +120,17 @@ public sealed class DesktopStartupRuntimeServiceTests
 
         var plan = DesktopStartupRuntimeService.CreateDisplayPlan(preferences, trayAvailable: true);
 
-        Assert.Equal(DesktopStartupDisplayMode.Visible, plan.DisplayMode);
+        Assert.Equal(DesktopStartupDisplayMode.Visible, plan.InitialDisplayMode);
         Assert.Equal(ShutdownMode.OnLastWindowClose, plan.ShutdownMode);
         Assert.True(plan.ShowInTaskbar);
         Assert.True(plan.ShowActivated);
-        Assert.Equal(WindowState.Normal, plan.WindowState);
-        Assert.False(plan.DisableStartupOnlyTrayAfterInitialRestore);
+        Assert.Equal(WindowState.Normal, plan.InitialState);
+        Assert.False(plan.ShouldDisableStartupOnlyTray);
     }
 
     [Fact]
     public void CreateDisplayPlan_WhenTrayUnavailable_StartsMinimizedWindow()
     {
-        var service = CreateService();
         var preferences = new DesktopStartupPreferences(
             ShouldStartMinimized: true,
             PersistTrayEnabled: true,
@@ -60,18 +138,17 @@ public sealed class DesktopStartupRuntimeServiceTests
 
         var plan = DesktopStartupRuntimeService.CreateDisplayPlan(preferences, trayAvailable: false);
 
-        Assert.Equal(DesktopStartupDisplayMode.Minimized, plan.DisplayMode);
+        Assert.Equal(DesktopStartupDisplayMode.Minimized, plan.InitialDisplayMode);
         Assert.Equal(ShutdownMode.OnLastWindowClose, plan.ShutdownMode);
         Assert.False(plan.ShowActivated);
         Assert.True(plan.ShowInTaskbar);
-        Assert.Equal(WindowState.Minimized, plan.WindowState);
-        Assert.False(plan.DisableStartupOnlyTrayAfterInitialRestore);
+        Assert.Equal(WindowState.Minimized, plan.InitialState);
+        Assert.False(plan.ShouldDisableStartupOnlyTray);
     }
 
     [Fact]
     public void CreateDisplayPlan_WhenTrayAvailableAndStartupTrayOnly_HidesToTrayAndDisablesTrayAfterRestore()
     {
-        var service = CreateService();
         var preferences = new DesktopStartupPreferences(
             ShouldStartMinimized: true,
             PersistTrayEnabled: false,
@@ -79,18 +156,17 @@ public sealed class DesktopStartupRuntimeServiceTests
 
         var plan = DesktopStartupRuntimeService.CreateDisplayPlan(preferences, trayAvailable: true);
 
-        Assert.Equal(DesktopStartupDisplayMode.HiddenToTray, plan.DisplayMode);
+        Assert.Equal(DesktopStartupDisplayMode.HiddenToTray, plan.InitialDisplayMode);
         Assert.Equal(ShutdownMode.OnExplicitShutdown, plan.ShutdownMode);
         Assert.False(plan.ShowInTaskbar);
         Assert.True(plan.ShowActivated);
-        Assert.Equal(WindowState.Normal, plan.WindowState);
-        Assert.True(plan.DisableStartupOnlyTrayAfterInitialRestore);
+        Assert.Equal(WindowState.Normal, plan.InitialState);
+        Assert.True(plan.ShouldDisableStartupOnlyTray);
     }
 
     [Fact]
     public void CreateDisplayPlan_WhenTrayAvailableAndPersistedTrayEnabled_KeepsTrayEnabledAfterRestore()
     {
-        var service = CreateService();
         var preferences = new DesktopStartupPreferences(
             ShouldStartMinimized: true,
             PersistTrayEnabled: true,
@@ -98,10 +174,24 @@ public sealed class DesktopStartupRuntimeServiceTests
 
         var plan = DesktopStartupRuntimeService.CreateDisplayPlan(preferences, trayAvailable: true);
 
-        Assert.Equal(DesktopStartupDisplayMode.HiddenToTray, plan.DisplayMode);
+        Assert.Equal(DesktopStartupDisplayMode.HiddenToTray, plan.InitialDisplayMode);
         Assert.Equal(ShutdownMode.OnExplicitShutdown, plan.ShutdownMode);
         Assert.False(plan.ShowInTaskbar);
-        Assert.False(plan.DisableStartupOnlyTrayAfterInitialRestore);
+        Assert.False(plan.ShouldDisableStartupOnlyTray);
+    }
+
+    [Fact]
+    public void CreateDisplayPlan_WhenDisplayModeIsInvalid_ReportsDisplayModeParameter()
+    {
+        var displayMode = (DesktopStartupDisplayMode)999;
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(
+            () => DesktopStartupRuntimeService.CreateDisplayPlan(
+                displayMode,
+                shouldDisableStartupOnlyTray: false));
+
+        Assert.Equal("displayMode", exception.ParamName);
+        Assert.Equal(displayMode, exception.ActualValue);
     }
 
     [Fact]
@@ -179,29 +269,29 @@ public sealed class DesktopStartupRuntimeServiceTests
     private static DesktopStartupRuntimeService CreateService(
         IDesktopLifetimeContext? desktopLifetimeContext = null,
         Func<CancellationToken, Task>? screenReadingWarmup = null,
-        IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null)
+        IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null,
+        IRuntimeLifecycle? runtimeLifecycle = null,
+        Func<CrossMacro.UI.Views.MainWindow>? getMainWindow = null,
+        Func<MainWindowViewModel>? getMainWindowViewModel = null,
+        Func<Func<DesktopStartupRuntimeService.DesktopStartupUiResources>, Task<DesktopStartupRuntimeService.DesktopStartupUiResources>>? executeOnUiThread = null)
     {
         return new DesktopStartupRuntimeService(
-            getMainWindow: () => throw new NotSupportedException(),
+            getMainWindow: getMainWindow ?? (() => throw new NotSupportedException()),
             getTrayIconService: () => new FakeTrayIconService(),
             getTextExpansionService: () => Substitute.For<ITextExpansionService>(),
-            getMainWindowViewModel: () => throw new NotSupportedException(),
+            getMainWindowViewModel: getMainWindowViewModel ?? (() => throw new NotSupportedException()),
             getInputSimulatorPool: () => null,
             getPositionProvider: () => null,
             desktopLifetimeContext: desktopLifetimeContext ?? Substitute.For<IDesktopLifetimeContext>(),
-            inputSimulatorWarmupService: new InputSimulatorWarmupService(),
             screenReadingWarmup: screenReadingWarmup,
-            portalScreenReadingGuidanceService: portalScreenReadingGuidanceService);
+            portalScreenReadingGuidanceService: portalScreenReadingGuidanceService,
+            runtimeLifecycle: runtimeLifecycle,
+            executeOnUiThread: executeOnUiThread);
     }
 
-    private sealed class RecordingGuidanceService : IPortalScreenReadingGuidanceService
+    private sealed class RecordingGuidanceService(List<string> events) : IPortalScreenReadingGuidanceService
     {
-        private readonly List<string> _events;
-
-        public RecordingGuidanceService(List<string> events)
-        {
-            _events = events;
-        }
+        private readonly List<string> _events = events;
 
         public bool ThrowOnShow { get; init; }
 
@@ -219,14 +309,9 @@ public sealed class DesktopStartupRuntimeServiceTests
         }
     }
 
-    private sealed class RecordingWarmupService
+    private sealed class RecordingWarmupService(List<string> events)
     {
-        private readonly List<string> _events;
-
-        public RecordingWarmupService(List<string> events)
-        {
-            _events = events;
-        }
+        private readonly List<string> _events = events;
 
         public bool ThrowOnWarmup { get; init; }
 

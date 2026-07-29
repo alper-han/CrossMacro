@@ -9,8 +9,8 @@ public sealed class EditorActionScreenshotTests
     public EditorActionScreenshotTests()
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
+        _ = keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
+        _ = keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
         _converter = new EditorActionConverter(keyCodeMapper);
         _validator = new EditorActionValidator(_converter);
     }
@@ -32,7 +32,7 @@ public sealed class EditorActionScreenshotTests
 
         var sequence = _converter.ToMacroSequence([action], "Screenshot", isAbsolute: false);
 
-        sequence.ScriptSteps.Should().Equal("screenshot region 0 0 100 100 output \"path with spaces.png\" clipboard");
+        _ = sequence.ScriptSteps.Should().Equal("screenshot region 0 0 100 100 output \"path with spaces.png\" clipboard");
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class EditorActionScreenshotTests
 
         var sequence = _converter.ToMacroSequence([action], "Screenshot", isAbsolute: false);
 
-        sequence.ScriptSteps.Should().Equal("screenshot output \"C:\\\\shots\\\\say \\\"hi\\\".png\"");
+        _ = sequence.ScriptSteps.Should().Equal("screenshot output \"C:\\\\shots\\\\say \\\"hi\\\".png\"");
     }
 
     [Fact]
@@ -54,17 +54,17 @@ public sealed class EditorActionScreenshotTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = {"screenshot region 0 0 100 100 output \"path with spaces.png\" clipboard"},
+            ScriptSteps = { "screenshot region 0 0 100 100 output \"path with spaces.png\" clipboard" },
         };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
 
-        action.Type.Should().Be(EditorActionType.Screenshot);
-        action.ScreenshotOutputPath.Should().Be("path with spaces.png");
-        action.ScreenshotCopyToClipboard.Should().BeTrue();
-        action.ScreenshotUseRegion.Should().BeTrue();
-        action.ScreenshotRegionWidth.Should().Be("100");
-        action.ScreenshotRegionHeight.Should().Be("100");
+        _ = action.Type.Should().Be(EditorActionType.Screenshot);
+        _ = action.ScreenshotOutputPath.Should().Be("path with spaces.png");
+        _ = action.ScreenshotCopyToClipboard.Should().BeTrue();
+        _ = action.ScreenshotUseRegion.Should().BeTrue();
+        _ = action.ScreenshotRegionWidth.Should().Be("100");
+        _ = action.ScreenshotRegionHeight.Should().Be("100");
     }
 
     [Fact]
@@ -72,13 +72,13 @@ public sealed class EditorActionScreenshotTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = {"screenshot output \"C:\\\\shots\\\\say \\\"hi\\\".png\""},
+            ScriptSteps = { "screenshot output \"C:\\\\shots\\\\say \\\"hi\\\".png\"" },
         };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
 
-        action.Type.Should().Be(EditorActionType.Screenshot);
-        action.ScreenshotOutputPath.Should().Be("C:\\shots\\say \"hi\".png");
+        _ = action.Type.Should().Be(EditorActionType.Screenshot);
+        _ = action.ScreenshotOutputPath.Should().Be("C:\\shots\\say \"hi\".png");
     }
 
     [Fact]
@@ -86,14 +86,14 @@ public sealed class EditorActionScreenshotTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = {"screenshot output simple.png"},
+            ScriptSteps = { "screenshot output simple.png" },
         };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
 
-        action.Type.Should().Be(EditorActionType.Screenshot);
-        action.ScreenshotOutputPath.Should().Be("simple.png");
-        action.ScreenshotCopyToClipboard.Should().BeFalse();
+        _ = action.Type.Should().Be(EditorActionType.Screenshot);
+        _ = action.ScreenshotOutputPath.Should().Be("simple.png");
+        _ = action.ScreenshotCopyToClipboard.Should().BeFalse();
     }
 
     [Fact]
@@ -101,13 +101,13 @@ public sealed class EditorActionScreenshotTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = {"screenshot output \"unterminated path"},
+            ScriptSteps = { "screenshot output \"unterminated path" },
         };
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
 
-        action.Type.Should().Be(EditorActionType.RawScriptStep);
-        action.Text.Should().Be("screenshot output \"unterminated path");
+        _ = action.Type.Should().Be(EditorActionType.RawScriptStep);
+        _ = action.Text.Should().Be("screenshot output \"unterminated path");
     }
 
     [Fact]
@@ -117,8 +117,8 @@ public sealed class EditorActionScreenshotTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("output path or clipboard");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("output path or clipboard");
     }
 
     [Theory]
@@ -138,8 +138,8 @@ public sealed class EditorActionScreenshotTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain(errorText);
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain(errorText);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class EditorActionScreenshotTests
 
         var result = _validator.ValidateAll([action]);
 
-        result.IsValid.Should().BeTrue(string.Join("; ", result.Errors));
+        _ = result.IsValid.Should().BeTrue(string.Join("; ", result.Errors));
     }
 
     [Theory]
@@ -162,6 +162,6 @@ public sealed class EditorActionScreenshotTests
     [InlineData("screenshot region 0 0 100 100 output \"path with spaces.png\" clipboard")]
     public void ValidateScreenshotStep_WhenOutputPathIsQuoted_ReturnsValid(string step)
     {
-        RunScriptPlatformSyntax.ValidateScreenshotStep(step).Should().BeNull();
+        _ = RunScriptPlatformSyntax.ValidateScreenshotStep(step).Should().BeNull();
     }
 }

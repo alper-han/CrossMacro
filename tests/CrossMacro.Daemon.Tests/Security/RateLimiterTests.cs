@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Tests.Security;
 
-public class RateLimiterTests
+public sealed class RateLimiterTests
 {
     private sealed class FakeClock
     {

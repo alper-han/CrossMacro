@@ -6,7 +6,7 @@ public sealed class ScreenFrameValidityIndex : IDisposable
     private int[]? _prefix;
     private readonly int _prefixWidth;
 
-    private ScreenFrameValidityIndex(int[] prefix, int width, int height)
+    private ScreenFrameValidityIndex(int[] prefix, int width)
     {
         _prefix = prefix;
         _prefixWidth = checked(width + 1);
@@ -47,9 +47,9 @@ public sealed class ScreenFrameValidityIndex : IDisposable
                 }
             }
 
-            return new ScreenFrameValidityIndex(prefix, width, height);
+            return new ScreenFrameValidityIndex(prefix, width);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             ArrayPool<int>.Shared.Return(prefix);
             throw;

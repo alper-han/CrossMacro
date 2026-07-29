@@ -1,6 +1,6 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class PlaybackDelayResolverTests
+public sealed class PlaybackDelayResolverTests
 {
     [Fact]
     public void PlaybackDelayResolver_UsesInclusiveRangeAndClampsResult()
@@ -12,8 +12,8 @@ public class PlaybackDelayResolverTests
             return max;
         });
 
-        resolver.Resolve(5, hasRandomDelay: true, 2, 4).Should().Be(9);
-        requestedRange.Should().Be((2, 4));
+        _ = resolver.Resolve(5, hasRandomDelay: true, 2, 4).Should().Be(9);
+        _ = requestedRange.Should().Be((2, 4));
     }
 
     [Fact]
@@ -28,10 +28,10 @@ public class PlaybackDelayResolverTests
             return max;
         });
 
-        resolver.Resolve(1, hasRandomDelay: true, 8, 3).Should().Be(9);
-        requestedRange.Should().Be((3, 8));
-        resolver.Resolve(1, hasRandomDelay: true, int.MaxValue, int.MaxValue).Should().Be(int.MaxValue);
-        invocationCount.Should().Be(1);
+        _ = resolver.Resolve(1, hasRandomDelay: true, 8, 3).Should().Be(9);
+        _ = requestedRange.Should().Be((3, 8));
+        _ = resolver.Resolve(1, hasRandomDelay: true, int.MaxValue, int.MaxValue).Should().Be(int.MaxValue);
+        _ = invocationCount.Should().Be(1);
     }
 
     [Fact]
@@ -39,8 +39,8 @@ public class PlaybackDelayResolverTests
     {
         var resolver = new PlaybackDelayResolver((min, max) => min);
 
-        resolver.Resolve(-10, hasRandomDelay: false, 0, 0).Should().Be(0);
-        resolver.Resolve(-10, hasRandomDelay: true, -4, -2).Should().Be(0);
+        _ = resolver.Resolve(-10, hasRandomDelay: false, 0, 0).Should().Be(0);
+        _ = resolver.Resolve(-10, hasRandomDelay: true, -4, -2).Should().Be(0);
     }
 
     [Fact]
@@ -48,6 +48,6 @@ public class PlaybackDelayResolverTests
     {
         var resolver = new PlaybackDelayResolver((min, max) => max);
 
-        resolver.Resolve(1, hasRandomDelay: true, 0, int.MaxValue).Should().Be(int.MaxValue);
+        _ = resolver.Resolve(1, hasRandomDelay: true, 0, int.MaxValue).Should().Be(int.MaxValue);
     }
 }

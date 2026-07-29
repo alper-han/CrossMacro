@@ -7,12 +7,10 @@ public class LinuxDisplaySessionService : IDisplaySessionService
     private static readonly TimeSpan DaemonHandshakeStartupBudget = TimeSpan.FromSeconds(5);
 
     private readonly ILinuxInputCapabilitySnapshotProvider _snapshotProvider;
-    private readonly ILinuxEnvironmentVariables _environmentVariables;
+    private readonly LinuxEnvironmentVariables _environmentVariables;
 
     public LinuxDisplaySessionService()
-        : this(new LinuxInputCapabilitySnapshotProvider(), new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
-    {
-    }
+        : this(new LinuxInputCapabilitySnapshotProvider(), new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot())) { /* Empty */ }
 
     internal LinuxDisplaySessionService(
         ILinuxInputCapabilitySnapshotProvider snapshotProvider,
@@ -28,10 +26,9 @@ public class LinuxDisplaySessionService : IDisplaySessionService
         : this(
             snapshotProvider,
             (environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot())
-    {
-    }
+    { /* Empty */ }
 
-    public LinuxDisplaySessionService(
+    internal LinuxDisplaySessionService(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite)
         : this(
@@ -42,10 +39,9 @@ public class LinuxDisplaySessionService : IDisplaySessionService
                 LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
                 LinuxInputProbeUtilities.GetInputEventCandidates),
             new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
-    {
-    }
+    { /* Empty */ }
 
-    public LinuxDisplaySessionService(
+    internal LinuxDisplaySessionService(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
         Func<string, bool> canOpenForRead,
@@ -61,10 +57,9 @@ public class LinuxDisplaySessionService : IDisplaySessionService
                     : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
                 getInputEventCandidates),
             new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
-    {
-    }
+    { /* Empty */ }
 
-    public LinuxDisplaySessionService(
+    internal LinuxDisplaySessionService(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
         Func<string, bool> canOpenForRead,
@@ -78,22 +73,21 @@ public class LinuxDisplaySessionService : IDisplaySessionService
                 (socketPath, timeout) => MapDisplayProbeResult(daemonHandshakeProbe(socketPath, timeout)),
                 getInputEventCandidates),
             new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
-    {
-    }
+    { /* Empty */ }
 
-    public readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure, LinuxDaemonHandshakeStatus Status)
+    internal readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure, LinuxDaemonHandshakeStatus Status)
     {
-        public static DaemonHandshakeProbeResult Success()
+        internal static DaemonHandshakeProbeResult Success()
         {
             return new(Succeeded: true, TimedOut: false, Failure: null, LinuxDaemonHandshakeStatus.Success);
         }
 
-        public static DaemonHandshakeProbeResult Failed(Exception? failure = null)
+        internal static DaemonHandshakeProbeResult Failed(Exception? failure = null)
         {
             return new(Succeeded: false, TimedOut: false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
         }
 
-        public static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
+        internal static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
         {
             if (status is LinuxDaemonHandshakeStatus.Success)
             {
@@ -103,7 +97,7 @@ public class LinuxDisplaySessionService : IDisplaySessionService
             return new(Succeeded: false, status is LinuxDaemonHandshakeStatus.Timeout, failure, status);
         }
 
-        public static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
+        internal static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
         {
             return new(Succeeded: false, TimedOut: true, failure, LinuxDaemonHandshakeStatus.Timeout);
         }
@@ -148,13 +142,35 @@ public class LinuxDisplaySessionService : IDisplaySessionService
             return true;
         }
 
+        return IsFlatpakSessionSupported(environment, out reason);
+    }
+
+    public async ValueTask<(bool Supported, string Reason)> IsSessionSupportedAsync(CancellationToken cancellationToken = default)
+    {
+        var environment = _environmentVariables.CaptureSnapshot();
+        bool isFlatpak = environment.IsFlatpak;
+
+        Log.Information("[LinuxDisplaySessionService] Checking Session Support. Flatpak: {IsFlatpak}, ID: {FlatpakId}",
+            isFlatpak, environment.FlatpakId ?? "null");
+
+        if (!isFlatpak)
+        {
+            return (true, string.Empty);
+        }
+
+        return await IsFlatpakSessionSupportedAsync(environment, cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool IsFlatpakSessionSupported(LinuxEnvironmentSnapshot environment, out string reason)
+    {
+        reason = string.Empty;
+
         bool hasDaemon = string.Equals(environment.UseDaemon, "1", StringComparison.Ordinal);
 
         var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
         bool isWaylandSession = string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
         bool isX11Session = string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
 
-        // X11 session - always supported
         if (compositor is CompositorType.X11 || isX11Session)
         {
             Log.Information("[LinuxDisplaySessionService] Flatpak running on X11. Supported.");
@@ -171,36 +187,128 @@ public class LinuxDisplaySessionService : IDisplaySessionService
 
         LinuxInputCapabilitySnapshot? startupSnapshot = null;
 
-        // Wayland + daemon mode requires the daemon socket to be mounted into the sandbox.
         if (hasDaemon)
         {
-            if (HasDaemonHandshakeAccess(ref startupSnapshot))
-            {
-                Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland with daemon handshake access. Supported (hybrid secure mode).");
-                return true;
-            }
-
-            if (HasDirectInputAccess(ref startupSnapshot))
-            {
-                Log.Warning("[LinuxDisplaySessionService] Daemon handshake failed, but direct input fallback is ready. Continuing in direct mode.");
-                return true;
-            }
-
-            reason = "Daemon handshake failed and direct fallback is not ready (/dev/uinput write + readable /dev/input/event* required).";
-            Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
-            return false;
+            return IsFlatpakWaylandDaemonSupported(ref startupSnapshot, out reason);
         }
 
-        // Wayland direct mode fallback requires /dev/uinput write + readable /dev/input/event*.
-        if (HasDirectInputAccess(ref startupSnapshot))
+        return IsFlatpakWaylandDirectSupported(ref startupSnapshot, out reason);
+    }
+
+    private async ValueTask<(bool Supported, string Reason)> IsFlatpakSessionSupportedAsync(
+        LinuxEnvironmentSnapshot environment,
+        CancellationToken cancellationToken)
+    {
+        bool hasDaemon = string.Equals(environment.UseDaemon, "1", StringComparison.Ordinal);
+
+        var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
+        bool isWaylandSession = string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
+        bool isX11Session = string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
+
+        if (compositor is CompositorType.X11 || isX11Session)
+        {
+            Log.Information("[LinuxDisplaySessionService] Flatpak running on X11. Supported.");
+            return (true, string.Empty);
+        }
+
+        if (!isWaylandSession)
+        {
+            var reason = "Unsupported Flatpak session. CrossMacro requires an X11 or Wayland desktop session.";
+            Log.Warning("[LinuxDisplaySessionService] {Reason} SessionType={SessionType}, Compositor={Compositor}",
+                reason, environment.SessionType ?? "unknown", compositor);
+            return (false, reason);
+        }
+
+        LinuxInputCapabilitySnapshot? startupSnapshot = null;
+
+        if (hasDaemon)
+        {
+            return await IsFlatpakWaylandDaemonSupportedAsync(startupSnapshot, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await IsFlatpakWaylandDirectSupportedAsync(startupSnapshot, cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool IsFlatpakWaylandDaemonSupported(ref LinuxInputCapabilitySnapshot? snapshot, out string reason)
+    {
+        if (HasDaemonHandshakeAccess(ref snapshot))
+        {
+            Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland with daemon handshake access. Supported (hybrid secure mode).");
+            reason = string.Empty;
+            return true;
+        }
+
+        if (HasDirectInputAccess(ref snapshot))
+        {
+            Log.Warning("[LinuxDisplaySessionService] Daemon handshake failed, but direct input fallback is ready. Continuing in direct mode.");
+            reason = string.Empty;
+            return true;
+        }
+
+        reason = "Daemon handshake failed and direct fallback is not ready (/dev/uinput write + readable /dev/input/event* required).";
+        Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
+        return false;
+    }
+
+    private async ValueTask<(bool Supported, string Reason)> IsFlatpakWaylandDaemonSupportedAsync(
+        LinuxInputCapabilitySnapshot? snapshot,
+        CancellationToken cancellationToken)
+    {
+        snapshot ??= await _snapshotProvider.CaptureSnapshotAsync(DaemonHandshakeStartupBudget, cancellationToken).ConfigureAwait(false);
+
+        if (snapshot.Value.DaemonHandshakeSucceeded)
+        {
+            Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland with daemon handshake access. Supported (hybrid secure mode).");
+            return (true, string.Empty);
+        }
+
+        if (snapshot.Value.DaemonHandshakeTimedOut)
+        {
+            Log.Warning(
+                "[LinuxDisplaySessionService] Daemon handshake probe exceeded startup budget ({BudgetMs}ms). Continuing without blocking UI thread.",
+                DaemonHandshakeStartupBudget.TotalMilliseconds);
+        }
+
+        if (snapshot.Value.HasDirectInputAccess)
+        {
+            Log.Warning("[LinuxDisplaySessionService] Daemon handshake failed, but direct input fallback is ready. Continuing in direct mode.");
+            return (true, string.Empty);
+        }
+
+        var reason = "Daemon handshake failed and direct fallback is not ready (/dev/uinput write + readable /dev/input/event* required).";
+        Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
+        return (false, reason);
+    }
+
+    private bool IsFlatpakWaylandDirectSupported(ref LinuxInputCapabilitySnapshot? snapshot, out string reason)
+    {
+        if (HasDirectInputAccess(ref snapshot))
         {
             Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland without daemon. Using direct device access.");
+            reason = string.Empty;
             return true;
         }
 
         reason = "Wayland direct mode requires /dev/uinput write access and readable /dev/input/event* devices.";
         Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
         return false;
+    }
+
+    private async ValueTask<(bool Supported, string Reason)> IsFlatpakWaylandDirectSupportedAsync(
+        LinuxInputCapabilitySnapshot? snapshot,
+        CancellationToken cancellationToken)
+    {
+        snapshot ??= await _snapshotProvider.CaptureSnapshotAsync(DaemonHandshakeProbeTimeout, cancellationToken).ConfigureAwait(false);
+
+        if (snapshot.Value.HasDirectInputAccess)
+        {
+            Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland without daemon. Using direct device access.");
+            return (true, string.Empty);
+        }
+
+        var reason = "Wayland direct mode requires /dev/uinput write access and readable /dev/input/event* devices.";
+        Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
+        return (false, reason);
     }
 
     private bool HasDaemonHandshakeAccess(ref LinuxInputCapabilitySnapshot? snapshot)
@@ -222,7 +330,7 @@ public class LinuxDisplaySessionService : IDisplaySessionService
 
             return false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[LinuxDisplaySessionService] Daemon handshake probe failed unexpectedly");
             return false;
@@ -236,7 +344,7 @@ public class LinuxDisplaySessionService : IDisplaySessionService
             snapshot ??= _snapshotProvider.CaptureSnapshot(DaemonHandshakeProbeTimeout);
             return snapshot.Value.HasDirectInputAccess;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }

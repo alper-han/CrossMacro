@@ -1,16 +1,17 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class LinuxIntegrationFactAttribute : ConditionalFactAttribute
+internal sealed class LinuxIntegrationFactAttribute : FactAttribute
 {
     public LinuxIntegrationFactAttribute()
-        : base(
-            () => OperatingSystem.IsLinux() &&
-                  string.Equals(
-                      Environment.GetEnvironmentVariable("CROSSMACRO_DAEMON_INTEGRATION_TESTS"),
-                      "1",
-                      StringComparison.Ordinal),
-            "Linux + CROSSMACRO_DAEMON_INTEGRATION_TESTS=1")
     {
+        if (!(OperatingSystem.IsLinux() &&
+              string.Equals(
+                  Environment.GetEnvironmentVariable("CROSSMACRO_DAEMON_INTEGRATION_TESTS"),
+                  "1",
+                  StringComparison.Ordinal)))
+        {
+            Skip = ConditionalSkipMessage.For("Linux + CROSSMACRO_DAEMON_INTEGRATION_TESTS=1");
+        }
     }
 }

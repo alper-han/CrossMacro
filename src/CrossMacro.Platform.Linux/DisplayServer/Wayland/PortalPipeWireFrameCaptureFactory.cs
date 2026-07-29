@@ -5,9 +5,7 @@ internal sealed class PortalPipeWireFrameCaptureFactory : IPortalPipeWireFrameCa
 {
     public static PortalPipeWireFrameCaptureFactory Instance { get; } = new();
 
-    private PortalPipeWireFrameCaptureFactory()
-    {
-    }
+    private PortalPipeWireFrameCaptureFactory() { /* Empty */ }
 
     public static bool CanLoadPipeWire() => PipeWireLibrary.CanLoad();
 

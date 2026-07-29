@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Native.UInput;
 
-public class UInputDeviceErrorMessageTests
+public sealed class UInputDeviceErrorMessageTests
 {
     [Fact]
     public void BuildOpenUInputErrorMessage_WhenErrnoIsNoEntry_ShouldMentionMissingDeviceNode()

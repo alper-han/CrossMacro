@@ -19,20 +19,6 @@ public class EditorActionConverter : IEditorActionConverter
     }
 
     /// <summary>
-    /// Converts the editor projection while retaining the existing conversion
-    /// implementation as the compatibility facade.
-    /// </summary>
-    public MacroSequence ToMacroSequence(EditorMacroProjection projection)
-    {
-        ArgumentNullException.ThrowIfNull(projection);
-        return ToMacroSequence(
-            projection.Actions,
-            projection.Name,
-            projection.IsAbsoluteCoordinates,
-            projection.SkipInitialZeroZero);
-    }
-
-    /// <summary>
     /// Restores a runtime sequence into the editor projection boundary.
     /// </summary>
     public EditorMacroProjection FromMacroSequenceProjection(MacroSequence sequence)
@@ -48,6 +34,7 @@ public class EditorActionConverter : IEditorActionConverter
     /// <inheritdoc/>
     public IReadOnlyList<MacroEvent> ToMacroEvents(EditorAction action)
     {
+        ArgumentNullException.ThrowIfNull(action);
         var events = new List<MacroEvent>();
 
         switch (action.Type)
@@ -252,7 +239,7 @@ public class EditorActionConverter : IEditorActionConverter
     }
 
     private static void AddKeyStroke(
-        ICollection<MacroEvent> events,
+        List<MacroEvent> events,
         int keyCode,
         ref bool isFirst,
         int initialDelayMs,
@@ -437,14 +424,28 @@ public class EditorActionConverter : IEditorActionConverter
         return action;
     }
 
+    /// <summary>
+    /// Converts the editor projection while retaining the existing conversion
+    /// implementation as the compatibility facade.
+    /// </summary>
+    public MacroSequence ToMacroSequence(EditorMacroProjection projection)
+    {
+        ArgumentNullException.ThrowIfNull(projection);
+        return ToMacroSequence(
+            projection.Actions,
+            projection.Name,
+            projection.IsAbsoluteCoordinates,
+            projection.SkipInitialZeroZero);
+    }
+
     /// <inheritdoc/>
     public MacroSequence ToMacroSequence(IEnumerable<EditorAction> actions, string name, bool isAbsolute, bool skipInitialZeroZero = false)
     {
         var actionList = actions.ToList();
-        var hasFlowControlScriptActions = actionList.Any(action => EditorActionScriptClassifier.IsScriptFlowControlAction(action.Type));
-        var hasStateScriptActions = actionList.Any(action => EditorActionScriptClassifier.IsScriptStateAction(action.Type));
-        var hasOpaqueScriptActions = actionList.Any(action => EditorActionScriptClassifier.IsOpaqueScriptAction(action.Type));
-        var hasRuntimeEventActions = actionList.Any(action => EditorActionScriptClassifier.IsRuntimeEventAction(action.Type));
+        var hasFlowControlScriptActions = actionList.Exists(action => EditorActionScriptClassifier.IsScriptFlowControlAction(action.Type));
+        var hasStateScriptActions = actionList.Exists(action => EditorActionScriptClassifier.IsScriptStateAction(action.Type));
+        var hasOpaqueScriptActions = actionList.Exists(action => EditorActionScriptClassifier.IsOpaqueScriptAction(action.Type));
+        var hasRuntimeEventActions = actionList.Exists(action => EditorActionScriptClassifier.IsRuntimeEventAction(action.Type));
         if (hasFlowControlScriptActions || hasOpaqueScriptActions || (hasStateScriptActions && !hasRuntimeEventActions))
         {
             return CompileScriptBackedSequence(actionList, name);
@@ -879,6 +880,7 @@ public class EditorActionConverter : IEditorActionConverter
             ShellCommandMode.ShellCapture => $"shell capture {command} {FormatShellCaptureTarget(payload.ExitCodeVariableName)} {FormatShellCaptureTarget(payload.StandardOutputVariableName)} {FormatShellCaptureTarget(payload.StandardErrorVariableName)}{options}",
             ShellCommandMode.ShellInput => $"shell input {QuoteShellField(payload.StandardInput)} {command}{options}",
             ShellCommandMode.ShellCaptureInput => $"shell capture-input {QuoteShellField(payload.StandardInput)} {command} {FormatShellCaptureTarget(payload.ExitCodeVariableName)} {FormatShellCaptureTarget(payload.StandardOutputVariableName)} {FormatShellCaptureTarget(payload.StandardErrorVariableName)}{options}",
+            ShellCommandMode.Shell => $"shell {command}{options}",
             _ => $"shell {command}{options}",
         };
     }
@@ -917,7 +919,7 @@ public class EditorActionConverter : IEditorActionConverter
             throw new ArgumentException("Action type must be a window command.", nameof(action));
         }
 
-        var selectorKind = string.IsNullOrWhiteSpace(payload.SelectorKind) ? "title" : payload.SelectorKind.Trim().ToLowerInvariant();
+        var selectorKind = string.IsNullOrWhiteSpace(payload.SelectorKind) ? "title" : NormalizeSelectorKind(payload.SelectorKind);
         var selectorValue = QuoteWindowField(payload.SelectorValue);
         var outputVariable = EditorActionScriptTokens.NormalizeVariableToken(payload.OutputVariable);
         var workspace = QuoteWindowField(payload.Workspace);
@@ -1001,6 +1003,11 @@ public class EditorActionConverter : IEditorActionConverter
             MacroMouseButton.Middle => "middle",
             MacroMouseButton.Side1 => "side1",
             MacroMouseButton.Side2 => "side2",
+            MacroMouseButton.None => "left",
+            MacroMouseButton.ScrollUp => "left",
+            MacroMouseButton.ScrollDown => "left",
+            MacroMouseButton.ScrollLeft => "left",
+            MacroMouseButton.ScrollRight => "left",
             _ => "left",
         };
     }
@@ -1011,6 +1018,14 @@ public class EditorActionConverter : IEditorActionConverter
         {
             MacroMouseButton.Right => "right",
             MacroMouseButton.Middle => "middle",
+            MacroMouseButton.Left => "left",
+            MacroMouseButton.None => "left",
+            MacroMouseButton.ScrollUp => "left",
+            MacroMouseButton.ScrollDown => "left",
+            MacroMouseButton.ScrollLeft => "left",
+            MacroMouseButton.ScrollRight => "left",
+            MacroMouseButton.Side1 => "left",
+            MacroMouseButton.Side2 => "left",
             _ => "left",
         };
     }
@@ -1143,8 +1158,8 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static bool CanSkipLeadingAbsoluteMove(
         EditorAction action,
-        IReadOnlyList<RunScriptStep> existingSteps,
-        IReadOnlyList<string> actionSteps)
+        List<RunScriptStep> existingSteps,
+        List<string> actionSteps)
     {
         if (action.Type is not (EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp)
 || action.UseCurrentPosition
@@ -1189,7 +1204,7 @@ public class EditorActionConverter : IEditorActionConverter
         var eventActions = RestoreActionsFromEvents(sequence);
         return new EditorActionRestoreResult(
             eventActions,
-            Array.Empty<EditorActionRestoreWarning>(),
+            [],
             restoredFromScriptSteps: false);
     }
 
@@ -1295,7 +1310,7 @@ public class EditorActionConverter : IEditorActionConverter
         return actions;
     }
 
-    private IReadOnlyDictionary<int, TextInputBoundary> CreateTextInputBoundaryLookup(MacroSequence sequence)
+    private Dictionary<int, TextInputBoundary> CreateTextInputBoundaryLookup(MacroSequence sequence)
     {
         if (sequence.TextInputBoundaries.Count is 0 || sequence.Events.Count is 0)
         {
@@ -1719,19 +1734,19 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        keyword = tokens[0].ToLowerInvariant();
+        keyword = tokens[0].ToUpperInvariant();
         return true;
     }
 
     private static bool TryParseButtonToken(string token, out MacroMouseButton button)
     {
-        button = token.ToLowerInvariant() switch
+        button = token.ToUpperInvariant() switch
         {
-            "left" or "l" => MacroMouseButton.Left,
-            "right" or "r" => MacroMouseButton.Right,
-            "middle" or "m" => MacroMouseButton.Middle,
-            "side1" or "side" or "back" => MacroMouseButton.Side1,
-            "side2" or "extra" or "forward" => MacroMouseButton.Side2,
+            "LEFT" or "L" => MacroMouseButton.Left,
+            "RIGHT" or "R" => MacroMouseButton.Right,
+            "MIDDLE" or "M" => MacroMouseButton.Middle,
+            "SIDE1" or "SIDE" or "BACK" => MacroMouseButton.Side1,
+            "SIDE2" or "EXTRA" or "FORWARD" => MacroMouseButton.Side2,
             _ => MacroMouseButton.None,
         };
 
@@ -1742,9 +1757,9 @@ public class EditorActionConverter : IEditorActionConverter
     {
         var actionType = keyword switch
         {
-            "click" => EditorActionType.MouseClick,
-            "down" => EditorActionType.MouseDown,
-            "up" => EditorActionType.MouseUp,
+            "CLICK" => EditorActionType.MouseClick,
+            "DOWN" => EditorActionType.MouseDown,
+            "UP" => EditorActionType.MouseUp,
             _ => EditorActionType.MouseClick,
         };
 
@@ -1763,9 +1778,9 @@ public class EditorActionConverter : IEditorActionConverter
     {
         var actionType = keyword switch
         {
-            "click" => EditorActionType.MouseClick,
-            "down" => EditorActionType.MouseDown,
-            "up" => EditorActionType.MouseUp,
+            "CLICK" => EditorActionType.MouseClick,
+            "DOWN" => EditorActionType.MouseDown,
+            "UP" => EditorActionType.MouseUp,
             _ => EditorActionType.MouseClick,
         };
 
@@ -1927,21 +1942,21 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        switch (tokens[1].ToLowerInvariant())
+        switch (tokens[1].ToUpperInvariant())
         {
-            case "up":
+            case "UP":
                 actionType = EditorActionType.ScrollVertical;
                 amount = parsedAmount;
                 return true;
-            case "down":
+            case "DOWN":
                 actionType = EditorActionType.ScrollVertical;
                 amount = -parsedAmount;
                 return true;
-            case "right":
+            case "RIGHT":
                 actionType = EditorActionType.ScrollHorizontal;
                 amount = parsedAmount;
                 return true;
-            case "left":
+            case "LEFT":
                 actionType = EditorActionType.ScrollHorizontal;
                 amount = -parsedAmount;
                 return true;
@@ -2090,44 +2105,44 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        switch (parts[1].ToLowerInvariant())
+        switch (parts[1].ToUpperInvariant())
         {
-            case "active":
+            case "ACTIVE":
                 action = CreateWindowAction(WindowCommandMode.Active, activeField: parts[2], outputVariable: parts[3]);
                 return true;
-            case "search":
+            case "SEARCH":
                 return TryParseWindowSearch(trimmed, out action);
-            case "wait":
+            case "WAIT":
                 return TryParseWindowWait(trimmed, out action);
-            case "focus":
+            case "FOCUS":
                 return TryParseWindowSelectorCommand(trimmed, WindowCommandMode.Focus, out action);
-            case "close":
+            case "CLOSE":
                 return TryParseWindowSelectorCommand(trimmed, WindowCommandMode.Close, out action);
-            case "move":
+            case "MOVE":
                 action = CreateWindowAction(WindowCommandMode.Move, x: int.Parse(parts[2], CultureInfo.InvariantCulture), y: int.Parse(parts[3], CultureInfo.InvariantCulture));
                 return true;
-            case "resize":
+            case "RESIZE":
                 action = CreateWindowAction(WindowCommandMode.Resize, width: int.Parse(parts[2], CultureInfo.InvariantCulture), height: int.Parse(parts[3], CultureInfo.InvariantCulture));
                 return true;
-            case "center":
+            case "CENTER":
                 action = CreateWindowAction(WindowCommandMode.Center);
                 return true;
-            case "maximize":
+            case "MAXIMIZE":
                 action = CreateWindowAction(WindowCommandMode.Maximize);
                 return true;
-            case "fullscreen":
+            case "FULLSCREEN":
                 action = CreateWindowAction(WindowCommandMode.Fullscreen);
                 return true;
-            case "float":
+            case "FLOAT":
                 action = CreateWindowAction(WindowCommandMode.Floating);
                 return true;
-            case "getdesktop":
+            case "GETDESKTOP":
                 action = CreateWindowAction(WindowCommandMode.WorkspaceGet, outputVariable: parts[2]);
                 return true;
-            case "setdesktop":
+            case "SETDESKTOP":
                 action = CreateWindowAction(WindowCommandMode.WorkspaceSwitch, workspace: UnquoteWindowField(string.Join(' ', parts[2..])));
                 return true;
-            case "setdesktopforwindow":
+            case "SETDESKTOPFORWINDOW":
                 return TryParseWindowWorkspaceMove(parts, out action);
             default:
                 return false;
@@ -2179,9 +2194,18 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        var selectorKind = parts[2].ToLowerInvariant();
-        var selectorValue = selectorKind is "active" ? string.Empty : UnquoteWindowField(parts.Length is 4 ? parts[3] : string.Empty);
-        action = CreateWindowAction(mode, selectorKind: selectorKind, selectorValue: selectorValue);
+        var selectorKindToken = parts[2].ToUpperInvariant();
+        string selectorValue;
+        if (selectorKindToken is "ACTIVE")
+        {
+            selectorValue = string.Empty;
+        }
+        else
+        {
+            var rawValue = parts.Length is 4 ? parts[3] : string.Empty;
+            selectorValue = UnquoteWindowField(rawValue);
+        }
+        action = CreateWindowAction(mode, selectorKind: NormalizeSelectorKind(parts[2]), selectorValue: selectorValue);
         return true;
     }
 
@@ -2193,14 +2217,14 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        var selectorKind = parts[2].ToLowerInvariant();
-        if (selectorKind is "active")
+        var selectorKind = parts[2].ToUpperInvariant();
+        if (selectorKind is "ACTIVE")
         {
             action = CreateWindowAction(WindowCommandMode.WorkspaceMoveActive, workspace: UnquoteWindowField(string.Join(' ', parts[3..])));
             return true;
         }
 
-        if (selectorKind is "address" && parts.Length >= 5)
+        if (selectorKind is "ADDRESS" && parts.Length >= 5)
         {
             action = CreateWindowAction(WindowCommandMode.WorkspaceMoveWindow, selectorKind: "address", selectorValue: parts[3], workspace: UnquoteWindowField(string.Join(' ', parts[4..])));
             return true;
@@ -2208,6 +2232,15 @@ public class EditorActionConverter : IEditorActionConverter
 
         return false;
     }
+
+    private static string NormalizeSelectorKind(string value) => value.Trim().ToUpperInvariant() switch
+    {
+        "TITLE" => "title",
+        "CLASS" => "class",
+        "ADDRESS" => "address",
+        "ACTIVE" => "active",
+        _ => value.Trim(),
+    };
 
     private static bool TryExtractLastToken(string value, out string beforeLast, out string lastToken)
     {
@@ -2238,12 +2271,12 @@ public class EditorActionConverter : IEditorActionConverter
         {
             if (trimmed[index] == '\\' && index + 1 < trimmed.Length - 1 && (trimmed[index + 1] == quote || trimmed[index + 1] == '\\'))
             {
-                builder.Append(trimmed[index + 1]);
+                _ = builder.Append(trimmed[index + 1]);
                 index++;
                 continue;
             }
 
-            builder.Append(trimmed[index]);
+            _ = builder.Append(trimmed[index]);
         }
 
         return builder.ToString();
@@ -2365,7 +2398,7 @@ public class EditorActionConverter : IEditorActionConverter
             var current = trimmed[index];
             if (current == '\\' && index + 1 < trimmed.Length && (trimmed[index + 1] == quote || trimmed[index + 1] == '\\'))
             {
-                builder.Append(trimmed[index + 1]);
+                _ = builder.Append(trimmed[index + 1]);
                 index++;
                 continue;
             }
@@ -2382,7 +2415,7 @@ public class EditorActionConverter : IEditorActionConverter
                 return allowEmpty || !string.IsNullOrWhiteSpace(value);
             }
 
-            builder.Append(current);
+            _ = builder.Append(current);
         }
 
         return false;
@@ -2525,7 +2558,7 @@ public class EditorActionConverter : IEditorActionConverter
         valueType = ScriptValueType.Text;
         value = string.Empty;
 
-        var equalIndex = payload.IndexOf('=');
+        var equalIndex = payload.IndexOf('=', StringComparison.Ordinal);
         string rawName;
         string rawValue;
         if (equalIndex > 0)
@@ -2681,12 +2714,23 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var foundName = variables.Count is 3 ? variables[0] : EditorActionScreenReadingPayload.DefaultFoundVariableName;
-        var xVariableName = variables.Count is 3
-            ? variables[1]
-            : variables.Count is 2 ? variables[0] : EditorActionScreenReadingPayload.DefaultFoundXVariableName;
-        var yVariableName = variables.Count is 3
-            ? variables[2]
-            : variables.Count is 2 ? variables[1] : EditorActionScreenReadingPayload.DefaultFoundYVariableName;
+        string xVariableName;
+        string yVariableName;
+        if (variables.Count is 3)
+        {
+            xVariableName = variables[1];
+            yVariableName = variables[2];
+        }
+        else if (variables.Count is 2)
+        {
+            xVariableName = variables[0];
+            yVariableName = variables[1];
+        }
+        else
+        {
+            xVariableName = EditorActionScreenReadingPayload.DefaultFoundXVariableName;
+            yVariableName = EditorActionScreenReadingPayload.DefaultFoundYVariableName;
+        }
         var tolerance = 0;
         var timeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs;
         while (index < tokens.Length)
@@ -2749,14 +2793,14 @@ public class EditorActionConverter : IEditorActionConverter
         return true;
     }
 
-    private static bool TryParseScreenReadTimeout(IReadOnlyList<string> tokens, int startIndex, ref int timeoutMs)
+    private static bool TryParseScreenReadTimeout(string[] tokens, int startIndex, ref int timeoutMs)
     {
         var hasTimeout = false;
-        for (var index = startIndex; index < tokens.Count;)
+        for (var index = startIndex; index < tokens.Length;)
         {
             if (!RunScriptScreenReadingStepParser.IsScreenReadTimeoutKeyword(tokens[index])
                 || hasTimeout
-                || index + 1 >= tokens.Count
+                || index + 1 >= tokens.Length
                 || !TryParseInteger(tokens[index + 1], out timeoutMs)
                 || timeoutMs < 0)
             {
@@ -3293,7 +3337,7 @@ public class EditorActionConverter : IEditorActionConverter
         if (bool.TryParse(token, out var boolValue))
         {
             operandType = ScriptOperandType.Boolean;
-            tokenValue = boolValue.ToString().ToLowerInvariant();
+            tokenValue = boolValue ? "true" : "false";
             return true;
         }
 
@@ -3349,7 +3393,7 @@ public class EditorActionConverter : IEditorActionConverter
         if (bool.TryParse(token, out var boolValue))
         {
             valueType = ScriptValueType.Boolean;
-            value = boolValue.ToString().ToLowerInvariant();
+            value = boolValue ? "true" : "false";
             return true;
         }
 
@@ -3366,7 +3410,7 @@ public class EditorActionConverter : IEditorActionConverter
     }
 
     private static void AppendDelayActions(
-        ICollection<EditorAction> actions,
+        List<EditorAction> actions,
         int fixedDelayMs,
         bool hasRandomDelay,
         int randomDelayMinMs,
@@ -3392,11 +3436,6 @@ public class EditorActionConverter : IEditorActionConverter
                 RandomDelayMaxMs = randomDelayMaxMs,
             });
         }
-    }
-
-    private static bool IsShiftKey(int keyCode)
-    {
-        return keyCode is InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT;
     }
 
     private static bool IsScrollButton(MacroMouseButton button)

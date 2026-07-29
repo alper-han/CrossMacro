@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Native.X11;
 /// <summary>
 /// P/Invoke declarations for Xlib (X11) functions
 /// </summary>
-public static class X11Native
+internal static partial class X11Native
 {
     private const string LibX11 = "libX11.so.6";
     public const int ZPixmap = 2;
@@ -16,7 +16,7 @@ public static class X11Native
         NativeLibrary.SetDllImportResolver(System.Reflection.Assembly.GetExecutingAssembly(), DllImportResolver);
 
         // Enable thread safety
-        XInitThreads();
+        _ = XInitThreads();
     }
 
     private static IntPtr DllImportResolver(string libraryName, System.Reflection.Assembly assembly, DllImportSearchPath? searchPath)
@@ -61,20 +61,23 @@ public static class X11Native
     /// </summary>
     /// <param name="display">Display name (null for default DISPLAY env var)</param>
     /// <returns>Display pointer, or IntPtr.Zero on failure</returns>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr XOpenDisplay(string? display);
+    [LibraryImport(LibX11, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr XOpenDisplay(string? display);
 
     /// <summary>
     /// Closes a connection to the X server
     /// </summary>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XCloseDisplay(IntPtr display);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XCloseDisplay(IntPtr display);
 
     /// <summary>
     /// Returns drawable geometry including width, height, and depth.
     /// </summary>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XGetGeometry(
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XGetGeometry(
         IntPtr display,
         IntPtr drawable,
         out IntPtr root_return,
@@ -88,26 +91,30 @@ public static class X11Native
     /// <summary>
     /// Returns the root window for the default screen
     /// </summary>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr XDefaultRootWindow(IntPtr display);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr XDefaultRootWindow(IntPtr display);
 
     /// <summary>
     /// Returns the default screen number referenced by the XOpenDisplay function
     /// </summary>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XDefaultScreen(IntPtr display);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XDefaultScreen(IntPtr display);
 
     /// <summary>
     /// Returns the width of the screen in pixels
     /// </summary>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XDisplayWidth(IntPtr display, int screen);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XDisplayWidth(IntPtr display, int screen);
 
     /// <summary>
     /// Returns the height of the screen in pixels
     /// </summary>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XDisplayHeight(IntPtr display, int screen);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XDisplayHeight(IntPtr display, int screen);
 
     /// <summary>
     /// Gets the current pointer coordinates and modifier state
@@ -122,9 +129,10 @@ public static class X11Native
     /// <param name="win_y_return">Y coordinate relative to queried window</param>
     /// <param name="mask_return">Current modifier keys and pointer buttons</param>
     /// <returns>True if pointer is on the same screen as window</returns>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool XQueryPointer(
+    public static partial bool XQueryPointer(
         IntPtr display,
         IntPtr window,
         out IntPtr root_return,
@@ -140,14 +148,16 @@ public static class X11Native
     /// Must be called before any other Xlib calls in multi-threaded applications
     /// </summary>
     /// <returns>Non-zero on success</returns>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    private static extern int XInitThreads();
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial int XInitThreads();
 
     /// <summary>
     /// Returns the root window of the specified screen
     /// </summary>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr XRootWindow(IntPtr display, int screen_number);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr XRootWindow(IntPtr display, int screen_number);
 
     /// <summary>
     /// Moves the pointer to the specified coordinates
@@ -161,8 +171,9 @@ public static class X11Native
     /// <param name="src_height">Source height</param>
     /// <param name="dest_x">Destination X</param>
     /// <param name="dest_y">Destination Y</param>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void XWarpPointer(
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void XWarpPointer(
         IntPtr display,
         IntPtr src_w,
         IntPtr dest_w,
@@ -177,11 +188,13 @@ public static class X11Native
     /// <summary>
     /// Flushes the output buffer (ensures commands are sent to X server immediately)
     /// </summary>
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XFlush(IntPtr display);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XFlush(IntPtr display);
 
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr XGetImage(
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr XGetImage(
         IntPtr display,
         IntPtr drawable,
         int x,
@@ -191,49 +204,63 @@ public static class X11Native
         UIntPtr plane_mask,
         int format);
 
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern UIntPtr XGetPixel(IntPtr ximage, int x, int y);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial UIntPtr XGetPixel(IntPtr ximage, int x, int y);
 
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XDestroyImage(IntPtr ximage);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XDestroyImage(IntPtr ximage);
 
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XPending(IntPtr display);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XPending(IntPtr display);
 
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XNextEvent(IntPtr display, IntPtr event_return);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XNextEvent(IntPtr display, IntPtr event_return);
 
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool XGetEventData(IntPtr display, IntPtr cookie);
+    public static partial bool XGetEventData(IntPtr display, IntPtr cookie);
 
-    [DllImport(LibX11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void XFreeEventData(IntPtr display, IntPtr cookie);
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void XFreeEventData(IntPtr display, IntPtr cookie);
 
     // XTest Extension
     private const string LibXtst = "libXtst.so.6";
 
-    [DllImport(LibXtst, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool XTestQueryExtension(IntPtr display, out int event_base_return, out int error_base_return, out int major_version_return, out int minor_version_return);
+    [LibraryImport(LibXtst)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool XTestQueryExtension(IntPtr display, out int event_base_return, out int error_base_return, out int major_version_return, out int minor_version_return);
 
-    [DllImport(LibXtst, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XTestFakeKeyEvent(IntPtr display, uint keycode, bool is_press, ulong delay);
+    [LibraryImport(LibXtst)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XTestFakeKeyEvent(IntPtr display, uint keycode, [MarshalAs(UnmanagedType.Bool)] bool is_press, ulong delay);
 
-    [DllImport(LibXtst, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XTestFakeButtonEvent(IntPtr display, uint button, bool is_press, ulong delay);
+    [LibraryImport(LibXtst)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XTestFakeButtonEvent(IntPtr display, uint button, [MarshalAs(UnmanagedType.Bool)] bool is_press, ulong delay);
 
-    [DllImport(LibXtst, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XTestFakeMotionEvent(IntPtr display, int screen_number, int x, int y, ulong delay);
+    [LibraryImport(LibXtst)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XTestFakeMotionEvent(IntPtr display, int screen_number, int x, int y, ulong delay);
 
-    [DllImport(LibXtst, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XTestFakeRelativeMotionEvent(IntPtr display, int x, int y, ulong delay);
+    [LibraryImport(LibXtst)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XTestFakeRelativeMotionEvent(IntPtr display, int x, int y, ulong delay);
 
     // XInput2 Extension
     private const string LibXi = "libXi.so.6";
 
-    [DllImport(LibXi, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XIQueryVersion(IntPtr display, ref int major_version_inout, ref int minor_version_inout);
+    [LibraryImport(LibXi)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XIQueryVersion(IntPtr display, ref int major_version_inout, ref int minor_version_inout);
 
-    [DllImport(LibXi, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XISelectEvents(IntPtr display, IntPtr window, ref XIEventMask masks, int num_masks);
+    [LibraryImport(LibXi)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XISelectEvents(IntPtr display, IntPtr window, ref XIEventMask masks, int num_masks);
 }

@@ -5,9 +5,9 @@ namespace CrossMacro.Platform.Linux.Services;
 /// Manages pre-warmed IInputSimulator instances to eliminate device creation delays.
 /// The pool creates devices in advance so they're ready immediately when needed.
 /// </summary>
-public class InputSimulatorPool : IInputSimulatorPool
+public sealed class InputSimulatorPool(Func<IInputSimulator> factory) : IInputSimulatorPool, IAsyncDisposable
 {
-    private readonly Func<IInputSimulator> _factory;
+    private readonly Func<IInputSimulator> _factory = factory ?? throw new ArgumentNullException(nameof(factory));
     private readonly Lock _lock = new();
     private readonly HashSet<IInputSimulator> _leasedDevices = new();
     private readonly HashSet<Task> _replacementTasks = new();
@@ -41,11 +41,6 @@ public class InputSimulatorPool : IInputSimulatorPool
         }
     }
 
-    public InputSimulatorPool(Func<IInputSimulator> factory)
-    {
-        _factory = factory ?? throw new ArgumentNullException(nameof(factory));
-    }
-
     /// <summary>
     /// Pre-warms devices for both relative and absolute modes.
     /// Call this at application startup for zero-delay playback.
@@ -64,64 +59,12 @@ public class InputSimulatorPool : IInputSimulatorPool
         var warmUpCts = new CancellationTokenSource();
         var warmUpToken = warmUpCts.Token;
         var previousCts = Interlocked.Exchange(ref _warmUpCts, warmUpCts);
-        previousCts?.Cancel();
+        await (previousCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
         previousCts?.Dispose();
 
         try
         {
-            await Task.Run(async () =>
-            {
-                if (_disposed || warmUpToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                using (_lock.EnterScope())
-                {
-                    if (_disposed || warmUpToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    if (_warmRelativeDevice is null)
-                    {
-                        _warmRelativeDevice = _factory();
-                        _warmRelativeDevice.Initialize(0, 0);
-                        Log.Debug("[InputSimulatorPool] Relative device warmed up");
-                    }
-                }
-
-
-
-                await Task.Delay(100, warmUpToken).ConfigureAwait(false);
-
-                if (_disposed || warmUpToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                if (screenWidth > 0 && screenHeight > 0)
-                {
-                    using (_lock.EnterScope())
-                    {
-                        if (_disposed || warmUpToken.IsCancellationRequested)
-                        {
-                            return;
-                        }
-
-                        if (_warmAbsoluteDevice is null)
-                        {
-                            _warmAbsoluteDevice = _factory();
-                            _warmAbsoluteDevice.Initialize(screenWidth, screenHeight);
-                            _absoluteWidth = screenWidth;
-                            _absoluteHeight = screenHeight;
-                            Log.Debug("[InputSimulatorPool] Absolute device warmed up ({Width}x{Height})", screenWidth, screenHeight);
-                        }
-                    }
-                }
-
-                Log.Information("[InputSimulatorPool] Warm-up complete");
-            }, warmUpToken).ConfigureAwait(false);
+            await RunWarmUpAsync(screenWidth, screenHeight, warmUpToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -131,7 +74,7 @@ public class InputSimulatorPool : IInputSimulatorPool
         {
             Log.Debug(ex, "[InputSimulatorPool] Warm-up skipped during disposal");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (_disposed || warmUpToken.IsCancellationRequested)
             {
@@ -146,6 +89,88 @@ public class InputSimulatorPool : IInputSimulatorPool
                 Log.LogError(ex, "[InputSimulatorPool] Failed to warm up devices");
             }
         }
+    }
+
+    private async Task RunWarmUpAsync(int screenWidth, int screenHeight, CancellationToken cancellationToken)
+    {
+        if (_disposed || cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        bool needsRelativeDevice;
+        using (_lock.EnterScope())
+        {
+            needsRelativeDevice = !_disposed && !cancellationToken.IsCancellationRequested && _warmRelativeDevice is null;
+        }
+
+        if (needsRelativeDevice)
+        {
+            var relativeDevice = _factory();
+            await relativeDevice.InitializeAsync(0, 0, cancellationToken).ConfigureAwait(false);
+            using (_lock.EnterScope())
+            {
+                if (_disposed || cancellationToken.IsCancellationRequested)
+                {
+                    relativeDevice.Dispose();
+                    return;
+                }
+
+                if (_warmRelativeDevice is null)
+                {
+                    _warmRelativeDevice = relativeDevice;
+                    Log.Debug("[InputSimulatorPool] Relative device warmed up");
+                }
+                else
+                {
+                    relativeDevice.Dispose();
+                }
+            }
+        }
+
+        await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+
+        if (_disposed || cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (screenWidth > 0 && screenHeight > 0)
+        {
+            bool needsAbsoluteDevice;
+            using (_lock.EnterScope())
+            {
+                needsAbsoluteDevice = !_disposed && !cancellationToken.IsCancellationRequested && _warmAbsoluteDevice is null;
+            }
+
+            if (needsAbsoluteDevice)
+            {
+                var absoluteDevice = _factory();
+                await absoluteDevice.InitializeAsync(screenWidth, screenHeight, cancellationToken).ConfigureAwait(false);
+                using (_lock.EnterScope())
+                {
+                    if (_disposed || cancellationToken.IsCancellationRequested)
+                    {
+                        absoluteDevice.Dispose();
+                        return;
+                    }
+
+                    if (_warmAbsoluteDevice is null)
+                    {
+                        _warmAbsoluteDevice = absoluteDevice;
+                        _absoluteWidth = screenWidth;
+                        _absoluteHeight = screenHeight;
+                        Log.Debug("[InputSimulatorPool] Absolute device warmed up ({Width}x{Height})", screenWidth, screenHeight);
+                    }
+                    else
+                    {
+                        absoluteDevice.Dispose();
+                    }
+                }
+            }
+        }
+
+        Log.Information("[InputSimulatorPool] Warm-up complete");
     }
 
     /// <summary>
@@ -168,7 +193,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                 {
                     device = _warmAbsoluteDevice;
                     _warmAbsoluteDevice = null;
-                    _leasedDevices.Add(device);
+                    _ = _leasedDevices.Add(device);
                     Log.Information("[InputSimulatorPool] Acquired warm absolute device ({Width}x{Height})", screenWidth, screenHeight);
                 }
             }
@@ -178,7 +203,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                 {
                     device = _warmRelativeDevice;
                     _warmRelativeDevice = null;
-                    _leasedDevices.Add(device);
+                    _ = _leasedDevices.Add(device);
                     Log.Information("[InputSimulatorPool] Acquired warm relative device");
                 }
             }
@@ -202,7 +227,75 @@ public class InputSimulatorPool : IInputSimulatorPool
                 throw new ObjectDisposedException(nameof(InputSimulatorPool));
             }
 
-            _leasedDevices.Add(device);
+            _ = _leasedDevices.Add(device);
+        }
+
+        return device;
+    }
+
+    public async Task<IInputSimulator> AcquireAsync(
+        int screenWidth,
+        int screenHeight,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        bool needsAbsolute = screenWidth > 0 && screenHeight > 0;
+        IInputSimulator? device = null;
+
+        using (_lock.EnterScope())
+        {
+            if (needsAbsolute && _warmAbsoluteDevice is not null && _absoluteWidth == screenWidth && _absoluteHeight == screenHeight)
+            {
+                device = _warmAbsoluteDevice;
+                _warmAbsoluteDevice = null;
+            }
+            else if (!needsAbsolute && _warmRelativeDevice is not null)
+            {
+                device = _warmRelativeDevice;
+                _warmRelativeDevice = null;
+            }
+
+            if (device is not null)
+            {
+                _ = _leasedDevices.Add(device);
+            }
+        }
+
+        if (device is null)
+        {
+            device = _factory();
+            await device.InitializeAsync(screenWidth, screenHeight, cancellationToken).ConfigureAwait(false);
+            using (_lock.EnterScope())
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    device.Dispose();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+
+                if (_disposed)
+                {
+                    device.Dispose();
+                    throw new ObjectDisposedException(nameof(InputSimulatorPool));
+                }
+
+                _ = _leasedDevices.Add(device);
+            }
+        }
+        else
+        {
+            QueueWarmUpReplacement(screenWidth, screenHeight);
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            using (_lock.EnterScope())
+            {
+                _ = _leasedDevices.Remove(device);
+            }
+
+            device.Dispose();
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
         return device;
@@ -229,7 +322,7 @@ public class InputSimulatorPool : IInputSimulatorPool
         {
             device.Dispose();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[InputSimulatorPool] Error disposing returned device");
         }
@@ -253,12 +346,12 @@ public class InputSimulatorPool : IInputSimulatorPool
             {
                 await WarmUpReplacementAsync(screenWidth, screenHeight, _shutdownCts.Token).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 // Observe any unexpected faults from fire-and-forget replacement tasks.
                 Log.Debug(ex, "[InputSimulatorPool] Replacement warm-up task faulted");
             }
-        });
+        }, _shutdownCts.Token);
 
         using (_lock.EnterScope())
         {
@@ -267,7 +360,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                 return;
             }
 
-            _replacementTasks.Add(task);
+            _ = _replacementTasks.Add(task);
         }
 
         _ = task.ContinueWith(
@@ -276,7 +369,7 @@ public class InputSimulatorPool : IInputSimulatorPool
                 _ = completedTask.Exception;
                 using (_lock.EnterScope())
                 {
-                    _replacementTasks.Remove(completedTask);
+                    _ = _replacementTasks.Remove(completedTask);
                 }
             },
             CancellationToken.None,
@@ -302,10 +395,27 @@ public class InputSimulatorPool : IInputSimulatorPool
                 return;
             }
 
+            bool needsDevice;
+            using (_lock.EnterScope())
+            {
+                needsDevice = !_disposed && (needsAbsolute
+                    ? _warmAbsoluteDevice is null || _absoluteWidth != screenWidth || _absoluteHeight != screenHeight
+                    : _warmRelativeDevice is null);
+            }
+
+            if (!needsDevice)
+            {
+                return;
+            }
+
+            var device = _factory();
+            await device.InitializeAsync(needsAbsolute ? screenWidth : 0, needsAbsolute ? screenHeight : 0, cancellationToken).ConfigureAwait(false);
+
             using (_lock.EnterScope())
             {
                 if (_disposed)
                 {
+                    device.Dispose();
                     return;
                 }
 
@@ -314,21 +424,24 @@ public class InputSimulatorPool : IInputSimulatorPool
                     if (_warmAbsoluteDevice is null || _absoluteWidth != screenWidth || _absoluteHeight != screenHeight)
                     {
                         _warmAbsoluteDevice?.Dispose();
-                        _warmAbsoluteDevice = _factory();
-                        _warmAbsoluteDevice.Initialize(screenWidth, screenHeight);
+                        _warmAbsoluteDevice = device;
                         _absoluteWidth = screenWidth;
                         _absoluteHeight = screenHeight;
                         Log.Debug("[InputSimulatorPool] Replacement absolute device warmed up");
                     }
+                    else
+                    {
+                        device.Dispose();
+                    }
+                }
+                else if (_warmRelativeDevice is null)
+                {
+                    _warmRelativeDevice = device;
+                    Log.Debug("[InputSimulatorPool] Replacement relative device warmed up");
                 }
                 else
                 {
-                    if (_warmRelativeDevice is null)
-                    {
-                        _warmRelativeDevice = _factory();
-                        _warmRelativeDevice.Initialize(0, 0);
-                        Log.Debug("[InputSimulatorPool] Replacement relative device warmed up");
-                    }
+                    device.Dispose();
                 }
             }
         }
@@ -336,7 +449,7 @@ public class InputSimulatorPool : IInputSimulatorPool
         {
             Log.Debug(ex, "[InputSimulatorPool] Replacement warm-up skipped during disposal");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (_disposed)
             {
@@ -379,5 +492,19 @@ public class InputSimulatorPool : IInputSimulatorPool
         _shutdownCts.Dispose();
 
         Log.Information("[InputSimulatorPool] Disposed");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        var completion = Completion;
+        Dispose();
+        try
+        {
+            await completion.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Replacement warm-up tasks observe shutdown cancellation.
+        }
     }
 }

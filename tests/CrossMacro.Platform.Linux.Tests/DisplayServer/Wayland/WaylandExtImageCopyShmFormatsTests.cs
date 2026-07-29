@@ -20,7 +20,7 @@ public sealed class WaylandExtImageCopyShmFormatsTests
     public void TrySelectPreferredPixelFormat_PrefersXrgbOverArgb()
     {
         var selected = WaylandExtImageCopyShmFormats.TrySelectPreferredPixelFormat(
-            new[] { WaylandExtImageCopyShmFormats.Argb8888, WaylandExtImageCopyShmFormats.Xrgb8888 },
+            [WaylandExtImageCopyShmFormats.Argb8888, WaylandExtImageCopyShmFormats.Xrgb8888],
             out var pixelFormat);
 
         Assert.True(selected);
@@ -31,7 +31,7 @@ public sealed class WaylandExtImageCopyShmFormatsTests
     public void TrySelectPreferredShmFormat_PrefersXrgbOverArgb()
     {
         var selected = WaylandExtImageCopyShmFormats.TrySelectPreferredShmFormat(
-            new[] { WaylandExtImageCopyShmFormats.Argb8888, WaylandExtImageCopyShmFormats.Xrgb8888 },
+            [WaylandExtImageCopyShmFormats.Argb8888, WaylandExtImageCopyShmFormats.Xrgb8888],
             out var shmFormat);
 
         Assert.True(selected);
@@ -42,7 +42,7 @@ public sealed class WaylandExtImageCopyShmFormatsTests
     public void TrySelectPreferredPixelFormat_PrefersAbgrOverXbgr()
     {
         var selected = WaylandExtImageCopyShmFormats.TrySelectPreferredPixelFormat(
-            new[] { WaylandExtImageCopyShmFormats.Xbgr8888, WaylandExtImageCopyShmFormats.Abgr8888 },
+            [WaylandExtImageCopyShmFormats.Xbgr8888, WaylandExtImageCopyShmFormats.Abgr8888],
             out var pixelFormat);
 
         Assert.True(selected);
@@ -53,7 +53,7 @@ public sealed class WaylandExtImageCopyShmFormatsTests
     public void TrySelectPreferredShmFormat_PrefersAbgrOverXbgr()
     {
         var selected = WaylandExtImageCopyShmFormats.TrySelectPreferredShmFormat(
-            new[] { WaylandExtImageCopyShmFormats.Xbgr8888, WaylandExtImageCopyShmFormats.Abgr8888 },
+            [WaylandExtImageCopyShmFormats.Xbgr8888, WaylandExtImageCopyShmFormats.Abgr8888],
             out var shmFormat);
 
         Assert.True(selected);
@@ -64,7 +64,7 @@ public sealed class WaylandExtImageCopyShmFormatsTests
     public void TrySelectPreferredShmFormat_IgnoresUnsupportedFormats()
     {
         var selected = WaylandExtImageCopyShmFormats.TrySelectPreferredShmFormat(
-            new[] { 0x12345678U, WaylandExtImageCopyShmFormats.Xbgr8888 },
+            [0x12345678U, WaylandExtImageCopyShmFormats.Xbgr8888],
             out var shmFormat);
 
         Assert.True(selected);
@@ -75,7 +75,7 @@ public sealed class WaylandExtImageCopyShmFormatsTests
     public void FormatAdvertisedFormats_UsesStableLowercaseHex()
     {
         var formatted = WaylandExtImageCopyShmFormats.FormatAdvertisedFormats(
-            new[] { WaylandExtImageCopyShmFormats.Xbgr8888, WaylandExtImageCopyShmFormats.Abgr8888 });
+            [WaylandExtImageCopyShmFormats.Xbgr8888, WaylandExtImageCopyShmFormats.Abgr8888]);
 
         Assert.Equal("[0x34324258,0x34324241]", formatted);
     }
@@ -87,7 +87,7 @@ public sealed class WaylandExtImageCopyShmFormatsTests
         cancellation.Cancel();
         var state = new WaylandCaptureCancellation(new ScreenReadOptions(cancellationToken: cancellation.Token));
 
-        Assert.Throws<OperationCanceledException>(state.ThrowIfCancellationRequested);
+        _ = Assert.Throws<OperationCanceledException>(state.ThrowIfCancellationRequested);
     }
 
     [Fact]
@@ -95,6 +95,6 @@ public sealed class WaylandExtImageCopyShmFormatsTests
     {
         var state = new WaylandCaptureCancellation(new ScreenReadOptions(timeout: TimeSpan.Zero));
 
-        Assert.Throws<TimeoutException>(state.ThrowIfCancellationRequested);
+        _ = Assert.Throws<TimeoutException>(state.ThrowIfCancellationRequested);
     }
 }

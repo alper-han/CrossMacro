@@ -75,9 +75,9 @@ internal sealed class Issue44LinuxInputCapabilityScenario
             ProbeResult = LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
         };
 
-        scenario._existingPaths.Add(LinuxConstants.UInputAlternatePath);
-        scenario._writablePaths.Add(LinuxConstants.UInputAlternatePath);
-        scenario._readablePaths.Add("/dev/input/event0");
+        _ = scenario._existingPaths.Add(LinuxConstants.UInputAlternatePath);
+        _ = scenario._writablePaths.Add(LinuxConstants.UInputAlternatePath);
+        _ = scenario._readablePaths.Add("/dev/input/event0");
         return scenario;
     }
 
@@ -152,7 +152,7 @@ internal sealed class Issue44LinuxInputCapabilityScenario
                 exception: new UnauthorizedAccessException("socket access denied")),
         };
 
-        scenario._existingPaths.Add(IpcProtocol.DefaultSocketPath);
+        _ = scenario._existingPaths.Add(IpcProtocol.DefaultSocketPath);
         return scenario;
     }
 

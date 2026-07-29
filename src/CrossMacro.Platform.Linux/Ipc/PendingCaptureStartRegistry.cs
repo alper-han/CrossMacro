@@ -162,21 +162,19 @@ internal sealed class PendingCaptureStartRegistry
         }
     }
 
-#pragma warning disable RCS1210, S4586
-    public Task? TryGetPendingTask()
+    public Task TryGetPendingTaskAsync()
     {
         lock (_lock)
         {
             if (_pending is not { Completion: { Task: { IsCompleted: false } } } pendingStart)
             {
                 _pending = null;
-                return null;
+                return Task.CompletedTask;
             }
 
             return pendingStart.Completion.Task;
         }
     }
-#pragma warning restore RCS1210, S4586
 
     public void MarkSubscriptionRemoved(string consumerId)
     {
@@ -305,7 +303,7 @@ internal sealed class PendingCaptureStartRegistry
                 return;
             }
 
-            _removedConsumersSinceStart.Add(consumerId);
+            _ = _removedConsumersSinceStart.Add(consumerId);
         }
     }
 }

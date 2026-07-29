@@ -1,20 +1,13 @@
 
 namespace CrossMacro.UI.ViewModels;
 
-public sealed class WeeklyDayOption : ViewModelBase
+public sealed class WeeklyDayOption(ScheduleViewModel owner, ScheduleDays value, string displayName) : ViewModelBase
 {
-    private readonly ScheduleViewModel _owner;
+    private readonly ScheduleViewModel _owner = owner;
 
-    public WeeklyDayOption(ScheduleViewModel owner, ScheduleDays value, string displayName)
-    {
-        _owner = owner;
-        Value = value;
-        DisplayName = displayName;
-    }
+    public ScheduleDays Value { get; } = value;
 
-    public ScheduleDays Value { get; }
-
-    public string DisplayName { get; }
+    public string DisplayName { get; } = displayName;
 
     public bool IsSelected
     {

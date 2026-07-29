@@ -13,6 +13,6 @@ public sealed class RunExecutionResult
     public int InitialRandomDelayMaxMs { get; init; }
     public IReadOnlyList<string> Errors { get; init; } = [];
     public IReadOnlyList<string> Warnings { get; init; } = [];
-    public IReadOnlyDictionary<string, string> RuntimeVariables { get; init; } = new Dictionary<string, string>();
+    public IReadOnlyDictionary<string, string> RuntimeVariables { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
     public string? ErrorMessage { get; init; }
 }

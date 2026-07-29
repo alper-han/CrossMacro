@@ -165,6 +165,9 @@
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>在 GitHub 上加星标</value>
   </data>
+  <data name="Settings_HotkeyAlreadyAssignedTo" xml:space="preserve">
+    <value>此快捷键已分配给 {0}</value>
+  </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>热键已分配</value>
   </data>

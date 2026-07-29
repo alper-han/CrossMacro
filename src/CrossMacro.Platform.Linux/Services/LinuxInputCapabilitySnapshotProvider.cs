@@ -15,8 +15,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             new LinuxInputDeviceAccessProbe(),
             LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
             LinuxInputProbeUtilities.GetInputEventCandidates)
-    {
-    }
+    { /* Empty */ }
 
     public LinuxInputCapabilitySnapshotProvider(
         Func<string, bool> fileExists,
@@ -30,13 +29,11 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
             daemonHandshakeProbe,
             getInputEventCandidates)
-    {
-    }
+    { /* Empty */ }
 
     internal LinuxInputCapabilitySnapshotProvider(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
-        Func<string, bool> canOpenForRead,
         Func<bool> hasUsableReadableInputDevices,
         Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
         Func<string[]> getInputEventCandidates)
@@ -46,8 +43,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             new LinuxInputDeviceAccessProbe(hasUsableReadableInputDevices),
             daemonHandshakeProbe,
             getInputEventCandidates)
-    {
-    }
+    { /* Empty */ }
 
     internal LinuxInputCapabilitySnapshotProvider(
         Func<string, bool> fileExists,
@@ -77,7 +73,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         {
             canUseDirectUInput = LinuxInputProbeUtilities.HasUInputWriteAccess(_canOpenForWrite);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             canUseDirectUInput = false;
         }
@@ -87,10 +83,36 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         {
             canReadInputEvents = _inputDeviceAccessProbe.HasUsableReadableInputDevices();
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             canReadInputEvents = false;
         }
+
+        return new LinuxInputCapabilitySnapshot(
+            ResolvedSocketPath: resolvedSocketPath,
+            DaemonSocketExists: daemonSocketExists,
+            DaemonHandshakeSucceeded: daemonProbeResult.Succeeded,
+            DaemonHandshakeTimedOut: daemonProbeResult.TimedOut,
+            CanUseDirectUInput: canUseDirectUInput,
+            CanReadInputEvents: canReadInputEvents,
+            DaemonHandshakeDiagnostic: CreateDaemonHandshakeDiagnostic(resolvedSocketPath, daemonProbeResult, daemonHandshakeBudget));
+    }
+
+    public async ValueTask<LinuxInputCapabilitySnapshot> CaptureSnapshotAsync(
+        TimeSpan daemonHandshakeBudget,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var resolvedSocketPath = await LinuxInputProbeUtilities.ResolveAvailableSocketPathAsync(_fileExists, cancellationToken).ConfigureAwait(false);
+        var daemonSocketExists = resolvedSocketPath is not null;
+
+        var daemonProbeResult = daemonSocketExists
+            ? await ValueTask.FromResult(_daemonHandshakeProbe(resolvedSocketPath!, daemonHandshakeBudget)).ConfigureAwait(false)
+            : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket);
+
+        var canUseDirectUInput = await LinuxInputProbeUtilities.HasUInputWriteAccessAsync(_canOpenForWrite, cancellationToken).ConfigureAwait(false);
+        var canReadInputEvents = await _inputDeviceAccessProbe.HasUsableReadableInputDevicesAsync(cancellationToken).ConfigureAwait(false);
 
         return new LinuxInputCapabilitySnapshot(
             ResolvedSocketPath: resolvedSocketPath,
@@ -125,7 +147,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         {
             return _daemonHandshakeProbe(socketPath, timeout);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(ex);
         }

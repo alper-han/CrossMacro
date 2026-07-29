@@ -9,10 +9,12 @@ public sealed class RunScriptCompiler
 {
     private const int MaxLoopIterations = 100_000;
     private readonly IKeyCodeMapper _keyCodeMapper;
+    private readonly RunScriptRuntimeValidator _runtimeValidator;
 
     public RunScriptCompiler(IKeyCodeMapper keyCodeMapper)
     {
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+        _runtimeValidator = new RunScriptRuntimeValidator(CompileStaticCommand);
     }
 
     public RunScriptCompileResult Compile(IReadOnlyList<RunScriptStep> steps)
@@ -25,7 +27,7 @@ public sealed class RunScriptCompiler
             return RunScriptCompileResult.Fail(parseResult.ErrorMessage);
         }
 
-        if (ContainsRuntimeServiceNode(parseResult.Nodes!))
+        if (RunScriptRuntimeValidator.ContainsRuntimeServiceNode(parseResult.Nodes!))
         {
             return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);
         }
@@ -44,7 +46,7 @@ public sealed class RunScriptCompiler
             return RunScriptCompileResult.Fail("Internal parser error: unhandled loop-control signal.");
         }
 
-        if (expandedSteps.Count is 0 && ContainsRuntimeBackedNode(parseResult.Nodes!))
+        if (expandedSteps.Count is 0 && RunScriptRuntimeValidator.ContainsRuntimeBackedNode(parseResult.Nodes!))
         {
             return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);
         }
@@ -54,7 +56,7 @@ public sealed class RunScriptCompiler
 
     private RunScriptCompileResult CompileRuntimeScriptBackedSteps(IReadOnlyList<RunScriptStep> steps, IReadOnlyList<RunScriptNode> nodes)
     {
-        var validation = ValidateRuntimeScriptNodes(nodes, loopDepth: 0);
+        var validation = _runtimeValidator.Validate(nodes, loopDepth: 0);
         if (!validation.Success)
         {
             return RunScriptCompileResult.Fail(validation.ErrorMessage);
@@ -74,256 +76,12 @@ public sealed class RunScriptCompiler
         return RunScriptCompileResult.Ok(sequence, initialDelayMs: 0);
     }
 
-    private RunScriptCompileResult ValidateRuntimeScriptNodes(IReadOnlyList<RunScriptNode> nodes, int loopDepth)
+    private RunScriptCompileResult CompileStaticCommand(RunScriptStep step)
     {
-        foreach (var node in nodes)
-        {
-            switch (node)
-            {
-                case CommandNode command:
-                    var commandValidation = ValidateRuntimeCommand(command.Source, loopDepth);
-                    if (!commandValidation.Success)
-                    {
-                        return commandValidation;
-                    }
-                    break;
-                case RepeatNode repeat:
-                    var repeatValidation = ValidateRuntimeScriptNodes(repeat.Body, loopDepth + 1);
-                    if (!repeatValidation.Success)
-                    {
-                        return repeatValidation;
-                    }
-                    break;
-                case WhileNode whileNode:
-                    var whileValidation = ValidateRuntimeScriptNodes(whileNode.Body, loopDepth + 1);
-                    if (!whileValidation.Success)
-                    {
-                        return whileValidation;
-                    }
-                    break;
-                case ForNode forNode:
-                    var forValidation = ValidateRuntimeScriptNodes(forNode.Body, loopDepth + 1);
-                    if (!forValidation.Success)
-                    {
-                        return forValidation;
-                    }
-                    break;
-                case IfNode ifNode:
-                    var trueValidation = ValidateRuntimeScriptNodes(ifNode.TrueBody, loopDepth);
-                    if (!trueValidation.Success)
-                    {
-                        return trueValidation;
-                    }
-
-                    if (ifNode.FalseBody is not null)
-                    {
-                        var falseValidation = ValidateRuntimeScriptNodes(ifNode.FalseBody, loopDepth);
-                        if (!falseValidation.Success)
-                        {
-                            return falseValidation;
-                        }
-                    }
-                    break;
-            }
-        }
-
-        return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        return CompileExpandedSteps([step]);
     }
 
-    private RunScriptCompileResult ValidateRuntimeCommand(RunScriptStep step, int loopDepth)
-    {
-        var trimmed = step.Step.Trim();
-        var source = BuildSourcePrefix(step);
-
-        if (IsScreenReadingStep(trimmed))
-        {
-            return TryParseScreenReadingStep(trimmed, out var screenReadingError) && screenReadingError is not null
-                ? RunScriptCompileResult.Fail($"{source}: {screenReadingError}")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
-        }
-
-        if (RunScriptSyntax.IsWindowStep(trimmed))
-        {
-            var windowError = RunScriptWindowExecutor.Validate(trimmed);
-            return windowError is not null
-                ? RunScriptCompileResult.Fail($"{source}: {windowError}")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
-        }
-
-        if (RunScriptSyntax.IsClipboardStep(trimmed))
-        {
-            var clipboardError = RunScriptClipboardExecutor.Validate(trimmed);
-            return clipboardError is not null
-                ? RunScriptCompileResult.Fail($"{source}: {clipboardError}")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
-        }
-
-        if (RunScriptSyntax.IsShellStep(trimmed))
-        {
-            var shellError = RunScriptShellExecutor.Validate(trimmed);
-            return shellError is not null
-                ? RunScriptCompileResult.Fail($"{source}: {shellError}")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
-        }
-
-        if (RunScriptPlatformSyntax.IsScreenshotStep(trimmed))
-        {
-            var screenshotError = RunScriptPlatformSyntax.ValidateScreenshotStep(trimmed);
-            return screenshotError is not null
-                ? RunScriptCompileResult.Fail($"{source}: {screenshotError}")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
-        }
-
-        if (RunScriptSyntax.IsBreakCommand(trimmed) || RunScriptSyntax.IsContinueCommand(trimmed))
-        {
-            return loopDepth is 0
-                ? RunScriptCompileResult.Fail($"{source}: {trimmed} can only be used inside repeat/while/for blocks.")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
-        }
-
-        if (IsRuntimeDelayCommand(trimmed)
-            || IsRuntimeVariableCommand(trimmed))
-        {
-            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
-        }
-
-        var compileResult = CompileExpandedSteps([step]);
-        return compileResult.Success
-            ? RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0)
-            : RunScriptCompileResult.Fail(compileResult.ErrorMessage);
-    }
-
-    private static bool IsRuntimeVariableCommand(string step)
-    {
-        if (step.StartsWith("set ", StringComparison.OrdinalIgnoreCase))
-        {
-            var payload = step[4..].Trim();
-            var equalIndex = payload.IndexOf('=');
-            if (equalIndex >= 0)
-            {
-                return EditorActionScriptTokens.IsValidVariableName(payload[..equalIndex].Trim());
-            }
-
-            var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length is 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
-        }
-
-        if (step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase)
-            || step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase))
-        {
-            var payload = step[4..].Trim();
-            var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length is 1 or 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
-        }
-
-        return false;
-    }
-
-    private static bool IsRuntimeDelayCommand(string step)
-    {
-        var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length < 2 || !string.Equals(parts[0], "delay", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (parts.Length is 2)
-        {
-            if (parts[1].Contains("..", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            return IsRuntimeIntegerToken(parts[1]);
-        }
-
-        if (parts.Length is 3 or 4 && string.Equals(parts[1], "random", StringComparison.OrdinalIgnoreCase))
-        {
-            if (parts.Length is 3)
-            {
-                var range = parts[2].Split("..", 2, StringSplitOptions.TrimEntries);
-                return range.Length is 2
-&& IsRuntimeIntegerToken(range[0])
-&& IsRuntimeIntegerToken(range[1]);
-            }
-
-            return IsRuntimeIntegerToken(parts[2]) && IsRuntimeIntegerToken(parts[3]);
-        }
-
-        return false;
-    }
-
-    private static bool IsRuntimeIntegerToken(string token)
-    {
-        if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var literal))
-        {
-            return literal >= 0;
-        }
-
-        return token.StartsWith('$')
-            && token.Length > 1
-            && EditorActionScriptTokens.IsValidVariableName(token[1..]);
-    }
-
-    private static bool ContainsRuntimeBackedNode(IReadOnlyList<RunScriptNode> nodes)
-    {
-        return ContainsCommandNode(nodes, IsRuntimeBackedCommand);
-    }
-
-    private static bool ContainsRuntimeServiceNode(IReadOnlyList<RunScriptNode> nodes)
-    {
-        return ContainsCommandNode(nodes, IsRuntimeServiceCommand);
-    }
-
-    private static bool IsRuntimeServiceCommand(string step)
-    {
-        var trimmed = step.Trim();
-        return IsScreenReadingStep(trimmed)
-            || RunScriptSyntax.IsWindowStep(trimmed)
-            || RunScriptSyntax.IsClipboardStep(trimmed)
-            || RunScriptSyntax.IsShellStep(trimmed)
-            || RunScriptPlatformSyntax.IsScreenshotStep(trimmed);
-    }
-
-    private static bool IsRuntimeBackedCommand(string step)
-    {
-        var trimmed = step.Trim();
-        return IsRuntimeServiceCommand(trimmed)
-            || IsRuntimeDelayCommand(trimmed)
-            || IsRuntimeVariableCommand(trimmed)
-            || RunScriptSyntax.IsBreakCommand(trimmed)
-            || RunScriptSyntax.IsContinueCommand(trimmed);
-    }
-
-    private static bool IsScreenReadingStep(string step)
-    {
-        return RunScriptSyntax.IsScreenReadingStep(step);
-    }
-
-    private static bool ContainsCommandNode(IReadOnlyList<RunScriptNode> nodes, Func<string, bool> predicate)
-    {
-        foreach (var node in nodes)
-        {
-            switch (node)
-            {
-                case CommandNode commandNode when predicate(commandNode.Source.Step):
-                    return true;
-                case RepeatNode repeatNode when ContainsCommandNode(repeatNode.Body, predicate):
-                    return true;
-                case IfNode ifNode when ContainsCommandNode(ifNode.TrueBody, predicate)
-|| (ifNode.FalseBody is not null && ContainsCommandNode(ifNode.FalseBody, predicate)):
-                    return true;
-                case WhileNode whileNode when ContainsCommandNode(whileNode.Body, predicate):
-                    return true;
-                case ForNode forNode when ContainsCommandNode(forNode.Body, predicate):
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
-    private RunScriptCompileResult CompileExpandedSteps(IReadOnlyList<RunScriptStep> expandedSteps)
+    private RunScriptCompileResult CompileExpandedSteps(List<RunScriptStep> expandedSteps)
     {
         var sequence = new MacroSequence
         {
@@ -364,240 +122,152 @@ public sealed class RunScriptCompiler
 
             var step = rawStep.Trim();
             var stepForType = rawStep.TrimStart();
-            try
+            if (TryParseDelay(step, out var hasRandomDelay, out var fixedDelayMs, out var randomDelayMinMs, out var randomDelayMaxMs, out var delayError))
             {
-                if (TryParseDelay(step, out var hasRandomDelay, out var fixedDelayMs, out var randomDelayMinMs, out var randomDelayMaxMs))
+                if (delayError is not null)
                 {
-                    if (!hasEvents)
-                    {
-                        initialFixedDelayMs += fixedDelayMs;
-                        if (hasRandomDelay)
-                        {
-                            initialHasRandomDelay = true;
-                            initialRandomDelayMinMs += randomDelayMinMs;
-                            initialRandomDelayMaxMs += randomDelayMaxMs;
-                        }
-                    }
-                    else
-                    {
-                        pendingFixedDelayMs += fixedDelayMs;
-                        if (hasRandomDelay)
-                        {
-                            pendingHasRandomDelay = true;
-                            pendingRandomDelayMinMs += randomDelayMinMs;
-                            pendingRandomDelayMaxMs += randomDelayMaxMs;
-                        }
-                    }
-
-                    continue;
+                    return RunScriptCompileResult.Fail($"{stepPrefix}: {delayError}");
                 }
 
-                if (TryParseMove(step, out var isAbsolute, out var x, out var y))
+                if (!hasEvents)
                 {
-                    currentMoveMode = isAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative;
+                    initialFixedDelayMs += fixedDelayMs;
+                    if (hasRandomDelay)
+                    {
+                        initialHasRandomDelay = true;
+                        initialRandomDelayMinMs += randomDelayMinMs;
+                        initialRandomDelayMaxMs += randomDelayMaxMs;
+                    }
+                }
+                else
+                {
+                    pendingFixedDelayMs += fixedDelayMs;
+                    if (hasRandomDelay)
+                    {
+                        pendingHasRandomDelay = true;
+                        pendingRandomDelayMinMs += randomDelayMinMs;
+                        pendingRandomDelayMaxMs += randomDelayMaxMs;
+                    }
+                }
+
+                continue;
+            }
+
+            if (TryParseMove(step, out var isAbsolute, out var x, out var y, out var moveError))
+            {
+                if (moveError is not null)
+                {
+                    return RunScriptCompileResult.Fail($"{stepPrefix}: {moveError}");
+                }
+
+                currentMoveMode = isAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative;
+                EmitEvent(new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = x,
+                    Y = y,
+                    CoordinateMode = currentMoveMode,
+                });
+
+                if (isAbsolute)
+                {
+                    hasAbsoluteCursorPosition = true;
+                    absoluteCursorX = x;
+                    absoluteCursorY = y;
+                }
+                else
+                {
+                    hasAbsoluteCursorPosition = false;
+                }
+
+                continue;
+            }
+
+            if (TryEmitButton(step, "down", EventType.ButtonPress, out var buttonError)
+                || TryEmitButton(step, "up", EventType.ButtonRelease, out buttonError)
+                || TryEmitButton(step, "click", EventType.Click, out buttonError))
+            {
+                if (buttonError is not null)
+                {
+                    return RunScriptCompileResult.Fail($"{stepPrefix}: {buttonError}");
+                }
+
+                continue;
+            }
+
+            if (TryParseScroll(step, out var scrollButton, out var scrollCount, out var scrollError))
+            {
+                if (scrollError is not null)
+                {
+                    return RunScriptCompileResult.Fail($"{stepPrefix}: {scrollError}");
+                }
+
+                for (var c = 0; c < scrollCount; c++)
+                {
                     EmitEvent(new MacroEvent
-                    {
-                        Type = EventType.MouseMove,
-                        X = x,
-                        Y = y,
-                        CoordinateMode = currentMoveMode,
-                    });
-
-                    if (isAbsolute)
-                    {
-                        hasAbsoluteCursorPosition = true;
-                        absoluteCursorX = x;
-                        absoluteCursorY = y;
-                    }
-                    else
-                    {
-                        hasAbsoluteCursorPosition = false;
-                    }
-
-                    continue;
-                }
-
-                if (TryParseButton(step, "down", out var downButton, out var isCurrentPositionDown))
-                {
-                    var downEvent = new MacroEvent
-                    {
-                        Type = EventType.ButtonPress,
-                        Button = downButton,
-                        UseCurrentPosition = isCurrentPositionDown || currentMoveMode is null,
-                    };
-
-                    if (isCurrentPositionDown)
-                    {
-                        EmitEvent(downEvent);
-                        continue;
-                    }
-
-                    if (currentMoveMode is MouseCoordinateMode.Absolute)
-                    {
-                        if (!hasAbsoluteCursorPosition)
-                        {
-                            return RunScriptCompileResult.Fail(
-                                $"{stepPrefix}: down <button> requires a prior 'move abs <x> <y>' step in absolute mode.");
-                        }
-
-                        downEvent.X = absoluteCursorX;
-                        downEvent.Y = absoluteCursorY;
-                        downEvent.CoordinateMode = MouseCoordinateMode.Absolute;
-                    }
-                    else if (currentMoveMode is MouseCoordinateMode.Relative)
-                    {
-                        downEvent.CoordinateMode = MouseCoordinateMode.Relative;
-                    }
-
-                    EmitEvent(downEvent);
-                    continue;
-                }
-
-                if (TryParseButton(step, "up", out var upButton, out var isCurrentPositionUp))
-                {
-                    var upEvent = new MacroEvent
-                    {
-                        Type = EventType.ButtonRelease,
-                        Button = upButton,
-                        UseCurrentPosition = isCurrentPositionUp || currentMoveMode is null,
-                    };
-
-                    if (isCurrentPositionUp)
-                    {
-                        EmitEvent(upEvent);
-                        continue;
-                    }
-
-                    if (currentMoveMode is MouseCoordinateMode.Absolute)
-                    {
-                        if (!hasAbsoluteCursorPosition)
-                        {
-                            return RunScriptCompileResult.Fail(
-                                $"{stepPrefix}: up <button> requires a prior 'move abs <x> <y>' step in absolute mode.");
-                        }
-
-                        upEvent.X = absoluteCursorX;
-                        upEvent.Y = absoluteCursorY;
-                        upEvent.CoordinateMode = MouseCoordinateMode.Absolute;
-                    }
-                    else if (currentMoveMode is MouseCoordinateMode.Relative)
-                    {
-                        upEvent.CoordinateMode = MouseCoordinateMode.Relative;
-                    }
-
-                    EmitEvent(upEvent);
-                    continue;
-                }
-
-                if (TryParseButton(step, "click", out var clickButton, out var isCurrentPositionClick))
-                {
-                    var clickEvent = new MacroEvent
                     {
                         Type = EventType.Click,
-                        Button = clickButton,
-                        UseCurrentPosition = isCurrentPositionClick || currentMoveMode is null,
-                    };
-
-                    if (isCurrentPositionClick)
-                    {
-                        EmitEvent(clickEvent);
-                        continue;
-                    }
-
-                    if (currentMoveMode is MouseCoordinateMode.Absolute)
-                    {
-                        if (!hasAbsoluteCursorPosition)
-                        {
-                            return RunScriptCompileResult.Fail(
-                                $"{stepPrefix}: click <button> requires a prior 'move abs <x> <y>' step in absolute mode.");
-                        }
-
-                        clickEvent.X = absoluteCursorX;
-                        clickEvent.Y = absoluteCursorY;
-                        clickEvent.CoordinateMode = MouseCoordinateMode.Absolute;
-                    }
-                    else if (currentMoveMode is MouseCoordinateMode.Relative)
-                    {
-                        clickEvent.CoordinateMode = MouseCoordinateMode.Relative;
-                    }
-
-                    EmitEvent(clickEvent);
-                    continue;
-                }
-
-                if (TryParseScroll(step, out var scrollButton, out var scrollCount, out var scrollError))
-                {
-                    if (scrollError is not null)
-                    {
-                        return RunScriptCompileResult.Fail($"{stepPrefix}: {scrollError}");
-                    }
-
-                    for (var c = 0; c < scrollCount; c++)
-                    {
-                        EmitEvent(new MacroEvent
-                        {
-                            Type = EventType.Click,
-                            Button = scrollButton,
-                        });
-                    }
-
-                    continue;
-                }
-
-                if (TryParseScreenReadingStep(step, out var screenReadingError))
-                {
-                    if (screenReadingError is not null)
-                    {
-                        return RunScriptCompileResult.Fail($"{stepPrefix}: {screenReadingError}");
-                    }
-
-                    hasScreenReadingSteps = true;
-                    continue;
-                }
-
-                if (TryParseKey(step, out var isKeyDown, out var keyToken))
-                {
-                    var keyCode = ResolveKeyCode(keyToken);
-                    if (keyCode < 0)
-                    {
-                        return RunScriptCompileResult.Fail($"{stepPrefix}: unknown key '{keyToken}'.");
-                    }
-
-                    EmitEvent(new MacroEvent
-                    {
-                        Type = isKeyDown ? EventType.KeyPress : EventType.KeyRelease,
-                        KeyCode = keyCode,
+                        Button = scrollButton,
                     });
-
-                    continue;
                 }
 
-                if (TryEmitTapCombo(stepPrefix, step, EmitEvent, out var tapError))
-                {
-                    if (tapError is not null)
-                    {
-                        return RunScriptCompileResult.Fail(tapError);
-                    }
-
-                    continue;
-                }
-
-                if (TryEmitTypeText(stepPrefix, stepForType, EmitEvent, EmitTapKeyByName, out var typeError))
-                {
-                    if (typeError is not null)
-                    {
-                        return RunScriptCompileResult.Fail(typeError);
-                    }
-
-                    continue;
-                }
-
-                return RunScriptCompileResult.Fail($"{stepPrefix}: unsupported step syntax '{rawStep}'.");
+                continue;
             }
-            catch (ArgumentException ex)
+
+            if (TryParseScreenReadingStep(step, out var screenReadingError))
             {
-                return RunScriptCompileResult.Fail($"{stepPrefix}: {ex.Message}");
+                if (screenReadingError is not null)
+                {
+                    return RunScriptCompileResult.Fail($"{stepPrefix}: {screenReadingError}");
+                }
+
+                hasScreenReadingSteps = true;
+                continue;
             }
+
+            if (TryParseKey(step, out var isKeyDown, out var keyToken, out var keyError))
+            {
+                if (keyError is not null)
+                {
+                    return RunScriptCompileResult.Fail($"{stepPrefix}: {keyError}");
+                }
+
+                var keyCode = ResolveKeyCode(keyToken);
+                if (keyCode < 0)
+                {
+                    return RunScriptCompileResult.Fail($"{stepPrefix}: unknown key '{keyToken}'.");
+                }
+
+                EmitEvent(new MacroEvent
+                {
+                    Type = isKeyDown ? EventType.KeyPress : EventType.KeyRelease,
+                    KeyCode = keyCode,
+                });
+
+                continue;
+            }
+
+            if (TryEmitTapCombo(stepPrefix, step, EmitEvent, out var tapError))
+            {
+                if (tapError is not null)
+                {
+                    return RunScriptCompileResult.Fail(tapError);
+                }
+
+                continue;
+            }
+
+            if (TryEmitTypeText(stepPrefix, stepForType, EmitEvent, out var typeError))
+            {
+                if (typeError is not null)
+                {
+                    return RunScriptCompileResult.Fail(typeError);
+                }
+
+                continue;
+            }
+
+            return RunScriptCompileResult.Fail($"{stepPrefix}: unsupported step syntax '{rawStep}'.");
         }
 
         if (!hasEvents && !hasScreenReadingSteps)
@@ -651,16 +321,52 @@ public sealed class RunScriptCompiler
             hasEvents = true;
         }
 
-        void EmitTapKeyByName(string keyName)
+        bool TryEmitButton(string stepToParse, string command, EventType eventType, out string? error)
         {
-            var code = ResolveKeyCode(keyName);
-            if (code < 0)
+            error = null;
+            if (!TryParseButton(stepToParse, command, out var button, out var useCurrentPosition, out var buttonError))
             {
-                throw new ArgumentException($"Unknown key '{keyName}'.");
+                return false;
             }
 
-            EmitEvent(new MacroEvent { Type = EventType.KeyPress, KeyCode = code });
-            EmitEvent(new MacroEvent { Type = EventType.KeyRelease, KeyCode = code });
+            if (buttonError is not null)
+            {
+                error = buttonError;
+                return true;
+            }
+
+            var buttonEvent = new MacroEvent
+            {
+                Type = eventType,
+                Button = button,
+                UseCurrentPosition = useCurrentPosition || currentMoveMode is null,
+            };
+
+            if (useCurrentPosition)
+            {
+                EmitEvent(buttonEvent);
+                return true;
+            }
+
+            if (currentMoveMode is MouseCoordinateMode.Absolute)
+            {
+                if (!hasAbsoluteCursorPosition)
+                {
+                    error = $"{command} <button> requires a prior 'move abs <x> <y>' step in absolute mode.";
+                    return true;
+                }
+
+                buttonEvent.X = absoluteCursorX;
+                buttonEvent.Y = absoluteCursorY;
+                buttonEvent.CoordinateMode = MouseCoordinateMode.Absolute;
+            }
+            else if (currentMoveMode is MouseCoordinateMode.Relative)
+            {
+                buttonEvent.CoordinateMode = MouseCoordinateMode.Relative;
+            }
+
+            EmitEvent(buttonEvent);
+            return true;
         }
     }
 
@@ -1367,7 +1073,7 @@ public sealed class RunScriptCompiler
             return true;
         }
 
-        var equalIndex = payload.IndexOf('=');
+        var equalIndex = payload.IndexOf('=', StringComparison.Ordinal);
         if (equalIndex >= 0)
         {
             variableName = payload[..equalIndex].Trim();
@@ -1426,7 +1132,7 @@ public sealed class RunScriptCompiler
         }
 
         sign = step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase) ? 1 : -1;
-        var command = sign is 1 ? "inc" : "dec";
+        var command = sign > 0 ? "inc" : "dec";
         var payload = step[4..].Trim();
         var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -1525,7 +1231,7 @@ public sealed class RunScriptCompiler
         return -1;
     }
 
-    private static VariableResolutionResult ResolveVariables(string input, IReadOnlyDictionary<string, string> variables)
+    private static VariableResolutionResult ResolveVariables(string input, Dictionary<string, string> variables)
     {
         if (string.IsNullOrEmpty(input))
         {
@@ -1538,7 +1244,7 @@ public sealed class RunScriptCompiler
             var ch = input[i];
             if (ch != '$')
             {
-                output.Append(ch);
+                _ = output.Append(ch);
                 continue;
             }
 
@@ -1550,7 +1256,7 @@ public sealed class RunScriptCompiler
             var next = input[i + 1];
             if (next == '$')
             {
-                output.Append('$');
+                _ = output.Append('$');
                 i++;
                 continue;
             }
@@ -1572,7 +1278,7 @@ public sealed class RunScriptCompiler
                 return VariableResolutionResult.Fail($"Unknown variable '${variableName}'.");
             }
 
-            output.Append(value);
+            _ = output.Append(value);
             i = j - 1;
         }
 
@@ -1581,7 +1287,7 @@ public sealed class RunScriptCompiler
 
     private static IntegerResolutionResult ResolveIntegerToken(
         string token,
-        IReadOnlyDictionary<string, string> variables,
+        Dictionary<string, string> variables,
         string description)
     {
         var resolved = token;
@@ -1690,7 +1396,7 @@ public sealed class RunScriptCompiler
         return true;
     }
 
-    private bool TryEmitTypeText(string stepPrefix, string stepForType, Action<MacroEvent> emitEvent, Action<string> emitTapKeyByName, out string? error)
+    private bool TryEmitTypeText(string stepPrefix, string stepForType, Action<MacroEvent> emitEvent, out string? error)
     {
         error = null;
         if (!TryParseType(stepForType, out var textToType))
@@ -1714,25 +1420,45 @@ public sealed class RunScriptCompiler
                     index++;
                 }
 
-                emitTapKeyByName("Enter");
+                if (!TryEmitTapKeyByName("Enter", emitEvent, out var carriageReturnError))
+                {
+                    error = $"{stepPrefix}: {carriageReturnError}";
+                    return true;
+                }
+
                 continue;
             }
 
             if (ch == '\n')
             {
-                emitTapKeyByName("Enter");
+                if (!TryEmitTapKeyByName("Enter", emitEvent, out var lineFeedError))
+                {
+                    error = $"{stepPrefix}: {lineFeedError}";
+                    return true;
+                }
+
                 continue;
             }
 
             if (ch == '\t')
             {
-                emitTapKeyByName("Tab");
+                if (!TryEmitTapKeyByName("Tab", emitEvent, out var tabError))
+                {
+                    error = $"{stepPrefix}: {tabError}";
+                    return true;
+                }
+
                 continue;
             }
 
             if (ch == '\b')
             {
-                emitTapKeyByName("Backspace");
+                if (!TryEmitTapKeyByName("Backspace", emitEvent, out var backspaceError))
+                {
+                    error = $"{stepPrefix}: {backspaceError}";
+                    return true;
+                }
+
                 continue;
             }
 
@@ -1777,17 +1503,34 @@ public sealed class RunScriptCompiler
         return true;
     }
 
+    private bool TryEmitTapKeyByName(string keyName, Action<MacroEvent> emitEvent, out string? error)
+    {
+        var code = ResolveKeyCode(keyName);
+        if (code < 0)
+        {
+            error = $"Unknown key '{keyName}'.";
+            return false;
+        }
+
+        emitEvent(new MacroEvent { Type = EventType.KeyPress, KeyCode = code });
+        emitEvent(new MacroEvent { Type = EventType.KeyRelease, KeyCode = code });
+        error = null;
+        return true;
+    }
+
     private static bool TryParseDelay(
         string step,
         out bool hasRandomDelay,
         out int fixedDelayMs,
         out int randomDelayMinMs,
-        out int randomDelayMaxMs)
+        out int randomDelayMaxMs,
+        out string? error)
     {
         hasRandomDelay = false;
         fixedDelayMs = 0;
         randomDelayMinMs = 0;
         randomDelayMaxMs = 0;
+        error = null;
         if (!step.StartsWith("delay ", StringComparison.OrdinalIgnoreCase))
         {
             return false;
@@ -1808,22 +1551,22 @@ public sealed class RunScriptCompiler
                     || !int.TryParse(range[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out minDelayMs)
                     || !int.TryParse(range[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out maxDelayMs))
                 {
-                    throw new ArgumentException("Invalid random delay range. Expected: delay random <min> <max> or delay random <min>..<max>.");
+                    error = "Invalid random delay range. Expected: delay random <min> <max> or delay random <min>..<max>.";
+                    return true;
                 }
             }
-            else if (randomParts.Length is 2
-&& int.TryParse(randomParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out minDelayMs)
-&& int.TryParse(randomParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out maxDelayMs))
+            else if (randomParts.Length is not 2
+|| !int.TryParse(randomParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out minDelayMs)
+|| !int.TryParse(randomParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out maxDelayMs))
             {
-            }
-            else
-            {
-                throw new ArgumentException("Invalid random delay syntax. Expected: delay random <min> <max> or delay random <min>..<max>.");
+                error = "Invalid random delay syntax. Expected: delay random <min> <max> or delay random <min>..<max>.";
+                return true;
             }
 
             if (minDelayMs < 0 || maxDelayMs < 0 || minDelayMs > maxDelayMs)
             {
-                throw new ArgumentException("Invalid random delay bounds. Expected 0 <= min <= max.");
+                error = "Invalid random delay bounds. Expected 0 <= min <= max.";
+                return true;
             }
 
             hasRandomDelay = true;
@@ -1834,17 +1577,19 @@ public sealed class RunScriptCompiler
 
         if (!int.TryParse(payload, NumberStyles.Integer, CultureInfo.InvariantCulture, out fixedDelayMs) || fixedDelayMs < 0)
         {
-            throw new ArgumentException("Invalid delay value. Expected: delay <ms> with ms >= 0.");
+            error = "Invalid delay value. Expected: delay <ms> with ms >= 0.";
+            return true;
         }
 
         return true;
     }
 
-    private static bool TryParseMove(string step, out bool isAbsolute, out int x, out int y)
+    private static bool TryParseMove(string step, out bool isAbsolute, out int x, out int y, out string? error)
     {
         isAbsolute = false;
         x = 0;
         y = 0;
+        error = null;
 
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length is not 4 || !string.Equals(parts[0], "move", StringComparison.OrdinalIgnoreCase))
@@ -1864,22 +1609,25 @@ public sealed class RunScriptCompiler
         }
         else
         {
-            throw new ArgumentException("Invalid move mode. Expected: abs|absolute|rel|relative.");
+            error = "Invalid move mode. Expected: abs|absolute|rel|relative.";
+            return true;
         }
 
         if (!int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out x)
             || !int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out y))
         {
-            throw new ArgumentException("Invalid move coordinates. Expected integers.");
+            error = "Invalid move coordinates. Expected integers.";
+            return true;
         }
 
         return true;
     }
 
-    private static bool TryParseButton(string step, string command, out MacroMouseButton button, out bool useCurrentPosition)
+    private static bool TryParseButton(string step, string command, out MacroMouseButton button, out bool useCurrentPosition, out string? error)
     {
         button = MacroMouseButton.None;
         useCurrentPosition = false;
+        error = null;
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2 || !string.Equals(parts[0], command, StringComparison.OrdinalIgnoreCase))
         {
@@ -1890,7 +1638,8 @@ public sealed class RunScriptCompiler
         {
             if (!TryResolveButton(parts[1], out button))
             {
-                throw new ArgumentException($"Unknown mouse button '{parts[1]}'.");
+                error = $"Unknown mouse button '{parts[1]}'.";
+                return true;
             }
 
             return true;
@@ -1900,21 +1649,23 @@ public sealed class RunScriptCompiler
         {
             if (!TryResolveButton(parts[2], out button))
             {
-                throw new ArgumentException($"Unknown mouse button '{parts[2]}'.");
+                error = $"Unknown mouse button '{parts[2]}'.";
+                return true;
             }
 
             useCurrentPosition = true;
             return true;
         }
 
-        throw new ArgumentException(
-            $"Invalid {command} syntax. Expected: {command} <button> or {command} {RunScriptSyntax.CurrentPositionToken} <button>.");
+        error = $"Invalid {command} syntax. Expected: {command} <button> or {command} {RunScriptSyntax.CurrentPositionToken} <button>.";
+        return true;
     }
 
-    private static bool TryParseKey(string step, out bool isKeyDown, out string keyToken)
+    private static bool TryParseKey(string step, out bool isKeyDown, out string keyToken, out string? error)
     {
         isKeyDown = false;
         keyToken = string.Empty;
+        error = null;
 
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length is not 3 || !string.Equals(parts[0], "key", StringComparison.OrdinalIgnoreCase))
@@ -1932,7 +1683,8 @@ public sealed class RunScriptCompiler
         }
         else
         {
-            throw new ArgumentException("Invalid key action. Expected: key down <key> | key up <key>.");
+            error = "Invalid key action. Expected: key down <key> | key up <key>.";
+            return true;
         }
 
         keyToken = parts[2];
@@ -1975,12 +1727,12 @@ public sealed class RunScriptCompiler
             return false;
         }
 
-        button = parts[1].ToLowerInvariant() switch
+        button = parts[1].ToUpperInvariant() switch
         {
-            "up" => MacroMouseButton.ScrollUp,
-            "down" => MacroMouseButton.ScrollDown,
-            "left" => MacroMouseButton.ScrollLeft,
-            "right" => MacroMouseButton.ScrollRight,
+            "UP" => MacroMouseButton.ScrollUp,
+            "DOWN" => MacroMouseButton.ScrollDown,
+            "LEFT" => MacroMouseButton.ScrollLeft,
+            "RIGHT" => MacroMouseButton.ScrollRight,
             _ => MacroMouseButton.None,
         };
 
@@ -2007,13 +1759,13 @@ public sealed class RunScriptCompiler
 
     private static bool TryResolveButton(string token, out MacroMouseButton button)
     {
-        button = token.ToLowerInvariant() switch
+        button = token.ToUpperInvariant() switch
         {
-            "left" or "l" => MacroMouseButton.Left,
-            "right" or "r" => MacroMouseButton.Right,
-            "middle" or "m" => MacroMouseButton.Middle,
-            "side1" or "side" or "back" => MacroMouseButton.Side1,
-            "side2" or "extra" or "forward" => MacroMouseButton.Side2,
+            "LEFT" or "L" => MacroMouseButton.Left,
+            "RIGHT" or "R" => MacroMouseButton.Right,
+            "MIDDLE" or "M" => MacroMouseButton.Middle,
+            "SIDE1" or "SIDE" or "BACK" => MacroMouseButton.Side1,
+            "SIDE2" or "EXTRA" or "FORWARD" => MacroMouseButton.Side2,
             _ => MacroMouseButton.None,
         };
 
@@ -2224,34 +1976,11 @@ public sealed class RunScriptCompiler
         }
     }
 
-    private sealed record class ConditionExpression(string LeftToken, string OperatorToken, string RightToken);
-
-    private sealed record class ForHeader(
+    private sealed record ForHeader(
         string VariableName,
         string StartToken,
         string EndToken,
         string? StepToken,
         bool HasExplicitStep);
 
-    private abstract record class RunScriptNode(RunScriptStep Source);
-    private sealed record class CommandNode(RunScriptStep Source) : RunScriptNode(Source);
-    private sealed record class RepeatNode(RunScriptStep Source, string CountToken, IReadOnlyList<RunScriptNode> Body) : RunScriptNode(Source);
-    private sealed record class IfNode(
-        RunScriptStep Source,
-        ConditionExpression Condition,
-        IReadOnlyList<RunScriptNode> TrueBody,
-        RunScriptStep? ElseSource,
-        IReadOnlyList<RunScriptNode>? FalseBody) : RunScriptNode(Source);
-    private sealed record class WhileNode(
-        RunScriptStep Source,
-        ConditionExpression Condition,
-        IReadOnlyList<RunScriptNode> Body) : RunScriptNode(Source);
-    private sealed record class ForNode(
-        RunScriptStep Source,
-        string VariableName,
-        string StartToken,
-        string EndToken,
-        string? StepToken,
-        bool HasExplicitStep,
-        IReadOnlyList<RunScriptNode> Body) : RunScriptNode(Source);
 }

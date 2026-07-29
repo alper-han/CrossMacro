@@ -6,7 +6,11 @@ internal static class TextExpansionTextElements
     public static IEnumerable<TextExpansionTextElement> Enumerate(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
+        return EnumerateImpl(text);
+    }
 
+    private static IEnumerable<TextExpansionTextElement> EnumerateImpl(string text)
+    {
         for (int i = 0; i < text.Length; i++)
         {
             var current = text[i];

@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Tests.Services.ScreenCapture;
 public sealed class ScreenFramePngEncoderTests
 {
     [Fact]
-    public void Encode_WhenFrameIsBgra_WritesValidRgbPngPayload()
+    public async Task Encode_WhenFrameIsBgra_WritesValidRgbPngPayload()
     {
         using var frame = new ScreenFrame(
             new ScreenRect(0, 0, 2, 1),
@@ -17,7 +17,7 @@ public sealed class ScreenFramePngEncoderTests
             });
         using var png = new MemoryStream();
 
-        ScreenFramePngEncoder.Encode(frame, png);
+        await ScreenFramePngEncoder.EncodeAsync(frame, png, CancellationToken.None);
 
         var bytes = png.ToArray();
         Assert.Equal([0x89, 0x50, 0x4E, 0x47], bytes[..4]);
@@ -32,7 +32,40 @@ public sealed class ScreenFramePngEncoderTests
     }
 
     [Fact]
-    public void Decode_WhenEncoderProducedRgbPng_ReturnsRgb24FrameWithMatchingPixels()
+    public void CompatibilityApis_EncodeDecodeAndValidatePngSynchronously()
+    {
+        using var source = new ScreenFrame(
+            new ScreenRect(0, 0, 1, 1),
+            stride: 3,
+            ScreenPixelFormat.Rgb24,
+            new byte[] { 0x12, 0x34, 0x56 });
+        using var encoded = new MemoryStream();
+        IImageAssetCodec codec = new ImageAssetCodec();
+
+        codec.EncodePng(source, encoded);
+        var png = encoded.ToArray();
+        using var decoded = codec.DecodePng(png, "compatibility");
+        codec.ValidateBase64Png(Convert.ToBase64String(png), "compatibility");
+        IImageAssetPreviewDecoder previewDecoder = new ImageAssetPreviewDecoder(codec);
+        var preview = previewDecoder.Decode(Convert.ToBase64String(png), "compatibility");
+
+        Assert.Equal(new ScreenPixelColor(0x12, 0x34, 0x56), decoded.GetPixel(new ScreenPoint(0, 0)));
+        Assert.Equal(1, preview.Width);
+        Assert.Equal(1, preview.Height);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_WhenCanceledAtDecodePath_ThrowsCancellation()
+    {
+        var png = Convert.FromBase64String(TransparentPngBase64);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => ScreenFramePngDecoder.DecodeAsync(png, cancellation.Token));
+    }
+
+    [Fact]
+    public async Task Decode_WhenEncoderProducedRgbPng_ReturnsRgb24FrameWithMatchingPixels()
     {
         using var source = new ScreenFrame(
             new ScreenRect(0, 0, 2, 1),
@@ -44,9 +77,9 @@ public sealed class ScreenFramePngEncoderTests
                 0x00, 0xFF, 0x00, 0xFF,
             });
         using var png = new MemoryStream();
-        ScreenFramePngEncoder.Encode(source, png);
+        await ScreenFramePngEncoder.EncodeAsync(source, png, CancellationToken.None);
 
-        using var decoded = ScreenFramePngDecoder.Decode(png.ToArray());
+        using var decoded = await ScreenFramePngDecoder.DecodeAsync(png.ToArray(), CancellationToken.None);
 
         Assert.Equal(new ScreenRect(0, 0, 2, 1), decoded.LogicalBounds);
         Assert.Equal(ScreenPixelFormat.Rgb24, decoded.PixelFormat);
@@ -55,75 +88,76 @@ public sealed class ScreenFramePngEncoderTests
     }
 
     [Fact]
-    public void Decode_WhenBytesAreNotPng_ThrowsClearFailure()
+    public async Task Decode_WhenBytesAreNotPng_ThrowsClearFailure()
     {
-        var act = () => ScreenFramePngDecoder.Decode([0x00, 0x01, 0x02]);
+        static Task<ScreenFrame> act() => ScreenFramePngDecoder.DecodeAsync(new byte[] { 0x00, 0x01, 0x02 }, CancellationToken.None);
 
-        Assert.Throws<InvalidDataException>(act);
+        _ = await Assert.ThrowsAsync<InvalidDataException>(act);
     }
 
     [Fact]
-    public void Decode_WhenDimensionsExceedSupportedLimit_ThrowsInvalidDataException()
+    public async Task Decode_WhenDimensionsExceedSupportedLimit_ThrowsInvalidDataException()
     {
-        var act = () => ScreenFramePngDecoder.Decode(CreateOversizedPngBytes());
+        static Task<ScreenFrame> act() => ScreenFramePngDecoder.DecodeAsync(CreateOversizedPngBytes(), CancellationToken.None);
 
-        var exception = Assert.Throws<InvalidDataException>(act);
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(act);
         Assert.Contains("maximum supported size of 7680x4320", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Decode_WhenIendIsMissing_ThrowsInvalidDataException()
+    public async Task Decode_WhenIendIsMissing_ThrowsInvalidDataException()
     {
         var png = Convert.FromBase64String(TransparentPngBase64);
 
-        var act = () => ScreenFramePngDecoder.Decode(png[..^12]);
+        Task<ScreenFrame> actAsync() => ScreenFramePngDecoder.DecodeAsync(png.AsMemory(0, png.Length - 12), CancellationToken.None);
 
-        Assert.Throws<InvalidDataException>(act);
+        _ = await Assert.ThrowsAsync<InvalidDataException>(actAsync);
     }
 
     [Fact]
-    public void Decode_WhenIdatZlibDataIsCorrupt_ThrowsInvalidDataException()
+    public async Task Decode_WhenIdatZlibDataIsCorrupt_ThrowsInvalidDataException()
     {
         var png = Convert.FromBase64String(TransparentPngBase64);
         png[41] ^= 0xFF;
 
-        var act = () => ScreenFramePngDecoder.Decode(png);
+        Task<ScreenFrame> actAsync() => ScreenFramePngDecoder.DecodeAsync(png, CancellationToken.None);
 
-        Assert.Throws<InvalidDataException>(act);
+        _ = await Assert.ThrowsAsync<InvalidDataException>(actAsync);
     }
 
     [Fact]
-    public void Decode_WhenChunkCrcIsInvalid_RejectsTheAsset()
+    public async Task Decode_WhenChunkCrcIsInvalid_RejectsTheAsset()
     {
         var png = Convert.FromBase64String(TransparentPngBase64);
         png[41] ^= 0x01;
 
-        var exception = Assert.Throws<InvalidDataException>(() => ScreenFramePngDecoder.Decode(png));
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() => ScreenFramePngDecoder.DecodeAsync(png, CancellationToken.None));
 
         Assert.Contains("CRC", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Policy_WhenChunkCrcIsInvalid_ReportsValidationFailure()
+    public async Task Policy_WhenChunkCrcIsInvalid_ReportsValidationFailure()
     {
         var png = Convert.FromBase64String(TransparentPngBase64);
         png[41] ^= 0x01;
 
-        var valid = ScreenImageAssetPolicy.TryValidateEncodedPng(png, out var error);
+        var validation = await ScreenImageAssetPolicy.TryValidateEncodedPngAsync(png, cancellationToken: CancellationToken.None);
 
-        Assert.False(valid);
-        Assert.Contains("CRC", error, StringComparison.OrdinalIgnoreCase);
+        Assert.False(validation.IsValid);
+        Assert.Contains("CRC", validation.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Policy_WhenPngIsMissingIdat_RejectsItBeforePersistence()
+    public async Task Policy_WhenPngIsMissingIdat_RejectsItBeforePersistence()
     {
         var png = Convert.FromBase64String(TransparentPngBase64);
         var idatStart = Array.IndexOf(png, (byte)'I', 8);
         var truncated = png[..idatStart];
 
-        Assert.False(ScreenImageAssetPolicy.TryValidateEncodedPng(truncated, out var error));
-        Assert.Contains("truncated", error, StringComparison.OrdinalIgnoreCase);
+        var validation = await ScreenImageAssetPolicy.TryValidateEncodedPngAsync(truncated, cancellationToken: CancellationToken.None);
+        Assert.False(validation.IsValid);
+        Assert.Contains("truncated", validation.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     private const string TransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";

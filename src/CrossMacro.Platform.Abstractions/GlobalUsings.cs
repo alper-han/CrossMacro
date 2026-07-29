@@ -1,3 +1,4 @@
+global using System.Globalization;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Buffers;

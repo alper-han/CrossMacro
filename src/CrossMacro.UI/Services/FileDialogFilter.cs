@@ -4,13 +4,13 @@ namespace CrossMacro.UI.Services;
 public class FileDialogFilter
 {
     public string Name { get; set; } = string.Empty;
-    public string[] Extensions { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> Extensions { get; set; } = [];
 
     public static string[] NormalizePatterns(IEnumerable<string>? extensions)
     {
         if (extensions is null)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
         return extensions

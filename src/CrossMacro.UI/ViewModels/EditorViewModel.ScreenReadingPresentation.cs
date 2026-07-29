@@ -3,22 +3,24 @@ namespace CrossMacro.UI.ViewModels;
 
 public partial class EditorViewModel
 {
-    private WriteableBitmap? _selectedImageAssetPreview;
-
-    public static IReadOnlyList<EditorActionScreenTargetColorSource> ScreenTargetColorSources => EditorScreenTargetColorSources;
+    public static IReadOnlyList<EditorActionScreenTargetColorSource> ScreenTargetColorSources { get; } =
+        [
+            EditorActionScreenTargetColorSource.ManualHex,
+            EditorActionScreenTargetColorSource.Variable,
+        ];
     public IReadOnlyList<EditorImageMatchMode> ImageMatchModes { get; } = Enum.GetValues<EditorImageMatchMode>();
     public bool ShowPixelColorFields => (SelectedAction?.Type) is EditorActionType.PixelColor;
     public bool ShowWaitColorFields => (SelectedAction?.Type) is EditorActionType.WaitColor;
     public bool ShowPixelSearchFields => (SelectedAction?.Type) is EditorActionType.PixelSearch;
     public bool ShowImageSearchFields => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
-    public WriteableBitmap? SelectedImageAssetPreview => _selectedImageAssetPreview;
+    public WriteableBitmap? SelectedImageAssetPreview { get; private set; }
     public bool ShowSelectedImageAssetPreview => ShowImageSearchFields && SelectedImageAssetPreview is not null;
     public bool ShowImageOutputVariableFields => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
     public bool ShowImageWaitTimeoutField => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
     public bool ShowScreenReadingFields => ShowPixelColorFields || ShowWaitColorFields || ShowPixelSearchFields || ShowImageSearchFields;
     public bool ShowScreenReadingColorFields => ShowWaitColorFields || ShowPixelSearchFields;
     public bool ShowScreenReadingPointFields => ShowPixelColorFields || ShowWaitColorFields;
-    public IReadOnlyList<string> AvailableColorVariableNames => _availableColorVariableNames;
+    public IReadOnlyList<string> AvailableColorVariableNames { get; private set; } = [];
     public bool HasAvailableColorVariableNames => AvailableColorVariableNames.Count > 0;
     public bool ShowScreenTargetColorHexInput => ShowScreenReadingColorFields
 && (SelectedAction?.ScreenTargetColorSource) is EditorActionScreenTargetColorSource.ManualHex;
@@ -69,7 +71,7 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ScreenReadingColorPreviewHex));
     }
 
-    private void RefreshSelectedImageAssetPreview()
+    private async Task RefreshSelectedImageAssetPreviewAsync()
     {
         SetSelectedImageAssetPreview(preview: null);
         if (!ShowImageSearchFields)
@@ -89,30 +91,47 @@ public partial class EditorViewModel
             return;
         }
 
+        var refreshVersion = Interlocked.Increment(ref _imageAssetPreviewRefreshVersion);
         try
         {
             var previewDecoder = _imageAssetPreviewDecoder
                 ?? throw new InvalidOperationException("Image asset preview decoder is not registered.");
-            SetSelectedImageAssetPreview(CreatePreviewBitmap(previewDecoder.Decode(encoded, assetName)));
+            var decoded = await previewDecoder.DecodeAsync(encoded, assetName, _viewModelCts.Token).ConfigureAwait(false);
+
+            // Marshal back to the UI thread; the version check drops stale results when the
+            // selection changes quickly.
+            await RunOnUiThreadAsync(() =>
+            {
+                if (refreshVersion == Volatile.Read(ref _imageAssetPreviewRefreshVersion))
+                {
+                    SetSelectedImageAssetPreview(CreatePreviewBitmap(decoded));
+                }
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // ViewModel kapanırken beklenen iptal.
         }
         catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
-            Status = string.Format(
+            await RunOnUiThreadAsync(() => Status = string.Format(
                 _localizationService.CurrentCulture,
                 Localize("Editor_StatusImagePreviewError"),
-                ex.Message);
+                ex.Message)).ConfigureAwait(false);
         }
     }
 
+    private int _imageAssetPreviewRefreshVersion;
+
     private void SetSelectedImageAssetPreview(WriteableBitmap? preview)
     {
-        if (ReferenceEquals(_selectedImageAssetPreview, preview))
+        if (ReferenceEquals(SelectedImageAssetPreview, preview))
         {
             return;
         }
 
-        var previous = _selectedImageAssetPreview;
-        _selectedImageAssetPreview = preview;
+        var previous = SelectedImageAssetPreview;
+        SelectedImageAssetPreview = preview;
         previous?.Dispose();
         OnPropertyChanged(nameof(SelectedImageAssetPreview));
         OnPropertyChanged(nameof(ShowSelectedImageAssetPreview));
@@ -175,17 +194,17 @@ public partial class EditorViewModel
             return false;
         }
 
-        hint = tokens[0].ToLowerInvariant() switch
+        hint = tokens[0].ToUpperInvariant() switch
         {
-            "window" => Localize("Editor_RawScriptHint_Window"),
-            "clipboard" => Localize("Editor_RawScriptHint_Clipboard"),
-            "shell" => Localize("Editor_RawScriptHint_Shell"),
-            "pixelcolor" => Localize("Editor_RawScreenReadingHint_PixelColor"),
-            "waitcolor" => Localize("Editor_RawScreenReadingHint_WaitColor"),
-            "pixelsearch" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
-            "imagesearch" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            "imageclick" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            "waitimage" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "WINDOW" => Localize("Editor_RawScriptHint_Window"),
+            "CLIPBOARD" => Localize("Editor_RawScriptHint_Clipboard"),
+            "SHELL" => Localize("Editor_RawScriptHint_Shell"),
+            "PIXELCOLOR" => Localize("Editor_RawScreenReadingHint_PixelColor"),
+            "WAITCOLOR" => Localize("Editor_RawScreenReadingHint_WaitColor"),
+            "PIXELSEARCH" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
+            "IMAGESEARCH" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "IMAGECLICK" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "WAITIMAGE" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             _ => string.Empty,
         };
 
@@ -206,14 +225,14 @@ public partial class EditorViewModel
             return false;
         }
 
-        hint = tokens[0].ToLowerInvariant() switch
+        hint = tokens[0].ToUpperInvariant() switch
         {
-            "pixelcolor" => Localize("Editor_RawScreenReadingHint_PixelColor"),
-            "waitcolor" => Localize("Editor_RawScreenReadingHint_WaitColor"),
-            "pixelsearch" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
-            "imagesearch" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            "imageclick" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            "waitimage" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "PIXELCOLOR" => Localize("Editor_RawScreenReadingHint_PixelColor"),
+            "WAITCOLOR" => Localize("Editor_RawScreenReadingHint_WaitColor"),
+            "PIXELSEARCH" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
+            "IMAGESEARCH" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "IMAGECLICK" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "WAITIMAGE" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             _ => string.Empty,
         };
 

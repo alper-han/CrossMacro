@@ -1,4 +1,6 @@
 
+using CrossMacro.UI.Hosting;
+
 namespace CrossMacro.UI.Windows;
 
 [SupportedOSPlatform("windows")]
@@ -20,68 +22,37 @@ internal static class Program
             startGui: () => CrossMacro.UI.Program.RunGui(
                 args,
                 ConfigureGuiServices,
-                ConfigureGuiRuntimeServices,
+                GuiHostBootstrap.ConfigureGuiRuntimeServices,
                 static appBuilder => appBuilder.UseWin32().UseSkia()),
             getVersionString: CrossMacro.UI.Program.GetVersionString,
             tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard,
-            bootstrapCallbacks: new CliBootstrapCallbacks(ConfigureInitialLogging, ConfigureCommandLogging, ConfigureHostLogging));
+            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks());
     }
 
     private static void ConfigurePlatformServices(IServiceCollection services)
     {
         new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
-        services.AddSingleton<IRuntimeContext, RuntimeContext>();
-        services.AddSingleton<IDisplayEnvironmentDiagnostic>(sp =>
-            (IDisplayEnvironmentDiagnostic)sp.GetRequiredService<IRuntimeContext>());
-        services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
+        _ = services.AddSingleton<IRuntimeContext, RuntimeContext>();
+        GuiHostBootstrap.AddRuntimeDiagnostics(services);
     }
 
     private static void ConfigureGuiServices(IServiceCollection services)
     {
         ConfigurePlatformServices(services);
-        services.AddSingleton<AvaloniaClipboardService>();
-        services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
-        services.AddSingleton<IUpdateService, GitHubUpdateService>();
+        GuiHostBootstrap.AddCommonGuiServices(services);
+        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
         WindowsPlatformServiceRegistrar.RegisterGuiImageClipboardServices(services);
-        services.AddSingleton<Func<CancellationToken, Task>>(sp =>
-            token => sp.GetRequiredService<IScreenReadingWarmupService>().WarmUpPortalSessionAsync(token));
     }
 
     private static void ConfigureCliServices(IServiceCollection services, CliRuntimeProfile runtimeProfile)
     {
         ConfigurePlatformServices(services);
         WindowsPlatformServiceRegistrar.RegisterCliClipboardServices(services);
-        services.AddCrossMacroCommonRuntimeServices();
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(
+        _ = services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
     }
 
-    private static void ConfigureGuiRuntimeServices(IServiceCollection services)
-    {
-        services.AddCrossMacroCommonRuntimeServices();
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(sp => sp.GetService<IInputSimulatorPool>());
-    }
-
-    private static void ConfigureInitialLogging(CliParseResult parseResult)
-    {
-        var json = parseResult.PrefersJsonOutput;
-        LoggerSetup.Initialize(json ? "Fatal" : SettingsService.TryLoadLogLevelEarly(), !json, !json);
-    }
-
-    private static void ConfigureCommandLogging(CliCommandOptions options)
-    {
-        LoggerSetup.SetLogLevel(options.JsonOutput
-            ? "Fatal"
-            : string.IsNullOrWhiteSpace(options.LogLevel) ? "Warning" : options.LogLevel);
-    }
-
-    private static void ConfigureHostLogging(CliCommandOptions options)
-    {
-        if (options.JsonOutput)
-        {
-            LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-        }
-    }
 }

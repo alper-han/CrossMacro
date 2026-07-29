@@ -1,17 +1,11 @@
 
 namespace CrossMacro.UI.ViewModels;
 
-public sealed class EditorMacroCreatedEventArgs : EventArgs
+public sealed class EditorMacroCreatedEventArgs(MacroSequence macro, string sourcePath) : EventArgs
 {
-    public EditorMacroCreatedEventArgs(MacroSequence macro, string sourcePath)
-    {
-        Macro = macro ?? throw new ArgumentNullException(nameof(macro));
-        SourcePath = string.IsNullOrWhiteSpace(sourcePath)
+    public MacroSequence Macro { get; } = macro ?? throw new ArgumentNullException(nameof(macro));
+
+    public string SourcePath { get; } = string.IsNullOrWhiteSpace(sourcePath)
             ? throw new ArgumentException("Source path cannot be null or whitespace.", nameof(sourcePath))
             : sourcePath;
-    }
-
-    public MacroSequence Macro { get; }
-
-    public string SourcePath { get; }
 }

@@ -9,7 +9,7 @@ public partial class EditorViewModel
         PreserveSurvivingSelection,
     }
 
-    private static readonly HashSet<string> UndoSkipProperties = new()
+    private static readonly HashSet<string> UndoSkipProperties = new(StringComparer.Ordinal)
     {
         nameof(EditorAction.DisplayName),
         nameof(EditorAction.Index),
@@ -79,7 +79,7 @@ public partial class EditorViewModel
             && string.Equals(left.ScreenFoundXVariableName, right.ScreenFoundXVariableName, StringComparison.Ordinal)
             && string.Equals(left.ScreenFoundYVariableName, right.ScreenFoundYVariableName, StringComparison.Ordinal)
             && string.Equals(left.ImageAssetName, right.ImageAssetName, StringComparison.Ordinal)
-            && left.ImageSearchSimilarity.Equals(right.ImageSearchSimilarity)
+            && left.ImageSearchSimilarity.CompareTo(right.ImageSearchSimilarity) is 0
             && left.ImageSearchDownsample == right.ImageSearchDownsample
             && left.ImageSearchScaleAware == right.ImageSearchScaleAware
             && left.ImageSearchMatchMode == right.ImageSearchMatchMode
@@ -114,7 +114,7 @@ public partial class EditorViewModel
             && left.PreferLegacyScriptText == right.PreferLegacyScriptText;
     }
 
-    private static bool AreStatesEquivalent(IReadOnlyList<EditorAction> left, IReadOnlyList<EditorAction> right)
+    private static bool AreStatesEquivalent(List<EditorAction> left, IReadOnlyList<EditorAction> right)
     {
         if (left.Count != right.Count)
         {
@@ -340,7 +340,7 @@ public partial class EditorViewModel
 
         if (e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.ImageAssetName))
         {
-            RefreshSelectedImageAssetPreview();
+            _ = RefreshSelectedImageAssetPreviewAsync();
         }
 
         if (e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.Text))
@@ -516,17 +516,17 @@ public partial class EditorViewModel
 
             if (action.Type is EditorActionType.WindowCommand)
             {
-                if (action.WindowCommandMode is WindowCommandMode.Search && !WindowSearchSelectorKinds.Contains(action.WindowSelectorKind))
+                if (action.WindowCommandMode is WindowCommandMode.Search && !WindowSearchSelectorKinds.Contains(action.WindowSelectorKind, StringComparer.Ordinal))
                 {
-                    action.WindowSelectorKind = WindowSearchSelectorKinds.FirstOrDefault() ?? string.Empty;
+                    action.WindowSelectorKind = WindowSearchSelectorKinds[0];
                 }
-                else if (action.WindowCommandMode is WindowCommandMode.Focus && !WindowFocusSelectorKinds.Contains(action.WindowSelectorKind))
+                else if (action.WindowCommandMode is WindowCommandMode.Focus && !WindowFocusSelectorKinds.Contains(action.WindowSelectorKind, StringComparer.Ordinal))
                 {
-                    action.WindowSelectorKind = WindowFocusSelectorKinds.FirstOrDefault() ?? string.Empty;
+                    action.WindowSelectorKind = WindowFocusSelectorKinds[0];
                 }
-                else if (action.WindowCommandMode is WindowCommandMode.Close && !WindowCloseSelectorKinds.Contains(action.WindowSelectorKind))
+                else if (action.WindowCommandMode is WindowCommandMode.Close && !WindowCloseSelectorKinds.Contains(action.WindowSelectorKind, StringComparer.Ordinal))
                 {
-                    action.WindowSelectorKind = WindowCloseSelectorKinds.FirstOrDefault() ?? string.Empty;
+                    action.WindowSelectorKind = WindowCloseSelectorKinds[0];
                 }
             }
         }
@@ -595,7 +595,7 @@ public partial class EditorViewModel
         SaveUndoState();
 
         var isCoordinateAction = UsesCoordinateFields(NewActionType);
-        var coordinateMode = isCoordinateAction ? GetCurrentCoordinateMode(insertionIndex) : true;
+        var coordinateMode = !isCoordinateAction || GetCurrentCoordinateMode(insertionIndex);
 
         var action = new EditorAction
         {
@@ -794,7 +794,7 @@ public partial class EditorViewModel
             return;
         }
 
-        RemoveActionsAtIndices(new[] { index }, "Editor_StatusRemovedAction", PostRemoveSelectionPolicy.ClearSelection);
+        RemoveActionsAtIndices([index], "Editor_StatusRemovedAction", PostRemoveSelectionPolicy.ClearSelection);
     }
 
     public void RemoveSelectedActions()
@@ -802,7 +802,7 @@ public partial class EditorViewModel
         var indices = SelectedActionUnderlyingIndices
             .Where(index => index >= 0 && index < Actions.Count)
             .Distinct()
-            .OrderBy(index => index)
+            .Order()
             .ToArray();
         if (indices.Length is 0)
         {
@@ -1014,7 +1014,7 @@ public partial class EditorViewModel
 
         SaveUndoState();
         Actions.Clear();
-        SetLoadWarnings(Array.Empty<EditorActionRestoreWarning>());
+        SetLoadWarnings([]);
         SelectedAction = null;
         Status = Localize("Editor_StatusClearedAllActions");
         OnPropertyChanged(nameof(HasActions));
@@ -1035,7 +1035,7 @@ public partial class EditorViewModel
 
         var selectedActionsBeforeRemoval = postRemoveSelectionPolicy is PostRemoveSelectionPolicy.PreserveSurvivingSelection
             ? GetSelectedActions()
-            : Array.Empty<EditorAction>();
+            : [];
 
         if (!CanApplyScriptStructureMutation(candidate => RemoveIndicesDescending(candidate, orderedIndices)))
         {
@@ -1071,7 +1071,7 @@ public partial class EditorViewModel
         return indices
             .Where(index => index >= 0 && index < Actions.Count)
             .Distinct()
-            .OrderBy(index => index)
+            .Order()
             .ToArray();
     }
 
@@ -1137,7 +1137,7 @@ public partial class EditorViewModel
     private void ClearActionSelection()
     {
         SelectedAction = null;
-        SetSelectedActionUnderlyingIndices(Array.Empty<int>());
+        SetSelectedActionUnderlyingIndices([]);
         SyncSelectedActionListItem();
     }
 
@@ -1388,7 +1388,7 @@ public partial class EditorViewModel
 
     private static void MoveIndicesUp(List<EditorAction> actions, IEnumerable<int> indices)
     {
-        foreach (var index in indices.OrderBy(index => index))
+        foreach (var index in indices.Order())
         {
             MoveAction(actions, index, index - 1);
         }
@@ -1396,13 +1396,13 @@ public partial class EditorViewModel
 
     private static void MoveIndicesDown(List<EditorAction> actions, IEnumerable<int> indices)
     {
-        foreach (var index in indices.OrderByDescending(index => index))
+        foreach (var index in indices.OrderDescending())
         {
             MoveAction(actions, index, index + 1);
         }
     }
 
-    private static void InsertClones(IList<EditorAction> actions, IReadOnlyList<int> indices, int insertionIndex)
+    private static void InsertClones(List<EditorAction> actions, IReadOnlyList<int> indices, int insertionIndex)
     {
         var clones = indices
             .Select(index => actions[index].Clone())
@@ -1415,7 +1415,7 @@ public partial class EditorViewModel
 
     private static void RemoveIndicesDescending(IList<EditorAction> actions, IEnumerable<int> indices)
     {
-        foreach (var index in indices.OrderByDescending(index => index))
+        foreach (var index in indices.OrderDescending())
         {
             actions.RemoveAt(index);
         }

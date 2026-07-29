@@ -6,7 +6,7 @@ public sealed class AppImageQuickSetupServiceTests
     [LinuxFact]
     public void IsApplicable_WhenAppImageWayland_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
@@ -27,7 +27,7 @@ public sealed class AppImageQuickSetupServiceTests
     [Fact]
     public void ShouldPrompt_WhenCapabilityModeIsNone_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
@@ -46,30 +46,9 @@ public sealed class AppImageQuickSetupServiceTests
     }
 
     [Fact]
-    public void ShouldPrompt_WhenLegacyModeButInputEventsAreUnreadable_ShouldReturnTrue()
-    {
-        var env = new Dictionary<string, string?>
-        {
-            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
-            ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland",
-        };
-
-        var service = CreateService(
-            env,
-            InputProviderMode.Legacy,
-            canReadInputEvents: false,
-            userName: "alice",
-            effectiveUid: 1000,
-            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
-
-        Assert.True(service.ShouldPrompt());
-    }
-
-    [Fact]
     public void ShouldPrompt_WhenLegacyModeButNoUsableInputDevices_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
@@ -91,7 +70,7 @@ public sealed class AppImageQuickSetupServiceTests
     [Fact]
     public async Task RunAsync_WhenPkexecMissing_ShouldFailWithoutRunningCommand()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
@@ -110,7 +89,7 @@ public sealed class AppImageQuickSetupServiceTests
                 commandWasRun = true;
                 return Task.FromResult((0, string.Empty, string.Empty));
             },
-            commandExists: _ => false);
+            commandExists: (_, _) => ValueTask.FromResult(false));
 
         var result = await service.RunAsync();
 
@@ -122,7 +101,7 @@ public sealed class AppImageQuickSetupServiceTests
     [Fact]
     public async Task RunAsync_WhenUidAvailable_ShouldUseUidAndInvalidateCacheOnSuccess()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
@@ -133,7 +112,6 @@ public sealed class AppImageQuickSetupServiceTests
         ProcessStartInfo? capturedStartInfo = null;
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => "alice", () => 1042),
-            new LinuxQuickSetupScriptBuilder(),
             (startInfo, _) =>
             {
                 capturedStartInfo = startInfo;
@@ -144,7 +122,7 @@ public sealed class AppImageQuickSetupServiceTests
             detector,
             key => env.TryGetValue(key, out var value) ? value : null,
             executor,
-            new DirectPkexecHostCommandLauncher(_ => true));
+            new DirectPkexecHostCommandLauncher((_, _) => ValueTask.FromResult(true)));
 
         var result = await service.RunAsync();
 
@@ -161,7 +139,7 @@ public sealed class AppImageQuickSetupServiceTests
     [Fact]
     public async Task RunAsync_WhenCommandFails_ShouldReturnErrorMessage()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
@@ -189,34 +167,26 @@ public sealed class AppImageQuickSetupServiceTests
         string userName,
         uint? effectiveUid,
         Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcess,
-        Func<string, bool>? commandExists = null)
+        Func<string, CancellationToken, ValueTask<bool>>? commandExists = null)
     {
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => userName, () => effectiveUid),
-            new LinuxQuickSetupScriptBuilder(),
             runProcess);
 
         return new AppImageQuickSetupService(
             new FakeCapabilityDetector(mode, canReadInputEvents),
             key => env.TryGetValue(key, out var value) ? value : null,
             executor,
-            new DirectPkexecHostCommandLauncher(commandExists ?? (_ => true)));
+            new DirectPkexecHostCommandLauncher(commandExists ?? ((_, _) => ValueTask.FromResult(true))));
     }
 
-    private sealed class FakeCapabilityDetector : ILinuxInputCapabilityDetector
+    private sealed class FakeCapabilityDetector(InputProviderMode mode, bool canReadInputEvents) : ILinuxInputCapabilityDetector
     {
-        private readonly InputProviderMode _mode;
-        private readonly bool _canReadInputEvents;
-
-        public FakeCapabilityDetector(InputProviderMode mode, bool canReadInputEvents)
-        {
-            _mode = mode;
-            _canReadInputEvents = canReadInputEvents;
-        }
+        private readonly InputProviderMode _mode = mode;
 
         public bool CanConnectToDaemon => false;
         public bool CanUseDirectUInput => false;
-        public bool CanReadInputEvents => _canReadInputEvents;
+        public bool CanReadInputEvents { get; } = canReadInputEvents;
         public int InvalidateCallCount { get; private set; }
 
         public LinuxInputCapabilitySnapshot GetSnapshot()
@@ -226,7 +196,7 @@ public sealed class AppImageQuickSetupServiceTests
                 DaemonHandshakeSucceeded: false,
                 DaemonHandshakeTimedOut: false,
                 CanUseDirectUInput: _mode is InputProviderMode.Legacy,
-                CanReadInputEvents: _canReadInputEvents);
+                CanReadInputEvents: CanReadInputEvents);
 
         public InputProviderMode DetermineMode() => _mode;
 

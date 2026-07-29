@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 
 [Collection("EnvironmentVariableSensitive")]
-public class LinuxPermissionCheckerTests
+public sealed class LinuxPermissionCheckerTests
 {
     [Fact]
     public void IsSupported_ShouldAlwaysBeTrue()

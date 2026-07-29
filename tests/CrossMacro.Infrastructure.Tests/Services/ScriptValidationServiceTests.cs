@@ -10,11 +10,11 @@ public sealed class ScriptValidationServiceTests
 
         var diagnostics = service.Validate([new RunScriptStep("move abs", SourceLineNumber: 12, SourceIndex: 4)]);
 
-        diagnostics.Should().ContainSingle();
-        diagnostics[0].Category.Should().Be(ScriptValidationCategory.Compilation);
-        diagnostics[0].SourceLineNumber.Should().Be(12);
-        diagnostics[0].SourceIndex.Should().Be(4);
-        diagnostics[0].Message.Should().Contain("Step");
+        _ = diagnostics.Should().ContainSingle();
+        _ = diagnostics[0].Category.Should().Be(ScriptValidationCategory.Compilation);
+        _ = diagnostics[0].SourceLineNumber.Should().Be(12);
+        _ = diagnostics[0].SourceIndex.Should().Be(4);
+        _ = diagnostics[0].Message.Should().Contain("Step");
     }
 
     [Fact]
@@ -22,6 +22,6 @@ public sealed class ScriptValidationServiceTests
     {
         var service = new ScriptValidationService(Substitute.For<IKeyCodeMapper>());
 
-        service.Validate([new RunScriptStep("click left")]).Should().BeEmpty();
+        _ = service.Validate([new RunScriptStep("click left")]).Should().BeEmpty();
     }
 }

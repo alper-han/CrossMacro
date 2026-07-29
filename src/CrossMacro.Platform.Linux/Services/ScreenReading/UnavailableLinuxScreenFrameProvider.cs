@@ -27,7 +27,5 @@ public sealed class UnavailableLinuxScreenFrameProvider : IScreenFrameProvider
         return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(ErrorKind, FailureMessage));
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

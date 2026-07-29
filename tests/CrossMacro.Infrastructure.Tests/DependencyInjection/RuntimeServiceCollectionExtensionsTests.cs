@@ -1,14 +1,14 @@
 namespace CrossMacro.Infrastructure.Tests.DependencyInjection;
 
 
-public class RuntimeServiceCollectionExtensionsTests
+public sealed class RuntimeServiceCollectionExtensionsTests
 {
     [Fact]
     public void AddCrossMacroSharedPostPlatformRuntimeServices_ThrowsForNullPoolResolver()
     {
         var services = new TestServiceCollection();
 
-        Assert.Throws<ArgumentNullException>(() =>
+        _ = Assert.Throws<ArgumentNullException>(() =>
             services.AddCrossMacroSharedPostPlatformRuntimeServices(null!));
     }
 
@@ -17,14 +17,14 @@ public class RuntimeServiceCollectionExtensionsTests
     {
         var services = new TestServiceCollection();
 
-        services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroCommonRuntimeServices();
 
         AssertImplementationRegistration<IRuntimeLogLevelService, RuntimeLogLevelService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IShellCommandRunner>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IHotkeyConfigurationService, HotkeyConfigurationService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ISettingsService, SettingsService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<HotkeySettings>(services, ServiceLifetime.Singleton);
-        services.Should().Contain(descriptor => descriptor.ServiceType == typeof(TimeProvider)
+        _ = services.Should().Contain(descriptor => descriptor.ServiceType == typeof(TimeProvider)
             && descriptor.ImplementationInstance == TimeProvider.System
             && descriptor.Lifetime == ServiceLifetime.Singleton);
         AssertFactoryRegistration<Func<ICoordinateStrategy, IInputEventProcessor>>(services, ServiceLifetime.Singleton);
@@ -35,26 +35,26 @@ public class RuntimeServiceCollectionExtensionsTests
     public void AddCrossMacroCommonRuntimeServices_ResolvesShellCommandRunnerOutsideFlatpak()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IRuntimeContext>(new TestRuntimeContext(isFlatpak: false));
+        _ = services.AddSingleton<IRuntimeContext>(new TestRuntimeContext(isFlatpak: false));
 
-        services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroCommonRuntimeServices();
 
         var runner = ResolveShellRunnerFromDescriptor(services, new TestRuntimeContext(isFlatpak: false));
 
-        Assert.IsType<ShellCommandRunner>(runner);
+        _ = Assert.IsType<ShellCommandRunner>(runner);
     }
 
     [Fact]
     public void AddCrossMacroCommonRuntimeServices_DisablesShellCommandRunnerInFlatpak()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IRuntimeContext>(new TestRuntimeContext(isFlatpak: true));
+        _ = services.AddSingleton<IRuntimeContext>(new TestRuntimeContext(isFlatpak: true));
 
-        services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroCommonRuntimeServices();
 
         var runner = ResolveShellRunnerFromDescriptor(services, new TestRuntimeContext(isFlatpak: true));
 
-        Assert.IsType<FlatpakDisabledShellCommandRunner>(runner);
+        _ = Assert.IsType<FlatpakDisabledShellCommandRunner>(runner);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class RuntimeServiceCollectionExtensionsTests
     {
         var services = new TestServiceCollection();
 
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
 
         AssertImplementationRegistration<IKeyCodeMapper, KeyCodeMapper>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IMacroFileManager, MacroFileManager>(services, ServiceLifetime.Singleton);
@@ -75,7 +75,7 @@ public class RuntimeServiceCollectionExtensionsTests
         AssertFactoryRegistration<IScreenshotCaptureService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<CrossMacro.Platform.Abstractions.IScreenReadingWarmupService, ScreenReadingWarmupService>(services, ServiceLifetime.Singleton);
 
-        AssertImplementationRegistration<PlaybackValidator, PlaybackValidator>(services, ServiceLifetime.Transient);
+        AssertImplementationRegistration<IPlaybackValidator, PlaybackValidator>(services, ServiceLifetime.Transient);
         AssertFactoryRegistration<IMacroPlayer>(services, ServiceLifetime.Transient);
         AssertFactoryRegistration<Func<IMacroPlayer>>(services, ServiceLifetime.Singleton);
 
@@ -83,6 +83,11 @@ public class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IScheduledTaskExecutor, MacroScheduledTaskExecutor>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ISchedulerService, SchedulerService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IShortcutService, ShortcutService>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<ProfileSwitchRequestBridge, ProfileSwitchRequestBridge>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IProfileSwitchRequests>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ITriggerService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IProfileCatalog>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IProfileManager>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextExpansionStorageService, TextExpansionStorageService>(services, ServiceLifetime.Singleton);
 
         AssertImplementationRegistration<IInputProcessor, InputProcessor>(services, ServiceLifetime.Singleton);
@@ -100,14 +105,14 @@ public class RuntimeServiceCollectionExtensionsTests
     {
         var services = new ServiceCollection();
 
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
 
         var descriptor = Assert.Single(services, d => d.ServiceType == typeof(IScreenshotCaptureService));
         Assert.NotNull(descriptor.ImplementationFactory);
 
         var screenshotCaptureService = descriptor.ImplementationFactory(new TestServiceProvider(new TestRuntimeContext(isFlatpak: false)));
 
-        Assert.IsType<ScreenshotCaptureService>(screenshotCaptureService);
+        _ = Assert.IsType<ScreenshotCaptureService>(screenshotCaptureService);
     }
 
     private static void AssertImplementationRegistration<TService, TImplementation>(
@@ -139,32 +144,20 @@ public class RuntimeServiceCollectionExtensionsTests
             descriptor.ImplementationFactory(new TestServiceProvider(runtimeContext)));
     }
 
-    private sealed class TestServiceCollection : List<ServiceDescriptor>, IServiceCollection
-    {
-    }
+    private sealed class TestServiceCollection : List<ServiceDescriptor>, IServiceCollection;
 
-    private sealed class TestRuntimeContext : IRuntimeContext
+    private sealed class TestRuntimeContext(bool isFlatpak) : IRuntimeContext
     {
-        public TestRuntimeContext(bool isFlatpak)
-        {
-            IsFlatpak = isFlatpak;
-        }
-
         public bool IsLinux => true;
         public bool IsWindows => false;
         public bool IsMacOS => false;
-        public bool IsFlatpak { get; }
+        public bool IsFlatpak { get; } = isFlatpak;
         public string? SessionType => "wayland";
     }
 
-    private sealed class TestServiceProvider : IServiceProvider
+    private sealed class TestServiceProvider(IRuntimeContext runtimeContext) : IServiceProvider
     {
-        private readonly IRuntimeContext _runtimeContext;
-
-        public TestServiceProvider(IRuntimeContext runtimeContext)
-        {
-            _runtimeContext = runtimeContext;
-        }
+        private readonly IRuntimeContext _runtimeContext = runtimeContext;
 
         public object? GetService(Type serviceType) =>
             serviceType == typeof(IRuntimeContext)

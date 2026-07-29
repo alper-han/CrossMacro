@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Tests.Security;
 
-public class PolkitCheckerTests
+public sealed class PolkitCheckerTests
 {
     [Fact]
     public void Actions_ShouldUseCanonicalIoGithubNamespace()

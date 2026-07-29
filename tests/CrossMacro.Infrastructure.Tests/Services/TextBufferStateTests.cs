@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class TextBufferStateTests
+public sealed class TextBufferStateTests
 {
     private readonly TextBufferState _buffer;
 
@@ -24,8 +24,8 @@ public class TextBufferStateTests
             new() { IsEnabled = true, Trigger = "abc", Replacement = "test" },
         };
 
-        _buffer.TryGetMatch(expansions, out var match).Should().BeTrue();
-        match!.Trigger.Should().Be("abc");
+        _ = _buffer.TryGetMatch(expansions, out var match).Should().BeTrue();
+        _ = match!.Trigger.Should().Be("abc");
     }
 
     [Fact]
@@ -46,8 +46,8 @@ public class TextBufferStateTests
             new() { IsEnabled = true, Trigger = "ab", Replacement = "test2" },
         };
 
-        _buffer.TryGetMatch(expansions, out var match).Should().BeTrue();
-        match!.Trigger.Should().Be("ab");
+        _ = _buffer.TryGetMatch(expansions, out var match).Should().BeTrue();
+        _ = match!.Trigger.Should().Be("ab");
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class TextBufferStateTests
             new() { IsEnabled = true, Trigger = "xy", Replacement = "test" },
         };
 
-        _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
+        _ = _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
     }
 
     [Fact]
@@ -85,9 +85,9 @@ public class TextBufferStateTests
         var result = _buffer.TryGetMatch(expansions, out var match);
 
         // Assert
-        result.Should().BeTrue();
-        match.Should().NotBeNull();
-        match!.Replacement.Should().Be("hello");
+        _ = result.Should().BeTrue();
+        _ = match.Should().NotBeNull();
+        _ = match!.Replacement.Should().Be("hello");
     }
 
     [Fact]
@@ -106,8 +106,8 @@ public class TextBufferStateTests
         var result = _buffer.TryGetMatch(expansions, out var match);
 
         // Assert
-        result.Should().BeFalse();
-        match.Should().BeNull();
+        _ = result.Should().BeFalse();
+        _ = match.Should().BeNull();
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class TextBufferStateTests
         var result = _buffer.TryGetMatch(expansions, out _);
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -147,8 +147,8 @@ public class TextBufferStateTests
         var result = _buffer.TryGetMatch(expansions, out var match);
 
         // Assert - should match "hi" at end
-        result.Should().BeTrue();
-        match!.Trigger.Should().Be("hi");
+        _ = result.Should().BeTrue();
+        _ = match!.Trigger.Should().Be("hi");
     }
 
     [Fact]
@@ -164,6 +164,6 @@ public class TextBufferStateTests
             new() { IsEnabled = true, Trigger = "", Replacement = "test" },
         };
 
-        _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
+        _ = _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
     }
 }

@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Linux.Tests.PlatformAbstractions;
 
-public class ScreenFrameTests
+public sealed class ScreenFrameTests
 {
     [Fact]
     public void GetPixel_UsesStrideAndGlobalLogicalCoordinates()
@@ -189,7 +189,7 @@ public class ScreenFrameTests
     [Fact]
     public void IsRectangleFullyValid_RejectsGapUsingIndexedMask()
     {
-        using var index = ScreenFrameValidityIndex.Create(new byte[] { 1, 0, 1, 1 }, 2, 2);
+        using var index = ScreenFrameValidityIndex.Create([1, 0, 1, 1], 2, 2);
         using var frame = new ScreenFrame(
             new ScreenRect(-3, 7, 2, 2),
             stride: 6,
@@ -207,7 +207,7 @@ public class ScreenFrameTests
     [Fact]
     public void Dispose_ReleasesValidityIndexOwnership()
     {
-        var index = ScreenFrameValidityIndex.Create(new byte[] { 1, 0 }, 2, 1);
+        var index = ScreenFrameValidityIndex.Create([1, 0], 2, 1);
         var frame = new ScreenFrame(
             new ScreenRect(0, 0, 2, 1),
             stride: 6,
@@ -218,7 +218,7 @@ public class ScreenFrameTests
 
         frame.Dispose();
 
-        Assert.Throws<ObjectDisposedException>(() => index.IsRectangleFullyValid(
+        _ = Assert.Throws<ObjectDisposedException>(() => index.IsRectangleFullyValid(
             new ScreenRect(0, 0, 1, 1),
             new ScreenRect(0, 0, 2, 1)));
     }

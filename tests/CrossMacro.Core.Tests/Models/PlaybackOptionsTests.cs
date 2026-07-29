@@ -2,7 +2,7 @@
 namespace CrossMacro.Core.Tests.Models;
 
 
-public class PlaybackOptionsTests
+public sealed class PlaybackOptionsTests
 {
     [Fact]
     public void NewPlaybackOptions_HasCorrectDefaultValues()
@@ -11,90 +11,96 @@ public class PlaybackOptionsTests
         var options = new PlaybackOptions();
 
         // Assert
-        options.SpeedMultiplier.Should().Be(1.0);
-        options.Loop.Should().BeFalse();
-        options.RepeatCount.Should().Be(1);
-        options.RepeatDelayMs.Should().Be(0);
+        _ = options.SpeedMultiplier.Should().Be(1.0);
+        _ = options.Loop.Should().BeFalse();
+        _ = options.RepeatCount.Should().Be(1);
+        _ = options.RepeatDelayMs.Should().Be(0);
     }
 
     [Fact]
     public void PlaybackOptions_CanSetSpeedMultiplier()
     {
         // Arrange
-        var options = new PlaybackOptions();
-
-        // Act
-        options.SpeedMultiplier = 0.5;
+        var options = new PlaybackOptions
+        {
+            // Act
+            SpeedMultiplier = 0.5,
+        };
 
         // Assert
-        options.SpeedMultiplier.Should().Be(0.5);
+        _ = options.SpeedMultiplier.Should().Be(0.5);
     }
 
     [Fact]
     public void PlaybackOptions_CanSetDoubleSpeed()
     {
         // Arrange
-        var options = new PlaybackOptions();
-
-        // Act
-        options.SpeedMultiplier = 2.0;
+        var options = new PlaybackOptions
+        {
+            // Act
+            SpeedMultiplier = 2.0,
+        };
 
         // Assert
-        options.SpeedMultiplier.Should().Be(2.0);
+        _ = options.SpeedMultiplier.Should().Be(2.0);
     }
 
     [Fact]
     public void PlaybackOptions_CanEnableLoop()
     {
         // Arrange
-        var options = new PlaybackOptions();
-
-        // Act
-        options.Loop = true;
+        var options = new PlaybackOptions
+        {
+            // Act
+            Loop = true,
+        };
 
         // Assert
-        options.Loop.Should().BeTrue();
+        _ = options.Loop.Should().BeTrue();
     }
 
     [Fact]
     public void PlaybackOptions_CanSetRepeatCount()
     {
         // Arrange
-        var options = new PlaybackOptions();
-
-        // Act
-        options.RepeatCount = 5;
+        var options = new PlaybackOptions
+        {
+            // Act
+            RepeatCount = 5,
+        };
 
         // Assert
-        options.RepeatCount.Should().Be(5);
+        _ = options.RepeatCount.Should().Be(5);
     }
 
     [Fact]
     public void PlaybackOptions_ZeroRepeatCountMeansInfinite()
     {
         // Arrange
-        var options = new PlaybackOptions();
-
-        // Act
-        options.Loop = true;
-        options.RepeatCount = 0;
+        var options = new PlaybackOptions
+        {
+            // Act
+            Loop = true,
+            RepeatCount = 0,
+        };
 
         // Assert - 0 means infinite when Loop is true
-        options.RepeatCount.Should().Be(0);
-        options.Loop.Should().BeTrue();
+        _ = options.RepeatCount.Should().Be(0);
+        _ = options.Loop.Should().BeTrue();
     }
 
     [Fact]
     public void PlaybackOptions_CanSetRepeatDelay()
     {
         // Arrange
-        var options = new PlaybackOptions();
-
-        // Act
-        options.RepeatDelayMs = 1000;
+        var options = new PlaybackOptions
+        {
+            // Act
+            RepeatDelayMs = 1000,
+        };
 
         // Assert
-        options.RepeatDelayMs.Should().Be(1000);
+        _ = options.RepeatDelayMs.Should().Be(1000);
     }
 
     [Theory]
@@ -108,14 +114,15 @@ public class PlaybackOptionsTests
     public void PlaybackOptions_NormalizesSpeedMultipliers(double speed, double? expected = null)
     {
         // Arrange
-        var options = new PlaybackOptions();
-
-        // Act
-        options.SpeedMultiplier = speed;
+        var options = new PlaybackOptions
+        {
+            // Act
+            SpeedMultiplier = speed,
+        };
         options.Normalize();
 
         // Assert
-        options.SpeedMultiplier.Should().Be(expected ?? speed);
+        _ = options.SpeedMultiplier.Should().Be(expected ?? speed);
     }
 
     [Theory]
@@ -128,6 +135,6 @@ public class PlaybackOptionsTests
         var normalized = PlaybackOptions.NormalizeSpeedMultiplier(speed);
 
         // Assert
-        normalized.Should().Be(PlaybackOptions.DefaultSpeedMultiplier);
+        _ = normalized.Should().Be(PlaybackOptions.DefaultSpeedMultiplier);
     }
 }

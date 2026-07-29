@@ -1,20 +1,20 @@
 
 namespace CrossMacro.Platform.Windows.Native;
 
-internal static class Dwmapi
+internal static partial class Dwmapi
 {
     internal const uint DWMWA_EXTENDED_FRAME_BOUNDS = 9;
     internal const uint DWMWA_CLOAKED = 14;
 
-    [DllImport("dwmapi.dll", PreserveSig = true)]
-    internal static extern int DwmGetWindowAttribute(
+    [LibraryImport("dwmapi.dll")]
+    internal static partial int DwmGetWindowAttribute(
         IntPtr hwnd,
         uint dwAttribute,
-        out RECT pvAttribute,
+        out RectStruct pvAttribute,
         int cbAttribute);
 
-    [DllImport("dwmapi.dll", PreserveSig = true)]
-    internal static extern int DwmGetWindowAttribute(
+    [LibraryImport("dwmapi.dll")]
+    internal static partial int DwmGetWindowAttribute(
         IntPtr hwnd,
         uint dwAttribute,
         out int pvAttribute,

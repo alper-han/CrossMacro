@@ -1,4 +1,3 @@
-
 namespace CrossMacro.Platform.Windows.Helpers;
 
 internal static class WindowsKeyMap
@@ -7,6 +6,16 @@ internal static class WindowsKeyMap
     private static readonly Dictionary<ushort, int> _vkToEvdev = new();
 
     static WindowsKeyMap()
+    {
+        InitializeAlphabet();
+        InitializeKeyboardBasics();
+        InitializeKeyboardNavigation();
+        InitializeFunctionKeys();
+        InitializeNumpadAndLocks();
+        InitializeSpecialAndMedia();
+    }
+
+    private static void InitializeAlphabet()
     {
         Add(InputEventCode.KEY_A, 0x41);
         Add(InputEventCode.KEY_B, 0x42);
@@ -34,7 +43,10 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_X, 0x58);
         Add(InputEventCode.KEY_Y, 0x59);
         Add(InputEventCode.KEY_Z, 0x5A);
+    }
 
+    private static void InitializeKeyboardBasics()
+    {
         Add(InputEventCode.KEY_0, 0x30);
         Add(InputEventCode.KEY_1, 0x31);
         Add(InputEventCode.KEY_2, 0x32);
@@ -60,7 +72,10 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_TAB, 0x09);
         Add(InputEventCode.KEY_SPACE, 0x20);
         Add(InputEventCode.KEY_CAPSLOCK, 0x14);
+    }
 
+    private static void InitializeKeyboardNavigation()
+    {
         Add(InputEventCode.KEY_UP, 0x26);
         Add(InputEventCode.KEY_DOWN, 0x28);
         Add(InputEventCode.KEY_LEFT, 0x25);
@@ -71,7 +86,10 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_END, 0x23);
         Add(InputEventCode.KEY_PAGEUP, 0x21);
         Add(InputEventCode.KEY_PAGEDOWN, 0x22);
+    }
 
+    private static void InitializeFunctionKeys()
+    {
         Add(InputEventCode.KEY_F1, 0x70);
         Add(InputEventCode.KEY_F2, 0x71);
         Add(InputEventCode.KEY_F3, 0x72);
@@ -85,43 +103,6 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_F11, 0x7A);
         Add(InputEventCode.KEY_F12, 0x7B);
 
-        Add(InputEventCode.KEY_MINUS, 0xBD);
-        Add(InputEventCode.KEY_EQUAL, 0xBB);
-        Add(InputEventCode.KEY_LEFTBRACE, 0xDB);
-        Add(InputEventCode.KEY_RIGHTBRACE, 0xDD);
-        Add(InputEventCode.KEY_SEMICOLON, 0xBA);
-        Add(InputEventCode.KEY_APOSTROPHE, 0xDE);
-        Add(InputEventCode.KEY_GRAVE, 0xC0);
-        Add(InputEventCode.KEY_BACKSLASH, 0xDC);
-        Add(InputEventCode.KEY_COMMA, 0xBC);
-        Add(InputEventCode.KEY_DOT, 0xBE);
-        Add(InputEventCode.KEY_SLASH, 0xBF);
-
-        // Numpad Support
-        Add(InputEventCode.KEY_KP0, 0x60);      // VK_NUMPAD0
-        Add(InputEventCode.KEY_KP1, 0x61);      // VK_NUMPAD1
-        Add(InputEventCode.KEY_KP2, 0x62);      // VK_NUMPAD2
-        Add(InputEventCode.KEY_KP3, 0x63);      // VK_NUMPAD3
-        Add(InputEventCode.KEY_KP4, 0x64);      // VK_NUMPAD4
-        Add(InputEventCode.KEY_KP5, 0x65);      // VK_NUMPAD5
-        Add(InputEventCode.KEY_KP6, 0x66);      // VK_NUMPAD6
-        Add(InputEventCode.KEY_KP7, 0x67);      // VK_NUMPAD7
-        Add(InputEventCode.KEY_KP8, 0x68);      // VK_NUMPAD8
-        Add(InputEventCode.KEY_KP9, 0x69);      // VK_NUMPAD9
-        Add(InputEventCode.KEY_KPASTERISK, 0x6A); // VK_MULTIPLY
-        Add(InputEventCode.KEY_KPPLUS, 0x6B);   // VK_ADD
-        Add(InputEventCode.KEY_KPENTER, 0x0D);  // VK_RETURN (Extended)
-        Add(InputEventCode.KEY_KPMINUS, 0x6D);  // VK_SUBTRACT
-        Add(InputEventCode.KEY_KPDOT, 0x6E);    // VK_DECIMAL
-        Add(InputEventCode.KEY_KPSLASH, 0x6F);  // VK_DIVIDE
-
-        // Lock & Special Keys
-        Add(InputEventCode.KEY_NUMLOCK, 0x90);  // VK_NUMLOCK
-        Add(InputEventCode.KEY_SCROLLLOCK, 0x91); // VK_SCROLL
-        Add(InputEventCode.KEY_SYSRQ, 0x2C);    // VK_SNAPSHOT (PrintScreen)
-        Add(InputEventCode.KEY_PAUSE, 0x13);    // VK_PAUSE
-
-        // Extended Function Keys
         Add(InputEventCode.KEY_F13, 0x7C);
         Add(InputEventCode.KEY_F14, 0x7D);
         Add(InputEventCode.KEY_F15, 0x7E);
@@ -134,10 +115,47 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_F22, 0x85);
         Add(InputEventCode.KEY_F23, 0x86);
         Add(InputEventCode.KEY_F24, 0x87);
+    }
 
-        // Previous hardcoded mappings replaced/merged above
+    private static void InitializeNumpadAndLocks()
+    {
+        Add(InputEventCode.KEY_KP0, 0x60);      // VK_NUMPAD0
+        Add(InputEventCode.KEY_KP1, 0x61);      // VK_NUMPAD1
+        Add(InputEventCode.KEY_KP2, 0x62);      // VK_NUMPAD2
+        Add(InputEventCode.KEY_KP3, 0x63);      // VK_NUMPAD3
+        Add(InputEventCode.KEY_KP4, 0x64);      // VK_NUMPAD4
+        Add(InputEventCode.KEY_KP5, 0x65);      // VK_NUMPAD5
+        Add(InputEventCode.KEY_KP6, 0x66);      // VK_NUMPAD6
+        Add(InputEventCode.KEY_KP7, 0x67);      // VK_NUMPAD7
+        Add(InputEventCode.KEY_KP8, 0x68);      // VK_NUMPAD8
+        Add(InputEventCode.KEY_KP9, 0x69);      // VK_NUMPAD9
+        Add(InputEventCode.KEY_KPASTERISK, 0x6A); // VK_MULTIPLY
+        Add(InputEventCode.KEY_KPPLUS, 0x6B);   // VK_ADD
+        Add(InputEventCode.KEY_KPENTER, 0x0D, addReverseMapping: false); // VK_RETURN (Extended)
+        Add(InputEventCode.KEY_KPMINUS, 0x6D);  // VK_SUBTRACT
+        Add(InputEventCode.KEY_KPDOT, 0x6E);    // VK_DECIMAL
+        Add(InputEventCode.KEY_KPSLASH, 0x6F);  // VK_DIVIDE
 
-        // Media Keys
+        Add(InputEventCode.KEY_NUMLOCK, 0x90);  // VK_NUMLOCK
+        Add(InputEventCode.KEY_SCROLLLOCK, 0x91); // VK_SCROLL
+        Add(InputEventCode.KEY_SYSRQ, 0x2C);    // VK_SNAPSHOT (PrintScreen)
+        Add(InputEventCode.KEY_PAUSE, 0x13);    // VK_PAUSE
+    }
+
+    private static void InitializeSpecialAndMedia()
+    {
+        Add(InputEventCode.KEY_MINUS, 0xBD);
+        Add(InputEventCode.KEY_EQUAL, 0xBB);
+        Add(InputEventCode.KEY_LEFTBRACE, 0xDB);
+        Add(InputEventCode.KEY_RIGHTBRACE, 0xDD);
+        Add(InputEventCode.KEY_SEMICOLON, 0xBA);
+        Add(InputEventCode.KEY_APOSTROPHE, 0xDE);
+        Add(InputEventCode.KEY_GRAVE, 0xC0);
+        Add(InputEventCode.KEY_BACKSLASH, 0xDC);
+        Add(InputEventCode.KEY_COMMA, 0xBC);
+        Add(InputEventCode.KEY_DOT, 0xBE);
+        Add(InputEventCode.KEY_SLASH, 0xBF);
+
         Add(InputEventCode.KEY_MUTE, 0xAD);         // VK_VOLUME_MUTE
         Add(InputEventCode.KEY_VOLUMEDOWN, 0xAE);   // VK_VOLUME_DOWN
         Add(InputEventCode.KEY_VOLUMEUP, 0xAF);     // VK_VOLUME_UP
@@ -147,43 +165,36 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_PLAYPAUSE, 0xB3);    // VK_MEDIA_PLAY_PAUSE
         Add(InputEventCode.KEY_MENU, 0x5D);         // VK_APPS (Context Menu)
 
-        // Generic Modifiers (Fail-safe) removed to prevent overwriting explicit mappings
-        // The explicit mappings (0xA0 etc) should be prioritized for GetVirtualKey
-
-        // Browser Keys
         Add(InputEventCode.KEY_WWW, 0xAC);          // VK_BROWSER_HOME
         Add(InputEventCode.KEY_MAIL, 0xB4);         // VK_LAUNCH_MAIL
 
-        // Forced Overrides for critical keys
         Add(InputEventCode.KEY_CAPSLOCK, 0x14);     // VK_CAPITAL
         Add(InputEventCode.KEY_SCROLLLOCK, 0x91);   // VK_SCROLL
 
-        // ISO/International Keys
-        Add(86, 0xE2);                              // VK_OEM_102 (KEY_102ND - ISO extra key between left shift and Z)
+        Add(86, 0xE2);                              // VK_OEM_102 (KEY_102ND)
 
-        // Japanese IME Keys
         Add(InputEventCode.KEY_HANGUEL, 0x15);      // VK_HANGUL / VK_KANA
         Add(InputEventCode.KEY_HANJA, 0x19);        // VK_HANJA / VK_KANJI
 
-        // System Control Keys (Sun keyboard style)
-        Add(InputEventCode.KEY_STOP, 0xF8);         // No direct VK, using reserved
-        Add(InputEventCode.KEY_COPY, 0xF9);         // No direct VK, using reserved
-        Add(InputEventCode.KEY_PASTE, 0xFA);        // No direct VK, using reserved
-        Add(InputEventCode.KEY_CUT, 0xFB);          // No direct VK, using reserved
-        Add(InputEventCode.KEY_UNDO, 0xFC);         // No direct VK, using reserved
-        Add(InputEventCode.KEY_FIND, 0xFD);         // No direct VK, using reserved
+        Add(InputEventCode.KEY_STOP, 0xF8);
+        Add(InputEventCode.KEY_COPY, 0xF9);
+        Add(InputEventCode.KEY_PASTE, 0xFA);
+        Add(InputEventCode.KEY_CUT, 0xFB);
+        Add(InputEventCode.KEY_UNDO, 0xFC);
+        Add(InputEventCode.KEY_FIND, 0xFD);
         Add(InputEventCode.KEY_HELP, 0x2F);         // VK_HELP
 
-        // Additional Browser/App Launch Keys
         Add(InputEventCode.KEY_OPEN, 0xB6);         // VK_LAUNCH_APP1
         Add(InputEventCode.KEY_PROPS, 0xB7);        // VK_LAUNCH_APP2
     }
 
-    private static void Add(int evdev, ushort vk)
+    private static void Add(int evdev, ushort vk, bool addReverseMapping = true)
     {
-        // Last-one-wins strategy for reliability
         _evdevToVk[evdev] = vk;
-        _vkToEvdev[vk] = evdev;
+        if (addReverseMapping)
+        {
+            _vkToEvdev[vk] = evdev;
+        }
     }
 
     public static ushort GetVirtualKey(int evdevCode)

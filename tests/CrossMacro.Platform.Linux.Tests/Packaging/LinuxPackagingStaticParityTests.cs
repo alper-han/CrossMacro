@@ -96,7 +96,7 @@ public sealed partial class LinuxPackagingStaticParityTests
     [Fact]
     public void PackageSources_ShouldReferenceDaemonServicePolkitUdevAndModulesAssets()
     {
-        var requiredReferencesBySource = new Dictionary<string, string[]>
+        var requiredReferencesBySource = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["scripts/packaging/deb/build.sh"] =
             [
@@ -274,7 +274,7 @@ public sealed partial class LinuxPackagingStaticParityTests
             .Select(line => line.Trim())
             .Single(line => line.StartsWith("depends=", StringComparison.Ordinal));
 
-        return Regex.Matches(dependsLine, "'([^']+)'", RegexOptions.NonBacktracking)
+        return ArchDependencyRegex.Matches(dependsLine)
             .Select(match => match.Groups[1].Value)
             .ToArray();
     }
@@ -349,4 +349,7 @@ public sealed partial class LinuxPackagingStaticParityTests
 
     [GeneratedRegex("io\\.github\\.alper_han\\.crossmacro\\.input-(?:capture|simulate)", RegexOptions.NonBacktracking)]
     private static partial Regex PolkitActionIdRegex();
+
+    [GeneratedRegex("'(?<dependency>[^']+)'", RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    private static partial Regex ArchDependencyRegex { get; }
 }

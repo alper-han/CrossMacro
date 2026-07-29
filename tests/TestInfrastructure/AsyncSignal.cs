@@ -1,9 +1,9 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class AsyncSignal
+internal sealed class AsyncSignal
 {
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private TaskCompletionSource<bool> _completionSource = CreateCompletionSource();
 
     public bool IsSignaled
@@ -21,7 +21,7 @@ public sealed class AsyncSignal
     {
         lock (_sync)
         {
-            _completionSource.TrySetResult(true);
+            _ = _completionSource.TrySetResult(true);
         }
     }
 

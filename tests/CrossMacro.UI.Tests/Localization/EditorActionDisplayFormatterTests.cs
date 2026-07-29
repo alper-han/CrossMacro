@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.Localization;
 
-public class EditorActionDisplayFormatterTests
+public sealed class EditorActionDisplayFormatterTests
 {
     [Theory]
     [InlineData(EditorActionType.PixelColor, "Editor_ActionType_PixelColor", "Pixel Color")]
@@ -9,29 +9,18 @@ public class EditorActionDisplayFormatterTests
     [InlineData(EditorActionType.PixelSearch, "Editor_ActionType_PixelSearch", "Pixel Search")]
     [InlineData(EditorActionType.ImageClick, "Editor_ActionType_ImageClick", "Image Click")]
     [InlineData(EditorActionType.WaitImage, "Editor_ActionType_WaitImage", "Wait Image")]
-    public void FormatActionType_ForScreenReadingActions_UsesLocalizedLabels(
-        EditorActionType actionType,
-        string resourceKey,
-        string expected)
-    {
-        var formatter = CreateFormatter(resourceKey, expected);
-
-        formatter.FormatActionType(actionType).Should().Be(expected);
-    }
-
-    [Theory]
     [InlineData(EditorActionType.ClipboardGet, "Editor_ActionType_ClipboardGet", "Clipboard Get")]
     [InlineData(EditorActionType.ClipboardSet, "Editor_ActionType_ClipboardSet", "Clipboard Set")]
     [InlineData(EditorActionType.ShellCommand, "Editor_ActionType_ShellCommand", "Shell Command")]
     [InlineData(EditorActionType.Screenshot, "Editor_ActionType_Screenshot", "Screenshot")]
-    public void FormatActionType_ForClipboardActions_UsesLocalizedLabels(
+    public void FormatActionType_UsesLocalizedLabels(
         EditorActionType actionType,
         string resourceKey,
         string expected)
     {
         var formatter = CreateFormatter(resourceKey, expected);
 
-        formatter.FormatActionType(actionType).Should().Be(expected);
+        _ = formatter.FormatActionType(actionType).Should().Be(expected);
     }
 
     [Fact]
@@ -40,7 +29,7 @@ public class EditorActionDisplayFormatterTests
         var formatter = CreateFormatter("Editor_Action_ClipboardGet", "Read clipboard into {0}");
         var action = new EditorAction { Type = EditorActionType.ClipboardGet, ScriptVariableName = "clipText" };
 
-        formatter.Format(action).Should().Be("Read clipboard into clipText");
+        _ = formatter.Format(action).Should().Be("Read clipboard into clipText");
     }
 
     [Fact]
@@ -49,7 +38,7 @@ public class EditorActionDisplayFormatterTests
         var formatter = CreateFormatter("Editor_Action_ClipboardSet", "Set clipboard to \"{0}\"");
         var action = new EditorAction { Type = EditorActionType.ClipboardSet, Text = "hello" };
 
-        formatter.Format(action).Should().Be("Set clipboard to \"hello\"");
+        _ = formatter.Format(action).Should().Be("Set clipboard to \"hello\"");
     }
 
     [Fact]
@@ -66,26 +55,26 @@ public class EditorActionDisplayFormatterTests
             ShellStandardErrorVariableName = "_",
         };
 
-        formatter.Format(action).Should().Be("Run shell with input \"cat\" -> exitCode, stdout, _");
+        _ = formatter.Format(action).Should().Be("Run shell with input \"cat\" -> exitCode, stdout, _");
     }
 
     [Fact]
     public void Format_ForScreenshotClipboard_UsesClipboardDestination()
     {
-        var formatter = CreateFormatter(new Dictionary<string, string>
+        var formatter = CreateFormatter(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["Editor_Action_Screenshot"] = "Screenshot -> {0}",
             ["Editor_ScreenshotClipboardDestination"] = "clipboard",
         });
         var action = new EditorAction { Type = EditorActionType.Screenshot, ScreenshotCopyToClipboard = true };
 
-        formatter.Format(action).Should().Be("Screenshot -> clipboard");
+        _ = formatter.Format(action).Should().Be("Screenshot -> clipboard");
     }
 
     [Fact]
     public void Format_ForScreenshotRegionFileAndClipboard_IncludesRegionAndDestination()
     {
-        var formatter = CreateFormatter(new Dictionary<string, string>
+        var formatter = CreateFormatter(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["Editor_Action_ScreenshotRegion"] = "Screenshot ({0}, {1}, {2}x{3}) -> {4}",
             ["Editor_ScreenshotFileAndClipboardDestination"] = "{0} + clipboard",
@@ -102,7 +91,7 @@ public class EditorActionDisplayFormatterTests
             ScreenshotRegionHeight = "200",
         };
 
-        formatter.Format(action).Should().Be("Screenshot (10, 20, 300x200) -> ./shot.png + clipboard");
+        _ = formatter.Format(action).Should().Be("Screenshot (10, 20, 300x200) -> ./shot.png + clipboard");
     }
 
     [Fact]
@@ -118,7 +107,7 @@ public class EditorActionDisplayFormatterTests
             ScreenColorVariableName = "sample",
         };
 
-        formatter.Format(action).Should().Be("Pixel color (10, 20) -> sample");
+        _ = formatter.Format(action).Should().Be("Pixel color (10, 20) -> sample");
     }
 
     [Fact]
@@ -134,7 +123,7 @@ public class EditorActionDisplayFormatterTests
             ScreenColorVariableName = "sample",
         };
 
-        formatter.Format(action).Should().Be("Pixel color rel (+5, -3) -> sample");
+        _ = formatter.Format(action).Should().Be("Pixel color rel (+5, -3) -> sample");
     }
 
     [Fact]
@@ -151,7 +140,7 @@ public class EditorActionDisplayFormatterTests
             ScreenColorVariableName = "wait_ok",
         };
 
-        formatter.Format(action).Should().Be("Wait for 12ABEF at (30, 40) up to 2500ms -> wait_ok");
+        _ = formatter.Format(action).Should().Be("Wait for 12ABEF at (30, 40) up to 2500ms -> wait_ok");
     }
 
     [Fact]
@@ -172,7 +161,7 @@ public class EditorActionDisplayFormatterTests
             ScreenTolerance = 26,
         };
 
-        formatter.Format(action).Should().Be("Find 00FF11 in (1, 2, 300x200) -> found, hit_x, hit_y tol 26");
+        _ = formatter.Format(action).Should().Be("Find 00FF11 in (1, 2, 300x200) -> found, hit_x, hit_y tol 26");
     }
 
     [Fact]
@@ -189,7 +178,7 @@ public class EditorActionDisplayFormatterTests
             ScreenHeight = 200,
         };
 
-        formatter.Format(action).Should().Be("Click image ButtonAsset in (10, 20, 300x200)");
+        _ = formatter.Format(action).Should().Be("Click image ButtonAsset in (10, 20, 300x200)");
     }
 
     [Fact]
@@ -207,7 +196,7 @@ public class EditorActionDisplayFormatterTests
             ScreenTimeoutMs = 2500,
         };
 
-        formatter.Format(action).Should().Be("Wait for image ReadyAsset in (10, 20, 300x200) up to 2500ms");
+        _ = formatter.Format(action).Should().Be("Wait for image ReadyAsset in (10, 20, 300x200) up to 2500ms");
     }
 
     [Fact]
@@ -215,7 +204,7 @@ public class EditorActionDisplayFormatterTests
     {
         var formatter = CreateFormatter("Editor_ActionType_WindowCommand", "Window Command");
 
-        formatter.FormatActionType(EditorActionType.WindowCommand).Should().Be("Window Command");
+        _ = formatter.FormatActionType(EditorActionType.WindowCommand).Should().Be("Window Command");
     }
 
     [Theory]
@@ -238,12 +227,12 @@ public class EditorActionDisplayFormatterTests
     {
         var formatter = CreateFormatter(WindowResources());
 
-        formatter.Format(CreateWindowAction(mode)).Should().Be(expected);
+        _ = formatter.Format(CreateWindowAction(mode)).Should().Be(expected);
     }
 
     private static Dictionary<string, string> WindowResources()
     {
-        return new Dictionary<string, string>
+        return new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["Editor_Action_WindowActive"] = "Get active window {0} -> {1}",
             ["Editor_Action_WindowSearch"] = "Search window by {0} \"{1}\" -> {2}",
@@ -274,7 +263,12 @@ public class EditorActionDisplayFormatterTests
             WindowSelectorKind = "title",
             WindowSelectorValue = mode is WindowCommandMode.WorkspaceMoveWindow ? "0x123" : "Firefox",
             WindowActiveField = "title",
-            WindowOutputVariable = mode is WindowCommandMode.Active ? "activeTitle" : mode is WindowCommandMode.WorkspaceGet ? "workspace" : "addr",
+            WindowOutputVariable = mode switch
+            {
+                WindowCommandMode.Active => "activeTitle",
+                WindowCommandMode.WorkspaceGet => "workspace",
+                _ => "addr",
+            },
             WindowTimeoutMs = 2500,
             WindowX = 10,
             WindowY = 20,
@@ -287,16 +281,16 @@ public class EditorActionDisplayFormatterTests
     private static EditorActionDisplayFormatter CreateFormatter(string resourceKey, string resourceValue)
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
-        localizationService[Arg.Any<string>()].Returns(call => string.Equals(call.Arg<string>(), resourceKey, StringComparison.Ordinal) ? resourceValue : call.Arg<string>());
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
+        _ = localizationService[Arg.Any<string>()].Returns(call => string.Equals(call.Arg<string>(), resourceKey, StringComparison.Ordinal) ? resourceValue : call.Arg<string>());
         return new EditorActionDisplayFormatter(localizationService);
     }
 
     private static EditorActionDisplayFormatter CreateFormatter(IReadOnlyDictionary<string, string> resources)
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
-        localizationService[Arg.Any<string>()].Returns(call => resources.GetValueOrDefault(call.Arg<string>(), call.Arg<string>()));
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
+        _ = localizationService[Arg.Any<string>()].Returns(call => resources.GetValueOrDefault(call.Arg<string>(), call.Arg<string>()));
         return new EditorActionDisplayFormatter(localizationService);
     }
 }

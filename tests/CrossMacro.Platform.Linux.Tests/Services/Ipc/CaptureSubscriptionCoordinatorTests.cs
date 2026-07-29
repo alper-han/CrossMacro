@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-public class CaptureSubscriptionCoordinatorTests
+public sealed class CaptureSubscriptionCoordinatorTests
 {
     private static CaptureCommand SetSubscription(
         CaptureSubscriptionCoordinator coordinator,

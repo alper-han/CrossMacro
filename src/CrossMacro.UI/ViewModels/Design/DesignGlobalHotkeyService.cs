@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
 {
@@ -11,38 +11,38 @@ internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
 
     public event EventHandler? ToggleRecordingRequested
     {
-        add { }
-        remove { }
+        add { /* Empty */ }
+        remove { /* Empty */ }
     }
 
     public event EventHandler? TogglePlaybackRequested
     {
-        add { }
-        remove { }
+        add { /* Empty */ }
+        remove { /* Empty */ }
     }
 
     public event EventHandler? TogglePauseRequested
     {
-        add { }
-        remove { }
+        add { /* Empty */ }
+        remove { /* Empty */ }
     }
 
     public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived
     {
-        add { }
-        remove { }
+        add { /* Empty */ }
+        remove { /* Empty */ }
     }
 
     public event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased
     {
-        add { }
-        remove { }
+        add { /* Empty */ }
+        remove { /* Empty */ }
     }
 
     public event EventHandler<GlobalHotkeyErrorEventArgs>? ErrorOccurred
     {
-        add { }
-        remove { }
+        add { /* Empty */ }
+        remove { /* Empty */ }
     }
 
     public string? LastError => null;
@@ -57,28 +57,21 @@ internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         StopHotkeyService();
         return Task.CompletedTask;
     }
 
-    public void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey)
-    {
-    }
+    public void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey) { /* Empty */ }
 
-    public void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey)
-    {
-    }
+    public void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey) { /* Empty */ }
 
     public Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult("Ctrl+Alt+R");
     }
 
-    public void SetPlaybackPauseHotkeysEnabled(bool enabled)
-    {
-    }
+    public void SetPlaybackPauseHotkeysEnabled(bool enabled) { /* Empty */ }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

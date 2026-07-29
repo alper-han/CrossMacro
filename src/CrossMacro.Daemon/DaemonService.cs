@@ -1,29 +1,21 @@
 
 namespace CrossMacro.Daemon;
 
-public class DaemonService
+internal sealed class DaemonService(
+    ISecurityService security,
+    ILinuxPermissionService permissionService,
+    ISessionHandlerFactory sessionHandlerFactory,
+    string socketPath)
 {
     private const int SingleClientListenBacklog = 1;
 
     private Socket? _socket;
     private int _shutdownRequested;
 
-    private readonly ISecurityService _security;
-    private readonly ILinuxPermissionService _permissionService;
-    private readonly ISessionHandlerFactory _sessionHandlerFactory;
-    private readonly string _socketPath;
-
-    public DaemonService(
-        ISecurityService security,
-        ILinuxPermissionService permissionService,
-        ISessionHandlerFactory sessionHandlerFactory,
-        string socketPath)
-    {
-        _security = security;
-        _permissionService = permissionService;
-        _sessionHandlerFactory = sessionHandlerFactory;
-        _socketPath = socketPath;
-    }
+    private readonly ISecurityService _security = security;
+    private readonly ILinuxPermissionService _permissionService = permissionService;
+    private readonly ISessionHandlerFactory _sessionHandlerFactory = sessionHandlerFactory;
+    private readonly string _socketPath = socketPath;
 
     public async Task RunAsync(CancellationToken token)
     {
@@ -32,20 +24,20 @@ public class DaemonService
             return;
         }
 
-        var socketPath = _socketPath;
-        CleanupSocketFile(socketPath);
+        var configuredSocketPath = _socketPath;
+        CleanupSocketFile(configuredSocketPath);
         ResetRuntimeState();
 
         using var shutdownRegistration = token.Register(static state => ((DaemonService)state!).RequestShutdown(), this);
 
         try
         {
-            var listeningSocket = CreateListeningSocket(socketPath);
+            var listeningSocket = CreateListeningSocket(configuredSocketPath);
             _socket = listeningSocket;
 
-            _permissionService.ConfigureSocketPermissions(socketPath);
+            _permissionService.ConfigureSocketPermissions(configuredSocketPath);
 
-            Log.Information("Listening on {SocketPath}", socketPath);
+            Log.Information("Listening on {SocketPath}", configuredSocketPath);
             SystemdNotify.Ready();
             SystemdNotify.Status("Listening for client connections");
 
@@ -54,7 +46,7 @@ public class DaemonService
         finally
         {
             CloseListeningSocket();
-            CleanupSocketFile(socketPath, logOnSuccess: true);
+            CleanupSocketFile(configuredSocketPath, logOnSuccess: true);
         }
     }
 
@@ -67,7 +59,7 @@ public class DaemonService
             socket.Listen(SingleClientListenBacklog);
             return socket;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             socket.Dispose();
             throw;
@@ -95,7 +87,7 @@ public class DaemonService
                 Log.Debug(ex, "Accept loop stopped during shutdown");
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "Accept failed");
             }
@@ -126,7 +118,7 @@ public class DaemonService
 
         try
         {
-            var validationResult = await _security.ValidateConnectionAsync(client).ConfigureAwait(false);
+            var validationResult = await _security.ValidateConnectionAsync(client, token).ConfigureAwait(false);
             if (validationResult is null)
             {
                 return;
@@ -141,7 +133,7 @@ public class DaemonService
         {
             Log.Debug("Client session canceled during shutdown");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Client session error");
         }
@@ -186,7 +178,7 @@ public class DaemonService
                 Log.Information("Socket cleaned up");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (logOnSuccess)
             {
@@ -233,8 +225,6 @@ public class DaemonService
         {
             socket.Dispose();
         }
-        catch (ObjectDisposedException)
-        {
-        }
+        catch (ObjectDisposedException) { /* Empty */ }
     }
 }

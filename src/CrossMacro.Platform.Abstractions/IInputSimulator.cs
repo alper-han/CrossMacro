@@ -9,6 +9,11 @@ public interface IInputSimulator : IDisposable
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0);
 
+    public Task InitializeAsync(
+        int screenWidth = 0,
+        int screenHeight = 0,
+        CancellationToken cancellationToken = default);
+
     public void MoveAbsolute(int x, int y);
 
     public void MoveRelative(int dx, int dy);

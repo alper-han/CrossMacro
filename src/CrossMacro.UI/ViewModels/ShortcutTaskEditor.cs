@@ -44,6 +44,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
 
     public void Load(ShortcutTask source)
     {
+        ArgumentNullException.ThrowIfNull(source);
         _source = source;
         Id = source.Id;
         Name = source.Name;
@@ -72,6 +73,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
 
     public void ApplyToCore(ShortcutTask target)
     {
+        ArgumentNullException.ThrowIfNull(target);
         target.Id = Id;
         target.Name = Name;
         target.MacroFilePath = MacroFilePath;

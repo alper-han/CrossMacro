@@ -1,7 +1,9 @@
+global using CrossMacro.Cli.Options;
 global using CrossMacro.Application.Automation;
 global using CrossMacro.Application.Profiles;
 global using CrossMacro.Application.Runtime;
 global using CrossMacro.Cli.Commands;
+global using CrossMacro.Cli.Parsing;
 global using CrossMacro.Cli.DependencyInjection;
 global using CrossMacro.Cli.Serialization;
 global using CrossMacro.Cli.Services;

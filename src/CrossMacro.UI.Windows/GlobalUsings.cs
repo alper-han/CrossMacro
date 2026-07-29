@@ -1,3 +1,4 @@
+global using CrossMacro.Cli.Options;
 global using Avalonia;
 global using CrossMacro.Cli.Services;
 global using CrossMacro.Cli;

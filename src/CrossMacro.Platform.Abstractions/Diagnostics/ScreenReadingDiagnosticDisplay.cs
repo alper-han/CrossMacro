@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
-public sealed record class ScreenReadingDiagnosticDisplay(
+public sealed record ScreenReadingDiagnosticDisplay(
     bool HasSelectedBackend,
     string Message,
     bool IsSupportedSession,

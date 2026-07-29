@@ -165,6 +165,9 @@
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>GitHub'da Yıldızla</value>
   </data>
+  <data name="Settings_HotkeyAlreadyAssignedTo" xml:space="preserve">
+    <value>Bu kısayol tuşu zaten {0} için atanmış</value>
+  </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Kısayol Zaten Atanmış</value>
   </data>

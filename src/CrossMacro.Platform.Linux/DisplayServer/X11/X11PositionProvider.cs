@@ -5,10 +5,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer.X11;
 /// Mouse position provider for X11 using XQueryPointer
 /// Works across all X11 desktop environments (GNOME, KDE, XFCE, i3, etc.)
 /// </summary>
-public class X11PositionProvider : IMousePositionProvider
+public sealed class X11PositionProvider : IMousePositionProvider
 {
     private IntPtr _display;
-    private readonly int _screen;
     private bool _disposed;
 
     public string ProviderName => "X11 (XQueryPointer)";
@@ -27,7 +26,6 @@ public class X11PositionProvider : IMousePositionProvider
         else
         {
             IsSupported = true;
-            _screen = X11Native.XDefaultScreen(_display);
             Log.Information("[X11PositionProvider] Successfully connected to X11 display");
         }
     }
@@ -63,7 +61,7 @@ public class X11PositionProvider : IMousePositionProvider
             Log.Warning("[X11PositionProvider] XQueryPointer failed");
             return Task.FromResult<(int X, int Y)?>(null);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[X11PositionProvider] Error getting absolute position");
             return Task.FromResult<(int X, int Y)?>(null);
@@ -91,7 +89,7 @@ public class X11PositionProvider : IMousePositionProvider
             Log.Warning("[X11PositionProvider] Invalid screen dimensions: {Width}x{Height}", width, height);
             return Task.FromResult<(int Width, int Height)?>(null);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[X11PositionProvider] Error getting screen resolution");
             return Task.FromResult<(int Width, int Height)?>(null);
@@ -109,10 +107,10 @@ public class X11PositionProvider : IMousePositionProvider
         {
             try
             {
-                X11Native.XCloseDisplay(_display);
+                _ = X11Native.XCloseDisplay(_display);
                 Log.Debug("[X11PositionProvider] Closed X11 display connection");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "[X11PositionProvider] Error closing X display");
             }

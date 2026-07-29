@@ -1,7 +1,7 @@
 namespace CrossMacro.UI.Tests;
 
 
-public class ViewLocatorTests
+public sealed class ViewLocatorTests
 {
     [Fact]
     public void Match_WhenGivenViewModelBase_ReturnsTrue()
@@ -34,7 +34,5 @@ public class ViewLocatorTests
         Assert.StartsWith("Not Found:", textBlock.Text, StringComparison.Ordinal);
     }
 
-    private sealed class DummyViewModel : ViewModelBase
-    {
-    }
+    private sealed class DummyViewModel : ViewModelBase;
 }

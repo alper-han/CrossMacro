@@ -5,7 +5,6 @@ public sealed class LoadedMacroListItem : ObservableObject
 {
     private const int MinimumSequenceRepeatCount = 1;
     private string _name;
-    private int _sequenceRepeatCount = MinimumSequenceRepeatCount;
     private readonly ILocalizationService? _localizationService;
     private bool _usesGeneratedName;
 
@@ -47,20 +46,20 @@ public sealed class LoadedMacroListItem : ObservableObject
 
     public int SequenceRepeatCount
     {
-        get => _sequenceRepeatCount;
+        get;
         set
         {
             var normalized = Math.Max(MinimumSequenceRepeatCount, value);
-            if (_sequenceRepeatCount == normalized)
+            if (field == normalized)
             {
                 return;
             }
 
-            _sequenceRepeatCount = normalized;
+            field = normalized;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SequenceRepeatSummary));
         }
-    }
+    } = MinimumSequenceRepeatCount;
 
     public int EventCount => MacroPlayableActionCounter.CountPlayableActions(Macro);
 

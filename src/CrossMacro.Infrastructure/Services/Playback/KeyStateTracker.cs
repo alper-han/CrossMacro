@@ -7,36 +7,60 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// </summary>
 public class KeyStateTracker : IKeyStateTracker
 {
-    private readonly ConcurrentDictionary<int, byte> _pressedKeys = new();
-
-    public IReadOnlyCollection<int> PressedKeys => _pressedKeys.Keys.ToArray();
+    private readonly HashSet<int> _pressedKeys = [];
+    private readonly Lock _lock = new();
+    public IReadOnlyCollection<int> PressedKeys { get; private set; } = new ReadOnlyCollection<int>([]);
 
     public void Press(int keyCode)
     {
-        _pressedKeys.TryAdd(keyCode, 0);
+        using (_lock.EnterScope())
+        {
+            if (_pressedKeys.Add(keyCode))
+            {
+                RefreshSnapshot();
+            }
+        }
     }
 
     public void Release(int keyCode)
     {
-        _pressedKeys.TryRemove(keyCode, out _);
+        using (_lock.EnterScope())
+        {
+            if (_pressedKeys.Remove(keyCode))
+            {
+                RefreshSnapshot();
+            }
+        }
     }
 
     public void Clear()
     {
-        _pressedKeys.Clear();
+        using (_lock.EnterScope())
+        {
+            if (_pressedKeys.Count > 0)
+            {
+                _pressedKeys.Clear();
+                RefreshSnapshot();
+            }
+        }
     }
 
     public void ReleaseAll(IInputSimulator simulator)
     {
-        if (_pressedKeys.IsEmpty)
+        ArgumentNullException.ThrowIfNull(simulator);
+        int[] keysToRelease;
+        using (_lock.EnterScope())
         {
-            return;
+            if (_pressedKeys.Count is 0)
+            {
+                return;
+            }
+
+            Log.Information("[KeyStateTracker] Releasing {Count} pressed keys", _pressedKeys.Count);
+            keysToRelease = [.. _pressedKeys];
+            _pressedKeys.Clear();
+            RefreshSnapshot();
         }
-
-        Log.Information("[KeyStateTracker] Releasing {Count} pressed keys", _pressedKeys.Count);
-
-        var keysToRelease = _pressedKeys.Keys.ToArray();
-        _pressedKeys.Clear();
 
         foreach (var keyCode in keysToRelease)
         {
@@ -45,7 +69,7 @@ public class KeyStateTracker : IKeyStateTracker
                 simulator.KeyPress(keyCode, pressed: false);
                 Log.Debug("[KeyStateTracker] Released key: {KeyCode}", keyCode);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[KeyStateTracker] Failed to release key: {KeyCode}", keyCode);
             }
@@ -54,18 +78,31 @@ public class KeyStateTracker : IKeyStateTracker
 
     public void RestoreAll(IInputSimulator simulator, IEnumerable<int> keys)
     {
+        ArgumentNullException.ThrowIfNull(simulator);
+        ArgumentNullException.ThrowIfNull(keys);
         foreach (var keyCode in keys)
         {
             try
             {
                 simulator.KeyPress(keyCode, pressed: true);
-                _pressedKeys.TryAdd(keyCode, 0);
+                using (_lock.EnterScope())
+                {
+                    if (_pressedKeys.Add(keyCode))
+                    {
+                        RefreshSnapshot();
+                    }
+                }
                 Log.Debug("[KeyStateTracker] Re-pressed key: {KeyCode}", keyCode);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[KeyStateTracker] Failed to re-press key: {KeyCode}", keyCode);
             }
         }
+    }
+
+    private void RefreshSnapshot()
+    {
+        PressedKeys = new ReadOnlyCollection<int>([.. _pressedKeys]);
     }
 }

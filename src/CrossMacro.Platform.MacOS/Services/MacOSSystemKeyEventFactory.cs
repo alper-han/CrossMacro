@@ -13,7 +13,7 @@ internal static class MacOSSystemKeyEventFactory
     internal static MacOSSystemKeyEventPayload CreatePayload(
         int nxKeyType,
         bool pressed,
-        CoreGraphics.CGEventFlags activeModifierFlags = default)
+        CoreGraphics.CGEventModifiers activeModifierFlags = default)
     {
         return new MacOSSystemKeyEventPayload(
             CoreGraphics.CGEventType.SystemDefined,
@@ -28,18 +28,18 @@ internal static class MacOSSystemKeyEventFactory
         return (nxKeyType << 16) | (GetState(pressed) << 8);
     }
 
-    private static CoreGraphics.CGEventFlags CreateEventFlags(
+    private static CoreGraphics.CGEventModifiers CreateEventFlags(
         bool pressed,
-        CoreGraphics.CGEventFlags activeModifierFlags = default)
+        CoreGraphics.CGEventModifiers activeModifierFlags = default)
     {
-        return activeModifierFlags | (CoreGraphics.CGEventFlags)(GetState(pressed) << 8);
+        return activeModifierFlags | (CoreGraphics.CGEventModifiers)(GetState(pressed) << 8);
     }
 
     internal static bool TryCreateEvent(
         int nxKeyType,
         bool pressed,
         long? marker,
-        CoreGraphics.CGEventFlags activeModifierFlags,
+        CoreGraphics.CGEventModifiers activeModifierFlags,
         out IntPtr eventRef)
     {
         var payload = CreatePayload(nxKeyType, pressed, activeModifierFlags);

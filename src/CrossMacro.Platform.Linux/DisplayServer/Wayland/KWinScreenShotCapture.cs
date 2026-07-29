@@ -14,17 +14,28 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
     private readonly bool _isAppImageKde;
     private readonly bool _isFlatpak;
     private readonly bool _isKde;
+    private readonly TimeProvider _timeProvider;
+    private readonly Func<string> _rawDirectoryFactory;
 
     internal KWinScreenShotCapture()
-        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot())
-    {
-    }
+        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
 
     public KWinScreenShotCapture(LinuxEnvironmentSnapshot environment)
+        : this(environment, TimeProvider.System) { /* Empty */ }
+
+    internal KWinScreenShotCapture(LinuxEnvironmentSnapshot environment, TimeProvider timeProvider)
+        : this(environment, timeProvider, static () => System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"crossmacro-kwin-screenshot-{Guid.NewGuid():N}")) { /* Empty */ }
+
+    internal KWinScreenShotCapture(
+        LinuxEnvironmentSnapshot environment,
+        TimeProvider timeProvider,
+        Func<string> rawDirectoryFactory)
     {
         _isAppImageKde = !string.IsNullOrEmpty(environment.AppImage) && IsKde(environment.CurrentDesktop);
         _isFlatpak = environment.IsFlatpak;
         _isKde = _isAppImageKde || IsKde(environment.CurrentDesktop);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _rawDirectoryFactory = rawDirectoryFactory ?? throw new ArgumentNullException(nameof(rawDirectoryFactory));
     }
 
     public KWinScreenShotSupportResult ProbeSupport()
@@ -95,28 +106,18 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
             var desktopDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applications");
             var desktopFile = System.IO.Path.Combine(desktopDir, "crossmacro-appimage-kwin.desktop");
 
-            Directory.CreateDirectory(desktopDir);
+            _ = Directory.CreateDirectory(desktopDir);
 
-            string desktopContent = $"""
-[Desktop Entry]
-Name=CrossMacro AppImage (Internal)
-Exec={canonicalExe}
-Type=Application
-NoDisplay=true
-X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
-""";
+            string desktopContent = $"[Desktop Entry]\nName=CrossMacro AppImage (Internal)\nExec={canonicalExe}\nType=Application\nNoDisplay=true\nX-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2\n";
 
-            if (File.Exists(desktopFile))
+            if (File.Exists(desktopFile) && File.ReadAllLines(desktopFile).Any(line => string.Equals(line, $"Exec={canonicalExe}", StringComparison.Ordinal)))
             {
-                if (File.ReadAllLines(desktopFile).Any(line => string.Equals(line, $"Exec={canonicalExe}", StringComparison.Ordinal)))
-                {
-                    return;
-                }
+                return;
             }
 
             File.WriteAllText(desktopFile, desktopContent);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Ignore desktop file generation failures
         }
@@ -137,13 +138,11 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
         return CaptureAreaCoreAsync(region, options);
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 
-    private static async Task<KWinScreenShotCaptureResult> CaptureAreaCoreAsync(ScreenRect region, ScreenReadOptions options)
+    private async Task<KWinScreenShotCaptureResult> CaptureAreaCoreAsync(ScreenRect region, ScreenReadOptions options)
     {
-        var rawDirectory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"crossmacro-kwin-screenshot-{Guid.NewGuid():N}");
+        var rawDirectory = _rawDirectoryFactory();
         var rawPath = System.IO.Path.Combine(rawDirectory, "frame.raw");
         try
         {
@@ -162,7 +161,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
         {
             return KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or DBusErrorReplyException or IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is InvalidOperationException or DBusErrorReplyException or DBusConnectFailedException or IOException or UnauthorizedAccessException or ArgumentException)
         {
             return KWinScreenShotCaptureResult.Failure(MapException(ex), BuildErrorMessage(ex));
         }
@@ -173,40 +172,47 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
         }
     }
 
-    private static async Task<KWinRawCapture> CaptureRawAsync(
+    private async Task<KWinRawCapture> CaptureRawAsync(
         DBusConnection connection,
         ScreenRect region,
         string rawPath,
         ScreenReadOptions options)
     {
-        await using var file = CreatePrivateRawFile(rawPath);
-        using var dbusHandle = DuplicateForDbus(file.SafeFileHandle);
-        var writer = connection.GetMessageWriter();
-        writer.WriteMethodCallHeader(Service, Path, Interface, "CaptureArea", "iiuua{sv}h");
-        writer.WriteInt32(region.X);
-        writer.WriteInt32(region.Y);
-        writer.WriteUInt32(checked((uint)region.Width));
-        writer.WriteUInt32(checked((uint)region.Height));
-        writer.WriteDictionary(Array.Empty<KeyValuePair<string, VariantValue>>());
-        writer.WriteHandle(dbusHandle);
-
-        var call = connection.CallMethodAsync(writer.CreateMessage(), static (message, _) =>
+        FileStream rawFile = CreatePrivateRawFile(rawPath);
+        try
         {
-            var reader = message.GetBodyReader();
-            return reader.ReadDictionaryOfStringToVariantValue();
-        });
+            using var dbusHandle = DuplicateForDbus(rawFile.SafeFileHandle);
+            var writer = connection.GetMessageWriter();
+            writer.WriteMethodCallHeader(Service, Path, Interface, "CaptureArea", "iiuua{sv}h");
+            writer.WriteInt32(region.X);
+            writer.WriteInt32(region.Y);
+            writer.WriteUInt32(checked((uint)region.Width));
+            writer.WriteUInt32(checked((uint)region.Height));
+            writer.WriteDictionary(Array.Empty<KeyValuePair<string, VariantValue>>());
+            writer.WriteHandle(dbusHandle);
 
-        var results = options.Timeout is { } timeout
-            ? await call.WaitAsync(timeout, options.CancellationToken).ConfigureAwait(false)
-            : await call.WaitAsync(options.CancellationToken).ConfigureAwait(false);
+            var call = connection.CallMethodAsync(writer.CreateMessage(), static (message, _) =>
+            {
+                var reader = message.GetBodyReader();
+                return reader.ReadDictionaryOfStringToVariantValue();
+            });
 
-        var pixels = ReadCapturedBytes(file);
-        return new KWinRawCapture(results, pixels);
+            var results = options.Timeout is { } timeout
+                ? await call.WaitAsync(timeout, _timeProvider, options.CancellationToken).ConfigureAwait(false)
+                : await call.WaitAsync(options.CancellationToken).ConfigureAwait(false);
+
+            var pixels = await ReadCapturedBytesAsync(rawFile, options.CancellationToken).ConfigureAwait(false);
+            return new KWinRawCapture(results, pixels);
+        }
+        finally
+        {
+            await rawFile.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     internal static SafeFileHandle DuplicateForDbus(SafeFileHandle fileHandle)
     {
-        var duplicated = PortalPipeWireLibc.dup((int)fileHandle.DangerousGetHandle());
+        var duplicated = PortalPipeWireLibc.dup(fileHandle);
         if (duplicated < 0)
         {
             throw new InvalidOperationException($"dup(KWin ScreenShot2 fd) failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
@@ -239,15 +245,12 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
 
     internal static void CreatePrivateRawDirectory(string rawDirectory)
     {
-        Directory.CreateDirectory(rawDirectory);
-#pragma warning disable CA1416 // CrossMacro.Platform.Linux runs on Linux; this secures KWin raw capture files.
+        _ = Directory.CreateDirectory(rawDirectory);
         File.SetUnixFileMode(rawDirectory, OwnerOnlyDirectoryMode);
-#pragma warning restore CA1416
     }
 
     internal static FileStream CreatePrivateRawFile(string rawPath)
     {
-#pragma warning disable CA1416 // CrossMacro.Platform.Linux runs on Linux; this creates owner-only KWin raw capture files.
         var options = new FileStreamOptions
         {
             Mode = FileMode.CreateNew,
@@ -258,19 +261,18 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
         };
 
         return new FileStream(rawPath, options);
-#pragma warning restore CA1416
     }
 
-    private static byte[] ReadCapturedBytes(FileStream file)
+    private static async Task<byte[]> ReadCapturedBytesAsync(FileStream file, CancellationToken cancellationToken)
     {
-        file.Flush();
+        await file.FlushAsync(cancellationToken).ConfigureAwait(false);
         file.Position = 0;
         var length = checked((int)file.Length);
         var pixels = new byte[length];
         var offset = 0;
         while (offset < pixels.Length)
         {
-            var read = file.Read(pixels, offset, pixels.Length - offset);
+            var read = await file.ReadAsync(pixels.AsMemory(offset, pixels.Length - offset), cancellationToken).ConfigureAwait(false);
             if (read is 0)
             {
                 break;

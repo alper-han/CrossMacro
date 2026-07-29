@@ -5,14 +5,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 /// Window manager implementation using Hyprland IPC socket commands.
 /// </summary>
 
-public sealed class HyprlandWindowManager : IWindowManager
+public sealed class HyprlandWindowManager(HyprlandIpcClient ipcClient) : IWindowManager
 {
-    private readonly HyprlandIpcClient _ipcClient;
-
-    public HyprlandWindowManager(HyprlandIpcClient ipcClient)
-    {
-        _ipcClient = ipcClient ?? throw new ArgumentNullException(nameof(ipcClient));
-    }
+    private readonly HyprlandIpcClient _ipcClient = ipcClient ?? throw new ArgumentNullException(nameof(ipcClient));
 
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
@@ -27,7 +22,7 @@ public sealed class HyprlandWindowManager : IWindowManager
             var dto = JsonSerializer.Deserialize(response, HyprlandJsonContext.Default.HyprlandWindowDto);
             return dto is null ? null : MapWindow(dto, isFocused: true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[HyprlandWindowManager] Failed to parse activewindow response");
             return null;
@@ -58,7 +53,7 @@ public sealed class HyprlandWindowManager : IWindowManager
 
             return result;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[HyprlandWindowManager] Failed to parse clients response");
             return [];
@@ -172,7 +167,7 @@ public sealed class HyprlandWindowManager : IWindowManager
             var dto = JsonSerializer.Deserialize(response, HyprlandJsonContext.Default.HyprlandActiveWorkspaceDto);
             return dto?.Name;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[HyprlandWindowManager] Failed to parse activeworkspace response");
             return null;

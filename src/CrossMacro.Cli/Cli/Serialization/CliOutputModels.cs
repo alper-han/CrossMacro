@@ -1,1 +1,0 @@
-namespace CrossMacro.Cli.Serialization;

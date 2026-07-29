@@ -17,9 +17,7 @@ public sealed class X11ScreenCaptureSupportProbe : IX11ScreenCaptureSupportProbe
     }
 
     internal X11ScreenCaptureSupportProbe(IX11NativeApi native, LinuxEnvironmentSnapshot environment)
-        : this(native, name => string.Equals(name, DisplayEnvironmentVariable, StringComparison.Ordinal) ? environment.Display : null)
-    {
-    }
+        : this(native, name => string.Equals(name, DisplayEnvironmentVariable, StringComparison.Ordinal) ? environment.Display : null) { /* Empty */ }
 
     public X11ScreenCaptureSupportResult ProbeSupport()
     {
@@ -46,7 +44,7 @@ public sealed class X11ScreenCaptureSupportProbe : IX11ScreenCaptureSupportProbe
             }
             finally
             {
-                _native.CloseDisplay(display);
+                _ = _native.CloseDisplay(display);
             }
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException or IOException or UnauthorizedAccessException)

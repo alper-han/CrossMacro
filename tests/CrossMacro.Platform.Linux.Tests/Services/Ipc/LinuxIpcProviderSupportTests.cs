@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-public class LinuxIpcProviderSupportTests
+public sealed class LinuxIpcProviderSupportTests
 {
     [LinuxFact]
     public void LinuxIpcInputSimulator_IsSupported_WhenProbeFails_ReturnsFalse()

@@ -7,4 +7,4 @@ namespace CrossMacro.Infrastructure.Serialization;
 /// </summary>
 [JsonSerializable(typeof(TextInputBoundary))]
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
-internal partial class MacroFileJsonContext : JsonSerializerContext;
+internal sealed partial class MacroFileJsonContext : JsonSerializerContext;

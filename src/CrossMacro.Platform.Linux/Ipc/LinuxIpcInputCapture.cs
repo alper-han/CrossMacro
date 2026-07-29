@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-public class LinuxIpcInputCapture : IInputCapture
+public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
 {
     private readonly record struct StartupFailurePolicy(
         bool WaitForReconnect,
@@ -50,7 +50,7 @@ public class LinuxIpcInputCapture : IInputCapture
     public LinuxIpcInputCapture(IpcClient client, string? consumerId = null, Func<bool>? isSupportedProbe = null)
     {
         _client = client;
-        _isSupportedProbe = isSupportedProbe ?? (() => true);
+        _isSupportedProbe = isSupportedProbe ?? (static () => true);
         _consumerId = string.IsNullOrWhiteSpace(consumerId)
             ? $"linux-ipc-capture-{Interlocked.Increment(ref _captureInstanceSequence).ToString(CultureInfo.InvariantCulture)}"
             : consumerId;
@@ -98,7 +98,7 @@ public class LinuxIpcInputCapture : IInputCapture
                 await startupAttempt.PendingStartTask.WaitAsync(ct).ConfigureAwait(false);
             }
 
-            RegisterStopOnCancellation(ct, throwIfAlreadyCanceled: false);
+            await RegisterStopOnCancellationAsync(throwIfAlreadyCanceled: false, ct).ConfigureAwait(false);
             return;
         }
 
@@ -116,15 +116,17 @@ public class LinuxIpcInputCapture : IInputCapture
         catch (OperationCanceledException ex)
         {
             ClearPendingStartupState(ex);
-            _client.StopCapture(_consumerId);
+            // Rollback must not use the already-cancelled ct, or daemon-side capture stays on.
+            await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            var startupException = ex as InvalidOperationException
-                ?? new InvalidOperationException(GetStartupFailureMessage(ex), ex);
+            var startupException = ex is InvalidOperationException ioe
+                ? ioe
+                : new InvalidOperationException(GetStartupFailureMessage(ex), ex);
             ClearPendingStartupState(startupException);
-            _client.StopCapture(_consumerId);
+            await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
             throw startupException;
         }
 
@@ -133,33 +135,39 @@ public class LinuxIpcInputCapture : IInputCapture
         {
             startupCommit = BuildStartupCommit_NoLock(
                 startupAttempt.PendingStartLifetimeCts,
-                ct,
-                startupAttempt.StartupConfigurationVersion);
+                startupAttempt.StartupConfigurationVersion,
+                ct);
         }
 
         startupCommit.StartupStateToDispose?.Dispose();
 
+        await CommitStartupAsync(startupCommit, ct).ConfigureAwait(false);
+    }
+
+    private async Task CommitStartupAsync(StartupCommit startupCommit, CancellationToken ct)
+    {
         try
         {
             if (startupCommit.ShouldStopImmediately)
             {
-                _client.StopCapture(_consumerId);
+                await _client.StopCaptureAsync(_consumerId, ct).ConfigureAwait(false);
                 throw new OperationCanceledException("Capture startup was cancelled before completion.");
             }
 
             if (startupCommit.ShouldApplyDeferredConfiguration)
             {
-                ApplyDeferredConfigurationIfCurrent(
+                await ApplyDeferredConfigurationIfCurrentAsync(
                     startupCommit.DeferredConfigurationVersion,
                     startupCommit.DeferredCaptureMouse,
-                    startupCommit.DeferredCaptureKeyboard);
+                    startupCommit.DeferredCaptureKeyboard,
+                    ct).ConfigureAwait(false);
             }
 
             Log.Information("[LinuxIpcInputCapture] Started capture via daemon");
-            RegisterStopOnCancellation(ct, throwIfAlreadyCanceled: true);
+            await RegisterStopOnCancellationAsync(throwIfAlreadyCanceled: true, ct).ConfigureAwait(false);
             _ = startupCommit.StartupCompletion?.TrySetResult(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             _ = startupCommit.StartupCompletion?.TrySetException(ex);
             throw;
@@ -194,17 +202,67 @@ public class LinuxIpcInputCapture : IInputCapture
             _client.StopCapture(_consumerId);
         }
 
-        _stopRegistration.Dispose();
+        var stopRegistration = _stopRegistration;
+        _stopRegistration = default;
+        stopRegistration.Dispose();
     }
 
-    private void OnClientInputReceived(object? sender, CapturedInputEvent e)
+    public async ValueTask DisposeAsync()
     {
-        InputReceived?.Invoke(this, new CapturedInputEventArgs(e));
+        lock (_stateLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
+        bool shouldStopClient = false;
+        CancellationTokenSource? pendingStartLifetimeCts = null;
+
+        lock (_stateLock)
+        {
+            if (_startPending)
+            {
+                _stopRequestedDuringStartup = true;
+                pendingStartLifetimeCts = _pendingStartLifetimeCts;
+                shouldStopClient = true;
+            }
+
+            if (_started)
+            {
+                _started = false;
+                shouldStopClient = true;
+            }
+        }
+
+        await CancelPendingStartLifetimeSafelyAsync(pendingStartLifetimeCts).ConfigureAwait(false);
+
+        if (shouldStopClient)
+        {
+            await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        var stopRegistration = _stopRegistration;
+        _stopRegistration = default;
+        await stopRegistration.DisposeAsync().ConfigureAwait(false);
+
+        _pendingStartLifetimeCts?.Dispose();
+        _client.InputReceived -= OnClientInputReceived;
+        _client.ErrorOccurred -= OnClientErrorOccurred;
+        GC.SuppressFinalize(this);
     }
 
-    private void OnClientErrorOccurred(object? sender, string error)
+    private void OnClientInputReceived(object? sender, CapturedInputEventArgs e)
     {
-        CaptureError?.Invoke(this, new InputCaptureErrorEventArgs(error));
+        InputReceived?.Invoke(this, e);
+    }
+
+    private void OnClientErrorOccurred(object? sender, InputCaptureErrorEventArgs error)
+    {
+        CaptureError?.Invoke(this, error);
     }
 
     private static string GetStartupFailureMessage(Exception ex)
@@ -236,14 +294,15 @@ public class LinuxIpcInputCapture : IInputCapture
     {
         while (!_client.IsConnected)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(50), token).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, token).ConfigureAwait(false);
         }
     }
 
-    private void ApplyDeferredConfigurationIfCurrent(
+    private async Task ApplyDeferredConfigurationIfCurrentAsync(
         int expectedConfigurationVersion,
         bool captureMouse,
-        bool captureKeyboard)
+        bool captureKeyboard,
+        CancellationToken cancellationToken)
     {
         lock (_stateLock)
         {
@@ -256,7 +315,7 @@ public class LinuxIpcInputCapture : IInputCapture
             }
         }
 
-        _client.StartCapture(_consumerId, captureMouse, captureKeyboard);
+        await _client.StartCaptureAsync(_consumerId, captureMouse, captureKeyboard, cancellationToken).ConfigureAwait(false);
     }
 
     private StartupAttempt BeginStartupAttempt()
@@ -322,7 +381,7 @@ public class LinuxIpcInputCapture : IInputCapture
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 throw new InvalidOperationException(GetStartupFailureMessage(ex), ex);
             }
@@ -339,7 +398,7 @@ public class LinuxIpcInputCapture : IInputCapture
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 var startupFailure = ClassifyCaptureStartupFailure(ex);
                 if (!startupFailure.WaitForReconnect)
@@ -358,8 +417,8 @@ public class LinuxIpcInputCapture : IInputCapture
 
     private StartupCommit BuildStartupCommit_NoLock(
         CancellationTokenSource? pendingStartLifetimeCts,
-        CancellationToken cancellationToken,
-        int startupConfigurationVersion)
+        int startupConfigurationVersion,
+        CancellationToken cancellationToken)
     {
         var shouldStopImmediately =
             _disposed || _stopRequestedDuringStartup || (pendingStartLifetimeCts?.IsCancellationRequested) is true || cancellationToken.IsCancellationRequested;
@@ -386,16 +445,23 @@ public class LinuxIpcInputCapture : IInputCapture
             StartupCompletion: startupCompletion);
     }
 
-    private void RegisterStopOnCancellation(CancellationToken ct, bool throwIfAlreadyCanceled)
+    private async Task RegisterStopOnCancellationAsync(bool throwIfAlreadyCanceled, CancellationToken ct)
     {
-        _stopRegistration.Dispose();
-        var stopRegistration = ct.Register(StopCapture);
-        if (throwIfAlreadyCanceled && ct.IsCancellationRequested)
-        {
-            stopRegistration.Dispose();
-            _client.StopCapture(_consumerId);
-            throw new OperationCanceledException("Capture startup was cancelled before completion.", ct);
-        }
+        var previousStopRegistration = _stopRegistration;
+        _stopRegistration = default;
+        await previousStopRegistration.DisposeAsync().ConfigureAwait(false);
+
+            var stopRegistration = ct.Register(static state =>
+            {
+                var capture = (LinuxIpcInputCapture)state!;
+                _ = capture._client.StopCaptureAsync(capture._consumerId, CancellationToken.None);
+            }, this);
+            if (throwIfAlreadyCanceled && ct.IsCancellationRequested)
+            {
+                await stopRegistration.DisposeAsync().ConfigureAwait(false);
+                await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
+                throw new OperationCanceledException("Capture startup was cancelled before completion.", ct);
+            }
 
         _stopRegistration = stopRegistration;
     }
@@ -410,6 +476,23 @@ public class LinuxIpcInputCapture : IInputCapture
         try
         {
             cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // expected when CTS was already disposed concurrently during shutdown.
+        }
+    }
+
+    private static async ValueTask CancelPendingStartLifetimeSafelyAsync(CancellationTokenSource? cts)
+    {
+        if (cts is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await cts.CancelAsync().ConfigureAwait(false);
         }
         catch (ObjectDisposedException)
         {
@@ -435,7 +518,7 @@ public class LinuxIpcInputCapture : IInputCapture
         }
 
         StopCapture();
-        _stopRegistration.Dispose();
+        _pendingStartLifetimeCts?.Dispose();
         _client.InputReceived -= OnClientInputReceived;
         _client.ErrorOccurred -= OnClientErrorOccurred;
         GC.SuppressFinalize(this);
@@ -471,7 +554,7 @@ public class LinuxIpcInputCapture : IInputCapture
         {
             return _isSupportedProbe();
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }

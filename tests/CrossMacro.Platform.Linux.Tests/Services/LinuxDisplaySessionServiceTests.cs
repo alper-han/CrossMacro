@@ -458,7 +458,7 @@ public sealed class LinuxDisplaySessionServiceTests
             return;
         }
 
-        var socketPath = Path.Combine(Path.GetTempPath(), $"crossmacro-display-probe-{Guid.NewGuid():N}.sock");
+        var socketPath = TestSocketPaths.CreateShort("cm-display");
         using var server = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         server.Bind(new UnixDomainSocketEndPoint(socketPath));
         server.Listen(1);
@@ -514,19 +514,21 @@ public sealed class LinuxDisplaySessionServiceTests
         }
     }
 
-    private static LinuxDisplaySessionService CreateService(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        Func<string, bool> canOpenForRead,
-        Func<string, TimeSpan, LinuxDisplaySessionService.DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates)
+    [LinuxFact]
+    public async Task IsSessionSupportedAsync_WhenCanceledBeforeProbe_ThrowsOperationCanceledException()
     {
-        return new LinuxDisplaySessionService(
-            fileExists,
-            canOpenForWrite,
-            canOpenForRead,
-            daemonHandshakeProbe,
-            getInputEventCandidates);
+        var service = CreateService(
+            Snapshot(flatpakId: "io.github.alper_han.crossmacro", sessionType: "wayland", useDaemon: "1"),
+            fileExists: _ => true,
+            canOpenForWrite: _ => false,
+            canOpenForRead: _ => false,
+            daemonHandshakeProbe: (_, _) => LinuxDisplaySessionService.DaemonHandshakeProbeResult.Failed(),
+            getInputEventCandidates: () => []);
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await TestAssertions.ThrowsAsync<OperationCanceledException>(() => service.IsSessionSupportedAsync(cts.Token).AsTask());
     }
 
     private static LinuxDisplaySessionService CreateService(
@@ -584,24 +586,6 @@ public sealed class LinuxDisplaySessionServiceTests
     }
 
     private static LinuxDisplaySessionService CreateService(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        Func<string, bool> canOpenForRead,
-        Func<bool> hasUsableReadableInputDevices,
-        Func<string, TimeSpan, LinuxDisplaySessionService.DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates)
-    {
-        return CreateService(
-            new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()),
-            fileExists,
-            canOpenForWrite,
-            canOpenForRead,
-            hasUsableReadableInputDevices,
-            daemonHandshakeProbe,
-            getInputEventCandidates);
-    }
-
-    private static LinuxDisplaySessionService CreateService(
         ILinuxEnvironmentVariables environmentVariables,
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
@@ -614,7 +598,6 @@ public sealed class LinuxDisplaySessionServiceTests
             new LinuxInputCapabilitySnapshotProvider(
                 fileExists,
                 canOpenForWrite,
-                canOpenForRead,
                 hasUsableReadableInputDevices,
                 (socketPath, timeout) => MapProbeResult(daemonHandshakeProbe(socketPath, timeout)),
                 getInputEventCandidates),
@@ -664,14 +647,12 @@ public sealed class LinuxDisplaySessionServiceTests
 
     private sealed class SequencedEnvironmentVariables(params LinuxEnvironmentSnapshot[] environments) : ILinuxEnvironmentVariables
     {
-        private int _captureCount;
-
-        public int CaptureCount => _captureCount;
+        public int CaptureCount { get; private set; }
 
         public LinuxEnvironmentSnapshot CaptureSnapshot()
         {
-            var index = Math.Min(_captureCount, environments.Length - 1);
-            _captureCount++;
+            var index = Math.Min(CaptureCount, environments.Length - 1);
+            CaptureCount++;
             return environments[index];
         }
     }

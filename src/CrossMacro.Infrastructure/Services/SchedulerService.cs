@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Service for scheduling and executing macro tasks
 /// </summary>
-public class SchedulerService : ISchedulerService
+public sealed class SchedulerService : ISchedulerService
 {
     private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
@@ -13,27 +13,27 @@ public class SchedulerService : ISchedulerService
     private readonly TimeProvider _timeProvider;
     private readonly SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
+    private readonly Lock _ctsLock = new();
 
     private PeriodicTimer? _periodicTimer;
     private CancellationTokenSource? _cts;
     private Task? _timerTask;
-    private Task _completion = Task.CompletedTask;
-    private bool _isRunning;
+    private Task? _shutdownTask;
     private bool _disposed;
 
     public ObservableCollection<ScheduledTask> Tasks { get; } = new();
-    public bool IsRunning => _isRunning;
+    public bool IsRunning { get; private set; }
 
-    public Task Completion
-    {
-        get
+    public Task Completion { get
         {
             lock (_lock)
             {
-                return _completion;
+                return field;
             }
         }
-    }
+
+        private set;
+    } = Task.CompletedTask;
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
     public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
@@ -55,17 +55,18 @@ public class SchedulerService : ISchedulerService
     private void OnExecutorTaskExecuted(object? sender, TaskExecutedEventArgs e)
     {
         try { TaskExecuted?.Invoke(this, e); }
-        catch (Exception ex) { Log.Warning(ex, "[SchedulerService] TaskExecuted subscriber threw"); }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "[SchedulerService] TaskExecuted subscriber threw"); }
     }
 
     private void OnExecutorTaskStarting(object? sender, ScheduledTaskStartingEventArgs e)
     {
         try { TaskStarting?.Invoke(this, e); }
-        catch (Exception ex) { Log.Warning(ex, "[SchedulerService] TaskStarting subscriber threw"); }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "[SchedulerService] TaskStarting subscriber threw"); }
     }
 
     public void AddTask(ScheduledTask task)
     {
+        ArgumentNullException.ThrowIfNull(task);
         lock (_lock)
         {
             Tasks.Add(task);
@@ -83,13 +84,14 @@ public class SchedulerService : ISchedulerService
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
-                Tasks.Remove(task);
+                _ = Tasks.Remove(task);
             }
         }
     }
 
     public void UpdateTask(ScheduledTask task)
     {
+        ArgumentNullException.ThrowIfNull(task);
         lock (_lock)
         {
             var existing = Tasks.FirstOrDefault(t => t.Id == task.Id);
@@ -115,7 +117,7 @@ public class SchedulerService : ISchedulerService
                 existing.LastStatus = task.LastStatus;
 
                 // Update IsEnabled last as it might trigger recalculations
-                existing.TrySetEnabled(task.IsEnabled);
+                _ = existing.TrySetEnabled(task.IsEnabled);
             }
         }
     }
@@ -127,7 +129,7 @@ public class SchedulerService : ISchedulerService
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
-                task.TrySetEnabled(enabled);
+                _ = task.TrySetEnabled(enabled);
                 if (enabled)
                 {
                     task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
@@ -159,34 +161,57 @@ public class SchedulerService : ISchedulerService
 
     public void Start()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        Task? timerTask = null;
-        CancellationTokenSource? cts = null;
+        Task? timerTask;
+        CancellationTokenSource? cts;
 
         lock (_lock)
         {
-            if (_isRunning)
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
+            if (IsRunning)
             {
                 return;
             }
 
-            _isRunning = true;
+            if (_shutdownTask is { IsCompleted: true })
+            {
+                _shutdownTask = null;
+            }
+
+            if (_shutdownTask is not null)
+            {
+                Log.Warning("[SchedulerService] Start ignored while the previous scheduler lifetime is still shutting down");
+                return;
+            }
+
+            IsRunning = true;
             _cts = new CancellationTokenSource();
             _periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             _timerTask = RunTimerLoopAsync(_periodicTimer, _cts.Token);
-            _completion = _timerTask;
+            Completion = _timerTask;
 
             timerTask = _timerTask;
             cts = _cts;
         }
 
-        _ = ObserveTimerLoopAsync(timerTask!, cts!);
+        _ = ObserveTimerLoopAsync(timerTask, cts);
     }
 
     public void StopScheduler()
     {
-        _ = StopAsync();
+        _ = ObserveStopAsync();
+    }
+
+    private async Task ObserveStopAsync()
+    {
+        try
+        {
+            await StopAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[SchedulerService] Non-blocking stop failed");
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -194,41 +219,56 @@ public class SchedulerService : ISchedulerService
         Task? timerTask;
         PeriodicTimer? periodicTimer;
         CancellationTokenSource? cts;
+        var shouldInitiateStop = false;
 
         lock (_lock)
         {
-            if (!_isRunning && _periodicTimer is null && _cts is null && _timerTask is null)
+            if (_shutdownTask is not null)
+            {
+                timerTask = _shutdownTask;
+                periodicTimer = null;
+                cts = null;
+            }
+            else if (!IsRunning && _periodicTimer is null && _cts is null && _timerTask is null)
             {
                 return;
             }
+            else
+            {
+                IsRunning = false;
+                timerTask = _timerTask;
+                periodicTimer = _periodicTimer;
+                cts = _cts;
 
-            _isRunning = false;
-            timerTask = _timerTask;
-            periodicTimer = _periodicTimer;
-            cts = _cts;
-
-            _timerTask = null;
-            _periodicTimer = null;
-            _cts = null;
+                _timerTask = null;
+                _periodicTimer = null;
+                _cts = null;
+                _shutdownTask = timerTask;
+                shouldInitiateStop = true;
+            }
         }
 
-        try
+        if (shouldInitiateStop)
         {
-            cts?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
+            if (cts is not null)
+            {
+                CancelCts(cts, "[SchedulerService] Cancellation callbacks failed while stopping");
+            }
+
+            periodicTimer?.Dispose();
+
+            if (timerTask is null)
+            {
+                cts?.Dispose();
+                lock (_lock)
+                {
+                    _shutdownTask = null;
+                }
+                return;
+            }
         }
 
-        periodicTimer?.Dispose();
-
-        if (timerTask is null)
-        {
-            cts?.Dispose();
-            return;
-        }
-
-        await CompleteStopAsync(timerTask, cts, cancellationToken).ConfigureAwait(false);
+        await CompleteStopAsync(timerTask!, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task RunTimerLoopAsync(PeriodicTimer timer, CancellationToken cancellationToken)
@@ -254,8 +294,9 @@ public class SchedulerService : ISchedulerService
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
+            Log.Debug("[SchedulerService] Timer loop canceled during shutdown.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             bool shouldCleanup;
             lock (_lock)
@@ -263,7 +304,7 @@ public class SchedulerService : ISchedulerService
                 shouldCleanup = ReferenceEquals(_timerTask, timerTask);
                 if (shouldCleanup)
                 {
-                    _isRunning = false;
+                    IsRunning = false;
                     _timerTask = null;
                     _periodicTimer = null;
                     _cts = null;
@@ -274,26 +315,61 @@ public class SchedulerService : ISchedulerService
 
             if (shouldCleanup)
             {
-                try
+                CancelCts(cts, "[SchedulerService] Timer cancellation callbacks failed after fault");
+            }
+        }
+        finally
+        {
+            DisposeCts(cts);
+            lock (_lock)
+            {
+                if (ReferenceEquals(_shutdownTask, timerTask))
                 {
-                    cts.Cancel();
+                    _shutdownTask = null;
                 }
-                catch (ObjectDisposedException)
-                {
-                }
-
-                cts.Dispose();
             }
         }
     }
 
-    private static async Task CompleteStopAsync(Task timerTask, CancellationTokenSource? cts, CancellationToken cancellationToken)
+    private void CancelCts(CancellationTokenSource cts, string failureMessage)
+    {
+        lock (_ctsLock)
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                Log.Debug("[SchedulerService] Cancellation source was already disposed.");
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.Warning(ex, failureMessage);
+            }
+        }
+    }
+
+    private void DisposeCts(CancellationTokenSource cts)
+    {
+        lock (_ctsLock)
+        {
+            cts.Dispose();
+        }
+    }
+
+    private async Task CompleteStopAsync(Task timerTask, CancellationToken cancellationToken)
     {
         try
         {
-            var completedTask = await Task.WhenAny(timerTask, Task.Delay(StopTimeout, cancellationToken)).ConfigureAwait(false);
+            var completedTask = await Task.WhenAny(timerTask, Task.Delay(StopTimeout, _timeProvider, cancellationToken))
+                .WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
             if (!ReferenceEquals(completedTask, timerTask))
             {
+                // Task.WhenAny returns the canceled Delay without throwing; surface the caller's
+                // cancellation (shutdown continues in background).
+                cancellationToken.ThrowIfCancellationRequested();
                 Log.Warning("[SchedulerService] Timer loop did not stop within {TimeoutMs}ms; shutdown will continue in background", StopTimeout.TotalMilliseconds);
             }
 
@@ -302,16 +378,13 @@ public class SchedulerService : ISchedulerService
                 await timerTask.ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException) when ((cts?.IsCancellationRequested) is true)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            Log.Debug("[SchedulerService] Stop completed through cancellation.");
         }
-        catch
+        catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
         {
             // Faults are already handled by ObserveTimerLoopAsync.
-        }
-        finally
-        {
-            cts?.Dispose();
         }
     }
 
@@ -421,7 +494,7 @@ public class SchedulerService : ISchedulerService
                             task.NextRunTime = null;
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
                         task.IsEnabled = false;
                         task.NextRunTime = null;
@@ -450,11 +523,17 @@ public class SchedulerService : ISchedulerService
             try
             {
                 action();
-                completion.TrySetResult(null);
+                if (!completion.TrySetResult(null))
+                {
+                    return;
+                }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                completion.TrySetException(ex);
+                if (!completion.TrySetException(ex))
+                {
+                    return;
+                }
             }
         }, state: null);
 
@@ -463,12 +542,15 @@ public class SchedulerService : ISchedulerService
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_lock)
         {
-            return;
-        }
+            if (_disposed)
+            {
+                return;
+            }
 
-        _disposed = true;
+            _disposed = true;
+        }
 
         _executor.TaskExecuted -= OnExecutorTaskExecuted;
         _executor.TaskStarting -= OnExecutorTaskStarting;

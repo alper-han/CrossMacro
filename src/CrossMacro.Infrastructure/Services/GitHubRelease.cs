@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-internal class GitHubRelease
+internal sealed class GitHubRelease
 {
     [JsonPropertyName("tag_name")]
     public string? TagName { get; set; }

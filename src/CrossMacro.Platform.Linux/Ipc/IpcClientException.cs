@@ -1,28 +1,16 @@
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-public sealed class IpcClientException : Exception
+public sealed class IpcClientException(IpcClientFailureReason reason, string message, Exception? innerException = null) : Exception(message, innerException)
 {
-    public IpcClientFailureReason Reason { get; }
+    public IpcClientFailureReason Reason { get; } = reason;
 
     public IpcClientException()
-        : this(IpcClientFailureReason.ConnectFailed, "IPC client error occurred.")
-    {
-    }
+        : this(IpcClientFailureReason.ConnectFailed, "IPC client error occurred.") { /* Empty */ }
 
     public IpcClientException(string message)
-        : this(IpcClientFailureReason.ConnectFailed, message)
-    {
-    }
+        : this(IpcClientFailureReason.ConnectFailed, message) { /* Empty */ }
 
     public IpcClientException(string message, Exception innerException)
-        : this(IpcClientFailureReason.ConnectFailed, message, innerException)
-    {
-    }
-
-    public IpcClientException(IpcClientFailureReason reason, string message, Exception? innerException = null)
-        : base(message, innerException)
-    {
-        Reason = reason;
-    }
+        : this(IpcClientFailureReason.ConnectFailed, message, innerException) { /* Empty */ }
 }

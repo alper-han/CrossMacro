@@ -55,13 +55,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private readonly Stack<List<EditorAction>> _undoStack = new(UndoStackLimit);
     private readonly Stack<List<EditorAction>> _redoStack = new(UndoStackLimit);
-
-    private EditorAction? _selectedAction;
     private EditorActionListItem? _selectedActionListItem;
-    private EditorActionType _newActionType = EditorActionType.MouseClick;
+    [ObservableProperty]
     private string _macroName;
     private string _status;
-    private EditorCaptureMode _captureMode;
     private bool _skipInitialZeroZero;
     private bool _skipInitialZeroZeroForcedByCurrentPosition;
     private bool _skipInitialZeroZeroBeforeCurrentPositionForce;
@@ -72,15 +69,12 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private bool _isSynchronizingSelectedUnderlyingIndices;
     private bool _isBatchUpdatingActions;
     private bool _disposed;
+    // Lifetime CTS for operations unrelated to test playback (image import/preview).
+    private readonly CancellationTokenSource _viewModelCts = new();
     private bool _usesDefaultMacroName = true;
-    private bool _hideMouseMoves;
-    private bool _hideShortWaits;
-    private bool _simplifyMovement;
     private bool _isApplyingStatusKind;
     private EditorStatusKind _statusKind = EditorStatusKind.Ready;
     private List<EditorAction> _lastKnownState = new();
-    private IReadOnlyList<string> _availableVariableNames = Array.Empty<string>();
-    private IReadOnlyList<string> _availableColorVariableNames = Array.Empty<string>();
     private readonly Dictionary<string, string> _imageAssets = new(StringComparer.Ordinal);
     private string? _selectedSetVariableSuggestion;
     private string? _selectedIncDecVariableSuggestion;
@@ -89,21 +83,14 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private string? _selectedForVariableSuggestion;
     private string? _selectedClipboardVariableSuggestion;
     private string? _selectedScreenTargetColorVariableSuggestion;
-    private Guid? _linkedLoadedMacroSessionId;
     private DateTimeOffset _lastPropertyEditUndoAt = DateTimeOffset.MinValue;
     private EditorAction? _lastPropertyEditAction;
     private string? _lastPropertyEditName;
-    private IReadOnlyList<EditorActionPickerGroup> _addableActionGroups = Array.Empty<EditorActionPickerGroup>();
     private EditorActionPickerGroup? _newActionGroup;
     private EditorActionPickerChoice? _newActionChoice;
     private readonly HashSet<EditorAction> _subscribedActions = new();
-    private static readonly IReadOnlyList<EditorActionType> EditorAddableActionTypes = Enum
-        .GetValues<EditorActionType>()
-        .Where(IsUserAddableActionType)
-        .ToArray();
     private static readonly IReadOnlyList<(string ResourceKey, EditorActionType[] ActionTypes)> EditorActionGroupDefinitions =
-        new (string ResourceKey, EditorActionType[] ActionTypes)[]
-        {
+        [
             ("Editor_ActionGroup_Mouse", new[]
             {
                 EditorActionType.MouseMove,
@@ -162,13 +149,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             {
                 EditorActionType.WindowCommand,
             }),
-        };
-    private static readonly IReadOnlyList<EditorActionScreenTargetColorSource> EditorScreenTargetColorSources =
-        new[]
-        {
-            EditorActionScreenTargetColorSource.ManualHex,
-            EditorActionScreenTargetColorSource.Variable,
-        };
+        ];
 
     /// <summary>
     /// Event fired when a macro is created/saved.
@@ -209,7 +190,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _macroPlayer = macroPlayer ?? throw new ArgumentNullException(nameof(macroPlayer));
         _macroName = _localizationService["Editor_DefaultMacroName"];
         _status = BuildStatus(EditorStatusKind.Ready);
-        RebuildAddableActionGroups(_newActionType);
+        RebuildAddableActionGroups(NewActionType);
 
         Actions = new ObservableCollection<EditorAction>();
         ActionListItems = new ObservableCollection<EditorActionListItem>();
@@ -240,25 +221,21 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     public EditorAction? SelectedAction
     {
-        get => _selectedAction;
-        set
+        get; set
         {
-            if (_selectedAction == value)
+            if (field == value)
             {
                 return;
             }
 
-            if (_selectedAction is not null)
-            {
-                _selectedAction.PropertyChanged -= OnSelectedActionPropertyChanged;
-            }
+            field?.PropertyChanged -= OnSelectedActionPropertyChanged;
 
-            _selectedAction = value;
+            field = value;
 
-            if (_selectedAction is not null)
+            if (field is not null)
             {
-                _selectedAction.PropertyChanged += OnSelectedActionPropertyChanged;
-                NormalizeSelectedActionState(_selectedAction);
+                field.PropertyChanged += OnSelectedActionPropertyChanged;
+                NormalizeSelectedActionState(field);
             }
 
             OnPropertyChanged();
@@ -269,7 +246,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(SelectedActionIsRelative));
             NotifyVisibilityChanged();
             OnPropertyChanged(nameof(SelectedActionDisplayText));
-            RefreshSelectedImageAssetPreview();
+            _ = RefreshSelectedImageAssetPreviewAsync();
             ResetPropertyEditUndoCoalescing();
             SyncSelectedActionListItem();
             if (!_isSelectingFromActionList)
@@ -336,7 +313,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool HasSelectedAction => _selectedAction is not null;
+    public bool HasSelectedAction => SelectedAction is not null;
 
     public bool SelectedImageSearchScaleAware
     {
@@ -406,24 +383,17 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             action => action.RandomDelayMaxMs = value);
     }
 
-    public EditorActionType NewActionType
-    {
-        get => _newActionType;
-        set
-        {
-            if (_newActionType == value)
-            {
-                return;
-            }
+    [ObservableProperty]
+    private EditorActionType _newActionType = EditorActionType.MouseClick;
 
-            _newActionType = value;
-            SyncNewActionPickerSelection(value);
-            OnPropertyChanged();
-        }
+    partial void OnNewActionTypeChanged(EditorActionType value)
+    {
+        SyncNewActionPickerSelection(value);
     }
 
-    public IReadOnlyList<EditorActionPickerGroup> AddableActionGroups => _addableActionGroups;
+    public IReadOnlyList<EditorActionPickerGroup> AddableActionGroups { get; private set; } = [];
 
+    // Kept manual: reference-equality guard with cascading picker synchronization that writes the backing fields directly.
     public EditorActionPickerGroup? NewActionGroup
     {
         get => _newActionGroup;
@@ -440,13 +410,14 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
             if (value != null && !value.Choices.Contains(_newActionChoice))
             {
-                NewActionChoice = value.Choices.FirstOrDefault();
+                NewActionChoice = value.Choices.Count > 0 ? value.Choices[0] : null;
             }
         }
     }
 
-    public IReadOnlyList<EditorActionPickerChoice> NewActionChoices => NewActionGroup?.Choices ?? Array.Empty<EditorActionPickerChoice>();
+    public IReadOnlyList<EditorActionPickerChoice> NewActionChoices => NewActionGroup?.Choices ?? [];
 
+    // Kept manual: reference-equality guard with cascading picker synchronization that writes the backing fields directly.
     public EditorActionPickerChoice? NewActionChoice
     {
         get => _newActionChoice;
@@ -460,31 +431,21 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             _newActionChoice = value;
             OnPropertyChanged();
 
-            if (value != null && _newActionType != value.ActionType)
+            if (value != null && NewActionType != value.ActionType)
             {
                 NewActionType = value.ActionType;
             }
         }
     }
 
-    public string MacroName
+    partial void OnMacroNameChanged(string value)
     {
-        get => _macroName;
-        set
-        {
-            if (string.Equals(_macroName, value, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _macroName = value;
-            _usesDefaultMacroName = false;
-            OnPropertyChanged();
-        }
+        _usesDefaultMacroName = false;
     }
 
-    public Guid? LinkedLoadedMacroSessionId => _linkedLoadedMacroSessionId;
+    public Guid? LinkedLoadedMacroSessionId { get; private set; }
 
+    // Kept manual: StatusChanged must fire after the PropertyChanged notification and the setter tracks status-kind bookkeeping.
     public string Status
     {
         get => _status;
@@ -507,67 +468,44 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     public void TrackLoadedMacroSession(Guid sessionId)
     {
-        _linkedLoadedMacroSessionId = sessionId;
+        LinkedLoadedMacroSessionId = sessionId;
     }
 
     public void ClearLoadedMacroSessionLink()
     {
-        _linkedLoadedMacroSessionId = null;
+        LinkedLoadedMacroSessionId = null;
     }
 
-    public EditorCaptureMode CaptureMode
-    {
-        get => _captureMode;
-        private set
-        {
-            if (_captureMode == value)
-            {
-                return;
-            }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCapturing))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingPosition))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingKey))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingTargetColor))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingConditionLeftColor))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingConditionRightColor))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingPixelSearchTopLeft))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingPixelSearchBottomRight))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingScreenshotRegionStart))]
+    [NotifyPropertyChangedFor(nameof(IsCapturingScreenshotRegionEnd))]
+    [NotifyPropertyChangedFor(nameof(ShowConditionLeftColorPicker))]
+    [NotifyPropertyChangedFor(nameof(ShowConditionRightColorPicker))]
+    public partial EditorCaptureMode CaptureMode { get; private set; }
 
-            _captureMode = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IsCapturing));
-            OnPropertyChanged(nameof(IsCapturingPosition));
-            OnPropertyChanged(nameof(IsCapturingKey));
-            OnPropertyChanged(nameof(IsCapturingTargetColor));
-            OnPropertyChanged(nameof(IsCapturingConditionLeftColor));
-            OnPropertyChanged(nameof(IsCapturingConditionRightColor));
-            OnPropertyChanged(nameof(IsCapturingPixelSearchTopLeft));
-            OnPropertyChanged(nameof(IsCapturingPixelSearchBottomRight));
-            OnPropertyChanged(nameof(IsCapturingScreenshotRegionStart));
-            OnPropertyChanged(nameof(IsCapturingScreenshotRegionEnd));
-            OnPropertyChanged(nameof(ShowConditionLeftColorPicker));
-            OnPropertyChanged(nameof(ShowConditionRightColorPicker));
-        }
-    }
+    public bool IsCapturing => CaptureMode is not EditorCaptureMode.None;
+    public bool IsCapturingPosition => CaptureMode is EditorCaptureMode.Position;
+    public bool IsCapturingKey => CaptureMode is EditorCaptureMode.Key;
+    public bool IsCapturingTargetColor => CaptureMode is EditorCaptureMode.TargetColor;
+    public bool IsCapturingConditionLeftColor => CaptureMode is EditorCaptureMode.ConditionLeftColor;
+    public bool IsCapturingConditionRightColor => CaptureMode is EditorCaptureMode.ConditionRightColor;
+    public bool IsCapturingPixelSearchTopLeft => CaptureMode is EditorCaptureMode.PixelSearchTopLeft;
+    public bool IsCapturingPixelSearchBottomRight => CaptureMode is EditorCaptureMode.PixelSearchBottomRight;
+    public bool IsCapturingScreenshotRegionStart => CaptureMode is EditorCaptureMode.ScreenshotRegionStart;
+    public bool IsCapturingScreenshotRegionEnd => CaptureMode is EditorCaptureMode.ScreenshotRegionEnd;
 
-    public bool IsCapturing => _captureMode is not EditorCaptureMode.None;
-    public bool IsCapturingPosition => _captureMode is EditorCaptureMode.Position;
-    public bool IsCapturingKey => _captureMode is EditorCaptureMode.Key;
-    public bool IsCapturingTargetColor => _captureMode is EditorCaptureMode.TargetColor;
-    public bool IsCapturingConditionLeftColor => _captureMode is EditorCaptureMode.ConditionLeftColor;
-    public bool IsCapturingConditionRightColor => _captureMode is EditorCaptureMode.ConditionRightColor;
-    public bool IsCapturingPixelSearchTopLeft => _captureMode is EditorCaptureMode.PixelSearchTopLeft;
-    public bool IsCapturingPixelSearchBottomRight => _captureMode is EditorCaptureMode.PixelSearchBottomRight;
-    public bool IsCapturingScreenshotRegionStart => _captureMode is EditorCaptureMode.ScreenshotRegionStart;
-    public bool IsCapturingScreenshotRegionEnd => _captureMode is EditorCaptureMode.ScreenshotRegionEnd;
-
-    private bool _isRunningTest;
-    public bool IsRunningTest
-    {
-        get => _isRunningTest;
-        private set
-        {
-            if (_isRunningTest != value)
-            {
-                _isRunningTest = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(RunIcon));
-                OnPropertyChanged(nameof(RunText));
-            }
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RunIcon))]
+    [NotifyPropertyChangedFor(nameof(RunText))]
+    public partial bool IsRunningTest { get; private set; }
 
     public AppIcon RunIcon => IsRunningTest ? AppIcon.Stop : AppIcon.Play;
     public string RunText => IsRunningTest ? Localize("Editor_StopTest") : Localize("Editor_RunTest");
@@ -576,20 +514,22 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool CanRedo => _redoStack.Count > 0;
     public bool HasActions => Actions.Count > 0;
     public bool HasLoadWarnings => LoadWarnings.Count > 0;
-    public int HiddenEventCount { get; private set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHiddenEvents))]
+    public partial int HiddenEventCount { get; private set; }
     public bool HasHiddenEvents => HiddenEventCount > 0;
 
+    // Kept manual: UpdateActionListPresentation must run after the change notifications; a generated OnChanged hook would run before them.
     public bool HideMouseMoves
     {
-        get => _hideMouseMoves;
-        set
+        get; set
         {
-            if (_hideMouseMoves == value)
+            if (field == value)
             {
                 return;
             }
 
-            _hideMouseMoves = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ShowHideMouseMovesToggle));
             OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
@@ -597,17 +537,17 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Kept manual: UpdateActionListPresentation must run after the change notifications; a generated OnChanged hook would run before them.
     public bool HideShortWaits
     {
-        get => _hideShortWaits;
-        set
+        get; set
         {
-            if (_hideShortWaits == value)
+            if (field == value)
             {
                 return;
             }
 
-            _hideShortWaits = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ShowHideShortWaitsToggle));
             OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
@@ -615,29 +555,30 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Kept manual: UpdateActionListPresentation must run after the change notifications; a generated OnChanged hook would run before them.
     public bool SimplifyMovement
     {
-        get => _simplifyMovement;
-        set
+        get; set
         {
-            if (_simplifyMovement == value)
+            if (field == value)
             {
                 return;
             }
 
-            _simplifyMovement = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ShowSimplifyMovementToggle));
             UpdateActionListPresentation();
         }
     }
 
+    // Kept manual: coerces the incoming value against RequiresSkipInitialZeroZero and tracks the pre-force state.
     public bool SkipInitialZeroZero
     {
         get => _skipInitialZeroZero;
         set
         {
-            var normalized = RequiresSkipInitialZeroZero ? true : value;
+            var normalized = RequiresSkipInitialZeroZero || value;
             if (_skipInitialZeroZero == normalized)
             {
                 return;
@@ -656,7 +597,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool CanEditSkipInitialZeroZero => !RequiresSkipInitialZeroZero;
 
     public static IEnumerable<EditorActionType> ActionTypes => Enum.GetValues<EditorActionType>();
-    public static IReadOnlyList<EditorActionType> AddableActionTypes => EditorAddableActionTypes;
+    public static IReadOnlyList<EditorActionType> AddableActionTypes { get; } = Enum
+        .GetValues<EditorActionType>()
+        .Where(IsUserAddableActionType)
+        .ToArray();
 
     public string FormatActionType(EditorActionType actionType) => _actionDisplayFormatter.FormatActionType(actionType);
     public static IEnumerable<MacroMouseButton> MouseButtons => Enum.GetValues<MacroMouseButton>().Where(button => button is not MacroMouseButton.None);
@@ -701,7 +645,39 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.MouseClick => Localize("Editor_CurrentPositionClick"),
         EditorActionType.MouseDown => Localize("Editor_CurrentPositionHold"),
         EditorActionType.MouseUp => Localize("Editor_CurrentPositionRelease"),
-        _ => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.MouseMove => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.KeyPress => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.KeyDown => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.KeyUp => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.Delay => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ScrollVertical => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ScrollHorizontal => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.TextInput => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.SetVariable => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.IncrementVariable => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.DecrementVariable => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.RepeatBlockStart => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.IfBlockStart => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ElseBlockStart => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.WhileBlockStart => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ForBlockStart => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.BlockEnd => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.Break => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.Continue => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.PixelColor => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.WaitColor => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.PixelSearch => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ImageSearch => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ImageClick => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.WaitImage => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ClipboardGet => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ClipboardSet => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.ShellCommand => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.Screenshot => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.WindowCommand => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.RawScriptStep => Localize("Editor_CurrentPositionUse"),
+        null => Localize("Editor_CurrentPositionUse"),
+        _ => throw new InvalidOperationException("Unsupported editor action type."),
     };
 
     /// <summary>
@@ -805,14 +781,80 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     {
         EditorActionType.RawScriptStep => Localize("Editor_RawScriptStep"),
         EditorActionType.ClipboardSet => Localize("Editor_ClipboardText"),
-        _ => Localize("Editor_TextToType"),
+        EditorActionType.MouseMove => Localize("Editor_TextToType"),
+        EditorActionType.MouseClick => Localize("Editor_TextToType"),
+        EditorActionType.MouseDown => Localize("Editor_TextToType"),
+        EditorActionType.MouseUp => Localize("Editor_TextToType"),
+        EditorActionType.KeyPress => Localize("Editor_TextToType"),
+        EditorActionType.KeyDown => Localize("Editor_TextToType"),
+        EditorActionType.KeyUp => Localize("Editor_TextToType"),
+        EditorActionType.Delay => Localize("Editor_TextToType"),
+        EditorActionType.ScrollVertical => Localize("Editor_TextToType"),
+        EditorActionType.ScrollHorizontal => Localize("Editor_TextToType"),
+        EditorActionType.TextInput => Localize("Editor_TextToType"),
+        EditorActionType.SetVariable => Localize("Editor_TextToType"),
+        EditorActionType.IncrementVariable => Localize("Editor_TextToType"),
+        EditorActionType.DecrementVariable => Localize("Editor_TextToType"),
+        EditorActionType.RepeatBlockStart => Localize("Editor_TextToType"),
+        EditorActionType.IfBlockStart => Localize("Editor_TextToType"),
+        EditorActionType.ElseBlockStart => Localize("Editor_TextToType"),
+        EditorActionType.WhileBlockStart => Localize("Editor_TextToType"),
+        EditorActionType.ForBlockStart => Localize("Editor_TextToType"),
+        EditorActionType.BlockEnd => Localize("Editor_TextToType"),
+        EditorActionType.Break => Localize("Editor_TextToType"),
+        EditorActionType.Continue => Localize("Editor_TextToType"),
+        EditorActionType.PixelColor => Localize("Editor_TextToType"),
+        EditorActionType.WaitColor => Localize("Editor_TextToType"),
+        EditorActionType.PixelSearch => Localize("Editor_TextToType"),
+        EditorActionType.ImageSearch => Localize("Editor_TextToType"),
+        EditorActionType.ImageClick => Localize("Editor_TextToType"),
+        EditorActionType.WaitImage => Localize("Editor_TextToType"),
+        EditorActionType.ClipboardGet => Localize("Editor_TextToType"),
+        EditorActionType.ShellCommand => Localize("Editor_TextToType"),
+        EditorActionType.Screenshot => Localize("Editor_TextToType"),
+        EditorActionType.WindowCommand => Localize("Editor_TextToType"),
+        null => Localize("Editor_TextToType"),
+        _ => throw new InvalidOperationException("Unsupported editor action type."),
     };
 
     public string TextInputWatermark => SelectedAction?.Type switch
     {
         EditorActionType.RawScriptStep => Localize("Editor_OriginalScriptLine"),
         EditorActionType.ClipboardSet => Localize("Editor_ClipboardTextPlaceholder"),
-        _ => Localize("Editor_EnterTextToType"),
+        EditorActionType.MouseMove => Localize("Editor_EnterTextToType"),
+        EditorActionType.MouseClick => Localize("Editor_EnterTextToType"),
+        EditorActionType.MouseDown => Localize("Editor_EnterTextToType"),
+        EditorActionType.MouseUp => Localize("Editor_EnterTextToType"),
+        EditorActionType.KeyPress => Localize("Editor_EnterTextToType"),
+        EditorActionType.KeyDown => Localize("Editor_EnterTextToType"),
+        EditorActionType.KeyUp => Localize("Editor_EnterTextToType"),
+        EditorActionType.Delay => Localize("Editor_EnterTextToType"),
+        EditorActionType.ScrollVertical => Localize("Editor_EnterTextToType"),
+        EditorActionType.ScrollHorizontal => Localize("Editor_EnterTextToType"),
+        EditorActionType.TextInput => Localize("Editor_EnterTextToType"),
+        EditorActionType.SetVariable => Localize("Editor_EnterTextToType"),
+        EditorActionType.IncrementVariable => Localize("Editor_EnterTextToType"),
+        EditorActionType.DecrementVariable => Localize("Editor_EnterTextToType"),
+        EditorActionType.RepeatBlockStart => Localize("Editor_EnterTextToType"),
+        EditorActionType.IfBlockStart => Localize("Editor_EnterTextToType"),
+        EditorActionType.ElseBlockStart => Localize("Editor_EnterTextToType"),
+        EditorActionType.WhileBlockStart => Localize("Editor_EnterTextToType"),
+        EditorActionType.ForBlockStart => Localize("Editor_EnterTextToType"),
+        EditorActionType.BlockEnd => Localize("Editor_EnterTextToType"),
+        EditorActionType.Break => Localize("Editor_EnterTextToType"),
+        EditorActionType.Continue => Localize("Editor_EnterTextToType"),
+        EditorActionType.PixelColor => Localize("Editor_EnterTextToType"),
+        EditorActionType.WaitColor => Localize("Editor_EnterTextToType"),
+        EditorActionType.PixelSearch => Localize("Editor_EnterTextToType"),
+        EditorActionType.ImageSearch => Localize("Editor_EnterTextToType"),
+        EditorActionType.ImageClick => Localize("Editor_EnterTextToType"),
+        EditorActionType.WaitImage => Localize("Editor_EnterTextToType"),
+        EditorActionType.ClipboardGet => Localize("Editor_EnterTextToType"),
+        EditorActionType.ShellCommand => Localize("Editor_EnterTextToType"),
+        EditorActionType.Screenshot => Localize("Editor_EnterTextToType"),
+        EditorActionType.WindowCommand => Localize("Editor_EnterTextToType"),
+        null => Localize("Editor_EnterTextToType"),
+        _ => throw new InvalidOperationException("Unsupported editor action type."),
     };
 
     public string TextInputHint => SelectedAction?.Type switch
@@ -821,7 +863,40 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             ? hint
             : Localize("Editor_RawScriptHint"),
         EditorActionType.ClipboardSet => Localize("Editor_ClipboardSetHint"),
-        _ => Localize("Editor_TextToTypeHint"),
+        EditorActionType.MouseMove => Localize("Editor_TextToTypeHint"),
+        EditorActionType.MouseClick => Localize("Editor_TextToTypeHint"),
+        EditorActionType.MouseDown => Localize("Editor_TextToTypeHint"),
+        EditorActionType.MouseUp => Localize("Editor_TextToTypeHint"),
+        EditorActionType.KeyPress => Localize("Editor_TextToTypeHint"),
+        EditorActionType.KeyDown => Localize("Editor_TextToTypeHint"),
+        EditorActionType.KeyUp => Localize("Editor_TextToTypeHint"),
+        EditorActionType.Delay => Localize("Editor_TextToTypeHint"),
+        EditorActionType.ScrollVertical => Localize("Editor_TextToTypeHint"),
+        EditorActionType.ScrollHorizontal => Localize("Editor_TextToTypeHint"),
+        EditorActionType.TextInput => Localize("Editor_TextToTypeHint"),
+        EditorActionType.SetVariable => Localize("Editor_TextToTypeHint"),
+        EditorActionType.IncrementVariable => Localize("Editor_TextToTypeHint"),
+        EditorActionType.DecrementVariable => Localize("Editor_TextToTypeHint"),
+        EditorActionType.RepeatBlockStart => Localize("Editor_TextToTypeHint"),
+        EditorActionType.IfBlockStart => Localize("Editor_TextToTypeHint"),
+        EditorActionType.ElseBlockStart => Localize("Editor_TextToTypeHint"),
+        EditorActionType.WhileBlockStart => Localize("Editor_TextToTypeHint"),
+        EditorActionType.ForBlockStart => Localize("Editor_TextToTypeHint"),
+        EditorActionType.BlockEnd => Localize("Editor_TextToTypeHint"),
+        EditorActionType.Break => Localize("Editor_TextToTypeHint"),
+        EditorActionType.Continue => Localize("Editor_TextToTypeHint"),
+        EditorActionType.PixelColor => Localize("Editor_TextToTypeHint"),
+        EditorActionType.WaitColor => Localize("Editor_TextToTypeHint"),
+        EditorActionType.PixelSearch => Localize("Editor_TextToTypeHint"),
+        EditorActionType.ImageSearch => Localize("Editor_TextToTypeHint"),
+        EditorActionType.ImageClick => Localize("Editor_TextToTypeHint"),
+        EditorActionType.WaitImage => Localize("Editor_TextToTypeHint"),
+        EditorActionType.ClipboardGet => Localize("Editor_TextToTypeHint"),
+        EditorActionType.ShellCommand => Localize("Editor_TextToTypeHint"),
+        EditorActionType.Screenshot => Localize("Editor_TextToTypeHint"),
+        EditorActionType.WindowCommand => Localize("Editor_TextToTypeHint"),
+        null => Localize("Editor_TextToTypeHint"),
+        _ => throw new InvalidOperationException("Unsupported editor action type."),
     };
 
     public bool TextInputAcceptsReturn => SelectedAction?.Type is EditorActionType.TextInput or EditorActionType.RawScriptStep or EditorActionType.ClipboardSet;
@@ -853,12 +928,28 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
         _disposed = true;
+        try
+        {
+            _viewModelCts.Cancel();
+        }
+        catch (AggregateException ex)
+        {
+            Log.Debug(ex, "[EditorViewModel] Cancellation callbacks failed during dispose");
+        }
+
+        _viewModelCts.Dispose();
         foreach (var action in _subscribedActions)
         {
             action.PropertyChanged -= OnAnyActionPropertyChanged;
@@ -875,38 +966,44 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        if (_usesDefaultMacroName)
+        PostToUiThread(() =>
         {
-            _macroName = Localize("Editor_DefaultMacroName");
-            OnPropertyChanged(nameof(MacroName));
-        }
+            if (_usesDefaultMacroName)
+            {
+                // Direct field write: relocalizing the default name must not clear the default-name flag via the setter hook.
+#pragma warning disable MVVMTK0034
+                _macroName = Localize("Editor_DefaultMacroName");
+#pragma warning restore MVVMTK0034
+                OnPropertyChanged(nameof(MacroName));
+            }
 
-        if (_statusKind is EditorStatusKind.Ready)
-        {
-            SetStatusKind(EditorStatusKind.Ready);
-        }
+            if (_statusKind is EditorStatusKind.Ready)
+            {
+                SetStatusKind(EditorStatusKind.Ready);
+            }
 
-        UpdateActionListPresentation();
-        OnPropertyChanged(nameof(CurrentPositionToggleLabel));
-        OnPropertyChanged(nameof(TextInputLabel));
-        OnPropertyChanged(nameof(TextInputWatermark));
-        OnPropertyChanged(nameof(TextInputHint));
-        OnPropertyChanged(nameof(ShellCommandModes));
-        OnPropertyChanged(nameof(WindowCommandModes));
-        OnPropertyChanged(nameof(AddableActionTypes));
-        OnPropertyChanged(nameof(ActionTypes));
-        OnPropertyChanged(nameof(SelectedAction));
-        OnPropertyChanged(nameof(SelectedActionListItem));
-        OnPropertyChanged(nameof(CanInsertElseBlock));
-        OnPropertyChanged(nameof(CanRemoveBlock));
-        OnPropertyChanged(nameof(ConditionRightOperandHint));
-        NotifyScreenReadingComputedPropertiesChanged();
-        RebuildAddableActionGroups(_newActionType);
+            UpdateActionListPresentation();
+            OnPropertyChanged(nameof(CurrentPositionToggleLabel));
+            OnPropertyChanged(nameof(TextInputLabel));
+            OnPropertyChanged(nameof(TextInputWatermark));
+            OnPropertyChanged(nameof(TextInputHint));
+            OnPropertyChanged(nameof(ShellCommandModes));
+            OnPropertyChanged(nameof(WindowCommandModes));
+            OnPropertyChanged(nameof(AddableActionTypes));
+            OnPropertyChanged(nameof(ActionTypes));
+            OnPropertyChanged(nameof(SelectedAction));
+            OnPropertyChanged(nameof(SelectedActionListItem));
+            OnPropertyChanged(nameof(CanInsertElseBlock));
+            OnPropertyChanged(nameof(CanRemoveBlock));
+            OnPropertyChanged(nameof(ConditionRightOperandHint));
+            NotifyScreenReadingComputedPropertiesChanged();
+            RebuildAddableActionGroups(NewActionType);
+        });
     }
 
     private void RebuildAddableActionGroups(EditorActionType preferredActionType)
     {
-        _addableActionGroups = EditorActionGroupDefinitions
+        AddableActionGroups = EditorActionGroupDefinitions
             .Select(definition => new EditorActionPickerGroup(
                 Localize(definition.ResourceKey),
                 definition.ActionTypes
@@ -922,7 +1019,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private void SyncNewActionPickerSelection(EditorActionType actionType)
     {
-        foreach (var group in _addableActionGroups)
+        foreach (var group in AddableActionGroups)
         {
             var choice = group.Choices.FirstOrDefault(item => item.ActionType == actionType);
             if (choice == null)
@@ -949,8 +1046,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var fallbackGroup = _addableActionGroups.FirstOrDefault();
-        var fallbackChoice = fallbackGroup?.Choices.FirstOrDefault();
+        var fallbackGroup = AddableActionGroups.Count > 0 ? AddableActionGroups[0] : null;
+        var fallbackChoice = fallbackGroup?.Choices.Count > 0 ? fallbackGroup.Choices[0] : null;
         _newActionGroup = fallbackGroup;
         _newActionChoice = fallbackChoice;
 
@@ -978,7 +1075,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         return statusKind switch
         {
             EditorStatusKind.Ready => Localize("Editor_StatusReady"),
-            _ => _status,
+            EditorStatusKind.Other => _status,
+            _ => throw new ArgumentOutOfRangeException(nameof(statusKind), statusKind, message: null),
         };
     }
 
@@ -1025,7 +1123,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             foreach (var action in Actions)
             {
                 action.PropertyChanged += OnAnyActionPropertyChanged;
-                _subscribedActions.Add(action);
+                _ = _subscribedActions.Add(action);
             }
         }
         else
@@ -1086,7 +1184,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         var normalized = underlyingIndices
             .Where(index => index >= 0 && index < Actions.Count)
             .Distinct()
-            .OrderBy(index => index)
+            .Order()
             .ToArray();
 
         if (SelectedActionUnderlyingIndices.SequenceEqual(normalized))
@@ -1264,12 +1362,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 EditorActionListMetadata.UpdateDragState(action, ref isDragging);
             }
 
-            if (HiddenEventCount != hiddenEventCount)
-            {
-                HiddenEventCount = hiddenEventCount;
-                OnPropertyChanged(nameof(HiddenEventCount));
-                OnPropertyChanged(nameof(HasHiddenEvents));
-            }
+            HiddenEventCount = hiddenEventCount;
 
             NormalizeSelectedUnderlyingIndices();
             if (SelectedActionUnderlyingIndices.Count > 0)
@@ -1289,7 +1382,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private sealed record class CondensibleRun(int EndIndex, int RepresentativeIndex, int HiddenCount);
+    private sealed record CondensibleRun(int EndIndex, int RepresentativeIndex, int HiddenCount);
 
     private CondensibleRun? TryGetCondensibleRun(int startIndex)
     {
@@ -1369,9 +1462,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private void SyncSelectedActionListItem()
     {
-        var selectedRow = _selectedAction is null
+        var selectedRow = SelectedAction is null
             ? null
-            : ActionListItems.FirstOrDefault(item => ReferenceEquals(item.Action, _selectedAction));
+            : ActionListItems.FirstOrDefault(item => ReferenceEquals(item.Action, SelectedAction));
         if (ReferenceEquals(_selectedActionListItem, selectedRow))
         {
             return;
@@ -1414,7 +1507,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         var normalized = SelectedActionUnderlyingIndices
             .Where(index => index >= 0 && index < Actions.Count)
             .Distinct()
-            .OrderBy(index => index)
+            .Order()
             .ToArray();
 
         if (SelectedActionUnderlyingIndices.SequenceEqual(normalized))
@@ -1491,17 +1584,17 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowSimplifyMovementToggle));
     }
 
-    private IReadOnlyList<EditorAction> GetSelectedActions()
+    private EditorAction[] GetSelectedActions()
     {
         return SelectedActionUnderlyingIndices
             .Where(index => index >= 0 && index < Actions.Count)
             .Distinct()
-            .OrderBy(index => index)
+            .Order()
             .Select(index => Actions[index])
             .ToArray();
     }
 
-    private IReadOnlyList<EditorAction> GetSelectedDelayActions()
+    private EditorAction[] GetSelectedDelayActions()
     {
         return GetSelectedActions()
             .Where(action => action.Type is EditorActionType.Delay)
@@ -1511,7 +1604,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private void ApplyToSelectedDelayActions(string propertyName, Func<EditorAction, bool> shouldUpdate, Action<EditorAction> update)
     {
         var actions = GetSelectedDelayActions();
-        if (actions.Count is 0 || !actions.Any(shouldUpdate))
+        if (actions.Length is 0 || !actions.Any(shouldUpdate))
         {
             return;
         }

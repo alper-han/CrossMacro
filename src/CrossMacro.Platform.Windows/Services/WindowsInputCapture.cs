@@ -1,12 +1,6 @@
 
 namespace CrossMacro.Platform.Windows.Services;
 
-internal interface IWindowsHookInstaller
-{
-    IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc);
-    IntPtr InstallKeyboardHook(IntPtr moduleHandle, User32.HookProc hookProc);
-}
-
 public sealed class WindowsInputCapture : IInputCapture
 {
     private const uint LowLevelKeyboardHookFlagExtended = 0x01;
@@ -44,9 +38,7 @@ public sealed class WindowsInputCapture : IInputCapture
     private readonly IWindowsHookInstaller _hookInstaller;
 
     public WindowsInputCapture()
-        : this(new DefaultWindowsHookInstaller())
-    {
-    }
+        : this(new DefaultWindowsHookInstaller()) { /* Empty */ }
 
     internal WindowsInputCapture(IWindowsHookInstaller hookInstaller)
     {
@@ -62,94 +54,110 @@ public sealed class WindowsInputCapture : IInputCapture
 
 
 
-    public Task StartAsync(CancellationToken ct)
+    public async Task StartAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
         var startupTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var messagePumpThread = new Thread(() =>
+        var messagePumpThread = new Thread(() => RunMessagePumpThread(startupTcs, ct))
         {
-            try
-            {
-                _messagePumpThreadId = Kernel32.GetCurrentThreadId();
+            IsBackground = true,
+        };
 
-                _mouseProc = MouseHookCallback;
-                _keyboardProc = KeyboardHookCallback;
-                _sessionWindowProc = SessionWindowCallback;
-
-                using (var curProcess = Process.GetCurrentProcess())
-                using (var curModule = curProcess.MainModule)
-                {
-                    IntPtr moduleHandle = Kernel32.GetModuleHandle(curModule?.ModuleName);
-
-                    if (_captureMouse)
-                    {
-                        _mouseHookHandle = InstallMouseHook(moduleHandle);
-                        if (_mouseHookHandle == IntPtr.Zero)
-                        {
-                            throw new InvalidOperationException("Failed to install mouse hook");
-                        }
-                    }
-
-                    if (_captureKeyboard)
-                    {
-                        _keyboardHookHandle = InstallKeyboardHook(moduleHandle);
-                        if (_keyboardHookHandle == IntPtr.Zero)
-                        {
-                            throw new InvalidOperationException("Failed to install keyboard hook");
-                        }
-                    }
-                }
-
-                RegisterSessionNotificationWindow();
-
-                startupTcs.TrySetResult();
-
-                while (!ct.IsCancellationRequested)
-                {
-                    if (User32.GetMessage(out var msg, IntPtr.Zero, 0, 0))
-                    {
-                        if (msg.message == User32.WM_QUIT)
-                        {
-                            break;
-                        }
-
-                        User32.TranslateMessage(ref msg);
-                        User32.DispatchMessage(ref msg);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!startupTcs.TrySetException(ex) && !startupTcs.Task.IsCanceled)
-                {
-                    CaptureError?.Invoke(this, new InputCaptureErrorEventArgs($"Message pump error: {ex.Message}"));
-                }
-            }
-            finally
-            {
-                UnregisterSessionNotificationWindow();
-                UninstallHooks();
-                _messagePumpThreadId = 0;
-            }
-        });
-
-        messagePumpThread.IsBackground = true;
         messagePumpThread.Start();
 
-        _startCancellationRegistration.Dispose();
+        await _startCancellationRegistration.DisposeAsync().ConfigureAwait(false);
         _startCancellationRegistration = ct.Register(() =>
         {
-            startupTcs.TrySetCanceled(ct);
+            _ = startupTcs.TrySetCanceled(ct);
             StopCapture();
         });
 
-        return startupTcs.Task;
+        await startupTcs.Task.ConfigureAwait(false);
+    }
+
+    private void RunMessagePumpThread(TaskCompletionSource startupTcs, CancellationToken ct)
+    {
+        try
+        {
+            _messagePumpThreadId = Kernel32.GetCurrentThreadId();
+
+            _mouseProc = MouseHookCallback;
+            _keyboardProc = KeyboardHookCallback;
+            _sessionWindowProc = SessionWindowCallback;
+
+            using (var curProcess = Process.GetCurrentProcess())
+            using (var curModule = curProcess.MainModule)
+            {
+                IntPtr moduleHandle = Kernel32.GetModuleHandle(curModule?.ModuleName);
+                InstallConfiguredHooks(moduleHandle);
+            }
+
+            RegisterSessionNotificationWindow();
+            _ = startupTcs.TrySetResult();
+            RunWindowsMessageLoop(ct);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            if (ex is OutOfMemoryException)
+            {
+                throw;
+            }
+
+            if (!startupTcs.TrySetException(ex) && !startupTcs.Task.IsCanceled)
+            {
+                CaptureError?.Invoke(this, new InputCaptureErrorEventArgs($"Message pump error: {ex.Message}"));
+            }
+        }
+        finally
+        {
+            UnregisterSessionNotificationWindow();
+            UninstallHooks();
+            _messagePumpThreadId = 0;
+        }
+    }
+
+    private void InstallConfiguredHooks(IntPtr moduleHandle)
+    {
+        if (_captureMouse)
+        {
+            _mouseHookHandle = InstallMouseHook(moduleHandle);
+            if (_mouseHookHandle == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("Failed to install mouse hook");
+            }
+        }
+
+        if (_captureKeyboard)
+        {
+            _keyboardHookHandle = InstallKeyboardHook(moduleHandle);
+            if (_keyboardHookHandle == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("Failed to install keyboard hook");
+            }
+        }
+    }
+
+    private static void RunWindowsMessageLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            if (User32.GetMessage(out var msg, IntPtr.Zero, 0, 0))
+            {
+                if (msg.message == User32.WM_QUIT)
+                {
+                    break;
+                }
+
+                _ = User32.TranslateMessage(ref msg);
+                _ = User32.DispatchMessage(ref msg);
+            }
+            else
+            {
+                break;
+            }
+        }
     }
 
     public void StopCapture()
@@ -158,7 +166,7 @@ public sealed class WindowsInputCapture : IInputCapture
 
         if (_messagePumpThreadId != 0)
         {
-            User32.PostThreadMessage(_messagePumpThreadId, User32.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+            _ = User32.PostThreadMessage(_messagePumpThreadId, User32.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         }
     }
 
@@ -180,18 +188,27 @@ public sealed class WindowsInputCapture : IInputCapture
     private void RegisterSessionNotificationWindow()
     {
         var instanceHandle = Kernel32.GetModuleHandle(lpModuleName: null);
-        var windowClass = new WNDCLASSEX
+        var classNamePointer = Marshal.StringToCoTaskMemUni(_sessionWindowClassName);
+        var windowProcPointer = Marshal.GetFunctionPointerForDelegate(_sessionWindowProc!);
+        var windowClass = new WndClassEx
         {
-            cbSize = (uint)Marshal.SizeOf<WNDCLASSEX>(),
-            lpfnWndProc = _sessionWindowProc!,
+            cbSize = (uint)Marshal.SizeOf<WndClassEx>(),
+            lpfnWndProc = windowProcPointer,
             hInstance = instanceHandle,
-            lpszClassName = _sessionWindowClassName,
+            lpszClassName = classNamePointer,
         };
 
-        if (User32.RegisterClassEx(ref windowClass) is 0)
+        try
         {
-            Log.Warning("[WindowsInputCapture] Failed to register session notification window class");
-            return;
+            if (User32.RegisterClassEx(ref windowClass) is 0)
+            {
+                Log.Warning("[WindowsInputCapture] Failed to register session notification window class");
+                return;
+            }
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(classNamePointer);
         }
 
         _sessionWindowHandle = User32.CreateWindowEx(
@@ -211,7 +228,7 @@ public sealed class WindowsInputCapture : IInputCapture
         if (_sessionWindowHandle == IntPtr.Zero)
         {
             Log.Warning("[WindowsInputCapture] Failed to create session notification window");
-            User32.UnregisterClass(_sessionWindowClassName, instanceHandle);
+            _ = User32.UnregisterClass(_sessionWindowClassName, instanceHandle);
             return;
         }
 
@@ -234,17 +251,17 @@ public sealed class WindowsInputCapture : IInputCapture
     {
         if (_sessionNotificationRegistered && _sessionWindowHandle != IntPtr.Zero)
         {
-            WtsApi32.WTSUnRegisterSessionNotification(_sessionWindowHandle);
+            _ = WtsApi32.WTSUnRegisterSessionNotification(_sessionWindowHandle);
             _sessionNotificationRegistered = false;
         }
 
         if (_sessionWindowHandle != IntPtr.Zero)
         {
-            User32.DestroyWindow(_sessionWindowHandle);
+            _ = User32.DestroyWindow(_sessionWindowHandle);
             _sessionWindowHandle = IntPtr.Zero;
         }
 
-        User32.UnregisterClass(_sessionWindowClassName, instanceHandle);
+        _ = User32.UnregisterClass(_sessionWindowClassName, instanceHandle);
     }
 
     private IntPtr SessionWindowCallback(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
@@ -261,13 +278,13 @@ public sealed class WindowsInputCapture : IInputCapture
     {
         if (_mouseHookHandle != IntPtr.Zero)
         {
-            User32.UnhookWindowsHookEx(_mouseHookHandle);
+            _ = User32.UnhookWindowsHookEx(_mouseHookHandle);
             _mouseHookHandle = IntPtr.Zero;
         }
 
         if (_keyboardHookHandle != IntPtr.Zero)
         {
-            User32.UnhookWindowsHookEx(_keyboardHookHandle);
+            _ = User32.UnhookWindowsHookEx(_keyboardHookHandle);
             _keyboardHookHandle = IntPtr.Zero;
         }
     }
@@ -281,202 +298,235 @@ public sealed class WindowsInputCapture : IInputCapture
     {
         if (nCode >= 0)
         {
-            var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
+            var hookStruct = Marshal.PtrToStructure<MsllHookStruct>(lParam);
             uint msg = (uint)wParam;
 
-            ushort evdevCode = 0;
-            int value = 0;
-            ushort type = InputEventCode.EV_KEY;
-
-            switch (msg)
+            if (msg == User32.WM_MOUSEMOVE)
             {
-                case User32.WM_LBUTTONDOWN:
-                    evdevCode = (ushort)InputEventCode.BTN_LEFT;
-                    value = 1;
-                    break;
-                case User32.WM_LBUTTONUP:
-                    evdevCode = (ushort)InputEventCode.BTN_LEFT;
-                    value = 0;
-                    break;
-                case User32.WM_RBUTTONDOWN:
-                    evdevCode = (ushort)InputEventCode.BTN_RIGHT;
-                    value = 1;
-                    break;
-                case User32.WM_RBUTTONUP:
-                    evdevCode = (ushort)InputEventCode.BTN_RIGHT;
-                    value = 0;
-                    break;
-                case User32.WM_MBUTTONDOWN:
-                    evdevCode = (ushort)InputEventCode.BTN_MIDDLE;
-                    value = 1;
-                    break;
-                case User32.WM_MBUTTONUP:
-                    evdevCode = (ushort)InputEventCode.BTN_MIDDLE;
-                    value = 0;
-                    break;
-                case User32.WM_MOUSEWHEEL:
-                    type = InputEventCode.EV_REL;
-                    evdevCode = InputEventCode.REL_WHEEL;
-
-                    value = (short)((hookStruct.mouseData >> 16) & 0xFFFF);
-                    break;
-
-                case User32.WM_MOUSEMOVE:
-                    int currentX = hookStruct.pt.x;
-                    int currentY = hookStruct.pt.y;
-
-                    if (_firstMove)
-                    {
-                        _lastX = currentX;
-                        _lastY = currentY;
-                        _firstMove = false;
-                    }
-
-                    int deltaX = currentX - _lastX;
-                    int deltaY = currentY - _lastY;
-
-                    _lastX = currentX;
-                    _lastY = currentY;
-
-                    if (deltaX is not 0)
-                    {
-                        var xArgs = new CapturedInputEvent
-                        {
-                            Type = InputEventType.MouseMove,
-                            Code = InputEventCode.REL_X,
-                            Value = deltaX,
-                            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                            DeviceName = "VirtualMouse",
-                        };
-                        InputReceived?.Invoke(this, new CapturedInputEventArgs(xArgs));
-                    }
-
-                    if (deltaY is not 0)
-                    {
-                        var yArgs = new CapturedInputEvent
-                        {
-                            Type = InputEventType.MouseMove,
-                            Code = InputEventCode.REL_Y,
-                            Value = deltaY,
-                            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                            DeviceName = "VirtualMouse",
-                        };
-                        InputReceived?.Invoke(this, new CapturedInputEventArgs(yArgs));
-                    }
-
-                    // Emit SYNC to flush the movement buffer in MacroRecorder
-                    if (deltaX is not 0 || deltaY is not 0)
-                    {
-                        var syncArgs = new CapturedInputEvent
-                        {
-                            Type = InputEventType.Sync,
-                            Code = 0,
-                            Value = 0,
-                            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                            DeviceName = "VirtualMouse",
-                        };
-                        InputReceived?.Invoke(this, new CapturedInputEventArgs(syncArgs));
-                    }
-
-                    evdevCode = 0;
-                    break;
+                HandleMouseMove(hookStruct.pt.x, hookStruct.pt.y);
             }
-
-            if (evdevCode is not 0)
+            else if (TryMapMouseButtonOrScroll(msg, hookStruct.mouseData, out ushort evdevCode, out int value, out ushort type))
             {
-                InputEventType eventType;
-                if (type == InputEventCode.EV_KEY && evdevCode >= 272 && evdevCode <= 279)
-                {
-                    eventType = InputEventType.MouseButton;
-                }
-                else if (type == InputEventCode.EV_REL && evdevCode == InputEventCode.REL_WHEEL)
-                {
-                    eventType = InputEventType.MouseScroll;
-                }
-                else
-                {
-                    eventType = (InputEventType)type;
-                }
-
-                var args = new CapturedInputEvent
-                {
-                    Type = eventType,
-                    Code = evdevCode,
-                    Value = value,
-                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    DeviceName = "VirtualMouse",
-                };
-                InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+                EmitMouseButtonOrScrollEvent(evdevCode, value, type);
             }
         }
         return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+    }
+
+    internal static bool TryMapMouseButtonOrScroll(uint msg, uint mouseData, out ushort evdevCode, out int value, out ushort type)
+    {
+        evdevCode = 0;
+        value = 0;
+        type = InputEventCode.EV_KEY;
+
+        switch (msg)
+        {
+            case User32.WM_LBUTTONDOWN:
+                evdevCode = (ushort)InputEventCode.BTN_LEFT;
+                value = 1;
+                return true;
+            case User32.WM_LBUTTONUP:
+                evdevCode = (ushort)InputEventCode.BTN_LEFT;
+                value = 0;
+                return true;
+            case User32.WM_RBUTTONDOWN:
+                evdevCode = (ushort)InputEventCode.BTN_RIGHT;
+                value = 1;
+                return true;
+            case User32.WM_RBUTTONUP:
+                evdevCode = (ushort)InputEventCode.BTN_RIGHT;
+                value = 0;
+                return true;
+            case User32.WM_MBUTTONDOWN:
+                evdevCode = (ushort)InputEventCode.BTN_MIDDLE;
+                value = 1;
+                return true;
+            case User32.WM_MBUTTONUP:
+                evdevCode = (ushort)InputEventCode.BTN_MIDDLE;
+                value = 0;
+                return true;
+            case User32.WM_MOUSEWHEEL:
+                type = InputEventCode.EV_REL;
+                evdevCode = InputEventCode.REL_WHEEL;
+                value = (short)((mouseData >> 16) & 0xFFFF);
+                return true;
+            case User32.WM_XBUTTONDOWN:
+            case User32.WM_XBUTTONUP:
+                switch ((ushort)(mouseData >> 16))
+                {
+                    case User32.XBUTTON1:
+                        evdevCode = (ushort)InputEventCode.BTN_SIDE;
+                        break;
+                    case User32.XBUTTON2:
+                        evdevCode = (ushort)InputEventCode.BTN_EXTRA;
+                        break;
+                    default:
+                        return false;
+                }
+
+                value = msg == User32.WM_XBUTTONDOWN ? 1 : 0;
+                return true;
+            case User32.WM_MOUSEHWHEEL:
+                type = InputEventCode.EV_REL;
+                evdevCode = InputEventCode.REL_HWHEEL;
+                value = (short)((mouseData >> 16) & 0xFFFF);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void HandleMouseMove(int currentX, int currentY)
+    {
+        if (_firstMove)
+        {
+            _lastX = currentX;
+            _lastY = currentY;
+            _firstMove = false;
+        }
+
+        int deltaX = currentX - _lastX;
+        int deltaY = currentY - _lastY;
+
+        _lastX = currentX;
+        _lastY = currentY;
+
+        if (deltaX is not 0)
+        {
+            var xArgs = new CapturedInputEvent
+            {
+                Type = InputEventType.MouseMove,
+                Code = InputEventCode.REL_X,
+                Value = deltaX,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                DeviceName = "VirtualMouse",
+            };
+            InputReceived?.Invoke(this, new CapturedInputEventArgs(xArgs));
+        }
+
+        if (deltaY is not 0)
+        {
+            var yArgs = new CapturedInputEvent
+            {
+                Type = InputEventType.MouseMove,
+                Code = InputEventCode.REL_Y,
+                Value = deltaY,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                DeviceName = "VirtualMouse",
+            };
+            InputReceived?.Invoke(this, new CapturedInputEventArgs(yArgs));
+        }
+
+        // Emit SYNC to flush the movement buffer in MacroRecorder
+        if (deltaX is not 0 || deltaY is not 0)
+        {
+            var syncArgs = new CapturedInputEvent
+            {
+                Type = InputEventType.Sync,
+                Code = 0,
+                Value = 0,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                DeviceName = "VirtualMouse",
+            };
+            InputReceived?.Invoke(this, new CapturedInputEventArgs(syncArgs));
+        }
+    }
+
+    private void EmitMouseButtonOrScrollEvent(ushort evdevCode, int value, ushort type)
+    {
+        InputEventType eventType;
+        if (type == InputEventCode.EV_KEY && evdevCode >= 272 && evdevCode <= 279)
+        {
+            eventType = InputEventType.MouseButton;
+        }
+        else if (type == InputEventCode.EV_REL && evdevCode is InputEventCode.REL_WHEEL or InputEventCode.REL_HWHEEL)
+        {
+            eventType = InputEventType.MouseScroll;
+        }
+        else
+        {
+            eventType = (InputEventType)type;
+        }
+
+        var args = new CapturedInputEvent
+        {
+            Type = eventType,
+            Code = evdevCode,
+            Value = value,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            DeviceName = "VirtualMouse",
+        };
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
     }
 
     private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         if (nCode >= 0)
         {
-            var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+            var hookStruct = Marshal.PtrToStructure<KbdllHookStruct>(lParam);
             uint msg = (uint)wParam;
 
-            if (ShouldIgnoreKeyboardHookEvent(hookStruct.flags, hookStruct.dwExtraInfo))
+            if (!ShouldIgnoreKeyboardHookEvent(hookStruct.flags, hookStruct.dwExtraInfo))
             {
-                return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
-            }
-
-            bool isDown = msg is User32.WM_KEYDOWN or User32.WM_SYSKEYDOWN;
-            bool isUp = msg is User32.WM_KEYUP or User32.WM_SYSKEYUP;
-
-            if (isDown || isUp)
-            {
-                int evdevCode = WindowsKeyMap.GetEvdevCode((ushort)hookStruct.vkCode);
-
-                // Debug logging for key analysis
-                if (isDown)
-                {
-                    Log.Debug("[WindowsInputCapture] KeyDown: VK={VK} (0x{VKHex}), Scan={Scan}, Flags={Flags}, Mapped={Evdev}",
-                        hookStruct.vkCode, hookStruct.vkCode.ToString("X", CultureInfo.InvariantCulture), hookStruct.scanCode, hookStruct.flags, evdevCode);
-                }
-
-                // Handle Extended Keys (distinguish Numpad vs Standard)
-                bool isExtended = (hookStruct.flags & LowLevelKeyboardHookFlagExtended) == LowLevelKeyboardHookFlagExtended;
-
-                // Fix for Right Alt (AltGr) appearing as Generic Menu (0x12) or Left Alt (0xA4) with Extended flag
-                if ((hookStruct.vkCode == 0x12 || hookStruct.vkCode == 0xA4) && isExtended)
-                {
-                    evdevCode = InputEventCode.KEY_RIGHTALT;
-                }
-                // Fix for Right Ctrl appearing as Generic Control (0x11) or Left Ctrl (0xA2) with Extended flag
-                if ((hookStruct.vkCode == 0x11 || hookStruct.vkCode == 0xA2) && isExtended)
-                {
-                    evdevCode = InputEventCode.KEY_RIGHTCTRL;
-                }
-
-                // Numpad Enter (Extended) vs Return
-                if (hookStruct.vkCode == 0x0D && isExtended)
-                {
-                    evdevCode = InputEventCode.KEY_KPENTER;
-                }
-
-                if (evdevCode is not 0)
-                {
-                    var args = new CapturedInputEvent
-                    {
-                        Type = (InputEventType)InputEventCode.EV_KEY,
-                        Code = (ushort)evdevCode,
-                        Value = isDown ? 1 : 0,
-                        Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                        DeviceName = "VirtualKeyboard",
-                    };
-                    InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
-                }
-                else if (isDown)
-                {
-                    Log.Warning("[WindowsInputCapture] Unmapped key: VK={VK} (0x{VKHex})", hookStruct.vkCode, hookStruct.vkCode.ToString("X", CultureInfo.InvariantCulture));
-                }
+                HandleKeyboardEvent(msg, hookStruct);
             }
         }
         return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+    }
+
+    private void HandleKeyboardEvent(uint msg, KbdllHookStruct hookStruct)
+    {
+        bool isDown = msg is User32.WM_KEYDOWN or User32.WM_SYSKEYDOWN;
+        bool isUp = msg is User32.WM_KEYUP or User32.WM_SYSKEYUP;
+
+        if (!isDown && !isUp)
+        {
+            return;
+        }
+
+        int evdevCode = MapKeyboardEvent((ushort)hookStruct.vkCode, hookStruct.flags);
+
+        // Debug logging for key analysis
+        if (isDown)
+        {
+            Log.Debug("[WindowsInputCapture] KeyDown: VK={VK} (0x{VKHex}), Scan={Scan}, Flags={Flags}, Mapped={Evdev}",
+                hookStruct.vkCode, hookStruct.vkCode.ToString("X", CultureInfo.InvariantCulture), hookStruct.scanCode, hookStruct.flags, evdevCode);
+        }
+
+        if (evdevCode is not 0)
+        {
+            var args = new CapturedInputEvent
+            {
+                Type = (InputEventType)InputEventCode.EV_KEY,
+                Code = (ushort)evdevCode,
+                Value = isDown ? 1 : 0,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                DeviceName = "VirtualKeyboard",
+            };
+            InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+        }
+        else if (isDown)
+        {
+            Log.Warning("[WindowsInputCapture] Unmapped key: VK={VK} (0x{VKHex})", hookStruct.vkCode, hookStruct.vkCode.ToString("X", CultureInfo.InvariantCulture));
+        }
+    }
+
+    internal static int MapKeyboardEvent(ushort virtualKey, uint hookFlags)
+    {
+        int evdevCode = WindowsKeyMap.GetEvdevCode(virtualKey);
+        bool isExtended = (hookFlags & LowLevelKeyboardHookFlagExtended) == LowLevelKeyboardHookFlagExtended;
+
+        if (virtualKey is 0x12 or 0xA4 && isExtended)
+        {
+            return InputEventCode.KEY_RIGHTALT;
+        }
+
+        if (virtualKey is 0x11 or 0xA2 && isExtended)
+        {
+            return InputEventCode.KEY_RIGHTCTRL;
+        }
+
+        return virtualKey is 0x0D && isExtended ? InputEventCode.KEY_KPENTER : evdevCode;
     }
 
     internal static bool ShouldIgnoreKeyboardHookEvent(uint hookFlags, IntPtr extraInfo)

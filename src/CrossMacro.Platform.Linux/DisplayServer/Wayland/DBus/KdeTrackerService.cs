@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-internal sealed class KdeTrackerService
+internal sealed class KdeTrackerService(Action<int, int> onPositionUpdate, Action<int, int> onResolutionUpdate, string customPath = KdeTrackerService.TrackerObjectPath)
 {
     public const string TrackerServiceName = LinuxDbusTransportBoundary.TrackerServiceName;
     public const string TrackerObjectPath = "/io/github/alper_han/crossmacro/Tracker";
@@ -10,18 +10,11 @@ internal sealed class KdeTrackerService
     public const string UpdateResolutionMethod = "UpdateResolution";
     public const string ReportWindowDataMethod = "ReportWindowData";
 
-    internal ObjectPath ObjectPath { get; }
-    private readonly Action<int, int> _onPositionUpdate;
-    private readonly Action<int, int> _onResolutionUpdate;
+    internal ObjectPath ObjectPath { get; } = new ObjectPath(customPath);
+    private readonly Action<int, int> _onPositionUpdate = onPositionUpdate;
+    private readonly Action<int, int> _onResolutionUpdate = onResolutionUpdate;
 
     public event Action<string, string>? OnWindowDataReceived;
-
-    public KdeTrackerService(Action<int, int> onPositionUpdate, Action<int, int> onResolutionUpdate, string customPath = TrackerObjectPath)
-    {
-        _onPositionUpdate = onPositionUpdate;
-        _onResolutionUpdate = onResolutionUpdate;
-        ObjectPath = new ObjectPath(customPath);
-    }
 
     public Task UpdatePositionAsync(int x, int y)
     {

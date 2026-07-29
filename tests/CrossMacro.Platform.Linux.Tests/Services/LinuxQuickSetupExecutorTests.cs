@@ -8,7 +8,6 @@ public sealed class LinuxQuickSetupExecutorTests
     {
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
-            new LinuxQuickSetupScriptBuilder(),
             (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
 
         var result = await executor.RunAsync(
@@ -27,7 +26,6 @@ public sealed class LinuxQuickSetupExecutorTests
         ProcessStartInfo? capturedStartInfo = null;
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
-            new LinuxQuickSetupScriptBuilder(),
             (startInfo, _) =>
             {
                 capturedStartInfo = startInfo;
@@ -49,21 +47,14 @@ public sealed class LinuxQuickSetupExecutorTests
         Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
     }
 
-    private sealed class FakeLauncher : IPrivilegedHostCommandLauncher
+    private sealed class FakeLauncher(bool isAvailable = true, string failureMessage = "") : IPrivilegedHostCommandLauncher
     {
-        private readonly bool _isAvailable;
-        private readonly string _failureMessage;
+        private readonly bool _isAvailable = isAvailable;
+        private readonly string _failureMessage = failureMessage;
 
-        public FakeLauncher(bool isAvailable = true, string failureMessage = "")
+        public ValueTask<(bool IsAvailable, string FailureMessage)> IsAvailableAsync(CancellationToken cancellationToken = default)
         {
-            _isAvailable = isAvailable;
-            _failureMessage = failureMessage;
-        }
-
-        public bool IsAvailable(out string failureMessage)
-        {
-            failureMessage = _failureMessage;
-            return _isAvailable;
+            return ValueTask.FromResult((_isAvailable, _failureMessage));
         }
 
         public ProcessStartInfo CreateStartInfo(string hostScript, LinuxQuickSetupIdentity identity)

@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// <summary>
 /// Owns event iteration while the façade supplies the event policy and execution boundary.
 /// </summary>
-internal sealed class MacroPlaybackEventCoordinator
+internal static class MacroPlaybackEventCoordinator
 {
     public static async Task ExecuteAsync(
         MacroSequence macro,

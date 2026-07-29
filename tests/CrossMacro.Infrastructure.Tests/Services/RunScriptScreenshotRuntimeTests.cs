@@ -19,7 +19,7 @@ public sealed class RunScriptScreenshotRuntimeTests
 
         await executor.ExecuteStepAsync("screenshot region $x $y $w $h output \"$name\" clipboard", 5, variables, CancellationToken.None);
 
-        service.Calls.Should().ContainSingle().Which.Should().Be(("path with spaces.png", true, new ScreenRect(1, 2, 30, 40)));
+        _ = service.Calls.Should().ContainSingle().Which.Should().Be(("path with spaces.png", true, new ScreenRect(1, 2, 30, 40)));
     }
 
     [Fact]
@@ -31,9 +31,9 @@ public sealed class RunScriptScreenshotRuntimeTests
         };
         var executor = new RunScriptScreenshotExecutor(service);
 
-        var act = async () => await executor.ExecuteStepAsync("screenshot clipboard", 7, new Dictionary<string, string>(), CancellationToken.None);
+        var act = async () => await executor.ExecuteStepAsync("screenshot clipboard", 7, new Dictionary<string, string>(StringComparer.Ordinal), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Step 7: capture failed portal denied");
     }
 
@@ -46,12 +46,12 @@ public sealed class RunScriptScreenshotRuntimeTests
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"));
         var macro = new MacroSequence
         {
-            ScriptSteps = {"screenshot output simple.png"},
+            ScriptSteps = { "screenshot output simple.png" },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        service.Calls.Should().ContainSingle().Which.Should().Be(("simple.png", false, null));
+        _ = service.Calls.Should().ContainSingle().Which.Should().Be(("simple.png", false, null));
     }
 
     private static MacroPlayer CreatePlayer(
@@ -59,20 +59,39 @@ public sealed class RunScriptScreenshotRuntimeTests
         Func<IInputSimulator>? inputSimulatorFactory = null)
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
-        keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
+        _ = keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
+        _ = keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
+        _ = keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        positionProvider.ProviderName.Returns("fake-position");
-        positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.ProviderName.Returns("fake-position");
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
 
         return new MacroPlayer(
-            positionProvider,
             new PlaybackValidator(keyCodeMapper, positionProvider),
-            playbackWaitAsync: (_, _) => Task.CompletedTask,
-            inputSimulatorFactory: inputSimulatorFactory ?? (() => Substitute.For<IInputSimulator>()),
-            keyCodeMapper: keyCodeMapper,
-            screenshotCaptureService: screenshotCaptureService);
+            CreateDependencies(
+            positionProvider,
+            keyCodeMapper,
+            inputSimulatorFactory ?? (() => Substitute.For<IInputSimulator>()),
+            screenshotCaptureService));
+    }
+
+    private static MacroPlayerDependencies CreateDependencies(
+        IMousePositionProvider positionProvider,
+        IKeyCodeMapper keyCodeMapper,
+        Func<IInputSimulator> inputSimulatorFactory,
+        IScreenshotCaptureService screenshotCaptureService)
+    {
+        return new MacroPlayerDependencies(positionProvider, new PlaybackTimingService(), (_, _) => Task.CompletedTask,
+            CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
+            () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
+            new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false), NullScreenPixelReader.Instance, keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner: null,
+            screenshotCaptureService, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
+    }
+
+    private static Func<double> CreateElapsedMillisecondsProvider()
+    {
+        var stopwatch = Stopwatch.StartNew();
+        return () => stopwatch.Elapsed.TotalMilliseconds;
     }
 
     private sealed class RecordingScreenshotCaptureService : IScreenshotCaptureService

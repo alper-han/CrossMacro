@@ -6,7 +6,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class HotkeyMatcher : IHotkeyMatcher
 {
-    private readonly Dictionary<string, DateTime> _lastHotkeyPressTimes = new();
+    private readonly Dictionary<string, DateTime> _lastHotkeyPressTimes = new(StringComparer.Ordinal);
     private readonly Lock _lock = new();
 
     private const int DefaultDebounceMs = 300;
@@ -17,6 +17,9 @@ public class HotkeyMatcher : IHotkeyMatcher
 
     public bool TryMatch(int keyCode, IReadOnlySet<int> modifiers, HotkeyMapping mapping, string actionName)
     {
+        ArgumentNullException.ThrowIfNull(modifiers);
+        ArgumentNullException.ThrowIfNull(mapping);
+        ArgumentNullException.ThrowIfNull(actionName);
         // Check if the main key matches
         if (mapping.MainKey != keyCode)
         {

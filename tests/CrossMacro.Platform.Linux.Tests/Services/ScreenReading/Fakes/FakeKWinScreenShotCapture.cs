@@ -1,20 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakeKWinScreenShotCapture : IKWinScreenShotCapture
+internal sealed class FakeKWinScreenShotCapture(
+    KWinScreenShotSupportResult support,
+    KWinScreenShotCaptureResult? captureResult = null) : IKWinScreenShotCapture
 {
-    private readonly KWinScreenShotSupportResult _support;
-    private readonly KWinScreenShotCaptureResult _captureResult;
-
-    public FakeKWinScreenShotCapture(
-        KWinScreenShotSupportResult support,
-        KWinScreenShotCaptureResult? captureResult = null)
-    {
-        _support = support;
-        _captureResult = captureResult ?? KWinScreenShotCaptureResult.Failure(
+    private readonly KWinScreenShotSupportResult _support = support;
+    private readonly KWinScreenShotCaptureResult _captureResult = captureResult ?? KWinScreenShotCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake KWin ScreenShot2 frame configured");
-    }
 
     public int CaptureCalls { get; private set; }
     public int ProbeCalls { get; private set; }

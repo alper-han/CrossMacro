@@ -3,7 +3,7 @@ namespace CrossMacro.UI.ViewModels;
 
 public partial class EditorViewModel
 {
-    public IReadOnlyList<string> AvailableVariableNames => _availableVariableNames;
+    public IReadOnlyList<string> AvailableVariableNames { get; private set; } = [];
     public bool HasAvailableVariableNames => AvailableVariableNames.Count > 0;
     public IEnumerable<ScriptConditionOperator> ScriptConditionOperators => GetConditionOperatorsForSelectedAction();
     public string ConditionRightOperandHint => (SelectedAction?.ScriptLeftOperandType) is ScriptOperandType.Color

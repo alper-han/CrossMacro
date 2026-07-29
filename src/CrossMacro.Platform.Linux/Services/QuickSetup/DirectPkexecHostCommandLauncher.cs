@@ -1,30 +1,21 @@
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
-internal sealed class DirectPkexecHostCommandLauncher : IPrivilegedHostCommandLauncher
+internal sealed class DirectPkexecHostCommandLauncher(Func<string, CancellationToken, ValueTask<bool>> commandExists) : IPrivilegedHostCommandLauncher
 {
-    private readonly Func<string, bool> _commandExists;
+    private readonly Func<string, CancellationToken, ValueTask<bool>> _commandExists = commandExists ?? throw new ArgumentNullException(nameof(commandExists));
 
     public DirectPkexecHostCommandLauncher()
-        : this(HostCommandProbe.CommandExists)
-    {
-    }
+        : this(HostCommandProbe.CommandExistsAsync) { /* Empty */ }
 
-    public DirectPkexecHostCommandLauncher(Func<string, bool> commandExists)
+    public async ValueTask<(bool IsAvailable, string FailureMessage)> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
-        _commandExists = commandExists ?? throw new ArgumentNullException(nameof(commandExists));
-    }
-
-    public bool IsAvailable(out string failureMessage)
-    {
-        if (_commandExists("pkexec"))
+        if (await _commandExists("pkexec", cancellationToken).ConfigureAwait(false))
         {
-            failureMessage = string.Empty;
-            return true;
+            return (true, string.Empty);
         }
 
-        failureMessage = "pkexec is missing on host. Install polkit and retry.";
-        return false;
+        return (false, "pkexec is missing on host. Install polkit and retry.");
     }
 
     public ProcessStartInfo CreateStartInfo(string hostScript, LinuxQuickSetupIdentity identity)

@@ -41,4 +41,8 @@
     <TrimmerRootAssembly Include="Serilog.Sinks.File" />
     <TrimmerRootAssembly Include="Serilog.Sinks.Async" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/GuiHostBootstrap.cs" Link="GuiHostBootstrap.cs" />
+  </ItemGroup>
+
 </Project>

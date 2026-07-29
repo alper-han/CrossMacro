@@ -27,10 +27,10 @@ public sealed class SettingsTabViewTests
         var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/SettingsTabView.axaml");
         const string profileMarker = "<!-- Profile Management -->";
         const string supportMarker = "<!-- Support Section -->";
-        const string switchCommand = "Command=\"{Binding SwitchProfile}\"";
-        const string deleteCommand = "Command=\"{Binding DeleteSelectedProfile}\"";
-        const string createCommand = "Command=\"{Binding CreateProfile}\"";
-        const string renameCommand = "Command=\"{Binding RenameSelectedProfile}\"";
+        const string switchCommand = "Command=\"{Binding SwitchProfileAsync}\"";
+        const string deleteCommand = "Command=\"{Binding DeleteSelectedProfileAsync}\"";
+        const string createCommand = "Command=\"{Binding CreateProfileAsync}\"";
+        const string renameCommand = "Command=\"{Binding RenameSelectedProfileAsync}\"";
 
         var profileIndex = xaml.IndexOf(profileMarker, StringComparison.Ordinal);
         Assert.True(profileIndex >= 0, "Profile Management section should exist in settings tab XAML.");

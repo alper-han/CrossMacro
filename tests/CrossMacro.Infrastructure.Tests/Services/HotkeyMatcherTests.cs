@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class HotkeyMatcherTests
+public sealed class HotkeyMatcherTests
 {
     private readonly HotkeyMatcher _matcher;
 
@@ -15,7 +15,7 @@ public class HotkeyMatcherTests
     {
         // Arrange
         var mapping = new HotkeyMapping { MainKey = 30 }; // A
-        mapping.RequiredModifiers.Add(29); // Ctrl
+        _ = mapping.RequiredModifiers.Add(29); // Ctrl
 
         var currentModifiers = new HashSet<int> { 29 };
 
@@ -23,7 +23,7 @@ public class HotkeyMatcherTests
         var result = _matcher.TryMatch(30, currentModifiers, mapping, "Action");
 
         // Assert
-        result.Should().BeTrue();
+        _ = result.Should().BeTrue();
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public class HotkeyMatcherTests
         var result = _matcher.TryMatch(31, currentModifiers, mapping, "Action");
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -45,14 +45,14 @@ public class HotkeyMatcherTests
     {
         // Arrange
         var mapping = new HotkeyMapping { MainKey = 30 };
-        mapping.RequiredModifiers.Add(29); // Ctrl
+        _ = mapping.RequiredModifiers.Add(29); // Ctrl
         var currentModifiers = new HashSet<int>();
 
         // Act
         var result = _matcher.TryMatch(30, currentModifiers, mapping, "Action");
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class HotkeyMatcherTests
         var result = _matcher.TryMatch(30, currentModifiers, mapping, "Action");
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class HotkeyMatcherTests
 
         var result = _matcher.TryMatch(InputEventCode.KEY_F9, currentModifiers, mapping, "PlaybackF9MacRegression");
 
-        result.Should().BeTrue();
+        _ = result.Should().BeTrue();
     }
 
     [Theory]
@@ -93,7 +93,7 @@ public class HotkeyMatcherTests
 
         var result = _matcher.TryMatch(keyCode, currentModifiers, mapping, "PlaybackF9RejectRegression");
 
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class HotkeyMatcherTests
         var second = _matcher.TryMatch(30, currentModifiers, mapping, action);
 
         // Assert
-        first.Should().BeTrue();
-        second.Should().BeFalse("should be debounced");
+        _ = first.Should().BeTrue();
+        _ = second.Should().BeFalse("should be debounced");
     }
 }

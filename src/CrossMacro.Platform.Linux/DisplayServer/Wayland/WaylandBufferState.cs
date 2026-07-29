@@ -1,16 +1,16 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandBufferState
+internal sealed class WaylandBufferState : IDisposable
 {
-#pragma warning disable S1450
-    private readonly BufferDispatcher _dispatcher;
-#pragma warning restore S1450
+    private GCHandle _dispatcherHandle;
+    private bool _disposed;
 
     public WaylandBufferState()
     {
-        _dispatcher = Dispatch;
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
+        var dispatcher = (BufferDispatcher)Dispatch;
+        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
+        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
     }
 
     private delegate int BufferDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
@@ -19,6 +19,20 @@ internal sealed class WaylandBufferState
     public bool Released { get; private set; } = true;
 
     public void MarkSubmitted() => Released = false;
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (_dispatcherHandle.IsAllocated)
+        {
+            _dispatcherHandle.Free();
+        }
+    }
 
     private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
     {

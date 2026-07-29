@@ -1,9 +1,13 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class WindowsFactAttribute : ConditionalFactAttribute
+internal sealed class WindowsFactAttribute : FactAttribute
 {
-    public WindowsFactAttribute() : base(OperatingSystem.IsWindows, "Windows")
+    public WindowsFactAttribute()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            Skip = ConditionalSkipMessage.For("Windows");
+        }
     }
 }

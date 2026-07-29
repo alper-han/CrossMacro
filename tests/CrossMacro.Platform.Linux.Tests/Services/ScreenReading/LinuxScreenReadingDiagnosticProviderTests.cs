@@ -143,13 +143,13 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
     public void GetSnapshot_WhenNativeX11Supported_ReportsNativeX11Selection()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(returnThis: false);
-        environmentDetector.IsX11.Returns(returnThis: true);
-        environmentDetector.DetectedCompositor.Returns(CompositorType.X11);
+        _ = environmentDetector.IsWayland.Returns(returnThis: false);
+        _ = environmentDetector.IsX11.Returns(returnThis: true);
+        _ = environmentDetector.DetectedCompositor.Returns(CompositorType.X11);
         var runtimeContext = Substitute.For<IRuntimeContext>();
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
-        x11SupportProbe.ProbeSupport().Returns(X11ScreenCaptureSupportResult.Supported());
+        _ = x11SupportProbe.ProbeSupport().Returns(X11ScreenCaptureSupportResult.Supported());
         var provider = new LinuxScreenReadingDiagnosticProvider(environmentDetector, runtimeContext, capabilityDetector, x11SupportProbe);
 
         var snapshot = provider.GetSnapshot();
@@ -161,20 +161,20 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal("X11", snapshot.SelectedBackend);
         Assert.Contains(snapshot.Backends, backend => backend.Backend is "X11" && backend.IsAvailable);
         Assert.Equal("Linux screen reading selects X11 backend (NativeX11 policy).", display.Message);
-        capabilityDetector.DidNotReceive().GetSnapshot();
+        _ = capabilityDetector.DidNotReceive().GetSnapshot();
     }
 
     [Fact]
     public void GetSnapshot_WhenNativeX11Unsupported_ReportsX11Failure()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(returnThis: false);
-        environmentDetector.IsX11.Returns(returnThis: true);
-        environmentDetector.DetectedCompositor.Returns(CompositorType.X11);
+        _ = environmentDetector.IsWayland.Returns(returnThis: false);
+        _ = environmentDetector.IsX11.Returns(returnThis: true);
+        _ = environmentDetector.DetectedCompositor.Returns(CompositorType.X11);
         var runtimeContext = Substitute.For<IRuntimeContext>();
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
-        x11SupportProbe.ProbeSupport().Returns(X11ScreenCaptureSupportResult.Unsupported("DISPLAY missing"));
+        _ = x11SupportProbe.ProbeSupport().Returns(X11ScreenCaptureSupportResult.Unsupported("DISPLAY missing"));
         var provider = new LinuxScreenReadingDiagnosticProvider(environmentDetector, runtimeContext, capabilityDetector, x11SupportProbe);
 
         var snapshot = provider.GetSnapshot();
@@ -186,18 +186,18 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, snapshot.FailureKind);
         Assert.Equal("DISPLAY missing", snapshot.FailureMessage);
         Assert.Contains("DISPLAY", snapshot.Remediation, StringComparison.Ordinal);
-        capabilityDetector.DidNotReceive().GetSnapshot();
+        _ = capabilityDetector.DidNotReceive().GetSnapshot();
     }
 
     [Fact]
     public void GetSnapshot_WhenNotWaylandOrX11_DoesNotProbeBackendsAndReportsUnsupportedSession()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(returnThis: false);
-        environmentDetector.IsX11.Returns(returnThis: false);
-        environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
+        _ = environmentDetector.IsWayland.Returns(returnThis: false);
+        _ = environmentDetector.IsX11.Returns(returnThis: false);
+        _ = environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsFlatpak.Returns(returnThis: false);
+        _ = runtimeContext.IsFlatpak.Returns(returnThis: false);
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
         var provider = new LinuxScreenReadingDiagnosticProvider(environmentDetector, runtimeContext, capabilityDetector, x11SupportProbe);
@@ -211,8 +211,8 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Contains("X11", snapshot.FailureMessage, StringComparison.Ordinal);
         Assert.False(display.HasSelectedBackend);
         Assert.Equal("Linux screen reading is unavailable because this session is not a supported Wayland or X11 session.", display.Message);
-        capabilityDetector.DidNotReceive().GetSnapshot();
-        x11SupportProbe.DidNotReceive().ProbeSupport();
+        _ = capabilityDetector.DidNotReceive().GetSnapshot();
+        _ = x11SupportProbe.DidNotReceive().ProbeSupport();
     }
 
     [Fact]
@@ -256,12 +256,12 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         LinuxScreenReaderCapabilitySnapshot capabilitySnapshot)
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(isWayland);
-        environmentDetector.DetectedCompositor.Returns(isWayland ? compositor : CompositorType.X11);
+        _ = environmentDetector.IsWayland.Returns(isWayland);
+        _ = environmentDetector.DetectedCompositor.Returns(isWayland ? compositor : CompositorType.X11);
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsFlatpak.Returns(isFlatpak);
+        _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
-        capabilityDetector.GetSnapshot().Returns(capabilitySnapshot);
+        _ = capabilityDetector.GetSnapshot().Returns(capabilitySnapshot);
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
         return new LinuxScreenReadingDiagnosticProvider(environmentDetector, runtimeContext, capabilityDetector, x11SupportProbe);

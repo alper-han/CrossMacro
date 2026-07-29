@@ -1,16 +1,10 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-internal sealed class EditorActionScriptValidationAdapter
+internal sealed class EditorActionScriptValidationAdapter(IEditorActionConverter converter, IScriptValidationService? service)
 {
-    private readonly IScriptValidationService? _service;
-    private readonly IEditorActionConverter _converter;
-
-    public EditorActionScriptValidationAdapter(IEditorActionConverter converter, IScriptValidationService? service)
-    {
-        _converter = converter ?? throw new ArgumentNullException(nameof(converter));
-        _service = service;
-    }
+    private readonly IScriptValidationService? _service = service;
+    private readonly IEditorActionConverter _converter = converter ?? throw new ArgumentNullException(nameof(converter));
 
     public (bool IsValid, string? Error) ValidateAction(EditorAction action)
     {
@@ -22,16 +16,17 @@ internal sealed class EditorActionScriptValidationAdapter
 
         if (_service is not null)
         {
-            var diagnostic = _service.Validate([new RunScriptStep(action.Text, SourceIndex: 0)]).FirstOrDefault();
+            var diagnostics = _service.Validate([new RunScriptStep(action.Text, SourceIndex: 0)]);
+            var diagnostic = diagnostics.Count > 0 ? diagnostics[0] : null;
             return diagnostic is null ? (true, null) : (false, diagnostic.Message);
         }
 
         try
         {
-            _converter.ToMacroSequence([action], "Validation", isAbsolute: false);
+            _ = _converter.ToMacroSequence([action], "Validation", isAbsolute: false);
             return (true, null);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             return (false, exception.Message);
         }
@@ -41,7 +36,7 @@ internal sealed class EditorActionScriptValidationAdapter
     {
         if (_service is null)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
         var steps = actions

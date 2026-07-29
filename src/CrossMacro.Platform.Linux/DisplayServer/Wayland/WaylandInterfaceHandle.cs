@@ -5,29 +5,27 @@ internal sealed class WaylandInterfaceHandle : IDisposable
 {
     private readonly WlCString _name;
     private readonly WlMessage[] _methods;
-#pragma warning disable S1450
-    private readonly WlMessage[] _events;
-#pragma warning restore S1450
     private readonly List<WlCString> _strings = [];
     private readonly List<GCHandle> _typeHandles = [];
     private readonly GCHandle _methodsHandle;
     private readonly GCHandle _eventsHandle;
     private readonly GCHandle _interfaceHandle;
+    private bool _disposed;
 
     public WaylandInterfaceHandle(string name, int version, (string Name, string Signature)[] methods, (string Name, string Signature)[] events)
     {
         _name = new WlCString(name);
         _methods = BuildMessages(methods);
-        _events = BuildMessages(events);
+        var eventMessages = BuildMessages(events);
         _methodsHandle = GCHandle.Alloc(_methods, GCHandleType.Pinned);
-        _eventsHandle = GCHandle.Alloc(_events, GCHandleType.Pinned);
+        _eventsHandle = GCHandle.Alloc(eventMessages, GCHandleType.Pinned);
         _interfaceHandle = GCHandle.Alloc(new WlInterface
         {
             Name = _name.Address,
             Version = version,
             MethodCount = _methods.Length,
             Methods = _methodsHandle.AddrOfPinnedObject(),
-            EventCount = _events.Length,
+            EventCount = eventMessages.Length,
             Events = _eventsHandle.AddrOfPinnedObject(),
         }, GCHandleType.Pinned);
     }
@@ -45,6 +43,12 @@ internal sealed class WaylandInterfaceHandle : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         foreach (var handle in _typeHandles)
         {
             if (handle.IsAllocated)
@@ -53,9 +57,20 @@ internal sealed class WaylandInterfaceHandle : IDisposable
             }
         }
 
-        _interfaceHandle.Free();
-        _methodsHandle.Free();
-        _eventsHandle.Free();
+        if (_interfaceHandle.IsAllocated)
+        {
+            _interfaceHandle.Free();
+        }
+
+        if (_methodsHandle.IsAllocated)
+        {
+            _methodsHandle.Free();
+        }
+
+        if (_eventsHandle.IsAllocated)
+        {
+            _eventsHandle.Free();
+        }
         _name.Dispose();
         foreach (var item in _strings)
         {

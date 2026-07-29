@@ -3,37 +3,38 @@ namespace CrossMacro.Core.Models;
 /// <summary>Persisted state and runtime schedule inputs for a macro task.</summary>
 public class ScheduledTask
 {
+    private int _intervalMinValue = 1;
+    private int _intervalMaxValue = 30;
+
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "New Task";
     public string MacroFilePath { get; set; } = string.Empty;
 
-    private ScheduleType _type = ScheduleType.Interval;
     public ScheduleType Type
     {
-        get => _type;
+        get;
         set
         {
-            _type = value;
+            field = value;
             MaintainEnablementInvariant();
         }
-    }
+    } = ScheduleType.Interval;
 
     public double PlaybackSpeed { get; set; } = PlaybackOptions.DefaultSpeedMultiplier;
 
-    private bool _isEnabled;
     public bool IsEnabled
     {
-        get => _isEnabled;
+        get;
         set
         {
             if (value && !CanBeEnabled)
             {
-                _isEnabled = false;
+                field = false;
                 NextRunTime = null;
                 return;
             }
 
-            _isEnabled = value;
+            field = value;
             if (!value)
             {
                 NextRunTime = null;
@@ -48,42 +49,39 @@ public class ScheduledTask
     public IntervalUnit IntervalUnit { get; set; } = IntervalUnit.Seconds;
     public bool UseRandomIntervalDelay { get; set; }
 
-    private int _intervalMinValue = 1;
     public int IntervalMinValue
     {
         get => _intervalMinValue;
         set
         {
-            var (min, max) = NormalizeIntervalRange(value, _intervalMaxValue);
-            _intervalMinValue = min;
-            _intervalMaxValue = max;
+            var normalized = NormalizeIntervalRange(value, _intervalMaxValue);
+            _intervalMinValue = normalized.Min;
+            _intervalMaxValue = normalized.Max;
         }
     }
 
-    private int _intervalMaxValue = 30;
     public int IntervalMaxValue
     {
         get => _intervalMaxValue;
         set
         {
-            var (min, max) = NormalizeIntervalRange(_intervalMinValue, value);
-            _intervalMinValue = min;
-            _intervalMaxValue = max;
+            var normalized = NormalizeIntervalRange(_intervalMinValue, value);
+            _intervalMinValue = normalized.Min;
+            _intervalMaxValue = normalized.Max;
         }
     }
 
     public DateTime? ScheduledDateTime { get; set; }
 
-    private ScheduleDays _weeklyDays = ScheduleDays.Weekdays;
     public ScheduleDays WeeklyDays
     {
-        get => _weeklyDays;
+        get;
         set
         {
-            _weeklyDays = value;
+            field = value;
             MaintainEnablementInvariant();
         }
-    }
+    } = ScheduleDays.Weekdays;
 
     public TimeSpan WeeklyTime { get; set; } = new(9, 0, 0);
     public DateTime? LastRunTime { get; set; }
@@ -129,10 +127,9 @@ public class ScheduledTask
 
     private void MaintainEnablementInvariant()
     {
-        if (_isEnabled && !CanBeEnabled)
+        if (IsEnabled && !CanBeEnabled)
         {
-            _isEnabled = false;
-            NextRunTime = null;
+            IsEnabled = false;
         }
     }
 

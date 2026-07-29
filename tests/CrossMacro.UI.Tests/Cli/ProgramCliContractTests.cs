@@ -2,7 +2,7 @@
 namespace CrossMacro.UI.Tests.Cli;
 
 [Collection("EnvironmentVariableSensitive")]
-public class ProgramCliContractTests
+public sealed class ProgramCliContractTests
 {
     [Fact]
     public async Task RunAsync_WhenStandaloneJsonFlagWithoutCommand_ReturnsInvalidArgumentsAsJson()
@@ -316,7 +316,7 @@ public class ProgramCliContractTests
         public TemporaryDataHomeScope()
         {
             _tempDir = Path.Combine(Path.GetTempPath(), "crossmacro-tests", nameof(ProgramCliContractTests), Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempDir);
+            _ = Directory.CreateDirectory(_tempDir);
 
             _previousValue = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
             Environment.SetEnvironmentVariable("XDG_DATA_HOME", _tempDir);
@@ -332,8 +332,9 @@ public class ProgramCliContractTests
                     Directory.Delete(_tempDir, recursive: true);
                 }
             }
-            catch
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
+                // Temporary test-directory cleanup may race with another process or lose access during teardown.
             }
         }
     }

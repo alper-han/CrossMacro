@@ -4,14 +4,9 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// <summary>
 /// Owns fixed/random delay resolution for event and runtime-script coordination.
 /// </summary>
-internal sealed class PlaybackDelayResolver
+public sealed class PlaybackDelayResolver(Func<int, int, int>? randomInclusive = null)
 {
-    private readonly Func<int, int, int> _randomInclusive;
-
-    public PlaybackDelayResolver(Func<int, int, int>? randomInclusive = null)
-    {
-        _randomInclusive = randomInclusive ?? RandomNumberGeneratorUtility.GetInt32Inclusive;
-    }
+    private readonly Func<int, int, int> _randomInclusive = randomInclusive ?? RandomNumberGeneratorUtility.GetInt32Inclusive;
 
     public int Resolve(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
     {
@@ -24,6 +19,14 @@ internal sealed class PlaybackDelayResolver
         }
 
         var totalDelay = (long)fixedDelayMs + randomDelay;
-        return totalDelay <= 0 ? 0 : totalDelay > int.MaxValue ? int.MaxValue : (int)totalDelay;
+        if (totalDelay <= 0)
+        {
+            return 0;
+        }
+        if (totalDelay > int.MaxValue)
+        {
+            return int.MaxValue;
+        }
+        return (int)totalDelay;
     }
 }

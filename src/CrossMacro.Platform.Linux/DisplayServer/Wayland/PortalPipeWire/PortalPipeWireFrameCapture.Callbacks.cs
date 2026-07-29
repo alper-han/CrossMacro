@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 
 internal sealed partial class PortalPipeWireFrameCapture
 {
-    private unsafe (IntPtr Listener, IntPtr Events) AddListener()
+    private (IntPtr Listener, IntPtr Events) AddListener()
     {
         var listener = IntPtr.Zero;
         var events = IntPtr.Zero;
@@ -11,8 +11,8 @@ internal sealed partial class PortalPipeWireFrameCapture
         {
             listener = Marshal.AllocHGlobal(Marshal.SizeOf<SpaHook>());
             events = Marshal.AllocHGlobal(Marshal.SizeOf<PipeWireStreamEvents>());
-            NativeMemory.Clear((void*)listener, (nuint)Marshal.SizeOf<SpaHook>());
-            NativeMemory.Clear((void*)events, (nuint)Marshal.SizeOf<PipeWireStreamEvents>());
+            Marshal.Copy(new byte[Marshal.SizeOf<SpaHook>()], 0, listener, Marshal.SizeOf<SpaHook>());
+            Marshal.Copy(new byte[Marshal.SizeOf<PipeWireStreamEvents>()], 0, events, Marshal.SizeOf<PipeWireStreamEvents>());
             Marshal.StructureToPtr(new PipeWireStreamEvents
             {
                 Version = 2,
@@ -25,7 +25,7 @@ internal sealed partial class PortalPipeWireFrameCapture
             _lib.StreamAddListener(_stream, listener, events, GCHandle.ToIntPtr(_selfHandle));
             return (listener, events);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Free(listener);
             Free(events);
@@ -125,7 +125,7 @@ internal sealed partial class PortalPipeWireFrameCapture
         }
         finally
         {
-            capture._lib.StreamQueueBuffer(capture._stream, bufferPtr);
+            _ = capture._lib.StreamQueueBuffer(capture._stream, bufferPtr);
         }
     }
 
@@ -155,22 +155,40 @@ internal sealed partial class PortalPipeWireFrameCapture
             return;
         }
 
+        if (!TryResolveFrameLayout(data0, out var stride, out var bytes))
+        {
+            return;
+        }
+
+        var framePixels = CopyFramePixels(data0, bytes);
+        if (framePixels is null)
+        {
+            return;
+        }
+
+        _frame = new PortalPipeWireFrame(new(0, 0, _width, _height), stride, CrossMacro.Platform.Abstractions.ScreenPixelFormat.Xrgb8888, framePixels);
+        _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
+    }
+
+    private bool TryResolveFrameLayout(SpaData data0, out int stride, out int bytes)
+    {
         var chunk = Marshal.PtrToStructure<SpaChunk>(data0.Chunk);
         _lastChunkOffset = chunk.Offset;
         _lastChunkSize = chunk.Size;
         _lastChunkStride = chunk.Stride;
-        var stride = chunk.Stride > 0 ? chunk.Stride : _width * PipeWireConstants.Xrgb8888BytesPerPixel;
+        stride = chunk.Stride > 0 ? chunk.Stride : _width * PipeWireConstants.Xrgb8888BytesPerPixel;
+        bytes = checked(stride * _height);
+
         if (stride < checked(_width * PipeWireConstants.Xrgb8888BytesPerPixel))
         {
             FailCopy($"PipeWire frame stride {stride.ToString(CultureInfo.InvariantCulture)} is smaller than the expected row width for {_width.ToString(CultureInfo.InvariantCulture)} pixels.");
-            return;
+            return false;
         }
 
-        var bytes = checked(stride * _height);
         if (data0.MaxSize == 0)
         {
             FailCopy("PipeWire frame data advertised maxsize=0.");
-            return;
+            return false;
         }
 
         var offset = chunk.Offset % data0.MaxSize;
@@ -179,19 +197,25 @@ internal sealed partial class PortalPipeWireFrameCapture
         if (chunkSize < checked((uint)bytes))
         {
             FailCopy($"PipeWire frame chunk is too small for the declared frame. offset={offset.ToString(CultureInfo.InvariantCulture)} size={chunk.Size.ToString(CultureInfo.InvariantCulture)} maxsize={data0.MaxSize.ToString(CultureInfo.InvariantCulture)} required={bytes.ToString(CultureInfo.InvariantCulture)}.");
-            return;
+            return false;
         }
 
         if (offset > int.MaxValue)
         {
             FailCopy($"PipeWire frame chunk offset {offset} exceeds supported memory offset range.");
-            return;
+            return false;
         }
 
+        return true;
+    }
+
+    private static byte[]? CopyFramePixels(SpaData data0, int bytes)
+    {
+        var chunk = Marshal.PtrToStructure<SpaChunk>(data0.Chunk);
+        var offset = chunk.Offset % data0.MaxSize;
         var pixels = new byte[bytes];
         Marshal.Copy(data0.Data + checked((int)offset), pixels, 0, pixels.Length);
-        _frame = new PortalPipeWireFrame(new(0, 0, _width, _height), stride, CrossMacro.Platform.Abstractions.ScreenPixelFormat.Xrgb8888, pixels);
-        _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
+        return pixels;
     }
 
     private void FailCopy(string message)

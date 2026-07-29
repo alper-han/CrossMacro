@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal static class DesignPreviewSamples
 {
@@ -57,9 +57,9 @@ internal static class DesignPreviewSamples
             IntervalUnit = IntervalUnit.Minutes,
             LastRunTime = SampleNow.AddMinutes(-10),
             LastStatus = "Last run completed",
+            IsEnabled = true,
+            NextRunTime = SampleNow.AddMinutes(5),
         };
-        intervalTask.IsEnabled = true;
-        intervalTask.NextRunTime = SampleNow.AddMinutes(5);
 
         var oneShotTask = new ScheduledTask
         {
@@ -69,9 +69,9 @@ internal static class DesignPreviewSamples
             PlaybackSpeed = 1.0,
             ScheduledDateTime = SampleNow.Date.AddDays(1).AddHours(1),
             LastStatus = "Queued for scheduled run",
+            IsEnabled = true,
+            NextRunTime = SampleNow.Date.AddDays(1).AddHours(1),
         };
-        oneShotTask.IsEnabled = true;
-        oneShotTask.NextRunTime = SampleNow.Date.AddDays(1).AddHours(1);
 
         var weeklyTask = new ScheduledTask
         {
@@ -82,9 +82,9 @@ internal static class DesignPreviewSamples
             WeeklyDays = ScheduleDays.Weekdays,
             WeeklyTime = new TimeSpan(9, 0, 0),
             LastStatus = "Waiting for next weekday",
+            IsEnabled = true,
+            NextRunTime = SampleNow.Date.AddDays(1).AddHours(9),
         };
-        weeklyTask.IsEnabled = true;
-        weeklyTask.NextRunTime = SampleNow.Date.AddDays(1).AddHours(9);
 
         return [intervalTask, oneShotTask, weeklyTask];
     }
@@ -102,8 +102,8 @@ internal static class DesignPreviewSamples
             RepeatDelayMs = 120,
             LastTriggeredTime = SampleNow.AddMinutes(-3),
             LastStatus = "Loop running",
+            IsEnabled = true,
         };
-        loopShortcut.IsEnabled = true;
 
         var singleShortcut = new ShortcutTask
         {
@@ -113,8 +113,8 @@ internal static class DesignPreviewSamples
             PlaybackSpeed = 1.0,
             LastTriggeredTime = SampleNow.AddHours(-2),
             LastStatus = "Completed",
+            IsEnabled = true,
         };
-        singleShortcut.IsEnabled = true;
 
         return [loopShortcut, singleShortcut];
     }
@@ -132,8 +132,8 @@ internal static class DesignPreviewSamples
             FireMode = TriggerFireMode.OnceOnChange,
             LastTriggeredTime = SampleNow.AddMinutes(-5),
             LastStatus = "Switched to dev",
+            IsEnabled = true,
         };
-        codeTrigger.IsEnabled = true;
 
         var browserTrigger = new TriggerTask
         {
@@ -144,8 +144,8 @@ internal static class DesignPreviewSamples
             Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
             FireMode = TriggerFireMode.OnceOnChange,
+            IsEnabled = true,
         };
-        browserTrigger.IsEnabled = true;
 
         return [codeTrigger, browserTrigger];
     }

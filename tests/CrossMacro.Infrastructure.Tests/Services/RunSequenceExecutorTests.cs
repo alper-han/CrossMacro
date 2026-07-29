@@ -1,6 +1,6 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class RunSequenceExecutorTests
+public sealed class RunSequenceExecutorTests
 {
     [Fact]
     public async Task ExecuteAsync_UsesInjectedInclusiveRangeAndSelectedMaximum()
@@ -31,9 +31,9 @@ public class RunSequenceExecutorTests
             initialRandomDelayMaxMs: int.MaxValue,
             CancellationToken.None);
 
-        result.Success.Should().BeTrue();
-        requestedRange.Should().Be((2, int.MaxValue));
-        delays.Should().ContainSingle().Which.Should().Be(TimeSpan.FromMilliseconds(int.MaxValue));
+        _ = result.Success.Should().BeTrue();
+        _ = requestedRange.Should().Be((2, int.MaxValue));
+        _ = delays.Should().ContainSingle().Which.Should().Be(TimeSpan.FromMilliseconds(int.MaxValue));
     }
 
     [Fact]
@@ -65,8 +65,8 @@ public class RunSequenceExecutorTests
             initialRandomDelayMaxMs: int.MaxValue,
             CancellationToken.None);
 
-        result.Success.Should().BeTrue();
-        invocationCount.Should().Be(0);
-        delays.Should().ContainSingle().Which.Should().Be(TimeSpan.FromMilliseconds(int.MaxValue));
+        _ = result.Success.Should().BeTrue();
+        _ = invocationCount.Should().Be(0);
+        _ = delays.Should().ContainSingle().Which.Should().Be(TimeSpan.FromMilliseconds(int.MaxValue));
     }
 }

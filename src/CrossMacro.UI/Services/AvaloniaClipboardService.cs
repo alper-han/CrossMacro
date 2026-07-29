@@ -1,19 +1,15 @@
 
 namespace CrossMacro.UI.Services;
 
-public class AvaloniaClipboardService : IClipboardService
+public class AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeContext) : IClipboardService
 {
-    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
-
-    public AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeContext)
-    {
-        _desktopLifetimeContext = desktopLifetimeContext;
-    }
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext = desktopLifetimeContext;
 
     public virtual bool IsSupported => _desktopLifetimeContext.MainWindow?.Clipboard is not null;
 
     public virtual async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(text);
         cancellationToken.ThrowIfCancellationRequested();
         Log.Debug("[AvaloniaClipboard] SetTextAsync called for length {Length}", text.Length);
 
@@ -41,7 +37,7 @@ public class AvaloniaClipboardService : IClipboardService
                 {
                     throw;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.LogError(ex, "[AvaloniaClipboard] Exception during SetTextAsync");
                     throw;
@@ -83,7 +79,7 @@ public class AvaloniaClipboardService : IClipboardService
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "Failed to get clipboard text via Avalonia");
                 throw;

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Services;
 
-internal sealed class InputSimulatorWarmupService
+internal static class InputSimulatorWarmupService
 {
     public static async Task WarmUpAsync(
         IInputSimulatorPool simulatorPool,
@@ -30,7 +30,7 @@ internal sealed class InputSimulatorWarmupService
             await simulatorPool.WarmUpAsync(width, height).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
             {

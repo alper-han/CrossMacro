@@ -9,4 +9,5 @@ public interface IHotkeyConfigurationService
     public Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
     public void Save(HotkeySettings settings);
     public bool TrySave(HotkeyConfigurationSaveRequest request);
+    public Task<bool> TrySaveAsync(HotkeyConfigurationSaveRequest request);
 }

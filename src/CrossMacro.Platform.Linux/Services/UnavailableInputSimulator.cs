@@ -1,20 +1,15 @@
 
 namespace CrossMacro.Platform.Linux.Services;
 
-public sealed class UnavailableInputSimulator : IInputSimulator, IInputSimulatorCapabilities
+public sealed class UnavailableInputSimulator(string? failureMessage = null) : IInputSimulator, IInputSimulatorCapabilities
 {
     public const string DefaultFailureMessage = "No usable Linux input backend is available.";
 
-    public UnavailableInputSimulator(string? failureMessage = null)
-    {
-        FailureMessage = string.IsNullOrWhiteSpace(failureMessage)
-            ? DefaultFailureMessage
-            : failureMessage;
-    }
-
     public string ProviderName => "Unavailable (No Linux Input Backend)";
 
-    public string FailureMessage { get; }
+    public string FailureMessage { get; } = string.IsNullOrWhiteSpace(failureMessage)
+            ? DefaultFailureMessage
+            : failureMessage;
 
     public bool IsSupported => false;
     public bool SupportsAbsoluteCoordinates => false;
@@ -22,6 +17,13 @@ public sealed class UnavailableInputSimulator : IInputSimulator, IInputSimulator
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {
         throw new InvalidOperationException(FailureMessage);
+    }
+
+    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Initialize(screenWidth, screenHeight);
+        return Task.CompletedTask;
     }
 
     public void MoveAbsolute(int x, int y)
@@ -54,7 +56,5 @@ public sealed class UnavailableInputSimulator : IInputSimulator, IInputSimulator
         throw new InvalidOperationException(FailureMessage);
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

@@ -3,53 +3,72 @@ namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
 internal static class HostCommandProbe
 {
-    public static bool CommandExists(string fileName)
+    public static async ValueTask<bool> CommandExistsAsync(string fileName, CancellationToken cancellationToken = default)
     {
         try
         {
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "sh",
-                    ArgumentList = { "-c", $"command -v {fileName} >/dev/null 2>&1" },
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
-            };
-
-            process.Start();
-            process.WaitForExit();
-            return process.ExitCode is 0;
+            // Exit-code based: a login shell's profile output would break stdout comparison.
+            return await RunCommandSucceedsAsync(
+                "sh",
+                ["-c", $"command -v {fileName} >/dev/null 2>&1"],
+                cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }
     }
 
-    public static bool CommandExistsOnHostViaFlatpakSpawn(string fileName)
+    public static async ValueTask<bool> CommandExistsOnHostViaFlatpakSpawnAsync(string fileName, CancellationToken cancellationToken = default)
     {
         try
         {
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "flatpak-spawn",
-                    ArgumentList = { "--host", "sh", "-c", $"command -v {fileName} >/dev/null 2>&1" },
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
-            };
-
-            process.Start();
-            process.WaitForExit();
-            return process.ExitCode is 0;
+            return await RunCommandSucceedsAsync(
+                "flatpak-spawn",
+                ["--host", "sh", "-c", $"command -v {fileName} >/dev/null 2>&1"],
+                cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }
+    }
+
+    private static async ValueTask<bool> RunCommandSucceedsAsync(string fileName, string[] arguments, CancellationToken cancellationToken)
+    {
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = fileName,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            },
+        };
+
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        _ = process.Start();
+
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await errorTask.ConfigureAwait(false);
+        _ = await outputTask.ConfigureAwait(false);
+        return process.ExitCode is 0;
     }
 }

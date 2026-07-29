@@ -1,27 +1,16 @@
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
-internal sealed class LinuxQuickSetupExecutor
+internal sealed class LinuxQuickSetupExecutor(
+    LinuxQuickSetupIdentityResolver identityResolver,
+    Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcessAsync)
 {
-    private readonly LinuxQuickSetupIdentityResolver _identityResolver;
-    private readonly Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> _runProcessAsync;
+    private readonly LinuxQuickSetupIdentityResolver _identityResolver = identityResolver ?? throw new ArgumentNullException(nameof(identityResolver));
+    private readonly Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> _runProcessAsync = runProcessAsync ?? throw new ArgumentNullException(nameof(runProcessAsync));
 
     public LinuxQuickSetupExecutor(
-        LinuxQuickSetupIdentityResolver identityResolver,
-        LinuxQuickSetupScriptBuilder scriptBuilder)
-        : this(identityResolver, scriptBuilder, RunProcessAsync)
-    {
-    }
-
-    public LinuxQuickSetupExecutor(
-        LinuxQuickSetupIdentityResolver identityResolver,
-        LinuxQuickSetupScriptBuilder scriptBuilder,
-        Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcessAsync)
-    {
-        _identityResolver = identityResolver ?? throw new ArgumentNullException(nameof(identityResolver));
-        ArgumentNullException.ThrowIfNull(scriptBuilder);
-        _runProcessAsync = runProcessAsync ?? throw new ArgumentNullException(nameof(runProcessAsync));
-    }
+        LinuxQuickSetupIdentityResolver identityResolver)
+        : this(identityResolver, RunProcessAsync) { /* Empty */ }
 
     public async Task<QuickSetupResult> RunAsync(
         IPrivilegedHostCommandLauncher launcher,
@@ -40,7 +29,8 @@ internal sealed class LinuxQuickSetupExecutor
                 Message: "Could not determine a valid host identity for session setup.");
         }
 
-        if (!launcher.IsAvailable(out var failureMessage))
+        var (isAvailable, failureMessage) = await launcher.IsAvailableAsync(cancellationToken).ConfigureAwait(false);
+        if (!isAvailable)
         {
             return new QuickSetupResult(
                 Success: false,
@@ -67,7 +57,7 @@ internal sealed class LinuxQuickSetupExecutor
                 Success: false,
                 Message: $"Quick setup failed (exit code {exitCode.ToString(CultureInfo.InvariantCulture)}). {errorText}");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[{LogContext}] Failed to run session helper command", logContext);
             return new QuickSetupResult(
@@ -84,7 +74,7 @@ internal sealed class LinuxQuickSetupExecutor
         }
 
         return content.Split('\n', StringSplitOptions.TrimEntries)
-            .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
+            .FirstOrDefault(static line => !string.IsNullOrWhiteSpace(line));
     }
 
     private static string BuildSuccessMessage(string stdout)
@@ -106,7 +96,7 @@ internal sealed class LinuxQuickSetupExecutor
     {
         using var process = new Process { StartInfo = startInfo };
 
-        process.Start();
+        _ = process.Start();
 
         var stdOutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var stdErrTask = process.StandardError.ReadToEndAsync(cancellationToken);

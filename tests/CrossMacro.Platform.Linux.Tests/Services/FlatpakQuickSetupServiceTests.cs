@@ -6,7 +6,7 @@ public sealed class FlatpakQuickSetupServiceTests
     [LinuxFact]
     public void IsApplicable_WhenFlatpakWayland_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
             ["XDG_SESSION_TYPE"] = "wayland",
@@ -26,7 +26,7 @@ public sealed class FlatpakQuickSetupServiceTests
     [Fact]
     public void IsApplicable_WhenNotFlatpak_ShouldReturnFalse()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["FLATPAK_ID"] = null,
             ["XDG_SESSION_TYPE"] = "wayland",
@@ -46,7 +46,7 @@ public sealed class FlatpakQuickSetupServiceTests
     [Fact]
     public async Task RunAsync_WhenIdentityUnavailable_ShouldFailWithoutRunningCommand()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
             ["XDG_SESSION_TYPE"] = "wayland",
@@ -72,7 +72,7 @@ public sealed class FlatpakQuickSetupServiceTests
     [Fact]
     public async Task RunAsync_WhenUidAvailable_ShouldUseUidForAclIdentity()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
             ["XDG_SESSION_TYPE"] = "wayland",
@@ -105,7 +105,7 @@ public sealed class FlatpakQuickSetupServiceTests
     [Fact]
     public async Task RunAsync_WhenUidUnavailable_ShouldAcceptEnterpriseStyleUserName()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
             ["XDG_SESSION_TYPE"] = "wayland",
@@ -132,7 +132,7 @@ public sealed class FlatpakQuickSetupServiceTests
     [Fact]
     public async Task RunAsync_WhenCommandFails_ShouldReturnErrorMessage()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
             ["XDG_SESSION_TYPE"] = "wayland",
@@ -158,12 +158,11 @@ public sealed class FlatpakQuickSetupServiceTests
     {
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => userName, () => effectiveUid),
-            new LinuxQuickSetupScriptBuilder(),
             runProcess);
 
         return new FlatpakQuickSetupService(
             key => env.TryGetValue(key, out var value) ? value : null,
             executor,
-            new FlatpakHostCommandLauncher(_ => true, _ => true));
+            new FlatpakHostCommandLauncher((_, _) => ValueTask.FromResult(true), (_, _) => ValueTask.FromResult(true)));
     }
 }

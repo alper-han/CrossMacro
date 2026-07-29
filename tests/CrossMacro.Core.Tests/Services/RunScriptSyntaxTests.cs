@@ -8,7 +8,7 @@ public sealed class RunScriptSyntaxTests
     {
         var tokens = RunScriptSyntax.SplitQuotedTokens("  window   search title \"Code Editor\" result  ");
 
-        tokens.Should().Equal("window", "search", "title", "Code Editor", "result");
+        _ = tokens.Should().Equal("window", "search", "title", "Code Editor", "result");
     }
 
     [Fact]
@@ -16,7 +16,7 @@ public sealed class RunScriptSyntaxTests
     {
         var tokens = RunScriptSyntax.SplitQuotedTokens("window focus title 'it\\'s \\\\ ok'");
 
-        tokens.Should().Equal("window", "focus", "title", "it's \\ ok");
+        _ = tokens.Should().Equal("window", "focus", "title", "it's \\ ok");
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public sealed class RunScriptSyntaxTests
     {
         var tokens = RunScriptSyntax.SplitQuotedTokens(@"window focus title C:\Temp");
 
-        tokens.Should().Equal("window", "focus", "title", @"C:\Temp");
+        _ = tokens.Should().Equal("window", "focus", "title", @"C:\Temp");
     }
 
     [Fact]
@@ -32,6 +32,6 @@ public sealed class RunScriptSyntaxTests
     {
         Action split = () => RunScriptSyntax.SplitQuotedTokens("window focus title \"Code Editor");
 
-        split.Should().Throw<FormatException>().WithMessage("Unterminated quoted token.");
+        _ = split.Should().Throw<FormatException>().WithMessage("Unterminated quoted token.");
     }
 }

@@ -1,6 +1,6 @@
 namespace CrossMacro.Infrastructure.Services;
 
-public sealed record class ScriptValidationDiagnostic(
+public sealed record ScriptValidationDiagnostic(
     ScriptValidationCategory Category,
     string Message,
     int? SourceLineNumber,

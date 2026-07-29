@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
-public class LinuxScreenFrameProviderFactoryTests
+public sealed class LinuxScreenFrameProviderFactoryTests
 {
     [Fact]
     public void Create_WhenNativeWaylandAndAllBackendsAvailable_SelectsExtBeforeWlrAndPortal()
@@ -365,9 +365,9 @@ public class LinuxScreenFrameProviderFactoryTests
     public void Create_WhenSessionIsNeitherWaylandNorX11_ReturnsUnsupportedProviderWithoutCreatingBackends()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(returnThis: false);
-        environmentDetector.IsX11.Returns(returnThis: false);
-        environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
+        _ = environmentDetector.IsWayland.Returns(returnThis: false);
+        _ = environmentDetector.IsX11.Returns(returnThis: false);
+        _ = environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
@@ -391,8 +391,8 @@ public class LinuxScreenFrameProviderFactoryTests
         Assert.Equal(ScreenReadErrorKind.Unsupported, unavailable.ErrorKind);
         Assert.Contains("Wayland", unavailable.FailureMessage, StringComparison.Ordinal);
         Assert.Contains("X11", unavailable.FailureMessage, StringComparison.Ordinal);
-        capabilityDetector.DidNotReceive().GetSnapshot();
-        x11SupportProbe.DidNotReceive().ProbeSupport();
+        _ = capabilityDetector.DidNotReceive().GetSnapshot();
+        _ = x11SupportProbe.DidNotReceive().ProbeSupport();
     }
 
     private static LinuxScreenFrameProviderFactory CreateFactory(
@@ -404,14 +404,14 @@ public class LinuxScreenFrameProviderFactoryTests
         LinuxScreenReaderBackendCapability portal)
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(returnThis: true);
-        environmentDetector.DetectedCompositor.Returns(compositor);
+        _ = environmentDetector.IsWayland.Returns(returnThis: true);
+        _ = environmentDetector.DetectedCompositor.Returns(compositor);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsFlatpak.Returns(isFlatpak);
+        _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
 
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
-        capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
+        _ = capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
         return new LinuxScreenFrameProviderFactory(
@@ -440,14 +440,14 @@ public class LinuxScreenFrameProviderFactoryTests
         Func<KWinScreenShotSupportResult, IScreenFrameProvider>? kWinFactory = null)
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(returnThis: true);
-        environmentDetector.DetectedCompositor.Returns(compositor);
+        _ = environmentDetector.IsWayland.Returns(returnThis: true);
+        _ = environmentDetector.DetectedCompositor.Returns(compositor);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsFlatpak.Returns(isFlatpak);
+        _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
 
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
-        capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
+        _ = capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
         return new LinuxScreenFrameProviderFactory(
@@ -462,14 +462,9 @@ public class LinuxScreenFrameProviderFactoryTests
             _ => new NamedScreenFrameProvider("x11"));
     }
 
-    private sealed class NamedScreenFrameProvider : IScreenFrameProvider
+    private sealed class NamedScreenFrameProvider(string providerName) : IScreenFrameProvider
     {
-        public NamedScreenFrameProvider(string providerName)
-        {
-            ProviderName = providerName;
-        }
-
-        public string ProviderName { get; }
+        public string ProviderName { get; } = providerName;
 
         public bool IsSupported => true;
 
@@ -485,17 +480,11 @@ public class LinuxScreenFrameProviderFactoryTests
         }
     }
 
-    private sealed class RecordingScreenFrameProvider : IScreenFrameProvider
+    private sealed class RecordingScreenFrameProvider(string providerName, ScreenReadResult<ScreenFrame> result) : IScreenFrameProvider
     {
-        private readonly ScreenReadResult<ScreenFrame> _result;
+        private readonly ScreenReadResult<ScreenFrame> _result = result;
 
-        public RecordingScreenFrameProvider(string providerName, ScreenReadResult<ScreenFrame> result)
-        {
-            ProviderName = providerName;
-            _result = result;
-        }
-
-        public string ProviderName { get; }
+        public string ProviderName { get; } = providerName;
 
         public bool IsSupported => true;
 

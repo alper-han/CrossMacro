@@ -1,7 +1,7 @@
 namespace CrossMacro.UI.Tests.Views.Tabs;
 
 
-public class EditorTabConvertersTests
+public sealed class EditorTabConvertersTests
 {
     [Fact]
     public void ActionTypeConverters_ShouldClassifyActionsCorrectly()
@@ -30,7 +30,7 @@ public class EditorTabConvertersTests
         var value = converter.Convert(value: 123, targetType: typeof(string), parameter: null, culture);
 
         Assert.Equal("•", value);
-        Assert.Throws<NotSupportedException>(() => converter.ConvertBack("1", typeof(int), parameter: null, culture));
+        _ = Assert.Throws<NotSupportedException>(() => converter.ConvertBack("1", typeof(int), parameter: null, culture));
     }
 
     [Fact]
@@ -40,7 +40,8 @@ public class EditorTabConvertersTests
         var culture = CultureInfo.InvariantCulture;
 
         Assert.Equal("42", converter.Convert(42, typeof(string), parameter: null, culture));
-        Assert.Equal("", converter.Convert(value: null, typeof(string), parameter: null, culture));
+        var emptyResult = Assert.IsType<string>(converter.Convert(value: null, typeof(string), parameter: null, culture));
+        Assert.Empty(emptyResult);
 
         Assert.Equal(0, converter.ConvertBack("", typeof(int), parameter: null, culture));
         Assert.Equal(17, converter.ConvertBack("17", typeof(int), parameter: null, culture));
@@ -80,8 +81,8 @@ public class EditorTabConvertersTests
     public void ScriptOperandTypeDisplayConverter_ShouldUseSeparateTextAndColorLabels()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService["Editor_ScriptOperand_Text"].Returns("[Editor_ScriptOperand_Text]");
-        localizationService["Editor_ScriptOperand_Color"].Returns("[Editor_ScriptOperand_Color]");
+        _ = localizationService["Editor_ScriptOperand_Text"].Returns("[Editor_ScriptOperand_Text]");
+        _ = localizationService["Editor_ScriptOperand_Color"].Returns("[Editor_ScriptOperand_Color]");
         EditorScriptDisplayConverters.Configure(localizationService);
         var converter = new ScriptOperandTypeDisplayConverter();
 
@@ -96,7 +97,7 @@ public class EditorTabConvertersTests
     public void ScriptConditionOperatorDisplayConverter_ShouldUseFriendlyLabels()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService["Editor_ScriptConditionOperator_GreaterThanOrEqual"].Returns("[Editor_ScriptConditionOperator_GreaterThanOrEqual]");
+        _ = localizationService["Editor_ScriptConditionOperator_GreaterThanOrEqual"].Returns("[Editor_ScriptConditionOperator_GreaterThanOrEqual]");
         EditorScriptDisplayConverters.Configure(localizationService);
         var converter = new ScriptConditionOperatorDisplayConverter();
 
@@ -109,7 +110,7 @@ public class EditorTabConvertersTests
     public void ActionTypeConverters_DisplayText_UsesConfiguredFormatter()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService["Editor_ActionType_MouseClick"].Returns("[Editor_ActionType_MouseClick]");
+        _ = localizationService["Editor_ActionType_MouseClick"].Returns("[Editor_ActionType_MouseClick]");
         var formatter = new EditorActionDisplayFormatter(localizationService);
 
         ActionTypeConverters.Configure(formatter);
@@ -123,11 +124,11 @@ public class EditorTabConvertersTests
     public void ScheduleTaskConverters_SummaryText_UsesConfiguredLocalizationService()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
-        localizationService["Schedule_TypeInterval"].Returns("[Schedule_TypeInterval]");
-        localizationService["Schedule_TypeWeekly"].Returns("[Schedule_TypeWeekly]");
-        localizationService["Schedule_NoFile"].Returns("[Schedule_NoFile]");
-        localizationService["Schedule_ListSummary"].Returns("[Schedule_ListSummary] {0} | {1}");
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
+        _ = localizationService["Schedule_TypeInterval"].Returns("[Schedule_TypeInterval]");
+        _ = localizationService["Schedule_TypeWeekly"].Returns("[Schedule_TypeWeekly]");
+        _ = localizationService["Schedule_NoFile"].Returns("[Schedule_NoFile]");
+        _ = localizationService["Schedule_ListSummary"].Returns("[Schedule_ListSummary] {0} | {1}");
         ScheduleTaskConverters.Configure(localizationService);
 
         var task = new ScheduledTask { Type = ScheduleType.Weekly, MacroFilePath = string.Empty };

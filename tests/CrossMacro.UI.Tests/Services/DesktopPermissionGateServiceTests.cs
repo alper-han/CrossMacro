@@ -7,7 +7,7 @@ public sealed class DesktopPermissionGateServiceTests
     public void IsStartupPermissionBlocked_WhenCheckerUnsupported_ReturnsFalse()
     {
         var checker = Substitute.For<IPermissionChecker>();
-        checker.IsSupported.Returns(returnThis: false);
+        _ = checker.IsSupported.Returns(returnThis: false);
 
         Assert.False(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
     }
@@ -16,8 +16,8 @@ public sealed class DesktopPermissionGateServiceTests
     public void IsStartupPermissionBlocked_WhenStartupGateNotRequired_ReturnsFalse()
     {
         var checker = Substitute.For<IPermissionChecker>();
-        checker.IsSupported.Returns(returnThis: true);
-        checker.RequiresStartupPermissionGate.Returns(returnThis: false);
+        _ = checker.IsSupported.Returns(returnThis: true);
+        _ = checker.RequiresStartupPermissionGate.Returns(returnThis: false);
 
         Assert.False(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
     }
@@ -26,9 +26,9 @@ public sealed class DesktopPermissionGateServiceTests
     public void IsStartupPermissionBlocked_WhenAccessibilityUntrusted_ReturnsTrue()
     {
         var checker = Substitute.For<IPermissionChecker>();
-        checker.IsSupported.Returns(returnThis: true);
-        checker.RequiresStartupPermissionGate.Returns(returnThis: true);
-        checker.IsAccessibilityTrusted().Returns(returnThis: false);
+        _ = checker.IsSupported.Returns(returnThis: true);
+        _ = checker.RequiresStartupPermissionGate.Returns(returnThis: true);
+        _ = checker.IsAccessibilityTrusted().Returns(returnThis: false);
 
         Assert.True(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
     }
@@ -240,13 +240,7 @@ public sealed class DesktopPermissionGateServiceTests
     [Fact]
     public async Task TryHandleAsync_WhenSessionUnsupported_ReturnsUnsupportedReasonWithoutHandling()
     {
-        var displaySessionService = Substitute.For<IDisplaySessionService>();
-        displaySessionService.IsSessionSupported(out Arg.Any<string>())
-            .Returns(ci =>
-            {
-                ci[0] = "unsupported session";
-                return false;
-            });
+        var displaySessionService = new UnsupportedDisplaySessionService();
 
         var service = new DesktopPermissionGateService(displaySessionService, () => null);
         var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
@@ -257,6 +251,21 @@ public sealed class DesktopPermissionGateServiceTests
         Assert.Equal("unsupported session", result.UnsupportedSessionReason);
     }
 
+    private sealed class UnsupportedDisplaySessionService : IDisplaySessionService
+    {
+        public bool IsSessionSupported(out string reason)
+        {
+            reason = "unsupported session";
+            return false;
+        }
+
+        public ValueTask<(bool Supported, string Reason)> IsSessionSupportedAsync(CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            return ValueTask.FromResult((false, "unsupported session"));
+        }
+    }
+
     private sealed class TestMacOSPermissionChecker : IMacOSPermissionChecker
     {
         private readonly bool _listenEventGranted;
@@ -265,7 +274,12 @@ public sealed class DesktopPermissionGateServiceTests
         private readonly bool _listenEventApiAvailable;
         private readonly bool? _listenEventListedOrGranted;
         private readonly bool _postEventApiAvailable;
-        private readonly bool _isSupported;
+
+        public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(CheckUInputAccess());
+        }
 
         internal TestMacOSPermissionChecker(
             bool listenEventGranted,
@@ -282,10 +296,10 @@ public sealed class DesktopPermissionGateServiceTests
             _listenEventApiAvailable = listenEventApiAvailable;
             _listenEventListedOrGranted = listenEventListedOrGranted;
             _postEventApiAvailable = postEventApiAvailable;
-            _isSupported = isSupported;
+            IsSupported = isSupported;
         }
 
-        public bool IsSupported => _isSupported;
+        public bool IsSupported { get; }
         public bool RequiresStartupPermissionGate => true;
         public int ListenEventRequestCount { get; private set; }
         public int AccessibilityRequestCount { get; private set; }
@@ -446,6 +460,12 @@ public sealed class DesktopPermissionGateServiceTests
         public bool CheckUInputAccess()
         {
             return false;
+        }
+
+        public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(false);
         }
 
         public void OpenAccessibilitySettings()

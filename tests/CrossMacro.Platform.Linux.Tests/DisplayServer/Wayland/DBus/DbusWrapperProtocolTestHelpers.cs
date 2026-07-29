@@ -60,16 +60,6 @@ internal static class DbusWrapperProtocolTestHelpers
         return bytes.ToArray();
     }
 
-    private static object UnboxVariant(object? value)
-    {
-        return value switch
-        {
-            VariantValue variantValue => UnboxVariant(variantValue),
-            null => string.Empty,
-            _ => value,
-        };
-    }
-
     private static object UnboxVariant(VariantValue value)
     {
         return value.Type switch
@@ -90,6 +80,8 @@ internal static class DbusWrapperProtocolTestHelpers
             VariantValueType.Struct => UnboxStruct(value),
             VariantValueType.Dictionary => UnboxDictionary(value),
             VariantValueType.Variant => UnboxVariant(value.GetVariantValue()),
+            VariantValueType.Invalid => throw new NotSupportedException(),
+            VariantValueType.UnixFd => throw new NotSupportedException(),
             _ => value.ToString() ?? string.Empty,
         };
     }
@@ -107,6 +99,23 @@ internal static class DbusWrapperProtocolTestHelpers
             VariantValueType.Array when value.ItemType is VariantValueType.Int64 => value.GetArray<long>(),
             VariantValueType.Array when value.ItemType is VariantValueType.UInt64 => value.GetArray<ulong>(),
             VariantValueType.Array when value.ItemType is VariantValueType.Double => value.GetArray<double>(),
+            VariantValueType.Invalid => throw new NotSupportedException(),
+            VariantValueType.Byte => throw new NotSupportedException(),
+            VariantValueType.Bool => throw new NotSupportedException(),
+            VariantValueType.Int16 => throw new NotSupportedException(),
+            VariantValueType.UInt16 => throw new NotSupportedException(),
+            VariantValueType.Int32 => throw new NotSupportedException(),
+            VariantValueType.UInt32 => throw new NotSupportedException(),
+            VariantValueType.Int64 => throw new NotSupportedException(),
+            VariantValueType.UInt64 => throw new NotSupportedException(),
+            VariantValueType.Double => throw new NotSupportedException(),
+            VariantValueType.String => throw new NotSupportedException(),
+            VariantValueType.ObjectPath => throw new NotSupportedException(),
+            VariantValueType.Signature => throw new NotSupportedException(),
+            VariantValueType.Struct => throw new NotSupportedException(),
+            VariantValueType.Variant => throw new NotSupportedException(),
+            VariantValueType.Dictionary => throw new NotSupportedException(),
+            VariantValueType.UnixFd => throw new NotSupportedException(),
             _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         };
     }

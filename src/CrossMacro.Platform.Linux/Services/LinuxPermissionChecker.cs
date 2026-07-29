@@ -16,6 +16,26 @@ public class LinuxPermissionChecker : IPermissionChecker
         return CheckUInputAccess();
     }
 
+    public async ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            if (await LinuxInputProbeUtilities.HasUInputWriteAccessAsync(LinuxInputProbeUtilities.CanOpenForWrite, cancellationToken).ConfigureAwait(false))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "Error checking uinput permissions");
+            return false;
+        }
+    }
+
     public bool CheckUInputAccess()
     {
         try
@@ -37,7 +57,7 @@ public class LinuxPermissionChecker : IPermissionChecker
                 {
                     return false;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Debug(ex, "Failed to check permission for {Path}", path);
                     return false;
@@ -57,7 +77,7 @@ public class LinuxPermissionChecker : IPermissionChecker
 
             return false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Error checking uinput permissions");
             return false;

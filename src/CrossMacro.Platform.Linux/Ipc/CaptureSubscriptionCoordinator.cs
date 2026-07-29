@@ -24,7 +24,7 @@ internal sealed class CaptureSubscriptionCoordinator
         }
         else
         {
-            _subscriptions.Remove(consumerId);
+            _ = _subscriptions.Remove(consumerId);
         }
     }
 
@@ -35,7 +35,7 @@ internal sealed class CaptureSubscriptionCoordinator
             return;
         }
 
-        _subscriptions.Remove(consumerId);
+        _ = _subscriptions.Remove(consumerId);
     }
 
     public bool TryGetSubscription(string consumerId, out bool captureMouse, out bool captureKeyboard)

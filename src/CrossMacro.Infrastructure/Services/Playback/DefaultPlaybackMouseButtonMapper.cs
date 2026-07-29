@@ -16,6 +16,11 @@ public class DefaultPlaybackMouseButtonMapper : IPlaybackMouseButtonMapper
             MacroMouseButton.Middle => MouseButtonCode.Middle,
             MacroMouseButton.Side1 => MouseButtonCode.Side1,
             MacroMouseButton.Side2 => MouseButtonCode.Side2,
+            MacroMouseButton.None => MouseButtonCode.Left,
+            MacroMouseButton.ScrollUp => MouseButtonCode.Left,
+            MacroMouseButton.ScrollDown => MouseButtonCode.Left,
+            MacroMouseButton.ScrollLeft => MouseButtonCode.Left,
+            MacroMouseButton.ScrollRight => MouseButtonCode.Left,
             _ => MouseButtonCode.Left,
         };
     }

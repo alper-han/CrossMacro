@@ -1,9 +1,9 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignEditorActionConverter : IEditorActionConverter
 {
-    public IReadOnlyList<MacroEvent> ToMacroEvents(EditorAction action) => Array.Empty<MacroEvent>();
+    public IReadOnlyList<MacroEvent> ToMacroEvents(EditorAction action) => [];
 
     public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null) => new() { Type = EditorActionType.Delay, DelayMs = ev.DelayMs };
 

@@ -1,25 +1,18 @@
 
 namespace CrossMacro.Platform.Linux.Native.UInput;
 
-public class UInputDevice : IUInputDevice
+public sealed partial class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 {
     private const int ErrnoNoEntry = 2;
     private const int ErrnoOperationNotPermitted = 1;
     private const int ErrnoPermissionDenied = 13;
 
-    private int _fd;
+    private int _fd = -1;
     private bool _disposed;
-    private readonly int _width;
-    private readonly int _height;
+    private readonly int _width = width;
+    private readonly int _height = height;
 
     public bool SupportsAbsoluteCoordinates => _width > 0 && _height > 0;
-
-    public UInputDevice(int width = 0, int height = 0)
-    {
-        _fd = -1;
-        _width = width;
-        _height = height;
-    }
 
     public void CreateVirtualInputDevice()
     {
@@ -28,7 +21,7 @@ public class UInputDevice : IUInputDevice
             SetupDeviceInternal();
             WaitForDeviceStabilization();
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             CleanupOnFailure();
             throw;
@@ -42,15 +35,15 @@ public class UInputDevice : IUInputDevice
             SetupDeviceInternal();
             await WaitForDeviceStabilizationAsync().ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             CleanupOnFailure();
             throw;
         }
     }
 
-    [DllImport("libc", SetLastError = true, EntryPoint = "ioctl")]
-    private static extern int ioctl_sysname(int fd, uint request, byte[] name);
+    [LibraryImport("libc", SetLastError = true, EntryPoint = "ioctl")]
+    private static partial int ioctl_sysname(int fd, uint request, byte[] name);
 
     private const uint UI_GET_SYSNAME_64 = 0x8040552c;
 
@@ -83,7 +76,7 @@ public class UInputDevice : IUInputDevice
                 return System.IO.Path.GetFileName(dirs[0]);
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Ignore and fallback
         }
@@ -134,7 +127,7 @@ public class UInputDevice : IUInputDevice
     {
         if (_fd >= 0)
         {
-            UInputNative.close(_fd);
+            _ = UInputNative.close(_fd);
             _fd = -1;
         }
     }
@@ -143,6 +136,25 @@ public class UInputDevice : IUInputDevice
     {
         Log.Information("[UInputDevice] Creating virtual input device (Mouse + Keyboard, Resolution: {Width}x{Height})...", _width, _height);
 
+        OpenDevice();
+
+        Log.Debug("[UInputDevice] Opened {UInputPath} with fd: {Fd}", LinuxSystemPaths.UInputDevicePath, _fd);
+        ConfigureDeviceCapabilities();
+        WriteDeviceDefinition();
+
+        int createResult = UInputNative.ioctl(_fd, UInputNative.UI_DEV_CREATE, 0);
+        if (createResult < 0)
+        {
+            var errno = Marshal.GetLastWin32Error();
+            Log.LogError("[UInputDevice] Failed to create device (UI_DEV_CREATE). Errno: {Errno}", errno);
+            throw new InvalidOperationException($"Failed to create device (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
+        }
+
+        Log.Information("[UInputDevice] Virtual input device (mouse + keyboard) created successfully.");
+    }
+
+    private void OpenDevice()
+    {
         var primaryErrno = 0;
         var alternateErrno = 0;
         _fd = UInputNative.open(LinuxSystemPaths.UInputDevicePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
@@ -156,21 +168,20 @@ public class UInputDevice : IUInputDevice
             }
         }
 
-        if (_fd < 0)
+        if (_fd >= 0)
         {
-            var errno = SelectOpenUInputErrno(primaryErrno, alternateErrno);
-            Log.LogError(
-                "[UInputDevice] Failed to open uinput paths {PrimaryPath} (errno: {PrimaryErrno}) and {AlternatePath} (errno: {AlternateErrno}). Selected errno: {Errno}",
-                LinuxSystemPaths.UInputDevicePath,
-                primaryErrno,
-                LinuxSystemPaths.UInputAlternatePath,
-                alternateErrno,
-                errno);
-            throw new IOException(BuildOpenUInputErrorMessage(errno));
+            return;
         }
 
-        Log.Debug("[UInputDevice] Opened {UInputPath} with fd: {Fd}", LinuxSystemPaths.UInputDevicePath, _fd);
+        var errno = SelectOpenUInputErrno(primaryErrno, alternateErrno);
+        Log.LogError(
+            "[UInputDevice] Failed to open uinput paths {PrimaryPath} (errno: {PrimaryErrno}) and {AlternatePath} (errno: {AlternateErrno}). Selected errno: {Errno}",
+            LinuxSystemPaths.UInputDevicePath, primaryErrno, LinuxSystemPaths.UInputAlternatePath, alternateErrno, errno);
+        throw new IOException(BuildOpenUInputErrorMessage(errno));
+    }
 
+    private void ConfigureDeviceCapabilities()
+    {
         EnableBit(UInputNative.UI_SET_EVBIT, UInputNative.EV_KEY);
         EnableBit(UInputNative.UI_SET_KEYBIT, UInputNative.BTN_LEFT);
         EnableBit(UInputNative.UI_SET_KEYBIT, UInputNative.BTN_RIGHT);
@@ -181,12 +192,10 @@ public class UInputDevice : IUInputDevice
             EnableBit(UInputNative.UI_SET_EVBIT, UInputNative.EV_ABS);
             EnableBit(UInputNative.UI_SET_ABSBIT, UInputNative.ABS_X);
             EnableBit(UInputNative.UI_SET_ABSBIT, UInputNative.ABS_Y);
-
             EnableBit(UInputNative.UI_SET_EVBIT, UInputNative.EV_REL);
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_WHEEL);
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_X);
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_Y);
-
             Log.Information("[UInputDevice] Creating ABSOLUTE mode device (EV_ABS + EV_REL hybrid)");
         }
         else
@@ -202,7 +211,10 @@ public class UInputDevice : IUInputDevice
         {
             EnableBit(UInputNative.UI_SET_KEYBIT, keyCode);
         }
+    }
 
+    private void WriteDeviceDefinition()
+    {
         var uidev = new UInputNative.uinput_user_dev
         {
             name = VirtualDeviceConstants.DeviceName,
@@ -223,23 +235,25 @@ public class UInputDevice : IUInputDevice
         }
 
         IntPtr size = (IntPtr)Marshal.SizeOf<UInputNative.uinput_user_dev>();
-        IntPtr result = UInputNative.write_setup(_fd, ref uidev, size);
+        var uidevPointer = Marshal.AllocHGlobal(size);
+        Marshal.StructureToPtr(uidev, uidevPointer, fDeleteOld: false);
+        IntPtr result;
+        try
+        {
+            result = UInputNative.write_setup(_fd, uidevPointer, size);
+        }
+        finally
+        {
+            Marshal.DestroyStructure<UInputNative.uinput_user_dev>(uidevPointer);
+            Marshal.FreeHGlobal(uidevPointer);
+        }
+
         if (result.ToInt32() < 0)
         {
             var errno = Marshal.GetLastWin32Error();
             Log.LogError("[UInputDevice] Failed to write uinput_user_dev. Errno: {Errno}", errno);
             throw new InvalidOperationException($"Failed to write uinput_user_dev (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
         }
-
-        int createResult = UInputNative.ioctl(_fd, UInputNative.UI_DEV_CREATE, 0);
-        if (createResult < 0)
-        {
-            var errno = Marshal.GetLastWin32Error();
-            Log.LogError("[UInputDevice] Failed to create device (UI_DEV_CREATE). Errno: {Errno}", errno);
-            throw new InvalidOperationException($"Failed to create device (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
-        }
-
-        Log.Information("[UInputDevice] Virtual input device (mouse + keyboard) created successfully.");
     }
 
     private void EnableBit(uint request, int bit)
@@ -348,8 +362,8 @@ public class UInputDevice : IUInputDevice
             if (_fd >= 0)
             {
                 Log.Information("[UInputDevice] Destroying virtual device...");
-                UInputNative.ioctl(_fd, UInputNative.UI_DEV_DESTROY, 0);
-                UInputNative.close(_fd);
+                _ = UInputNative.ioctl(_fd, UInputNative.UI_DEV_DESTROY, 0);
+                _ = UInputNative.close(_fd);
                 _fd = -1;
             }
             _disposed = true;

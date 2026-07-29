@@ -1,26 +1,19 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-internal sealed class RunScriptShellExecutor
+internal sealed class RunScriptShellExecutor(
+    IShellCommandRunner? shellCommandRunner,
+    IPlaybackTimingService timingService,
+    IPlaybackPauseToken pauseToken)
 {
     internal const string CommandToken = "shell";
     internal const int MaxRetries = 10_000;
     internal const int OutputLimitChars = 65_536;
     private const int MaxDiagnosticLength = 4000;
 
-    private readonly IShellCommandRunner? _shellCommandRunner;
-    private readonly IPlaybackTimingService _timingService;
-    private readonly IPlaybackPauseToken _pauseToken;
-
-    public RunScriptShellExecutor(
-        IShellCommandRunner? shellCommandRunner,
-        IPlaybackTimingService timingService,
-        IPlaybackPauseToken pauseToken)
-    {
-        _shellCommandRunner = shellCommandRunner;
-        _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
-        _pauseToken = pauseToken ?? throw new ArgumentNullException(nameof(pauseToken));
-    }
+    private readonly IShellCommandRunner? _shellCommandRunner = shellCommandRunner;
+    private readonly IPlaybackTimingService _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
+    private readonly IPlaybackPauseToken _pauseToken = pauseToken ?? throw new ArgumentNullException(nameof(pauseToken));
 
     public async Task ExecuteStepAsync(string step, int stepNumber, IDictionary<string, string> variables, CancellationToken cancellationToken)
     {
@@ -308,7 +301,7 @@ internal sealed class RunScriptShellExecutor
             var current = payload[i];
             if (current == '\\' && i + 1 < payload.Length && (payload[i + 1] == quote || payload[i + 1] == '\\'))
             {
-                builder.Append(payload[i + 1]);
+                _ = builder.Append(payload[i + 1]);
                 i++;
                 continue;
             }
@@ -320,7 +313,7 @@ internal sealed class RunScriptShellExecutor
                 return true;
             }
 
-            builder.Append(current);
+            _ = builder.Append(current);
         }
 
         value = string.Empty;
@@ -447,7 +440,7 @@ internal sealed class RunScriptShellExecutor
         return $"Syntax: {CommandToken} \"<command>\" [retries] [backoff_ms] [timeout_ms] | {CommandToken} capture \"<command>\" exitVar stdoutVar stderrVar [retries] [backoff_ms] [timeout_ms] | {CommandToken} input \"<stdin text>\" \"<command>\" [retries] [backoff_ms] [timeout_ms] | {CommandToken} capture-input \"<stdin text>\" \"<command>\" exitVar stdoutVar stderrVar [retries] [backoff_ms] [timeout_ms]";
     }
 
-    private sealed record class ShellCommandOptions(
+    private sealed record ShellCommandOptions(
         string Command,
         string? StandardInput,
         ShellCaptureTargets? CaptureTargets,
@@ -455,7 +448,7 @@ internal sealed class RunScriptShellExecutor
         int BackoffMs,
         int TimeoutMs);
 
-    private sealed record class ShellCaptureTargets(
+    private sealed record ShellCaptureTargets(
         string ExitCodeVariable,
         string StandardOutputVariable,
         string StandardErrorVariable);

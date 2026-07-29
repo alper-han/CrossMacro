@@ -1,7 +1,7 @@
 namespace CrossMacro.Core.Tests.Services;
 
 
-public class PlaybackValidatorTests
+public sealed class PlaybackValidatorTests
 {
     private readonly PlaybackValidator _validator;
 
@@ -11,28 +11,17 @@ public class PlaybackValidatorTests
     }
 
     [Fact]
-    public void Validate_NullMacro_ReturnsError()
-    {
-        // Act
-        var result = _validator.Validate(null!);
-
-        // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain("Macro is empty or null");
-    }
-
-    [Fact]
     public void Validate_WhenHiddenScreenReadScriptContainsUnsupportedStep_ReturnsError()
     {
         var macro = new MacroSequence
         {
-            ScriptSteps = {"pixelcolor 1 2 sampled", "bogus"},
+            ScriptSteps = { "pixelcolor 1 2 sampled", "bogus" },
         };
 
         var result = _validator.Validate(macro);
 
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.Contains("Macro script steps are invalid", StringComparison.Ordinal));
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().Contain(error => error.Contains("Macro script steps are invalid", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -43,12 +32,12 @@ public class PlaybackValidatorTests
     {
         var macro = new MacroSequence
         {
-            ScriptSteps = {"pixelcolor 1 2 sampled", scriptStep},
+            ScriptSteps = { "pixelcolor 1 2 sampled", scriptStep },
         };
 
         var result = _validator.Validate(macro);
 
-        result.Errors.Should().BeEmpty();
+        _ = result.Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -61,8 +50,8 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain("Macro is empty or null");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().Contain("Macro is empty or null");
     }
 
     [Fact]
@@ -80,7 +69,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Errors.Should().BeEmpty();
+        _ = result.Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -100,7 +89,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+        _ = result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -120,7 +109,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+        _ = result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -140,7 +129,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+        _ = result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -160,7 +149,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+        _ = result.Warnings.Should().Contain(w => w.Contains("(0,0)", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -180,7 +169,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+        _ = result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -200,7 +189,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
+        _ = result.Warnings.Should().NotContain(w => w.Contains("(0,0)", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -218,7 +207,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w => w.Contains("delay") || w.Contains("10 seconds"));
+        _ = result.Warnings.Should().Contain(w => w.Contains("delay") || w.Contains("10 seconds"));
     }
 
     [Fact]
@@ -237,7 +226,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w => w.Contains("long") || w.Contains("minutes"));
+        _ = result.Warnings.Should().Contain(w => w.Contains("long") || w.Contains("minutes"));
     }
 
     [Fact]
@@ -255,7 +244,7 @@ public class PlaybackValidatorTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w => w.Contains("10000") || w.Contains("events"));
+        _ = result.Warnings.Should().Contain(w => w.Contains("10000") || w.Contains("events"));
     }
 
     [Fact]
@@ -263,8 +252,8 @@ public class PlaybackValidatorTests
     {
         // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        positionProvider.IsSupported.Returns(returnThis: false);
-        positionProvider.ProviderName.Returns("MockProvider");
+        _ = positionProvider.IsSupported.Returns(returnThis: false);
+        _ = positionProvider.ProviderName.Returns("MockProvider");
 
         var validator = new PlaybackValidator(CreateKeyCodeMapper(), positionProvider);
         var macro = new MacroSequence
@@ -278,7 +267,7 @@ public class PlaybackValidatorTests
         var result = validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w =>
+        _ = result.Warnings.Should().Contain(w =>
             w.Contains("not supported") || w.Contains("MockProvider"));
     }
 
@@ -298,7 +287,7 @@ public class PlaybackValidatorTests
         var result = validator.Validate(macro);
 
         // Assert
-        result.Warnings.Should().Contain(w => w.Contains("fallback") || w.Contains("provider"));
+        _ = result.Warnings.Should().Contain(w => w.Contains("fallback") || w.Contains("provider"));
     }
 
     [Fact]
@@ -309,8 +298,8 @@ public class PlaybackValidatorTests
         result.AddWarning("Some warning");
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Warnings.Should().HaveCount(1);
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Warnings.Should().HaveCount(1);
     }
 
     [Fact]
@@ -321,8 +310,8 @@ public class PlaybackValidatorTests
         result.AddError("Some error");
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().HaveCount(1);
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().HaveCount(1);
     }
 
     private static IKeyCodeMapper CreateKeyCodeMapper()

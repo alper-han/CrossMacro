@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakeKWinScreenShotSupportProbe : IKWinScreenShotSupportProbe
+internal sealed class FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult support) : IKWinScreenShotSupportProbe
 {
-    private readonly KWinScreenShotSupportResult _support;
-
-    public FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult support)
-    {
-        _support = support;
-    }
+    private readonly KWinScreenShotSupportResult _support = support;
 
     public KWinScreenShotSupportResult ProbeSupport() => _support;
 }

@@ -112,28 +112,16 @@ internal sealed class ScreenReadingSelectorFixture
         return new NamedScreenFrameProvider(providerName, support);
     }
 
-    private sealed class FakeLinuxEnvironmentDetector : ILinuxEnvironmentDetector
+    private sealed class FakeLinuxEnvironmentDetector(bool isWayland, bool isX11, CompositorType compositor) : ILinuxEnvironmentDetector
     {
-        public FakeLinuxEnvironmentDetector(bool isWayland, bool isX11, CompositorType compositor)
-        {
-            IsWayland = isWayland;
-            IsX11 = isX11;
-            DetectedCompositor = compositor;
-        }
-
-        public CompositorType DetectedCompositor { get; }
-        public bool IsWayland { get; }
-        public bool IsX11 { get; }
+        public CompositorType DetectedCompositor { get; } = compositor;
+        public bool IsWayland { get; } = isWayland;
+        public bool IsX11 { get; } = isX11;
     }
 
-    private sealed class FakeX11ScreenCaptureSupportProbe : IX11ScreenCaptureSupportProbe
+    private sealed class FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult support) : IX11ScreenCaptureSupportProbe
     {
-        private readonly X11ScreenCaptureSupportResult _support;
-
-        public FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult support)
-        {
-            _support = support;
-        }
+        private readonly X11ScreenCaptureSupportResult _support = support;
 
         public int ProbeCalls { get; private set; }
 
@@ -144,28 +132,18 @@ internal sealed class ScreenReadingSelectorFixture
         }
     }
 
-    private sealed class FakeRuntimeContext : IRuntimeContext
+    private sealed class FakeRuntimeContext(bool isFlatpak) : IRuntimeContext
     {
-        public FakeRuntimeContext(bool isFlatpak)
-        {
-            IsFlatpak = isFlatpak;
-        }
-
         public bool IsLinux => true;
         public bool IsWindows => false;
         public bool IsMacOS => false;
-        public bool IsFlatpak { get; }
+        public bool IsFlatpak { get; } = isFlatpak;
         public string? SessionType => "wayland";
     }
 
-    private sealed class FakeLinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapabilityDetector
+    private sealed class FakeLinuxScreenReaderCapabilityDetector(LinuxScreenReaderCapabilitySnapshot snapshot) : ILinuxScreenReaderCapabilityDetector
     {
-        private readonly LinuxScreenReaderCapabilitySnapshot _snapshot;
-
-        public FakeLinuxScreenReaderCapabilityDetector(LinuxScreenReaderCapabilitySnapshot snapshot)
-        {
-            _snapshot = snapshot;
-        }
+        private readonly LinuxScreenReaderCapabilitySnapshot _snapshot = snapshot;
 
         public int SnapshotCalls { get; private set; }
 
@@ -180,17 +158,11 @@ internal sealed class ScreenReadingSelectorFixture
         }
     }
 
-    private sealed class NamedScreenFrameProvider : IScreenFrameProvider
+    private sealed class NamedScreenFrameProvider(string providerName, X11ScreenCaptureSupportResult? support) : IScreenFrameProvider
     {
-        private readonly X11ScreenCaptureSupportResult? _support;
+        private readonly X11ScreenCaptureSupportResult? _support = support;
 
-        public NamedScreenFrameProvider(string providerName, X11ScreenCaptureSupportResult? support)
-        {
-            ProviderName = providerName;
-            _support = support;
-        }
-
-        public string ProviderName { get; }
+        public string ProviderName { get; } = providerName;
         public bool IsSupported => _support?.IsSupported ?? true;
 
         public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)

@@ -64,7 +64,7 @@ public static class ScreenReadingDiagnosticDisplayFormatter
     }
 
     private static string[] SanitizeValues(IReadOnlyList<string> values) =>
-        values.Select(value => Sanitize(value) ?? string.Empty).ToArray();
+        values.Select(static value => Sanitize(value) ?? string.Empty).ToArray();
 
     private static string? Sanitize(string? value)
     {

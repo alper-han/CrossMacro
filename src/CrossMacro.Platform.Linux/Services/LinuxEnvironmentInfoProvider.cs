@@ -11,11 +11,14 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     private readonly CompositorType _compositor;
     private readonly bool _windowManagerHandlesCloseButton;
 
-    [Obsolete("Use the snapshot-backed constructor in production composition.", error: false)]
+    /// <summary>
+    /// Captures the live environment at call time. Prefer the snapshot-backed
+    /// constructor in production composition so the environment is captured
+    /// once at the boundary and passed through.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
     internal LinuxEnvironmentInfoProvider()
-        : this(CompositorDetector.DetectCompositor(), LinuxEnvironmentVariables.CaptureCurrentSnapshot().WindowButtons)
-    {
-    }
+        : this(CompositorDetector.DetectCompositor(), LinuxEnvironmentVariables.CaptureCurrentSnapshot().WindowButtons) { /* Empty */ }
 
     public LinuxEnvironmentInfoProvider(
         ILinuxEnvironmentDetector environmentDetector,
@@ -23,23 +26,19 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         : this(
             (environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector))).DetectedCompositor,
             (environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot().WindowButtons)
-    {
-    }
+    { /* Empty */ }
 
     public LinuxEnvironmentInfoProvider(LinuxEnvironmentSnapshot environment)
         : this(
             CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux()),
             environment.WindowButtons)
-    {
-    }
+    { /* Empty */ }
 
     /// <summary>
     /// Constructor for testing with explicit compositor type.
     /// </summary>
     internal LinuxEnvironmentInfoProvider(CompositorType compositor)
-        : this(compositor, (string?)null)
-    {
-    }
+        : this(compositor, (string?)null) { /* Empty */ }
 
     /// <summary>
     /// Constructor for testing with explicit compositor type and environment accessor.
@@ -81,6 +80,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         CompositorType.KDE => DisplayEnvironment.LinuxKDE,
         CompositorType.GNOME => DisplayEnvironment.LinuxGnome,
         CompositorType.Other => DisplayEnvironment.LinuxWayland,
+        CompositorType.Unknown => DisplayEnvironment.Unknown,
         _ => DisplayEnvironment.Unknown,
     };
 
@@ -98,11 +98,11 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
             return defaultValue;
         }
 
-        return windowButtonsMode.Trim().ToLowerInvariant() switch
+        return windowButtonsMode.Trim().ToUpperInvariant() switch
         {
-            "show" or "1" or "true" or "yes" or "on" => false,
-            "hide" or "0" or "false" or "no" or "off" => true,
-            "auto" => defaultValue,
+            "SHOW" or "1" or "TRUE" or "YES" or "ON" => false,
+            "HIDE" or "0" or "FALSE" or "NO" or "OFF" => true,
+            "AUTO" => defaultValue,
             _ => defaultValue,
         };
     }

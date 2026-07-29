@@ -1,22 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class WlrScreencopyScreenFrameProvider : IScreenFrameProvider
+public sealed class WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture, WlrScreencopySupportResult support) : IScreenFrameProvider
 {
-    private readonly IWlrScreencopyCapture _capture;
-    private readonly WlrScreencopySupportResult _support;
+    private readonly IWlrScreencopyCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly WlrScreencopySupportResult _support = support;
     private bool _disposed;
 
     public WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture, WlrScreencopySupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "Wayland wlr-screencopy-unstable-v1";
 

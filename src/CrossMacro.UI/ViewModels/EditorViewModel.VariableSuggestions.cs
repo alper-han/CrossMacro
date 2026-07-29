@@ -3,7 +3,7 @@ namespace CrossMacro.UI.ViewModels;
 
 public partial class EditorViewModel
 {
-    private IReadOnlyList<string> BuildAvailableVariableNames()
+    private string[] BuildAvailableVariableNames()
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < Actions.Count; index++)
@@ -47,10 +47,10 @@ public partial class EditorViewModel
             }
         }
 
-        return names.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+        return names.Order(StringComparer.Ordinal).ToArray();
     }
 
-    private IReadOnlyList<string> BuildAvailableColorVariableNames()
+    private string[] BuildAvailableColorVariableNames()
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         var selectedIndex = SelectedAction is null ? -1 : Actions.IndexOf(SelectedAction);
@@ -71,15 +71,15 @@ public partial class EditorViewModel
             }
         }
 
-        return names.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+        return names.Order(StringComparer.Ordinal).ToArray();
     }
 
     private void RefreshAvailableVariableNames()
     {
         var next = BuildAvailableVariableNames();
         var nextColor = BuildAvailableColorVariableNames();
-        var variableNamesChanged = !_availableVariableNames.SequenceEqual(next, StringComparer.Ordinal);
-        var colorVariableNamesChanged = !_availableColorVariableNames.SequenceEqual(nextColor, StringComparer.Ordinal);
+        var variableNamesChanged = !AvailableVariableNames.SequenceEqual(next, StringComparer.Ordinal);
+        var colorVariableNamesChanged = !AvailableColorVariableNames.SequenceEqual(nextColor, StringComparer.Ordinal);
 
         if (!variableNamesChanged && !colorVariableNamesChanged)
         {
@@ -100,14 +100,14 @@ public partial class EditorViewModel
 
         if (variableNamesChanged)
         {
-            _availableVariableNames = next;
+            AvailableVariableNames = next;
             OnPropertyChanged(nameof(AvailableVariableNames));
             OnPropertyChanged(nameof(HasAvailableVariableNames));
         }
 
         if (colorVariableNamesChanged)
         {
-            _availableColorVariableNames = nextColor;
+            AvailableColorVariableNames = nextColor;
             OnPropertyChanged(nameof(AvailableColorVariableNames));
             OnPropertyChanged(nameof(HasAvailableColorVariableNames));
         }
@@ -189,7 +189,7 @@ public partial class EditorViewModel
         }
 
         var text = legacyText.Trim();
-        var equalIndex = text.IndexOf('=');
+        var equalIndex = text.IndexOf('=', StringComparison.Ordinal);
         if (equalIndex > 0)
         {
             AddIfValidVariableName(target, text[..equalIndex]);
@@ -213,12 +213,12 @@ public partial class EditorViewModel
             token = token[1..];
         }
 
-        if (VariableNameRegex().IsMatch(token))
+        if (VariableNameRegex.IsMatch(token))
         {
-            target.Add(token);
+            _ = target.Add(token);
         }
     }
 
     [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
-    private static partial Regex VariableNameRegex();
+    private static partial Regex VariableNameRegex { get; }
 }

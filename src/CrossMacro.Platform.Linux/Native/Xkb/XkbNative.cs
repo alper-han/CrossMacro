@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Native.Xkb;
 
-public static unsafe class XkbNative
+internal static partial class XkbNative
 {
     private const string LibXkbCommon = "libxkbcommon.so.0";
 
@@ -22,53 +22,79 @@ public static unsafe class XkbNative
         public string? options;
     }
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr xkb_context_new(int flags);
+    [LibraryImport(LibXkbCommon)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr xkb_context_new(int flags);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void xkb_context_unref(IntPtr context);
+    [LibraryImport(LibXkbCommon)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void xkb_context_unref(IntPtr context);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr xkb_keymap_new_from_names(
+    [LibraryImport(LibXkbCommon, EntryPoint = "xkb_keymap_new_from_names")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial IntPtr xkb_keymap_new_from_names_native(
         IntPtr context,
-        ref xkb_rule_names names,
+        IntPtr names,
         int flags);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr xkb_keymap_new_from_string(
+    public static IntPtr xkb_keymap_new_from_names(IntPtr context, ref xkb_rule_names names, int flags)
+    {
+        var namesPointer = Marshal.AllocHGlobal(Marshal.SizeOf<xkb_rule_names>());
+        Marshal.StructureToPtr(names, namesPointer, fDeleteOld: false);
+        try
+        {
+            return xkb_keymap_new_from_names_native(context, namesPointer, flags);
+        }
+        finally
+        {
+            Marshal.DestroyStructure<xkb_rule_names>(namesPointer);
+            Marshal.FreeHGlobal(namesPointer);
+        }
+    }
+
+    [LibraryImport(LibXkbCommon, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr xkb_keymap_new_from_string(
         IntPtr context,
         string str,
         int format,
         int flags);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void xkb_keymap_unref(IntPtr keymap);
+    [LibraryImport(LibXkbCommon)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void xkb_keymap_unref(IntPtr keymap);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr xkb_state_new(IntPtr keymap);
+    [LibraryImport(LibXkbCommon)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr xkb_state_new(IntPtr keymap);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern uint xkb_keymap_mod_get_index(
+    [LibraryImport(LibXkbCommon, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial uint xkb_keymap_mod_get_index(
         IntPtr keymap,
-        [MarshalAs(UnmanagedType.LPStr)] string name);
+        string name);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void xkb_state_unref(IntPtr state);
+    [LibraryImport(LibXkbCommon)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void xkb_state_unref(IntPtr state);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int xkb_state_key_get_utf8(
+    [LibraryImport(LibXkbCommon)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int xkb_state_key_get_utf8(
         IntPtr state,
         uint keycode,
-        byte* buffer,
+        IntPtr buffer,
         uint size);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern uint xkb_state_key_get_one_sym(
+    [LibraryImport(LibXkbCommon)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial uint xkb_state_key_get_one_sym(
         IntPtr state,
         uint keycode);
 
-    [DllImport(LibXkbCommon, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int xkb_state_update_mask(
+    [LibraryImport(LibXkbCommon)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int xkb_state_update_mask(
         IntPtr state,
         uint depressed_mods,
         uint latched_mods,
@@ -81,14 +107,23 @@ public static unsafe class XkbNative
     public static string GetUtf8String(IntPtr state, uint keycode)
     {
         // 64 bytes should be way more than enough for any single key
-        byte* buffer = stackalloc byte[64];
-        int len = xkb_state_key_get_utf8(state, keycode, buffer, 64);
+        var buffer = new byte[64];
+        var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+        int len;
+        try
+        {
+            len = xkb_state_key_get_utf8(state, keycode, handle.AddrOfPinnedObject(), 64);
+        }
+        finally
+        {
+            handle.Free();
+        }
 
         if (len <= 0)
         {
             return string.Empty;
         }
 
-        return System.Text.Encoding.UTF8.GetString(buffer, len);
+        return System.Text.Encoding.UTF8.GetString(buffer, 0, len);
     }
 }

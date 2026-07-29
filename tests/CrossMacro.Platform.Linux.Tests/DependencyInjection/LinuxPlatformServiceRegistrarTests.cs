@@ -1,7 +1,7 @@
 namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
 
-public class LinuxPlatformServiceRegistrarTests
+public sealed class LinuxPlatformServiceRegistrarTests
 {
     [Fact]
     public void RegisterPlatformServices_RegistersExpectedCoreAbstractions()
@@ -24,7 +24,6 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategyFactory) && d.ImplementationType == typeof(LinuxCoordinateStrategyFactory));
         Assert.Contains(services, d => d.ServiceType == typeof(IPlaybackBehaviorPolicy));
         Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupIdentityResolver) && d.ImplementationType == typeof(LinuxQuickSetupIdentityResolver));
-        Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupScriptBuilder) && d.ImplementationType == typeof(LinuxQuickSetupScriptBuilder));
         Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupExecutor) && d.ImplementationType == typeof(LinuxQuickSetupExecutor));
         Assert.Contains(services, d => d.ServiceType == typeof(FlatpakHostCommandLauncher) && d.ImplementationType == typeof(FlatpakHostCommandLauncher));
         Assert.Contains(services, d => d.ServiceType == typeof(DirectPkexecHostCommandLauncher) && d.ImplementationType == typeof(DirectPkexecHostCommandLauncher));
@@ -34,7 +33,7 @@ public class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCaptureSupportProbe) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCapture) && d.ImplementationType == typeof(X11ScreenCapture));
-        Assert.Single(services, d => d.ServiceType == typeof(IInputSimulatorPool));
+        _ = Assert.Single(services, d => d.ServiceType == typeof(IInputSimulatorPool));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputSimulator>));
         Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputCapture>));
     }
@@ -98,10 +97,10 @@ public class LinuxPlatformServiceRegistrarTests
         new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
 
         using var provider = services.BuildServiceProvider();
-        Assert.IsType<LinuxEnvironmentVariables>(provider.GetRequiredService<ILinuxEnvironmentVariables>());
-        Assert.IsType<LinuxEnvironmentDetector>(provider.GetRequiredService<ILinuxEnvironmentDetector>());
-        Assert.IsType<LinuxDisplaySessionService>(provider.GetRequiredService<IDisplaySessionService>());
-        Assert.IsType<LinuxEnvironmentInfoProvider>(provider.GetRequiredService<IEnvironmentInfoProvider>());
+        _ = Assert.IsType<LinuxEnvironmentVariables>(provider.GetRequiredService<ILinuxEnvironmentVariables>());
+        _ = Assert.IsType<LinuxEnvironmentDetector>(provider.GetRequiredService<ILinuxEnvironmentDetector>());
+        _ = Assert.IsType<LinuxDisplaySessionService>(provider.GetRequiredService<IDisplaySessionService>());
+        _ = Assert.IsType<LinuxEnvironmentInfoProvider>(provider.GetRequiredService<IEnvironmentInfoProvider>());
         var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
         var simulatorFactory = provider.GetRequiredService<Func<IInputSimulator>>();
         var captureFactory = provider.GetRequiredService<Func<IInputCapture>>();
@@ -121,8 +120,8 @@ public class LinuxPlatformServiceRegistrarTests
         var probe = provider.GetRequiredService<IWlrScreencopySupportProbe>();
         var capture = provider.GetRequiredService<IWlrScreencopyCapture>();
 
-        Assert.IsType<WlrScreencopyCapture>(probe);
-        Assert.IsType<WlrScreencopyCapture>(capture);
+        _ = Assert.IsType<WlrScreencopyCapture>(probe);
+        _ = Assert.IsType<WlrScreencopyCapture>(capture);
         Assert.NotSame(probe, capture);
     }
 
@@ -149,8 +148,8 @@ public class LinuxPlatformServiceRegistrarTests
         var probe = provider.GetRequiredService<IKWinScreenShotSupportProbe>();
         var capture = provider.GetRequiredService<IKWinScreenShotCapture>();
 
-        Assert.IsType<KWinScreenShotCapture>(probe);
-        Assert.IsType<KWinScreenShotCapture>(capture);
+        _ = Assert.IsType<KWinScreenShotCapture>(probe);
+        _ = Assert.IsType<KWinScreenShotCapture>(capture);
         Assert.NotSame(probe, capture);
     }
 
@@ -164,8 +163,8 @@ public class LinuxPlatformServiceRegistrarTests
         var probe = provider.GetRequiredService<IX11ScreenCaptureSupportProbe>();
         var capture = provider.GetRequiredService<IX11ScreenCapture>();
 
-        Assert.IsType<X11ScreenCaptureSupportProbe>(probe);
-        Assert.IsType<X11ScreenCapture>(capture);
+        _ = Assert.IsType<X11ScreenCaptureSupportProbe>(probe);
+        _ = Assert.IsType<X11ScreenCapture>(capture);
         Assert.NotSame(probe, capture);
     }
 }

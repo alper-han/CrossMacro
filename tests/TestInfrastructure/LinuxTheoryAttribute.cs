@@ -1,9 +1,13 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class LinuxTheoryAttribute : ConditionalTheoryAttribute
+internal sealed class LinuxTheoryAttribute : TheoryAttribute
 {
-    public LinuxTheoryAttribute() : base(OperatingSystem.IsLinux, "Linux")
+    public LinuxTheoryAttribute()
     {
+        if (!OperatingSystem.IsLinux())
+        {
+            Skip = ConditionalSkipMessage.For("Linux");
+        }
     }
 }

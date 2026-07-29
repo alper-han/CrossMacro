@@ -6,5 +6,8 @@ public interface IPermissionChecker
     public bool RequiresStartupPermissionGate { get; }
     public bool IsAccessibilityTrusted();
     public bool CheckUInputAccess();
+
+    public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default);
+
     public void OpenAccessibilitySettings();
 }

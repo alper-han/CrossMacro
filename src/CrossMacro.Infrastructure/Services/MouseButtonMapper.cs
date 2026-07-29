@@ -29,16 +29,8 @@ public class MouseButtonMapper : IMouseButtonMapper
         { BtnTask, "Mouse Task" },
     };
 
-    private static readonly Dictionary<string, int> NameToCode;
-
-    static MouseButtonMapper()
-    {
-        NameToCode = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in CodeToName)
-        {
-            NameToCode[kvp.Value] = kvp.Key;
-        }
-    }
+    private static readonly Dictionary<string, int> NameToCode =
+        CodeToName.ToDictionary(kvp => kvp.Value, kvp => kvp.Key, StringComparer.OrdinalIgnoreCase);
 
     public string GetMouseButtonName(int buttonCode)
     {

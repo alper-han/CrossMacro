@@ -10,7 +10,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         var position = (X: 0, Y: 0);
         var resolution = (Width: 0, Height: 0);
 
-        await using var bus = (await CreatePrivateSessionBusAsync());
+        await using var bus = await CreatePrivateSessionBusAsync();
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -66,7 +66,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
     {
         var position = (X: 0, Y: 0);
 
-        await using var bus = (await CreatePrivateSessionBusAsync());
+        await using var bus = await CreatePrivateSessionBusAsync();
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -105,7 +105,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
     {
         var position = (X: 0, Y: 0);
 
-        await using var bus = (await CreatePrivateSessionBusAsync());
+        await using var bus = await CreatePrivateSessionBusAsync();
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -144,7 +144,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         const string expectedUuid = "crossmacro@zynix.net";
         string? receivedUuid = null;
 
-        await using var bus = (await CreatePrivateSessionBusAsync());
+        await using var bus = await CreatePrivateSessionBusAsync();
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -184,7 +184,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         const string expectedScriptName = "42";
         string? receivedScriptName = null;
 
-        await using var bus = (await CreatePrivateSessionBusAsync());
+        await using var bus = await CreatePrivateSessionBusAsync();
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
@@ -213,31 +213,21 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
 
     private delegate void ReplyWriter(ref MessageWriter writer);
 
-    private sealed class RecordingMethodHandler : IPathMethodHandler
+    private sealed class RecordingMethodHandler(
+        string path,
+        string expectedInterface,
+        string expectedMember,
+        Action<Message> onRequest,
+        string? replySignature,
+DbusIntegrationTrackerInteropTests.ReplyWriter? writeReply) : IPathMethodHandler
     {
-        private readonly string _expectedInterface;
-        private readonly string _expectedMember;
-        private readonly Action<Message> _onRequest;
-        private readonly string? _replySignature;
-        private readonly ReplyWriter? _writeReply;
+        private readonly string _expectedInterface = expectedInterface;
+        private readonly string _expectedMember = expectedMember;
+        private readonly Action<Message> _onRequest = onRequest;
+        private readonly string? _replySignature = replySignature;
+        private readonly ReplyWriter? _writeReply = writeReply;
 
-        public RecordingMethodHandler(
-            string path,
-            string expectedInterface,
-            string expectedMember,
-            Action<Message> onRequest,
-            string? replySignature,
-            ReplyWriter? writeReply)
-        {
-            Path = path;
-            _expectedInterface = expectedInterface;
-            _expectedMember = expectedMember;
-            _onRequest = onRequest;
-            _replySignature = replySignature;
-            _writeReply = writeReply;
-        }
-
-        public string Path { get; }
+        public string Path { get; } = path;
 
         public bool HandlesChildPaths => false;
 

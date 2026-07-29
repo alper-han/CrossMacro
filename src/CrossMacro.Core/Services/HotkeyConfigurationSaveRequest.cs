@@ -1,6 +1,6 @@
 namespace CrossMacro.Core.Services;
 
-public sealed record class HotkeyConfigurationSaveRequest(
+public sealed record HotkeyConfigurationSaveRequest(
     string ConfigPath,
     string RecordingHotkey,
     string PlaybackHotkey,

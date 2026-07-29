@@ -4,16 +4,12 @@ namespace CrossMacro.Core.Services;
 /// <summary>
 /// Event args for trigger fires.
 /// </summary>
-public class TriggerFiredEventArgs : EventArgs
+public class TriggerFiredEventArgs(
+    TriggerTask task,
+    bool success,
+    string? message = null) : EventArgs
 {
-    public TriggerTask Task { get; }
-    public bool Success { get; }
-    public string? Message { get; }
-
-    public TriggerFiredEventArgs(TriggerTask task, bool success, string? message = null)
-    {
-        Task = task;
-        Success = success;
-        Message = message;
-    }
+    public TriggerTask Task { get; } = task;
+    public bool Success { get; } = success;
+    public string? Message { get; } = message;
 }

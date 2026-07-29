@@ -1,16 +1,11 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-internal sealed class KdeKeyboardClient : LinuxDbusClientBase
+internal sealed class KdeKeyboardClient(DBusConnection connection) : LinuxDbusClientBase(connection, Service, Path, Interface)
 {
     internal const string Service = "org.kde.keyboard";
     internal const string Path = "/Layouts";
     internal const string Interface = "org.kde.KeyboardLayouts";
-
-    public KdeKeyboardClient(DBusConnection connection)
-        : base(connection, Service, Path, Interface)
-    {
-    }
 
     public Task<uint> GetLayoutAsync()
         => CallAsync("getLayout", ReadGetLayoutReply);

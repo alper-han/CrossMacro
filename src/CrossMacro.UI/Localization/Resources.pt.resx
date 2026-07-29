@@ -165,6 +165,9 @@
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>Dar estrela no GitHub</value>
   </data>
+  <data name="Settings_HotkeyAlreadyAssignedTo" xml:space="preserve">
+    <value>Esta tecla de atalho já está atribuída a {0}</value>
+  </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Tecla de atalho já atribuída</value>
   </data>

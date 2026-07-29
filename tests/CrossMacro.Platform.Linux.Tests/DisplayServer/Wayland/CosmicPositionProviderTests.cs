@@ -16,33 +16,31 @@ public sealed class CosmicPositionProviderTests
     [Fact]
     public void TryParseScreenResolution_ShouldIgnoreDisabledAndMirroredOutputs()
     {
-        const string kdl = """
-                  output "DP-1" enabled=#true {
-                    position 0 0
-                    scale 1.00
-                    transform "normal"
-                    modes {
-                      mode 1920 1080 60000 current=#true preferred=#true
-                    }
-                  }
-                  output "DP-2" enabled=#false {
-                    position 1920 0
-                    scale 1.00
-                    transform "normal"
-                    modes {
-                      mode 9999 9999 60000 current=#true preferred=#true
-                    }
-                  }
-                  output "DP-3" enabled=#true {
-                    mirroring "DP-1"
-                    position 1920 0
-                    scale 1.00
-                    transform "normal"
-                    modes {
-                      mode 9999 9999 60000 current=#true preferred=#true
-                    }
-                  }
-                  """;
+        string kdl = "output \"DP-1\" enabled=#true {\n"
+                   + "  position 0 0\n"
+                   + "  scale 1.00\n"
+                   + "  transform \"normal\"\n"
+                   + "  modes {\n"
+                   + "    mode 1920 1080 60000 current=#true preferred=#true\n"
+                   + "  }\n"
+                   + "}\n"
+                   + "output \"DP-2\" enabled=#false {\n"
+                   + "  position 1920 0\n"
+                   + "  scale 1.00\n"
+                   + "  transform \"normal\"\n"
+                   + "  modes {\n"
+                   + "    mode 9999 9999 60000 current=#true preferred=#true\n"
+                   + "  }\n"
+                   + "}\n"
+                   + "output \"DP-3\" enabled=#true {\n"
+                   + "  mirroring \"DP-1\"\n"
+                   + "  position 1920 0\n"
+                   + "  scale 1.00\n"
+                   + "  transform \"normal\"\n"
+                   + "  modes {\n"
+                   + "    mode 9999 9999 60000 current=#true preferred=#true\n"
+                   + "  }\n"
+                   + "}" + '\n';
 
         var parsed = CosmicPositionProvider.TryParseScreenResolution(kdl, out var width, out var height);
 
@@ -54,24 +52,22 @@ public sealed class CosmicPositionProviderTests
     [Fact]
     public void TryParseScreenResolution_ShouldApplyScaleAndQuarterTurnTransform()
     {
-        const string kdl = """
-                  output "DP-1" enabled=#true {
-                    position -720 0
-                    scale 2.00
-                    transform "rotate90"
-                    modes {
-                      mode 1440 2560 60000 current=#true preferred=#true
-                    }
-                  }
-                  output "DP-2" enabled=#true {
-                    position 0 0
-                    scale 1.25
-                    transform "normal"
-                    modes {
-                      mode 2560 1440 60000 current=#true preferred=#true
-                    }
-                  }
-                  """;
+        string kdl = "output \"DP-1\" enabled=#true {\n"
+                   + "  position -720 0\n"
+                   + "  scale 2.00\n"
+                   + "  transform \"rotate90\"\n"
+                   + "  modes {\n"
+                   + "    mode 1440 2560 60000 current=#true preferred=#true\n"
+                   + "  }\n"
+                   + "}\n"
+                   + "output \"DP-2\" enabled=#true {\n"
+                   + "  position 0 0\n"
+                   + "  scale 1.25\n"
+                   + "  transform \"normal\"\n"
+                   + "  modes {\n"
+                   + "    mode 2560 1440 60000 current=#true preferred=#true\n"
+                   + "  }\n"
+                   + "}" + '\n';
 
         var parsed = CosmicPositionProvider.TryParseScreenResolution(kdl, out var width, out var height);
 
@@ -147,31 +143,29 @@ public sealed class CosmicPositionProviderTests
 
     private static string TwoMonitorKdl()
     {
-        return """
-               output "DP-2" enabled=#true {
-                 description make="LG Electronics" model="LG ULTRAGEAR"
-                 physical 600 340
-                 position 0 0
-                 scale 1.00
-                 transform "normal"
-                 xwayland_primary #true
-                 modes {
-                   mode 2560 1440 143973 current=#true preferred=#true
-                   mode 1920 1080 60000
-                 }
-               }
-               output "DP-1" enabled=#true {
-                 description make="LG Electronics" model="LG ULTRAGEAR"
-                 physical 600 340
-                 position 2560 0
-                 scale 1.00
-                 transform "normal"
-                 xwayland_primary #false
-                 modes {
-                   mode 2560 1440 143973 current=#true preferred=#true
-                   mode 1920 1080 60000
-                 }
-               }
-               """;
+        return "output \"DP-2\" enabled=#true {\n"
+             + "  description make=\"LG Electronics\" model=\"LG ULTRAGEAR\"\n"
+             + "  physical 600 340\n"
+             + "  position 0 0\n"
+             + "  scale 1.00\n"
+             + "  transform \"normal\"\n"
+             + "  xwayland_primary #true\n"
+             + "  modes {\n"
+             + "    mode 2560 1440 143973 current=#true preferred=#true\n"
+             + "    mode 1920 1080 60000\n"
+             + "  }\n"
+             + "}\n"
+             + "output \"DP-1\" enabled=#true {\n"
+             + "  description make=\"LG Electronics\" model=\"LG ULTRAGEAR\"\n"
+             + "  physical 600 340\n"
+             + "  position 2560 0\n"
+             + "  scale 1.00\n"
+             + "  transform \"normal\"\n"
+             + "  xwayland_primary #false\n"
+             + "  modes {\n"
+             + "    mode 2560 1440 143973 current=#true preferred=#true\n"
+             + "    mode 1920 1080 60000\n"
+             + "  }\n"
+             + "}" + '\n';
     }
 }

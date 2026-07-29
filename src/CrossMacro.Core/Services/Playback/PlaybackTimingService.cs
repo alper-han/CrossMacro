@@ -81,7 +81,7 @@ public class PlaybackTimingService : IPlaybackTimingService
             spinner.SpinOnce(sleep1Threshold: -1);
             if (spinner.Count % YieldSpinInterval is 0)
             {
-                Thread.Yield();
+                _ = Thread.Yield();
             }
         }
     }

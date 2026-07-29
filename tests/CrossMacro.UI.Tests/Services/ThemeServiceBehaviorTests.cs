@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.Services;
 
-public class ThemeServiceBehaviorTests
+public sealed class ThemeServiceBehaviorTests
 {
     [Fact]
     public void TryApplyTheme_ShouldReplaceOnlyActiveThemeDictionary()
@@ -32,13 +32,13 @@ public class ThemeServiceBehaviorTests
 
         var result = service.TryApplyTheme("Nord", out var error);
 
-        result.Should().BeTrue();
-        error.Should().BeEmpty();
-        service.CurrentTheme.Should().Be("Nord");
-        root.MergedDictionaries.Should().Contain(shared);
-        root.MergedDictionaries.Should().Contain(nord);
-        root.MergedDictionaries.Should().NotContain(classic);
-        root.MergedDictionaries.Should().HaveCount(2);
+        _ = result.Should().BeTrue();
+        _ = error.Should().BeEmpty();
+        _ = service.CurrentTheme.Should().Be("Nord");
+        _ = root.MergedDictionaries.Should().Contain(shared);
+        _ = root.MergedDictionaries.Should().Contain(nord);
+        _ = root.MergedDictionaries.Should().NotContain(classic);
+        _ = root.MergedDictionaries.Should().HaveCount(2);
     }
 
     [Fact]
@@ -62,11 +62,11 @@ public class ThemeServiceBehaviorTests
 
         var result = service.TryApplyTheme("UnknownTheme", out var error);
 
-        result.Should().BeFalse();
-        error.Should().Contain("Fallback");
-        service.CurrentTheme.Should().Be(ThemeCatalog.DefaultThemeName);
-        root.MergedDictionaries.Should().Contain(fallbackTheme);
-        root.MergedDictionaries.Should().NotContain(dracula);
+        _ = result.Should().BeFalse();
+        _ = error.Should().Contain("Fallback");
+        _ = service.CurrentTheme.Should().Be(ThemeCatalog.DefaultThemeName);
+        _ = root.MergedDictionaries.Should().Contain(fallbackTheme);
+        _ = root.MergedDictionaries.Should().NotContain(dracula);
     }
 
     [Fact]
@@ -90,10 +90,10 @@ public class ThemeServiceBehaviorTests
 
         var result = service.TryApplyTheme("Nord", out var error);
 
-        result.Should().BeFalse();
-        error.Should().Contain("Theme resource not found");
-        service.CurrentTheme.Should().Be(ThemeCatalog.DefaultThemeName);
-        root.MergedDictionaries.Should().Contain(fallbackTheme);
-        root.MergedDictionaries.Should().NotContain(dracula);
+        _ = result.Should().BeFalse();
+        _ = error.Should().Contain("Theme resource not found");
+        _ = service.CurrentTheme.Should().Be(ThemeCatalog.DefaultThemeName);
+        _ = root.MergedDictionaries.Should().Contain(fallbackTheme);
+        _ = root.MergedDictionaries.Should().NotContain(dracula);
     }
 }

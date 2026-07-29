@@ -9,10 +9,30 @@ public static class Program
         string[] args,
         Action<IServiceCollection> configureServices,
         Func<AppBuilder, AppBuilder> configureAppBuilder)
-        => RunGui(args, configureServices, static _ => { }, configureAppBuilder);
+        => RunGuiCore(args, configureServices, static _ => { }, configureAppBuilder);
+
+    public static int RunGui(
+        ReadOnlySpan<string> args,
+        Action<IServiceCollection> configureServices,
+        Func<AppBuilder, AppBuilder> configureAppBuilder)
+        => RunGuiCore(args, configureServices, static _ => { }, configureAppBuilder);
 
     public static int RunGui(
         string[] args,
+        Action<IServiceCollection> configureServices,
+        Action<IServiceCollection> configureRuntimeServices,
+        Func<AppBuilder, AppBuilder> configureAppBuilder)
+        => RunGuiCore(args, configureServices, configureRuntimeServices, configureAppBuilder);
+
+    public static int RunGui(
+        ReadOnlySpan<string> args,
+        Action<IServiceCollection> configureServices,
+        Action<IServiceCollection> configureRuntimeServices,
+        Func<AppBuilder, AppBuilder> configureAppBuilder)
+        => RunGuiCore(args, configureServices, configureRuntimeServices, configureAppBuilder);
+
+    private static int RunGuiCore(
+        ReadOnlySpan<string> args,
         Action<IServiceCollection> configureServices,
         Action<IServiceCollection> configureRuntimeServices,
         Func<AppBuilder, AppBuilder> configureAppBuilder)
@@ -27,7 +47,7 @@ public static class Program
         SerilogLog.Information("Starting CrossMacro application");
 
         return configureAppBuilder(BuildAvaloniaApp(bootstrapContext))
-            .StartWithClassicDesktopLifetime(startupParseResult.ForwardedArgs);
+            .StartWithClassicDesktopLifetime(startupParseResult.ForwardedArgs.ToArray());
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.

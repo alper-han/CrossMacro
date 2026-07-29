@@ -1,7 +1,7 @@
 namespace CrossMacro.Core.Tests.Models;
 
 
-public class MacroSequenceTests
+public sealed class MacroSequenceTests
 {
     [Fact]
     public void IsValid_EmptyEvents_ReturnsFalse()
@@ -13,7 +13,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeTrue();
+        _ = result.Should().BeTrue();
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeTrue();
+        _ = result.Should().BeTrue();
     }
 
     [Fact]
@@ -55,20 +55,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsValid_NullEvents_ReturnsFalse()
-    {
-        // Arrange
-        var macro = new MacroSequence();
-
-        // Act
-        var result = macro.IsValid();
-
-        // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -87,7 +74,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -106,7 +93,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -133,7 +120,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -155,7 +142,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -176,7 +163,7 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeTrue();
+        _ = result.Should().BeTrue();
     }
 
     [Fact]
@@ -189,7 +176,7 @@ public class MacroSequenceTests
         macro.CalculateDuration();
 
         // Assert
-        macro.TotalDurationMs.Should().Be(0);
+        _ = macro.TotalDurationMs.Should().Be(0);
     }
 
     [Fact]
@@ -210,7 +197,7 @@ public class MacroSequenceTests
         macro.CalculateDuration();
 
         // Assert
-        macro.TotalDurationMs.Should().Be(1500);
+        _ = macro.TotalDurationMs.Should().Be(1500);
     }
 
     [Fact]
@@ -226,7 +213,7 @@ public class MacroSequenceTests
         };
 
         // Act & Assert
-        macro.EventCount.Should().Be(5);
+        _ = macro.EventCount.Should().Be(5);
     }
 
     [Fact]
@@ -272,22 +259,22 @@ public class MacroSequenceTests
         var clone = original.Clone();
 
         // Assert
-        clone.Should().NotBeSameAs(original);
-        clone.Should().BeEquivalentTo(original);
-        clone.Events.Should().NotBeSameAs(original.Events);
-        clone.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        clone.ScriptSteps.Should().NotBeSameAs(original.ScriptSteps);
-        clone.TextInputBoundaries.Should().NotBeSameAs(original.TextInputBoundaries);
+        _ = clone.Should().NotBeSameAs(original);
+        _ = clone.Should().BeEquivalentTo(original);
+        _ = clone.Events.Should().NotBeSameAs(original.Events);
+        _ = clone.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = clone.ScriptSteps.Should().NotBeSameAs(original.ScriptSteps);
+        _ = clone.TextInputBoundaries.Should().NotBeSameAs(original.TextInputBoundaries);
 
         clone.Name = "Updated";
         clone.Events.Add(new MacroEvent { Type = EventType.KeyPress });
         clone.ScriptSteps.Add("press a");
         clone.TextInputBoundaries.Add(new TextInputBoundary(2, 2, "world"));
 
-        original.Name.Should().Be("Original");
-        original.Events.Should().HaveCount(1);
-        original.ScriptSteps.Should().ContainSingle();
-        original.TextInputBoundaries.Should().ContainSingle();
+        _ = original.Name.Should().Be("Original");
+        _ = original.Events.Should().HaveCount(1);
+        _ = original.ScriptSteps.Should().ContainSingle();
+        _ = original.TextInputBoundaries.Should().ContainSingle();
     }
 
     [Fact]
@@ -297,11 +284,11 @@ public class MacroSequenceTests
         var macro = new MacroSequence();
 
         // Assert
-        macro.Id.Should().NotBeEmpty();
-        macro.Name.Should().Be("Unnamed Macro");
-        macro.Events.Should().NotBeNull();
-        macro.Events.Should().BeEmpty();
-        macro.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        _ = macro.Id.Should().NotBeEmpty();
+        _ = macro.Name.Should().Be("Unnamed Macro");
+        _ = macro.Events.Should().NotBeNull();
+        _ = macro.Events.Should().BeEmpty();
+        _ = macro.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -318,12 +305,12 @@ public class MacroSequenceTests
         macro.ReplaceTextInputBoundaries([new TextInputBoundary(0, 2, "hi")]);
         macro.ReplaceImages([new KeyValuePair<string, string>("Target", "encoded")]);
 
-        macro.Events.Should().BeSameAs(events);
-        macro.ScriptSteps.Should().BeSameAs(scriptSteps);
-        macro.TextInputBoundaries.Should().BeSameAs(boundaries);
-        macro.Images.Should().BeSameAs(images);
-        macro.Events.Select(item => item.KeyCode).Should().Equal(30, 31);
-        macro.ScriptSteps.Should().Equal("move 1 2", "click left");
-        macro.Images["Target"].Should().Be("encoded");
+        _ = macro.Events.Should().BeSameAs(events);
+        _ = macro.ScriptSteps.Should().BeSameAs(scriptSteps);
+        _ = macro.TextInputBoundaries.Should().BeSameAs(boundaries);
+        _ = macro.Images.Should().BeSameAs(images);
+        _ = macro.Events.Select(item => item.KeyCode).Should().Equal(30, 31);
+        _ = macro.ScriptSteps.Should().Equal("move 1 2", "click left");
+        _ = macro.Images["Target"].Should().Be("encoded");
     }
 }

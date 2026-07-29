@@ -1,16 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Services;
 
-public class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
+public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
 {
     private IntPtr _display;
     private bool _disposed;
-    private readonly bool _isSupported;
-    private readonly int _screen;
 
     public string ProviderName => "X11 (XTest)";
 
-    public bool IsSupported => _isSupported;
+    public bool IsSupported { get; }
     public bool SupportsAbsoluteCoordinates => true;
 
     public X11InputSimulator()
@@ -26,46 +24,50 @@ public class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
 
             if (X11Native.XTestQueryExtension(_display, out _, out _, out int major, out int minor))
             {
-                _isSupported = true;
-                _screen = X11Native.XDefaultScreen(_display);
+                IsSupported = true;
                 Log.Information("[X11InputSimulator] XTest extension available (v{Major}.{Minor})", major, minor);
             }
             else
             {
                 Log.Warning("[X11InputSimulator] XTest extension NOT installed on this system. Simulation disabled.");
-                _isSupported = false;
+                IsSupported = false;
             }
         }
         catch (DllNotFoundException dllEx)
         {
             Log.Warning("[X11InputSimulator] XTest library not found (Simulation disabled): {Message}", dllEx.Message);
-            _isSupported = false;
+            IsSupported = false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[X11InputSimulator] Error during initialization");
-            _isSupported = false;
+            IsSupported = false;
         }
     }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
+    public void Initialize(int screenWidth = 0, int screenHeight = 0) { /* Empty */ }
+
+    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        Initialize(screenWidth, screenHeight);
+        return Task.CompletedTask;
     }
 
     public void MoveAbsolute(int x, int y)
     {
-        if (!_isSupported)
+        if (!IsSupported)
         {
             return;
         }
 
-        X11Native.XTestFakeMotionEvent(_display, -1, x, y, 0);
-        X11Native.XFlush(_display);
+        _ = X11Native.XTestFakeMotionEvent(_display, -1, x, y, 0);
+        _ = X11Native.XFlush(_display);
     }
 
     public void MoveRelative(int dx, int dy)
     {
-        if (!_isSupported)
+        if (!IsSupported)
         {
             return;
         }
@@ -75,7 +77,7 @@ public class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
             int result = X11Native.XTestFakeRelativeMotionEvent(_display, dx, dy, 0);
             if (result is not 0)
             {
-                X11Native.XFlush(_display);
+                _ = X11Native.XFlush(_display);
                 return;
             }
         }
@@ -93,7 +95,7 @@ public class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
 
     public void MouseButton(int button, bool pressed)
     {
-        if (!_isSupported)
+        if (!IsSupported)
         {
             return;
         }
@@ -112,14 +114,14 @@ public class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
 
         if (x11Button > 0)
         {
-            X11Native.XTestFakeButtonEvent(_display, x11Button, pressed, 0);
-            X11Native.XFlush(_display);
+            _ = X11Native.XTestFakeButtonEvent(_display, x11Button, pressed, 0);
+            _ = X11Native.XFlush(_display);
         }
     }
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
-        if (!_isSupported)
+        if (!IsSupported)
         {
             return;
         }
@@ -134,28 +136,28 @@ public class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
             button = delta > 0 ? 4u : 5u;
         }
 
-        X11Native.XTestFakeButtonEvent(_display, button, is_press: true, 0);
-        X11Native.XTestFakeButtonEvent(_display, button, is_press: false, 0);
-        X11Native.XFlush(_display);
+        _ = X11Native.XTestFakeButtonEvent(_display, button, is_press: true, 0);
+        _ = X11Native.XTestFakeButtonEvent(_display, button, is_press: false, 0);
+        _ = X11Native.XFlush(_display);
     }
 
     public void KeyPress(int keyCode, bool pressed)
     {
-        if (!_isSupported)
+        if (!IsSupported)
         {
             return;
         }
 
         uint x11Keycode = (uint)keyCode + 8;
-        X11Native.XTestFakeKeyEvent(_display, x11Keycode, pressed, 0);
-        X11Native.XFlush(_display);
+        _ = X11Native.XTestFakeKeyEvent(_display, x11Keycode, pressed, 0);
+        _ = X11Native.XFlush(_display);
     }
 
     public void Sync()
     {
-        if (_isSupported)
+        if (IsSupported)
         {
-            X11Native.XFlush(_display);
+            _ = X11Native.XFlush(_display);
         }
     }
 
@@ -168,9 +170,10 @@ public class X11InputSimulator : IInputSimulator, IInputSimulatorCapabilities
 
         if (_display != IntPtr.Zero)
         {
-            X11Native.XCloseDisplay(_display);
+            _ = X11Native.XCloseDisplay(_display);
             _display = IntPtr.Zero;
         }
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

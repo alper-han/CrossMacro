@@ -12,8 +12,8 @@ public sealed class TriggerTaskEditorTests
 
         editor.Rollback();
 
-        editor.Name.Should().Be("Original");
-        source.Name.Should().Be("Original");
+        _ = editor.Name.Should().Be("Original");
+        _ = source.Name.Should().Be("Original");
     }
 
     [Fact]
@@ -25,10 +25,10 @@ public sealed class TriggerTaskEditorTests
 
         editor.Value = "firefox";
 
-        editor.CanBeEnabled.Should().BeFalse();
-        changed.Should().Contain(nameof(TriggerTaskEditor.CanBeEnabled));
+        _ = editor.CanBeEnabled.Should().BeFalse();
+        _ = changed.Should().Contain(nameof(TriggerTaskEditor.CanBeEnabled));
         editor.TargetProfileId = "dev";
-        editor.CanBeEnabled.Should().BeTrue();
+        _ = editor.CanBeEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -40,8 +40,8 @@ public sealed class TriggerTaskEditorTests
         var timestamp = DateTime.UtcNow;
         editor.SyncRuntimeStatus(timestamp, "Switched");
 
-        editor.LastTriggeredTime.Should().Be(timestamp);
-        editor.LastStatus.Should().Be("Switched");
-        editor.ToCore().Value.Should().Be("firefox");
+        _ = editor.LastTriggeredTime.Should().Be(timestamp);
+        _ = editor.LastStatus.Should().Be("Switched");
+        _ = editor.ToCore().Value.Should().Be("firefox");
     }
 }

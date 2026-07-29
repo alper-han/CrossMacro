@@ -1,11 +1,6 @@
 namespace CrossMacro.Core.Services;
 
-public sealed class ShortcutStartingEventArgs : EventArgs
+public sealed class ShortcutStartingEventArgs(ShortcutTask task) : EventArgs
 {
-    public ShortcutStartingEventArgs(ShortcutTask task)
-    {
-        Task = task ?? throw new ArgumentNullException(nameof(task));
-    }
-
-    public ShortcutTask Task { get; }
+    public ShortcutTask Task { get; } = task ?? throw new ArgumentNullException(nameof(task));
 }

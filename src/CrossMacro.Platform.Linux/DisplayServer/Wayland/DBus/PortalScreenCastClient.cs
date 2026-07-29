@@ -9,18 +9,23 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
     private const string RequestInterface = "org.freedesktop.portal.Request";
 
     private readonly DBusConnection _connection;
+    private readonly TimeProvider _timeProvider;
     private bool _ownedBySession;
 
-    private PortalScreenCastClient(DBusConnection connection)
+    private PortalScreenCastClient(DBusConnection connection, TimeProvider timeProvider)
     {
         _connection = connection;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public static async Task<PortalScreenCastClient> ConnectAsync()
+        => await ConnectAsync(TimeProvider.System).ConfigureAwait(false);
+
+    internal static async Task<PortalScreenCastClient> ConnectAsync(TimeProvider timeProvider)
     {
         var connection = LinuxDbusTransportBoundary.CreateSessionConnection();
         await connection.ConnectAsync().ConfigureAwait(false);
-        return new PortalScreenCastClient(connection);
+        return new PortalScreenCastClient(connection, timeProvider);
     }
 
     public async Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null)
@@ -32,7 +37,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         var createHandleToken = $"crossmacro_create_{token}";
         var createResponse = await CallRequestAsync("CreateSession", "a{sv}", createHandleToken, options, (ref MessageWriter writer) =>
         {
-            writer.WriteDictionary(new Dictionary<string, VariantValue>
+            writer.WriteDictionary(new Dictionary<string, VariantValue>(StringComparer.Ordinal)
             {
                 ["session_handle_token"] = VariantValue.String(sessionHandleToken),
                 ["handle_token"] = VariantValue.String(createHandleToken),
@@ -44,7 +49,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         var selectHandleToken = $"crossmacro_select_{token}";
         var selectOptions = BuildSelectSourcesOptions(selectHandleToken, restoreToken);
 
-        await CallRequestAsync("SelectSources", "oa{sv}", selectHandleToken, options, (ref MessageWriter writer) =>
+        _ = await CallRequestAsync("SelectSources", "oa{sv}", selectHandleToken, options, (ref MessageWriter writer) =>
         {
             writer.WriteObjectPath(sessionHandle);
             writer.WriteDictionary(selectOptions);
@@ -55,7 +60,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         {
             writer.WriteObjectPath(sessionHandle);
             writer.WriteString(string.Empty);
-            writer.WriteDictionary(new Dictionary<string, VariantValue>
+            writer.WriteDictionary(new Dictionary<string, VariantValue>(StringComparer.Ordinal)
             {
                 ["handle_token"] = VariantValue.String(startHandleToken),
             });
@@ -63,7 +68,9 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
 
         var streams = ParseStreams(startResponse.Results);
         var refreshedRestoreToken = TryGetResponseString(startResponse.Results, "restore_token");
-        var remote = await OpenPipeWireRemoteAsync(sessionHandle).WaitAsync(GetTimeout(options), options.CancellationToken).ConfigureAwait(false);
+        var remote = await OpenPipeWireRemoteAsync(sessionHandle)
+            .WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken)
+            .ConfigureAwait(false);
         _ownedBySession = true;
         return new PortalScreenCastSession(sessionHandle, streams, remote, this, refreshedRestoreToken);
     }
@@ -96,7 +103,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         {
             var reader = message.GetBodyReader();
             return reader.ReadObjectPathAsString();
-        }).WaitAsync(GetTimeout(options), options.CancellationToken).ConfigureAwait(false);
+        }).WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken).ConfigureAwait(false);
 
         if (!StringComparer.Ordinal.Equals(requestPath, returnedRequestPath))
         {
@@ -105,7 +112,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
                 $"Portal returned unexpected request path '{returnedRequestPath}', expected '{requestPath}'.");
         }
 
-        return await completion.Task.WaitAsync(GetTimeout(options), options.CancellationToken).ConfigureAwait(false);
+        return await completion.Task.WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken).ConfigureAwait(false);
     }
 
     private async Task<IDisposable> WatchResponseAsync(string requestPath, TaskCompletionSource<PortalResponse> completion)
@@ -129,7 +136,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
                     var exception = notification.Exception;
                     if (exception is not null)
                     {
-                        completion.TrySetException(exception);
+                        _ = completion.TrySetException(exception);
                     }
                 }
                 else
@@ -137,11 +144,11 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
                     var response = notification.Value;
                     if (response.ResponseCode == 0)
                     {
-                        completion.TrySetResult(response);
+                        _ = completion.TrySetResult(response);
                     }
                     else
                     {
-                        completion.TrySetException(new PortalScreenCastException(
+                        _ = completion.TrySetException(new PortalScreenCastException(
                             MapResponseCode(response.ResponseCode),
                             $"XDG Desktop Portal ScreenCast request failed with response={response.ResponseCode}."));
                     }
@@ -172,7 +179,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         }).ConfigureAwait(false);
     }
 
-    private static string GetResponseObjectPath(IReadOnlyDictionary<string, VariantValue> results, string key)
+    private static string GetResponseObjectPath(Dictionary<string, VariantValue> results, string key)
     {
         if (!results.TryGetValue(key, out var value))
         {
@@ -184,7 +191,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
 
     internal static Dictionary<string, VariantValue> BuildSelectSourcesOptions(string handleToken, string? restoreToken)
     {
-        var options = new Dictionary<string, VariantValue>
+        var options = new Dictionary<string, VariantValue>(StringComparer.Ordinal)
         {
             ["types"] = VariantValue.UInt32(1),
             ["multiple"] = VariantValue.Bool(value: true),
@@ -236,7 +243,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         return streams;
     }
 
-    private static IReadOnlyDictionary<string, object> UnboxDictionary(VariantValue value)
+    private static Dictionary<string, object> UnboxDictionary(VariantValue value)
     {
         var result = new Dictionary<string, object>(StringComparer.Ordinal);
         for (var i = 0; i < value.Count; i++)
@@ -260,6 +267,14 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         VariantValueType.Struct => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         VariantValueType.Dictionary => UnboxDictionary(value),
         VariantValueType.Variant => UnboxVariant(value.GetVariantValue()),
+        VariantValueType.Invalid => value.ToString() ?? string.Empty,
+        VariantValueType.Byte => value.ToString() ?? string.Empty,
+        VariantValueType.Int16 => value.ToString() ?? string.Empty,
+        VariantValueType.UInt16 => value.ToString() ?? string.Empty,
+        VariantValueType.Int64 => value.ToString() ?? string.Empty,
+        VariantValueType.Double => value.ToString() ?? string.Empty,
+        VariantValueType.Signature => value.ToString() ?? string.Empty,
+        VariantValueType.UnixFd => value.ToString() ?? string.Empty,
         _ => value.ToString() ?? string.Empty,
     };
 

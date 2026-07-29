@@ -5,11 +5,11 @@ namespace CrossMacro.Infrastructure.Services.Recording;
 /// Background position sync service that corrects cursor drift
 /// Single Responsibility: Periodically queries actual cursor position and notifies on significant changes
 /// </summary>
-public class PositionSyncService : IPositionSyncService
+public sealed class PositionSyncService(IMousePositionProvider positionProvider) : IPositionSyncService
 {
     private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(1);
 
-    private readonly IMousePositionProvider _positionProvider;
+    private readonly IMousePositionProvider _positionProvider = positionProvider;
 
     private const int BaseSyncIntervalMs = 1;
     private const int MaxSyncIntervalMs = 500;
@@ -21,11 +21,6 @@ public class PositionSyncService : IPositionSyncService
     private bool _disposed;
 
     public bool IsRunning => _syncTask is not null && !_syncTask.IsCompleted;
-
-    public PositionSyncService(IMousePositionProvider positionProvider)
-    {
-        _positionProvider = positionProvider;
-    }
 
     public async Task StartAsync(
         Action<int, int, long> onPositionChanged,
@@ -60,7 +55,7 @@ public class PositionSyncService : IPositionSyncService
                 {
                     try
                     {
-                        await Task.Delay(currentInterval, linkedCancellation.Token).ConfigureAwait(false);
+                        await Task.Delay(TimeSpan.FromMilliseconds(currentInterval), TimeProvider.System, linkedCancellation.Token).ConfigureAwait(false);
 
                         var sw = Stopwatch.StartNew();
                         var actualPos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
@@ -121,7 +116,7 @@ public class PositionSyncService : IPositionSyncService
                     {
                         break;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
                         Log.LogError(ex, "[PositionSyncService] Error in sync loop");
                         consecutiveFailures++;
@@ -162,6 +157,7 @@ public class PositionSyncService : IPositionSyncService
         }
         catch (ObjectDisposedException)
         {
+            Log.Debug("[PositionSyncService] Cancellation source was already disposed while stopping.");
         }
 
         if (syncTask is null)
@@ -192,8 +188,9 @@ public class PositionSyncService : IPositionSyncService
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
+            Log.Debug("[PositionSyncService] Sync loop canceled during shutdown.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             lock (_lock)
             {
@@ -212,7 +209,7 @@ public class PositionSyncService : IPositionSyncService
     {
         try
         {
-            var completedTask = await Task.WhenAny(syncTask, Task.Delay(StopTimeout)).ConfigureAwait(false);
+            var completedTask = await Task.WhenAny(syncTask, Task.Delay(StopTimeout, TimeProvider.System, CancellationToken.None)).ConfigureAwait(false);
             if (!ReferenceEquals(completedTask, syncTask))
             {
                 Log.Warning("[PositionSyncService] Sync loop did not stop within {TimeoutMs}ms; shutdown will continue in background", StopTimeout.TotalMilliseconds);
@@ -224,8 +221,9 @@ public class PositionSyncService : IPositionSyncService
         }
         catch (OperationCanceledException) when ((cancellation?.IsCancellationRequested) is true)
         {
+            Log.Debug("[PositionSyncService] Stop completed through cancellation.");
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Faults are already handled by ObserveSyncTaskAsync.
         }
@@ -243,8 +241,9 @@ public class PositionSyncService : IPositionSyncService
         }
         catch (OperationCanceledException) when ((cancellation?.IsCancellationRequested) is true)
         {
+            Log.Debug("[PositionSyncService] Background cleanup completed through cancellation.");
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Faults are already handled by ObserveSyncTaskAsync.
         }

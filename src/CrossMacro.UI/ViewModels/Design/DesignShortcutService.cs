@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignShortcutService : IShortcutService
 {
@@ -23,21 +23,16 @@ internal sealed class DesignShortcutService : IShortcutService
         var task = Tasks.FirstOrDefault(item => item.Id == id);
         if (task is not null)
         {
-            Tasks.Remove(task);
+            _ = Tasks.Remove(task);
         }
     }
 
-    public void UpdateTask(ShortcutTask task)
-    {
-    }
+    public void UpdateTask(ShortcutTask task) { /* Empty */ }
 
     public void SetTaskEnabled(Guid id, bool enabled)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task is not null)
-        {
-            task.IsEnabled = enabled;
-        }
+        _ = task?.IsEnabled = enabled;
     }
 
     public void Start() => IsListening = true;
@@ -60,7 +55,5 @@ internal sealed class DesignShortcutService : IShortcutService
 
     public Task LoadAsync() => Task.CompletedTask;
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

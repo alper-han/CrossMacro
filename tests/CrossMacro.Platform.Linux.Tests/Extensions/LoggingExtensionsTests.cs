@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Extensions;
 
-public class LoggingExtensionsTests
+public sealed class LoggingExtensionsTests
 {
-    private static readonly object LoggerSync = new();
+    private static readonly Lock LoggerSync = new();
 
     private sealed class TestCoreLogger : CoreLogging.ICoreLogger
     {
@@ -56,7 +56,7 @@ public class LoggingExtensionsTests
         lock (LoggerSync)
         {
             var logger = new TestCoreLogger();
-            using var _ = CoreLogging.Log.PushLogger(logger);
+            using var loggingScope = CoreLogging.Log.PushLogger(logger);
 
             var key = Guid.NewGuid().ToString();
             var message = $"Test message {Guid.NewGuid():N} {{0}}";
@@ -66,7 +66,7 @@ public class LoggingExtensionsTests
             LoggingExtensions.LogOnce(key, message, arg);
             LoggingExtensions.LogOnce(key, message, arg);
 
-            Assert.Single(logger.Entries, e => string.Equals(e.MessageTemplate, message, StringComparison.Ordinal));
+            _ = Assert.Single(logger.Entries, e => string.Equals(e.MessageTemplate, message, StringComparison.Ordinal));
         }
     }
 

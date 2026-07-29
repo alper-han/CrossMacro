@@ -23,10 +23,13 @@ public partial class FilesViewModel : ViewModelBase
     private readonly ILocalizationService _localizationService;
 
     private string _macroName = DefaultMacroName;
-    private bool _hasRecordedMacro;
     private string _status;
-    private bool _canManageLoadedMacrosExternal = true;
     private FilesStatusKind _statusKind = FilesStatusKind.Ready;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanLoadMacro))]
+    [NotifyPropertyChangedFor(nameof(CanSaveMacro))]
+    private bool _canManageLoadedMacrosExternal = true;
 
     /// <summary>
     /// Event fired when a macro is loaded from disk.
@@ -85,6 +88,7 @@ public partial class FilesViewModel : ViewModelBase
 
     public bool HasLoadedMacros => _loadedMacroSession.Count > 0;
 
+    // Kept manual: normalizes (coerces) the incoming value and branches between session rename and local field.
     public string MacroName
     {
         get => _loadedMacroSession.SelectedMacroItem?.Name ?? _macroName;
@@ -136,36 +140,9 @@ public partial class FilesViewModel : ViewModelBase
         }
     }
 
-    public bool HasRecordedMacro
-    {
-        get => _hasRecordedMacro;
-        private set
-        {
-            if (_hasRecordedMacro != value)
-            {
-                _hasRecordedMacro = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanSaveMacro));
-            }
-        }
-    }
-
-    public bool CanManageLoadedMacrosExternal
-    {
-        get => _canManageLoadedMacrosExternal;
-        set
-        {
-            if (_canManageLoadedMacrosExternal == value)
-            {
-                return;
-            }
-
-            _canManageLoadedMacrosExternal = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(CanLoadMacro));
-            OnPropertyChanged(nameof(CanSaveMacro));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSaveMacro))]
+    public partial bool HasRecordedMacro { get; private set; }
 
     public bool CanLoadMacro => CanManageLoadedMacrosExternal;
 
@@ -209,6 +186,7 @@ public partial class FilesViewModel : ViewModelBase
 
     public bool ShowSequenceRepeatSettings => HasLoadedMacros && IsSequentialCycleMode;
 
+    // Kept manual: StatusChanged must fire after the PropertyChanged notification, a generated OnChanged hook would fire before it.
     public string Status
     {
         get => _status;
@@ -234,7 +212,7 @@ public partial class FilesViewModel : ViewModelBase
         }
 
         ApplyPendingNameForNewMacro(macro, treatDefaultPlaceholderAsUnnamed: true);
-        _loadedMacroSession.AddMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
     }
 
     /// <summary>
@@ -281,7 +259,7 @@ public partial class FilesViewModel : ViewModelBase
             return;
         }
 
-        _loadedMacroSession.AddMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
     }
 
     public async Task SaveMacroAsync()
@@ -304,7 +282,7 @@ public partial class FilesViewModel : ViewModelBase
             var filters =
                 new[]
                 {
-                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = new[] { "macro" } },
+                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = ["macro"] },
                 };
 
             var baseName = macroNameToSave.EndsWith(".macro", StringComparison.OrdinalIgnoreCase)
@@ -314,19 +292,21 @@ public partial class FilesViewModel : ViewModelBase
 
             if (string.IsNullOrEmpty(filePath))
             {
-                SetStatusKind(FilesStatusKind.SaveCancelled);
+                await RunOnUiThreadAsync(() => SetStatusKind(FilesStatusKind.SaveCancelled)).ConfigureAwait(false);
                 return;
             }
 
             var macroToSave = CreateSaveSnapshot(currentMacro, macroNameToSave);
             await _fileManager.SaveAsync(macroToSave, filePath).ConfigureAwait(false);
-            currentItem.UpdateSourcePath(filePath);
-
-            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSavedTo"], Path.GetFileName(filePath)));
+            await RunOnUiThreadAsync(() =>
+            {
+                currentItem.UpdateSourcePath(filePath);
+                SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSavedTo"], Path.GetFileName(filePath)));
+            }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSaveError"], ex.Message));
+            await RunOnUiThreadAsync(() => SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusSaveError"], ex.Message))).ConfigureAwait(false);
         }
     }
 
@@ -342,38 +322,41 @@ public partial class FilesViewModel : ViewModelBase
             var filters =
                 new[]
                 {
-                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = new[] { "macro" } },
+                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = ["macro"] },
                 };
 
             var filePath = await _dialogService.ShowOpenFileDialogAsync(_localizationService["Files_LoadDialogTitle"], filters).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(filePath))
             {
-                SetStatusKind(FilesStatusKind.LoadCancelled);
+                await RunOnUiThreadAsync(() => SetStatusKind(FilesStatusKind.LoadCancelled)).ConfigureAwait(false);
                 return;
             }
 
             var macro = await _fileManager.LoadAsync(filePath).ConfigureAwait(false);
             if (macro is null)
             {
-                SetTransientStatus(_localizationService["Files_StatusLoadUnreadable"]);
+                await RunOnUiThreadAsync(() => SetTransientStatus(_localizationService["Files_StatusLoadUnreadable"])).ConfigureAwait(false);
                 return;
             }
 
-            _loadedMacroSession.AddMacro(macro, filePath);
-            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusLoaded"], Path.GetFileName(filePath)));
-            MacroLoaded?.Invoke(this, macro);
+            await RunOnUiThreadAsync(() =>
+            {
+                _ = _loadedMacroSession.AddMacro(macro, filePath);
+                SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusLoaded"], Path.GetFileName(filePath)));
+                MacroLoaded?.Invoke(this, macro);
+            }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusLoadError"], ex.Message));
+            await RunOnUiThreadAsync(() => SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusLoadError"], ex.Message))).ConfigureAwait(false);
         }
     }
 
     /// <summary>
     /// Get current selected macro.
     /// </summary>
-    public MacroSequence? GetCurrentMacro() => _loadedMacroSession.SelectedMacro;
+    public MacroSequence? CurrentMacro => _loadedMacroSession.SelectedMacro;
 
     private static MacroSequence CreateSaveSnapshot(MacroSequence macro, string name)
     {
@@ -423,10 +406,13 @@ public partial class FilesViewModel : ViewModelBase
             return;
         }
 
-        if (_loadedMacroSession.RemoveMacro(item))
+        await RunOnUiThreadAsync(() =>
         {
-            SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusRemoved"], item.Name));
-        }
+            if (_loadedMacroSession.RemoveMacro(item))
+            {
+                SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusRemoved"], item.Name));
+            }
+        }).ConfigureAwait(false);
     }
 
     private void ApplyPendingNameForNewMacro(MacroSequence macro, bool treatDefaultPlaceholderAsUnnamed = false)
@@ -474,44 +460,56 @@ public partial class FilesViewModel : ViewModelBase
 
     private void OnSelectedMacroChanged(object? sender, EventArgs e)
     {
-        SyncFromSelectedMacro();
-        SelectedMacroChanged?.Invoke(this, EventArgs.Empty);
+        PostToUiThread(() =>
+        {
+            SyncFromSelectedMacro();
+            SelectedMacroChanged?.Invoke(this, EventArgs.Empty);
+        });
     }
 
     private void OnSelectedMacroUpdated(object? sender, EventArgs e)
     {
-        SyncFromSelectedMacro();
-        SelectedMacroUpdated?.Invoke(this, EventArgs.Empty);
+        PostToUiThread(() =>
+        {
+            SyncFromSelectedMacro();
+            SelectedMacroUpdated?.Invoke(this, EventArgs.Empty);
+        });
     }
 
     private void OnPlaybackModeChanged(object? sender, EventArgs e)
     {
-        OnPropertyChanged(nameof(IsSelectedOnlyMode));
-        OnPropertyChanged(nameof(IsAdvanceSelectionMode));
-        OnPropertyChanged(nameof(IsSequentialCycleMode));
-        OnPropertyChanged(nameof(ShowSequenceRepeatSettings));
+        PostToUiThread(() =>
+        {
+            OnPropertyChanged(nameof(IsSelectedOnlyMode));
+            OnPropertyChanged(nameof(IsAdvanceSelectionMode));
+            OnPropertyChanged(nameof(IsSequentialCycleMode));
+            OnPropertyChanged(nameof(ShowSequenceRepeatSettings));
+        });
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        foreach (var item in LoadedMacros)
+        PostToUiThread(() =>
         {
-            item.RefreshLocalizedProperties();
-        }
+            foreach (var item in LoadedMacros)
+            {
+                item.RefreshLocalizedProperties();
+            }
 
-        OnPropertyChanged(nameof(LoadedMacros));
-        OnPropertyChanged(nameof(SelectedMacroItem));
-        OnPropertyChanged(nameof(MacroName));
+            OnPropertyChanged(nameof(LoadedMacros));
+            OnPropertyChanged(nameof(SelectedMacroItem));
+            OnPropertyChanged(nameof(MacroName));
 
-        if (_statusKind is FilesStatusKind.Ready or FilesStatusKind.LoadCancelled or FilesStatusKind.SaveCancelled)
-        {
-            Status = BuildStatus(_statusKind);
-        }
+            if (_statusKind is FilesStatusKind.Ready or FilesStatusKind.LoadCancelled or FilesStatusKind.SaveCancelled)
+            {
+                Status = BuildStatus(_statusKind);
+            }
+        });
     }
 
     private void SyncFromSelectedMacro()
     {
-        var currentMacro = GetCurrentMacro();
+        var currentMacro = CurrentMacro;
         if (currentMacro is not null && !string.IsNullOrWhiteSpace(currentMacro.Name))
         {
             _macroName = currentMacro.Name;
@@ -549,7 +547,8 @@ public partial class FilesViewModel : ViewModelBase
             FilesStatusKind.Ready => _localizationService["Files_StatusReady"],
             FilesStatusKind.LoadCancelled => _localizationService["Files_StatusLoadCancelled"],
             FilesStatusKind.SaveCancelled => _localizationService["Files_StatusSaveCancelled"],
-            _ => _status,
+            FilesStatusKind.Other => _status,
+            _ => throw new ArgumentOutOfRangeException(nameof(statusKind), statusKind, message: null),
         };
     }
 }

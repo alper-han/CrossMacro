@@ -12,12 +12,32 @@ internal static class LinuxInputProbeUtilities
             : null;
     }
 
+    internal static ValueTask<string?> ResolveAvailableSocketPathAsync(
+        Func<string, bool> fileExists,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(ResolveAvailableSocketPath(fileExists));
+    }
+
     internal static bool HasUInputWriteAccess(Func<string, bool> canOpenForWrite)
     {
         ArgumentNullException.ThrowIfNull(canOpenForWrite);
 
         return canOpenForWrite(LinuxConstants.UInputDevicePath) ||
                canOpenForWrite(LinuxConstants.UInputAlternatePath);
+    }
+
+    internal static ValueTask<bool> HasUInputWriteAccessAsync(
+        Func<string, bool> canOpenForWrite,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(canOpenForWrite);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return ValueTask.FromResult(
+            canOpenForWrite(LinuxConstants.UInputDevicePath) ||
+            canOpenForWrite(LinuxConstants.UInputAlternatePath));
     }
 
     internal static bool HasReadableInputEventAccess(
@@ -36,9 +56,44 @@ internal static class LinuxInputProbeUtilities
         return eventDevices.Any(canOpenForRead);
     }
 
+    internal static async ValueTask<bool> HasReadableInputEventAccessAsync(
+        Func<string, bool> canOpenForRead,
+        Func<string[]> getInputEventCandidates,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(canOpenForRead);
+        ArgumentNullException.ThrowIfNull(getInputEventCandidates);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var eventDevices = getInputEventCandidates();
+        if (eventDevices.Length is 0)
+        {
+            return false;
+        }
+
+        foreach (var eventDevice in eventDevices)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (await CanOpenForReadAsync(eventDevice, canOpenForRead, cancellationToken).ConfigureAwait(false))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     internal static LinuxDaemonHandshakeTransport.ProbeResult ProbeDaemonHandshakeTransportWithinBudget(string socketPath, TimeSpan timeout)
     {
         return LinuxDaemonHandshakeTransport.ProbeWithinBudget(socketPath, timeout);
+    }
+
+    internal static ValueTask<LinuxDaemonHandshakeTransport.ProbeResult> ProbeDaemonHandshakeTransportWithinBudgetAsync(
+        string socketPath,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        return new(LinuxDaemonHandshakeTransport.ProbeWithinBudgetAsync(socketPath, timeout, cancellationToken));
     }
 
     internal static LinuxDaemonSocketAccessResult ProbeDaemonSocketAccess(
@@ -53,26 +108,9 @@ internal static class LinuxInputProbeUtilities
         ArgumentNullException.ThrowIfNull(getCurrentUserGroups);
         ArgumentNullException.ThrowIfNull(probeSocketAccess);
 
-        LinuxDaemonSocketMetadata metadata;
-        try
+        if (TryGetSocketMetadataOrError(options.SocketPath, getSocketMetadata, out var metadata, out var errorResult))
         {
-            metadata = getSocketMetadata(options.SocketPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return new LinuxDaemonSocketAccessResult(
-                options.SocketPath,
-                LinuxDaemonSocketAccessStatus.PermissionDenied,
-                Exception: ex,
-                Message: ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return new LinuxDaemonSocketAccessResult(
-                options.SocketPath,
-                LinuxDaemonSocketAccessStatus.UnexpectedError,
-                Exception: ex,
-                Message: ex.Message);
+            return errorResult;
         }
 
         if (metadata.EntryKind is LinuxFileSystemEntryKind.Missing)
@@ -93,31 +131,7 @@ internal static class LinuxInputProbeUtilities
             getGroupDefinition,
             getCurrentUserGroups);
 
-        LinuxDaemonSocketAccessStatus status;
-        string? message = null;
-        Exception? exception = null;
-        try
-        {
-            status = probeSocketAccess(options.SocketPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            status = LinuxDaemonSocketAccessStatus.PermissionDenied;
-            message = ex.Message;
-            exception = ex;
-        }
-        catch (TimeoutException ex)
-        {
-            status = LinuxDaemonSocketAccessStatus.Timeout;
-            message = ex.Message;
-            exception = ex;
-        }
-        catch (Exception ex)
-        {
-            status = LinuxDaemonSocketAccessStatus.UnexpectedError;
-            message = ex.Message;
-            exception = ex;
-        }
+        var (status, message, exception) = ProbeSocketStatus(options.SocketPath, probeSocketAccess);
 
         return new LinuxDaemonSocketAccessResult(
             options.SocketPath,
@@ -127,6 +141,62 @@ internal static class LinuxInputProbeUtilities
             membership,
             message,
             exception);
+    }
+
+    private static bool TryGetSocketMetadataOrError(
+        string socketPath,
+        Func<string, LinuxDaemonSocketMetadata> getSocketMetadata,
+        out LinuxDaemonSocketMetadata metadata,
+        out LinuxDaemonSocketAccessResult errorResult)
+    {
+        try
+        {
+            metadata = getSocketMetadata(socketPath);
+            errorResult = default;
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            metadata = default;
+            errorResult = new LinuxDaemonSocketAccessResult(
+                socketPath,
+                LinuxDaemonSocketAccessStatus.PermissionDenied,
+                Exception: ex,
+                Message: ex.Message);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            metadata = default;
+            errorResult = new LinuxDaemonSocketAccessResult(
+                socketPath,
+                LinuxDaemonSocketAccessStatus.UnexpectedError,
+                Exception: ex,
+                Message: ex.Message);
+            return true;
+        }
+    }
+
+    private static (LinuxDaemonSocketAccessStatus Status, string? Message, Exception? Exception) ProbeSocketStatus(
+        string socketPath,
+        Func<string, LinuxDaemonSocketAccessStatus> probeSocketAccess)
+    {
+        try
+        {
+            return (probeSocketAccess(socketPath), null, null);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return (LinuxDaemonSocketAccessStatus.PermissionDenied, ex.Message, ex);
+        }
+        catch (TimeoutException ex)
+        {
+            return (LinuxDaemonSocketAccessStatus.Timeout, ex.Message, ex);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return (LinuxDaemonSocketAccessStatus.UnexpectedError, ex.Message, ex);
+        }
     }
 
     internal static LinuxDaemonGroupMembershipResult ResolveDaemonGroupMembership(
@@ -173,7 +243,7 @@ internal static class LinuxInputProbeUtilities
                 userGroups.UserId,
                 GetCurrentProcessGroupIds(userGroups));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return new LinuxDaemonGroupMembershipResult(
                 groupName,
@@ -263,7 +333,7 @@ internal static class LinuxInputProbeUtilities
                 return true;
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }
@@ -281,10 +351,25 @@ internal static class LinuxInputProbeUtilities
             using var fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }
+    }
+
+    private static ValueTask<bool> CanOpenForReadAsync(
+        string path,
+        Func<string, bool> canOpenForRead,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!File.Exists(path))
+        {
+            return ValueTask.FromResult(false);
+        }
+
+        return ValueTask.FromResult(canOpenForRead(path));
     }
 
     internal static string[] GetInputEventCandidates()
@@ -298,7 +383,7 @@ internal static class LinuxInputProbeUtilities
 
             return Directory.GetFiles("/dev/input", "event*");
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return [];
         }

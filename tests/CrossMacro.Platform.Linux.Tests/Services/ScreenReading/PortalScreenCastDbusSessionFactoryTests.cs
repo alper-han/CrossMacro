@@ -71,6 +71,27 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
         Assert.Equal(1, clientFactory.ConnectCalls);
     }
 
+    [Fact]
+    public async Task StartSessionAsync_WhenRestoreTokenPersistenceFailsAfterSessionCreation_DisposesSessionAndClient()
+    {
+        var owner = new CountingDisposable();
+        var session = CreateSession(
+            [Stream(42, id: "valid", sourceType: 1U, x: 0, y: 0, width: 2, height: 1)],
+            owner,
+            restoreToken: "next-token");
+        var client = new FakeSessionClient(session);
+        var factory = new PortalScreenCastDbusSessionFactory(
+            new ThrowingRestoreTokenStore(),
+            new FakeSessionClientFactory(client));
+
+        var result = await factory.StartSessionAsync(ScreenReadOptions.Default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
+        Assert.Equal(1, owner.DisposeCount);
+        Assert.Equal(1, client.DisposeCount);
+    }
+
     private static PortalScreenCastSession CreateSession(
         IReadOnlyList<PortalStreamDescriptor> streams,
         CountingDisposable? owner = null,
@@ -93,7 +114,7 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
         int width = 1920,
         int height = 1080)
     {
-        var properties = new Dictionary<string, object>
+        var properties = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["source_type"] = sourceType,
             ["position"] = new object[] { x, y },
@@ -108,20 +129,19 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
         return new PortalStreamDescriptor(nodeId, properties);
     }
 
-    private sealed class FakeRestoreTokenStore : IPortalScreenCastRestoreTokenStore
+    private sealed class FakeRestoreTokenStore(string? initialToken) : IPortalScreenCastRestoreTokenStore
     {
-        private readonly string? _initialToken;
-
-        public FakeRestoreTokenStore(string? initialToken)
-        {
-            _initialToken = initialToken;
-        }
+        private readonly string? _initialToken = initialToken;
 
         public int ClearCalls { get; private set; }
 
         public List<string> SavedTokens { get; } = [];
 
-        public string? LoadRestoreToken() => _initialToken;
+        public Task<string?> LoadRestoreTokenAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_initialToken);
+        }
 
         public Task SaveRestoreTokenAsync(string restoreToken)
         {
@@ -136,19 +156,22 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
         }
     }
 
-    private sealed class FakeSessionClientFactory : IPortalScreenCastSessionClientFactory
+    private sealed class ThrowingRestoreTokenStore : IPortalScreenCastRestoreTokenStore
     {
-        private readonly Queue<FakeSessionClient> _clients;
+        public Task<string?> LoadRestoreTokenAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(null);
 
-        public FakeSessionClientFactory(params FakeSessionClient[] clients)
-        {
-            _clients = new Queue<FakeSessionClient>(clients);
-            Clients = clients;
-        }
+        public Task SaveRestoreTokenAsync(string restoreToken) => throw new ArgumentException("save failed");
+
+        public Task ClearRestoreTokenAsync() => Task.CompletedTask;
+    }
+
+    private sealed class FakeSessionClientFactory(params PortalScreenCastDbusSessionFactoryTests.FakeSessionClient[] clients) : IPortalScreenCastSessionClientFactory
+    {
+        private readonly Queue<FakeSessionClient> _clients = new Queue<FakeSessionClient>(clients);
 
         public int ConnectCalls { get; private set; }
 
-        public IReadOnlyList<FakeSessionClient> Clients { get; }
+        public IReadOnlyList<FakeSessionClient> Clients { get; } = clients;
 
         public Task<IPortalScreenCastSessionClient> ConnectAsync()
         {
@@ -157,16 +180,13 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
         }
     }
 
-    private sealed class FakeSessionClient : IPortalScreenCastSessionClient
+    private sealed class FakeSessionClient(PortalScreenCastSession session) : IPortalScreenCastSessionClient
     {
-        private readonly PortalScreenCastSession _session;
-
-        public FakeSessionClient(PortalScreenCastSession session)
-        {
-            _session = session;
-        }
+        private readonly PortalScreenCastSession _session = session;
 
         public string? RestoreToken { get; private set; }
+
+        public int DisposeCount { get; private set; }
 
         public Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null)
         {
@@ -176,10 +196,12 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
 
         public void DisposeIfNotOwnedBySession()
         {
+            DisposeCount++;
         }
 
         public void Dispose()
         {
+            DisposeCount++;
         }
     }
 }

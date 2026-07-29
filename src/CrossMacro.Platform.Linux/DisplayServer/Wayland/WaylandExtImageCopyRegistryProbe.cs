@@ -35,7 +35,12 @@ internal static class WaylandExtImageCopyRegistryProbe
         return ExtImageCopySupportResult.Supported();
     }
 
-    [Obsolete("Use the snapshot-backed probe in production composition.", error: false)]
+    /// <summary>
+    /// Captures the live environment at call time. Prefer the snapshot-backed
+    /// probe in production composition so the environment is captured once at
+    /// the boundary and passed through.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
     internal static ExtImageCopySupportResult Probe()
     {
         return Probe(LinuxEnvironmentVariables.CaptureCurrentSnapshot());

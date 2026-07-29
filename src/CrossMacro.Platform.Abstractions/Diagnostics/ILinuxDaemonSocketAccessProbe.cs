@@ -2,5 +2,5 @@ namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
 public interface ILinuxDaemonSocketAccessProbe
 {
-    public LinuxDaemonSocketAccessResult Probe(LinuxDaemonSocketProbeOptions options);
+    public ValueTask<LinuxDaemonSocketAccessResult> ProbeAsync(LinuxDaemonSocketProbeOptions options, CancellationToken cancellationToken = default);
 }

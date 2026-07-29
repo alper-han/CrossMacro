@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
-public sealed record class LinuxDaemonCurrentUserGroups(
+public sealed record LinuxDaemonCurrentUserGroups(
     int UserId,
     string UserName,
     int PrimaryGroupId,

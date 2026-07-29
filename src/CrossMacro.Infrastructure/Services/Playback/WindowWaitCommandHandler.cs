@@ -11,8 +11,8 @@ internal sealed class WindowWaitCommandHandler : IWindowCommandHandler
             return "Syntax: window wait title|class \"<term>\" [timeout_ms] $variable";
         }
 
-        var field = parts[2].ToLowerInvariant();
-        if (field is not ("title" or "class"))
+        var field = parts[2].ToUpperInvariant();
+        if (field is not ("TITLE" or "CLASS"))
         {
             return $"Unknown field '{parts[2]}'. Expected: title, class.";
         }
@@ -24,8 +24,9 @@ internal sealed class WindowWaitCommandHandler : IWindowCommandHandler
             return $"Invalid variable name '{varPart}'.";
         }
 
-        int tVal = 0;
-        var hasTimeout = parts.Length > 4 && int.TryParse(parts[^2], NumberStyles.None, CultureInfo.InvariantCulture, out tVal) && tVal > 0;
+        var hasTimeout = parts.Length > 4
+            && int.TryParse(parts[^2], NumberStyles.None, CultureInfo.InvariantCulture, out var tVal)
+            && tVal > 0;
         var termEndIndex = hasTimeout ? parts.Length - 2 : parts.Length - 1;
         var term = Unquote(string.Join(' ', parts[3..termEndIndex]));
         if (string.IsNullOrWhiteSpace(term))
@@ -37,7 +38,7 @@ internal sealed class WindowWaitCommandHandler : IWindowCommandHandler
     }
     public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
     {
-        var field = parts[2].ToLowerInvariant();
+        var field = parts[2].ToUpperInvariant();
         var varName = StripDollar(parts[^1]);
         int tVal = 0;
         var hasTimeout = parts.Length > 4 && int.TryParse(parts[^2], NumberStyles.None, CultureInfo.InvariantCulture, out tVal) && tVal > 0;
@@ -50,7 +51,7 @@ internal sealed class WindowWaitCommandHandler : IWindowCommandHandler
         {
             cancellationToken.ThrowIfCancellationRequested();
             var windows = await query.GetWindowsAsync(cancellationToken).ConfigureAwait(false);
-            found = field is "title" ? FindByTitle(windows, term) : FindByClass(windows, term);
+            found = field is "TITLE" ? FindByTitle(windows, term) : FindByClass(windows, term);
             if (found != null)
             {
                 break;

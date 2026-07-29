@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-public class HyprlandPositionProvider : IMousePositionProvider
+public sealed class HyprlandPositionProvider : IMousePositionProvider
 {
     private static readonly byte[] CursorPosCommand = Encoding.UTF8.GetBytes("cursorpos");
     private static readonly byte[] MonitorsCommand = Encoding.UTF8.GetBytes("monitors");
@@ -12,9 +12,7 @@ public class HyprlandPositionProvider : IMousePositionProvider
     public bool IsSupported => _ipcClient.IsAvailable;
     public string ProviderName => "Hyprland IPC";
 
-    public HyprlandPositionProvider() : this(new HyprlandIpcClient())
-    {
-    }
+    public HyprlandPositionProvider() : this(new HyprlandIpcClient()) { /* Empty */ }
 
     public HyprlandPositionProvider(HyprlandIpcClient ipcClient)
     {
@@ -43,7 +41,7 @@ public class HyprlandPositionProvider : IMousePositionProvider
 
             return ParseCursorPosition(response);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[HyprlandPositionProvider] Failed to get cursor position");
             return null;
@@ -67,7 +65,7 @@ public class HyprlandPositionProvider : IMousePositionProvider
 
             return ParseMonitors(response);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[HyprlandPositionProvider] Failed to get screen resolution");
             return null;
@@ -88,68 +86,89 @@ public class HyprlandPositionProvider : IMousePositionProvider
         {
             try
             {
-                var lines = block.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-                int width = 0;
-                int height = 0;
-                int posX = 0;
-                int posY = 0;
-                double scale = 1.0;
-                bool resolutionFound = false;
-
-                foreach (var line in lines)
+                if (TryParseMonitorBlock(block, out int blockWidth, out int blockHeight, out int posX, out int posY))
                 {
-                    var trimmed = line.Trim();
-
-                    if (trimmed.Contains('x', StringComparison.Ordinal) && trimmed.Contains("at", StringComparison.Ordinal) && !resolutionFound)
-                    {
-                        var parts = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length >= 3)
-                        {
-                            var resPart = parts[0].Split('@')[0].Split('x');
-                            var atIndex = Array.IndexOf(parts, "at");
-
-                            if (resPart.Length is 2 && atIndex >= 0 && atIndex + 1 < parts.Length)
-                            {
-                                var posPart = parts[atIndex + 1].Split('x');
-
-                                if (posPart.Length is 2 && int.TryParse(resPart[0], CultureInfo.InvariantCulture, out width) &&
-                                        int.TryParse(resPart[1], CultureInfo.InvariantCulture, out height) &&
-                                        int.TryParse(posPart[0], CultureInfo.InvariantCulture, out posX) &&
-                                        int.TryParse(posPart[1], CultureInfo.InvariantCulture, out posY))
-                                {
-                                    resolutionFound = true;
-                                }
-                            }
-                        }
-                    }
-
-                    if (trimmed.StartsWith("scale:", StringComparison.Ordinal))
-                    {
-                        var scalePart = trimmed.Substring("scale:".Length).Trim();
-                        if (double.TryParse(scalePart, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double s))
-                        {
-                            scale = s;
-                        }
-                    }
-                }
-
-                if (resolutionFound && width > 0 && height > 0)
-                {
-                    int logicalWidth = (int)Math.Round(width / scale, MidpointRounding.AwayFromZero);
-                    int logicalHeight = (int)Math.Round(height / scale, MidpointRounding.AwayFromZero);
-
+                    int logicalWidth = blockWidth;
+                    int logicalHeight = blockHeight;
                     maxWidth = Math.Max(maxWidth, posX + logicalWidth);
                     maxHeight = Math.Max(maxHeight, posY + logicalHeight);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "[HyprlandPositionProvider] Error parsing monitor block");
             }
         }
 
         return maxWidth > 0 && maxHeight > 0 ? (maxWidth, maxHeight) : null;
+    }
+
+    private static bool TryParseMonitorBlock(string block, out int width, out int height, out int posX, out int posY)
+    {
+        width = 0;
+        height = 0;
+        posX = 0;
+        posY = 0;
+        double scale = 1.0;
+        bool resolutionFound = false;
+
+        var lines = block.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            if (trimmed.Contains('x', StringComparison.Ordinal) && trimmed.Contains("at", StringComparison.Ordinal) &&
+                !resolutionFound && TryParseResolutionLine(trimmed, ref width, ref height, ref posX, ref posY))
+            {
+                resolutionFound = true;
+            }
+
+            if (trimmed.StartsWith("scale:", StringComparison.Ordinal))
+            {
+                var scalePart = trimmed.Substring("scale:".Length).Trim();
+                if (double.TryParse(scalePart, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double s))
+                {
+                    scale = s;
+                }
+            }
+        }
+
+        if (resolutionFound && width > 0 && height > 0)
+        {
+            width = (int)Math.Round(width / scale, MidpointRounding.AwayFromZero);
+            height = (int)Math.Round(height / scale, MidpointRounding.AwayFromZero);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseResolutionLine(string trimmed, ref int width, ref int height, ref int posX, ref int posY)
+    {
+        var parts = trimmed.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3)
+        {
+            return false;
+        }
+
+        var resPart = parts[0].Split('@')[0].Split('x');
+        var atIndex = Array.IndexOf(parts, "at");
+
+        if (resPart.Length is 2 && atIndex >= 0 && atIndex + 1 < parts.Length)
+        {
+            var posPart = parts[atIndex + 1].Split('x');
+
+            if (posPart.Length is 2 && int.TryParse(resPart[0], CultureInfo.InvariantCulture, out width) &&
+                    int.TryParse(resPart[1], CultureInfo.InvariantCulture, out height) &&
+                    int.TryParse(posPart[0], CultureInfo.InvariantCulture, out posX) &&
+                    int.TryParse(posPart[1], CultureInfo.InvariantCulture, out posY))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static (int X, int Y)? ParseCursorPosition(string response)

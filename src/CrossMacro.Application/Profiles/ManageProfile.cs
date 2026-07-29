@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Application.Profiles;
 
-public sealed class ManageProfile : IManageProfile
+public sealed class ManageProfile(IProfileManager profiles) : IManageProfile
 {
-    private readonly IProfileManager _profiles;
-
-    public ManageProfile(IProfileManager profiles)
-    {
-        _profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
-    }
+    private readonly IProfileManager _profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
 
     public Task<ProfileResult> ListAsync(CancellationToken cancellationToken = default)
     {

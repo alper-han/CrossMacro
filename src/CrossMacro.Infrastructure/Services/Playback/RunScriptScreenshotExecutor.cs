@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-internal sealed class RunScriptScreenshotExecutor
+internal sealed class RunScriptScreenshotExecutor(IScreenshotCaptureService? screenshotCaptureService)
 {
-    private readonly IScreenshotCaptureService? _screenshotCaptureService;
-
-    public RunScriptScreenshotExecutor(IScreenshotCaptureService? screenshotCaptureService)
-    {
-        _screenshotCaptureService = screenshotCaptureService;
-    }
+    private readonly IScreenshotCaptureService? _screenshotCaptureService = screenshotCaptureService;
 
     public async Task ExecuteStepAsync(string step, int stepNumber, IDictionary<string, string> variables, CancellationToken cancellationToken)
     {
@@ -46,7 +41,7 @@ internal sealed class RunScriptScreenshotExecutor
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {ex.Message}", ex);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Screenshot capture failed.", ex);
         }

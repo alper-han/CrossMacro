@@ -1,19 +1,14 @@
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
-public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchReader
+public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScreenPixelReader, IScreenImageSearchReader
 {
     private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(50);
 
-    private readonly IScreenFrameProvider _frameProvider;
+    private readonly IScreenFrameProvider _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
     private readonly ScreenImageMatcher _imageMatcher = new();
     private bool _disposed;
-
-    public ScreenPixelReader(IScreenFrameProvider frameProvider)
-    {
-        _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
-    }
 
     public string ProviderName => _frameProvider.ProviderName;
 
@@ -126,27 +121,27 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
     public async Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
         ScreenRect? region,
         ScreenFrame imageTemplate,
-        ScreenImageMatchOptions matchOptions,
-        ScreenReadOptions options)
+        ScreenImageMatchOptions options,
+        ScreenReadOptions readOptions)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(imageTemplate);
-        ArgumentNullException.ThrowIfNull(matchOptions);
+        ArgumentNullException.ThrowIfNull(options);
 
-        using var timeoutCancellation = options.Timeout is { } timeout
+        using var timeoutCancellation = readOptions.Timeout is { } timeout
             ? new CancellationTokenSource(timeout)
             : null;
         using var linkedCancellation = timeoutCancellation is null
             ? null
-            : CancellationTokenSource.CreateLinkedTokenSource(options.CancellationToken, timeoutCancellation.Token);
+            : CancellationTokenSource.CreateLinkedTokenSource(readOptions.CancellationToken, timeoutCancellation.Token);
         var effectiveOptions = linkedCancellation is null
-            ? options
-            : new ScreenReadOptions(options.Timeout, options.PollInterval, linkedCancellation.Token);
+            ? readOptions
+            : new ScreenReadOptions(readOptions.Timeout, readOptions.PollInterval, linkedCancellation.Token);
 
         var capture = await CaptureFrameAsync(region, effectiveOptions).ConfigureAwait(false);
         if (!capture.IsSuccess)
         {
-            if (capture.ErrorKind is ScreenReadErrorKind.Canceled && IsImageSearchTimeout(options.CancellationToken, timeoutCancellation))
+            if (capture.ErrorKind is ScreenReadErrorKind.Canceled && IsImageSearchTimeout(timeoutCancellation, readOptions.CancellationToken))
             {
                 return ScreenReadResultFactory.Failure<ScreenImageMatch>(
                     ScreenReadErrorKind.CaptureTimeout,
@@ -159,7 +154,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         }
 
         using var frame = capture.Value ?? throw new InvalidOperationException("Successful screen frame capture did not include a frame.");
-        var effectiveMatchOptions = matchOptions with { SearchRegion = region ?? matchOptions.SearchRegion };
+        var effectiveMatchOptions = options with { SearchRegion = region ?? options.SearchRegion };
         var effectiveRegion = effectiveMatchOptions.SearchRegion ?? frame.LogicalBounds;
         if (!frame.ContainsAnyValidPixel(effectiveRegion))
         {
@@ -171,7 +166,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         try
         {
             var matcherCancellationToken = effectiveMatchOptions.SelectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch
-                ? options.CancellationToken
+                ? readOptions.CancellationToken
                 : effectiveOptions.CancellationToken;
             matcherCancellationToken.ThrowIfCancellationRequested();
             var match = _imageMatcher.FindMatch(frame, imageTemplate, effectiveMatchOptions, matcherCancellationToken);
@@ -189,7 +184,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         }
         catch (OperationCanceledException)
         {
-            return IsImageSearchTimeout(options.CancellationToken, timeoutCancellation)
+            return IsImageSearchTimeout(timeoutCancellation, readOptions.CancellationToken)
                 ? ScreenReadResultFactory.Failure<ScreenImageMatch>(
                     ScreenReadErrorKind.CaptureTimeout,
                     $"Timed out while searching for screen image in region {effectiveMatchOptions.SearchRegion ?? frame.LogicalBounds}.")
@@ -226,7 +221,7 @@ public sealed class ScreenPixelReader : IScreenPixelReader, IScreenImageSearchRe
         }
     }
 
-    private static bool IsImageSearchTimeout(CancellationToken callerToken, CancellationTokenSource? timeoutCancellation)
+    private static bool IsImageSearchTimeout(CancellationTokenSource? timeoutCancellation, CancellationToken callerToken)
     {
         return timeoutCancellation is { IsCancellationRequested: true } && !callerToken.IsCancellationRequested;
     }

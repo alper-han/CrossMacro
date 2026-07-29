@@ -1,8 +1,61 @@
 
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
-public class WindowsInputCaptureTests
+public sealed class WindowsInputCaptureTests
 {
+    [Fact]
+    public void GetEvdevCode_WhenVirtualKeyIsNormalReturn_MapsToKeyEnter()
+    {
+        var evdevCode = CrossMacro.Platform.Windows.Helpers.WindowsKeyMap.GetEvdevCode(0x0D);
+
+        Assert.Equal(InputEventCode.KEY_ENTER, evdevCode);
+        Assert.NotEqual(InputEventCode.KEY_KPENTER, evdevCode);
+    }
+
+    [Fact]
+    public void MapKeyboardEvent_WhenReturnIsExtended_MapsToKeypadEnter()
+    {
+        var evdevCode = WindowsInputCapture.MapKeyboardEvent(0x0D, 0x01);
+
+        Assert.Equal(InputEventCode.KEY_KPENTER, evdevCode);
+    }
+
+    [Theory]
+    [InlineData(User32.WM_XBUTTONDOWN, 1, InputEventCode.BTN_SIDE, 1)]
+    [InlineData(User32.WM_XBUTTONUP, 1, InputEventCode.BTN_SIDE, 0)]
+    [InlineData(User32.WM_XBUTTONDOWN, 2, InputEventCode.BTN_EXTRA, 1)]
+    [InlineData(User32.WM_XBUTTONUP, 2, InputEventCode.BTN_EXTRA, 0)]
+    public void TryMapMouseButtonOrScroll_WhenXButtonMessage_MapsButtonState(uint message, ushort xButton, ushort expectedCode, int expectedValue)
+    {
+        var mapped = WindowsInputCapture.TryMapMouseButtonOrScroll(message, (uint)xButton << 16, out var code, out var value, out var type);
+
+        Assert.True(mapped);
+        Assert.Equal(expectedCode, code);
+        Assert.Equal(expectedValue, value);
+        Assert.Equal(InputEventCode.EV_KEY, type);
+    }
+
+    [Fact]
+    public void TryMapMouseButtonOrScroll_WhenXButtonIsUnknown_ReturnsFalse()
+    {
+        var mapped = WindowsInputCapture.TryMapMouseButtonOrScroll(User32.WM_XBUTTONDOWN, 3u << 16, out _, out _, out _);
+
+        Assert.False(mapped);
+    }
+
+    [Theory]
+    [InlineData(0xFF88u, -120)]
+    [InlineData(0xFFFFu, -1)]
+    public void TryMapMouseButtonOrScroll_WhenHorizontalWheelHasNegativeDelta_MapsSignedHorizontalScroll(uint encodedDelta, int expectedValue)
+    {
+        var mapped = WindowsInputCapture.TryMapMouseButtonOrScroll(User32.WM_MOUSEHWHEEL, encodedDelta << 16, out var code, out var value, out var type);
+
+        Assert.True(mapped);
+        Assert.Equal(InputEventCode.REL_HWHEEL, code);
+        Assert.Equal(expectedValue, value);
+        Assert.Equal(InputEventCode.EV_REL, type);
+    }
+
     [Theory]
     [InlineData(0u, 0L, false)]
     [InlineData(0x10u, 0L, false)]
@@ -66,22 +119,16 @@ public class WindowsInputCaptureTests
         cts.Cancel();
         hookInstaller.ReleaseHookInstall();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => startTask);
     }
 
-    private sealed class FailingHookInstaller : IWindowsHookInstaller
+    private sealed class FailingHookInstaller(bool failMouse, bool failKeyboard) : IWindowsHookInstaller
     {
         private static readonly IntPtr SuccessfulHookHandle = new(1);
 
-        private readonly bool _failMouse;
-        private readonly bool _failKeyboard;
-
-        public FailingHookInstaller(bool failMouse, bool failKeyboard)
-        {
-            _failMouse = failMouse;
-            _failKeyboard = failKeyboard;
-        }
+        private readonly bool _failMouse = failMouse;
+        private readonly bool _failKeyboard = failKeyboard;
 
         public IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc)
             => _failMouse ? IntPtr.Zero : SuccessfulHookHandle;
@@ -100,7 +147,7 @@ public class WindowsInputCaptureTests
 
         public IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc)
         {
-            HookInstallStarted.TrySetResult();
+            _ = HookInstallStarted.TrySetResult();
 
             if (!_releaseHookInstall.Task.Wait(TimeSpan.FromSeconds(2)))
             {

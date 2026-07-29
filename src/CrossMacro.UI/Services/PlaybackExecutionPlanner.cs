@@ -53,7 +53,7 @@ internal static class PlaybackExecutionPlanner
 
     private static PlaybackExecutionPlan CreateSingleMacroPlan(LoadedMacroPlaybackMode mode, MacroSequence? activeMacro)
     {
-        return new PlaybackExecutionPlan(mode, activeMacro, Array.Empty<LoadedMacroListItem>(), ValidationError: null);
+        return new PlaybackExecutionPlan(mode, activeMacro, [], ValidationError: null);
     }
 
     private static LoadedMacroPlaybackMode GetEffectivePlaybackMode(ILoadedMacroSession loadedMacroSession)

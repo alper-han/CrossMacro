@@ -28,8 +28,20 @@ public class X11RelativeCapture : X11CaptureBase
 
     private void ProcessRawMotion(XIRawEvent rawEvent)
     {
-        double dx = 0;
-        double dy = 0;
+        TryReadRawDeltas(rawEvent, out double dx, out double dy);
+
+        if (SkipZeroDeltas && Math.Abs(dx) < 0.001 && Math.Abs(dy) < 0.001)
+        {
+            return;
+        }
+
+        EmitAccumulatedMotion(dx, dy);
+    }
+
+    private static void TryReadRawDeltas(XIRawEvent rawEvent, out double dx, out double dy)
+    {
+        dx = 0;
+        dy = 0;
 
         int valueIndex = 0;
         var maskState = rawEvent.valuators;
@@ -44,12 +56,10 @@ public class X11RelativeCapture : X11CaptureBase
         {
             dy = ReadDouble(rawEvent.raw_values, valueIndex);
         }
+    }
 
-        if (SkipZeroDeltas && Math.Abs(dx) < 0.001 && Math.Abs(dy) < 0.001)
-        {
-            return;
-        }
-
+    private void EmitAccumulatedMotion(double dx, double dy)
+    {
         _accumulatorX += dx;
         _accumulatorY += dy;
 

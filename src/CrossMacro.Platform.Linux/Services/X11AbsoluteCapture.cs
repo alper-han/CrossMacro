@@ -11,8 +11,8 @@ public class X11AbsoluteCapture : X11CaptureBase
     private double _lastY = -1;
 
     // State for motion compression
-    private bool _pendingMotion = false;
-    private long _lastMotionTime = 0;
+    private bool _pendingMotion;
+    private long _lastMotionTime;
     private const int MinMotionIntervalMs = 10; // ~100Hz cap
 
     public override string ProviderName => "X11 (Absolute Motion)";
@@ -82,15 +82,16 @@ public class X11AbsoluteCapture : X11CaptureBase
         _lastX = rootX;
         _lastY = rootY;
 
-
         if (dx == 0 && dy == 0)
         {
             return;
         }
 
-        int moveX = (int)dx;
-        int moveY = (int)dy;
+        EmitMotion((int)dx, (int)dy);
+    }
 
+    private void EmitMotion(int moveX, int moveY)
+    {
         if (moveX is not 0)
         {
             var argsX = new CapturedInputEvent
@@ -117,7 +118,6 @@ public class X11AbsoluteCapture : X11CaptureBase
             OnInputReceived(argsY);
         }
 
-        // SYNC
         var argsSync = new CapturedInputEvent
         {
             Type = InputEventType.Sync,

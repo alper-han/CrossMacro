@@ -6,9 +6,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
     private readonly IMacOSCoreGraphicsNative _native;
 
     public CoreGraphicsMacOSScreenCaptureBackend()
-        : this(new MacOSCoreGraphicsNative())
-    {
-    }
+        : this(new MacOSCoreGraphicsNative()) { /* Empty */ }
 
     internal CoreGraphicsMacOSScreenCaptureBackend(IMacOSCoreGraphicsNative native)
     {

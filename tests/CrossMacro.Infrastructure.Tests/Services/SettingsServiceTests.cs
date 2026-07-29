@@ -1,8 +1,9 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
-public class SettingsServiceTests : IDisposable
+public sealed class SettingsServiceTests : IDisposable
 {
+    private static readonly CancellationToken NonCancelableToken = new(canceled: false);
     private readonly string _tempPath;
 
     private string DefaultProfileSettingsPath => Path.Combine(
@@ -14,7 +15,7 @@ public class SettingsServiceTests : IDisposable
     public SettingsServiceTests()
     {
         _tempPath = Path.Combine(Path.GetTempPath(), "CrossMacroSettingsTests_" + Guid.NewGuid());
-        Directory.CreateDirectory(_tempPath);
+        _ = Directory.CreateDirectory(_tempPath);
     }
 
     public void Dispose()
@@ -39,7 +40,21 @@ public class SettingsServiceTests : IDisposable
         var service = new SettingsService(_tempPath);
 
         // Assert
-        service.Current.Should().NotBeNull();
+        _ = service.Current.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Dispose_CanBeCalledRepeatedly()
+    {
+        var service = new SettingsService(_tempPath);
+
+        var act = () =>
+        {
+            service.Dispose();
+            service.Dispose();
+        };
+
+        _ = act.Should().NotThrow();
     }
 
     [Fact]
@@ -52,7 +67,7 @@ public class SettingsServiceTests : IDisposable
         var result = service.Load();
 
         // Assert
-        result.Should().NotBeNull();
+        _ = result.Should().NotBeNull();
     }
 
     [Fact]
@@ -65,7 +80,7 @@ public class SettingsServiceTests : IDisposable
         var result = await service.LoadAsync();
 
         // Assert
-        result.Should().NotBeNull();
+        _ = result.Should().NotBeNull();
     }
 
     [Fact]
@@ -73,14 +88,14 @@ public class SettingsServiceTests : IDisposable
     {
         // Arrange
         var service = new SettingsService(_tempPath);
-        service.Load();
+        _ = service.Load();
         service.Current.PlaybackSpeed = 2.0;
 
         // Act
         var act = () => service.Save();
 
         // Assert
-        act.Should().NotThrow();
+        _ = act.Should().NotThrow();
     }
 
     [Fact]
@@ -88,14 +103,14 @@ public class SettingsServiceTests : IDisposable
     {
         // Arrange
         var service = new SettingsService(_tempPath);
-        await service.LoadAsync();
+        _ = await service.LoadAsync();
         service.Current.PlaybackSpeed = 1.5;
 
         // Act
         var act = async () => await service.SaveAsync();
 
         // Assert
-        await act.Should().NotThrowAsync();
+        _ = await act.Should().NotThrowAsync();
     }
 
     [Fact]
@@ -103,7 +118,7 @@ public class SettingsServiceTests : IDisposable
     {
         // Arrange
         var service = new SettingsService(_tempPath);
-        service.Load();
+        _ = service.Load();
 
         service.Current.PlaybackSpeed = 3.0;
         service.Current.IsLooping = true;
@@ -122,15 +137,15 @@ public class SettingsServiceTests : IDisposable
         var loaded = newService.Load();
 
         // Assert
-        loaded.PlaybackSpeed.Should().Be(3.0);
-        loaded.IsLooping.Should().BeTrue();
-        loaded.LoopCount.Should().Be(5);
-        loaded.LoopDelayMs.Should().Be(150);
-        loaded.UseRandomLoopDelay.Should().BeTrue();
-        loaded.LoopDelayMinMs.Should().Be(100);
-        loaded.LoopDelayMaxMs.Should().Be(250);
-        loaded.StartMinimized.Should().BeTrue();
-        loaded.PortalScreenCastRestoreToken.Should().Be("portal-token-1");
+        _ = loaded.PlaybackSpeed.Should().Be(3.0);
+        _ = loaded.IsLooping.Should().BeTrue();
+        _ = loaded.LoopCount.Should().Be(5);
+        _ = loaded.LoopDelayMs.Should().Be(150);
+        _ = loaded.UseRandomLoopDelay.Should().BeTrue();
+        _ = loaded.LoopDelayMinMs.Should().Be(100);
+        _ = loaded.LoopDelayMaxMs.Should().Be(250);
+        _ = loaded.StartMinimized.Should().BeTrue();
+        _ = loaded.PortalScreenCastRestoreToken.Should().Be("portal-token-1");
     }
 
     [Fact]
@@ -138,25 +153,18 @@ public class SettingsServiceTests : IDisposable
     {
         // Arrange
         var service = new SettingsService(_tempPath);
-        const string rawJson = """
-            {
-              "playbackSpeed": 999.0,
-              "loopDelayMs": -15,
-              "loopDelayMinMs": 120,
-              "loopDelayMaxMs": 10
-            }
-            """;
-        Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
+        string rawJson = "{\n  \"playbackSpeed\": 999.0,\n  \"loopDelayMs\": -15,\n  \"loopDelayMinMs\": 120,\n  \"loopDelayMaxMs\": 10\n}" + '\n';
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
         File.WriteAllText(DefaultProfileSettingsPath, rawJson);
 
         // Act
         var result = service.Load();
 
         // Assert
-        result.PlaybackSpeed.Should().Be(10.0);
-        result.LoopDelayMs.Should().Be(0);
-        result.LoopDelayMinMs.Should().Be(120);
-        result.LoopDelayMaxMs.Should().Be(120);
+        _ = result.PlaybackSpeed.Should().Be(10.0);
+        _ = result.LoopDelayMs.Should().Be(0);
+        _ = result.LoopDelayMinMs.Should().Be(120);
+        _ = result.LoopDelayMaxMs.Should().Be(120);
     }
 
     [Fact]
@@ -170,9 +178,9 @@ public class SettingsServiceTests : IDisposable
         var result = service.Load();
 
         // Assert
-        result.Should().NotBeNull();
-        File.Exists(globalSettingsPath).Should().BeTrue();
-        File.Exists(DefaultProfileSettingsPath).Should().BeTrue();
+        _ = result.Should().NotBeNull();
+        _ = File.Exists(globalSettingsPath).Should().BeTrue();
+        _ = File.Exists(DefaultProfileSettingsPath).Should().BeTrue();
     }
 
     [Fact]
@@ -180,7 +188,7 @@ public class SettingsServiceTests : IDisposable
     {
         // Arrange
         var service = new SettingsService(_tempPath);
-        await service.LoadAsync();
+        _ = await service.LoadAsync();
 
         service.Current.EnableTextExpansion = true;
         service.Current.CountdownSeconds = 3;
@@ -192,8 +200,8 @@ public class SettingsServiceTests : IDisposable
         var loaded = await newService.LoadAsync();
 
         // Assert
-        loaded.EnableTextExpansion.Should().BeTrue();
-        loaded.CountdownSeconds.Should().Be(3);
+        _ = loaded.EnableTextExpansion.Should().BeTrue();
+        _ = loaded.CountdownSeconds.Should().Be(3);
     }
 
     [Fact]
@@ -202,17 +210,17 @@ public class SettingsServiceTests : IDisposable
         // Arrange
         var service = new SettingsService(_tempPath);
         // Ensure file exists but with garbage content
-        Directory.CreateDirectory(_tempPath);
-        Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
+        _ = Directory.CreateDirectory(_tempPath);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
         File.WriteAllText(DefaultProfileSettingsPath, "{ invalid_json }");
 
         // Act
         var result = service.Load();
 
         // Assert
-        result.Should().NotBeNull();
+        _ = result.Should().NotBeNull();
         // Defaults check (assuming defaults are specific values, e.g. PlaybackSpeed = 1.0)
-        result.PlaybackSpeed.Should().Be(1.0);
+        _ = result.PlaybackSpeed.Should().Be(1.0);
     }
 
     [Fact]
@@ -220,16 +228,16 @@ public class SettingsServiceTests : IDisposable
     {
         // Arrange
         var service = new SettingsService(_tempPath);
-        Directory.CreateDirectory(_tempPath);
-        Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
-        await File.WriteAllTextAsync(DefaultProfileSettingsPath, "NOT JSON AT ALL");
+        _ = Directory.CreateDirectory(_tempPath);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
+        await File.WriteAllTextAsync(DefaultProfileSettingsPath, "NOT JSON AT ALL", NonCancelableToken);
 
         // Act
         var result = await service.LoadAsync();
 
         // Assert
-        result.Should().NotBeNull();
-        result.PlaybackSpeed.Should().Be(1.0);
+        _ = result.Should().NotBeNull();
+        _ = result.PlaybackSpeed.Should().Be(1.0);
     }
 
     [Fact]
@@ -244,7 +252,7 @@ public class SettingsServiceTests : IDisposable
         var act = () => service.Save();
 
         // Assert
-        act.Should().Throw<IOException>();
+        _ = act.Should().Throw<IOException>();
     }
     [Fact]
     public async Task SaveAsync_WhenWriteFails_Throws()
@@ -258,14 +266,14 @@ public class SettingsServiceTests : IDisposable
         var act = async () => await service.SaveAsync();
 
         // Assert
-        await act.Should().ThrowAsync<IOException>();
+        _ = await act.Should().ThrowAsync<IOException>();
     }
 
     [Fact]
     public async Task SaveAsync_QueuedSnapshotsAreWrittenInCallOrder()
     {
         var service = new SettingsService(_tempPath);
-        await service.LoadAsync();
+        _ = await service.LoadAsync();
 
         service.Current.PlaybackSpeed = 2.0;
         var firstSave = service.SaveAsync();
@@ -275,6 +283,6 @@ public class SettingsServiceTests : IDisposable
         await Task.WhenAll(firstSave, secondSave);
 
         var loaded = await new SettingsService(_tempPath).LoadAsync();
-        loaded.PlaybackSpeed.Should().Be(3.0);
+        _ = loaded.PlaybackSpeed.Should().Be(3.0);
     }
 }

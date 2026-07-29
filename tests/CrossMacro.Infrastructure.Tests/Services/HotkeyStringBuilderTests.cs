@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class HotkeyStringBuilderTests
+public sealed class HotkeyStringBuilderTests
 {
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly HotkeyStringBuilder _builder;
@@ -23,59 +23,59 @@ public class HotkeyStringBuilderTests
     public void Build_ShouldReturnKeyName_WhenNoModifiers()
     {
         // Arrange
-        _keyCodeMapper.GetKeyName(KeyA).Returns("A");
+        _ = _keyCodeMapper.GetKeyName(KeyA).Returns("A");
         var modifiers = new HashSet<int>();
 
         // Act
         var result = _builder.Build(KeyA, modifiers);
 
         // Assert
-        result.Should().Be("A");
+        _ = result.Should().Be("A");
     }
 
     [Fact]
     public void Build_ShouldIncludeCtrl_WhenCtrlPressed()
     {
         // Arrange
-        _keyCodeMapper.GetKeyName(KeyA).Returns("A");
+        _ = _keyCodeMapper.GetKeyName(KeyA).Returns("A");
         var modifiers = new HashSet<int> { LeftCtrl };
 
         // Act
         var result = _builder.Build(KeyA, modifiers);
 
         // Assert
-        result.Should().Be("Ctrl+A");
+        _ = result.Should().Be("Ctrl+A");
     }
 
     [Fact]
     public void Build_ShouldIncludeAllModifiers_WhenMultiplePressed()
     {
         // Arrange
-        _keyCodeMapper.GetKeyName(KeyA).Returns("A");
+        _ = _keyCodeMapper.GetKeyName(KeyA).Returns("A");
         var modifiers = new HashSet<int> { LeftCtrl, LeftShift, LeftAlt };
 
         // Act
         var result = _builder.Build(KeyA, modifiers);
 
         // Assert
-        result.Should().Contain("Ctrl");
-        result.Should().Contain("Shift");
-        result.Should().Contain("Alt");
-        result.Should().EndWith("+A");
+        _ = result.Should().Contain("Ctrl");
+        _ = result.Should().Contain("Shift");
+        _ = result.Should().Contain("Alt");
+        _ = result.Should().EndWith("+A");
     }
 
     [Fact]
     public void Build_ShouldIncludeSuper_WhenSuperPressed()
     {
         // Arrange
-        _keyCodeMapper.GetKeyName(KeyA).Returns("A");
+        _ = _keyCodeMapper.GetKeyName(KeyA).Returns("A");
         var modifiers = new HashSet<int> { LeftSuper };
 
         // Act
         var result = _builder.Build(KeyA, modifiers);
 
         // Assert
-        result.Should().Be("Super+A");
+        _ = result.Should().Be("Super+A");
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class HotkeyStringBuilderTests
         var result = _builder.BuildForMouse("Left", modifiers);
 
         // Assert
-        result.Should().Be("Left");
+        _ = result.Should().Be("Left");
     }
 
     [Fact]
@@ -101,16 +101,16 @@ public class HotkeyStringBuilderTests
         var result = _builder.BuildForMouse("Middle", modifiers);
 
         // Assert
-        result.Should().Contain("Ctrl");
-        result.Should().Contain("Shift");
-        result.Should().EndWith("+Middle");
+        _ = result.Should().Contain("Ctrl");
+        _ = result.Should().Contain("Shift");
+        _ = result.Should().EndWith("+Middle");
     }
 
     [Fact]
     public void Build_ShouldMaintainModifierOrder()
     {
         // Arrange
-        _keyCodeMapper.GetKeyName(KeyA).Returns("A");
+        _ = _keyCodeMapper.GetKeyName(KeyA).Returns("A");
         var modifiers = new HashSet<int> { LeftAlt, LeftShift, LeftCtrl }; // Random order
 
         // Act
@@ -118,10 +118,10 @@ public class HotkeyStringBuilderTests
 
         // Assert - should be Ctrl+Shift+Alt+A (standard order)
         var parts = result.Split('+');
-        parts[0].Should().Be("Ctrl");
-        parts[1].Should().Be("Shift");
-        parts[2].Should().Be("Alt");
-        parts[3].Should().Be("A");
+        _ = parts[0].Should().Be("Ctrl");
+        _ = parts[1].Should().Be("Shift");
+        _ = parts[2].Should().Be("Alt");
+        _ = parts[3].Should().Be("A");
     }
 
     [Theory]
@@ -145,11 +145,11 @@ public class HotkeyStringBuilderTests
     [InlineData(InputEventCode.KEY_YEN, "Yen")]
     public void Build_ShouldUseMapperDisplayName_ForRoundTripKeys(int keyCode, string displayName)
     {
-        _keyCodeMapper.GetKeyName(keyCode).Returns(displayName);
+        _ = _keyCodeMapper.GetKeyName(keyCode).Returns(displayName);
         var modifiers = new HashSet<int>();
 
         var result = _builder.Build(keyCode, modifiers);
 
-        result.Should().Be(displayName);
+        _ = result.Should().Be(displayName);
     }
 }

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Native.Evdev;
 
-public static class EvdevNative
+public static partial class EvdevNative
 {
     private const string LibC = "libc";
 
@@ -29,20 +29,20 @@ public static class EvdevNative
                (uint)(evdevGetBitBase + eventType);
     }
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern int open(string pathname, int flags);
+    [LibraryImport(LibC, SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int open(string pathname, int flags);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern int close(int fd);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int close(int fd);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern IntPtr read(int fd, IntPtr buf, IntPtr count);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial IntPtr read(int fd, IntPtr buf, IntPtr count);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern int ioctl(int fd, ulong request, byte[] data);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int ioctl(int fd, ulong request, byte[] data);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern int ioctl(int fd, ulong request, IntPtr data);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int ioctl(int fd, ulong request, IntPtr data);
 
     public const int O_RDONLY = 0x0000;
     public const int O_NONBLOCK = 0x0800;

@@ -8,7 +8,7 @@ public sealed class WindowsMousePositionProvider : IMousePositionProvider
 
     public Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {
-        if (User32.GetCursorPos(out POINT pt))
+        if (User32.GetCursorPos(out PointStruct pt))
         {
             return Task.FromResult<(int X, int Y)?>((pt.x, pt.y));
         }
@@ -27,7 +27,5 @@ public sealed class WindowsMousePositionProvider : IMousePositionProvider
         return Task.FromResult<(int Width, int Height)?>(null);
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

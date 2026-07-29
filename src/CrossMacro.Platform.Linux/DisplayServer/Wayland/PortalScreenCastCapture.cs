@@ -1,29 +1,20 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
+public sealed class PortalScreenCastCapture(
+    IPortalScreenCastSupportProbe supportProbe,
+    IPortalScreenCastSessionFactory sessionFactory,
+    IPortalPipeWireFrameCaptureFactory pipeWireFactory) : IPortalScreenCastCapture
 {
-    private readonly IPortalScreenCastSupportProbe _supportProbe;
-    private readonly IPortalScreenCastSessionFactory _sessionFactory;
-    private readonly IPortalPipeWireFrameCaptureFactory _pipeWireFactory;
+    private readonly IPortalScreenCastSupportProbe _supportProbe = supportProbe ?? throw new ArgumentNullException(nameof(supportProbe));
+    private readonly IPortalScreenCastSessionFactory _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
+    private readonly IPortalPipeWireFrameCaptureFactory _pipeWireFactory = pipeWireFactory ?? throw new ArgumentNullException(nameof(pipeWireFactory));
     private readonly SemaphoreSlim _sessionLock = new(1, 1);
     private PortalScreenCastSession? _session;
     private bool _disposed;
 
     public PortalScreenCastCapture()
-        : this(PortalScreenCastSupportProbe.Instance, PortalScreenCastDbusSessionFactory.Instance, PortalPipeWireFrameCaptureFactory.Instance)
-    {
-    }
-
-    public PortalScreenCastCapture(
-        IPortalScreenCastSupportProbe supportProbe,
-        IPortalScreenCastSessionFactory sessionFactory,
-        IPortalPipeWireFrameCaptureFactory pipeWireFactory)
-    {
-        _supportProbe = supportProbe ?? throw new ArgumentNullException(nameof(supportProbe));
-        _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
-        _pipeWireFactory = pipeWireFactory ?? throw new ArgumentNullException(nameof(pipeWireFactory));
-    }
+        : this(PortalScreenCastSupportProbe.Instance, PortalScreenCastDbusSessionFactory.Instance, PortalPipeWireFrameCaptureFactory.Instance) { /* Empty */ }
 
     public PortalScreenCastSupportResult ProbeSupport() => _supportProbe.ProbeSupport();
 
@@ -127,7 +118,7 @@ public sealed class PortalScreenCastCapture : IPortalScreenCastCapture
         }
         finally
         {
-            _sessionLock.Release();
+            _ = _sessionLock.Release();
         }
     }
 

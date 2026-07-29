@@ -5,18 +5,17 @@ namespace CrossMacro.Platform.Linux.Services.Keyboard;
 /// Manages XKB context, keymap, and state for character-to-keycode translation.
 /// Handles modifier state tracking and maintains a character input cache.
 /// </summary>
-public class XkbStateManager : IXkbStateManager
+public sealed class XkbStateManager : IXkbStateManager
 {
     private IntPtr _xkbContext;
     private IntPtr _xkbKeymap;
     private IntPtr _xkbState;
     private readonly Lock _lock = new();
+    private bool _disposed;
 
     private uint _modIndexShift;
     private uint _modIndexLock;
-    private uint _modIndexAlt;
     private uint _modIndexAltGr;
-    private uint _modIndexCtrl;
 
     private Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>? _charToInputCache;
 
@@ -26,6 +25,11 @@ public class XkbStateManager : IXkbStateManager
     {
         lock (_lock)
         {
+            if (_disposed)
+            {
+                return;
+            }
+
             try
             {
                 Log.Information("[XkbStateManager] Initializing with layout: {Layout}", layout ?? "default");
@@ -48,7 +52,7 @@ public class XkbStateManager : IXkbStateManager
                 _xkbState = XkbNative.xkb_state_new(_xkbKeymap);
                 UpdateModifierIndices();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[XkbStateManager] Error initializing XKB");
             }
@@ -82,7 +86,7 @@ public class XkbStateManager : IXkbStateManager
         {
             lock (_lock)
             {
-                XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
+                _ = XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
 
                 uint depressedMods = 0;
                 if (shift && _modIndexShift != XkbNative.XKB_MOD_INVALID)
@@ -101,9 +105,9 @@ public class XkbStateManager : IXkbStateManager
                     lockedMods |= 1u << (int)_modIndexLock;
                 }
 
-                XkbNative.xkb_state_update_mask(_xkbState, depressedMods, 0, lockedMods, 0, 0, 0);
+                _ = XkbNative.xkb_state_update_mask(_xkbState, depressedMods, 0, lockedMods, 0, 0, 0);
                 var utf8 = XkbNative.GetUtf8String(_xkbState, (uint)(keyCode + 8));
-                XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
+                _ = XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
 
                 if (!string.IsNullOrEmpty(utf8) && utf8.Length is 1)
                 {
@@ -138,8 +142,6 @@ public class XkbStateManager : IXkbStateManager
 
         _modIndexShift = GetModIndex("Shift");
         _modIndexLock = GetModIndex("Lock", "Caps_Lock");
-        _modIndexCtrl = GetModIndex("Control", "Ctrl");
-        _modIndexAlt = GetModIndex("Mod1", "Alt", "LAlt");
         _modIndexAltGr = GetModIndex("ISO_Level3_Shift", "Mod5", "AltGr", "RAlt");
     }
 
@@ -186,23 +188,39 @@ public class XkbStateManager : IXkbStateManager
 
     public void Dispose()
     {
+        DisposeResources();
+        GC.SuppressFinalize(this);
+    }
+
+    private void DisposeResources()
+    {
+        // Unref under _lock to avoid racing a background Initialize; _disposed makes later
+        // Initialize calls no-ops.
+        lock (_lock)
+        {
+            _disposed = true;
+            DisposeResourcesUnderLock();
+        }
+    }
+
+    private void DisposeResourcesUnderLock()
+    {
         if (_xkbState != IntPtr.Zero)
         {
             XkbNative.xkb_state_unref(_xkbState);
+            _xkbState = IntPtr.Zero;
         }
 
         if (_xkbKeymap != IntPtr.Zero)
         {
             XkbNative.xkb_keymap_unref(_xkbKeymap);
+            _xkbKeymap = IntPtr.Zero;
         }
 
         if (_xkbContext != IntPtr.Zero)
         {
             XkbNative.xkb_context_unref(_xkbContext);
+            _xkbContext = IntPtr.Zero;
         }
-
-        _xkbState = IntPtr.Zero;
-        _xkbKeymap = IntPtr.Zero;
-        _xkbContext = IntPtr.Zero;
     }
 }

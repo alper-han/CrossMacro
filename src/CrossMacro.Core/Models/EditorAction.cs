@@ -1133,29 +1133,28 @@ public class EditorAction : INotifyPropertyChanged
     /// </summary>
     public string DisplayName => GenerateDisplayName();
 
-#pragma warning disable MA0076
     private string GenerateDisplayName()
     {
         return Type switch
         {
-            EditorActionType.MouseMove when IsAbsolute => $"Move to ({X}, {Y})",
-            EditorActionType.MouseMove => $"Move by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseMove when IsAbsolute => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Move to ({X}, {Y})"),
+            EditorActionType.MouseMove => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Move by ({X:+#;-#;0}, {Y:+#;-#;0})"),
             EditorActionType.MouseClick when UseCurrentPosition => $"Click {Button} at current position",
-            EditorActionType.MouseClick when IsAbsolute => $"Click {Button} at ({X}, {Y})",
-            EditorActionType.MouseClick => $"Click {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseClick when IsAbsolute => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Click {Button} at ({X}, {Y})"),
+            EditorActionType.MouseClick => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Click {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})"),
             EditorActionType.MouseDown when UseCurrentPosition => $"Hold {Button} at current position",
-            EditorActionType.MouseDown when IsAbsolute => $"Hold {Button} at ({X}, {Y})",
-            EditorActionType.MouseDown => $"Hold {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseDown when IsAbsolute => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Hold {Button} at ({X}, {Y})"),
+            EditorActionType.MouseDown => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Hold {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})"),
             EditorActionType.MouseUp when UseCurrentPosition => $"Release {Button} at current position",
-            EditorActionType.MouseUp when IsAbsolute => $"Release {Button} at ({X}, {Y})",
-            EditorActionType.MouseUp => $"Release {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseUp when IsAbsolute => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Release {Button} at ({X}, {Y})"),
+            EditorActionType.MouseUp => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Release {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})"),
             EditorActionType.KeyPress => $"Press '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
             EditorActionType.KeyDown => $"Hold '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
             EditorActionType.KeyUp => $"Release '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
-            EditorActionType.Delay when UseRandomDelay => $"Wait {RandomDelayMinMs}-{RandomDelayMaxMs}ms (random)",
-            EditorActionType.Delay => $"Wait {DelayMs}ms",
-            EditorActionType.ScrollVertical => ScrollAmount > 0 ? $"Scroll Up {ScrollAmount}" : $"Scroll Down {Math.Abs(ScrollAmount)}",
-            EditorActionType.ScrollHorizontal => ScrollAmount > 0 ? $"Scroll Right {ScrollAmount}" : $"Scroll Left {Math.Abs(ScrollAmount)}",
+            EditorActionType.Delay when UseRandomDelay => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait {RandomDelayMinMs}-{RandomDelayMaxMs}ms (random)"),
+            EditorActionType.Delay => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait {DelayMs}ms"),
+            EditorActionType.ScrollVertical => ScrollAmount > 0 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Up {ScrollAmount}") : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Down {Math.Abs(ScrollAmount)}"),
+            EditorActionType.ScrollHorizontal => ScrollAmount > 0 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Right {ScrollAmount}") : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Left {Math.Abs(ScrollAmount)}"),
             EditorActionType.TextInput => GetTextInputDisplayName(),
             EditorActionType.SetVariable => GetSetVariableDisplayName(),
             EditorActionType.IncrementVariable => GetIncrementVariableDisplayName(),
@@ -1253,7 +1252,6 @@ public class EditorAction : INotifyPropertyChanged
         var stepText = Text.Length > 40 ? Text[..40] + "..." : Text;
         return $"Raw Script: {stepText}";
     }
-#pragma warning restore MA0076
 
     /// <summary>
     /// Validates this action.
@@ -1662,40 +1660,39 @@ public class EditorAction : INotifyPropertyChanged
         }
     }
 
-#pragma warning disable MA0076
     private static string BuildPixelColorDisplayName(EditorActionScreenReadingPayload payload)
     {
         return payload.IsAbsolute
-            ? $"Pixel color ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}"
-            : $"Pixel color rel ({payload.ScreenX:+#;-#;0}, {payload.ScreenY:+#;-#;0}) -> {payload.ScreenColorVariableName}";
+            ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel color ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}")
+            : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel color rel ({payload.ScreenX:+#;-#;0}, {payload.ScreenY:+#;-#;0}) -> {payload.ScreenColorVariableName}");
     }
 
     private static string BuildWaitColorDisplayName(EditorActionScreenReadingPayload payload)
     {
-        return $"Wait color {payload.FormatTargetColorToken()} at ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}";
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait color {payload.FormatTargetColorToken()} at ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}");
     }
 
     private static string BuildPixelSearchDisplayName(EditorActionScreenReadingPayload payload)
     {
-        return $"Pixel search {payload.FormatTargetColorToken()} in ({payload.ScreenLeft}, {payload.ScreenTop}, {payload.ScreenWidth}x{payload.ScreenHeight}) -> {payload.ScreenFoundVariableName}, {payload.ScreenFoundXVariableName}, {payload.ScreenFoundYVariableName}";
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel search {payload.FormatTargetColorToken()} in ({payload.ScreenLeft}, {payload.ScreenTop}, {payload.ScreenWidth}x{payload.ScreenHeight}) -> {payload.ScreenFoundVariableName}, {payload.ScreenFoundXVariableName}, {payload.ScreenFoundYVariableName}");
     }
 
     private string BuildImageSearchDisplayName()
     {
         var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
-        return $"Image search {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight}) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}";
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Image search {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight}) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}");
     }
 
     private string BuildImageClickDisplayName()
     {
         var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
-        return $"Image click {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight})";
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Image click {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight})");
     }
 
     private string BuildWaitImageDisplayName()
     {
         var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
-        return $"Wait image {imageName} ({ScreenTimeoutMs}ms) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}";
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait image {imageName} ({ScreenTimeoutMs}ms) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}");
     }
 
     private string BuildScreenshotDisplayName()
@@ -1721,11 +1718,11 @@ public class EditorAction : INotifyPropertyChanged
         {
             WindowCommandMode.Active => $"Get active window {WindowActiveField} -> {WindowOutputVariable}",
             WindowCommandMode.Search => $"Search window by {WindowSelectorKind} \"{WindowSelectorValue}\" -> {WindowOutputVariable}",
-            WindowCommandMode.Wait => $"Wait for window {WindowSelectorKind} \"{WindowSelectorValue}\" ({WindowTimeoutMs}ms) -> {WindowOutputVariable}",
+            WindowCommandMode.Wait => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait for window {WindowSelectorKind} \"{WindowSelectorValue}\" ({WindowTimeoutMs}ms) -> {WindowOutputVariable}"),
             WindowCommandMode.Focus => FormatWindowSelectorSummary("Focus"),
             WindowCommandMode.Close => FormatWindowSelectorSummary("Close"),
-            WindowCommandMode.Move => $"Move active window to {WindowX}, {WindowY}",
-            WindowCommandMode.Resize => $"Resize active window to {WindowWidth}x{WindowHeight}",
+            WindowCommandMode.Move => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Move active window to {WindowX}, {WindowY}"),
+            WindowCommandMode.Resize => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Resize active window to {WindowWidth}x{WindowHeight}"),
             WindowCommandMode.Center => "Center active window",
             WindowCommandMode.Maximize => "Maximize active window",
             WindowCommandMode.Fullscreen => "Fullscreen active window",
@@ -1737,7 +1734,6 @@ public class EditorAction : INotifyPropertyChanged
             _ => "Window Command",
         };
     }
-#pragma warning restore MA0076
 
     private string FormatWindowSelectorSummary(string verb)
     {

@@ -4,7 +4,10 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Handles saving and loading macro sequences from files
 /// </summary>
-public class MacroFileManager : IMacroFileManager
+public class MacroFileManager(
+    Func<IKeyCodeMapper> keyCodeMapperFactory,
+    IImageAssetCodec? imageAssetCodec = null,
+    IScriptValidationService? scriptValidationService = null) : IMacroFileManager
 {
     private const long MaxMacroFileBytes = 32L * 1024 * 1024;
     private const int MaxMacroLineChars = 256 * 1024;
@@ -18,9 +21,9 @@ public class MacroFileManager : IMacroFileManager
     private const string ScriptSectionHeader = "[Script]";
     private const string EventsSectionHeader = "[Events]";
     private const string ScriptContinuationPrefix = "| ";
-    private readonly Func<IKeyCodeMapper> _keyCodeMapperFactory;
-    private readonly IImageAssetCodec _imageAssetCodec;
-    private readonly IScriptValidationService? _scriptValidationService;
+    private readonly Func<IKeyCodeMapper> _keyCodeMapperFactory = keyCodeMapperFactory ?? throw new ArgumentNullException(nameof(keyCodeMapperFactory));
+    private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
+    private readonly IScriptValidationService? _scriptValidationService = scriptValidationService;
 
     private enum MacroFileReadSection
     {
@@ -29,29 +32,19 @@ public class MacroFileManager : IMacroFileManager
         Events,
     }
 
-    public MacroFileManager(
-        Func<IKeyCodeMapper> keyCodeMapperFactory,
-        IImageAssetCodec? imageAssetCodec = null,
-        IScriptValidationService? scriptValidationService = null)
-    {
-        _keyCodeMapperFactory = keyCodeMapperFactory ?? throw new ArgumentNullException(nameof(keyCodeMapperFactory));
-        _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
-        _scriptValidationService = scriptValidationService;
-    }
-
     /// <summary>
     /// Saves a macro sequence to a custom text file (.macro)
     /// </summary>
     public async Task SaveAsync(MacroSequence macro, string filePath)
     {
-        var document = Canonical.PersistedMacroCodec.Encode(macro);
+        var document = PersistedMacroCodec.Encode(macro);
         await SaveDocumentAsync(document, filePath).ConfigureAwait(false);
     }
 
-    private async Task SaveDocumentAsync(Canonical.PersistedMacroDocument document, string filePath)
+    private async Task SaveDocumentAsync(PersistedMacroDocument document, string filePath)
     {
         ArgumentNullException.ThrowIfNull(document);
-        var macro = Canonical.PersistedMacroCodec.Decode(document);
+        var macro = PersistedMacroCodec.Decode(document);
 
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -64,24 +57,25 @@ public class MacroFileManager : IMacroFileManager
         }
 
         ValidateScriptStepsBeforeSave(macro);
-        var imageAssets = ValidateImagesBeforeSave(macro);
+        var imageAssets = await ValidateImagesBeforeSaveAsync(macro).ConfigureAwait(false);
 
         var directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
-            Directory.CreateDirectory(directory);
+            _ = Directory.CreateDirectory(directory);
         }
 
         var temporaryPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
         try
         {
-            await using (var temporaryStream = new FileStream(
+            var temporaryStream = new FileStream(
                 temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,
                 FileShare.None,
                 65536,
-                FileOptions.Asynchronous | FileOptions.WriteThrough))
+                FileOptions.Asynchronous | FileOptions.WriteThrough);
+            await using (temporaryStream.ConfigureAwait(false))
             {
                 using (var writer = new StreamWriter(temporaryStream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true))
                 {
@@ -156,10 +150,10 @@ public class MacroFileManager : IMacroFileManager
                         }
                     }
 
-                    await writer.FlushAsync().ConfigureAwait(false);
+                    await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
                 }
 
-                temporaryStream.Flush(flushToDisk: true);
+                await temporaryStream.FlushAsync(CancellationToken.None).ConfigureAwait(false);
             }
 
             if (File.Exists(filePath))
@@ -231,7 +225,8 @@ public class MacroFileManager : IMacroFileManager
         }
 
         var validationService = _scriptValidationService ?? new ScriptValidationService(_keyCodeMapperFactory());
-        var diagnostic = validationService.Validate(steps).FirstOrDefault();
+        var diagnostics = validationService.Validate(steps);
+        var diagnostic = diagnostics.Count > 0 ? diagnostics[0] : null;
         if (diagnostic is not null)
         {
             throw new InvalidOperationException($"Cannot save invalid macro script steps: {diagnostic.Message}");
@@ -271,7 +266,8 @@ public class MacroFileManager : IMacroFileManager
 
         ValidateMacroFile(filePath);
         var macro = new MacroSequence();
-        await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var fileStreamDisposal = fileStream.ConfigureAwait(false);
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 65536);
         var lineReader = new BoundedLineReader(reader, MaxMacroLineChars);
 
@@ -280,21 +276,22 @@ public class MacroFileManager : IMacroFileManager
         int currentRandomDelayMinMs = 0;
         int currentRandomDelayMaxMs = 0;
         var section = MacroFileReadSection.Header;
-        string? pendingScriptStep = null;
+        StringBuilder? pendingScriptStep = null;
         var totalEncodedImageChars = 0L;
         var lineNumber = 0;
         var scriptStepCount = 0;
 
         void CommitPendingScriptStep()
         {
-            if (!string.IsNullOrWhiteSpace(pendingScriptStep))
+            var scriptStep = pendingScriptStep?.ToString();
+            if (!string.IsNullOrWhiteSpace(scriptStep))
             {
                 if (++scriptStepCount > MaxMacroScriptSteps)
                 {
                     throw new InvalidDataException($"Macro script exceeds the maximum of {MaxMacroScriptSteps} steps.");
                 }
 
-                macro.ScriptSteps.Add(pendingScriptStep);
+                macro.ScriptSteps.Add(scriptStep);
             }
 
             pendingScriptStep = null;
@@ -343,12 +340,12 @@ public class MacroFileManager : IMacroFileManager
                         continue;
                     }
 
-                    pendingScriptStep += "\n" + line[ScriptContinuationPrefix.Length..];
+                    _ = pendingScriptStep.Append('\n').Append(line[ScriptContinuationPrefix.Length..]);
                     continue;
                 }
 
                 CommitPendingScriptStep();
-                pendingScriptStep = line;
+                pendingScriptStep = new StringBuilder(line);
                 continue;
             }
 
@@ -364,11 +361,11 @@ public class MacroFileManager : IMacroFileManager
                 {
                     macro.Name = line.Substring(8).Trim();
                 }
-                else if (line.StartsWith("# Created: ", StringComparison.Ordinal) && DateTime.TryParse(line.Substring(11).Trim(), out var date))
+                else if (line.StartsWith("# Created: ", StringComparison.Ordinal) && DateTime.TryParse(line.Substring(11).Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                 {
                     macro.CreatedAt = date;
                 }
-                else if (line.StartsWith("# DurationMs: ", StringComparison.Ordinal) && long.TryParse(line.Substring(14).Trim(), out var duration))
+                else if (line.StartsWith("# DurationMs: ", StringComparison.Ordinal) && long.TryParse(line.Substring(14).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var duration))
                 {
                     macro.TotalDurationMs = duration;
                 }
@@ -381,7 +378,7 @@ public class MacroFileManager : IMacroFileManager
                     macro.SkipInitialZeroZero = skipZero;
                 }
                 else if (line.StartsWith(TrailingDelayHeader, StringComparison.Ordinal)
-                                    && int.TryParse(line.Substring(TrailingDelayHeader.Length).Trim(), out var trailingDelay))
+                                    && int.TryParse(line.Substring(TrailingDelayHeader.Length).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingDelay))
                 {
                     macro.TrailingDelayMs = trailingDelay;
                 }
@@ -389,8 +386,8 @@ public class MacroFileManager : IMacroFileManager
                 {
                     var trailingRandomParts = line.Substring(TrailingRandomDelayHeader.Length).Trim().Split(',');
                     if (trailingRandomParts.Length >= 2
-                        && int.TryParse(trailingRandomParts[0], out var trailingRandomMin)
-                        && int.TryParse(trailingRandomParts[1], out var trailingRandomMax))
+                        && int.TryParse(trailingRandomParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingRandomMin)
+                        && int.TryParse(trailingRandomParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingRandomMax))
                     {
                         macro.HasTrailingRandomDelay = true;
                         macro.TrailingDelayMinMs = trailingRandomMin;
@@ -420,7 +417,7 @@ public class MacroFileManager : IMacroFileManager
                 }
                 else if (line.StartsWith(ImageHeader, StringComparison.Ordinal))
                 {
-                    TryAddImageMetadata(macro, line, ref totalEncodedImageChars);
+                    totalEncodedImageChars = await TryAddImageMetadataAsync(macro, line, totalEncodedImageChars).ConfigureAwait(false);
                 }
 
                 continue;
@@ -443,7 +440,7 @@ public class MacroFileManager : IMacroFileManager
             // Handle Wait
             if ((type is "W" or "WAIT") && parts.Length >= 2)
             {
-                if (int.TryParse(parts[1], out int delay))
+                if (int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int delay))
                 {
                     currentDelay += delay;
                 }
@@ -451,7 +448,7 @@ public class MacroFileManager : IMacroFileManager
             }
             if ((type is "WR" or "WAITRANDOM") && parts.Length >= 3)
             {
-                if (int.TryParse(parts[1], out int randomMinDelay) && int.TryParse(parts[2], out int randomMaxDelay))
+                if (int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int randomMinDelay) && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int randomMaxDelay))
                 {
                     currentHasRandomDelay = true;
                     currentRandomDelayMinMs += randomMinDelay;
@@ -475,7 +472,7 @@ public class MacroFileManager : IMacroFileManager
                 if ((type is "M" or "MOVE") && parts.Length >= 3)
                 {
                     var coordinateIndex = 1;
-                    if (!int.TryParse(parts[coordinateIndex], out var x))
+                    if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
                     {
                         if (parts.Length < 4 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode))
                         {
@@ -484,12 +481,12 @@ public class MacroFileManager : IMacroFileManager
 
                         ev.CoordinateMode = mode;
                         coordinateIndex++;
-                        x = int.Parse(parts[coordinateIndex]);
+                        x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     }
 
                     ev.Type = EventType.MouseMove;
                     ev.X = x;
-                    ev.Y = int.Parse(parts[coordinateIndex + 1]);
+                    ev.Y = int.Parse(parts[coordinateIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     ev.Button = MacroMouseButton.None;
                     validEvent = true;
                 }
@@ -498,7 +495,7 @@ public class MacroFileManager : IMacroFileManager
                 {
                     var coordinateIndex = 1;
                     MouseCoordinateMode? coordinateMode = null;
-                    if (!int.TryParse(parts[coordinateIndex], out var x))
+                    if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
                     {
                         if (parts.Length < 5 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode))
                         {
@@ -507,7 +504,7 @@ public class MacroFileManager : IMacroFileManager
 
                         coordinateMode = mode;
                         coordinateIndex++;
-                        x = int.Parse(parts[coordinateIndex]);
+                        x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     }
 
                     ev.Type = type switch
@@ -518,8 +515,8 @@ public class MacroFileManager : IMacroFileManager
                         _ => EventType.Click,
                     };
                     ev.X = x;
-                    ev.Y = int.Parse(parts[coordinateIndex + 1]);
-                    ev.Button = Enum.Parse<MacroMouseButton>(parts[coordinateIndex + 2]);
+                    ev.Y = int.Parse(parts[coordinateIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture);
+                    ev.Button = Enum.Parse<MacroMouseButton>(parts[coordinateIndex + 2], ignoreCase: true);
                     ev.UseCurrentPosition = parts.Length > coordinateIndex + 3 && IsCurrentPositionToken(parts[coordinateIndex + 3]);
                     if (!ev.UseCurrentPosition && MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
                     {
@@ -532,7 +529,7 @@ public class MacroFileManager : IMacroFileManager
                 else if ((type is "KP" or "KEYPRESS") && parts.Length >= 2)
                 {
                     ev.Type = EventType.KeyPress;
-                    ev.KeyCode = int.Parse(parts[1]);
+                    ev.KeyCode = int.Parse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     ev.Button = MacroMouseButton.None;
                     ev.X = 0;
                     ev.Y = 0;
@@ -541,7 +538,7 @@ public class MacroFileManager : IMacroFileManager
                 else if ((type is "KR" or "KEYRELEASE") && parts.Length >= 2)
                 {
                     ev.Type = EventType.KeyRelease;
-                    ev.KeyCode = int.Parse(parts[1]);
+                    ev.KeyCode = int.Parse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     ev.Button = MacroMouseButton.None;
                     ev.X = 0;
                     ev.Y = 0;
@@ -584,7 +581,7 @@ public class MacroFileManager : IMacroFileManager
                     currentRandomDelayMaxMs = 0;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "Error parsing line: {Line}", line);
                 currentDelay = 0;
@@ -610,7 +607,8 @@ public class MacroFileManager : IMacroFileManager
     private static void ValidateMacroFile(string filePath)
     {
         var fileInfo = new FileInfo(filePath);
-        if ((fileInfo.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+        if (fileInfo.Attributes.HasFlag(FileAttributes.Directory)
+            || fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
         {
             throw new InvalidDataException("Macro path must refer to a regular file.");
         }
@@ -642,7 +640,7 @@ public class MacroFileManager : IMacroFileManager
             || token.Trim().Equals("1", StringComparison.OrdinalIgnoreCase);
     }
 
-    private void TryAddImageMetadata(MacroSequence macro, string line, ref long totalEncodedImageChars)
+    private async Task<long> TryAddImageMetadataAsync(MacroSequence macro, string line, long totalEncodedImageChars)
     {
         var metadata = line.Substring(ImageHeader.Length);
         var separatorIndex = metadata.IndexOf('=', StringComparison.Ordinal);
@@ -658,13 +656,14 @@ public class MacroFileManager : IMacroFileManager
             throw new InvalidDataException($"Image asset '{name}': Image asset name is invalid.");
         }
 
-        _imageAssetCodec.ValidateBase64Png(encoded, name);
+        await _imageAssetCodec.ValidateBase64PngAsync(encoded, name, CancellationToken.None).ConfigureAwait(false);
         totalEncodedImageChars = checked(totalEncodedImageChars + encoded.Length);
         _imageAssetCodec.ValidateMacroBudget(totalEncodedImageChars);
         macro.Images[name] = encoded;
+        return totalEncodedImageChars;
     }
 
-    private List<KeyValuePair<string, string>> ValidateImagesBeforeSave(MacroSequence macro)
+    private async Task<List<KeyValuePair<string, string>>> ValidateImagesBeforeSaveAsync(MacroSequence macro)
     {
         if (macro.Images is null || macro.Images.Count is 0)
         {
@@ -687,7 +686,7 @@ public class MacroFileManager : IMacroFileManager
                 throw new InvalidDataException($"Image asset '{image.Key}': Image asset metadata is malformed.");
             }
 
-            _imageAssetCodec.ValidateBase64Png(encoded, image.Key);
+            await _imageAssetCodec.ValidateBase64PngAsync(encoded, image.Key, CancellationToken.None).ConfigureAwait(false);
             totalEncodedBytes = checked(totalEncodedBytes + encoded.Length);
             imageAssets.Add(new KeyValuePair<string, string>(image.Key, encoded));
         }
@@ -717,10 +716,10 @@ public class MacroFileManager : IMacroFileManager
             }
 
             var imageNameIndex = parts.Length >= 6
-                && int.TryParse(parts[1], out _)
-                && int.TryParse(parts[2], out _)
-                && int.TryParse(parts[3], out _)
-                && int.TryParse(parts[4], out _)
+                && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+                && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+                && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+                && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
                 ? 5
                 : 1;
             var imageName = parts[imageNameIndex];
@@ -731,19 +730,13 @@ public class MacroFileManager : IMacroFileManager
         }
     }
 
-    private sealed class BoundedLineReader
+    private sealed class BoundedLineReader(StreamReader reader, int maxChars)
     {
-        private readonly StreamReader _reader;
-        private readonly int _maxChars;
+        private readonly StreamReader _reader = reader;
+        private readonly int _maxChars = maxChars;
         private readonly char[] _buffer = new char[4096];
         private int _bufferPosition;
         private int _bufferLength;
-
-        public BoundedLineReader(StreamReader reader, int maxChars)
-        {
-            _reader = reader;
-            _maxChars = maxChars;
-        }
 
         public async Task<string?> ReadLineAsync()
         {
@@ -752,7 +745,7 @@ public class MacroFileManager : IMacroFileManager
             {
                 if (_bufferPosition == _bufferLength)
                 {
-                    _bufferLength = await _reader.ReadAsync(_buffer.AsMemory()).ConfigureAwait(false);
+                    _bufferLength = await _reader.ReadAsync(_buffer.AsMemory(), CancellationToken.None).ConfigureAwait(false);
                     _bufferPosition = 0;
                     if (_bufferLength is 0)
                     {
@@ -768,7 +761,7 @@ public class MacroFileManager : IMacroFileManager
                     throw new InvalidDataException($"Macro line exceeds the maximum of {_maxChars.ToString(CultureInfo.InvariantCulture)} characters.");
                 }
 
-                builder.Append(_buffer, _bufferPosition, segmentLength);
+                _ = builder.Append(_buffer, _bufferPosition, segmentLength);
                 _bufferPosition = segmentEnd;
                 if (lineEnd < 0)
                 {

@@ -2,14 +2,9 @@
 namespace CrossMacro.Platform.Windows.Services;
 
 [SupportedOSPlatform("windows")]
-internal sealed class WindowsCliClipboardService : IClipboardService
+internal sealed class WindowsCliClipboardService(StaMessageThread staThread) : IClipboardService
 {
-    private readonly StaMessageThread _staThread;
-
-    public WindowsCliClipboardService(StaMessageThread staThread)
-    {
-        _staThread = staThread;
-    }
+    private readonly StaMessageThread _staThread = staThread;
 
     public bool IsSupported => OperatingSystem.IsWindows();
 
@@ -17,75 +12,81 @@ internal sealed class WindowsCliClipboardService : IClipboardService
     {
         if (string.IsNullOrEmpty(text))
         {
-            return ClearAsync();
+            return ClearAsync(cancellationToken);
         }
 
-        return _staThread.InvokeAsync(() =>
-        {
-            text = text.Replace("\r\n", "\n").Replace("\n", "\r\n");
+        var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal);
+        return _staThread.InvokeAsync(() => SetTextInternal(normalized, _staThread.MessageWindowHandle));
+    }
 
-            if (!User32.OpenClipboard(_staThread.MessageWindowHandle))
+    private static void SetTextInternal(string text, IntPtr hwndOwner)
+    {
+        if (!User32.OpenClipboard(hwndOwner))
+        {
+            throw new InvalidOperationException("Failed to open Windows clipboard.");
+        }
+
+        try
+        {
+            if (!User32.EmptyClipboard())
             {
-                throw new InvalidOperationException("Failed to open Windows clipboard.");
+                throw new InvalidOperationException("Failed to empty Windows clipboard.");
+            }
+
+            WriteUnicodeTextToClipboard(text);
+        }
+        finally
+        {
+            _ = User32.CloseClipboard();
+        }
+    }
+
+    private static void WriteUnicodeTextToClipboard(string text)
+    {
+        int byteCount = (text.Length + 1) * 2;
+        IntPtr hGlobal = Kernel32.GlobalAlloc(Kernel32.GHND, (UIntPtr)byteCount);
+
+        if (hGlobal == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("Failed to allocate global memory for clipboard data.");
+        }
+
+        bool isOwnedBySystem = false;
+        try
+        {
+            IntPtr target = Kernel32.GlobalLock(hGlobal);
+            if (target == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("Failed to lock global memory for clipboard data.");
             }
 
             try
             {
-                if (!User32.EmptyClipboard())
+                for (int i = 0; i < text.Length; i++)
                 {
-                    throw new InvalidOperationException("Failed to empty Windows clipboard.");
-                }
-
-                int byteCount = (text.Length + 1) * 2;
-                IntPtr hGlobal = Kernel32.GlobalAlloc(Kernel32.GHND, (UIntPtr)byteCount);
-
-                if (hGlobal == IntPtr.Zero)
-                {
-                    throw new OutOfMemoryException("Failed to allocate global memory for clipboard data.");
-                }
-
-                bool isOwnedBySystem = false;
-                try
-                {
-                    IntPtr target = Kernel32.GlobalLock(hGlobal);
-                    if (target == IntPtr.Zero)
-                    {
-                        throw new InvalidOperationException("Failed to lock global memory for clipboard data.");
-                    }
-
-                    try
-                    {
-                        for (int i = 0; i < text.Length; i++)
-                        {
-                            Marshal.WriteInt16(target, i * 2, (short)text[i]);
-                        }
-                    }
-                    finally
-                    {
-                        Kernel32.GlobalUnlock(hGlobal);
-                    }
-
-                    IntPtr result = User32.SetClipboardData(User32.CF_UNICODETEXT, hGlobal);
-                    if (result == IntPtr.Zero)
-                    {
-                        throw new InvalidOperationException("Failed to set clipboard data.");
-                    }
-
-                    isOwnedBySystem = true;
-                }
-                finally
-                {
-                    if (!isOwnedBySystem)
-                    {
-                        Kernel32.GlobalFree(hGlobal);
-                    }
+                    Marshal.WriteInt16(target, i * 2, (short)text[i]);
                 }
             }
             finally
             {
-                User32.CloseClipboard();
+                _ = Kernel32.GlobalUnlock(hGlobal);
             }
-        });
+
+            IntPtr result = User32.SetClipboardData(User32.CF_UNICODETEXT, hGlobal);
+            if (result == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("Failed to set clipboard data.");
+            }
+
+            isOwnedBySystem = true;
+        }
+        finally
+        {
+            if (!isOwnedBySystem)
+            {
+                _ = Kernel32.GlobalFree(hGlobal);
+            }
+        }
     }
 
     public Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
@@ -107,68 +108,87 @@ internal sealed class WindowsCliClipboardService : IClipboardService
             {
                 if (User32.IsClipboardFormatAvailable(User32.CF_UNICODETEXT))
                 {
-                    IntPtr hGlobal = User32.GetClipboardData(User32.CF_UNICODETEXT);
-                    if (hGlobal != IntPtr.Zero)
-                    {
-                        IntPtr source = Kernel32.GlobalLock(hGlobal);
-                        if (source != IntPtr.Zero)
-                        {
-                            try
-                            {
-                                return Marshal.PtrToStringUni(source);
-                            }
-                            finally
-                            {
-                                Kernel32.GlobalUnlock(hGlobal);
-                            }
-                        }
-                    }
+                    return GetUnicodeTextFromClipboard();
                 }
-                else if (User32.IsClipboardFormatAvailable(User32.CF_TEXT))
+                if (User32.IsClipboardFormatAvailable(User32.CF_TEXT))
                 {
-                    IntPtr hGlobal = User32.GetClipboardData(User32.CF_TEXT);
-                    if (hGlobal != IntPtr.Zero)
-                    {
-                        IntPtr source = Kernel32.GlobalLock(hGlobal);
-                        if (source != IntPtr.Zero)
-                        {
-                            try
-                            {
-                                return Marshal.PtrToStringAnsi(source);
-                            }
-                            finally
-                            {
-                                Kernel32.GlobalUnlock(hGlobal);
-                            }
-                        }
-                    }
+                    return GetAnsiTextFromClipboard();
                 }
 
                 return null;
             }
             finally
             {
-                User32.CloseClipboard();
+                _ = User32.CloseClipboard();
             }
         });
     }
 
-    private Task ClearAsync()
+    private static string? GetUnicodeTextFromClipboard()
     {
-        return _staThread.InvokeAsync(() =>
+        IntPtr hGlobal = User32.GetClipboardData(User32.CF_UNICODETEXT);
+        if (hGlobal == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        IntPtr source = Kernel32.GlobalLock(hGlobal);
+        if (source == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        try
+        {
+            return Marshal.PtrToStringUni(source);
+        }
+        finally
+        {
+            _ = Kernel32.GlobalUnlock(hGlobal);
+        }
+    }
+
+    private static string? GetAnsiTextFromClipboard()
+    {
+        IntPtr hGlobal = User32.GetClipboardData(User32.CF_TEXT);
+        if (hGlobal == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        IntPtr source = Kernel32.GlobalLock(hGlobal);
+        if (source == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        try
+        {
+            return Marshal.PtrToStringAnsi(source);
+        }
+        finally
+        {
+            _ = Kernel32.GlobalUnlock(hGlobal);
+        }
+    }
+
+    private async Task ClearAsync(CancellationToken cancellationToken = default)
+    {
+        await _staThread.InvokeAsync(() =>
         {
             if (User32.OpenClipboard(_staThread.MessageWindowHandle))
             {
                 try
                 {
-                    User32.EmptyClipboard();
+                    _ = User32.EmptyClipboard();
                 }
                 finally
                 {
-                    User32.CloseClipboard();
-                    Thread.Sleep(100);
+                    _ = User32.CloseClipboard();
                 }
             }
-        });
+        }).ConfigureAwait(false);
+
+        await Task.Delay(100, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -1,14 +1,14 @@
 namespace CrossMacro.Core.Tests.Models;
 
 
-public class MacroPositionSemanticsTests
+public sealed class MacroPositionSemanticsTests
 {
     [Fact]
     public void IsCoordinateBearing_WhenMouseMove_ReturnsTrue()
     {
         var ev = new MacroEvent { Type = EventType.MouseMove };
 
-        MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeTrue();
+        _ = MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeTrue();
     }
 
     [Theory]
@@ -24,7 +24,7 @@ public class MacroPositionSemanticsTests
             UseCurrentPosition = false,
         };
 
-        MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeTrue();
+        _ = MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeTrue();
     }
 
     [Theory]
@@ -41,8 +41,8 @@ public class MacroPositionSemanticsTests
             CoordinateMode = MouseCoordinateMode.Relative,
         };
 
-        MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeFalse();
-        MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: false).Should().BeNull();
+        _ = MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeFalse();
+        _ = MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: false).Should().BeNull();
     }
 
     [Theory]
@@ -59,8 +59,8 @@ public class MacroPositionSemanticsTests
             CoordinateMode = MouseCoordinateMode.Absolute,
         };
 
-        MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeFalse();
-        MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: true).Should().BeNull();
+        _ = MacroPositionSemantics.IsCoordinateBearing(ev).Should().BeFalse();
+        _ = MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: true).Should().BeNull();
     }
 
     [Fact]
@@ -72,8 +72,8 @@ public class MacroPositionSemanticsTests
             CoordinateMode = MouseCoordinateMode.Absolute,
         };
 
-        MacroPositionSemantics.HasExplicitCoordinateMode(ev).Should().BeTrue();
-        MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: false).Should().Be(MouseCoordinateMode.Absolute);
+        _ = MacroPositionSemantics.HasExplicitCoordinateMode(ev).Should().BeTrue();
+        _ = MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: false).Should().Be(MouseCoordinateMode.Absolute);
     }
 
     [Fact]
@@ -85,8 +85,8 @@ public class MacroPositionSemanticsTests
             CoordinateMode = MouseCoordinateMode.Relative,
         };
 
-        MacroPositionSemantics.HasExplicitCoordinateMode(ev).Should().BeTrue();
-        MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: true).Should().Be(MouseCoordinateMode.Relative);
+        _ = MacroPositionSemantics.HasExplicitCoordinateMode(ev).Should().BeTrue();
+        _ = MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: true).Should().Be(MouseCoordinateMode.Relative);
     }
 
     [Theory]
@@ -96,8 +96,8 @@ public class MacroPositionSemanticsTests
     {
         var ev = new MacroEvent { Type = EventType.MouseMove };
 
-        MacroPositionSemantics.HasExplicitCoordinateMode(ev).Should().BeFalse();
-        MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute).Should().Be(expected);
+        _ = MacroPositionSemantics.HasExplicitCoordinateMode(ev).Should().BeFalse();
+        _ = MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute).Should().Be(expected);
     }
 
     [Theory]
@@ -112,7 +112,7 @@ public class MacroPositionSemanticsTests
             CoordinateMode = MouseCoordinateMode.Absolute,
         };
 
-        MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: true).Should().BeNull();
+        _ = MacroPositionSemantics.ResolveCoordinateMode(ev, legacyIsAbsolute: true).Should().BeNull();
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public class MacroPositionSemanticsTests
             },
         };
 
-        MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeTrue();
+        _ = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeTrue();
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public class MacroPositionSemanticsTests
             },
         };
 
-        MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeFalse();
+        _ = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeFalse();
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class MacroPositionSemanticsTests
             },
         };
 
-        MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.None);
+        _ = MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.None);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class MacroPositionSemanticsTests
             },
         };
 
-        MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Absolute);
+        _ = MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Absolute);
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public class MacroPositionSemanticsTests
             },
         };
 
-        MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Relative);
+        _ = MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Relative);
     }
 
     [Fact]
@@ -203,6 +203,6 @@ public class MacroPositionSemanticsTests
             },
         };
 
-        MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Mixed);
+        _ = MacroPositionSemantics.GetCoordinateModeSummary(macro).Should().Be(CoordinateModeSummary.Mixed);
     }
 }

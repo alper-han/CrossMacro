@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public class PlaybackViewModelTests
+public sealed class PlaybackViewModelTests : IDisposable
 {
     private readonly IMacroPlayer _player;
     private readonly ISettingsService _settingsService;
@@ -17,8 +17,8 @@ public class PlaybackViewModelTests
         _settingsService = Substitute.For<ISettingsService>();
         _localizationService = Substitute.For<ILocalizationService>();
         _dialogService = Substitute.For<IDialogService>();
-        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
         {
             "Playback_StatusReady" => "[Playback_StatusReady]",
             "Playback_StatusPlaying" => "[Playback_StatusPlaying]",
@@ -56,27 +56,32 @@ public class PlaybackViewModelTests
         };
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
 
-        _settingsService.Current.Returns(_settings);
-        _settingsService.SaveAsync().Returns(Task.CompletedTask);
-        _player.CurrentLoop.Returns(1);
-        _player.TotalLoops.Returns(1);
-        _player.IsWaitingBetweenLoops.Returns(returnThis: false);
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _settingsService.Current.Returns(_settings);
+        _ = _settingsService.SaveAsync().Returns(Task.CompletedTask);
+        _ = _player.CurrentLoop.Returns(1);
+        _ = _player.TotalLoops.Returns(1);
+        _ = _player.IsWaitingBetweenLoops.Returns(returnThis: false);
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService, _dialogService);
     }
 
+    public void Dispose()
+    {
+        _viewModel.Dispose();
+    }
+
     [Fact]
     public void Constructor_InitializesPropertiesFromSettings()
     {
-        _viewModel.PlaybackSpeed.Should().Be(1.0);
-        _viewModel.IsLooping.Should().BeFalse();
-        _viewModel.LoopCount.Should().Be(1);
-        _viewModel.LoopDelayMs.Should().Be(0);
-        _viewModel.UseRandomLoopDelay.Should().BeFalse();
-        _viewModel.LoopDelayMinMs.Should().Be(0);
-        _viewModel.LoopDelayMaxMs.Should().Be(0);
+        _ = _viewModel.PlaybackSpeed.Should().Be(1.0);
+        _ = _viewModel.IsLooping.Should().BeFalse();
+        _ = _viewModel.LoopCount.Should().Be(1);
+        _ = _viewModel.LoopDelayMs.Should().Be(0);
+        _ = _viewModel.UseRandomLoopDelay.Should().BeFalse();
+        _ = _viewModel.LoopDelayMinMs.Should().Be(0);
+        _ = _viewModel.LoopDelayMaxMs.Should().Be(0);
     }
 
     [Fact]
@@ -84,13 +89,13 @@ public class PlaybackViewModelTests
     {
         _viewModel.IsLooping = true;
 
-        _viewModel.ShowFixedLoopDelayInput.Should().BeTrue();
-        _viewModel.ShowRandomLoopDelayInputs.Should().BeFalse();
+        _ = _viewModel.ShowFixedLoopDelayInput.Should().BeTrue();
+        _ = _viewModel.ShowRandomLoopDelayInputs.Should().BeFalse();
 
         _viewModel.UseRandomLoopDelay = true;
 
-        _viewModel.ShowFixedLoopDelayInput.Should().BeFalse();
-        _viewModel.ShowRandomLoopDelayInputs.Should().BeTrue();
+        _ = _viewModel.ShowFixedLoopDelayInput.Should().BeFalse();
+        _ = _viewModel.ShowRandomLoopDelayInputs.Should().BeTrue();
     }
 
     [Fact]
@@ -100,8 +105,19 @@ public class PlaybackViewModelTests
         _viewModel.LoopDelayMinMs = 300;
         _viewModel.LoopDelayMaxMs = 100;
 
-        _viewModel.LoopDelayMinMs.Should().Be(300);
-        _viewModel.LoopDelayMaxMs.Should().Be(300);
+        _ = _viewModel.LoopDelayMinMs.Should().Be(300);
+        _ = _viewModel.LoopDelayMaxMs.Should().Be(300);
+    }
+
+    [Fact]
+    public void LoadedMacroSessionSelectionChange_RefreshesPlaybackAvailability()
+    {
+        _ = _viewModel.CanPlayMacro.Should().BeFalse();
+
+        _ = _loadedMacroSession.AddMacro(CreateMacro());
+
+        _ = _viewModel.HasMacro.Should().BeTrue();
+        _ = _viewModel.CanPlayMacro.Should().BeTrue();
     }
 
     [Fact]
@@ -114,6 +130,69 @@ public class PlaybackViewModelTests
         await _viewModel.PlayMacroAsync();
 
         await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenPlayerCompletesOffThread_RaisesCompletionOnUiExecutorAfterCleanup()
+    {
+        var macro = CreateMacro();
+        var playStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var playbackCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cleanupStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowPlayerReturn = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(async unusedCallInfo =>
+            {
+                playStarted.SetResult(true);
+                _ = await playbackCompleted.Task.ConfigureAwait(false);
+                cleanupStarted.SetResult(true);
+                _ = await allowPlayerReturn.Task.ConfigureAwait(false);
+            });
+
+        _viewModel.SetMacro(macro);
+        _viewModel.CanPlayMacroExternal = true;
+
+        var uiExecutor = new DeferredUiExecutor();
+        var completionContexts = new List<SynchronizationContext?>();
+        _viewModel.PlaybackStateChanged += (_, isPlaying) =>
+        {
+            if (!isPlaying)
+            {
+                completionContexts.Add(SynchronizationContext.Current);
+            }
+        };
+
+        var previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(uiExecutor);
+        Task playTask;
+        try
+        {
+            playTask = _viewModel.PlayMacroAsync();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+
+        _ = await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await Task.Run(() => playbackCompleted.TrySetResult(true));
+        _ = await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        _ = _viewModel.IsPlaying.Should().BeTrue();
+        _ = completionContexts.Should().BeEmpty();
+
+        _ = allowPlayerReturn.TrySetResult(true);
+        var firstCompleted = await Task.WhenAny(playTask, uiExecutor.PostObserved.Task);
+
+        _ = firstCompleted.Should().BeSameAs(uiExecutor.PostObserved.Task);
+        _ = _viewModel.IsPlaying.Should().BeTrue();
+        _ = completionContexts.Should().BeEmpty();
+
+        uiExecutor.RunAll();
+        await playTask;
+
+        _ = completionContexts.Should().ContainSingle().Which.Should().BeSameAs(uiExecutor);
+        _ = _viewModel.IsPlaying.Should().BeFalse();
     }
 
     [Fact]
@@ -132,8 +211,8 @@ public class PlaybackViewModelTests
         _viewModel.SetMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
 
-        _viewModel.HasMacro.Should().BeTrue();
-        _viewModel.CanPlayMacro.Should().BeTrue();
+        _ = _viewModel.HasMacro.Should().BeTrue();
+        _ = _viewModel.CanPlayMacro.Should().BeTrue();
 
         await _viewModel.PlayMacroAsync();
 
@@ -145,7 +224,7 @@ public class PlaybackViewModelTests
     {
         var macro = CreateMacro();
         PlaybackOptions? capturedOptions = null;
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 capturedOptions = callInfo.ArgAt<PlaybackOptions>(1);
@@ -162,13 +241,13 @@ public class PlaybackViewModelTests
 
         await _viewModel.PlayMacroAsync();
 
-        capturedOptions.Should().NotBeNull();
-        capturedOptions!.Loop.Should().BeTrue();
-        capturedOptions.RepeatCount.Should().Be(3);
-        capturedOptions.RepeatDelayMs.Should().Be(90);
-        capturedOptions.UseRandomRepeatDelay.Should().BeTrue();
-        capturedOptions.RepeatDelayMinMs.Should().Be(120);
-        capturedOptions.RepeatDelayMaxMs.Should().Be(240);
+        _ = capturedOptions.Should().NotBeNull();
+        _ = capturedOptions!.Loop.Should().BeTrue();
+        _ = capturedOptions.RepeatCount.Should().Be(3);
+        _ = capturedOptions.RepeatDelayMs.Should().Be(90);
+        _ = capturedOptions.UseRandomRepeatDelay.Should().BeTrue();
+        _ = capturedOptions.RepeatDelayMinMs.Should().Be(120);
+        _ = capturedOptions.RepeatDelayMaxMs.Should().Be(240);
     }
 
     [Fact]
@@ -194,32 +273,32 @@ public class PlaybackViewModelTests
         await _viewModel.PlayMacroAsync();
 
         await _player.Received(1).PlayAsync(first.Macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
-        _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(second);
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(second);
     }
 
     [Fact]
     public async Task PlayMacroAsync_WhenSequentialCycleModeAndSelectionIsNull_StartsFromFirstLoadedMacro()
     {
         var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
-        _loadedMacroSession.AddMacro(CreateMacro("Second"));
+        _ = _loadedMacroSession.AddMacro(CreateMacro("Second"));
         _loadedMacroSession.SelectedMacroItem = null;
         _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 
         var playedMacros = new List<MacroSequence>();
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 playedMacros.Add(callInfo.ArgAt<MacroSequence>(0));
                 return Task.CompletedTask;
             });
 
-        _viewModel.HasMacro.Should().BeTrue();
-        _viewModel.CanPlayMacro.Should().BeTrue();
+        _ = _viewModel.HasMacro.Should().BeTrue();
+        _ = _viewModel.CanPlayMacro.Should().BeTrue();
 
         await _viewModel.PlayMacroAsync();
 
-        playedMacros.Select(macro => macro.Name).Should().ContainInOrder("First", "Second");
-        _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(first);
+        _ = playedMacros.Select(macro => macro.Name).Should().ContainInOrder("First", "Second");
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(first);
     }
 
     [Fact]
@@ -239,7 +318,7 @@ public class PlaybackViewModelTests
 
         var playedMacros = new List<MacroSequence>();
         var playedOptions = new List<PlaybackOptions>();
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 playedMacros.Add(callInfo.ArgAt<MacroSequence>(0));
@@ -249,11 +328,11 @@ public class PlaybackViewModelTests
 
         await _viewModel.PlayMacroAsync();
 
-        playedMacros.Select(macro => macro.Name).Should().ContainInOrder("Second", "Third", "First");
-        playedMacros.Select(macro => macro.Id).Should().ContainInOrder(second.Macro.Id, third.Macro.Id, first.Macro.Id);
-        playedOptions.Select(options => options.RepeatCount).Should().ContainInOrder(5, 2, 1);
-        playedOptions.Select(options => options.Loop).Should().ContainInOrder(true, true, false);
-        _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(second);
+        _ = playedMacros.Select(macro => macro.Name).Should().ContainInOrder("Second", "Third", "First");
+        _ = playedMacros.Select(macro => macro.Id).Should().ContainInOrder(second.Macro.Id, third.Macro.Id, first.Macro.Id);
+        _ = playedOptions.Select(options => options.RepeatCount).Should().ContainInOrder(5, 2, 1);
+        _ = playedOptions.Select(options => options.Loop).Should().ContainInOrder(true, true, false);
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(second);
     }
 
     [Fact]
@@ -272,7 +351,7 @@ public class PlaybackViewModelTests
                 return max;
             });
         var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
-        _loadedMacroSession.AddMacro(CreateMacro("Second"));
+        _ = _loadedMacroSession.AddMacro(CreateMacro("Second"));
         _loadedMacroSession.SelectedMacroItem = first;
         _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
         viewModel.IsLooping = true;
@@ -283,7 +362,7 @@ public class PlaybackViewModelTests
 
         await viewModel.PlayMacroAsync();
 
-        requestedRange.Should().Be((4, 9));
+        _ = requestedRange.Should().Be((4, 9));
         await _player.Received(4).PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
     }
 
@@ -291,16 +370,16 @@ public class PlaybackViewModelTests
     public async Task PlayMacroAsync_WhenSequentialCycleContainsInvalidLaterMacro_DoesNotStartPlayback()
     {
         var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
-        _loadedMacroSession.AddMacro(new MacroSequence { Name = "Broken" });
+        _ = _loadedMacroSession.AddMacro(new MacroSequence { Name = "Broken" });
         _loadedMacroSession.SelectedMacroItem = first;
         _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 
         await _viewModel.PlayMacroAsync();
 
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
-        _viewModel.IsPlaying.Should().BeFalse();
-        _viewModel.PlaybackStatus.Should().Contain("Broken");
-        _viewModel.PlaybackStatus.Should().Contain("has no events");
+        _ = _viewModel.IsPlaying.Should().BeFalse();
+        _ = _viewModel.PlaybackStatus.Should().Contain("Broken");
+        _ = _viewModel.PlaybackStatus.Should().Contain("has no events");
     }
 
     [Fact]
@@ -310,13 +389,13 @@ public class PlaybackViewModelTests
         var scriptOnly = _loadedMacroSession.AddMacro(new MacroSequence
         {
             Name = "Screen Reading Macro",
-            ScriptSteps = {"waitcolor 11 22 00FFAA 2500"},
+            ScriptSteps = { "waitcolor 11 22 00FFAA 2500" },
         });
         _loadedMacroSession.SelectedMacroItem = first;
         _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 
         var playedMacros = new List<MacroSequence>();
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 playedMacros.Add(callInfo.ArgAt<MacroSequence>(0));
@@ -325,42 +404,47 @@ public class PlaybackViewModelTests
 
         await _viewModel.PlayMacroAsync();
 
-        playedMacros.Select(macro => macro.Name).Should().ContainInOrder("First", "Screen Reading Macro");
-        _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(first);
-        scriptOnly.EventCount.Should().Be(1);
+        _ = playedMacros.Select(macro => macro.Name).Should().ContainInOrder("First", "Screen Reading Macro");
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(first);
+        _ = scriptOnly.EventCount.Should().Be(1);
     }
 
     [Fact]
     public void CultureChanged_WhenIdle_RefreshesReadyStatusImmediately()
     {
-        _localizationService["Playback_StatusReady"].Returns("[Playback_StatusReady:updated]");
+        _ = _localizationService["Playback_StatusReady"].Returns("[Playback_StatusReady:updated]");
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusReady:updated]");
+        _ = _viewModel.PlaybackStatus.Should().Be("[Playback_StatusReady:updated]");
     }
 
     [Fact]
-    public void CultureChanged_WhenSequencePlaying_UsesLocalizedSequenceFragments()
+    public async Task CultureChanged_WhenSequencePlaying_UsesLocalizedSequenceFragments()
     {
-        _player.CurrentLoop.Returns(2);
-        _player.TotalLoops.Returns(4);
-        _localizationService["Playback_UnnamedMacro"].Returns("[Playback_UnnamedMacro:updated]");
-        _localizationService["Playback_SequenceCycleInfinite"].Returns("[Playback_SequenceCycleInfinite:updated] {0}");
-        _localizationService["Playback_SequenceRepeatProgress"].Returns("[Playback_SequenceRepeatProgress:updated] {0} | {1}");
+        await using var harness = new BlockingPlaybackHarness(blockOnPlaybackInvocation: 5);
+        _ = harness.Player.CurrentLoop.Returns(2);
+        _ = harness.Player.TotalLoops.Returns(4);
+        _ = harness.LocalizationService["Files_UnnamedMacro"].Returns(string.Empty);
+        _ = harness.LocalizationService["Playback_UnnamedMacro"].Returns("[Playback_UnnamedMacro:updated]");
+        _ = harness.LocalizationService["Playback_SequenceCycleInfinite"].Returns("[Playback_SequenceCycleInfinite:updated] {0}");
+        _ = harness.LocalizationService["Playback_SequenceRepeatProgress"].Returns("[Playback_SequenceRepeatProgress:updated] {0} | {1}");
 
-        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, value: true);
-        SetNonPublicField(_viewModel, "_isSequencePlayback", value: true);
-        SetNonPublicField(_viewModel, "_sequenceMacroName", string.Empty);
-        SetNonPublicField(_viewModel, "_sequenceMacroIndex", 1);
-        SetNonPublicField(_viewModel, "_sequenceMacroCount", 2);
-        SetNonPublicField(_viewModel, "_sequenceCycle", 3);
-        SetNonPublicField(_viewModel, "_sequenceTotalCycles", 0);
-        SetNonPublicField(_viewModel, "_sequenceMacroRepeatCount", 4);
+        var unnamedItem = harness.LoadedMacroSession.AddMacro(CreateMacro(string.Empty));
+        unnamedItem.SequenceRepeatCount = 4;
+        _ = harness.LoadedMacroSession.AddMacro(CreateMacro("Second"));
+        harness.LoadedMacroSession.SelectedMacroItem = unnamedItem;
+        harness.LoadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
+        harness.ViewModel.SetMacro(unnamedItem.Macro);
+        harness.ViewModel.CanPlayMacroExternal = true;
+        harness.ViewModel.IsLooping = true;
+        harness.ViewModel.LoopCount = 0;
 
-        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+        await harness.StartPlaybackAsync();
 
-        _viewModel.PlaybackStatus.Should().Be(
+        harness.LocalizationService.CultureChanged += Raise.Event<EventHandler>(harness.LocalizationService, EventArgs.Empty);
+
+        _ = harness.ViewModel.PlaybackStatus.Should().Be(
             "[Playback_StatusSequencePlaying] [Playback_UnnamedMacro:updated] | 1 | 2 | [Playback_SequenceRepeatProgress:updated] 2 | 4 | [Playback_SequenceCycleInfinite:updated] 3");
     }
 
@@ -373,7 +457,7 @@ public class PlaybackViewModelTests
 
         PlaybackOptions? capturedOptions = null;
         MacroSequence? capturedMacro = null;
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 capturedMacro = callInfo.ArgAt<MacroSequence>(0);
@@ -383,28 +467,28 @@ public class PlaybackViewModelTests
 
         await _viewModel.PlayMacroAsync();
 
-        capturedMacro.Should().NotBeNull();
-        capturedMacro!.Should().NotBeSameAs(item.Macro);
-        capturedMacro.Id.Should().Be(item.Macro.Id);
-        capturedMacro.Name.Should().Be(item.Macro.Name);
-        capturedOptions.Should().NotBeNull();
-        capturedOptions!.Loop.Should().BeTrue();
-        capturedOptions.RepeatCount.Should().Be(4);
-        _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(item);
+        _ = capturedMacro.Should().NotBeNull();
+        _ = capturedMacro!.Should().NotBeSameAs(item.Macro);
+        _ = capturedMacro.Id.Should().Be(item.Macro.Id);
+        _ = capturedMacro.Name.Should().Be(item.Macro.Name);
+        _ = capturedOptions.Should().NotBeNull();
+        _ = capturedOptions!.Loop.Should().BeTrue();
+        _ = capturedOptions.RepeatCount.Should().Be(4);
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(item);
     }
 
     [Fact]
     public async Task PlayMacroAsync_WhenSequentialCycleStopped_RestoresOriginalSelection()
     {
-        var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
+        _ = _loadedMacroSession.AddMacro(CreateMacro("First"));
         var second = _loadedMacroSession.AddMacro(CreateMacro("Second"));
-        var third = _loadedMacroSession.AddMacro(CreateMacro("Third"));
+        _ = _loadedMacroSession.AddMacro(CreateMacro("Third"));
 
         _loadedMacroSession.SelectedMacroItem = second;
         _loadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 
         var invocationCount = 0;
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 invocationCount++;
@@ -418,69 +502,67 @@ public class PlaybackViewModelTests
 
         await _viewModel.PlayMacroAsync();
 
-        _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(second);
-        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(second);
+        _ = _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
         _player.Received(1).StopPlayback();
     }
 
     [Fact]
     public async Task StopPlayback_WhenTeardownStillRunning_KeepsStoppedStatus()
     {
-        var macro = CreateMacro();
-        _viewModel.SetMacro(macro);
+        await using var harness = new BlockingPlaybackHarness();
+        harness.SetSingleMacro(CreateMacro());
 
-        var playStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var allowCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
-            .Returns(async _ =>
-            {
-                playStarted.TrySetResult(true);
-                await allowCompletion.Task;
-            });
+        await harness.StartPlaybackAsync();
 
-        var playTask = _viewModel.PlayMacroAsync();
-        await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        harness.ViewModel.StopPlayback();
 
-        _viewModel.StopPlayback();
-        InvokeNonPublicMethod(_viewModel, "OnStatusUpdateTimerTick", null, EventArgs.Empty);
-
-        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
-
-        allowCompletion.TrySetResult(true);
-        await playTask;
+        harness.Player.Received(1).StopPlayback();
+        _ = harness.ViewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
+        _ = harness.ViewModel.IsPlaying.Should().BeTrue();
     }
 
     [Fact]
-    public void TogglePause_WhenPlaying_PausesOrResumes()
+    public async Task TogglePause_WhenPlaying_PausesOrResumes()
     {
-        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, value: true);
+        await using var harness = new BlockingPlaybackHarness();
+        harness.SetSingleMacro(CreateMacro());
 
-        _player.IsPaused.Returns(returnThis: false);
+        await harness.StartPlaybackAsync();
 
-        _viewModel.TogglePause();
+        _ = harness.Player.IsPaused.Returns(returnThis: false);
 
-        _player.Received(1).Pause();
-        _viewModel.IsPaused.Should().BeTrue();
-        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusPaused]");
+        harness.ViewModel.TogglePause();
 
-        _player.IsPaused.Returns(returnThis: true);
+        harness.Player.Received(1).Pause();
+        _ = harness.ViewModel.IsPaused.Should().BeTrue();
+        _ = harness.ViewModel.PlaybackStatus.Should().Be("[Playback_StatusPaused]");
 
-        _viewModel.TogglePause();
+        _ = harness.Player.IsPaused.Returns(returnThis: true);
 
-        _player.Received(1).ResumePlayback();
-        _viewModel.IsPaused.Should().BeFalse();
+        harness.ViewModel.TogglePause();
+
+        harness.Player.Received(1).ResumePlayback();
+        _ = harness.ViewModel.IsPaused.Should().BeFalse();
     }
 
     [Fact]
-    public void StopPlayback_WhenPlaying_StopsPlayerAndSetsStatus()
+    public async Task StopPlayback_WhenPlaying_StopsPlayerAndSetsStatus()
     {
-        _viewModel.GetType().GetProperty("IsPlaying")?.SetValue(_viewModel, value: true);
+        await using var harness = new BlockingPlaybackHarness();
+        harness.SetSingleMacro(CreateMacro());
 
-        _viewModel.StopPlayback();
+        await harness.StartPlaybackAsync();
 
-        _player.Received(1).StopPlayback();
-        _viewModel.IsPlaying.Should().BeFalse();
-        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
+        harness.ViewModel.StopPlayback();
+
+        harness.Player.Received(1).StopPlayback();
+        _ = harness.ViewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
+        _ = harness.ViewModel.IsPlaying.Should().BeTrue();
+
+        await harness.ReleaseAndAwaitPlaybackAsync();
+
+        _ = harness.ViewModel.IsPlaying.Should().BeFalse();
     }
 
     [Fact]
@@ -489,14 +571,14 @@ public class PlaybackViewModelTests
         var macro = CreateMacro();
         _viewModel.SetMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("simulator failed")));
 
         await _viewModel.PlayMacroAsync();
 
-        _viewModel.IsPlaying.Should().BeFalse();
-        _viewModel.PlaybackStatus.Should().Contain("[Playback_StatusError]");
-        _viewModel.PlaybackStatus.Should().Contain("simulator failed");
+        _ = _viewModel.IsPlaying.Should().BeFalse();
+        _ = _viewModel.PlaybackStatus.Should().Contain("[Playback_StatusError]");
+        _ = _viewModel.PlaybackStatus.Should().Contain("simulator failed");
     }
 
     [Fact]
@@ -505,14 +587,14 @@ public class PlaybackViewModelTests
         var macro = CreateMacro();
         _viewModel.SetMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new AbsolutePlaybackUnsupportedException("Tracking")));
 
         await _viewModel.PlayMacroAsync();
 
-        _viewModel.IsPlaying.Should().BeFalse();
-        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusAbsoluteCoordinatesUnsupported]");
-        _viewModel.PlaybackStatus.Should().NotContain("Tracking");
+        _ = _viewModel.IsPlaying.Should().BeFalse();
+        _ = _viewModel.PlaybackStatus.Should().Be("[Playback_StatusAbsoluteCoordinatesUnsupported]");
+        _ = _viewModel.PlaybackStatus.Should().NotContain("Tracking");
         await _dialogService.Received(1).ShowMessageAsync(
             "[Playback_AbsoluteCoordinatesUnsupportedTitle]",
             "[Playback_AbsoluteCoordinatesUnsupportedMessage]",
@@ -525,13 +607,13 @@ public class PlaybackViewModelTests
         var macro = CreateMacro();
         _viewModel.SetMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
-        _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InputInjectionPermissionRequiredException("permission missing")));
 
         await _viewModel.PlayMacroAsync();
 
-        _viewModel.IsPlaying.Should().BeFalse();
-        _viewModel.PlaybackStatus.Should().Be("[Playback_StatusPermissionRequired]");
+        _ = _viewModel.IsPlaying.Should().BeFalse();
+        _ = _viewModel.PlaybackStatus.Should().Be("[Playback_StatusPermissionRequired]");
         await _dialogService.Received(1).ShowMessageAsync(
             "[Playback_PermissionRequiredTitle]",
             "[Playback_PermissionRequiredMessage]",
@@ -552,26 +634,122 @@ public class PlaybackViewModelTests
     [Fact]
     public void PlaybackSpeed_WhenSaveFails_RollsBackValue()
     {
-        _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.PlaybackSpeed = 2.0;
 
-        _viewModel.PlaybackSpeed.Should().Be(1.0);
-        _settings.PlaybackSpeed.Should().Be(1.0);
+        _ = _viewModel.PlaybackSpeed.Should().Be(1.0);
+        _ = _settings.PlaybackSpeed.Should().Be(1.0);
     }
 
-    private static void InvokeNonPublicMethod(object target, string methodName, params object?[]? args)
+    [Fact]
+    public void UseRandomLoopDelay_WhenSaveFails_RollsBackVisibilityState()
     {
-        var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
-        method.Should().NotBeNull();
-        method!.Invoke(target, args);
+        _viewModel.IsLooping = true;
+        _settingsService.ClearReceivedCalls();
+        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+
+        _viewModel.UseRandomLoopDelay = true;
+
+        _ = _viewModel.UseRandomLoopDelay.Should().BeFalse();
+        _ = _settings.UseRandomLoopDelay.Should().BeFalse();
+        _ = _viewModel.ShowFixedLoopDelayInput.Should().BeTrue();
+        _ = _viewModel.ShowRandomLoopDelayInputs.Should().BeFalse();
     }
 
-    private static void SetNonPublicField(object target, string fieldName, object? value)
+    private sealed class BlockingPlaybackHarness : IAsyncDisposable
     {
-        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-        field.Should().NotBeNull();
-        field!.SetValue(target, value);
+        private readonly TaskCompletionSource<bool> _playbackStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _allowPlaybackCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly int _blockOnPlaybackInvocation;
+        private int _playbackInvocationCount;
+
+        public BlockingPlaybackHarness(int blockOnPlaybackInvocation = 1)
+        {
+            _blockOnPlaybackInvocation = blockOnPlaybackInvocation;
+            Player = Substitute.For<IMacroPlayer>();
+            SettingsService = Substitute.For<ISettingsService>();
+            LocalizationService = Substitute.For<ILocalizationService>();
+            var settings = new AppSettings();
+
+            _ = LocalizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+            _ = LocalizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+            {
+                "Playback_StatusReady" => "[Playback_StatusReady]",
+                "Playback_StatusPlaying" => "[Playback_StatusPlaying]",
+                "Playback_StatusComplete" => "[Playback_StatusComplete]",
+                "Playback_StatusStopped" => "[Playback_StatusStopped]",
+                "Playback_StatusPaused" => "[Playback_StatusPaused]",
+                "Playback_StatusSequencePlaying" => "[Playback_StatusSequencePlaying] {0} | {1} | {2} | {3} | {4}",
+                "Playback_UnnamedMacro" => "[Playback_UnnamedMacro]",
+                "Playback_SequenceCycleInfinite" => "[Playback_SequenceCycleInfinite] {0}",
+                "Playback_SequenceRepeatProgress" => "[Playback_SequenceRepeatProgress] {0} | {1}",
+                _ => call.Arg<string>(),
+            });
+            _ = SettingsService.Current.Returns(settings);
+            _ = SettingsService.SaveAsync().Returns(Task.CompletedTask);
+            _ = Player.CurrentLoop.Returns(1);
+            _ = Player.TotalLoops.Returns(1);
+            _ = Player.IsWaitingBetweenLoops.Returns(returnThis: false);
+            _ = Player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+                .Returns(async unusedCallInfo =>
+                {
+                    if (Interlocked.Increment(ref _playbackInvocationCount) != _blockOnPlaybackInvocation)
+                    {
+                        return;
+                    }
+
+                    _ = _playbackStarted.TrySetResult(true);
+                    _ = await _allowPlaybackCompletion.Task.ConfigureAwait(false);
+                });
+
+            LoadedMacroSession = new LoadedMacroSession(LocalizationService);
+            ViewModel = new PlaybackViewModel(
+                Player,
+                SettingsService,
+                LoadedMacroSession,
+                LocalizationService,
+                dialogService: null,
+                randomInclusive: (minimum, maximum) => minimum,
+                executeOnUiThread: operation => operation());
+        }
+
+        public IMacroPlayer Player { get; }
+
+        public ISettingsService SettingsService { get; }
+
+        public ILocalizationService LocalizationService { get; }
+
+        public LoadedMacroSession LoadedMacroSession { get; }
+
+        public PlaybackViewModel ViewModel { get; }
+
+        public Task PlaybackTask { get; private set; } = Task.CompletedTask;
+
+        public void SetSingleMacro(MacroSequence macro)
+        {
+            ViewModel.SetMacro(macro);
+            ViewModel.CanPlayMacroExternal = true;
+        }
+
+        public async Task StartPlaybackAsync()
+        {
+            PlaybackTask = ViewModel.PlayMacroAsync();
+            _ = await _playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+
+        public async Task ReleaseAndAwaitPlaybackAsync()
+        {
+            _ = _allowPlaybackCompletion.TrySetResult(true);
+            await PlaybackTask.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            ViewModel.StopPlayback();
+            await ReleaseAndAwaitPlaybackAsync();
+            ViewModel.Dispose();
+        }
     }
 
     private static MacroSequence CreateMacro(string name = "Test Macro")

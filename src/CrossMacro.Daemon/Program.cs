@@ -1,12 +1,19 @@
 
 namespace CrossMacro.Daemon;
 
-internal class Program
+internal static class Program
 {
-    private static async Task Main(string[] args)
+    private static async Task Main()
     {
+        if (!OperatingSystem.IsLinux())
+        {
+            await Console.Error.WriteLineAsync("CrossMacro.Daemon only runs on Linux (uinput/evdev, Unix domain sockets).").ConfigureAwait(false);
+            Environment.ExitCode = 1;
+            return;
+        }
+
         var logLevel = Environment.GetEnvironmentVariable("CROSSMACRO_LOG_LEVEL") ?? "Information";
-        LoggerSetup.Initialize(logLevel, enableFileLogging: false);
+        DaemonLoggerSetup.Initialize(logLevel);
 
         SerilogLog.Information("Starting CrossMacro.Daemon...");
 
@@ -18,7 +25,7 @@ internal class Program
         {
             ctx.Cancel = true;
 
-            var levelSwitch = LoggerSetup.LevelSwitch;
+            var levelSwitch = DaemonLoggerSetup.LevelSwitch;
             if (levelSwitch is null)
             {
                 return;
@@ -26,17 +33,17 @@ internal class Program
 
             if (levelSwitch.MinimumLevel is LogEventLevel.Debug)
             {
-                LoggerSetup.SetLogLevel("Information");
+                DaemonLoggerSetup.SetLogLevel("Information");
                 SerilogLog.Information("[LogLevel] Switched to Information (send SIGUSR1 again for Debug)");
             }
             else
             {
-                LoggerSetup.SetLogLevel("Debug");
+                DaemonLoggerSetup.SetLogLevel("Debug");
                 SerilogLog.Information("[LogLevel] Switched to Debug (send SIGUSR1 again for Information)");
             }
         });
 
-        void OnProcessExit(object? sender, EventArgs e)
+        static void OnProcessExit(object? sender, EventArgs e)
         {
             SystemdNotify.Stopping();
         }
@@ -64,20 +71,20 @@ internal class Program
             await service.RunAsync(cts.Token).ConfigureAwait(false);
 
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            SerilogLog.Information("Daemon stopping...");
+            SerilogLog.Information(ex, "Daemon stopping...");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             SerilogLog.Fatal(ex, "Daemon crashed");
         }
         finally
         {
-            DisposeOwnedResources(inputCapture, virtualDevice, security);
+            await DisposeOwnedResourcesAsync(inputCapture, virtualDevice, security).ConfigureAwait(false);
             AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
             SystemdNotify.Stopping();
-            SerilogLog.CloseAndFlush();
+            await SerilogLog.CloseAndFlushAsync().ConfigureAwait(false);
         }
     }
 
@@ -108,13 +115,54 @@ internal class Program
         }
     }
 
+    private static async Task DisposeOwnedResourcesAsync(
+        IDisposable? inputCapture,
+        IAsyncDisposable? virtualDevice,
+        SecurityService? security)
+    {
+        var errors = new List<Exception>();
+        if (inputCapture is not null)
+        {
+            TryDispose(inputCapture, errors);
+        }
+
+        if (virtualDevice is not null)
+        {
+            try
+            {
+                await virtualDevice.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                errors.Add(ex);
+            }
+        }
+
+        if (security is not null)
+        {
+            try
+            {
+                await security.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                errors.Add(ex);
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            SerilogLog.Error(new AggregateException("Daemon resource cleanup failed.", errors), "Daemon shutdown cleanup failed");
+        }
+    }
+
     private static void TryDispose(IDisposable resource, ICollection<Exception> errors)
     {
         try
         {
             resource.Dispose();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             errors.Add(ex);
         }

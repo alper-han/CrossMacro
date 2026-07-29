@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignMacroRecorder : IMacroRecorder
 {
@@ -7,8 +7,8 @@ internal sealed class DesignMacroRecorder : IMacroRecorder
 
     public event EventHandler<MacroEventRecordedEventArgs>? EventRecorded
     {
-        add { }
-        remove { }
+        add { /* Empty */ }
+        remove { /* Empty */ }
     }
 
     public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
@@ -25,7 +25,5 @@ internal sealed class DesignMacroRecorder : IMacroRecorder
 
     public MacroSequence? GetCurrentRecording() => DesignPreviewSamples.CreateMacro();
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

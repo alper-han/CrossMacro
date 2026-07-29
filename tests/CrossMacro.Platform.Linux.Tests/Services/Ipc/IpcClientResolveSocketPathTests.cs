@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-public class IpcClientResolveSocketPathTests
+public sealed class IpcClientResolveSocketPathTests
 {
     [LinuxFact]
     public void ResolveSocketPath_WhenSocketExists_ReturnsDefaultSocketPath()
@@ -19,7 +19,7 @@ public class IpcClientResolveSocketPathTests
 
         Assert.Equal(IpcClientFailureReason.PermissionDenied, exception.Reason);
         Assert.Contains("access denied", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.IsType<UnauthorizedAccessException>(exception.InnerException);
+        _ = Assert.IsType<UnauthorizedAccessException>(exception.InnerException);
     }
 
     [LinuxFact]

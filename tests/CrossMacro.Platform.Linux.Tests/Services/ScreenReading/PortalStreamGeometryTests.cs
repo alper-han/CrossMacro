@@ -114,7 +114,7 @@ public sealed class PortalStreamGeometryTests
         int height = 1080,
         bool includePosition = true)
     {
-        var properties = new Dictionary<string, object>
+        var properties = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["source_type"] = sourceType,
             ["size"] = new object[] { width, height },

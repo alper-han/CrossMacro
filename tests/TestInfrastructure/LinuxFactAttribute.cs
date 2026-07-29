@@ -1,9 +1,13 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class LinuxFactAttribute : ConditionalFactAttribute
+internal sealed class LinuxFactAttribute : FactAttribute
 {
-    public LinuxFactAttribute() : base(OperatingSystem.IsLinux, "Linux")
+    public LinuxFactAttribute()
     {
+        if (!OperatingSystem.IsLinux())
+        {
+            Skip = ConditionalSkipMessage.For("Linux");
+        }
     }
 }

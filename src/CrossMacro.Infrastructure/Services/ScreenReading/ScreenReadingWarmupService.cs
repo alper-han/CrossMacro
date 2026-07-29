@@ -1,23 +1,17 @@
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
-public sealed class ScreenReadingWarmupService : IScreenReadingWarmupService
+public sealed class ScreenReadingWarmupService(
+    IScreenFrameProvider frameProvider,
+    IScreenReadingDiagnosticProvider? diagnosticProvider = null) : IScreenReadingWarmupService
 {
     private static readonly ScreenRect WarmupRegion = new(0, 0, 1, 1);
     private static readonly TimeSpan WarmupTimeout = TimeSpan.FromSeconds(15);
 
-    private readonly IScreenFrameProvider _frameProvider;
-    private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider;
+    private readonly IScreenFrameProvider _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
+    private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider = diagnosticProvider;
     private readonly Lock _lock = new();
     private Task? _warmupTask;
-
-    public ScreenReadingWarmupService(
-        IScreenFrameProvider frameProvider,
-        IScreenReadingDiagnosticProvider? diagnosticProvider = null)
-    {
-        _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
-        _diagnosticProvider = diagnosticProvider;
-    }
 
     public Task WarmUpPortalSessionAsync(CancellationToken cancellationToken = default)
     {
@@ -52,7 +46,7 @@ public sealed class ScreenReadingWarmupService : IScreenReadingWarmupService
             var snapshot = _diagnosticProvider.GetSnapshot();
             return string.Equals(snapshot.SelectedBackend, "Portal", StringComparison.Ordinal);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[ScreenReadingWarmupService] Screen-reading diagnostics failed; skipping Portal warm-up");
             return false;
@@ -83,7 +77,7 @@ public sealed class ScreenReadingWarmupService : IScreenReadingWarmupService
         {
             Log.Debug("[ScreenReadingWarmupService] Portal screen-reading warm-up cancelled");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[ScreenReadingWarmupService] Portal screen-reading warm-up failed");
         }

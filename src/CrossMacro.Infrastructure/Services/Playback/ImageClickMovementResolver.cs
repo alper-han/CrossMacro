@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-public sealed class ImageClickMovementResolver : IImageClickMovementResolver
+public sealed class ImageClickMovementResolver(IMousePositionProvider? mousePositionProvider) : IImageClickMovementResolver
 {
-    private readonly IMousePositionProvider? _mousePositionProvider;
-
-    public ImageClickMovementResolver(IMousePositionProvider? mousePositionProvider)
-    {
-        _mousePositionProvider = mousePositionProvider;
-    }
+    private readonly IMousePositionProvider? _mousePositionProvider = mousePositionProvider;
 
     public async Task<ImageClickMovementResolution> ResolveAsync(
         IInputSimulator inputSimulator,

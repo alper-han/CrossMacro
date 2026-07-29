@@ -22,21 +22,15 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Daemon\CrossMacro.Daemon.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux.Native\CrossMacro.Platform.Linux.Native.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\TestInfrastructure\ConditionalFactAttribute.cs" Link="TestInfrastructure\ConditionalFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\ConditionalTheoryAttribute.cs" Link="TestInfrastructure\ConditionalTheoryAttribute.cs" />
+    <Compile Include="..\TestInfrastructure\ConditionalSkipMessage.cs" Link="TestInfrastructure\ConditionalSkipMessage.cs" />
     <Compile Include="..\TestInfrastructure\LinuxFactAttribute.cs" Link="TestInfrastructure\LinuxFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\LinuxTheoryAttribute.cs" Link="TestInfrastructure\LinuxTheoryAttribute.cs" />
     <Compile Include="..\TestInfrastructure\LinuxIntegrationFactAttribute.cs" Link="TestInfrastructure\LinuxIntegrationFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\DbusSessionFactAttribute.cs" Link="TestInfrastructure\DbusSessionFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\MacOSFactAttribute.cs" Link="TestInfrastructure\MacOSFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\MacOSTheoryAttribute.cs" Link="TestInfrastructure\MacOSTheoryAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\WindowsFactAttribute.cs" Link="TestInfrastructure\WindowsFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\WindowsTheoryAttribute.cs" Link="TestInfrastructure\WindowsTheoryAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\NonMacOSFactAttribute.cs" Link="TestInfrastructure\NonMacOSFactAttribute.cs" />
+    <Compile Include="..\TestInfrastructure\TestSocketPaths.cs" Link="TestInfrastructure\TestSocketPaths.cs" />
+    <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
   </ItemGroup>
 
 </Project>

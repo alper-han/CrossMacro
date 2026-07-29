@@ -1,22 +1,17 @@
 
 namespace CrossMacro.Infrastructure.Services.Recording.Processors;
 
-public class StandardInputEventProcessor : IInputEventProcessor
+public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy) : IInputEventProcessor
 {
-    private readonly ICoordinateStrategy _coordinateStrategy;
+    private readonly ICoordinateStrategy _coordinateStrategy = coordinateStrategy;
     private bool _recordMouse;
     private bool _recordKeyboard;
-    private HashSet<int>? _ignoredKeys;
+    private IReadOnlySet<int>? _ignoredKeys;
     private bool _isAbsoluteCoordinates;
     private int _lastEmittedX = int.MinValue;
     private int _lastEmittedY = int.MinValue;
 
-    public StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
-    {
-        _coordinateStrategy = coordinateStrategy;
-    }
-
-    public void Configure(bool recordMouse, bool recordKeyboard, HashSet<int>? ignoredKeys, bool isAbsoluteCoordinates = false)
+    public void Configure(bool recordMouse, bool recordKeyboard, IReadOnlySet<int>? ignoredKeys, bool isAbsoluteCoordinates = false)
     {
         _recordMouse = recordMouse;
         _recordKeyboard = recordKeyboard;

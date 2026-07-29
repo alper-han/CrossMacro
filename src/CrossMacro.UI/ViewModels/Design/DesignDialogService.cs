@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignDialogService : IDialogService
 {

@@ -72,7 +72,71 @@ internal static class LinuxDaemonHandshakeTransport
         {
             return ProbeResult.Timeout(ex);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return ProbeResult.Failed(ex);
+        }
+    }
+
+    public static async Task<ProbeResult> ProbeWithinBudgetAsync(
+        string socketPath,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            var endpoint = new UnixDomainSocketEndPoint(socketPath);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(timeout);
+
+            try
+            {
+                await socket.ConnectAsync(endpoint, timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                return ProbeResult.Timeout(ex);
+            }
+
+            var stream = new NetworkStream(socket, ownsSocket: false);
+            await using var streamDisposal = stream.ConfigureAwait(false);
+            await WriteHandshakeRequestAsync(stream, timeoutCts.Token).ConfigureAwait(false);
+
+            var opcode = (IpcOpCode)await ReadByteAsync(stream, timeoutCts.Token).ConfigureAwait(false);
+            if (opcode is IpcOpCode.Error)
+            {
+                var message = await ReadStringAsync(stream, timeoutCts.Token).ConfigureAwait(false);
+                return ProbeResult.Failed(
+                    new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {message}"));
+            }
+
+            if (opcode is not IpcOpCode.Handshake)
+            {
+                return ProbeResult.Failed(
+                    new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}"));
+            }
+
+            var version = await ReadInt32Async(stream, timeoutCts.Token).ConfigureAwait(false);
+            if (version != IpcProtocol.ProtocolVersion)
+            {
+                return ProbeResult.Failed(
+                    new IpcClientException(
+                        IpcClientFailureReason.ProtocolMismatch,
+                        $"Protocol version mismatch. Daemon: {version.ToString(CultureInfo.InvariantCulture)}, Client: {IpcProtocol.ProtocolVersion.ToString(CultureInfo.InvariantCulture)}"));
+            }
+
+            return ProbeResult.Success();
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            return ProbeResult.Timeout(ex);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return ProbeResult.Failed(ex);
         }
@@ -120,7 +184,7 @@ internal static class LinuxDaemonHandshakeTransport
         {
             return ProbeResult.Timeout(ex);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return ProbeResult.Failed(ex);
         }
@@ -167,6 +231,15 @@ internal static class LinuxDaemonHandshakeTransport
         stream.Flush();
     }
 
+    private static async Task WriteHandshakeRequestAsync(NetworkStream stream, CancellationToken cancellationToken)
+    {
+        var payload = new byte[sizeof(byte) + sizeof(int)];
+        payload[0] = (byte)IpcOpCode.Handshake;
+        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(1), IpcProtocol.ProtocolVersion);
+        await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     private static byte ReadByteWithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
     {
         Span<byte> buffer = stackalloc byte[1];
@@ -174,10 +247,24 @@ internal static class LinuxDaemonHandshakeTransport
         return buffer[0];
     }
 
+    private static async Task<byte> ReadByteAsync(NetworkStream stream, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[1];
+        await ReadExactAsync(stream, buffer, cancellationToken).ConfigureAwait(false);
+        return buffer[0];
+    }
+
     private static int ReadInt32WithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
     {
         Span<byte> buffer = stackalloc byte[sizeof(int)];
         ReadExactWithinBudget(stream, buffer, startedUtc, timeout);
+        return BinaryPrimitives.ReadInt32LittleEndian(buffer);
+    }
+
+    private static async Task<int> ReadInt32Async(NetworkStream stream, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[sizeof(int)];
+        await ReadExactAsync(stream, buffer, cancellationToken).ConfigureAwait(false);
         return BinaryPrimitives.ReadInt32LittleEndian(buffer);
     }
 
@@ -196,6 +283,24 @@ internal static class LinuxDaemonHandshakeTransport
 
         var buffer = new byte[byteCount];
         ReadExactWithinBudget(stream, buffer, startedUtc, timeout);
+        return Encoding.UTF8.GetString(buffer);
+    }
+
+    private static async Task<string> ReadStringAsync(NetworkStream stream, CancellationToken cancellationToken)
+    {
+        var byteCount = await Read7BitEncodedIntAsync(stream, cancellationToken).ConfigureAwait(false);
+        if (byteCount < 0)
+        {
+            throw new IOException("Daemon handshake returned a negative string length.");
+        }
+
+        if (byteCount is 0)
+        {
+            return string.Empty;
+        }
+
+        var buffer = new byte[byteCount];
+        await ReadExactAsync(stream, buffer, cancellationToken).ConfigureAwait(false);
         return Encoding.UTF8.GetString(buffer);
     }
 
@@ -219,6 +324,26 @@ internal static class LinuxDaemonHandshakeTransport
         throw new IOException("Daemon handshake returned an invalid 7-bit encoded string length.");
     }
 
+    private static async Task<int> Read7BitEncodedIntAsync(NetworkStream stream, CancellationToken cancellationToken)
+    {
+        var result = 0;
+        var shift = 0;
+
+        while (shift < 35)
+        {
+            var next = await ReadByteAsync(stream, cancellationToken).ConfigureAwait(false);
+            result |= (next & 0x7F) << shift;
+            if ((next & 0x80) is 0)
+            {
+                return result;
+            }
+
+            shift += 7;
+        }
+
+        throw new IOException("Daemon handshake returned an invalid 7-bit encoded string length.");
+    }
+
     private static void ReadExactWithinBudget(NetworkStream stream, Span<byte> destination, DateTime startedUtc, TimeSpan timeout)
     {
         var offset = 0;
@@ -226,6 +351,21 @@ internal static class LinuxDaemonHandshakeTransport
         {
             ConfigureReadTimeout(stream, startedUtc, timeout);
             var read = stream.Read(destination[offset..]);
+            if (read <= 0)
+            {
+                throw new EndOfStreamException("Daemon closed the connection during handshake.");
+            }
+
+            offset += read;
+        }
+    }
+
+    private static async Task ReadExactAsync(NetworkStream stream, Memory<byte> destination, CancellationToken cancellationToken)
+    {
+        var offset = 0;
+        while (offset < destination.Length)
+        {
+            var read = await stream.ReadAsync(destination[offset..], cancellationToken).ConfigureAwait(false);
             if (read <= 0)
             {
                 throw new EndOfStreamException("Daemon closed the connection during handshake.");
@@ -332,7 +472,7 @@ internal static class LinuxDaemonHandshakeTransport
         {
             socket.Dispose();
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Best effort cleanup for timed out startup probes.
         }

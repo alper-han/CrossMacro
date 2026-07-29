@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class InputProcessorTests
+public sealed class InputProcessorTests
 {
     private readonly IKeyboardLayoutService _layoutService;
     private readonly InputProcessor _processor;
@@ -27,7 +27,7 @@ public class InputProcessorTests
         _processor.ProcessEvent(mouseEvent);
 
         // Assert
-        charReceived.Should().BeFalse();
+        _ = charReceived.Should().BeFalse();
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class InputProcessorTests
         // Arrange
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
-        _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false).Returns('a');
+        _ = _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false).Returns('a');
 
         var keyEvent = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 1 };
 
@@ -44,7 +44,7 @@ public class InputProcessorTests
         _processor.ProcessEvent(keyEvent);
 
         // Assert
-        receivedChar.Should().Be('a');
+        _ = receivedChar.Should().Be('a');
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class InputProcessorTests
         _processor.ProcessEvent(backspaceEvent);
 
         // Assert
-        receivedKey.Should().Be(14);
+        _ = receivedKey.Should().Be(14);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class InputProcessorTests
         _processor.ProcessEvent(enterEvent);
 
         // Assert
-        receivedKey.Should().Be(28);
+        _ = receivedKey.Should().Be(28);
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class InputProcessorTests
         // Arrange
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
-        _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(),
+        _ = _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(),
             Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns('a');
 
         var keyReleaseEvent = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 0 };
@@ -94,7 +94,7 @@ public class InputProcessorTests
         _processor.ProcessEvent(keyReleaseEvent);
 
         // Assert
-        receivedChar.Should().BeNull();
+        _ = receivedChar.Should().BeNull();
     }
 
     #endregion
@@ -111,7 +111,7 @@ public class InputProcessorTests
         _processor.ProcessEvent(shiftPressEvent);
 
         // Assert
-        _processor.AreModifiersPressed.Should().BeTrue();
+        _ = _processor.AreModifiersPressed.Should().BeTrue();
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class InputProcessorTests
         _processor.ProcessEvent(shiftRelease);
 
         // Assert
-        _processor.AreModifiersPressed.Should().BeFalse();
+        _ = _processor.AreModifiersPressed.Should().BeFalse();
     }
 
     #endregion
@@ -144,7 +144,7 @@ public class InputProcessorTests
         _processor.Reset();
 
         // Assert
-        _processor.AreModifiersPressed.Should().BeFalse();
+        _ = _processor.AreModifiersPressed.Should().BeFalse();
     }
 
     #endregion
@@ -155,8 +155,8 @@ public class InputProcessorTests
     public void ProcessEvent_ShouldToggleCapsLock_OnPress()
     {
         // Arrange - simulate CapsLock press affecting character output
-        _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: true).Returns('A');
-        _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false).Returns('a');
+        _ = _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: true).Returns('A');
+        _ = _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false).Returns('a');
 
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
@@ -169,7 +169,7 @@ public class InputProcessorTests
         _processor.ProcessEvent(keyEvent);
 
         // Assert - should get uppercase 'A' due to CapsLock
-        receivedChar.Should().Be('A');
+        _ = receivedChar.Should().Be('A');
     }
 
     #endregion

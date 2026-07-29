@@ -3,12 +3,13 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed class ProfileManagerTests : IDisposable
 {
+    private static readonly CancellationToken NonCancelableToken = new(canceled: false);
     private readonly string _tempPath;
 
     public ProfileManagerTests()
     {
         _tempPath = Path.Combine(Path.GetTempPath(), "CrossMacroProfileManagerTests_" + Guid.NewGuid());
-        Directory.CreateDirectory(_tempPath);
+        _ = Directory.CreateDirectory(_tempPath);
     }
 
     public void Dispose()
@@ -17,6 +18,20 @@ public sealed class ProfileManagerTests : IDisposable
         {
             Directory.Delete(_tempPath, recursive: true);
         }
+    }
+
+    [Fact]
+    public void Dispose_CanBeCalledRepeatedly()
+    {
+        var manager = new ProfileManager(_tempPath);
+
+        var act = () =>
+        {
+            manager.Dispose();
+            manager.Dispose();
+        };
+
+        _ = act.Should().NotThrow();
     }
 
     [Fact]
@@ -77,11 +92,11 @@ public sealed class ProfileManagerTests : IDisposable
             Path.Combine(createdDirectory, ConfigFileNames.TextExpansions),
             CrossMacroJsonContext.Default.ListTextExpansionEntry);
 
-        profileSettings.Should().BeEquivalentTo(new ProfileSettings());
-        hotkeys.Should().BeEquivalentTo(new HotkeySettings());
-        shortcuts.Should().BeEmpty();
-        schedules.Should().BeEmpty();
-        expansions.Should().BeEmpty();
+        _ = profileSettings.Should().BeEquivalentTo(new ProfileSettings());
+        _ = hotkeys.Should().BeEquivalentTo(new HotkeySettings());
+        _ = shortcuts.Should().BeEmpty();
+        _ = schedules.Should().BeEmpty();
+        _ = expansions.Should().BeEmpty();
     }
 
     [Fact]
@@ -100,9 +115,9 @@ public sealed class ProfileManagerTests : IDisposable
 
         var act = () => manager.InitializeAsync();
 
-        await act.Should().ThrowAsync<InvalidDataException>()
+        _ = await act.Should().ThrowAsync<InvalidDataException>()
             .WithMessage("*unsupported path characters*");
-        Directory.Exists(Path.Combine(_tempPath, "outside")).Should().BeFalse();
+        _ = Directory.Exists(Path.Combine(_tempPath, "outside")).Should().BeFalse();
     }
 
     [Fact]
@@ -111,17 +126,17 @@ public sealed class ProfileManagerTests : IDisposable
         var outsideRoot = Path.Combine(_tempPath, "outside-target");
         var symlinkedAncestor = Path.Combine(_tempPath, "linked-parent");
         var configRoot = Path.Combine(symlinkedAncestor, "config");
-        Directory.CreateDirectory(outsideRoot);
-        Directory.CreateSymbolicLink(symlinkedAncestor, outsideRoot);
+        _ = Directory.CreateDirectory(outsideRoot);
+        _ = Directory.CreateSymbolicLink(symlinkedAncestor, outsideRoot);
 
         var manager = new ProfileManager(configRoot);
 
         var act = () => manager.InitializeAsync();
 
-        await act.Should().ThrowAsync<InvalidDataException>()
+        _ = await act.Should().ThrowAsync<InvalidDataException>()
             .WithMessage("*reparse point*");
-        Directory.Exists(Path.Combine(outsideRoot, "config")).Should().BeFalse();
-        File.Exists(Path.Combine(outsideRoot, ConfigFileNames.ProfileRegistry)).Should().BeFalse();
+        _ = Directory.Exists(Path.Combine(outsideRoot, "config")).Should().BeFalse();
+        _ = File.Exists(Path.Combine(outsideRoot, ConfigFileNames.ProfileRegistry)).Should().BeFalse();
     }
 
     [Fact]
@@ -154,20 +169,134 @@ public sealed class ProfileManagerTests : IDisposable
             migratedPath,
             CrossMacroJsonContext.Default.ListTriggerTask);
 
-        migrated.Should().ContainSingle();
-        migrated[0].Should().BeEquivalentTo(trigger);
+        _ = migrated.Should().ContainSingle();
+        _ = migrated[0].Should().BeEquivalentTo(trigger);
+    }
+
+    [Fact]
+    public async Task SwitchProfileAsync_AwaitsSchedulerShutdownBeforeReloadAndRestart()
+    {
+        var settingsService = Substitute.For<ISettingsService>();
+        var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
+        var schedulerService = Substitute.For<ISchedulerService>();
+        var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
+        var textExpansionStorageService = Substitute.For<ITextExpansionStorageService>();
+        var order = new List<string>();
+
+        _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
+        _ = schedulerService.IsRunning.Returns(returnThis: true);
+        _ = schedulerService.Completion.Returns(Task.CompletedTask);
+        _ = schedulerService.StopAsync().Returns(_ =>
+        {
+            order.Add("stop");
+            return Task.CompletedTask;
+        });
+        _ = schedulerService.LoadAsync().Returns(_ =>
+        {
+            order.Add("load");
+            return Task.CompletedTask;
+        });
+        schedulerService.When(service => service.Start()).Do(_ => order.Add("start"));
+
+        var manager = CreateCoordinator(
+            new ProfileManager(_tempPath),
+            settingsService,
+            hotkeyConfigService,
+            new HotkeySettings(),
+            hotkeyService: null,
+            shortcutService: null,
+            schedulerService,
+            textExpansionService: null,
+            scheduledTaskRepository,
+            textExpansionStorageService);
+
+        await manager.InitializeAsync();
+        var profile = await manager.CreateProfileAsync("Second Profile");
+
+        await manager.SwitchProfileAsync(profile.Id);
+
+        _ = order.Should().ContainInOrder("stop", "load", "start");
+    }
+
+    [Fact]
+    public async Task SwitchProfileAsync_AbortsWhenSchedulerLifetimeRemainsUnresolved()
+    {
+        var settingsService = Substitute.For<ISettingsService>();
+        var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
+        var schedulerService = Substitute.For<ISchedulerService>();
+        var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
+        var textExpansionStorageService = Substitute.For<ITextExpansionStorageService>();
+        var unresolvedLifetime = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
+        _ = schedulerService.IsRunning.Returns(returnThis: true);
+        _ = schedulerService.Completion.Returns(unresolvedLifetime.Task);
+        _ = schedulerService.StopAsync().Returns(Task.CompletedTask);
+
+        var manager = CreateCoordinator(
+            new ProfileManager(_tempPath),
+            settingsService,
+            hotkeyConfigService,
+            new HotkeySettings(),
+            hotkeyService: null,
+            shortcutService: null,
+            schedulerService,
+            textExpansionService: null,
+            scheduledTaskRepository,
+            textExpansionStorageService);
+
+        await manager.InitializeAsync();
+        var profile = await manager.CreateProfileAsync("Second Profile");
+        var loadsBeforeSwitch = schedulerService.ReceivedCalls()
+            .Count(call => string.Equals(call.GetMethodInfo().Name, nameof(ISchedulerService.LoadAsync), StringComparison.Ordinal));
+
+        var act = () => manager.SwitchProfileAsync(profile.Id);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*scheduler did not quiesce*");
+        var loadsAfterSwitch = schedulerService.ReceivedCalls()
+            .Count(call => string.Equals(call.GetMethodInfo().Name, nameof(ISchedulerService.LoadAsync), StringComparison.Ordinal));
+        _ = loadsAfterSwitch.Should().Be(loadsBeforeSwitch);
+        schedulerService.DidNotReceive().Start();
+        _ = unresolvedLifetime.TrySetResult();
     }
 
     private static async Task WriteJsonAsync<T>(string filePath, T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
         var json = JsonSerializer.Serialize(value, typeInfo);
-        await File.WriteAllTextAsync(filePath, json);
+        await File.WriteAllTextAsync(filePath, json, NonCancelableToken);
     }
 
     private static async Task<T> ReadJsonAsync<T>(string filePath, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
     {
-        var json = await File.ReadAllTextAsync(filePath);
+        var json = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         return JsonSerializer.Deserialize(json, typeInfo)!;
+    }
+
+    private static ProfileRuntimeCoordinator CreateCoordinator(
+        IProfileCatalog catalog,
+        ISettingsService settingsService,
+        IHotkeyConfigurationService hotkeyConfigService,
+        HotkeySettings hotkeySettings,
+        IGlobalHotkeyService? hotkeyService,
+        IShortcutService? shortcutService,
+        ISchedulerService? schedulerService,
+        ITextExpansionService? textExpansionService,
+        IScheduledTaskRepository scheduledTaskRepository,
+        ITextExpansionStorageService textExpansionStorageService)
+    {
+        return new ProfileRuntimeCoordinator(
+            catalog,
+            settingsService,
+            hotkeyConfigService,
+            hotkeySettings,
+            hotkeyService,
+            shortcutService,
+            schedulerService,
+            textExpansionService,
+            Substitute.For<ITriggerService>(),
+            scheduledTaskRepository,
+            textExpansionStorageService);
     }
 }

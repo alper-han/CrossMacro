@@ -1,10 +1,11 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
-public class MacroFileManagerTests : IDisposable
+public sealed class MacroFileManagerTests : IDisposable
 {
     private const string TransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
     private const string BlackPngBase64 = TransparentPngBase64;
+    private static readonly CancellationToken NonCancelableToken = new(canceled: false);
 
     private readonly MacroFileManager _manager;
     private readonly List<string> _tempFiles = new();
@@ -25,7 +26,10 @@ public class MacroFileManagerTests : IDisposable
                     File.Delete(file);
                 }
             }
-            catch { /* Ignore cleanup errors */ }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Best-effort test cleanup tolerates expected filesystem failures.
+            }
         }
     }
 
@@ -45,19 +49,19 @@ public class MacroFileManagerTests : IDisposable
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Macros", fixtureName);
         var first = await _manager.LoadAsync(fixturePath);
 
-        first.Should().NotBeNull();
-        first!.IsAbsoluteCoordinates.Should().Be(expectedAbsolute);
-        first.Events.Should().NotBeEmpty();
+        _ = first.Should().NotBeNull();
+        _ = first!.IsAbsoluteCoordinates.Should().Be(expectedAbsolute);
+        _ = first.Events.Should().NotBeEmpty();
         var savedPath = GetTempFilePath();
         await _manager.SaveAsync(first, savedPath);
         var second = await _manager.LoadAsync(savedPath);
 
-        second.Should().NotBeNull();
-        second!.Events.Should().BeEquivalentTo(first.Events);
-        second.ScriptSteps.Should().Equal(first.ScriptSteps);
-        second.TextInputBoundaries.Should().Equal(first.TextInputBoundaries);
-        second.TrailingDelayMs.Should().Be(first.TrailingDelayMs);
-        second.HasTrailingRandomDelay.Should().Be(first.HasTrailingRandomDelay);
+        _ = second.Should().NotBeNull();
+        _ = second!.Events.Should().BeEquivalentTo(first.Events);
+        _ = second.ScriptSteps.Should().Equal(first.ScriptSteps);
+        _ = second.TextInputBoundaries.Should().Equal(first.TextInputBoundaries);
+        _ = second.TrailingDelayMs.Should().Be(first.TrailingDelayMs);
+        _ = second.HasTrailingRandomDelay.Should().Be(first.HasTrailingRandomDelay);
     }
 
     private static MacroFileManager CreateManager()
@@ -72,27 +76,19 @@ public class MacroFileManagerTests : IDisposable
         var manager = new MacroFileManager(() =>
             throw new InvalidOperationException("Key mapper should not be resolved while loading."));
         var filePath = GetTempFilePath();
-        const string content = """
-# Name: Load Without Key Mapper
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 0
-# IsAbsolute: True
-# Format: CrossMacroFormatV2
-[Events]
-M,0,0
-""";
+        string content = "# Name: Load Without Key Mapper\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 0\n# IsAbsolute: True\n# Format: CrossMacroFormatV2\n[Events]\nM,0,0" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().ContainSingle();
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().ContainSingle();
     }
 
-    private MacroSequence CreateValidMacro(string name = "Test Macro")
+    private static MacroSequence CreateValidMacro(string name = "Test Macro")
     {
         return new MacroSequence
         {
@@ -128,7 +124,7 @@ M,0,0
 
         var restored = PersistedMacroDocument.FromRuntime(macro).ToRuntime();
 
-        restored.Should().BeEquivalentTo(macro);
+        _ = restored.Should().BeEquivalentTo(macro);
     }
 
     [Fact]
@@ -147,8 +143,8 @@ M,0,0
             HasTrailingRandomDelay = true,
             TrailingDelayMinMs = 23,
             TrailingDelayMaxMs = 41,
-            ScriptSteps = {"click left"},
-            TextInputBoundaries = {new TextInputBoundary(0, 1, "hello")},
+            ScriptSteps = { "click left" },
+            TextInputBoundaries = { new TextInputBoundary(0, 1, "hello") },
             Images = {
                 ["Target"] = TransparentPngBase64,
             },
@@ -186,42 +182,42 @@ M,0,0
         var filePath = GetTempFilePath();
 
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
-        saved.Should().Contain("# Name: Complete file metadata");
-        saved.Should().Contain("# Created: 2024-01-02T03:04:05.0000000");
-        saved.Should().Contain("# DurationMs: 45");
-        saved.Should().Contain("# IsAbsolute: False");
-        saved.Should().Contain("# SkipInitialZero: True");
-        saved.Should().Contain("# TrailingDelayMs: 17");
-        saved.Should().Contain("# TrailingRandomDelayMs: 23,41");
-        saved.Should().Contain("# TextInputBoundaryBase64: ");
-        saved.Should().Contain($"# Image: Target = {TransparentPngBase64}");
-        saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("# Name: Complete file metadata");
+        _ = saved.Should().Contain("# Created: 2024-01-02T03:04:05.0000000");
+        _ = saved.Should().Contain("# DurationMs: 45");
+        _ = saved.Should().Contain("# IsAbsolute: False");
+        _ = saved.Should().Contain("# SkipInitialZero: True");
+        _ = saved.Should().Contain("# TrailingDelayMs: 17");
+        _ = saved.Should().Contain("# TrailingRandomDelayMs: 23,41");
+        _ = saved.Should().Contain("# TextInputBoundaryBase64: ");
+        _ = saved.Should().Contain($"# Image: Target = {TransparentPngBase64}");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
 
-        loaded.Should().NotBeNull();
-        loaded!.Name.Should().Be(macro.Name);
-        loaded.CreatedAt.Should().Be(createdAt);
-        loaded.TotalDurationMs.Should().Be(45);
-        loaded.IsAbsoluteCoordinates.Should().BeFalse();
-        loaded.SkipInitialZeroZero.Should().BeTrue();
-        loaded.TrailingDelayMs.Should().Be(17);
-        loaded.HasTrailingRandomDelay.Should().BeTrue();
-        loaded.TrailingDelayMinMs.Should().Be(23);
-        loaded.TrailingDelayMaxMs.Should().Be(41);
-        loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
-        loaded.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
-        loaded.Images.Should().Equal(macro.Images);
-        loaded.Events.Should().BeEquivalentTo(macro.Events);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Name.Should().Be(macro.Name);
+        _ = loaded.CreatedAt.Should().Be(createdAt);
+        _ = loaded.TotalDurationMs.Should().Be(45);
+        _ = loaded.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = loaded.SkipInitialZeroZero.Should().BeTrue();
+        _ = loaded.TrailingDelayMs.Should().Be(17);
+        _ = loaded.HasTrailingRandomDelay.Should().BeTrue();
+        _ = loaded.TrailingDelayMinMs.Should().Be(23);
+        _ = loaded.TrailingDelayMaxMs.Should().Be(41);
+        _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        _ = loaded.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
+        _ = loaded.Images.Should().Equal(macro.Images);
+        _ = loaded.Events.Should().BeEquivalentTo(macro.Events);
 
         // The text grammar intentionally does not serialize runtime identity/statistics.
-        loaded.Id.Should().NotBe(macro.Id);
-        loaded.RecordedAt.Should().NotBe(macro.RecordedAt);
-        loaded.ActualDuration.Should().Be(TimeSpan.Zero);
-        loaded.MouseMoveCount.Should().Be(1);
-        loaded.ClickCount.Should().Be(1);
-        loaded.EventsPerSecond.Should().Be(0);
+        _ = loaded.Id.Should().NotBe(macro.Id);
+        _ = loaded.RecordedAt.Should().NotBe(macro.RecordedAt);
+        _ = loaded.ActualDuration.Should().Be(TimeSpan.Zero);
+        _ = loaded.MouseMoveCount.Should().Be(1);
+        _ = loaded.ClickCount.Should().Be(1);
+        _ = loaded.EventsPerSecond.Should().Be(0);
     }
 
     [Fact]
@@ -234,7 +230,7 @@ M,0,0
         var act = async () => await _manager.SaveAsync(null!, filePath);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentNullException>();
+        _ = await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
     [Fact]
@@ -247,7 +243,7 @@ M,0,0
         var act = async () => await _manager.SaveAsync(macro, "");
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        _ = await act.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]
@@ -260,7 +256,7 @@ M,0,0
         var act = async () => await _manager.SaveAsync(macro, "   ");
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        _ = await act.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]
@@ -274,7 +270,7 @@ M,0,0
         var act = async () => await _manager.SaveAsync(macro, filePath);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        _ = await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -288,7 +284,7 @@ M,0,0
         await _manager.SaveAsync(macro, filePath);
 
         // Assert
-        File.Exists(filePath).Should().BeTrue();
+        _ = File.Exists(filePath).Should().BeTrue();
     }
 
     [Fact]
@@ -306,8 +302,8 @@ M,0,0
             await _manager.SaveAsync(macro, filePath);
 
             // Assert
-            Directory.Exists(tempDir).Should().BeTrue();
-            File.Exists(filePath).Should().BeTrue();
+            _ = Directory.Exists(tempDir).Should().BeTrue();
+            _ = File.Exists(filePath).Should().BeTrue();
         }
         finally
         {
@@ -326,7 +322,7 @@ M,0,0
         var act = async () => await _manager.LoadAsync("");
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>();
+        _ = await act.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]
@@ -336,7 +332,7 @@ M,0,0
         var act = async () => await _manager.LoadAsync("/nonexistent/path/macro.macro");
 
         // Assert
-        await act.Should().ThrowAsync<FileNotFoundException>();
+        _ = await act.Should().ThrowAsync<FileNotFoundException>();
     }
 
     [Fact]
@@ -351,8 +347,8 @@ M,0,0
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Name.Should().Be("Round Trip Test");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Name.Should().Be("Round Trip Test");
     }
 
     [Fact]
@@ -363,12 +359,12 @@ M,0,0
         var filePath = GetTempFilePath();
 
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
-        saved.Should().Contain("# IsAbsolute: True");
-        loaded.Should().NotBeNull();
-        loaded!.IsAbsoluteCoordinates.Should().BeTrue();
+        _ = saved.Should().Contain("# IsAbsolute: True");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.IsAbsoluteCoordinates.Should().BeTrue();
     }
 
     [Fact]
@@ -380,14 +376,14 @@ M,0,0
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("# Format: CrossMacroFormatV2");
-        saved.Should().Contain("[Events]");
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().HaveCount(macro.Events.Count);
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("[Events]");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().HaveCount(macro.Events.Count);
     }
 
     [Fact]
@@ -408,10 +404,10 @@ M,0,0
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded!.Events.Should().HaveCount(1);
-        loaded.Events[0].Type.Should().Be(EventType.MouseMove);
-        loaded.Events[0].X.Should().Be(500);
-        loaded.Events[0].Y.Should().Be(600);
+        _ = loaded!.Events.Should().HaveCount(1);
+        _ = loaded.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = loaded.Events[0].X.Should().Be(500);
+        _ = loaded.Events[0].Y.Should().Be(600);
     }
 
     [Fact]
@@ -433,11 +429,11 @@ M,0,0
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded!.Events.Should().HaveCount(2);
-        loaded.Events[0].Type.Should().Be(EventType.KeyPress);
-        loaded.Events[0].KeyCode.Should().Be(30);
-        loaded.Events[1].Type.Should().Be(EventType.KeyRelease);
-        loaded.Events[1].KeyCode.Should().Be(30);
+        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Events[0].Type.Should().Be(EventType.KeyPress);
+        _ = loaded.Events[0].KeyCode.Should().Be(30);
+        _ = loaded.Events[1].Type.Should().Be(EventType.KeyRelease);
+        _ = loaded.Events[1].KeyCode.Should().Be(30);
     }
 
     [Fact]
@@ -460,8 +456,8 @@ M,0,0
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded!.Events[1].DelayMs.Should().Be(500);
-        loaded.Events[2].DelayMs.Should().Be(1000);
+        _ = loaded!.Events[1].DelayMs.Should().Be(500);
+        _ = loaded.Events[2].DelayMs.Should().Be(1000);
     }
 
     [Fact]
@@ -483,8 +479,8 @@ M,0,0
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded!.Events[0].Button.Should().Be(MacroMouseButton.Right);
-        loaded.Events[1].Button.Should().Be(MacroMouseButton.Right);
+        _ = loaded!.Events[0].Button.Should().Be(MacroMouseButton.Right);
+        _ = loaded.Events[1].Button.Should().Be(MacroMouseButton.Right);
     }
 
     [Fact]
@@ -514,9 +510,9 @@ M,0,0
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().ContainSingle();
-        loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
     }
 
     [Fact]
@@ -524,24 +520,16 @@ M,0,0
     {
         // Arrange - Manual file with WAIT command
         var filePath = GetTempFilePath();
-        const string content = @"# Name: Wait Test
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 1000
-# IsAbsolute: True
-# Format: CrossMacroFormatV2
-[Events]
-M,0,0
-W,500
-M,100,100";
+        string content = "# Name: Wait Test\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 1000\n# IsAbsolute: True\n# Format: CrossMacroFormatV2\n[Events]\nM,0,0\nW,500\nM,100,100" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded!.Events.Should().HaveCount(2);
-        loaded.Events[1].DelayMs.Should().Be(500);
+        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Events[1].DelayMs.Should().Be(500);
     }
 
     [Fact]
@@ -549,28 +537,20 @@ M,100,100";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = """
-# Name: Sectionless Events
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 1000
-# IsAbsolute: True
-M,0,0
-W,500
-KP,65
-""";
+        string content = "# Name: Sectionless Events\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 1000\n# IsAbsolute: True\nM,0,0\nW,500\nKP,65" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.ScriptSteps.Should().BeEmpty();
-        loaded.Events.Should().HaveCount(2);
-        loaded.Events[0].Type.Should().Be(EventType.MouseMove);
-        loaded.Events[1].Type.Should().Be(EventType.KeyPress);
-        loaded.Events[1].DelayMs.Should().Be(500);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.ScriptSteps.Should().BeEmpty();
+        _ = loaded.Events.Should().HaveCount(2);
+        _ = loaded.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = loaded.Events[1].Type.Should().Be(EventType.KeyPress);
+        _ = loaded.Events[1].DelayMs.Should().Be(500);
     }
 
     [Fact]
@@ -578,27 +558,18 @@ KP,65
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = @"# Name: Delay Leak Test
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 1000
-# IsAbsolute: True
-# Format: CrossMacroFormatV2
-[Events]
-M,0,0
-W,500
-P,invalid,10,Left
-M,100,100";
+        string content = "# Name: Delay Leak Test\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 1000\n# IsAbsolute: True\n# Format: CrossMacroFormatV2\n[Events]\nM,0,0\nW,500\nP,invalid,10,Left\nM,100,100" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().HaveCount(2);
-        loaded.Events[0].DelayMs.Should().Be(0);
-        loaded.Events[1].DelayMs.Should().Be(0);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Events[0].DelayMs.Should().Be(0);
+        _ = loaded.Events[1].DelayMs.Should().Be(0);
     }
 
     [Fact]
@@ -606,24 +577,17 @@ M,100,100";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = @"# Name: Legacy Current Position Test
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 0
-# IsAbsolute: False
-# SkipInitialZero: True
-# Format: CrossMacroFormatV2
-[Events]
-C,0,0,Left";
+        string content = "# Name: Legacy Current Position Test\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 0\n# IsAbsolute: False\n# SkipInitialZero: True\n# Format: CrossMacroFormatV2\n[Events]\nC,0,0,Left" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().ContainSingle();
-        loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
     }
 
     [Fact]
@@ -631,28 +595,19 @@ C,0,0,Left";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = @"# Name: Legacy Current Position Followed By Move
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 0
-# IsAbsolute: False
-# SkipInitialZero: True
-# Format: CrossMacroFormatV2
-[Events]
-C,0,0,Left
-M,15,5
-C,0,0,Left";
+        string content = "# Name: Legacy Current Position Followed By Move\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 0\n# IsAbsolute: False\n# SkipInitialZero: True\n# Format: CrossMacroFormatV2\n[Events]\nC,0,0,Left\nM,15,5\nC,0,0,Left" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().HaveCount(3);
-        loaded.Events[0].UseCurrentPosition.Should().BeTrue();
-        loaded.Events[1].Type.Should().Be(EventType.MouseMove);
-        loaded.Events[2].UseCurrentPosition.Should().BeFalse();
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().HaveCount(3);
+        _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+        _ = loaded.Events[1].Type.Should().Be(EventType.MouseMove);
+        _ = loaded.Events[2].UseCurrentPosition.Should().BeFalse();
     }
 
     [Fact]
@@ -660,25 +615,18 @@ C,0,0,Left";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = @"# Name: Explicit Relative Zero Click
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 0
-# IsAbsolute: False
-# SkipInitialZero: True
-# Format: CrossMacroFormatV2
-[Events]
-C,rel,0,0,Left";
+        string content = "# Name: Explicit Relative Zero Click\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 0\n# IsAbsolute: False\n# SkipInitialZero: True\n# Format: CrossMacroFormatV2\n[Events]\nC,rel,0,0,Left" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().ContainSingle();
-        loaded.Events[0].UseCurrentPosition.Should().BeFalse();
-        loaded.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events[0].UseCurrentPosition.Should().BeFalse();
+        _ = loaded.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
     }
 
     [Fact]
@@ -710,12 +658,12 @@ C,rel,0,0,Left";
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().HaveCount(2);
-        loaded.Events[1].DelayMs.Should().Be(40);
-        loaded.Events[1].HasRandomDelay.Should().BeTrue();
-        loaded.Events[1].RandomDelayMinMs.Should().Be(60);
-        loaded.Events[1].RandomDelayMaxMs.Should().Be(120);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Events[1].DelayMs.Should().Be(40);
+        _ = loaded.Events[1].HasRandomDelay.Should().BeTrue();
+        _ = loaded.Events[1].RandomDelayMinMs.Should().Be(60);
+        _ = loaded.Events[1].RandomDelayMaxMs.Should().Be(120);
     }
 
     [Fact]
@@ -739,10 +687,10 @@ C,rel,0,0,Left";
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.HasTrailingRandomDelay.Should().BeTrue();
-        loaded.TrailingDelayMinMs.Should().Be(25);
-        loaded.TrailingDelayMaxMs.Should().Be(75);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.HasTrailingRandomDelay.Should().BeTrue();
+        _ = loaded.TrailingDelayMinMs.Should().Be(25);
+        _ = loaded.TrailingDelayMaxMs.Should().Be(75);
     }
 
     [Fact]
@@ -750,28 +698,20 @@ C,rel,0,0,Left";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = @"# Name: Wait Random Test
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 1000
-# IsAbsolute: True
-# Format: CrossMacroFormatV2
-[Events]
-M,0,0
-WR,100,250
-M,100,100";
+        string content = "# Name: Wait Random Test\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 1000\n# IsAbsolute: True\n# Format: CrossMacroFormatV2\n[Events]\nM,0,0\nWR,100,250\nM,100,100" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().HaveCount(2);
-        loaded.Events[1].DelayMs.Should().Be(0);
-        loaded.Events[1].HasRandomDelay.Should().BeTrue();
-        loaded.Events[1].RandomDelayMinMs.Should().Be(100);
-        loaded.Events[1].RandomDelayMaxMs.Should().Be(250);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Events[1].DelayMs.Should().Be(0);
+        _ = loaded.Events[1].HasRandomDelay.Should().BeTrue();
+        _ = loaded.Events[1].RandomDelayMinMs.Should().Be(100);
+        _ = loaded.Events[1].RandomDelayMaxMs.Should().Be(250);
     }
 
     [Fact]
@@ -796,21 +736,21 @@ M,100,100";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("# Format: CrossMacroFormatV2");
-        saved.Should().Contain("[Script]");
-        saved.Should().Contain("set i 0");
-        saved.Should().Contain("for i from 1 to 10 {");
-        saved.Should().Contain("click left");
-        saved.Should().Contain("}");
-        saved.Should().Contain("[Events]");
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().HaveCount(1);
-        loaded.Events[0].Type.Should().Be(EventType.Click);
-        loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("[Script]");
+        _ = saved.Should().Contain("set i 0");
+        _ = saved.Should().Contain("for i from 1 to 10 {");
+        _ = saved.Should().Contain("click left");
+        _ = saved.Should().Contain("}");
+        _ = saved.Should().Contain("[Events]");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().HaveCount(1);
+        _ = loaded.Events[0].Type.Should().Be(EventType.Click);
+        _ = loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
     [Fact]
@@ -822,9 +762,9 @@ M,100,100";
 
         var act = async () => await _manager.SaveAsync(macro, filePath);
 
-        await act.Should().ThrowAsync<InvalidDataException>()
+        _ = await act.Should().ThrowAsync<InvalidDataException>()
             .WithMessage("*image asset 'Missing' is not defined*");
-        File.Exists(filePath).Should().BeFalse();
+        _ = File.Exists(filePath).Should().BeFalse();
     }
 
     [Fact]
@@ -839,11 +779,11 @@ M,100,100";
             "imagesearch Missing found found_x found_y",
             "[Events]",
             "M,0,0",
-        ]);
+        ], NonCancelableToken);
 
         var act = async () => await _manager.LoadAsync(filePath);
 
-        await act.Should().ThrowAsync<InvalidDataException>()
+        _ = await act.Should().ThrowAsync<InvalidDataException>()
             .WithMessage("*image asset 'Missing' is not defined*");
     }
 
@@ -857,22 +797,22 @@ M,100,100";
             Images = {
                 ["Target_1"] = TransparentPngBase64,
             },
-            ScriptSteps = {"click left"},
+            ScriptSteps = { "click left" },
         };
         var filePath = GetTempFilePath();
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain($"# Image: Target_1 = {TransparentPngBase64}");
-        saved.IndexOf("# Image: Target_1", StringComparison.Ordinal)
+        _ = saved.Should().Contain($"# Image: Target_1 = {TransparentPngBase64}");
+        _ = saved.IndexOf("# Image: Target_1", StringComparison.Ordinal)
             .Should().BeLessThan(saved.IndexOf("# Format: CrossMacroFormatV2", StringComparison.Ordinal));
-        loaded.Should().NotBeNull();
-        loaded!.Images.Should().Equal(macro.Images);
-        loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Images.Should().Equal(macro.Images);
+        _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
     [Fact]
@@ -894,16 +834,16 @@ M,100,100";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var savedLines = await File.ReadAllLinesAsync(filePath);
+        var savedLines = await File.ReadAllLinesAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        savedLines.Should().ContainInOrder(
+        _ = savedLines.Should().ContainInOrder(
             $"# Image: Alpha_2 = {BlackPngBase64}",
             $"# Image: Zeta = {TransparentPngBase64}",
             "# Format: CrossMacroFormatV2");
-        loaded.Should().NotBeNull();
-        loaded!.Images.Should().Equal(macro.Images);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Images.Should().Equal(macro.Images);
     }
 
     [Fact]
@@ -915,14 +855,14 @@ M,100,100";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().NotContain("# Image:");
-        loaded.Should().NotBeNull();
-        loaded!.Images.Should().BeEmpty();
-        loaded.Events.Should().HaveCount(macro.Events.Count);
+        _ = saved.Should().NotContain("# Image:");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Images.Should().BeEmpty();
+        _ = loaded.Events.Should().HaveCount(macro.Events.Count);
     }
 
     [Fact]
@@ -947,8 +887,8 @@ M,100,100";
         var act = async () => await _manager.SaveAsync(macro, filePath);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidDataException>();
-        File.Exists(filePath).Should().BeFalse();
+        _ = await act.Should().ThrowAsync<InvalidDataException>();
+        _ = File.Exists(filePath).Should().BeFalse();
     }
 
     [Fact]
@@ -965,13 +905,13 @@ M,100,100";
             "# Format: CrossMacroFormatV2",
             "[Events]",
             "M,0,0",
-        ]);
+        ], NonCancelableToken);
 
         // Act
         var act = async () => await _manager.LoadAsync(filePath);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidDataException>()
+        _ = await act.Should().ThrowAsync<InvalidDataException>()
             .WithMessage("Malformed image metadata: missing '=' separator.");
     }
 
@@ -987,13 +927,13 @@ M,100,100";
             "# Format: CrossMacroFormatV2",
             "[Events]",
             "M,0,0",
-        ]);
+        ], NonCancelableToken);
 
         // Act
         var act = async () => await _manager.LoadAsync(filePath);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidDataException>();
+        _ = await act.Should().ThrowAsync<InvalidDataException>();
     }
 
     [Fact]
@@ -1001,7 +941,7 @@ M,100,100";
     {
         var filePath = GetTempFilePath();
         const string original = "existing macro content";
-        await File.WriteAllTextAsync(filePath, original);
+        await File.WriteAllTextAsync(filePath, original, NonCancelableToken);
         var macro = CreateValidMacro();
         macro.ReplaceImages(new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -1010,9 +950,9 @@ M,100,100";
 
         var act = async () => await _manager.SaveAsync(macro, filePath);
 
-        await act.Should().ThrowAsync<InvalidDataException>();
-        (await File.ReadAllTextAsync(filePath)).Should().Be(original);
-        Directory.GetFiles(Path.GetDirectoryName(filePath)!, $"{Path.GetFileName(filePath)}.*.tmp")
+        _ = await act.Should().ThrowAsync<InvalidDataException>();
+        _ = (await File.ReadAllTextAsync(filePath, NonCancelableToken)).Should().Be(original);
+        _ = Directory.GetFiles(Path.GetDirectoryName(filePath)!, $"{Path.GetFileName(filePath)}.*.tmp")
             .Should().BeEmpty();
     }
 
@@ -1020,12 +960,12 @@ M,100,100";
     public async Task SaveAsync_WhenDestinationExists_ReplacesItAtomically()
     {
         var filePath = GetTempFilePath();
-        await File.WriteAllTextAsync(filePath, "old content");
+        await File.WriteAllTextAsync(filePath, "old content", NonCancelableToken);
 
         await _manager.SaveAsync(CreateValidMacro("replacement"), filePath);
 
-        (await File.ReadAllTextAsync(filePath)).Should().Contain("# Name: replacement");
-        Directory.GetFiles(Path.GetDirectoryName(filePath)!, $"{Path.GetFileName(filePath)}.*.tmp")
+        _ = (await File.ReadAllTextAsync(filePath, NonCancelableToken)).Should().Contain("# Name: replacement");
+        _ = Directory.GetFiles(Path.GetDirectoryName(filePath)!, $"{Path.GetFileName(filePath)}.*.tmp")
             .Should().BeEmpty();
     }
 
@@ -1039,7 +979,7 @@ M,100,100";
             Images = {
                 ["Target_1"] = TransparentPngBase64,
             },
-            ScriptSteps = {"pixelcolor 1"},
+            ScriptSteps = { "pixelcolor 1" },
         };
         var filePath = GetTempFilePath();
 
@@ -1047,9 +987,9 @@ M,100,100";
         var act = async () => await _manager.SaveAsync(macro, filePath);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Invalid pixelcolor syntax*");
-        File.Exists(filePath).Should().BeFalse();
+        _ = File.Exists(filePath).Should().BeFalse();
     }
 
     [Fact]
@@ -1057,28 +997,17 @@ M,100,100";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = """
-# Name: Readable Script Step Macro
-# Created: 2024-01-01T00:00:00Z
-# DurationMs: 0
-# IsAbsolute: True
-# Format: CrossMacroFormatV2
-[Script]
-pixelcolor 10 20 color
-waitcolor 11 22 00FFAA 2500 wait_ok
-pixelsearch 0 0 3 3 123456 found x y
-[Events]
-""";
+        string content = "# Name: Readable Script Step Macro\n# Created: 2024-01-01T00:00:00Z\n# DurationMs: 0\n# IsAbsolute: True\n# Format: CrossMacroFormatV2\n[Script]\npixelcolor 10 20 color\nwaitcolor 11 22 00FFAA 2500 wait_ok\npixelsearch 0 0 3 3 123456 found x y\n[Events]" + '\n';
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().BeEmpty();
-        loaded.ScriptSteps.Should().Equal(
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().BeEmpty();
+        _ = loaded.ScriptSteps.Should().Equal(
             "pixelcolor 10 20 color",
             "waitcolor 11 22 00FFAA 2500 wait_ok",
             "pixelsearch 0 0 3 3 123456 found x y");
@@ -1089,33 +1018,17 @@ pixelsearch 0 0 3 3 123456 found x y
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = """
-# Name: Readable Section Noise
-# Format: CrossMacroFormatV2
-[Script]
+        string content = "# Name: Readable Section Noise\n# Format: CrossMacroFormatV2\n[Script]\n\n# ignore me\npixelcolor 10 20 color\n\n# another comment\nclick left\n[Events]\n\n# comment in events\nM,10,20\n\nKP,65" + '\n';
 
-# ignore me
-pixelcolor 10 20 color
-
-# another comment
-click left
-[Events]
-
-# comment in events
-M,10,20
-
-KP,65
-""";
-
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.ScriptSteps.Should().Equal("pixelcolor 10 20 color", "click left");
-        loaded.Events.Should().HaveCount(2);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.ScriptSteps.Should().Equal("pixelcolor 10 20 color", "click left");
+        _ = loaded.Events.Should().HaveCount(2);
     }
 
     [Fact]
@@ -1125,23 +1038,23 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Embedded Newline Script Step Round Trip",
-            ScriptSteps = {"type first line\npath C:\\Users\\me"},
+            ScriptSteps = { "type first line\npath C:\\Users\\me" },
         };
         var filePath = GetTempFilePath();
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var savedLines = await File.ReadAllLinesAsync(filePath);
+        var savedLines = await File.ReadAllLinesAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        savedLines.Should().ContainInOrder(
+        _ = savedLines.Should().ContainInOrder(
             "# Format: CrossMacroFormatV2",
             "[Script]",
             "type first line",
             "| path C:\\Users\\me");
-        loaded.Should().NotBeNull();
-        loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
     [Fact]
@@ -1161,17 +1074,17 @@ KP,65
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("# Format: CrossMacroFormatV2");
-        saved.Should().Contain("[Script]");
-        saved.Should().Contain("pixelcolor 10 20 color");
-        saved.Should().Contain("pixelsearch 0 0 3 3 123456 x y");
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().BeEmpty();
-        loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("[Script]");
+        _ = saved.Should().Contain("pixelcolor 10 20 color");
+        _ = saved.Should().Contain("pixelsearch 0 0 3 3 123456 x y");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().BeEmpty();
+        _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
     [Fact]
@@ -1190,15 +1103,15 @@ KP,65
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("type [demo], #1, C:\\Temp\\macro.txt");
-        saved.Should().Contain("# Format: CrossMacroFormatV2");
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().BeEmpty();
-        loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        _ = saved.Should().Contain("type [demo], #1, C:\\Temp\\macro.txt");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().BeEmpty();
+        _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
     [Fact]
@@ -1208,7 +1121,7 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Invalid Script Step Macro",
-            ScriptSteps = {"pixelcolor 1"},
+            ScriptSteps = { "pixelcolor 1" },
         };
         var filePath = GetTempFilePath();
 
@@ -1216,9 +1129,9 @@ KP,65
         var act = async () => await _manager.SaveAsync(macro, filePath);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Invalid pixelcolor syntax*");
-        File.Exists(filePath).Should().BeFalse();
+        _ = File.Exists(filePath).Should().BeFalse();
     }
 
     [Theory]
@@ -1231,7 +1144,7 @@ KP,65
         var macro = new MacroSequence
         {
             Name = "Runtime Mapped Key Script",
-            ScriptSteps = {scriptStep},
+            ScriptSteps = { scriptStep },
         };
         var filePath = GetTempFilePath();
 
@@ -1240,8 +1153,8 @@ KP,65
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.ScriptSteps.Should().Equal(scriptStep);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.ScriptSteps.Should().Equal(scriptStep);
     }
 
     [Fact]
@@ -1267,15 +1180,15 @@ KP,65
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("# Format: CrossMacroFormatV2");
-        saved.Should().Contain("# TextInputBoundaryBase64:");
-        saved.Should().Contain("[Events]");
-        loaded.Should().NotBeNull();
-        loaded!.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("# TextInputBoundaryBase64:");
+        _ = saved.Should().Contain("[Events]");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
     }
 
     [Fact]
@@ -1283,28 +1196,22 @@ KP,65
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = @"# Name: Legacy Relative
-# IsAbsolute: False
-# SkipInitialZero: False
-# Format: CrossMacroFormatV2
-[Events]
-M,5,6
-C,5,6,Right";
+        const string content = "# Name: Legacy Relative\n# IsAbsolute: False\n# SkipInitialZero: False\n# Format: CrossMacroFormatV2\n[Events]\nM,5,6\nC,5,6,Right";
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.IsAbsoluteCoordinates.Should().BeFalse();
-        loaded.Events.Should().HaveCount(2);
-        loaded.Events[0].CoordinateMode.Should().BeNull();
-        loaded.Events[1].CoordinateMode.Should().BeNull();
-        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = loaded.Events.Should().HaveCount(2);
+        _ = loaded.Events[0].CoordinateMode.Should().BeNull();
+        _ = loaded.Events[1].CoordinateMode.Should().BeNull();
+        _ = MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
             .Should().Be(MouseCoordinateMode.Relative);
-        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
+        _ = MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
             .Should().Be(MouseCoordinateMode.Relative);
     }
 
@@ -1325,14 +1232,14 @@ C,5,6,Right";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("M,abs,100,200");
-        saved.Should().Contain("M,rel,10,20");
-        loaded.Should().NotBeNull();
-        loaded.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+        _ = saved.Should().Contain("M,abs,100,200");
+        _ = saved.Should().Contain("M,rel,10,20");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded.Events.Select(ev => ev.CoordinateMode).Should().Equal(
             MouseCoordinateMode.Absolute,
             MouseCoordinateMode.Relative);
     }
@@ -1355,20 +1262,20 @@ C,5,6,Right";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("M,abs,100,200");
-        saved.Should().Contain("M,10,20");
-        saved.Should().Contain("C,5,6,Left");
-        loaded.Should().NotBeNull();
-        loaded!.IsAbsoluteCoordinates.Should().BeFalse();
-        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
+        _ = saved.Should().Contain("M,abs,100,200");
+        _ = saved.Should().Contain("M,10,20");
+        _ = saved.Should().Contain("C,5,6,Left");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
             .Should().Be(MouseCoordinateMode.Absolute);
-        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
+        _ = MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
             .Should().Be(MouseCoordinateMode.Relative);
-        MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[2], loaded.IsAbsoluteCoordinates)
+        _ = MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[2], loaded.IsAbsoluteCoordinates)
             .Should().Be(MouseCoordinateMode.Relative);
     }
 
@@ -1390,15 +1297,15 @@ C,5,6,Right";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("P,abs,1,2,Left");
-        saved.Should().Contain("R,rel,3,4,Right");
-        saved.Should().Contain("C,rel,5,6,Middle");
-        loaded.Should().NotBeNull();
-        loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+        _ = saved.Should().Contain("P,abs,1,2,Left");
+        _ = saved.Should().Contain("R,rel,3,4,Right");
+        _ = saved.Should().Contain("C,rel,5,6,Middle");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
             MouseCoordinateMode.Absolute,
             MouseCoordinateMode.Relative,
             MouseCoordinateMode.Relative);
@@ -1429,16 +1336,16 @@ C,5,6,Right";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("C,0,0,Left,CurrentPosition");
-        saved.Should().NotContain("C,rel,0,0,Left");
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().ContainSingle();
-        loaded.Events[0].UseCurrentPosition.Should().BeTrue();
-        loaded.Events[0].CoordinateMode.Should().BeNull();
+        _ = saved.Should().Contain("C,0,0,Left,CurrentPosition");
+        _ = saved.Should().NotContain("C,rel,0,0,Left");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+        _ = loaded.Events[0].CoordinateMode.Should().BeNull();
     }
 
     [Fact]
@@ -1464,16 +1371,16 @@ C,5,6,Right";
 
         // Act
         await _manager.SaveAsync(macro, filePath);
-        var saved = await File.ReadAllTextAsync(filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        saved.Should().Contain("C,0,0,ScrollDown");
-        saved.Should().NotContain("C,abs,0,0,ScrollDown");
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().ContainSingle();
-        loaded.Events[0].Button.Should().Be(MacroMouseButton.ScrollDown);
-        loaded.Events[0].CoordinateMode.Should().BeNull();
+        _ = saved.Should().Contain("C,0,0,ScrollDown");
+        _ = saved.Should().NotContain("C,abs,0,0,ScrollDown");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events[0].Button.Should().Be(MacroMouseButton.ScrollDown);
+        _ = loaded.Events[0].CoordinateMode.Should().BeNull();
     }
 
     [Fact]
@@ -1481,26 +1388,20 @@ C,5,6,Right";
     {
         // Arrange
         var filePath = GetTempFilePath();
-        const string content = @"# Name: Invalid Mode
-# IsAbsolute: True
-# Format: CrossMacroFormatV2
-[Events]
-M,foo,1,2
-P,bar,3,4,Left
-M,abs,10,20";
+        const string content = "# Name: Invalid Mode\n# IsAbsolute: True\n# Format: CrossMacroFormatV2\n[Events]\nM,foo,1,2\nP,bar,3,4,Left\nM,abs,10,20";
 
-        await File.WriteAllTextAsync(filePath, content);
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.Events.Should().ContainSingle();
-        loaded.Events[0].Type.Should().Be(EventType.MouseMove);
-        loaded.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        loaded.Events[0].X.Should().Be(10);
-        loaded.Events[0].Y.Should().Be(20);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = loaded.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = loaded.Events[0].X.Should().Be(10);
+        _ = loaded.Events[0].Y.Should().Be(20);
     }
 
     [Fact]
@@ -1516,15 +1417,15 @@ M,abs,10,20";
             "[Events]",
             "KP,65",
             "KR,65",
-        ]);
+        ], NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.TextInputBoundaries.Should().BeEmpty();
-        loaded.Events.Should().HaveCount(2);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.TextInputBoundaries.Should().BeEmpty();
+        _ = loaded.Events.Should().HaveCount(2);
     }
 
     [Fact]
@@ -1542,15 +1443,15 @@ M,abs,10,20";
             "[Events]",
             "KP,65",
             "KR,65",
-        ]);
+        ], NonCancelableToken);
 
         // Act
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        loaded.Should().NotBeNull();
-        loaded!.TextInputBoundaries.Should().Equal(new TextInputBoundary(0, 2, "legacy text"));
-        loaded.Events.Should().HaveCount(2);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.TextInputBoundaries.Should().Equal(new TextInputBoundary(0, 2, "legacy text"));
+        _ = loaded.Events.Should().HaveCount(2);
     }
 
     private static byte[] CreateOversizedPngBytes()

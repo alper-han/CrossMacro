@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-public class MacOSInputSimulatorTests
+public sealed class MacOSInputSimulatorTests
 {
     [Fact]
     public void ProviderName_IsExpected()
@@ -24,9 +24,9 @@ public class MacOSInputSimulatorTests
     {
         var simulator = new MacOSInputSimulator();
 
-        Assert.IsAssignableFrom<IUnicodeTextInputSimulator>(simulator);
-        Assert.IsAssignableFrom<ITaggedKeyboardInputSimulator>(simulator);
-        Assert.IsAssignableFrom<ITaggedUnicodeTextInputSimulator>(simulator);
+        _ = Assert.IsAssignableFrom<IUnicodeTextInputSimulator>(simulator);
+        _ = Assert.IsAssignableFrom<ITaggedKeyboardInputSimulator>(simulator);
+        _ = Assert.IsAssignableFrom<ITaggedUnicodeTextInputSimulator>(simulator);
         Assert.Equal(simulator.IsSupported, simulator.SupportsUnicodeTextInput);
         Assert.Equal(simulator.IsSupported, simulator.SupportsTaggedKeyboardInput);
     }
@@ -36,7 +36,7 @@ public class MacOSInputSimulatorTests
     {
         var simulator = new MacOSInputSimulator();
 
-        Assert.IsAssignableFrom<IPlatformPasteShortcutProvider>(simulator);
+        _ = Assert.IsAssignableFrom<IPlatformPasteShortcutProvider>(simulator);
         Assert.True(simulator.UsesMetaKeyForStandardPaste);
     }
 
@@ -79,9 +79,9 @@ public class MacOSInputSimulatorTests
             },
             isMacOS: () => true);
 
-        Assert.Throws<InputInjectionPermissionRequiredException>(
+        _ = Assert.Throws<InputInjectionPermissionRequiredException>(
             () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
-        Assert.Throws<InputInjectionPermissionRequiredException>(
+        _ = Assert.Throws<InputInjectionPermissionRequiredException>(
             () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
 
         Assert.Equal(2, postRequests);
@@ -99,7 +99,7 @@ public class MacOSInputSimulatorTests
             },
             isMacOS: () => true);
 
-        Assert.Throws<InputInjectionPermissionRequiredException>(
+        _ = Assert.Throws<InputInjectionPermissionRequiredException>(
             () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
         simulator.KeyPress(InputEventCode.KEY_F21, pressed: true);
         simulator.KeyPress(InputEventCode.KEY_F21, pressed: false);
@@ -112,7 +112,7 @@ public class MacOSInputSimulatorTests
     {
         var flags = MacOSInputSimulator.CreateKeyboardFlags([InputEventCode.KEY_LEFTMETA]);
 
-        Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Command));
+        Assert.True(flags.HasFlag(CoreGraphics.CGEventModifiers.Command));
     }
 
     [Fact]
@@ -125,10 +125,10 @@ public class MacOSInputSimulatorTests
                 InputEventCode.KEY_LEFTALT,
             ]);
 
-        Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Control));
-        Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Shift));
-        Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Alternate));
-        Assert.False(flags.HasFlag(CoreGraphics.CGEventFlags.Command));
+        Assert.True(flags.HasFlag(CoreGraphics.CGEventModifiers.Control));
+        Assert.True(flags.HasFlag(CoreGraphics.CGEventModifiers.Shift));
+        Assert.True(flags.HasFlag(CoreGraphics.CGEventModifiers.Alternate));
+        Assert.False(flags.HasFlag(CoreGraphics.CGEventModifiers.Command));
     }
 
     [Fact]
@@ -141,10 +141,10 @@ public class MacOSInputSimulatorTests
         var vUp = simulator.UpdateKeyboardFlags(InputEventCode.KEY_V, pressed: false);
         var metaUp = simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTMETA, pressed: false);
 
-        Assert.True(metaDown.HasFlag(CoreGraphics.CGEventFlags.Command));
-        Assert.True(vDown.HasFlag(CoreGraphics.CGEventFlags.Command));
-        Assert.True(vUp.HasFlag(CoreGraphics.CGEventFlags.Command));
-        Assert.False(metaUp.HasFlag(CoreGraphics.CGEventFlags.Command));
+        Assert.True(metaDown.HasFlag(CoreGraphics.CGEventModifiers.Command));
+        Assert.True(vDown.HasFlag(CoreGraphics.CGEventModifiers.Command));
+        Assert.True(vUp.HasFlag(CoreGraphics.CGEventModifiers.Command));
+        Assert.False(metaUp.HasFlag(CoreGraphics.CGEventModifiers.Command));
     }
 
     [Fact]
@@ -152,13 +152,13 @@ public class MacOSInputSimulatorTests
     {
         var simulator = new MacOSInputSimulator();
 
-        simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTSHIFT, pressed: true);
-        simulator.UpdateKeyboardFlags(InputEventCode.KEY_RIGHTSHIFT, pressed: true);
+        _ = simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTSHIFT, pressed: true);
+        _ = simulator.UpdateKeyboardFlags(InputEventCode.KEY_RIGHTSHIFT, pressed: true);
         var leftShiftUp = simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTSHIFT, pressed: false);
         var rightShiftUp = simulator.UpdateKeyboardFlags(InputEventCode.KEY_RIGHTSHIFT, pressed: false);
 
-        Assert.True(leftShiftUp.HasFlag(CoreGraphics.CGEventFlags.Shift));
-        Assert.False(rightShiftUp.HasFlag(CoreGraphics.CGEventFlags.Shift));
+        Assert.True(leftShiftUp.HasFlag(CoreGraphics.CGEventModifiers.Shift));
+        Assert.False(rightShiftUp.HasFlag(CoreGraphics.CGEventModifiers.Shift));
     }
 
     [Fact]
@@ -167,11 +167,11 @@ public class MacOSInputSimulatorTests
         var simulator = new MacOSInputSimulator();
 
         var initial = simulator.UpdateKeyboardFlags(InputEventCode.KEY_V, pressed: true);
-        simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTCTRL, pressed: true);
+        _ = simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTCTRL, pressed: true);
         var afterNonModifier = simulator.UpdateKeyboardFlags(InputEventCode.KEY_V, pressed: false);
 
         Assert.Equal(default, initial);
-        Assert.True(afterNonModifier.HasFlag(CoreGraphics.CGEventFlags.Control));
+        Assert.True(afterNonModifier.HasFlag(CoreGraphics.CGEventModifiers.Control));
     }
 
     [Theory]
@@ -239,10 +239,10 @@ public class MacOSInputSimulatorTests
         var payload = MacOSSystemKeyEventFactory.CreatePayload(
             0,
             pressed: true,
-            CoreGraphics.CGEventFlags.Command | CoreGraphics.CGEventFlags.Shift);
+            CoreGraphics.CGEventModifiers.Command | CoreGraphics.CGEventModifiers.Shift);
 
-        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventFlags.Command));
-        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventFlags.Shift));
+        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventModifiers.Command));
+        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventModifiers.Shift));
         Assert.True(((ulong)payload.Flags & 0x0A00) == 0x0A00);
     }
 
@@ -260,10 +260,10 @@ public class MacOSInputSimulatorTests
         var payload = MacOSSystemKeyEventFactory.CreatePayload(
             16,
             pressed: true,
-            CoreGraphics.CGEventFlags.Command);
+            CoreGraphics.CGEventModifiers.Command);
 
         Assert.Equal(CoreGraphics.CGEventType.SystemDefined, payload.EventType);
-        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventFlags.Command));
+        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventModifiers.Command));
         Assert.True(((ulong)payload.Flags & 0x0A00) == 0x0A00);
         Assert.Equal(8, payload.Subtype);
         Assert.Equal((16 << 16) | 0x0A00, payload.Data1);
@@ -284,14 +284,9 @@ public class MacOSInputSimulatorTests
     [Fact]
     public void SystemKeyFactory_IncludesNSEventBridgeImplementation()
     {
-        var bridgeType = typeof(MacOSSystemKeyEventFactory).Assembly.GetType(
-            "CrossMacro.Platform.MacOS.Services.MacOSSystemKeyNSEventBridge");
-        var createMethod = bridgeType?.GetMethod(
-            "TryCreateSystemDefinedCGEvent",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        TryCreateSystemDefinedCGEventDelegate createEvent = MacOSSystemKeyNSEventBridge.TryCreateSystemDefinedCGEvent;
 
-        Assert.NotNull(bridgeType);
-        Assert.NotNull(createMethod);
+        Assert.NotNull(createEvent);
     }
 
     [Fact]
@@ -332,4 +327,8 @@ public class MacOSInputSimulatorTests
         Assert.Equal(-1, nxKeyType);
         Assert.Equal(0xFFFF, virtualKeyCode);
     }
+
+    private delegate bool TryCreateSystemDefinedCGEventDelegate(
+        MacOSSystemKeyEventPayload payload,
+        out IntPtr eventRef);
 }

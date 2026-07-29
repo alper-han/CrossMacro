@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Abstractions;
 /// <summary>
 /// Describes a single desktop window returned by the window manager.
 /// </summary>
-public sealed record class WindowInfo
+public sealed record WindowInfo
 {
     /// <summary>Compositor-assigned address, e.g. "0x55a1b2c3d4e5".</summary>
     public string Address { get; init; } = string.Empty;

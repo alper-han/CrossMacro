@@ -1,7 +1,7 @@
 namespace CrossMacro.Core.Tests.Models;
 
 
-public class TextExpansionTests
+public sealed class TextExpansionTests
 {
     [Fact]
     public void NewTextExpansion_DefaultConstructor_HasEmptyValues()
@@ -10,11 +10,11 @@ public class TextExpansionTests
         var expansion = new TextExpansionEntry();
 
         // Assert
-        expansion.Trigger.Should().BeEmpty();
-        expansion.Replacement.Should().BeEmpty();
-        expansion.IsEnabled.Should().BeTrue();
-        expansion.Method.Should().Be(PasteMethod.CtrlV);
-        expansion.InsertionMode.Should().Be(TextInsertionMode.Paste);
+        _ = expansion.Trigger.Should().BeEmpty();
+        _ = expansion.Replacement.Should().BeEmpty();
+        _ = expansion.IsEnabled.Should().BeTrue();
+        _ = expansion.Method.Should().Be(PasteMethod.CtrlV);
+        _ = expansion.InsertionMode.Should().Be(TextInsertionMode.Paste);
     }
 
     [Fact]
@@ -29,11 +29,11 @@ isEnabled: true,
             TextInsertionMode.DirectTyping);
 
         // Assert
-        expansion.Trigger.Should().Be(":mail");
-        expansion.Replacement.Should().Be("test@example.com");
-        expansion.IsEnabled.Should().BeTrue();
-        expansion.Method.Should().Be(PasteMethod.CtrlShiftV);
-        expansion.InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
+        _ = expansion.Trigger.Should().Be(":mail");
+        _ = expansion.Replacement.Should().Be("test@example.com");
+        _ = expansion.IsEnabled.Should().BeTrue();
+        _ = expansion.Method.Should().Be(PasteMethod.CtrlShiftV);
+        _ = expansion.InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
     }
 
     [Fact]
@@ -43,46 +43,49 @@ isEnabled: true,
         var expansion = new TextExpansionEntry(":sig", "Best regards,\nJohn", isEnabled: false);
 
         // Assert
-        expansion.IsEnabled.Should().BeFalse();
+        _ = expansion.IsEnabled.Should().BeFalse();
     }
 
     [Fact]
     public void TextExpansion_CanSetTrigger()
     {
         // Arrange
-        var expansion = new TextExpansionEntry();
-
-        // Act
-        expansion.Trigger = ":addr";
+        var expansion = new TextExpansionEntry
+        {
+            // Act
+            Trigger = ":addr",
+        };
 
         // Assert
-        expansion.Trigger.Should().Be(":addr");
+        _ = expansion.Trigger.Should().Be(":addr");
     }
 
     [Fact]
     public void TextExpansion_CanSetReplacement()
     {
         // Arrange
-        var expansion = new TextExpansionEntry();
-
-        // Act
-        expansion.Replacement = "123 Main Street, City, Country";
+        var expansion = new TextExpansionEntry
+        {
+            // Act
+            Replacement = "123 Main Street, City, Country",
+        };
 
         // Assert
-        expansion.Replacement.Should().Be("123 Main Street, City, Country");
+        _ = expansion.Replacement.Should().Be("123 Main Street, City, Country");
     }
 
     [Fact]
     public void TextExpansion_CanToggleEnabled()
     {
         // Arrange
-        var expansion = new TextExpansionEntry(":test", "test");
-
-        // Act
-        expansion.IsEnabled = false;
+        var expansion = new TextExpansionEntry(":test", "test")
+        {
+            // Act
+            IsEnabled = false,
+        };
 
         // Assert
-        expansion.IsEnabled.Should().BeFalse();
+        _ = expansion.IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -95,8 +98,8 @@ isEnabled: true,
         var expansion = new TextExpansionEntry(":multi", multilineText);
 
         // Assert
-        expansion.Replacement.Should().Contain("\n");
-        expansion.Replacement.Should().Be(multilineText);
+        _ = expansion.Replacement.Should().Contain("\n");
+        _ = expansion.Replacement.Should().Be(multilineText);
     }
 
     [Fact]
@@ -106,7 +109,7 @@ isEnabled: true,
         var expansion = new TextExpansionEntry("::email", "user@domain.com");
 
         // Assert
-        expansion.Trigger.Should().Be("::email");
+        _ = expansion.Trigger.Should().Be("::email");
     }
 
     [Fact]
@@ -119,7 +122,7 @@ isEnabled: true,
         var expansion = new TextExpansionEntry(":hello", unicodeText);
 
         // Assert
-        expansion.Replacement.Should().Be(unicodeText);
+        _ = expansion.Replacement.Should().Be(unicodeText);
     }
 
     [Theory]
@@ -133,7 +136,7 @@ isEnabled: true,
         var expansion = new TextExpansionEntry(trigger, replacement);
 
         // Assert
-        expansion.Trigger.Should().Be(trigger);
-        expansion.Replacement.Should().Be(replacement);
+        _ = expansion.Trigger.Should().Be(trigger);
+        _ = expansion.Replacement.Should().Be(replacement);
     }
 }

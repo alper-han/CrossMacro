@@ -1,23 +1,17 @@
 
 namespace CrossMacro.Platform.Linux.Strategies;
 
-public class AbsoluteCoordinateStrategy : ICoordinateStrategy
+public sealed class AbsoluteCoordinateStrategy(IMousePositionProvider positionProvider) : ICoordinateStrategy
 {
-    private readonly IMousePositionProvider _positionProvider;
+    private IMousePositionProvider PositionProvider { get; } = positionProvider;
     private int _currentX;
     private int _currentY;
     private CancellationTokenSource? _syncCts;
-    private Task? _syncTask;
     private readonly Lock _lock = new();
-
-    public AbsoluteCoordinateStrategy(IMousePositionProvider positionProvider)
-    {
-        _positionProvider = positionProvider;
-    }
 
     public async Task InitializeAsync(CancellationToken ct)
     {
-        var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+        var pos = await PositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
         if (pos is not null)
         {
             _currentX = pos.Value.X;
@@ -32,17 +26,17 @@ public class AbsoluteCoordinateStrategy : ICoordinateStrategy
         }
 
         _syncCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _syncTask = Task.Run(() => SyncLoop(_syncCts.Token));
+        _ = Task.Run(() => SyncLoopAsync(_syncCts.Token), ct);
     }
 
-    private async Task SyncLoop(CancellationToken token)
+    private async Task SyncLoopAsync(CancellationToken token)
     {
         try
         {
             while (!token.IsCancellationRequested)
             {
                 await Task.Delay(100, token).ConfigureAwait(false);
-                var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                var pos = await PositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
                 if (pos is not null)
                 {
                     lock (_lock)
@@ -60,7 +54,7 @@ public class AbsoluteCoordinateStrategy : ICoordinateStrategy
         {
             // expected when the sync loop is cancelled via the cancellation token.
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[AbsoluteCoordinateStrategy] Sync loop error");
         }
@@ -95,5 +89,6 @@ public class AbsoluteCoordinateStrategy : ICoordinateStrategy
     {
         _syncCts?.Cancel();
         _syncCts?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

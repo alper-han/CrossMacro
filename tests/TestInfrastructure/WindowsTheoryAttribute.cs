@@ -1,9 +1,13 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class WindowsTheoryAttribute : ConditionalTheoryAttribute
+internal sealed class WindowsTheoryAttribute : TheoryAttribute
 {
-    public WindowsTheoryAttribute() : base(OperatingSystem.IsWindows, "Windows")
+    public WindowsTheoryAttribute()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            Skip = ConditionalSkipMessage.For("Windows");
+        }
     }
 }

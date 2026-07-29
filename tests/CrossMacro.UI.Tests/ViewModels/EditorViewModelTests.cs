@@ -1,8 +1,10 @@
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public class EditorViewModelTests
+public sealed class EditorViewModelTests : IDisposable
 {
+    private static readonly CancellationToken NonCancelableToken = new(canceled: false);
+    private static readonly string[] PngExtensions = ["png"];
     private const string TransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
 
     public static TheoryData<string> Task7BindingMembers => new()
@@ -111,10 +113,10 @@ public class EditorViewModelTests
         _localizationService = Substitute.For<ILocalizationService>();
         _screenPixelReader = Substitute.For<IScreenPixelReader>();
         _macroPlayer = Substitute.For<IMacroPlayer>();
-        _keyCodeMapper.GetKeyName(Arg.Any<int>()).Returns("A");
-        _screenPixelReader.IsSupported.Returns(returnThis: true);
-        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
-        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        _ = _keyCodeMapper.GetKeyName(Arg.Any<int>()).Returns("A");
+        _ = _screenPixelReader.IsSupported.Returns(returnThis: true);
+        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
+        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
         {
             "Editor_DefaultMacroName" => "[Editor_DefaultMacroName]",
             "Editor_StatusReady" => "[Editor_StatusReady]",
@@ -164,7 +166,7 @@ public class EditorViewModelTests
             _ => call.Arg<string>(),
         });
 
-        _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
+        _ = _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
 
         var imageAssetCodec = new ImageAssetCodec();
 
@@ -183,11 +185,16 @@ public class EditorViewModelTests
             new ImageAssetPreviewDecoder(imageAssetCodec));
     }
 
+    public void Dispose()
+    {
+        _viewModel.Dispose();
+    }
+
     [Theory]
     [MemberData(nameof(Task7BindingMembers))]
     public void Task7BindingMembers_RemainPublic(string memberName)
     {
-        typeof(EditorViewModel)
+        _ = typeof(EditorViewModel)
             .GetMember(memberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
             .Should()
             .NotBeEmpty();
@@ -206,7 +213,7 @@ public class EditorViewModelTests
         _viewModel.SelectedAction = action;
 
         // Act / Assert
-        _viewModel.SelectedActionDisplayText.Should().Be("\basd\r\nasd\t\\");
+        _ = _viewModel.SelectedActionDisplayText.Should().Be("\basd\r\nasd\t\\");
     }
 
     [Fact]
@@ -221,7 +228,7 @@ public class EditorViewModelTests
         _viewModel.SelectedActionDisplayText = "first line\nsecond line\t\\";
 
         // Assert
-        action.Text.Should().Be("first line\nsecond line\t\\");
+        _ = action.Text.Should().Be("first line\nsecond line\t\\");
     }
 
     [Fact]
@@ -231,7 +238,7 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.TextInputAcceptsReturn.Should().BeTrue();
+        _ = _viewModel.TextInputAcceptsReturn.Should().BeTrue();
     }
 
     [Fact]
@@ -241,7 +248,7 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.TextInputAcceptsReturn.Should().BeFalse();
+        _ = _viewModel.TextInputAcceptsReturn.Should().BeFalse();
     }
 
     [Fact]
@@ -261,8 +268,8 @@ public class EditorViewModelTests
         _viewModel.SelectedAction = action;
 
         // Assert
-        changed.Should().Contain(nameof(EditorViewModel.SelectedActionDisplayText));
-        _viewModel.SelectedActionDisplayText.Should().Be("\b");
+        _ = changed.Should().Contain(nameof(EditorViewModel.SelectedActionDisplayText));
+        _ = _viewModel.SelectedActionDisplayText.Should().Be("\b");
     }
 
     [Fact]
@@ -272,10 +279,10 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(1);
-        _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.HasActions.Should().BeTrue();
-        _viewModel.Status.Should().Contain("[Editor_StatusAddedAction]");
+        _ = _viewModel.Actions.Should().HaveCount(1);
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.HasActions.Should().BeTrue();
+        _ = _viewModel.Status.Should().Contain("[Editor_StatusAddedAction]");
     }
 
     [Fact]
@@ -286,12 +293,12 @@ public class EditorViewModelTests
             .Select(choice => choice.ActionType)
             .ToArray();
 
-        groupedActionTypes.Should().Contain(EditorViewModel.AddableActionTypes);
-        groupedActionTypes.Should().OnlyHaveUniqueItems();
-        groupedActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
-        groupedActionTypes.Should().NotContain(EditorActionType.BlockEnd);
-        groupedActionTypes.Should().NotContain(EditorActionType.ElseBlockStart);
-        _viewModel.AddableActionGroups.Select(group => group.DisplayName).Should().NotContain("Advanced");
+        _ = groupedActionTypes.Should().Contain(EditorViewModel.AddableActionTypes);
+        _ = groupedActionTypes.Should().OnlyHaveUniqueItems();
+        _ = groupedActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
+        _ = groupedActionTypes.Should().NotContain(EditorActionType.BlockEnd);
+        _ = groupedActionTypes.Should().NotContain(EditorActionType.ElseBlockStart);
+        _ = _viewModel.AddableActionGroups.Select(group => group.DisplayName).Should().NotContain("Advanced");
     }
 
     [Fact]
@@ -302,10 +309,10 @@ public class EditorViewModelTests
 
         _viewModel.NewActionGroup = timingGroup;
 
-        _viewModel.NewActionChoice.Should().NotBeNull();
-        _viewModel.NewActionChoice!.ActionType.Should().Be(EditorActionType.Delay);
-        _viewModel.NewActionType.Should().Be(EditorActionType.Delay);
-        _viewModel.NewActionChoices.Should().Equal(timingGroup.Choices);
+        _ = _viewModel.NewActionChoice.Should().NotBeNull();
+        _ = _viewModel.NewActionChoice!.ActionType.Should().Be(EditorActionType.Delay);
+        _ = _viewModel.NewActionType.Should().Be(EditorActionType.Delay);
+        _ = _viewModel.NewActionChoices.Should().Equal(timingGroup.Choices);
     }
 
     [Fact]
@@ -313,10 +320,10 @@ public class EditorViewModelTests
     {
         _viewModel.NewActionType = EditorActionType.PixelSearch;
 
-        _viewModel.NewActionChoice.Should().NotBeNull();
-        _viewModel.NewActionChoice!.ActionType.Should().Be(EditorActionType.PixelSearch);
-        _viewModel.NewActionGroup.Should().NotBeNull();
-        _viewModel.NewActionGroup!.Choices.Select(choice => choice.ActionType).Should().Contain(EditorActionType.PixelSearch);
+        _ = _viewModel.NewActionChoice.Should().NotBeNull();
+        _ = _viewModel.NewActionChoice!.ActionType.Should().Be(EditorActionType.PixelSearch);
+        _ = _viewModel.NewActionGroup.Should().NotBeNull();
+        _ = _viewModel.NewActionGroup!.Choices.Select(choice => choice.ActionType).Should().Contain(EditorActionType.PixelSearch);
     }
 
     [Fact]
@@ -325,7 +332,7 @@ public class EditorViewModelTests
         var clipboardGroup = _viewModel.AddableActionGroups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.ClipboardGet));
 
-        clipboardGroup.Choices.Select(choice => choice.ActionType).Should().Equal(
+        _ = clipboardGroup.Choices.Select(choice => choice.ActionType).Should().Equal(
             EditorActionType.ClipboardGet,
             EditorActionType.ClipboardSet);
     }
@@ -336,7 +343,7 @@ public class EditorViewModelTests
         var shellGroup = _viewModel.AddableActionGroups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.ShellCommand));
 
-        shellGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.ShellCommand);
+        _ = shellGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.ShellCommand);
     }
 
     [Fact]
@@ -345,7 +352,7 @@ public class EditorViewModelTests
         var windowGroup = _viewModel.AddableActionGroups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.WindowCommand));
 
-        windowGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.WindowCommand);
+        _ = windowGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.WindowCommand);
     }
 
     [Fact]
@@ -354,7 +361,7 @@ public class EditorViewModelTests
         var screenshotGroup = _viewModel.AddableActionGroups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.Screenshot));
 
-        screenshotGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.Screenshot);
+        _ = screenshotGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.Screenshot);
     }
 
     [Theory]
@@ -367,9 +374,9 @@ public class EditorViewModelTests
 
         _viewModel.AddAction();
 
-        _viewModel.NewActionType.Should().Be(excludedActionType);
-        _viewModel.Actions.Should().BeEmpty();
-        _viewModel.Status.Should().Be("[Editor_StatusAutoManagedAction]");
+        _ = _viewModel.NewActionType.Should().Be(excludedActionType);
+        _ = _viewModel.Actions.Should().BeEmpty();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusAutoManagedAction]");
     }
 
     [Theory]
@@ -382,19 +389,19 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
-        action.Type.Should().Be(actionType);
+        _ = action.Type.Should().Be(actionType);
         if (actionType is EditorActionType.ClipboardGet)
         {
-            action.ScriptVariableName.Should().Be("clipboardText");
-            _viewModel.ShowClipboardGetFields.Should().BeTrue();
-            _viewModel.ShowTextInput.Should().BeFalse();
+            _ = action.ScriptVariableName.Should().Be("clipboardText");
+            _ = _viewModel.ShowClipboardGetFields.Should().BeTrue();
+            _ = _viewModel.ShowTextInput.Should().BeFalse();
         }
         else
         {
-            action.Text.Should().Be("clipboard text");
-            _viewModel.ShowClipboardGetFields.Should().BeFalse();
-            _viewModel.ShowTextInput.Should().BeTrue();
-            _viewModel.TextInputLabel.Should().Be("Editor_ClipboardText");
+            _ = action.Text.Should().Be("clipboard text");
+            _ = _viewModel.ShowClipboardGetFields.Should().BeFalse();
+            _ = _viewModel.ShowTextInput.Should().BeTrue();
+            _ = _viewModel.TextInputLabel.Should().Be("Editor_ClipboardText");
         }
     }
 
@@ -406,13 +413,13 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
-        action.Type.Should().Be(EditorActionType.ShellCommand);
-        action.ShellCommandMode.Should().Be(ShellCommandMode.Shell);
-        action.ShellCommand.Should().Be("echo hello");
-        action.ShellExitCodeVariableName.Should().Be("exit_code");
-        _viewModel.ShowShellCommandFields.Should().BeTrue();
-        _viewModel.ShowShellStandardInputFields.Should().BeFalse();
-        _viewModel.ShowShellCaptureFields.Should().BeFalse();
+        _ = action.Type.Should().Be(EditorActionType.ShellCommand);
+        _ = action.ShellCommandMode.Should().Be(ShellCommandMode.Shell);
+        _ = action.ShellCommand.Should().Be("echo hello");
+        _ = action.ShellExitCodeVariableName.Should().Be("exit_code");
+        _ = _viewModel.ShowShellCommandFields.Should().BeTrue();
+        _ = _viewModel.ShowShellStandardInputFields.Should().BeFalse();
+        _ = _viewModel.ShowShellCaptureFields.Should().BeFalse();
     }
 
     [Fact]
@@ -423,13 +430,13 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
-        action.Type.Should().Be(EditorActionType.WindowCommand);
-        action.WindowCommandMode.Should().Be(WindowCommandMode.Active);
-        action.WindowActiveField.Should().Be("title");
-        action.WindowOutputVariable.Should().Be("windowResult");
-        _viewModel.ShowWindowCommandFields.Should().BeTrue();
-        _viewModel.ShowWindowActiveFieldSelector.Should().BeTrue();
-        _viewModel.ShowWindowOutputVariableField.Should().BeTrue();
+        _ = action.Type.Should().Be(EditorActionType.WindowCommand);
+        _ = action.WindowCommandMode.Should().Be(WindowCommandMode.Active);
+        _ = action.WindowActiveField.Should().Be("title");
+        _ = action.WindowOutputVariable.Should().Be("windowResult");
+        _ = _viewModel.ShowWindowCommandFields.Should().BeTrue();
+        _ = _viewModel.ShowWindowActiveFieldSelector.Should().BeTrue();
+        _ = _viewModel.ShowWindowOutputVariableField.Should().BeTrue();
     }
 
     [Theory]
@@ -466,18 +473,18 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowWindowCommandFields.Should().BeTrue();
-        _viewModel.ShowWindowSelectorFields.Should().Be(showSelector);
-        _viewModel.ShowWindowSearchSelectorKinds.Should().Be(showSearchKinds);
-        _viewModel.ShowWindowFocusSelectorKinds.Should().Be(showFocusKinds);
-        _viewModel.ShowWindowCloseSelectorKinds.Should().Be(showCloseKinds);
-        _viewModel.ShowWindowTimeoutField.Should().Be(showTimeout);
-        _viewModel.ShowWindowOutputVariableField.Should().Be(showOutput);
-        _viewModel.ShowWindowCoordinateFields.Should().Be(showCoordinate);
-        _viewModel.ShowWindowDimensionFields.Should().Be(showDimension);
-        _viewModel.ShowWindowWorkspaceField.Should().Be(showWorkspace);
-        _viewModel.ShowWindowSelectorValueField.Should().Be(showSelectorValue);
-        _viewModel.ShowWindowAddressField.Should().Be(showAddress);
+        _ = _viewModel.ShowWindowCommandFields.Should().BeTrue();
+        _ = _viewModel.ShowWindowSelectorFields.Should().Be(showSelector);
+        _ = _viewModel.ShowWindowSearchSelectorKinds.Should().Be(showSearchKinds);
+        _ = _viewModel.ShowWindowFocusSelectorKinds.Should().Be(showFocusKinds);
+        _ = _viewModel.ShowWindowCloseSelectorKinds.Should().Be(showCloseKinds);
+        _ = _viewModel.ShowWindowTimeoutField.Should().Be(showTimeout);
+        _ = _viewModel.ShowWindowOutputVariableField.Should().Be(showOutput);
+        _ = _viewModel.ShowWindowCoordinateFields.Should().Be(showCoordinate);
+        _ = _viewModel.ShowWindowDimensionFields.Should().Be(showDimension);
+        _ = _viewModel.ShowWindowWorkspaceField.Should().Be(showWorkspace);
+        _ = _viewModel.ShowWindowSelectorValueField.Should().Be(showSelectorValue);
+        _ = _viewModel.ShowWindowAddressField.Should().Be(showAddress);
     }
 
     [Fact]
@@ -488,11 +495,11 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
-        action.Type.Should().Be(EditorActionType.Screenshot);
-        action.ScreenshotCopyToClipboard.Should().BeTrue();
-        action.ScreenshotOutputPath.Should().BeEmpty();
-        _viewModel.ShowScreenshotFields.Should().BeTrue();
-        _viewModel.ShowScreenshotRegionFields.Should().BeFalse();
+        _ = action.Type.Should().Be(EditorActionType.Screenshot);
+        _ = action.ScreenshotCopyToClipboard.Should().BeTrue();
+        _ = action.ScreenshotOutputPath.Should().BeEmpty();
+        _ = _viewModel.ShowScreenshotFields.Should().BeTrue();
+        _ = _viewModel.ShowScreenshotRegionFields.Should().BeFalse();
     }
 
     [Fact]
@@ -502,12 +509,12 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowScreenshotFields.Should().BeTrue();
-        _viewModel.ShowScreenshotRegionFields.Should().BeFalse();
+        _ = _viewModel.ShowScreenshotFields.Should().BeTrue();
+        _ = _viewModel.ShowScreenshotRegionFields.Should().BeFalse();
 
         action.ScreenshotUseRegion = true;
 
-        _viewModel.ShowScreenshotRegionFields.Should().BeTrue();
+        _ = _viewModel.ShowScreenshotRegionFields.Should().BeTrue();
     }
 
     [Fact]
@@ -520,21 +527,21 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns("/tmp/new-shot.png");
 
         await _viewModel.BrowseScreenshotOutputPathAsync();
 
-        await _dialogService.Received(1).ShowSaveFileDialogAsync(
+        _ = await _dialogService.Received(1).ShowSaveFileDialogAsync(
             "Editor_ScreenshotSaveDialogTitle",
             "current-shot.png",
             Arg.Is<FileDialogFilter[]>(filters =>
                 filters.Length == 1
                 && filters[0].Name == "Editor_ScreenshotFileDialogName"
-                && filters[0].Extensions.SequenceEqual(new[] { "png" })));
-        action.ScreenshotOutputPath.Should().Be("/tmp/new-shot.png");
-        _viewModel.CanUndo.Should().BeTrue();
+                && filters[0].Extensions.SequenceEqual(PngExtensions)));
+        _ = action.ScreenshotOutputPath.Should().Be("/tmp/new-shot.png");
+        _ = _viewModel.CanUndo.Should().BeTrue();
     }
 
     [Fact]
@@ -543,18 +550,18 @@ public class EditorViewModelTests
         var action = new EditorAction { Type = EditorActionType.Screenshot };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns((string?)null);
 
         await _viewModel.BrowseScreenshotOutputPathAsync();
 
-        await _dialogService.Received(1).ShowSaveFileDialogAsync(
+        _ = await _dialogService.Received(1).ShowSaveFileDialogAsync(
             "Editor_ScreenshotSaveDialogTitle",
             "Editor_ScreenshotDefaultFileName",
             Arg.Any<FileDialogFilter[]>());
-        action.ScreenshotOutputPath.Should().BeEmpty();
-        _viewModel.CanUndo.Should().BeFalse();
+        _ = action.ScreenshotOutputPath.Should().BeEmpty();
+        _ = _viewModel.CanUndo.Should().BeFalse();
     }
 
     [Theory]
@@ -564,28 +571,28 @@ public class EditorViewModelTests
     public async Task ImportImageAssetAsync_WhenPngChosen_AddsAssetNameAndSelectsImageAction(EditorActionType actionType)
     {
         var pngPath = Path.Combine(Path.GetTempPath(), $"crossmacro-target-{Guid.NewGuid():N}.png");
-        await File.WriteAllBytesAsync(pngPath, Convert.FromBase64String(TransparentPngBase64));
+        await File.WriteAllBytesAsync(pngPath, Convert.FromBase64String(TransparentPngBase64), NonCancelableToken);
         try
         {
             var action = new EditorAction { Type = actionType };
             _viewModel.Actions.Add(action);
             _viewModel.SelectedAction = action;
-            _dialogService
+            _ = _dialogService
                 .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
                 .Returns(pngPath);
 
             await _viewModel.ImportImageAssetAsync();
 
-            await _dialogService.Received(1).ShowOpenFileDialogAsync(
+            _ = await _dialogService.Received(1).ShowOpenFileDialogAsync(
                 "Editor_ImageAssetImportDialogTitle",
                 Arg.Is<FileDialogFilter[]>(filters =>
                     filters.Length == 1
                     && filters[0].Name == "Editor_ImageAssetFileDialogName"
-                    && filters[0].Extensions.SequenceEqual(new[] { "png" })));
-            _viewModel.HasImageAssets.Should().BeTrue();
-            _viewModel.ImageAssetNames.Should().ContainSingle().Which.Should().StartWith("crossmacro_target_");
-            action.ImageAssetName.Should().Be(_viewModel.ImageAssetNames[0]);
-            _viewModel.Status.Should().Contain("Editor_StatusImageImported");
+                    && filters[0].Extensions.SequenceEqual(PngExtensions)));
+            _ = _viewModel.HasImageAssets.Should().BeTrue();
+            _ = _viewModel.ImageAssetNames.Should().ContainSingle().Which.Should().StartWith("crossmacro_target_");
+            _ = action.ImageAssetName.Should().Be(_viewModel.ImageAssetNames[0]);
+            _ = _viewModel.Status.Should().Contain("Editor_StatusImageImported");
         }
         finally
         {
@@ -605,17 +612,17 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
-        action.Type.Should().Be(actionType);
-        action.ImageAssetName.Should().Be("Target_1");
-        action.ImageSearchSimilarity.Should().Be(1.0);
-        action.ImageSearchDownsample.Should().Be(1);
-        action.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
-        action.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
+        _ = action.Type.Should().Be(actionType);
+        _ = action.ImageAssetName.Should().Be("Target_1");
+        _ = action.ImageSearchSimilarity.Should().Be(1.0);
+        _ = action.ImageSearchDownsample.Should().Be(1);
+        _ = action.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
+        _ = action.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
         if (actionType is EditorActionType.ImageClick)
         {
-            action.Button.Should().Be(MacroMouseButton.Left);
+            _ = action.Button.Should().Be(MacroMouseButton.Left);
         }
-        _viewModel.SelectedAction.Should().BeSameAs(action);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(action);
     }
 
     [Theory]
@@ -629,45 +636,45 @@ public class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowMouseButton.Should().Be(expected);
+        _ = _viewModel.ShowMouseButton.Should().Be(expected);
     }
 
     [Fact]
     public void ImageClickButtons_ExposeOnlySupportedGrammarButtons()
     {
-        _viewModel.ImageClickButtons.Should().Equal(MacroMouseButton.Left, MacroMouseButton.Right, MacroMouseButton.Middle);
+        _ = _viewModel.ImageClickButtons.Should().Equal(MacroMouseButton.Left, MacroMouseButton.Right, MacroMouseButton.Middle);
     }
 
     [Fact]
     public async Task ImportImageAssetAsync_WhenCancelled_LeavesAssetsEmpty()
     {
-        _dialogService
+        _ = _dialogService
             .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns((string?)null);
 
         await _viewModel.ImportImageAssetAsync();
 
-        _viewModel.HasImageAssets.Should().BeFalse();
-        _viewModel.ImageAssetNames.Should().BeEmpty();
-        _viewModel.Status.Should().Be("Editor_StatusImageImportCancelled");
+        _ = _viewModel.HasImageAssets.Should().BeFalse();
+        _ = _viewModel.ImageAssetNames.Should().BeEmpty();
+        _ = _viewModel.Status.Should().Be("Editor_StatusImageImportCancelled");
     }
 
     [Fact]
     public async Task ImportImageAssetAsync_WhenPngExceedsSupportedDimensions_ShowsErrorAndLeavesAssetsEmpty()
     {
         var pngPath = Path.Combine(Path.GetTempPath(), $"crossmacro-target-{Guid.NewGuid():N}.png");
-        await File.WriteAllBytesAsync(pngPath, CreateOversizedPngBytes());
+        await File.WriteAllBytesAsync(pngPath, CreateOversizedPngBytes(), NonCancelableToken);
         try
         {
-            _dialogService
+            _ = _dialogService
                 .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
                 .Returns(pngPath);
 
             await _viewModel.ImportImageAssetAsync();
 
-            _viewModel.HasImageAssets.Should().BeFalse();
-            _viewModel.ImageAssetNames.Should().BeEmpty();
-            _viewModel.Status.Should().Contain("Editor_StatusImageImportError");
+            _ = _viewModel.HasImageAssets.Should().BeFalse();
+            _ = _viewModel.ImageAssetNames.Should().BeEmpty();
+            _ = _viewModel.Status.Should().Contain("Editor_StatusImageImportError");
         }
         finally
         {
@@ -691,9 +698,9 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowShellCommandFields.Should().BeTrue();
-        _viewModel.ShowShellStandardInputFields.Should().Be(showInput);
-        _viewModel.ShowShellCaptureFields.Should().Be(showCapture);
+        _ = _viewModel.ShowShellCommandFields.Should().BeTrue();
+        _ = _viewModel.ShowShellStandardInputFields.Should().Be(showInput);
+        _ = _viewModel.ShowShellCaptureFields.Should().Be(showCapture);
     }
 
     [Theory]
@@ -707,16 +714,16 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
-        action.Type.Should().Be(actionType);
-        action.ScreenColorHex.Should().Be("FFFFFF");
-        action.ScreenColorVariableName.Should().Be(actionType is EditorActionType.WaitColor ? "wait_ok" : "color");
-        action.ScreenFoundXVariableName.Should().Be("found_x");
-        action.ScreenFoundYVariableName.Should().Be("found_y");
-        action.ScreenTimeoutMs.Should().Be(5000);
-        action.ScreenTolerance.Should().Be(0);
-        action.ScreenWidth.Should().Be(actionType is EditorActionType.PixelSearch ? 1920 : 1);
-        action.ScreenHeight.Should().Be(actionType is EditorActionType.PixelSearch ? 1080 : 1);
-        _viewModel.SelectedAction.Should().BeSameAs(action);
+        _ = action.Type.Should().Be(actionType);
+        _ = action.ScreenColorHex.Should().Be("FFFFFF");
+        _ = action.ScreenColorVariableName.Should().Be(actionType is EditorActionType.WaitColor ? "wait_ok" : "color");
+        _ = action.ScreenFoundXVariableName.Should().Be("found_x");
+        _ = action.ScreenFoundYVariableName.Should().Be("found_y");
+        _ = action.ScreenTimeoutMs.Should().Be(5000);
+        _ = action.ScreenTolerance.Should().Be(0);
+        _ = action.ScreenWidth.Should().Be(actionType is EditorActionType.PixelSearch ? 1920 : 1);
+        _ = action.ScreenHeight.Should().Be(actionType is EditorActionType.PixelSearch ? 1080 : 1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(action);
     }
 
     [Theory]
@@ -729,8 +736,8 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
-        action.ScreenColorHex.Should().Be("FFFFFF");
-        action.ScreenTargetColorSource.Should().Be(EditorActionScreenTargetColorSource.ManualHex);
+        _ = action.ScreenColorHex.Should().Be("FFFFFF");
+        _ = action.ScreenTargetColorSource.Should().Be(EditorActionScreenTargetColorSource.ManualHex);
     }
 
     [Theory]
@@ -751,16 +758,16 @@ public class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowPixelColorFields.Should().Be(showPixelColor);
-        _viewModel.ShowWaitColorFields.Should().Be(showWaitColor);
-        _viewModel.ShowPixelSearchFields.Should().Be(showPixelSearch);
-        _viewModel.ShowScreenReadingFields.Should().Be(showScreenReadingFields);
-        _viewModel.ShowScreenReadingColorFields.Should().Be(showScreenReadingColorFields);
-        _viewModel.ShowScreenReadingPointFields.Should().Be(showScreenReadingPointFields);
-        _viewModel.ShowScreenReadingColorPreview.Should().Be(actionType is EditorActionType.WaitColor or EditorActionType.PixelSearch);
-        _viewModel.ScreenReadingColorPreviewHex.Should().Be(actionType is EditorActionType.PixelColor ? string.Empty : "A1B2C3");
-        _viewModel.ShowScreenReadingRawAssistance.Should().BeFalse();
-        _viewModel.ScreenReadingRawHint.Should().BeEmpty();
+        _ = _viewModel.ShowPixelColorFields.Should().Be(showPixelColor);
+        _ = _viewModel.ShowWaitColorFields.Should().Be(showWaitColor);
+        _ = _viewModel.ShowPixelSearchFields.Should().Be(showPixelSearch);
+        _ = _viewModel.ShowScreenReadingFields.Should().Be(showScreenReadingFields);
+        _ = _viewModel.ShowScreenReadingColorFields.Should().Be(showScreenReadingColorFields);
+        _ = _viewModel.ShowScreenReadingPointFields.Should().Be(showScreenReadingPointFields);
+        _ = _viewModel.ShowScreenReadingColorPreview.Should().Be(actionType is EditorActionType.WaitColor or EditorActionType.PixelSearch);
+        _ = _viewModel.ScreenReadingColorPreviewHex.Should().Be(actionType is EditorActionType.PixelColor ? string.Empty : "A1B2C3");
+        _ = _viewModel.ShowScreenReadingRawAssistance.Should().BeFalse();
+        _ = _viewModel.ScreenReadingRawHint.Should().BeEmpty();
     }
 
     [Fact]
@@ -771,7 +778,7 @@ public class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowScreenReadingFields.Should().BeFalse();
+        _ = _viewModel.ShowScreenReadingFields.Should().BeFalse();
     }
 
     [Fact]
@@ -785,10 +792,10 @@ public class EditorViewModelTests
 
         action.ScreenColorHex = "12abef";
 
-        _viewModel.ScreenReadingColorPreviewHex.Should().Be("12ABEF");
-        _viewModel.ShowScreenReadingColorPreview.Should().BeTrue();
-        changed.Should().Contain(nameof(EditorViewModel.ScreenReadingColorPreviewHex));
-        changed.Should().Contain(nameof(EditorViewModel.ShowScreenReadingColorPreview));
+        _ = _viewModel.ScreenReadingColorPreviewHex.Should().Be("12ABEF");
+        _ = _viewModel.ShowScreenReadingColorPreview.Should().BeTrue();
+        _ = changed.Should().Contain(nameof(EditorViewModel.ScreenReadingColorPreviewHex));
+        _ = changed.Should().Contain(nameof(EditorViewModel.ShowScreenReadingColorPreview));
     }
 
     [Theory]
@@ -806,15 +813,15 @@ public class EditorViewModelTests
 
         action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.Variable;
 
-        _viewModel.ShowScreenTargetColorHexInput.Should().BeFalse();
-        _viewModel.ShowScreenTargetColorVariableInput.Should().BeTrue();
-        _viewModel.ShowScreenReadingColorPreview.Should().BeFalse();
+        _ = _viewModel.ShowScreenTargetColorHexInput.Should().BeFalse();
+        _ = _viewModel.ShowScreenTargetColorVariableInput.Should().BeTrue();
+        _ = _viewModel.ShowScreenReadingColorPreview.Should().BeFalse();
 
         action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.ManualHex;
 
-        _viewModel.ShowScreenTargetColorHexInput.Should().BeTrue();
-        _viewModel.ShowScreenTargetColorVariableInput.Should().BeFalse();
-        _viewModel.ShowScreenReadingColorPreview.Should().BeTrue();
+        _ = _viewModel.ShowScreenTargetColorHexInput.Should().BeTrue();
+        _ = _viewModel.ShowScreenTargetColorVariableInput.Should().BeFalse();
+        _ = _viewModel.ShowScreenReadingColorPreview.Should().BeTrue();
     }
 
     [Theory]
@@ -829,7 +836,7 @@ public class EditorViewModelTests
         string resourceKey,
         string expectedHint)
     {
-        _localizationService[resourceKey].Returns(expectedHint);
+        _ = _localizationService[resourceKey].Returns(expectedHint);
         var action = new EditorAction
         {
             Type = EditorActionType.RawScriptStep,
@@ -838,13 +845,13 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.TextInputHint.Should().Be(expectedHint);
+        _ = _viewModel.TextInputHint.Should().Be(expectedHint);
     }
 
     [Fact]
     public void ScreenReadingRawHint_ForScreenReadingRawScript_StillUsesLocalizedHint()
     {
-        _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("localized waitcolor hint");
+        _ = _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("localized waitcolor hint");
         var action = new EditorAction
         {
             Type = EditorActionType.RawScriptStep,
@@ -853,15 +860,15 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowScreenReadingRawAssistance.Should().BeTrue();
-        _viewModel.ScreenReadingRawHint.Should().Be("localized waitcolor hint");
+        _ = _viewModel.ShowScreenReadingRawAssistance.Should().BeTrue();
+        _ = _viewModel.ScreenReadingRawHint.Should().Be("localized waitcolor hint");
     }
 
     [Fact]
     public void SelectedActionDisplayText_WhenRawScriptTextChanges_RaisesTextInputHintNotification()
     {
-        _localizationService["Editor_RawScriptHint_Window"].Returns("window hint");
-        _localizationService["Editor_RawScriptHint_Clipboard"].Returns("clipboard hint");
+        _ = _localizationService["Editor_RawScriptHint_Window"].Returns("window hint");
+        _ = _localizationService["Editor_RawScriptHint_Clipboard"].Returns("clipboard hint");
 
         var action = new EditorAction
         {
@@ -877,8 +884,8 @@ public class EditorViewModelTests
 
         action.Text = "clipboard set \"hello\"";
 
-        changed.Should().Contain(nameof(EditorViewModel.TextInputHint));
-        _viewModel.TextInputHint.Should().Be("clipboard hint");
+        _ = changed.Should().Contain(nameof(EditorViewModel.TextInputHint));
+        _ = _viewModel.TextInputHint.Should().Be("clipboard hint");
     }
 
     [Fact]
@@ -896,15 +903,15 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.PixelColor, ScreenColorVariableName = "color" });
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _localizationService["Editor_ConditionColorHint"].Returns("Use Color operand.");
+        _ = _localizationService["Editor_ConditionColorHint"].Returns("Use Color operand.");
 
         action.ScriptRightOperandType = ScriptOperandType.Color;
 
-        action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
-        _viewModel.ScriptConditionOperators.Should().Equal(
+        _ = action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
+        _ = _viewModel.ScriptConditionOperators.Should().Equal(
             ScriptConditionOperator.Equals,
             ScriptConditionOperator.NotEquals);
-        _viewModel.ConditionRightOperandHint.Should().Contain("Color");
+        _ = _viewModel.ConditionRightOperandHint.Should().Contain("Color");
     }
 
     [Fact]
@@ -929,8 +936,8 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ScriptConditionOperators.Should().Contain(ScriptConditionOperator.GreaterThan);
-        action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.GreaterThan);
+        _ = _viewModel.ScriptConditionOperators.Should().Contain(ScriptConditionOperator.GreaterThan);
+        _ = action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.GreaterThan);
     }
 
     [Fact]
@@ -955,8 +962,8 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
-        _viewModel.ScriptConditionOperators.Should().Equal(
+        _ = action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
+        _ = _viewModel.ScriptConditionOperators.Should().Equal(
             ScriptConditionOperator.Equals,
             ScriptConditionOperator.NotEquals);
     }
@@ -975,11 +982,11 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowConditionLeftVariablePicker.Should().BeTrue();
-        _viewModel.ShowConditionLeftOperandTextBox.Should().BeFalse();
-        _viewModel.SelectedConditionLeftVariableSuggestion.Should().Be("color");
-        _viewModel.ShowConditionRightVariablePicker.Should().BeTrue();
-        _viewModel.ShowConditionRightOperandTextBox.Should().BeFalse();
+        _ = _viewModel.ShowConditionLeftVariablePicker.Should().BeTrue();
+        _ = _viewModel.ShowConditionLeftOperandTextBox.Should().BeFalse();
+        _ = _viewModel.SelectedConditionLeftVariableSuggestion.Should().Be("color");
+        _ = _viewModel.ShowConditionRightVariablePicker.Should().BeTrue();
+        _ = _viewModel.ShowConditionRightOperandTextBox.Should().BeFalse();
     }
 
     [Fact]
@@ -994,10 +1001,10 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowConditionLeftVariablePicker.Should().BeFalse();
-        _viewModel.ShowConditionLeftOperandTextBox.Should().BeTrue();
-        _viewModel.ShowConditionRightVariablePicker.Should().BeFalse();
-        _viewModel.ShowConditionRightOperandTextBox.Should().BeTrue();
+        _ = _viewModel.ShowConditionLeftVariablePicker.Should().BeFalse();
+        _ = _viewModel.ShowConditionLeftOperandTextBox.Should().BeTrue();
+        _ = _viewModel.ShowConditionRightVariablePicker.Should().BeFalse();
+        _ = _viewModel.ShowConditionRightOperandTextBox.Should().BeTrue();
     }
 
     [Fact]
@@ -1012,10 +1019,10 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowConditionLeftOperandTextBox.Should().BeTrue();
-        _viewModel.ShowConditionRightOperandTextBox.Should().BeTrue();
-        _viewModel.ShowConditionLeftColorPicker.Should().BeTrue();
-        _viewModel.ShowConditionRightColorPicker.Should().BeTrue();
+        _ = _viewModel.ShowConditionLeftOperandTextBox.Should().BeTrue();
+        _ = _viewModel.ShowConditionRightOperandTextBox.Should().BeTrue();
+        _ = _viewModel.ShowConditionLeftColorPicker.Should().BeTrue();
+        _ = _viewModel.ShowConditionRightColorPicker.Should().BeTrue();
     }
 
     [Fact]
@@ -1030,8 +1037,8 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowConditionLeftColorPicker.Should().BeFalse();
-        _viewModel.ShowConditionRightColorPicker.Should().BeFalse();
+        _ = _viewModel.ShowConditionLeftColorPicker.Should().BeFalse();
+        _ = _viewModel.ShowConditionRightColorPicker.Should().BeFalse();
     }
 
     [Fact]
@@ -1040,19 +1047,19 @@ public class EditorViewModelTests
         _viewModel.NewActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
 
-        _localizationService["Editor_CurrentPositionUse"].Returns("[Editor_CurrentPositionUse:updated]");
-        _localizationService["Editor_TextToType"].Returns("[Editor_TextToType:updated]");
-        _localizationService["Editor_EnterTextToType"].Returns("[Editor_EnterTextToType:updated]");
-        _localizationService["Editor_TextToTypeHint"].Returns("[Editor_TextToTypeHint:updated] {0}");
-        _localizationService["Editor_BlockName_If"].Returns("IfTokenUpdated");
+        _ = _localizationService["Editor_CurrentPositionUse"].Returns("[Editor_CurrentPositionUse:updated]");
+        _ = _localizationService["Editor_TextToType"].Returns("[Editor_TextToType:updated]");
+        _ = _localizationService["Editor_EnterTextToType"].Returns("[Editor_EnterTextToType:updated]");
+        _ = _localizationService["Editor_TextToTypeHint"].Returns("[Editor_TextToTypeHint:updated] {0}");
+        _ = _localizationService["Editor_BlockName_If"].Returns("IfTokenUpdated");
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionUse:updated]");
-        _viewModel.TextInputLabel.Should().Be("[Editor_TextToType:updated]");
-        _viewModel.TextInputWatermark.Should().Be("[Editor_EnterTextToType:updated]");
-        _viewModel.TextInputHint.Should().Contain("[Editor_TextToTypeHint:updated]");
-        _viewModel.ActionListItems[1].DisplayName.Should().Be("End IfTokenUpdated");
+        _ = _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionUse:updated]");
+        _ = _viewModel.TextInputLabel.Should().Be("[Editor_TextToType:updated]");
+        _ = _viewModel.TextInputWatermark.Should().Be("[Editor_EnterTextToType:updated]");
+        _ = _viewModel.TextInputHint.Should().Contain("[Editor_TextToTypeHint:updated]");
+        _ = _viewModel.ActionListItems[1].DisplayName.Should().Be("End IfTokenUpdated");
     }
 
     [Fact]
@@ -1063,18 +1070,18 @@ public class EditorViewModelTests
             Type = EditorActionType.RawScriptStep,
             Text = "waitcolor 10 20 00FF00 1000 wait_ok",
         };
-        _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("initial raw hint");
+        _ = _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("initial raw hint");
         _viewModel.Actions.Add(rawAction);
         _viewModel.SelectedAction = rawAction;
-        _viewModel.ScreenReadingRawHint.Should().Be("initial raw hint");
+        _ = _viewModel.ScreenReadingRawHint.Should().Be("initial raw hint");
         var changed = new List<string?>();
         _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
 
-        _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("updated raw hint");
+        _ = _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("updated raw hint");
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _viewModel.ScreenReadingRawHint.Should().Be("updated raw hint");
-        changed.Should().Contain(nameof(EditorViewModel.ScreenReadingRawHint));
+        _ = _viewModel.ScreenReadingRawHint.Should().Be("updated raw hint");
+        _ = changed.Should().Contain(nameof(EditorViewModel.ScreenReadingRawHint));
 
     }
 
@@ -1090,14 +1097,14 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
         action.ScriptRightOperandType = ScriptOperandType.Color;
-        _localizationService["Editor_ConditionColorHint"].Returns("updated condition hint");
+        _ = _localizationService["Editor_ConditionColorHint"].Returns("updated condition hint");
         var changed = new List<string?>();
         _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _viewModel.ConditionRightOperandHint.Should().Be("updated condition hint");
-        changed.Should().Contain(nameof(EditorViewModel.ConditionRightOperandHint));
+        _ = _viewModel.ConditionRightOperandHint.Should().Be("updated condition hint");
+        _ = changed.Should().Contain(nameof(EditorViewModel.ConditionRightOperandHint));
     }
 
     [Fact]
@@ -1117,42 +1124,42 @@ public class EditorViewModelTests
         var originalDisplay = _viewModel.ActionListItems[0].DisplayName;
         var originalHint = _viewModel.ActionListItems[0].CondensedHint;
 
-        _localizationService["Editor_Action_MouseMoveAbsolute"].Returns("Mouvement vers ({0}, {1})");
-        _localizationService["Editor_SimplifiedMovementHint"].Returns("{0} actions de mouvement masquées");
+        _ = _localizationService["Editor_Action_MouseMoveAbsolute"].Returns("Mouvement vers ({0}, {1})");
+        _ = _localizationService["Editor_SimplifiedMovementHint"].Returns("{0} actions de mouvement masquées");
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _viewModel.ActionListItems.Should().ContainSingle();
-        _viewModel.ActionListItems[0].DisplayName.Should().NotBe(originalDisplay);
-        _viewModel.ActionListItems[0].CondensedHint.Should().NotBe(originalHint);
-        _viewModel.ActionListItems[0].DisplayName.Should().Be("Mouvement vers (5, 6)");
-        _viewModel.ActionListItems[0].CondensedHint.Should().Be("5 actions de mouvement masquées");
-        _viewModel.ActionListItems[0].DisplayTooltip.Should().Be("5 actions de mouvement masquées");
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.ActionListItems[0].DisplayName.Should().NotBe(originalDisplay);
+        _ = _viewModel.ActionListItems[0].CondensedHint.Should().NotBe(originalHint);
+        _ = _viewModel.ActionListItems[0].DisplayName.Should().Be("Mouvement vers (5, 6)");
+        _ = _viewModel.ActionListItems[0].CondensedHint.Should().Be("5 actions de mouvement masquées");
+        _ = _viewModel.ActionListItems[0].DisplayTooltip.Should().Be("5 actions de mouvement masquées");
     }
 
     [Fact]
     public void CultureChanged_WhenReadyStatusDisplayed_RebuildsReadyStatusInNewLanguage()
     {
-        _localizationService["Editor_StatusReady"].Returns("[Editor_StatusReady:updated]");
+        _ = _localizationService["Editor_StatusReady"].Returns("[Editor_StatusReady:updated]");
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _viewModel.Status.Should().Be("[Editor_StatusReady:updated]");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusReady:updated]");
     }
 
     [Fact]
     public void AddableActionTypes_HidesManagedBlockTokens()
     {
-        EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.BlockEnd);
-        EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.ElseBlockStart);
-        EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
+        _ = EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.BlockEnd);
+        _ = EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.ElseBlockStart);
+        _ = EditorViewModel.AddableActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
     }
 
     [Fact]
     public void AddableActionTypes_ContainsLoopControlActions()
     {
-        EditorViewModel.AddableActionTypes.Should().Contain(EditorActionType.Break);
-        EditorViewModel.AddableActionTypes.Should().Contain(EditorActionType.Continue);
+        _ = EditorViewModel.AddableActionTypes.Should().Contain(EditorActionType.Break);
+        _ = EditorViewModel.AddableActionTypes.Should().Contain(EditorActionType.Continue);
     }
 
     [Fact]
@@ -1162,14 +1169,14 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 4 });
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseClick, X = 100, Y = 200 });
 
-        _viewModel.HideMouseMoves.Should().BeFalse();
-        _viewModel.HideShortWaits.Should().BeFalse();
-        _viewModel.HiddenEventCount.Should().Be(0);
-        _viewModel.HasHiddenEvents.Should().BeFalse();
-        _viewModel.ActionListItems.Should().HaveCount(3);
-        _viewModel.ActionListItems[0].IsNoise.Should().BeTrue();
-        _viewModel.ActionListItems[1].IsNoise.Should().BeTrue();
-        _viewModel.ActionListItems[2].IsNoise.Should().BeFalse();
+        _ = _viewModel.HideMouseMoves.Should().BeFalse();
+        _ = _viewModel.HideShortWaits.Should().BeFalse();
+        _ = _viewModel.HiddenEventCount.Should().Be(0);
+        _ = _viewModel.HasHiddenEvents.Should().BeFalse();
+        _ = _viewModel.ActionListItems.Should().HaveCount(3);
+        _ = _viewModel.ActionListItems[0].IsNoise.Should().BeTrue();
+        _ = _viewModel.ActionListItems[1].IsNoise.Should().BeTrue();
+        _ = _viewModel.ActionListItems[2].IsNoise.Should().BeFalse();
     }
 
     [Fact]
@@ -1181,11 +1188,11 @@ public class EditorViewModelTests
 
         HideMovementAndShortWaitRows();
 
-        _viewModel.HiddenEventCount.Should().Be(2);
-        _viewModel.HasHiddenEvents.Should().BeTrue();
-        _viewModel.ActionListItems.Should().ContainSingle();
-        _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.Delay);
-        _viewModel.ActionListItems[0].Action.DelayMs.Should().Be(20);
+        _ = _viewModel.HiddenEventCount.Should().Be(2);
+        _ = _viewModel.HasHiddenEvents.Should().BeTrue();
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.Delay);
+        _ = _viewModel.ActionListItems[0].Action.DelayMs.Should().Be(20);
     }
 
     [Fact]
@@ -1199,9 +1206,9 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(delay);
         _viewModel.Actions.Add(click);
 
-        _viewModel.ActionListItems.Should().HaveCount(3);
-        _viewModel.ActionListItems.Select(item => item.Action).Should().Equal(move, delay, click);
-        _viewModel.ActionListItems.Should().OnlyContain(item => item.RepresentsSourceAction);
+        _ = _viewModel.ActionListItems.Should().HaveCount(3);
+        _ = _viewModel.ActionListItems.Select(item => item.Action).Should().Equal(move, delay, click);
+        _ = _viewModel.ActionListItems.Should().OnlyContain(item => item.RepresentsSourceAction);
     }
 
     [Fact]
@@ -1215,8 +1222,8 @@ public class EditorViewModelTests
         });
 
         // Act / Assert
-        _viewModel.ActionListItems.Should().ContainSingle();
-        _viewModel.ActionListItems[0].DisplayName.Should().Be("Type \"⌫asd↵↵asd⇥\"");
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.ActionListItems[0].DisplayName.Should().Be("Type \"⌫asd↵↵asd⇥\"");
     }
 
     [Theory]
@@ -1241,8 +1248,8 @@ public class EditorViewModelTests
 
         _viewModel.Actions.Add(action);
 
-        _viewModel.ActionListItems.Should().ContainSingle();
-        _viewModel.ActionListItems[0].DisplayName.Should().Be(expectedResourceKey);
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.ActionListItems[0].DisplayName.Should().Be(expectedResourceKey);
     }
 
     [Theory]
@@ -1259,8 +1266,8 @@ public class EditorViewModelTests
             IsAbsolute = false,
         });
 
-        _viewModel.ActionListItems.Should().ContainSingle();
-        _viewModel.ActionListItems[0].DisplayName.Should().Be(expectedResourceKey);
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.ActionListItems[0].DisplayName.Should().Be(expectedResourceKey);
     }
 
     [Fact]
@@ -1270,9 +1277,9 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 4 });
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseClick, X = 100, Y = 200 });
 
-        _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2);
-        _viewModel.ActionListItems.Select(item => item.Index).Should().Equal(1, 2, 3);
-        _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().Equal(0, 0, 0);
+        _ = _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2);
+        _ = _viewModel.ActionListItems.Select(item => item.Index).Should().Equal(1, 2, 3);
+        _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().Equal(0, 0, 0);
     }
 
     [Fact]
@@ -1286,11 +1293,11 @@ public class EditorViewModelTests
 
         HideMovementAndShortWaitRows();
 
-        _viewModel.HiddenEventCount.Should().Be(3);
-        _viewModel.ActionListItems.Should().HaveCount(2);
-        _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(2, 4);
-        _viewModel.ActionListItems.Select(item => item.Index).Should().Equal(3, 5);
-        _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().Equal(0, 0);
+        _ = _viewModel.HiddenEventCount.Should().Be(3);
+        _ = _viewModel.ActionListItems.Should().HaveCount(2);
+        _ = _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(2, 4);
+        _ = _viewModel.ActionListItems.Select(item => item.Index).Should().Equal(3, 5);
+        _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().Equal(0, 0);
     }
 
     [Fact]
@@ -1307,12 +1314,12 @@ public class EditorViewModelTests
         _viewModel.SelectedActionUnderlyingIndices.Add(2);
         _viewModel.SelectedActionUnderlyingIndices.Add(0);
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
-        _viewModel.SelectedAction.Should().BeSameAs(move);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
-        _viewModel.HasSelectedAction.Should().BeTrue();
-        _viewModel.HasSelectedActions.Should().BeTrue();
-        _viewModel.SelectedActionCount.Should().Be(2);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(move);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+        _ = _viewModel.HasSelectedAction.Should().BeTrue();
+        _ = _viewModel.HasSelectedActions.Should().BeTrue();
+        _ = _viewModel.SelectedActionCount.Should().Be(2);
     }
 
     [Fact]
@@ -1326,13 +1333,13 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(click);
         _viewModel.Actions.Add(delay);
 
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 1 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([1]);
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
-        _viewModel.SelectedAction.Should().BeSameAs(click);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[1]);
-        _viewModel.HasSelectedAction.Should().BeTrue();
-        _viewModel.HasSelectedActions.Should().BeTrue();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(click);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[1]);
+        _ = _viewModel.HasSelectedAction.Should().BeTrue();
+        _ = _viewModel.HasSelectedActions.Should().BeTrue();
     }
 
     [Fact]
@@ -1355,12 +1362,12 @@ public class EditorViewModelTests
             }
         };
 
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 1, 2 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([1, 2]);
 
-        observedSelectedActions.Should().NotContainNulls();
-        observedSelectedActions.Should().ContainSingle().Which.Should().BeSameAs(click);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1, 2);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[1]);
+        _ = observedSelectedActions.Should().NotContainNulls();
+        _ = observedSelectedActions.Should().ContainSingle().Which.Should().BeSameAs(click);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1, 2);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[1]);
     }
 
     [Fact]
@@ -1378,9 +1385,9 @@ public class EditorViewModelTests
 
         _viewModel.SelectedAction = click;
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
-        _viewModel.SelectedAction.Should().BeSameAs(click);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[1]);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(click);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[1]);
     }
 
     [Fact]
@@ -1398,9 +1405,9 @@ public class EditorViewModelTests
 
         HideMovementAndShortWaitRows();
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
-        _viewModel.SelectedAction.Should().BeSameAs(click);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(click);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
     }
 
     [Fact]
@@ -1418,11 +1425,11 @@ public class EditorViewModelTests
 
         HideMovementAndShortWaitRows();
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.HasSelectedActions.Should().BeTrue();
-        _viewModel.SelectedActionCount.Should().Be(2);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.HasSelectedActions.Should().BeTrue();
+        _ = _viewModel.SelectedActionCount.Should().Be(2);
     }
 
     [Fact]
@@ -1432,22 +1439,22 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseClick, X = 100, Y = 200 });
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 20 });
 
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.SelectedActionCount.Should().Be(0);
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.CanDuplicateSelectedActions.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.SelectedActionCount.Should().Be(0);
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
 
         _viewModel.SelectedActionUnderlyingIndices.Add(1);
         _viewModel.SelectedActionUnderlyingIndices.Add(2);
 
-        _viewModel.HasSelectedActions.Should().BeTrue();
-        _viewModel.SelectedActionCount.Should().Be(2);
-        _viewModel.CanRemoveSelectedActions.Should().BeTrue();
-        _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
-        _viewModel.CanMoveSelectedActionsUp.Should().BeTrue();
-        _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeTrue();
+        _ = _viewModel.SelectedActionCount.Should().Be(2);
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanMoveSelectedActionsUp.Should().BeTrue();
+        _ = _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
     }
 
     [Fact]
@@ -1465,45 +1472,45 @@ public class EditorViewModelTests
             }
         };
 
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.CanDuplicateSelectedActions.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
 
         _viewModel.SelectedActionUnderlyingIndices.Add(1);
 
-        _viewModel.SelectedActionCount.Should().Be(1);
-        _viewModel.CanRemoveSelectedActions.Should().BeTrue();
-        _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
-        _viewModel.CanMoveSelectedActionsUp.Should().BeTrue();
-        _viewModel.CanMoveSelectedActionsDown.Should().BeTrue();
-        notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsUp));
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
+        _ = _viewModel.SelectedActionCount.Should().Be(1);
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanMoveSelectedActionsUp.Should().BeTrue();
+        _ = _viewModel.CanMoveSelectedActionsDown.Should().BeTrue();
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsUp));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
 
         notifications.Clear();
         _viewModel.SelectedActionUnderlyingIndices.Add(2);
 
-        _viewModel.SelectedActionCount.Should().Be(2);
-        _viewModel.CanRemoveSelectedActions.Should().BeTrue();
-        _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
-        _viewModel.CanMoveSelectedActionsUp.Should().BeTrue();
-        _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
+        _ = _viewModel.SelectedActionCount.Should().Be(2);
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanMoveSelectedActionsUp.Should().BeTrue();
+        _ = _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
 
         notifications.Clear();
         _viewModel.SelectedActionUnderlyingIndices.Clear();
 
-        _viewModel.SelectedActionCount.Should().Be(0);
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.CanDuplicateSelectedActions.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
-        notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsUp));
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
+        _ = _viewModel.SelectedActionCount.Should().Be(0);
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsUp));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
     }
 
     [Fact]
@@ -1525,16 +1532,16 @@ public class EditorViewModelTests
 
         _viewModel.Actions.RemoveAt(1);
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.CanDuplicateSelectedActions.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
-        notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsUp));
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsUp));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
     }
 
     [Fact]
@@ -1557,26 +1564,26 @@ public class EditorViewModelTests
 
         HideMovementAndShortWaitRows();
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
-        _viewModel.SelectedAction.Should().BeSameAs(click);
-        _viewModel.CanRemoveSelectedActions.Should().BeTrue();
-        _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
-        _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
-        _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
-        notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsUp));
-        notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(click);
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanMoveSelectedActionsUp.Should().BeFalse();
+        _ = _viewModel.CanMoveSelectedActionsDown.Should().BeFalse();
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsUp));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
 
         notifications.Clear();
         _viewModel.HideShortWaits = false;
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
-        _viewModel.CanRemoveSelectedActions.Should().BeTrue();
-        _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
-        notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
-        notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanDuplicateSelectedActions.Should().BeTrue();
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanRemoveSelectedActions));
+        _ = notifications.Should().Contain(nameof(EditorViewModel.CanDuplicateSelectedActions));
     }
 
     [Fact]
@@ -1590,20 +1597,20 @@ public class EditorViewModelTests
 
         _viewModel.DuplicateSelectedActions();
 
-        _viewModel.Actions.Should().HaveCount(3);
-        _viewModel.Actions[0].Should().BeSameAs(first);
-        _viewModel.Actions[1].Should().NotBeSameAs(first);
-        _viewModel.Actions[1].Type.Should().Be(first.Type);
-        _viewModel.Actions[2].Should().BeSameAs(second);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
-        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[1]);
-        _viewModel.Status.Should().Be("[Editor_StatusDuplicatedSelectedActions]");
+        _ = _viewModel.Actions.Should().HaveCount(3);
+        _ = _viewModel.Actions[0].Should().BeSameAs(first);
+        _ = _viewModel.Actions[1].Should().NotBeSameAs(first);
+        _ = _viewModel.Actions[1].Type.Should().Be(first.Type);
+        _ = _viewModel.Actions[2].Should().BeSameAs(second);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[1]);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusDuplicatedSelectedActions]");
 
         _viewModel.Undo();
 
-        _viewModel.Actions.Should().HaveCount(2);
-        _viewModel.Actions.Select(action => action.Type).Should().Equal(EditorActionType.MouseClick, EditorActionType.Delay);
-        _viewModel.Status.Should().Be("[Editor_StatusUndone]");
+        _ = _viewModel.Actions.Should().HaveCount(2);
+        _ = _viewModel.Actions.Select(action => action.Type).Should().Equal(EditorActionType.MouseClick, EditorActionType.Delay);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusUndone]");
     }
 
     [Fact]
@@ -1619,58 +1626,58 @@ public class EditorViewModelTests
 
         _viewModel.MoveSelectedActionsUp();
 
-        _viewModel.Actions.Should().Equal(second, first, third);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
-        _viewModel.SelectedAction.Should().BeSameAs(second);
-        _viewModel.Status.Should().Be("[Editor_StatusMovedSelectedActionsUp]");
+        _ = _viewModel.Actions.Should().Equal(second, first, third);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(second);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusMovedSelectedActionsUp]");
 
         _viewModel.MoveSelectedActionsDown();
 
-        _viewModel.Actions.Should().Equal(first, second, third);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
-        _viewModel.SelectedAction.Should().BeSameAs(second);
-        _viewModel.Status.Should().Be("[Editor_StatusMovedSelectedActionsDown]");
+        _ = _viewModel.Actions.Should().Equal(first, second, third);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(second);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusMovedSelectedActionsDown]");
 
         _viewModel.Undo();
 
-        _viewModel.Actions.Select(action => action.Type).Should().Equal(
+        _ = _viewModel.Actions.Select(action => action.Type).Should().Equal(
             EditorActionType.Delay,
             EditorActionType.MouseClick,
             EditorActionType.KeyPress);
-        _viewModel.Status.Should().Be("[Editor_StatusUndone]");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusUndone]");
     }
 
     [Fact]
     public void FilterToggleVisibility_HidesUnavailableInactiveFiltersAndKeepsActiveFiltersVisible()
     {
-        _viewModel.ShowHideMouseMovesToggle.Should().BeFalse();
-        _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
-        _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
+        _ = _viewModel.ShowHideMouseMovesToggle.Should().BeFalse();
+        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
+        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
 
         _viewModel.HideMouseMoves = true;
         _viewModel.HideShortWaits = true;
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.ShowHideMouseMovesToggle.Should().BeTrue();
-        _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
-        _viewModel.ShowSimplifyMovementToggle.Should().BeTrue();
+        _ = _viewModel.ShowHideMouseMovesToggle.Should().BeTrue();
+        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
+        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeTrue();
     }
 
     [Fact]
     public void FilterToggleVisibility_ShowsOnlyFiltersWithEligibleEvents()
     {
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 1 });
-        _viewModel.ShowHideMouseMovesToggle.Should().BeTrue();
-        _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
-        _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
+        _ = _viewModel.ShowHideMouseMovesToggle.Should().BeTrue();
+        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
+        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
 
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 5 });
-        _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
-        _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
+        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
+        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
 
         AddCondensibleRun(_viewModel, 6);
 
-        _viewModel.ShowSimplifyMovementToggle.Should().BeTrue();
+        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeTrue();
     }
 
     [Fact]
@@ -1678,13 +1685,13 @@ public class EditorViewModelTests
     {
         var action = new EditorAction { Type = EditorActionType.Delay, DelayMs = 10 };
         _viewModel.Actions.Add(action);
-        _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
+        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
 
         action.DelayMs = 5;
-        _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
+        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
 
         action.UseRandomDelay = true;
-        _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
+        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
     }
 
     [Fact]
@@ -1692,12 +1699,12 @@ public class EditorViewModelTests
     {
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 1 });
 
-        _viewModel.CanDeleteHiddenEvents.Should().BeFalse();
-        _viewModel.ShowDeleteHiddenEvents.Should().BeFalse();
+        _ = _viewModel.CanDeleteHiddenEvents.Should().BeFalse();
+        _ = _viewModel.ShowDeleteHiddenEvents.Should().BeFalse();
 
         _viewModel.HideMouseMoves = true;
 
-        _viewModel.ShowDeleteHiddenEvents.Should().BeTrue();
+        _ = _viewModel.ShowDeleteHiddenEvents.Should().BeTrue();
     }
 
     [Fact]
@@ -1705,20 +1712,20 @@ public class EditorViewModelTests
     {
         var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
         _viewModel.Actions.Add(action);
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([0]);
 
-        _viewModel.SelectedAction.Should().BeSameAs(action);
-        _viewModel.SelectedActionListItem.Should().NotBeNull();
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeTrue();
+        _ = _viewModel.SelectedAction.Should().BeSameAs(action);
+        _ = _viewModel.SelectedActionListItem.Should().NotBeNull();
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeTrue();
 
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(Array.Empty<int>());
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([]);
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.HasSelectedAction.Should().BeFalse();
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.HasSelectedAction.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
     }
 
     [Fact]
@@ -1727,12 +1734,12 @@ public class EditorViewModelTests
         var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
         var row = CreateActionListItem(action, representsSourceAction: true);
         var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
-        listBox.SelectedItems!.Add(row);
+        _ = listBox.SelectedItems!.Add(row);
 
         var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
 
-        removed.Should().BeTrue();
-        listBox.SelectedItems!.Cast<object>().Should().BeEmpty();
+        _ = removed.Should().BeTrue();
+        _ = listBox.SelectedItems!.Cast<object>().Should().BeEmpty();
     }
 
     [Fact]
@@ -1741,12 +1748,12 @@ public class EditorViewModelTests
         var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
         var row = CreateActionListItem(action, representsSourceAction: false);
         var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
-        listBox.SelectedItems!.Add(row);
+        _ = listBox.SelectedItems!.Add(row);
 
         var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
 
-        removed.Should().BeFalse();
-        listBox.SelectedItems!.Cast<object>().Should().ContainSingle().Which.Should().BeSameAs(row);
+        _ = removed.Should().BeFalse();
+        _ = listBox.SelectedItems!.Cast<object>().Should().ContainSingle().Which.Should().BeSameAs(row);
     }
 
     [Fact]
@@ -1760,18 +1767,18 @@ public class EditorViewModelTests
         var handlerProperty = (AvaloniaProperty<NotifyCollectionChangedEventHandler?>)behaviorType
             .GetField("BoundSelectionChangedHandlerProperty", BindingFlags.NonPublic | BindingFlags.Static)!
             .GetValue(null)!;
-        listBox.GetValue(handlerProperty).Should().NotBeNull();
+        _ = listBox.GetValue(handlerProperty).Should().NotBeNull();
 
-        behaviorType
+        _ = behaviorType
             .GetMethod("OnDetachedFromVisualTree", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, [listBox, null]);
-        listBox.GetValue(handlerProperty).Should().BeNull();
+        _ = listBox.GetValue(handlerProperty).Should().BeNull();
 
         var attachedHandler = behaviorType.GetMethod("OnAttachedToVisualTree", BindingFlags.NonPublic | BindingFlags.Static);
-        attachedHandler.Should().NotBeNull();
-        attachedHandler!.Invoke(null, [listBox, null]);
+        _ = attachedHandler.Should().NotBeNull();
+        _ = attachedHandler!.Invoke(null, [listBox, null]);
 
-        listBox.GetValue(handlerProperty).Should().NotBeNull();
+        _ = listBox.GetValue(handlerProperty).Should().NotBeNull();
     }
 
     [Fact]
@@ -1783,16 +1790,16 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(first);
         _viewModel.Actions.Add(selected);
         _viewModel.Actions.Add(third);
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 1 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([1]);
         var previousSelectedRow = _viewModel.ActionListItems[1];
 
         selected.X = 25;
         var currentSelectedRow = _viewModel.ActionListItems[1];
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
-        _viewModel.SelectedAction.Should().BeSameAs(selected);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(currentSelectedRow);
-        _viewModel.SelectedActionListItem.Should().NotBeSameAs(previousSelectedRow);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(selected);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(currentSelectedRow);
+        _ = _viewModel.SelectedActionListItem.Should().NotBeSameAs(previousSelectedRow);
     }
 
     [Fact]
@@ -1804,14 +1811,14 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(first);
         _viewModel.Actions.Add(second);
         _viewModel.Actions.Add(third);
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0, 2 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([0, 2]);
 
         first.X = 11;
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
-        _viewModel.SelectedAction.Should().BeSameAs(first);
-        _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(first);
+        _ = _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
     }
 
     [Fact]
@@ -1823,13 +1830,13 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(first);
         _viewModel.Actions.Add(second);
         _viewModel.Actions.Add(third);
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0, 2 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([0, 2]);
 
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([0]);
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
-        _viewModel.SelectedAction.Should().BeSameAs(first);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(first);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
     }
 
     [Fact]
@@ -1839,14 +1846,14 @@ public class EditorViewModelTests
         var visibleClick = new EditorAction { Type = EditorActionType.MouseClick, X = 2, Y = 2 };
         _viewModel.Actions.Add(hiddenMove);
         _viewModel.Actions.Add(visibleClick);
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([0]);
 
         _viewModel.HideMouseMoves = true;
 
-        _viewModel.ActionListItems.Should().ContainSingle().Which.Action.Should().BeSameAs(visibleClick);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.ActionListItems.Should().ContainSingle().Which.Action.Should().BeSameAs(visibleClick);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
     }
 
     [Fact]
@@ -1855,11 +1862,11 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseClick, X = 1 });
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 20 });
 
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0, 1 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([0, 1]);
 
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _viewModel.ShowBatchDelayProperties.Should().BeFalse();
-        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _ = _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _ = _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
     }
 
     [Fact]
@@ -1872,24 +1879,24 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(second);
         _viewModel.Actions.Add(click);
 
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0, 1 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([0, 1]);
         _viewModel.BatchDelayMs = 125;
         _viewModel.BatchDelayUseRandomDelay = true;
         _viewModel.BatchRandomDelayMinMs = 25;
         _viewModel.BatchRandomDelayMaxMs = 250;
 
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _viewModel.ShowBatchDelayProperties.Should().BeTrue();
-        _viewModel.ShowBatchRandomDelayOptions.Should().BeTrue();
-        first.DelayMs.Should().Be(125);
-        second.DelayMs.Should().Be(125);
-        first.UseRandomDelay.Should().BeTrue();
-        second.UseRandomDelay.Should().BeTrue();
-        first.RandomDelayMinMs.Should().Be(25);
-        second.RandomDelayMinMs.Should().Be(25);
-        first.RandomDelayMaxMs.Should().Be(250);
-        second.RandomDelayMaxMs.Should().Be(250);
-        click.DelayMs.Should().Be(0);
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _ = _viewModel.ShowBatchDelayProperties.Should().BeTrue();
+        _ = _viewModel.ShowBatchRandomDelayOptions.Should().BeTrue();
+        _ = first.DelayMs.Should().Be(125);
+        _ = second.DelayMs.Should().Be(125);
+        _ = first.UseRandomDelay.Should().BeTrue();
+        _ = second.UseRandomDelay.Should().BeTrue();
+        _ = first.RandomDelayMinMs.Should().Be(25);
+        _ = second.RandomDelayMinMs.Should().Be(25);
+        _ = first.RandomDelayMaxMs.Should().Be(250);
+        _ = second.RandomDelayMaxMs.Should().Be(250);
+        _ = click.DelayMs.Should().Be(0);
     }
 
     [Fact]
@@ -1901,15 +1908,15 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(first);
         _viewModel.Actions.Add(second);
         _viewModel.Actions.Add(click);
-        _viewModel.ReplaceSelectedActionUnderlyingIndices(new[] { 0, 1 });
+        _viewModel.ReplaceSelectedActionUnderlyingIndices([0, 1]);
 
         _viewModel.BatchDelayMs = 75;
 
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
-        _viewModel.SelectedAction.Should().BeSameAs(first);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
-        _viewModel.ShowBatchDelayProperties.Should().BeTrue();
-        _viewModel.BatchDelayMs.Should().Be(75);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(first);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+        _ = _viewModel.ShowBatchDelayProperties.Should().BeTrue();
+        _ = _viewModel.BatchDelayMs.Should().Be(75);
     }
 
     [Fact]
@@ -1917,10 +1924,10 @@ public class EditorViewModelTests
     {
         AddCondensibleRun(_viewModel, 6);
 
-        _viewModel.SimplifyMovement.Should().BeFalse();
-        _viewModel.HiddenEventCount.Should().Be(0);
-        _viewModel.ActionListItems.Should().HaveCount(6);
-        _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
+        _ = _viewModel.SimplifyMovement.Should().BeFalse();
+        _ = _viewModel.HiddenEventCount.Should().Be(0);
+        _ = _viewModel.ActionListItems.Should().HaveCount(6);
+        _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
     }
 
     [Fact]
@@ -1931,14 +1938,14 @@ public class EditorViewModelTests
 
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.Actions.Should().HaveCount(originalCount);
-        _viewModel.HiddenEventCount.Should().Be(0);
-        _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.Actions.Should().HaveCount(originalCount);
+        _ = _viewModel.HiddenEventCount.Should().Be(0);
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
         var item = _viewModel.ActionListItems[0];
-        item.Action.Type.Should().Be(EditorActionType.MouseMove);
-        item.UnderlyingIndex.Should().Be(4);
-        item.Index.Should().Be(5);
-        item.CondensedHiddenCount.Should().Be(5);
+        _ = item.Action.Type.Should().Be(EditorActionType.MouseMove);
+        _ = item.UnderlyingIndex.Should().Be(4);
+        _ = item.Index.Should().Be(5);
+        _ = item.CondensedHiddenCount.Should().Be(5);
     }
 
     [Fact]
@@ -1948,9 +1955,9 @@ public class EditorViewModelTests
 
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.ActionListItems.Should().HaveCount(5);
-        _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2, 3, 4);
-        _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
+        _ = _viewModel.ActionListItems.Should().HaveCount(5);
+        _ = _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2, 3, 4);
+        _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
     }
 
     [Theory]
@@ -1973,9 +1980,9 @@ public class EditorViewModelTests
 
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.ActionListItems.Should().HaveCount(7);
-        _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2, 3, 4, 5, 6);
-        _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
+        _ = _viewModel.ActionListItems.Should().HaveCount(7);
+        _ = _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2, 3, 4, 5, 6);
+        _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
     }
 
     [Fact]
@@ -1987,12 +1994,12 @@ public class EditorViewModelTests
 
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.ActionListItems.Should().HaveCount(2);
-        _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(4);
-        _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
-        _viewModel.ActionListItems[1].Action.Should().BeSameAs(click);
-        _viewModel.ActionListItems[1].UnderlyingIndex.Should().Be(6);
-        _viewModel.ActionListItems[1].Index.Should().Be(7);
+        _ = _viewModel.ActionListItems.Should().HaveCount(2);
+        _ = _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(4);
+        _ = _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
+        _ = _viewModel.ActionListItems[1].Action.Should().BeSameAs(click);
+        _ = _viewModel.ActionListItems[1].UnderlyingIndex.Should().Be(6);
+        _ = _viewModel.ActionListItems[1].Index.Should().Be(7);
     }
 
     [Fact]
@@ -2007,11 +2014,11 @@ public class EditorViewModelTests
 
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.ActionListItems.Should().ContainSingle();
-        _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.MouseMove);
-        _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(4);
-        _viewModel.ActionListItems[0].Index.Should().Be(5);
-        _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.MouseMove);
+        _ = _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(4);
+        _ = _viewModel.ActionListItems[0].Index.Should().Be(5);
+        _ = _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
     }
 
     [Fact]
@@ -2024,11 +2031,11 @@ public class EditorViewModelTests
 
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.ActionListItems.Should().ContainSingle();
-        _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.Delay);
-        _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(5);
-        _viewModel.ActionListItems[0].Index.Should().Be(6);
-        _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.Delay);
+        _ = _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(5);
+        _ = _viewModel.ActionListItems[0].Index.Should().Be(6);
+        _ = _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
     }
 
     [Fact]
@@ -2042,17 +2049,17 @@ public class EditorViewModelTests
 
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.ActionListItems.Should().HaveCount(8);
-        _viewModel.ActionListItems[0].Action.Should().BeSameAs(down);
-        _viewModel.ActionListItems.Skip(1).Take(6).Select(item => item.Action.Type).Should().Equal(
+        _ = _viewModel.ActionListItems.Should().HaveCount(8);
+        _ = _viewModel.ActionListItems[0].Action.Should().BeSameAs(down);
+        _ = _viewModel.ActionListItems.Skip(1).Take(6).Select(item => item.Action.Type).Should().Equal(
             EditorActionType.MouseMove,
             EditorActionType.Delay,
             EditorActionType.MouseMove,
             EditorActionType.Delay,
             EditorActionType.MouseMove,
             EditorActionType.Delay);
-        _viewModel.ActionListItems.Should().OnlyContain(item => item.CondensedHiddenCount == 0);
-        _viewModel.ActionListItems[7].Action.Should().BeSameAs(up);
+        _ = _viewModel.ActionListItems.Should().OnlyContain(item => item.CondensedHiddenCount == 0);
+        _ = _viewModel.ActionListItems[7].Action.Should().BeSameAs(up);
     }
 
     [Fact]
@@ -2067,8 +2074,8 @@ public class EditorViewModelTests
 
         _viewModel.HideMouseMoves = true;
 
-        _viewModel.ActionListItems.Select(item => item.Action).Should().Equal(down, up);
-        _viewModel.HiddenEventCount.Should().Be(1);
+        _ = _viewModel.ActionListItems.Select(item => item.Action).Should().Equal(down, up);
+        _ = _viewModel.HiddenEventCount.Should().Be(1);
     }
 
     [Theory]
@@ -2083,12 +2090,12 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
 
         var item = _viewModel.ActionListItems.Should().ContainSingle().Subject;
-        item.VisualKind.Should().Be(visualKind);
-        item.IsNoise.Should().Be(isNoise);
-        item.IsImportant.Should().Be(isImportant);
-        item.IsCleanupEligible.Should().Be(isCleanupEligible);
-        item.RepresentsSourceAction.Should().BeTrue();
-        item.CondensedHiddenCount.Should().Be(0);
+        _ = item.VisualKind.Should().Be(visualKind);
+        _ = item.IsNoise.Should().Be(isNoise);
+        _ = item.IsImportant.Should().Be(isImportant);
+        _ = item.IsCleanupEligible.Should().Be(isCleanupEligible);
+        _ = item.RepresentsSourceAction.Should().BeTrue();
+        _ = item.CondensedHiddenCount.Should().Be(0);
     }
 
     public static IEnumerable<object[]> ActionVisualMetadataCases()
@@ -2100,11 +2107,11 @@ public class EditorViewModelTests
         yield return MetadataCase(new EditorAction { Type = EditorActionType.Delay, DelayMs = 10 }, EditorActionVisualKind.Timing, isNoise: false, isImportant: true, isCleanupEligible: false);
         yield return MetadataCase(new EditorAction { Type = EditorActionType.Delay, DelayMs = 20 }, EditorActionVisualKind.Timing, isNoise: false, isImportant: true, isCleanupEligible: false);
         yield return MetadataCase(new EditorAction { Type = EditorActionType.Delay, UseRandomDelay = true, RandomDelayMinMs = 1, RandomDelayMaxMs = 9 }, EditorActionVisualKind.Timing, isNoise: false, isImportant: true, isCleanupEligible: false);
-        yield return MetadataCase(new EditorAction { Type = EditorActionType.MouseClick }, EditorActionVisualKind.Pointer, isNoise: false, isImportant: true, isCleanupEligible: false);
-        yield return MetadataCase(new EditorAction { Type = EditorActionType.MouseDown }, EditorActionVisualKind.Pointer, isNoise: false, isImportant: true, isCleanupEligible: false);
-        yield return MetadataCase(new EditorAction { Type = EditorActionType.MouseUp }, EditorActionVisualKind.Pointer, isNoise: false, isImportant: true, isCleanupEligible: false);
-        yield return MetadataCase(new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 1 }, EditorActionVisualKind.Pointer, isNoise: false, isImportant: true, isCleanupEligible: false);
-        yield return MetadataCase(new EditorAction { Type = EditorActionType.ScrollHorizontal, ScrollAmount = 1 }, EditorActionVisualKind.Pointer, isNoise: false, isImportant: true, isCleanupEligible: false);
+        yield return MetadataCase(new EditorAction { Type = EditorActionType.MouseClick }, EditorActionVisualKind.PointerInput, isNoise: false, isImportant: true, isCleanupEligible: false);
+        yield return MetadataCase(new EditorAction { Type = EditorActionType.MouseDown }, EditorActionVisualKind.PointerInput, isNoise: false, isImportant: true, isCleanupEligible: false);
+        yield return MetadataCase(new EditorAction { Type = EditorActionType.MouseUp }, EditorActionVisualKind.PointerInput, isNoise: false, isImportant: true, isCleanupEligible: false);
+        yield return MetadataCase(new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 1 }, EditorActionVisualKind.PointerInput, isNoise: false, isImportant: true, isCleanupEligible: false);
+        yield return MetadataCase(new EditorAction { Type = EditorActionType.ScrollHorizontal, ScrollAmount = 1 }, EditorActionVisualKind.PointerInput, isNoise: false, isImportant: true, isCleanupEligible: false);
         yield return MetadataCase(new EditorAction { Type = EditorActionType.KeyPress, KeyCode = 65 }, EditorActionVisualKind.Keyboard, isNoise: false, isImportant: true, isCleanupEligible: false);
         yield return MetadataCase(new EditorAction { Type = EditorActionType.KeyDown, KeyCode = 65 }, EditorActionVisualKind.Keyboard, isNoise: false, isImportant: true, isCleanupEligible: false);
         yield return MetadataCase(new EditorAction { Type = EditorActionType.KeyUp, KeyCode = 65 }, EditorActionVisualKind.Keyboard, isNoise: false, isImportant: true, isCleanupEligible: false);
@@ -2148,7 +2155,7 @@ public class EditorViewModelTests
             indentLevel: 0,
             displayName: "Action",
             condensedHint: string.Empty,
-            visualKind: EditorActionVisualKind.Pointer,
+            visualKind: EditorActionVisualKind.PointerInput,
             isImportant: false,
             isCleanupEligible: false,
             condensedHiddenCount: 0,
@@ -2162,7 +2169,7 @@ public class EditorViewModelTests
         bool isImportant,
         bool isCleanupEligible)
     {
-        return new object[] { action, visualKind, isNoise, isImportant, isCleanupEligible };
+        return [action, visualKind, isNoise, isImportant, isCleanupEligible];
     }
 
     [Fact]
@@ -2175,10 +2182,10 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(2);
-        _viewModel.Actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
-        _viewModel.Actions[1].Type.Should().Be(EditorActionType.BlockEnd);
-        _viewModel.ActionListItems[1].DisplayName.Should().Be("End IfToken");
+        _ = _viewModel.Actions.Should().HaveCount(2);
+        _ = _viewModel.Actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
+        _ = _viewModel.Actions[1].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = _viewModel.ActionListItems[1].DisplayName.Should().Be("End IfToken");
     }
 
     [Theory]
@@ -2193,8 +2200,8 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.Actions.Should().BeEmpty();
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _viewModel.Actions.Should().BeEmpty();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
     }
 
     [Theory]
@@ -2212,10 +2219,10 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(3);
-        _viewModel.Actions[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
-        _viewModel.Actions[1].Type.Should().Be(actionType);
-        _viewModel.Actions[2].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = _viewModel.Actions.Should().HaveCount(3);
+        _ = _viewModel.Actions[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
+        _ = _viewModel.Actions[1].Type.Should().Be(actionType);
+        _ = _viewModel.Actions[2].Type.Should().Be(EditorActionType.BlockEnd);
     }
 
     [Fact]
@@ -2232,9 +2239,9 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(3);
-        _viewModel.Actions[1].Type.Should().Be(EditorActionType.Delay);
-        _viewModel.SelectedAction.Should().Be(_viewModel.Actions[1]);
+        _ = _viewModel.Actions.Should().HaveCount(3);
+        _ = _viewModel.Actions[1].Type.Should().Be(EditorActionType.Delay);
+        _ = _viewModel.SelectedAction.Should().Be(_viewModel.Actions[1]);
     }
 
     [Fact]
@@ -2242,23 +2249,23 @@ public class EditorViewModelTests
     {
         // Arrange
         _viewModel.AddAction();
-        _viewModel.Actions.Should().HaveCount(1);
+        _ = _viewModel.Actions.Should().HaveCount(1);
 
         // Act
         _viewModel.RemoveAction();
 
         // Assert
-        _viewModel.Actions.Should().BeEmpty();
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.HasSelectedAction.Should().BeFalse();
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.HasActions.Should().BeFalse();
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _viewModel.ShowBatchDelayProperties.Should().BeFalse();
-        _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
+        _ = _viewModel.Actions.Should().BeEmpty();
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.HasSelectedAction.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.HasActions.Should().BeFalse();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _ = _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
     }
 
     [Fact]
@@ -2277,18 +2284,18 @@ public class EditorViewModelTests
         _viewModel.RemoveAction();
 
         // Assert
-        _viewModel.Actions.Should().Equal(first, third);
-        _viewModel.Actions.Should().NotContain(second);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.HasSelectedAction.Should().BeFalse();
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _viewModel.ShowBatchDelayProperties.Should().BeFalse();
-        _viewModel.ShowMultiSelectionPropertiesHint.Should().BeFalse();
-        _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
+        _ = _viewModel.Actions.Should().Equal(first, third);
+        _ = _viewModel.Actions.Should().NotContain(second);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.HasSelectedAction.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _ = _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _ = _viewModel.ShowMultiSelectionPropertiesHint.Should().BeFalse();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
     }
 
     [Fact]
@@ -2310,18 +2317,18 @@ public class EditorViewModelTests
         _viewModel.RemoveSelectedActions();
 
         // Assert
-        _viewModel.Actions.Should().Equal(second, fourth);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.HasSelectedAction.Should().BeFalse();
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _viewModel.Status.Should().Be("[Editor_StatusRemovedSelectedActions]");
+        _ = _viewModel.Actions.Should().Equal(second, fourth);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.HasSelectedAction.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusRemovedSelectedActions]");
 
         _viewModel.Undo();
-        _viewModel.Actions.Should().HaveCount(4);
+        _ = _viewModel.Actions.Should().HaveCount(4);
     }
 
     [Fact]
@@ -2349,19 +2356,19 @@ public class EditorViewModelTests
 
         _viewModel.RemoveSelectedActions();
 
-        presentationResetCount.Should().Be(1);
-        _viewModel.Actions.Should().Equal(second, fourth);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.CanUndo.Should().BeTrue();
+        _ = presentationResetCount.Should().Be(1);
+        _ = _viewModel.Actions.Should().Equal(second, fourth);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.CanUndo.Should().BeTrue();
 
         _viewModel.Undo();
-        _viewModel.Actions.Select(action => action.Type).Should().Equal(
+        _ = _viewModel.Actions.Select(action => action.Type).Should().Equal(
             EditorActionType.MouseClick,
             EditorActionType.Delay,
             EditorActionType.KeyPress,
             EditorActionType.MouseClick);
-        _viewModel.Actions.Select(action => action.X).Should().Equal(1, 0, 0, 4);
+        _ = _viewModel.Actions.Select(action => action.X).Should().Equal(1, 0, 0, 4);
     }
 
     [Fact]
@@ -2374,7 +2381,7 @@ public class EditorViewModelTests
             converted.Add(new EditorAction { Type = EditorActionType.MouseMove, X = index, Y = index });
         }
 
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
         _viewModel.LoadMacroSequence(sequence);
         _viewModel.ReplaceSelectedActionUnderlyingIndices(Enumerable.Range(0, 5_000).Where(index => index % 2 is 0));
@@ -2390,17 +2397,17 @@ public class EditorViewModelTests
 
         _viewModel.RemoveSelectedActions();
 
-        presentationResetCount.Should().Be(1);
-        _viewModel.Actions.Should().HaveCount(2_500);
-        _viewModel.Actions[0].X.Should().Be(1);
-        _viewModel.Actions[^1].X.Should().Be(4_999);
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = presentationResetCount.Should().Be(1);
+        _ = _viewModel.Actions.Should().HaveCount(2_500);
+        _ = _viewModel.Actions[0].X.Should().Be(1);
+        _ = _viewModel.Actions[^1].X.Should().Be(4_999);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
 
         _viewModel.Undo();
 
-        _viewModel.Actions.Should().HaveCount(5_000);
-        _viewModel.Actions[0].X.Should().Be(0);
-        _viewModel.Actions[4_999].X.Should().Be(4_999);
+        _ = _viewModel.Actions.Should().HaveCount(5_000);
+        _ = _viewModel.Actions[0].X.Should().Be(0);
+        _ = _viewModel.Actions[4_999].X.Should().Be(4_999);
     }
 
     [Fact]
@@ -2420,13 +2427,13 @@ public class EditorViewModelTests
         _viewModel.RemoveSelectedActions();
 
         // Assert
-        _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(first);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.HasSelectedAction.Should().BeFalse();
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(first);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.HasSelectedAction.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
     }
 
     [Fact]
@@ -2440,23 +2447,23 @@ public class EditorViewModelTests
         _viewModel.SelectedActionUnderlyingIndices.Add(0);
         _viewModel.HideMouseMoves = true;
 
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.HasSelectedActions.Should().BeTrue();
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.HasSelectedActions.Should().BeTrue();
 
         // Act
         _viewModel.RemoveSelectedActions();
 
         // Assert
-        _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(secondHiddenMove);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.HasSelectedAction.Should().BeFalse();
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _ = _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(secondHiddenMove);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.HasSelectedAction.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _ = _viewModel.ShowBatchDelayProperties.Should().BeFalse();
     }
 
     [Fact]
@@ -2472,10 +2479,10 @@ public class EditorViewModelTests
         _viewModel.RemoveSelectedActions();
 
         // Assert
-        _viewModel.Actions.Should().BeEmpty();
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.Actions.Should().BeEmpty();
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
     }
 
     [Fact]
@@ -2497,18 +2504,18 @@ public class EditorViewModelTests
         _viewModel.DuplicateSelectedActions();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(6);
-        _viewModel.Actions[0].Should().BeSameAs(first);
-        _viewModel.Actions[1].Should().BeSameAs(second);
-        _viewModel.Actions[2].Should().BeSameAs(third);
-        _viewModel.Actions[3].Should().NotBeSameAs(first);
-        _viewModel.Actions[3].Should().BeEquivalentTo(first, options => options.Excluding(action => action.Index).Excluding(action => action.Id));
-        _viewModel.Actions[4].Should().NotBeSameAs(third);
-        _viewModel.Actions[4].Should().BeEquivalentTo(third, options => options.Excluding(action => action.Index).Excluding(action => action.Id));
-        _viewModel.Actions[5].Should().BeSameAs(fourth);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(3, 4);
-        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[3]);
-        _viewModel.Status.Should().Be("[Editor_StatusDuplicatedSelectedActions]");
+        _ = _viewModel.Actions.Should().HaveCount(6);
+        _ = _viewModel.Actions[0].Should().BeSameAs(first);
+        _ = _viewModel.Actions[1].Should().BeSameAs(second);
+        _ = _viewModel.Actions[2].Should().BeSameAs(third);
+        _ = _viewModel.Actions[3].Should().NotBeSameAs(first);
+        _ = _viewModel.Actions[3].Should().BeEquivalentTo(first, options => options.Excluding(action => action.Index).Excluding(action => action.Id));
+        _ = _viewModel.Actions[4].Should().NotBeSameAs(third);
+        _ = _viewModel.Actions[4].Should().BeEquivalentTo(third, options => options.Excluding(action => action.Index).Excluding(action => action.Id));
+        _ = _viewModel.Actions[5].Should().BeSameAs(fourth);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(3, 4);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[3]);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusDuplicatedSelectedActions]");
     }
 
     [Fact]
@@ -2529,12 +2536,12 @@ public class EditorViewModelTests
         _viewModel.Undo();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(3);
-        _viewModel.Actions.Select(action => action.Type).Should().Equal(
+        _ = _viewModel.Actions.Should().HaveCount(3);
+        _ = _viewModel.Actions.Select(action => action.Type).Should().Equal(
             EditorActionType.MouseClick,
             EditorActionType.Delay,
             EditorActionType.KeyPress);
-        _viewModel.Status.Should().Be("[Editor_StatusUndone]");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusUndone]");
     }
 
     [Fact]
@@ -2556,10 +2563,10 @@ public class EditorViewModelTests
         _viewModel.MoveSelectedActionsUp();
 
         // Assert
-        _viewModel.Actions.Should().Equal(second, third, first, fourth);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
-        _viewModel.SelectedAction.Should().BeSameAs(second);
-        _viewModel.Status.Should().Be("[Editor_StatusMovedSelectedActionsUp]");
+        _ = _viewModel.Actions.Should().Equal(second, third, first, fourth);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(second);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusMovedSelectedActionsUp]");
     }
 
     [Fact]
@@ -2581,10 +2588,10 @@ public class EditorViewModelTests
         _viewModel.MoveSelectedActionsDown();
 
         // Assert
-        _viewModel.Actions.Should().Equal(first, fourth, second, third);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(2, 3);
-        _viewModel.SelectedAction.Should().BeSameAs(second);
-        _viewModel.Status.Should().Be("[Editor_StatusMovedSelectedActionsDown]");
+        _ = _viewModel.Actions.Should().Equal(first, fourth, second, third);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(2, 3);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(second);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusMovedSelectedActionsDown]");
     }
 
     [Fact]
@@ -2608,9 +2615,9 @@ public class EditorViewModelTests
         _viewModel.MoveSelectedActionsUp();
 
         // Assert
-        _viewModel.Actions.Should().Equal(second, first, fourth, third, fifth);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
-        _viewModel.SelectedAction.Should().BeSameAs(second);
+        _ = _viewModel.Actions.Should().Equal(second, first, fourth, third, fifth);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(second);
     }
 
     [Fact]
@@ -2634,9 +2641,9 @@ public class EditorViewModelTests
         _viewModel.MoveSelectedActionsDown();
 
         // Assert
-        _viewModel.Actions.Should().Equal(first, third, second, fifth, fourth);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(2, 4);
-        _viewModel.SelectedAction.Should().BeSameAs(second);
+        _ = _viewModel.Actions.Should().Equal(first, third, second, fifth, fourth);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(2, 4);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(second);
     }
 
     [Fact]
@@ -2656,10 +2663,10 @@ public class EditorViewModelTests
         _viewModel.MoveSelectedActionsUp();
 
         // Assert
-        _viewModel.Actions.Should().Equal(first, second, third);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
-        _viewModel.CanUndo.Should().BeFalse();
+        _ = _viewModel.Actions.Should().Equal(first, second, third);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _viewModel.CanUndo.Should().BeFalse();
     }
 
     [Fact]
@@ -2679,10 +2686,10 @@ public class EditorViewModelTests
         _viewModel.MoveSelectedActionsDown();
 
         // Assert
-        _viewModel.Actions.Should().Equal(first, second, third);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
-        _viewModel.CanUndo.Should().BeFalse();
+        _ = _viewModel.Actions.Should().Equal(first, second, third);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 2);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _viewModel.CanUndo.Should().BeFalse();
     }
 
     [Fact]
@@ -2707,11 +2714,11 @@ public class EditorViewModelTests
         _viewModel.MoveSelectedActionsDown();
 
         // Assert
-        _viewModel.Actions.Should().Equal(ifStart, ifBody, ifEnd, elseStart, elseBody, elseEnd);
-        _viewModel.SelectedAction.Should().BeSameAs(ifEnd);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(2);
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
-        _viewModel.CanUndo.Should().BeFalse();
+        _ = _viewModel.Actions.Should().Equal(ifStart, ifBody, ifEnd, elseStart, elseBody, elseEnd);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(ifEnd);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(2);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _viewModel.CanUndo.Should().BeFalse();
     }
 
     [Fact]
@@ -2732,11 +2739,11 @@ public class EditorViewModelTests
         _viewModel.Undo();
 
         // Assert
-        _viewModel.Actions.Select(action => action.Type).Should().Equal(
+        _ = _viewModel.Actions.Select(action => action.Type).Should().Equal(
             EditorActionType.MouseClick,
             EditorActionType.Delay,
             EditorActionType.KeyPress);
-        _viewModel.Status.Should().Be("[Editor_StatusUndone]");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusUndone]");
     }
 
     [Fact]
@@ -2762,14 +2769,14 @@ public class EditorViewModelTests
         _viewModel.DeleteHiddenEvents();
 
         // Assert
-        _viewModel.Actions.Should().Equal(zeroDelay, tenMsDelay, randomShortDelay, click);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
+        _ = _viewModel.Actions.Should().Equal(zeroDelay, tenMsDelay, randomShortDelay, click);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
 
         _viewModel.Undo();
-        _viewModel.Actions.Should().HaveCount(6);
+        _ = _viewModel.Actions.Should().HaveCount(6);
     }
 
     [Fact]
@@ -2792,14 +2799,14 @@ public class EditorViewModelTests
         _viewModel.DeleteHiddenEvents();
 
         // Assert
-        _viewModel.Actions.Should().Equal(selectedClick, finalClick);
-        _viewModel.SelectedAction.Should().BeSameAs(selectedClick);
-        _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
-        _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
-        _viewModel.HasSelectedActions.Should().BeTrue();
-        _viewModel.CanRemoveSelectedActions.Should().BeTrue();
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeTrue();
-        _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
+        _ = _viewModel.Actions.Should().Equal(selectedClick, finalClick);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(selectedClick);
+        _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
+        _ = _viewModel.HasSelectedActions.Should().BeTrue();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeTrue();
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeTrue();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
     }
 
     [Fact]
@@ -2817,15 +2824,15 @@ public class EditorViewModelTests
         _viewModel.DeleteHiddenEvents();
 
         // Assert
-        _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(click);
-        _viewModel.SelectedAction.Should().BeNull();
-        _viewModel.SelectedActionListItem.Should().BeNull();
-        _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
-        _viewModel.HasSelectedAction.Should().BeFalse();
-        _viewModel.HasSelectedActions.Should().BeFalse();
-        _viewModel.CanRemoveSelectedActions.Should().BeFalse();
-        _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
+        _ = _viewModel.Actions.Should().ContainSingle().Which.Should().BeSameAs(click);
+        _ = _viewModel.SelectedAction.Should().BeNull();
+        _ = _viewModel.SelectedActionListItem.Should().BeNull();
+        _ = _viewModel.SelectedActionUnderlyingIndices.Should().BeEmpty();
+        _ = _viewModel.HasSelectedAction.Should().BeFalse();
+        _ = _viewModel.HasSelectedActions.Should().BeFalse();
+        _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
+        _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
     }
 
     [Fact]
@@ -2835,12 +2842,12 @@ public class EditorViewModelTests
         var originalActions = _viewModel.Actions.ToArray();
         _viewModel.SimplifyMovement = true;
 
-        _viewModel.ActionListItems.Should().ContainSingle();
+        _ = _viewModel.ActionListItems.Should().ContainSingle();
         _viewModel.DeleteHiddenEvents();
 
-        _viewModel.Actions.Should().Equal(originalActions);
-        _viewModel.Status.Should().Be("[Editor_StatusNoHiddenEventsToDelete]");
-        _viewModel.CanUndo.Should().BeFalse();
+        _ = _viewModel.Actions.Should().Equal(originalActions);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusNoHiddenEventsToDelete]");
+        _ = _viewModel.CanUndo.Should().BeFalse();
     }
 
     [Fact]
@@ -2858,9 +2865,9 @@ public class EditorViewModelTests
         _viewModel.DeleteHiddenEvents();
 
         // Assert
-        _viewModel.Actions.Should().Equal(zeroDelay, tenMsDelay, randomShortDelay);
-        _viewModel.Status.Should().Be("[Editor_StatusNoHiddenEventsToDelete]");
-        _viewModel.CanUndo.Should().BeFalse();
+        _ = _viewModel.Actions.Should().Equal(zeroDelay, tenMsDelay, randomShortDelay);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusNoHiddenEventsToDelete]");
+        _ = _viewModel.CanUndo.Should().BeFalse();
     }
 
     [Fact]
@@ -2878,8 +2885,8 @@ public class EditorViewModelTests
 
         _viewModel.DeleteHiddenEvents();
 
-        _viewModel.Actions.Should().Equal(down, up);
-        _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
+        _ = _viewModel.Actions.Should().Equal(down, up);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
     }
 
     [Fact]
@@ -2888,27 +2895,27 @@ public class EditorViewModelTests
         // Arrange
         _viewModel.AddAction();
         _viewModel.AddAction();
-        _viewModel.Actions.Should().HaveCount(2);
-        _viewModel.CanUndo.Should().BeTrue();
-        _viewModel.CanRedo.Should().BeFalse();
+        _ = _viewModel.Actions.Should().HaveCount(2);
+        _ = _viewModel.CanUndo.Should().BeTrue();
+        _ = _viewModel.CanRedo.Should().BeFalse();
 
         // Act
         _viewModel.Undo();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(1);
-        _viewModel.Status.Should().Be("[Editor_StatusUndone]");
-        _viewModel.CanUndo.Should().BeTrue();
-        _viewModel.CanRedo.Should().BeTrue();
+        _ = _viewModel.Actions.Should().HaveCount(1);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusUndone]");
+        _ = _viewModel.CanUndo.Should().BeTrue();
+        _ = _viewModel.CanRedo.Should().BeTrue();
 
         // Act
         _viewModel.Redo();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(2);
-        _viewModel.Status.Should().Be("[Editor_StatusRedone]");
-        _viewModel.CanUndo.Should().BeTrue();
-        _viewModel.CanRedo.Should().BeFalse();
+        _ = _viewModel.Actions.Should().HaveCount(2);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusRedone]");
+        _ = _viewModel.CanUndo.Should().BeTrue();
+        _ = _viewModel.CanRedo.Should().BeFalse();
     }
 
     [Fact]
@@ -2923,8 +2930,8 @@ public class EditorViewModelTests
         _viewModel.Undo();
 
         // Assert
-        _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.SelectedAction!.DelayMs.Should().Be(0);
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction!.DelayMs.Should().Be(0);
     }
 
     [Fact]
@@ -2941,8 +2948,8 @@ public class EditorViewModelTests
         action.ScreenFoundVariableName = "is_found";
         _viewModel.Undo();
 
-        _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.SelectedAction!.ScreenFoundVariableName.Should().Be("found");
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction!.ScreenFoundVariableName.Should().Be("found");
     }
 
     [Fact]
@@ -2957,9 +2964,9 @@ public class EditorViewModelTests
         action.ScreenX = 30;
         _viewModel.Undo();
 
-        _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.SelectedAction!.ScreenX.Should().Be(10);
-        _viewModel.SelectedAction.ScreenY.Should().Be(20);
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction!.ScreenX.Should().Be(10);
+        _ = _viewModel.SelectedAction.ScreenY.Should().Be(20);
     }
 
     [Fact]
@@ -2970,18 +2977,18 @@ public class EditorViewModelTests
         var action = _viewModel.SelectedAction!;
 
         _viewModel.SelectedImageSearchMatchMode = EditorImageMatchMode.BestMatch;
-        action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
+        _ = action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
 
         _viewModel.Undo();
 
-        _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.FirstThresholdMatch);
-        _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeFalse();
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.FirstThresholdMatch);
+        _ = _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeFalse();
 
         _viewModel.Redo();
 
-        _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
-        _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeTrue();
+        _ = _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
+        _ = _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeTrue();
     }
 
     [Theory]
@@ -3011,10 +3018,10 @@ public class EditorViewModelTests
 
         var clone = action.Clone();
 
-        clone.Id.Should().NotBe(action.Id);
-        clone.TryGetScreenReadingPayload(out var clonePayload).Should().BeTrue();
-        action.TryGetScreenReadingPayload(out var originalPayload).Should().BeTrue();
-        clonePayload.Should().Be(originalPayload);
+        _ = clone.Id.Should().NotBe(action.Id);
+        _ = clone.TryGetScreenReadingPayload(out var clonePayload).Should().BeTrue();
+        _ = action.TryGetScreenReadingPayload(out var originalPayload).Should().BeTrue();
+        _ = clonePayload.Should().Be(originalPayload);
     }
 
     [Fact]
@@ -3030,8 +3037,8 @@ public class EditorViewModelTests
         _viewModel.Undo();
 
         // Assert
-        _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.SelectedAction!.DelayMs.Should().Be(0);
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction!.DelayMs.Should().Be(0);
     }
 
     [Fact]
@@ -3043,14 +3050,14 @@ public class EditorViewModelTests
             _viewModel.AddAction();
         }
 
-        _viewModel.Actions.Should().HaveCount(52);
+        _ = _viewModel.Actions.Should().HaveCount(52);
 
         // Act
         _viewModel.Undo();
         _viewModel.Undo();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(50);
+        _ = _viewModel.Actions.Should().HaveCount(50);
     }
 
     [Fact]
@@ -3064,7 +3071,7 @@ public class EditorViewModelTests
         _viewModel.SelectedAction = firstAction;
 
         var captureResult = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
 
         // Act
         var captureTask = _viewModel.CaptureMouseAsync();
@@ -3073,37 +3080,37 @@ public class EditorViewModelTests
         await captureTask;
 
         // Assert
-        firstAction.X.Should().Be(0);
-        firstAction.Y.Should().Be(0);
-        secondAction.X.Should().Be(0);
-        secondAction.Y.Should().Be(0);
-        _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
+        _ = firstAction.X.Should().Be(0);
+        _ = firstAction.Y.Should().Be(0);
+        _ = secondAction.X.Should().Be(0);
+        _ = secondAction.Y.Should().Be(0);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
     }
 
     [Fact]
     public async Task CaptureMouseAsync_WhenCaptureIsCancelled_ReportsCancellationAndClearsMode()
     {
         _viewModel.AddAction();
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>(null));
 
         await _viewModel.CaptureMouseAsync();
 
-        _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
-        _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
+        _ = _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
     }
 
     [Fact]
     public async Task CaptureMouseAsync_WhenCaptureFails_ReportsErrorAndClearsMode()
     {
         _viewModel.AddAction();
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException<(int X, int Y)?>(new InvalidOperationException("capture failed")));
 
         await _viewModel.CaptureMouseAsync();
 
-        _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
-        _viewModel.Status.Should().Be("Editor_StatusCaptureError");
+        _ = _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _ = _viewModel.Status.Should().Be("Editor_StatusCaptureError");
     }
 
     [Fact]
@@ -3112,8 +3119,8 @@ public class EditorViewModelTests
         _viewModel.CancelCapture();
 
         _captureService.Received(1).CancelCapture();
-        _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
-        _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
+        _ = _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
     }
 
     [Fact]
@@ -3130,16 +3137,16 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((640, 480)));
 
         // Act
         await _viewModel.CaptureMouseAsync();
 
         // Assert
-        action.IsAbsolute.Should().BeTrue();
-        action.X.Should().Be(640);
-        action.Y.Should().Be(480);
+        _ = action.IsAbsolute.Should().BeTrue();
+        _ = action.X.Should().Be(640);
+        _ = action.Y.Should().Be(480);
     }
 
     [Fact]
@@ -3157,18 +3164,18 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((640, 480)));
 
         // Act
         await _viewModel.CaptureMouseAsync();
 
         // Assert
-        action.IsAbsolute.Should().BeTrue();
-        action.ScreenX.Should().Be(640);
-        action.ScreenY.Should().Be(480);
-        action.X.Should().Be(3);
-        action.Y.Should().Be(-2);
+        _ = action.IsAbsolute.Should().BeTrue();
+        _ = action.ScreenX.Should().Be(640);
+        _ = action.ScreenY.Should().Be(480);
+        _ = action.X.Should().Be(3);
+        _ = action.Y.Should().Be(-2);
     }
 
     [Fact]
@@ -3185,17 +3192,17 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((640, 480)));
 
         // Act
         await _viewModel.CaptureMouseAsync();
 
         // Assert
-        action.ScreenX.Should().Be(640);
-        action.ScreenY.Should().Be(480);
-        action.X.Should().Be(3);
-        action.Y.Should().Be(-2);
+        _ = action.ScreenX.Should().Be(640);
+        _ = action.ScreenY.Should().Be(480);
+        _ = action.X.Should().Be(3);
+        _ = action.Y.Should().Be(-2);
     }
 
     [Fact]
@@ -3205,20 +3212,20 @@ public class EditorViewModelTests
         var action = new EditorAction { Type = EditorActionType.WaitColor, ScreenColorHex = "000000" };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((10, 20)));
-        _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
+        _ = _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
             .Returns(Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0x12, 0xAB, 0xEF))));
 
         // Act
         await _viewModel.CaptureTargetColorAsync();
 
         // Assert
-        action.ScreenColorHex.Should().Be("12ABEF");
+        _ = action.ScreenColorHex.Should().Be("12ABEF");
         _ = _screenPixelReader.Received(1).GetPixelAsync(
             Arg.Is<ScreenPoint>(point => point.X == 10 && point.Y == 20),
             Arg.Any<ScreenReadOptions>());
-        _viewModel.Status.Should().Be("[Editor_StatusCapturedColor] 12ABEF 10 20");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCapturedColor] 12ABEF 10 20");
     }
 
     [Fact]
@@ -3228,16 +3235,16 @@ public class EditorViewModelTests
         var action = new EditorAction { Type = EditorActionType.PixelSearch, ScreenColorHex = "000000" };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((30, 40)));
-        _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
+        _ = _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
             .Returns(Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0x01, 0x23, 0x45))));
 
         // Act
         await _viewModel.CaptureTargetColorAsync();
 
         // Assert
-        action.ScreenColorHex.Should().Be("012345");
+        _ = action.ScreenColorHex.Should().Be("012345");
         _ = _screenPixelReader.Received(1).GetPixelAsync(
             Arg.Is<ScreenPoint>(point => point.X == 30 && point.Y == 40),
             Arg.Any<ScreenReadOptions>());
@@ -3254,7 +3261,7 @@ public class EditorViewModelTests
         _viewModel.SelectedAction = firstAction;
 
         var captureResult = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
 
         // Act
         var captureTask = _viewModel.CaptureTargetColorAsync();
@@ -3263,9 +3270,9 @@ public class EditorViewModelTests
         await captureTask;
 
         // Assert
-        firstAction.ScreenColorHex.Should().Be("111111");
-        secondAction.ScreenColorHex.Should().Be("222222");
-        _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
+        _ = firstAction.ScreenColorHex.Should().Be("111111");
+        _ = secondAction.ScreenColorHex.Should().Be("222222");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
         _ = _screenPixelReader.DidNotReceive().GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>());
     }
 
@@ -3281,8 +3288,8 @@ public class EditorViewModelTests
         await _viewModel.CaptureTargetColorAsync();
 
         // Assert
-        action.ScreenColorHex.Should().Be("111111");
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = action.ScreenColorHex.Should().Be("111111");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
         _ = _captureService.DidNotReceive().CaptureMousePositionAsync(Arg.Any<CancellationToken>());
         _ = _screenPixelReader.DidNotReceive().GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>());
     }
@@ -3298,18 +3305,18 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((70, 80)));
-        _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
+        _ = _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
             .Returns(Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0xDE, 0xAD, 0xBE))));
 
         await _viewModel.CaptureConditionRightColorAsync();
 
-        action.ScriptRightOperand.Should().Be("DEADBE");
+        _ = action.ScriptRightOperand.Should().Be("DEADBE");
         _ = _screenPixelReader.Received(1).GetPixelAsync(
             Arg.Is<ScreenPoint>(point => point.X == 70 && point.Y == 80),
             Arg.Any<ScreenReadOptions>());
-        _viewModel.Status.Should().Be("[Editor_StatusCapturedColor] DEADBE 70 80");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCapturedColor] DEADBE 70 80");
     }
 
     [Fact]
@@ -3323,14 +3330,14 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((71, 81)));
-        _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
+        _ = _screenPixelReader.GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>())
             .Returns(Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(new ScreenPixelColor(0x12, 0x34, 0x56))));
 
         await _viewModel.CaptureConditionLeftColorAsync();
 
-        action.ScriptLeftOperand.Should().Be("123456");
+        _ = action.ScriptLeftOperand.Should().Be("123456");
     }
 
     [Fact]
@@ -3345,7 +3352,7 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>()).Returns(_ =>
         {
             action.ScriptRightOperandType = ScriptOperandType.Text;
             return Task.FromResult<(int X, int Y)?>((73, 83));
@@ -3353,8 +3360,8 @@ public class EditorViewModelTests
 
         await _viewModel.CaptureConditionRightColorAsync();
 
-        action.ScriptRightOperand.Should().Be("111111");
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = action.ScriptRightOperand.Should().Be("111111");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
         _ = _screenPixelReader.DidNotReceive().GetPixelAsync(Arg.Any<ScreenPoint>(), Arg.Any<ScreenReadOptions>());
     }
 
@@ -3372,18 +3379,18 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((15, 25)));
 
         // Act
         await _viewModel.CapturePixelSearchTopLeftAsync();
 
         // Assert
-        action.ScreenLeft.Should().Be(15);
-        action.ScreenTop.Should().Be(25);
-        action.ScreenWidth.Should().Be(6);
-        action.ScreenHeight.Should().Be(16);
-        _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 15 25");
+        _ = action.ScreenLeft.Should().Be(15);
+        _ = action.ScreenTop.Should().Be(25);
+        _ = action.ScreenWidth.Should().Be(6);
+        _ = action.ScreenHeight.Should().Be(16);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 15 25");
     }
 
     [Fact]
@@ -3400,16 +3407,16 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((14, 24)));
 
         // Act
         await _viewModel.CapturePixelSearchBottomRightAsync();
 
         // Assert
-        action.ScreenWidth.Should().Be(5);
-        action.ScreenHeight.Should().Be(5);
-        _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionBottomRight] 14 24");
+        _ = action.ScreenWidth.Should().Be(5);
+        _ = action.ScreenHeight.Should().Be(5);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionBottomRight] 14 24");
     }
 
     [Fact]
@@ -3426,16 +3433,16 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((9, 25)));
 
         // Act
         await _viewModel.CapturePixelSearchBottomRightAsync();
 
         // Assert
-        action.ScreenWidth.Should().Be(7);
-        action.ScreenHeight.Should().Be(8);
-        _viewModel.Status.Should().Be("[Editor_StatusCaptureRegionInvalidBottomRight]");
+        _ = action.ScreenWidth.Should().Be(7);
+        _ = action.ScreenHeight.Should().Be(8);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureRegionInvalidBottomRight]");
     }
 
     [Theory]
@@ -3452,7 +3459,7 @@ public class EditorViewModelTests
 
         if (actionType is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage)
         {
-            _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+            _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult<(int X, int Y)?>((12, 34)));
         }
 
@@ -3462,16 +3469,16 @@ public class EditorViewModelTests
         // Assert
         if (actionType is EditorActionType.WaitColor)
         {
-            action.ScreenLeft.Should().Be(10);
-            action.ScreenTop.Should().Be(20);
-            _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+            _ = action.ScreenLeft.Should().Be(10);
+            _ = action.ScreenTop.Should().Be(20);
+            _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
             _ = _captureService.DidNotReceive().CaptureMousePositionAsync(Arg.Any<CancellationToken>());
         }
         else
         {
-            action.ScreenLeft.Should().Be(12);
-            action.ScreenTop.Should().Be(34);
-            _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 12 34");
+            _ = action.ScreenLeft.Should().Be(12);
+            _ = action.ScreenTop.Should().Be(34);
+            _ = _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 12 34");
         }
     }
 
@@ -3487,17 +3494,17 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((12, 34)));
 
         await _viewModel.CaptureScreenshotRegionStartAsync();
 
-        action.ScreenshotUseRegion.Should().BeTrue();
-        action.ScreenshotRegionX.Should().Be("12");
-        action.ScreenshotRegionY.Should().Be("34");
-        action.ScreenshotRegionWidth.Should().Be("1");
-        action.ScreenshotRegionHeight.Should().Be("1");
-        _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 12 34");
+        _ = action.ScreenshotUseRegion.Should().BeTrue();
+        _ = action.ScreenshotRegionX.Should().Be("12");
+        _ = action.ScreenshotRegionY.Should().Be("34");
+        _ = action.ScreenshotRegionWidth.Should().Be("1");
+        _ = action.ScreenshotRegionHeight.Should().Be("1");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionTopLeft] 12 34");
     }
 
     [Fact]
@@ -3512,16 +3519,16 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((10, 70)));
 
         await _viewModel.CaptureScreenshotRegionEndAsync();
 
-        action.ScreenshotRegionX.Should().Be("10");
-        action.ScreenshotRegionY.Should().Be("40");
-        action.ScreenshotRegionWidth.Should().Be("21");
-        action.ScreenshotRegionHeight.Should().Be("31");
-        _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionBottomRight] 10 70");
+        _ = action.ScreenshotRegionX.Should().Be("10");
+        _ = action.ScreenshotRegionY.Should().Be("40");
+        _ = action.ScreenshotRegionWidth.Should().Be("21");
+        _ = action.ScreenshotRegionHeight.Should().Be("31");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCapturedRegionBottomRight] 10 70");
     }
 
     [Fact]
@@ -3538,17 +3545,17 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>(null));
 
         await _viewModel.CaptureScreenshotRegionEndAsync();
 
-        action.ScreenshotUseRegion.Should().BeFalse();
-        action.ScreenshotRegionX.Should().Be("5");
-        action.ScreenshotRegionY.Should().Be("6");
-        action.ScreenshotRegionWidth.Should().Be("7");
-        action.ScreenshotRegionHeight.Should().Be("8");
-        _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
+        _ = action.ScreenshotUseRegion.Should().BeFalse();
+        _ = action.ScreenshotRegionX.Should().Be("5");
+        _ = action.ScreenshotRegionY.Should().Be("6");
+        _ = action.ScreenshotRegionWidth.Should().Be("7");
+        _ = action.ScreenshotRegionHeight.Should().Be("8");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
     }
 
     [Fact]
@@ -3562,16 +3569,16 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((12, 34)));
 
         await _viewModel.CaptureScreenshotRegionEndAsync();
 
-        action.ScreenshotUseRegion.Should().BeTrue();
-        action.ScreenshotRegionX.Should().Be("12");
-        action.ScreenshotRegionY.Should().Be("34");
-        action.ScreenshotRegionWidth.Should().Be("1");
-        action.ScreenshotRegionHeight.Should().Be("1");
+        _ = action.ScreenshotUseRegion.Should().BeTrue();
+        _ = action.ScreenshotRegionX.Should().Be("12");
+        _ = action.ScreenshotRegionY.Should().Be("34");
+        _ = action.ScreenshotRegionWidth.Should().Be("1");
+        _ = action.ScreenshotRegionHeight.Should().Be("1");
     }
 
     [Fact]
@@ -3586,19 +3593,19 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
+        _ = _captureService.CaptureMousePositionAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<(int X, int Y)?>((640, 480)));
 
         // Act
         await _viewModel.CaptureMouseAsync();
 
         // Assert
-        action.UseCurrentPosition.Should().BeFalse();
-        action.IsAbsolute.Should().BeTrue();
-        action.X.Should().Be(640);
-        action.Y.Should().Be(480);
-        _viewModel.ShowCoordinates.Should().BeTrue();
-        _viewModel.ShowCoordModeToggle.Should().BeTrue();
+        _ = action.UseCurrentPosition.Should().BeFalse();
+        _ = action.IsAbsolute.Should().BeTrue();
+        _ = action.X.Should().Be(640);
+        _ = action.Y.Should().Be(480);
+        _ = _viewModel.ShowCoordinates.Should().BeTrue();
+        _ = _viewModel.ShowCoordModeToggle.Should().BeTrue();
     }
 
     [Fact]
@@ -3612,7 +3619,7 @@ public class EditorViewModelTests
         _viewModel.SelectedAction = firstAction;
 
         var captureResult = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _captureService.CaptureKeyCodeAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
+        _ = _captureService.CaptureKeyCodeAsync(Arg.Any<CancellationToken>()).Returns(_ => captureResult.Task);
 
         // Act
         var captureTask = _viewModel.CaptureKeyAsync();
@@ -3621,9 +3628,9 @@ public class EditorViewModelTests
         await captureTask;
 
         // Assert
-        firstAction.KeyCode.Should().Be(0);
-        secondAction.KeyCode.Should().Be(0);
-        _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
+        _ = firstAction.KeyCode.Should().Be(0);
+        _ = secondAction.KeyCode.Should().Be(0);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureSelectionChanged]");
     }
 
     [Fact]
@@ -3644,7 +3651,7 @@ public class EditorViewModelTests
     {
         // Arrange
         _viewModel.AddAction();
-        _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>())
+        _ = _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>())
             .Returns((false, new List<string> { "Error A", "Error B" }));
 
         // Act
@@ -3655,7 +3662,7 @@ public class EditorViewModelTests
             Arg.Is<string>(m => m.Contains("ValidationErrors", StringComparison.Ordinal)),
             Arg.Is<string>(m => m.Contains("Error A", StringComparison.Ordinal)),
             "OK");
-        _viewModel.Status.Should().Contain("[Editor_StatusValidationFailed]");
+        _ = _viewModel.Status.Should().Contain("[Editor_StatusValidationFailed]");
     }
 
     [Fact]
@@ -3664,14 +3671,14 @@ public class EditorViewModelTests
         // Arrange
         var sequence = new MacroSequence { Name = "Loaded Macro" };
         _viewModel.TrackLoadedMacroSession(Guid.NewGuid());
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(new List<EditorAction>(), new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
 
         // Act
         _viewModel.LoadMacroSequence(sequence);
 
         // Assert
-        _viewModel.LinkedLoadedMacroSessionId.Should().BeNull();
+        _ = _viewModel.LinkedLoadedMacroSessionId.Should().BeNull();
     }
 
     [Fact]
@@ -3685,7 +3692,7 @@ public class EditorViewModelTests
             new() { Type = EditorActionType.Delay, DelayMs = 25 },
         };
         var addedRowCount = 0;
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
         _viewModel.ActionListItems.CollectionChanged += (_, args) =>
         {
@@ -3697,7 +3704,7 @@ public class EditorViewModelTests
 
         _viewModel.LoadMacroSequence(sequence);
 
-        addedRowCount.Should().Be(converted.Count);
+        _ = addedRowCount.Should().Be(converted.Count);
     }
 
     [Fact]
@@ -3711,7 +3718,7 @@ public class EditorViewModelTests
         }
 
         var addedRowCount = 0;
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
         _viewModel.ActionListItems.CollectionChanged += (_, args) =>
         {
@@ -3723,9 +3730,9 @@ public class EditorViewModelTests
 
         _viewModel.LoadMacroSequence(sequence);
 
-        _viewModel.Actions.Should().HaveCount(5_000);
-        _viewModel.ActionListItems.Should().HaveCount(5_000);
-        addedRowCount.Should().Be(5_000);
+        _ = _viewModel.Actions.Should().HaveCount(5_000);
+        _ = _viewModel.ActionListItems.Should().HaveCount(5_000);
+        _ = addedRowCount.Should().Be(5_000);
     }
 
     [Fact]
@@ -3738,7 +3745,7 @@ public class EditorViewModelTests
             converted.Add(new EditorAction { Type = EditorActionType.MouseMove, X = index, Y = index });
         }
 
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
         _viewModel.LoadMacroSequence(sequence);
         _viewModel.AddAction();
@@ -3754,24 +3761,24 @@ public class EditorViewModelTests
 
         _viewModel.Undo();
 
-        _viewModel.Actions.Should().HaveCount(250);
-        _viewModel.ActionListItems.Should().HaveCount(250);
-        _viewModel.Actions[249].X.Should().Be(249);
-        _viewModel.Actions[249].Y.Should().Be(249);
-        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
-        _viewModel.CanUndo.Should().BeTrue();
-        _viewModel.CanRedo.Should().BeTrue();
-        addedRowCount.Should().Be(250);
+        _ = _viewModel.Actions.Should().HaveCount(250);
+        _ = _viewModel.ActionListItems.Should().HaveCount(250);
+        _ = _viewModel.Actions[249].X.Should().Be(249);
+        _ = _viewModel.Actions[249].Y.Should().Be(249);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _ = _viewModel.CanUndo.Should().BeTrue();
+        _ = _viewModel.CanRedo.Should().BeTrue();
+        _ = addedRowCount.Should().Be(250);
 
         addedRowCount = 0;
         _viewModel.Redo();
 
-        _viewModel.Actions.Should().HaveCount(251);
-        _viewModel.ActionListItems.Should().HaveCount(251);
-        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
-        _viewModel.CanUndo.Should().BeTrue();
-        _viewModel.CanRedo.Should().BeFalse();
-        addedRowCount.Should().Be(251);
+        _ = _viewModel.Actions.Should().HaveCount(251);
+        _ = _viewModel.ActionListItems.Should().HaveCount(251);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _ = _viewModel.CanUndo.Should().BeTrue();
+        _ = _viewModel.CanRedo.Should().BeFalse();
+        _ = addedRowCount.Should().Be(251);
     }
 
     [Fact]
@@ -3784,29 +3791,29 @@ public class EditorViewModelTests
             converted.Add(new EditorAction { Type = EditorActionType.MouseMove, X = index, Y = index });
         }
 
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
         _viewModel.LoadMacroSequence(sequence);
         _viewModel.AddAction();
 
         _viewModel.Undo();
 
-        _viewModel.Actions.Should().HaveCount(5_000);
-        _viewModel.ActionListItems.Should().HaveCount(5_000);
-        _viewModel.Actions[0].X.Should().Be(0);
-        _viewModel.Actions[2_499].X.Should().Be(2_499);
-        _viewModel.Actions[4_999].X.Should().Be(4_999);
-        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
-        _viewModel.CanUndo.Should().BeTrue();
-        _viewModel.CanRedo.Should().BeTrue();
+        _ = _viewModel.Actions.Should().HaveCount(5_000);
+        _ = _viewModel.ActionListItems.Should().HaveCount(5_000);
+        _ = _viewModel.Actions[0].X.Should().Be(0);
+        _ = _viewModel.Actions[2_499].X.Should().Be(2_499);
+        _ = _viewModel.Actions[4_999].X.Should().Be(4_999);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _ = _viewModel.CanUndo.Should().BeTrue();
+        _ = _viewModel.CanRedo.Should().BeTrue();
 
         _viewModel.Redo();
 
-        _viewModel.Actions.Should().HaveCount(5_001);
-        _viewModel.ActionListItems.Should().HaveCount(5_001);
-        _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
-        _viewModel.CanUndo.Should().BeTrue();
-        _viewModel.CanRedo.Should().BeFalse();
+        _ = _viewModel.Actions.Should().HaveCount(5_001);
+        _ = _viewModel.ActionListItems.Should().HaveCount(5_001);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
+        _ = _viewModel.CanUndo.Should().BeTrue();
+        _ = _viewModel.CanRedo.Should().BeFalse();
     }
 
     [Fact]
@@ -3818,17 +3825,17 @@ public class EditorViewModelTests
         {
             new() { Type = EditorActionType.MouseMove, X = 10, Y = 20 },
         };
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
 
         // Act
         _viewModel.LoadMacroSequence(sequence);
 
         // Assert
-        _viewModel.MacroName.Should().Be("Loaded Macro");
-        _viewModel.Actions.Should().HaveCount(1);
-        _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.HasActions.Should().BeTrue();
+        _ = _viewModel.MacroName.Should().Be("Loaded Macro");
+        _ = _viewModel.Actions.Should().HaveCount(1);
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.HasActions.Should().BeTrue();
     }
 
     [Fact]
@@ -3856,15 +3863,15 @@ public class EditorViewModelTests
                 ImageSearchDownsample = 1,
             },
         };
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: true));
 
         _viewModel.LoadMacroSequence(sequence);
 
-        _viewModel.HasImageAssets.Should().BeTrue();
-        _viewModel.ImageAssetNames.Should().Equal("Target_1");
-        _viewModel.SelectedAction.Should().BeSameAs(converted[0]);
-        _viewModel.ShowImageSearchFields.Should().BeTrue();
+        _ = _viewModel.HasImageAssets.Should().BeTrue();
+        _ = _viewModel.ImageAssetNames.Should().Equal("Target_1");
+        _ = _viewModel.SelectedAction.Should().BeSameAs(converted[0]);
+        _ = _viewModel.ShowImageSearchFields.Should().BeTrue();
     }
 
     [Theory]
@@ -3878,16 +3885,16 @@ public class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _viewModel.ShowImageSearchFields.Should().BeTrue();
-        _viewModel.ShowImageOutputVariableFields.Should().BeTrue();
-        _viewModel.ShowImageWaitTimeoutField.Should().BeTrue();
+        _ = _viewModel.ShowImageSearchFields.Should().BeTrue();
+        _ = _viewModel.ShowImageOutputVariableFields.Should().BeTrue();
+        _ = _viewModel.ShowImageWaitTimeoutField.Should().BeTrue();
     }
 
     [Fact]
     public async Task SaveMacroAsync_WhenImageSearchAssetImported_PersistsImageAssetsOnGeneratedSequence()
     {
         var pngPath = Path.Combine(Path.GetTempPath(), $"crossmacro-target-{Guid.NewGuid():N}.png");
-        await File.WriteAllBytesAsync(pngPath, Convert.FromBase64String(TransparentPngBase64));
+        await File.WriteAllBytesAsync(pngPath, Convert.FromBase64String(TransparentPngBase64), NonCancelableToken);
         try
         {
             var action = new EditorAction
@@ -3903,7 +3910,7 @@ public class EditorViewModelTests
             };
             _viewModel.Actions.Add(action);
             _viewModel.SelectedAction = action;
-            _dialogService
+            _ = _dialogService
                 .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
                 .Returns(pngPath);
             await _viewModel.ImportImageAssetAsync();
@@ -3911,19 +3918,19 @@ public class EditorViewModelTests
             var generatedSequence = new MacroSequence
             {
                 Name = "Generated",
-                ScriptSteps = {"imagesearch 0 0 100 100 Target_1 found found_x found_y"},
+                ScriptSteps = { "imagesearch 0 0 100 100 Target_1 found found_x found_y" },
             };
-            _converter
+            _ = _converter
                 .ToMacroSequence(Arg.Any<EditorMacroProjection>())
                 .Returns(generatedSequence);
-            _dialogService
+            _ = _dialogService
                 .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
                 .Returns("/tmp/editor-image-search.macro");
 
             await _viewModel.SaveMacroAsync();
 
-            generatedSequence.Images.Should().ContainKey(action.ImageAssetName);
-            generatedSequence.Images[action.ImageAssetName].Should().NotBeNullOrWhiteSpace();
+            _ = generatedSequence.Images.Should().ContainKey(action.ImageAssetName);
+            _ = generatedSequence.Images[action.ImageAssetName].Should().NotBeNullOrWhiteSpace();
             await _fileManager.Received(1).SaveAsync(generatedSequence, "/tmp/editor-image-search.macro");
         }
         finally
@@ -3964,16 +3971,16 @@ public class EditorViewModelTests
             new() { Type = EditorActionType.MouseMove, X = 10, Y = 20, IsAbsolute = true },
             new() { Type = EditorActionType.MouseClick, X = 5, Y = -3, IsAbsolute = false },
         };
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, new List<EditorActionRestoreWarning>(), restoredFromScriptSteps: false));
 
         // Act
         _viewModel.LoadMacroSequence(sequence);
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(2);
-        _viewModel.Actions[0].IsAbsolute.Should().BeTrue();
-        _viewModel.Actions[1].IsAbsolute.Should().BeFalse();
+        _ = _viewModel.Actions.Should().HaveCount(2);
+        _ = _viewModel.Actions[0].IsAbsolute.Should().BeTrue();
+        _ = _viewModel.Actions[1].IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -3983,7 +3990,7 @@ public class EditorViewModelTests
         var sequence = new MacroSequence
         {
             Name = "Loaded Macro",
-            ScriptSteps = {"tap ctrl+c"},
+            ScriptSteps = { "tap ctrl+c" },
         };
         var converted = new List<EditorAction>
         {
@@ -3993,16 +4000,16 @@ public class EditorViewModelTests
         {
             new(1, "tap ctrl+c", "Unsupported step restored as raw script text."),
         };
-        _converter.FromMacroSequenceWithDiagnostics(sequence)
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
             .Returns(new EditorActionRestoreResult(converted, warnings, restoredFromScriptSteps: true));
 
         // Act
         _viewModel.LoadMacroSequence(sequence);
 
         // Assert
-        _viewModel.HasLoadWarnings.Should().BeTrue();
-        _viewModel.LoadWarnings.Should().ContainSingle();
-        _viewModel.LoadWarnings[0].Should().Contain("Step 1");
+        _ = _viewModel.HasLoadWarnings.Should().BeTrue();
+        _ = _viewModel.LoadWarnings.Should().ContainSingle();
+        _ = _viewModel.LoadWarnings[0].Should().Contain("Step 1");
     }
 
     [Fact]
@@ -4013,16 +4020,16 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.ShowDelay.Should().BeTrue();
-        _viewModel.ShowFixedDelayInput.Should().BeTrue();
-        _viewModel.ShowRandomDelayOptions.Should().BeFalse();
+        _ = _viewModel.ShowDelay.Should().BeTrue();
+        _ = _viewModel.ShowFixedDelayInput.Should().BeTrue();
+        _ = _viewModel.ShowRandomDelayOptions.Should().BeFalse();
 
         // Act
         _viewModel.SelectedAction!.UseRandomDelay = true;
 
         // Assert
-        _viewModel.ShowFixedDelayInput.Should().BeFalse();
-        _viewModel.ShowRandomDelayOptions.Should().BeTrue();
+        _ = _viewModel.ShowFixedDelayInput.Should().BeFalse();
+        _ = _viewModel.ShowRandomDelayOptions.Should().BeTrue();
     }
 
     [Theory]
@@ -4039,7 +4046,7 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.ShowCoordinates.Should().BeTrue();
+        _ = _viewModel.ShowCoordinates.Should().BeTrue();
     }
 
     [Theory]
@@ -4056,7 +4063,7 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.ShowCoordModeToggle.Should().BeTrue();
+        _ = _viewModel.ShowCoordModeToggle.Should().BeTrue();
     }
 
     [Fact]
@@ -4069,10 +4076,10 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.ShowSetVariableFields.Should().BeTrue();
-        _viewModel.ShowTextInput.Should().BeFalse();
-        _viewModel.ShowIncDecFields.Should().BeFalse();
-        _viewModel.ShowConditionFields.Should().BeFalse();
+        _ = _viewModel.ShowSetVariableFields.Should().BeTrue();
+        _ = _viewModel.ShowTextInput.Should().BeFalse();
+        _ = _viewModel.ShowIncDecFields.Should().BeFalse();
+        _ = _viewModel.ShowConditionFields.Should().BeFalse();
     }
 
     [Fact]
@@ -4086,8 +4093,8 @@ public class EditorViewModelTests
         _viewModel.SelectedAction!.ForHasStep = true;
 
         // Assert
-        _viewModel.ShowForFields.Should().BeTrue();
-        _viewModel.ShowForStepFields.Should().BeTrue();
+        _ = _viewModel.ShowForFields.Should().BeTrue();
+        _ = _viewModel.ShowForStepFields.Should().BeTrue();
     }
 
     [Fact]
@@ -4106,8 +4113,8 @@ public class EditorViewModelTests
         var names = _viewModel.AvailableVariableNames;
 
         // Assert
-        names.Should().Contain("speed");
-        names.Should().Contain("mode");
+        _ = names.Should().Contain("speed");
+        _ = names.Should().Contain("mode");
     }
 
     [Fact]
@@ -4122,8 +4129,8 @@ public class EditorViewModelTests
         var names = _viewModel.AvailableVariableNames;
 
         // Assert
-        names.Should().Contain("i");
-        _viewModel.HasAvailableVariableNames.Should().BeTrue();
+        _ = names.Should().Contain("i");
+        _ = _viewModel.HasAvailableVariableNames.Should().BeTrue();
     }
 
     [Fact]
@@ -4137,12 +4144,12 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
 
-        _viewModel.AvailableVariableNames.Should().Contain("activeTitle");
+        _ = _viewModel.AvailableVariableNames.Should().Contain("activeTitle");
 
         action.WindowOutputVariable = "activeClass";
 
-        _viewModel.AvailableVariableNames.Should().Contain("activeClass");
-        _viewModel.AvailableVariableNames.Should().NotContain("activeTitle");
+        _ = _viewModel.AvailableVariableNames.Should().Contain("activeClass");
+        _ = _viewModel.AvailableVariableNames.Should().NotContain("activeTitle");
     }
 
     [Fact]
@@ -4174,11 +4181,11 @@ public class EditorViewModelTests
 
         var names = _viewModel.AvailableColorVariableNames;
 
-        names.Should().Contain("sample_color");
-        names.Should().NotContain("wait_ok");
-        names.Should().NotContain("found");
-        names.Should().NotContain("found_x");
-        names.Should().NotContain("found_y");
+        _ = names.Should().Contain("sample_color");
+        _ = names.Should().NotContain("wait_ok");
+        _ = names.Should().NotContain("found");
+        _ = names.Should().NotContain("found_x");
+        _ = names.Should().NotContain("found_y");
     }
 
     [Fact]
@@ -4201,8 +4208,8 @@ public class EditorViewModelTests
         _viewModel.SelectedSetVariableSuggestion = "alpha";
 
         // Assert
-        first.ScriptVariableName.Should().Be("alpha");
-        second.ScriptVariableName.Should().Be("alpha");
+        _ = first.ScriptVariableName.Should().Be("alpha");
+        _ = second.ScriptVariableName.Should().Be("alpha");
     }
 
     [Fact]
@@ -4229,31 +4236,31 @@ public class EditorViewModelTests
 
         // Act / Assert
         _viewModel.SelectedAction = incrementAction;
-        _viewModel.ShowIncDecVariablePicker.Should().BeTrue();
+        _ = _viewModel.ShowIncDecVariablePicker.Should().BeTrue();
         _viewModel.SelectedIncDecVariableSuggestion = "shared";
-        _viewModel.SelectedIncDecVariableSuggestion.Should().BeNull();
-        incrementAction.ScriptVariableName.Should().Be("shared");
+        _ = _viewModel.SelectedIncDecVariableSuggestion.Should().BeNull();
+        _ = incrementAction.ScriptVariableName.Should().Be("shared");
 
         _viewModel.SelectedAction = conditionAction;
-        _viewModel.ShowConditionLeftVariablePicker.Should().BeTrue();
-        _viewModel.ShowConditionLeftOperandTextBox.Should().BeFalse();
-        _viewModel.ShowConditionRightVariablePicker.Should().BeTrue();
-        _viewModel.ShowConditionRightOperandTextBox.Should().BeFalse();
+        _ = _viewModel.ShowConditionLeftVariablePicker.Should().BeTrue();
+        _ = _viewModel.ShowConditionLeftOperandTextBox.Should().BeFalse();
+        _ = _viewModel.ShowConditionRightVariablePicker.Should().BeTrue();
+        _ = _viewModel.ShowConditionRightOperandTextBox.Should().BeFalse();
         _viewModel.SelectedConditionLeftVariableSuggestion = "shared";
         _viewModel.SelectedConditionRightVariableSuggestion = "shared";
-        _viewModel.SelectedConditionLeftVariableSuggestion.Should().Be("shared");
-        _viewModel.SelectedConditionRightVariableSuggestion.Should().Be("shared");
-        conditionAction.ScriptLeftOperand.Should().Be("shared");
-        conditionAction.ScriptRightOperand.Should().Be("shared");
+        _ = _viewModel.SelectedConditionLeftVariableSuggestion.Should().Be("shared");
+        _ = _viewModel.SelectedConditionRightVariableSuggestion.Should().Be("shared");
+        _ = conditionAction.ScriptLeftOperand.Should().Be("shared");
+        _ = conditionAction.ScriptRightOperand.Should().Be("shared");
 
         _viewModel.SelectedAction = forAction;
-        _viewModel.ShowForVariablePicker.Should().BeTrue();
+        _ = _viewModel.ShowForVariablePicker.Should().BeTrue();
         _viewModel.SelectedForVariableSuggestion = "shared";
-        _viewModel.SelectedForVariableSuggestion.Should().BeNull();
-        forAction.ForVariableName.Should().Be("shared");
+        _ = _viewModel.SelectedForVariableSuggestion.Should().BeNull();
+        _ = forAction.ForVariableName.Should().Be("shared");
 
-        _viewModel.AvailableVariableNames.Should().Contain("shared");
-        _viewModel.HasAvailableVariableNames.Should().BeTrue();
+        _ = _viewModel.AvailableVariableNames.Should().Contain("shared");
+        _ = _viewModel.HasAvailableVariableNames.Should().BeTrue();
     }
 
     [Fact]
@@ -4268,12 +4275,12 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(pixelSearch);
 
-        _viewModel.AvailableVariableNames.Should().Contain("found");
+        _ = _viewModel.AvailableVariableNames.Should().Contain("found");
 
         pixelSearch.ScreenFoundVariableName = "located";
 
-        _viewModel.AvailableVariableNames.Should().Contain("located");
-        _viewModel.AvailableVariableNames.Should().NotContain("found");
+        _ = _viewModel.AvailableVariableNames.Should().Contain("located");
+        _ = _viewModel.AvailableVariableNames.Should().NotContain("found");
     }
 
     [Theory]
@@ -4290,7 +4297,7 @@ public class EditorViewModelTests
             ScreenFoundYVariableName = "image_y",
         });
 
-        _viewModel.AvailableVariableNames.Should().Contain(new[] { "image_found", "image_x", "image_y" });
+        _ = _viewModel.AvailableVariableNames.Should().Contain(["image_found", "image_x", "image_y"]);
     }
 
     [Fact]
@@ -4305,7 +4312,7 @@ public class EditorViewModelTests
         _viewModel.NewActionType = EditorActionType.TextInput;
         _viewModel.AddAction();
 
-        _viewModel.AvailableColorVariableNames
+        _ = _viewModel.AvailableColorVariableNames
             .Should()
             .Contain("sample_color");
 
@@ -4313,8 +4320,8 @@ public class EditorViewModelTests
 
         var names = _viewModel.AvailableColorVariableNames;
 
-        names.Should().Contain("sample_color_next");
-        names.Should().NotContain("sample_color");
+        _ = names.Should().Contain("sample_color_next");
+        _ = names.Should().NotContain("sample_color");
     }
 
     [Fact]
@@ -4335,8 +4342,8 @@ public class EditorViewModelTests
 
         _viewModel.SelectedScreenTargetColorVariableSuggestion = "sample_color";
 
-        action.ScreenTargetColorVariableName.Should().Be("sample_color");
-        _viewModel.SelectedScreenTargetColorVariableSuggestion.Should().BeNull();
+        _ = action.ScreenTargetColorVariableName.Should().Be("sample_color");
+        _ = _viewModel.SelectedScreenTargetColorVariableSuggestion.Should().BeNull();
     }
 
     [Fact]
@@ -4358,8 +4365,8 @@ public class EditorViewModelTests
         first.ScriptVariableName = "three";
 
         // Assert
-        second.ScriptVariableName.Should().Be("two");
-        _viewModel.AvailableVariableNames.Should().Contain("three");
+        _ = second.ScriptVariableName.Should().Be("two");
+        _ = _viewModel.AvailableVariableNames.Should().Contain("three");
     }
 
     [Fact]
@@ -4376,9 +4383,9 @@ public class EditorViewModelTests
         selected.ScriptVariableName = "iter";
 
         // Assert
-        _viewModel.SelectedAction.Should().BeSameAs(selected);
-        _viewModel.SelectedActionListItem.Should().NotBeNull();
-        _viewModel.SelectedActionListItem!.Action.Should().BeSameAs(selected);
+        _ = _viewModel.SelectedAction.Should().BeSameAs(selected);
+        _ = _viewModel.SelectedActionListItem.Should().NotBeNull();
+        _ = _viewModel.SelectedActionListItem!.Action.Should().BeSameAs(selected);
     }
 
     [Fact]
@@ -4397,11 +4404,11 @@ public class EditorViewModelTests
         _viewModel.InsertElseBlock();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(5);
-        _viewModel.Actions[2].Type.Should().Be(EditorActionType.BlockEnd);
-        _viewModel.Actions[3].Type.Should().Be(EditorActionType.ElseBlockStart);
-        _viewModel.Actions[4].Type.Should().Be(EditorActionType.BlockEnd);
-        _viewModel.Status.Should().Be("[Editor_StatusInsertedElseBlock]");
+        _ = _viewModel.Actions.Should().HaveCount(5);
+        _ = _viewModel.Actions[2].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = _viewModel.Actions[3].Type.Should().Be(EditorActionType.ElseBlockStart);
+        _ = _viewModel.Actions[4].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusInsertedElseBlock]");
     }
 
     [Fact]
@@ -4416,8 +4423,8 @@ public class EditorViewModelTests
         _viewModel.RemoveAction();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(2);
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _viewModel.Actions.Should().HaveCount(2);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
     }
 
     [Fact]
@@ -4439,9 +4446,9 @@ public class EditorViewModelTests
         _viewModel.RemoveBlock();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(1);
-        _viewModel.Actions[0].Type.Should().Be(EditorActionType.MouseClick);
-        _viewModel.Status.Should().Be("[Editor_StatusRemovedBlock]");
+        _ = _viewModel.Actions.Should().HaveCount(1);
+        _ = _viewModel.Actions[0].Type.Should().Be(EditorActionType.MouseClick);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusRemovedBlock]");
     }
 
     [Fact]
@@ -4464,8 +4471,8 @@ public class EditorViewModelTests
         _viewModel.RemoveBlock();
 
         // Assert
-        _viewModel.Actions.Should().BeEmpty();
-        _viewModel.Status.Should().Be("[Editor_StatusRemovedBlock]");
+        _ = _viewModel.Actions.Should().BeEmpty();
+        _ = _viewModel.Status.Should().Be("[Editor_StatusRemovedBlock]");
     }
 
     [Fact]
@@ -4482,11 +4489,11 @@ public class EditorViewModelTests
         _viewModel.RemoveSelectedActions();
 
         // Assert
-        _viewModel.Actions.Should().Equal(blockStart, blockEnd);
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
-        _viewModel.CanUndo.Should().BeTrue();
+        _ = _viewModel.Actions.Should().Equal(blockStart, blockEnd);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _viewModel.CanUndo.Should().BeTrue();
         _viewModel.Undo();
-        _viewModel.Actions.Should().BeEmpty();
+        _ = _viewModel.Actions.Should().BeEmpty();
     }
 
     [Fact]
@@ -4503,8 +4510,8 @@ public class EditorViewModelTests
         _viewModel.DeleteHiddenEvents();
 
         // Assert
-        _viewModel.Actions.Should().Equal(noiseMove, unmatchedBlockEnd);
-        _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _viewModel.Actions.Should().Equal(noiseMove, unmatchedBlockEnd);
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
     }
 
     [Fact]
@@ -4518,12 +4525,12 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.ActionListItems[0].IndentLevel.Should().Be(0);
-        _viewModel.ActionListItems[1].IndentLevel.Should().Be(1);
-        _viewModel.ActionListItems[2].DisplayName.Should().Be("End IfToken");
-        _viewModel.ActionListItems[2].IndentLevel.Should().Be(1);
-        _viewModel.ActionListItems[3].DisplayName.Should().Be("End RepeatToken");
-        _viewModel.ActionListItems[3].IndentLevel.Should().Be(0);
+        _ = _viewModel.ActionListItems[0].IndentLevel.Should().Be(0);
+        _ = _viewModel.ActionListItems[1].IndentLevel.Should().Be(1);
+        _ = _viewModel.ActionListItems[2].DisplayName.Should().Be("End IfToken");
+        _ = _viewModel.ActionListItems[2].IndentLevel.Should().Be(1);
+        _ = _viewModel.ActionListItems[3].DisplayName.Should().Be("End RepeatToken");
+        _ = _viewModel.ActionListItems[3].IndentLevel.Should().Be(0);
     }
 
     [Fact]
@@ -4539,8 +4546,8 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         var collectionChangeCount = 0;
-        void OnActionListChanged(object? _, NotifyCollectionChangedEventArgs __) => collectionChangeCount++;
-        _viewModel.ActionListItems.CollectionChanged += OnActionListChanged;
+        NotifyCollectionChangedEventHandler onActionListChanged = (_, _) => collectionChangeCount++;
+        _viewModel.ActionListItems.CollectionChanged += onActionListChanged;
 
         // Act
         try
@@ -4550,13 +4557,13 @@ public class EditorViewModelTests
         }
         finally
         {
-            _viewModel.ActionListItems.CollectionChanged -= OnActionListChanged;
+            _viewModel.ActionListItems.CollectionChanged -= onActionListChanged;
         }
 
         // Assert
-        collectionChangeCount.Should().Be(0);
-        _viewModel.ActionListItems.Should().HaveCount(1);
-        _viewModel.ActionListItems[0].Action.Should().BeSameAs(_viewModel.Actions[0]);
+        _ = collectionChangeCount.Should().Be(0);
+        _ = _viewModel.ActionListItems.Should().HaveCount(1);
+        _ = _viewModel.ActionListItems[0].Action.Should().BeSameAs(_viewModel.Actions[0]);
     }
 
     [Fact]
@@ -4574,8 +4581,8 @@ public class EditorViewModelTests
         var clickAction = _viewModel.SelectedAction!;
 
         // Assert
-        moveAction.IsAbsolute.Should().BeFalse();
-        clickAction.IsAbsolute.Should().BeFalse();
+        _ = moveAction.IsAbsolute.Should().BeFalse();
+        _ = clickAction.IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -4593,11 +4600,11 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(3);
-        _viewModel.Actions[0].Should().BeSameAs(moveAction);
-        _viewModel.Actions[1].Should().BeSameAs(delayAction);
-        _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
-        moveAction.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.Actions.Should().HaveCount(3);
+        _ = _viewModel.Actions[0].Should().BeSameAs(moveAction);
+        _ = _viewModel.Actions[1].Should().BeSameAs(delayAction);
+        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = moveAction.IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -4615,10 +4622,10 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(3);
-        _viewModel.Actions[1].Should().Be(_viewModel.SelectedAction);
-        _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
-        laterMoveAction.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.Actions.Should().HaveCount(3);
+        _ = _viewModel.Actions[1].Should().Be(_viewModel.SelectedAction);
+        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = laterMoveAction.IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -4631,7 +4638,7 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.SelectedAction!.IsAbsolute.Should().BeTrue();
+        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeTrue();
     }
 
     [Fact]
@@ -4641,12 +4648,12 @@ public class EditorViewModelTests
         _viewModel.AddCurrentPositionClick();
 
         // Assert
-        _viewModel.Actions.Should().HaveCount(1);
-        _viewModel.SelectedAction.Should().NotBeNull();
-        _viewModel.SelectedAction!.Type.Should().Be(EditorActionType.MouseClick);
-        _viewModel.SelectedAction.UseCurrentPosition.Should().BeTrue();
-        _viewModel.SelectedAction.IsAbsolute.Should().BeFalse();
-        _viewModel.SkipInitialZeroZero.Should().BeTrue();
+        _ = _viewModel.Actions.Should().HaveCount(1);
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction!.Type.Should().Be(EditorActionType.MouseClick);
+        _ = _viewModel.SelectedAction.UseCurrentPosition.Should().BeTrue();
+        _ = _viewModel.SelectedAction.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SkipInitialZeroZero.Should().BeTrue();
     }
 
     [Fact]
@@ -4656,9 +4663,9 @@ public class EditorViewModelTests
         _viewModel.AddCurrentPositionClick();
 
         // Assert
-        _viewModel.ShowCoordinates.Should().BeFalse();
-        _viewModel.ShowCoordModeToggle.Should().BeFalse();
-        _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
+        _ = _viewModel.ShowCoordinates.Should().BeFalse();
+        _ = _viewModel.ShowCoordModeToggle.Should().BeFalse();
+        _ = _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
     }
 
     [Fact]
@@ -4669,16 +4676,16 @@ public class EditorViewModelTests
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
-        _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionHold]");
+        _ = _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
+        _ = _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionHold]");
 
         // Act
         _viewModel.NewActionType = EditorActionType.MouseUp;
         _viewModel.AddAction();
 
         // Assert
-        _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
-        _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionRelease]");
+        _ = _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
+        _ = _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionRelease]");
     }
 
     [Fact]
@@ -4698,9 +4705,9 @@ public class EditorViewModelTests
         clickAction.UseCurrentPosition = true;
 
         // Assert
-        clickAction.IsAbsolute.Should().BeFalse();
-        moveAction.IsAbsolute.Should().BeTrue();
-        _viewModel.SkipInitialZeroZero.Should().BeTrue();
+        _ = clickAction.IsAbsolute.Should().BeFalse();
+        _ = moveAction.IsAbsolute.Should().BeTrue();
+        _ = _viewModel.SkipInitialZeroZero.Should().BeTrue();
     }
 
     [Fact]
@@ -4722,8 +4729,8 @@ public class EditorViewModelTests
         moveAction.IsAbsolute = true;
 
         // Assert
-        moveAction.IsAbsolute.Should().BeTrue();
-        clickAction.IsAbsolute.Should().BeFalse();
+        _ = moveAction.IsAbsolute.Should().BeTrue();
+        _ = clickAction.IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -4733,14 +4740,14 @@ public class EditorViewModelTests
         _viewModel.NewActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction!;
-        _viewModel.SkipInitialZeroZero.Should().BeFalse();
+        _ = _viewModel.SkipInitialZeroZero.Should().BeFalse();
 
         // Act
         clickAction.UseCurrentPosition = true;
         clickAction.UseCurrentPosition = false;
 
         // Assert
-        _viewModel.SkipInitialZeroZero.Should().BeFalse();
+        _ = _viewModel.SkipInitialZeroZero.Should().BeFalse();
     }
 
     [Fact]
@@ -4754,15 +4761,15 @@ public class EditorViewModelTests
         _viewModel.NewActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction!;
-        clickAction.IsAbsolute.Should().BeFalse();
-        _viewModel.SkipInitialZeroZero.Should().BeFalse();
+        _ = clickAction.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SkipInitialZeroZero.Should().BeFalse();
 
         // Act
         clickAction.UseCurrentPosition = true;
         clickAction.UseCurrentPosition = false;
 
         // Assert
-        _viewModel.SkipInitialZeroZero.Should().BeFalse();
+        _ = _viewModel.SkipInitialZeroZero.Should().BeFalse();
     }
 
     [Fact]
@@ -4776,15 +4783,15 @@ public class EditorViewModelTests
         _viewModel.NewActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction!;
-        moveAction.IsAbsolute.Should().BeTrue();
-        clickAction.IsAbsolute.Should().BeTrue();
+        _ = moveAction.IsAbsolute.Should().BeTrue();
+        _ = clickAction.IsAbsolute.Should().BeTrue();
 
         // Act
         clickAction.IsAbsolute = false;
 
         // Assert
-        moveAction.IsAbsolute.Should().BeTrue();
-        clickAction.IsAbsolute.Should().BeFalse();
+        _ = moveAction.IsAbsolute.Should().BeTrue();
+        _ = clickAction.IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -4804,26 +4811,26 @@ public class EditorViewModelTests
         _viewModel.SelectedAction = moveAction;
 
         // Assert
-        moveAction.IsAbsolute.Should().BeFalse();
-        clickAction.IsAbsolute.Should().BeTrue();
-        _viewModel.SelectedActionIsRelative.Should().BeTrue();
-        _viewModel.SelectedActionIsAbsolute.Should().BeFalse();
+        _ = moveAction.IsAbsolute.Should().BeFalse();
+        _ = clickAction.IsAbsolute.Should().BeTrue();
+        _ = _viewModel.SelectedActionIsRelative.Should().BeTrue();
+        _ = _viewModel.SelectedActionIsAbsolute.Should().BeFalse();
     }
 
     [Fact]
     public async Task SaveMacroAsync_WhenSuccessful_RaisesMacroCreatedWithSourcePath()
     {
         _viewModel.AddAction();
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns("/tmp/editor-raised-path.macro");
 
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = {new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 10, Y = 10 }},
+            Events = { new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 10, Y = 10 } },
         };
-        _converter
+        _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(generatedSequence);
 
@@ -4832,9 +4839,9 @@ public class EditorViewModelTests
 
         await _viewModel.SaveMacroAsync();
 
-        raisedArgs.Should().NotBeNull();
-        raisedArgs!.Macro.Should().BeSameAs(generatedSequence);
-        raisedArgs.SourcePath.Should().Be("/tmp/editor-raised-path.macro");
+        _ = raisedArgs.Should().NotBeNull();
+        _ = raisedArgs!.Macro.Should().BeSameAs(generatedSequence);
+        _ = raisedArgs.SourcePath.Should().Be("/tmp/editor-raised-path.macro");
     }
 
     [Fact]
@@ -4845,16 +4852,16 @@ public class EditorViewModelTests
         _viewModel.AddAction();
         _viewModel.SelectedAction!.IsAbsolute = true;
 
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns("/tmp/editor-viewmodel-click-absolute.macro");
 
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = {new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 10, Y = 10 }},
+            Events = { new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 10, Y = 10 } },
         };
-        _converter
+        _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(generatedSequence);
 
@@ -4862,7 +4869,7 @@ public class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         // Assert
-        _converter.Received(1).ToMacroSequence(
+        _ = _converter.Received(1).ToMacroSequence(
             Arg.Is<EditorMacroProjection>(projection =>
                 projection.IsAbsoluteCoordinates && projection.Name == _viewModel.MacroName));
     }
@@ -4876,12 +4883,12 @@ public class EditorViewModelTests
         _viewModel.Actions.Add(absoluteMove);
         _viewModel.Actions.Add(relativeMove);
 
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns("/tmp/editor-viewmodel-mixed-modes.macro");
 
         EditorMacroProjection? capturedProjection = null;
-        _converter
+        _ = _converter
             .ToMacroSequence(
                 Arg.Do<EditorMacroProjection>(projection => capturedProjection = projection))
             .Returns(new MacroSequence { Name = "Generated" });
@@ -4890,17 +4897,17 @@ public class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         // Assert
-        capturedProjection.Should().NotBeNull();
-        capturedProjection!.Actions.Should().HaveCount(2);
-        capturedProjection.Actions[0].Should().NotBeSameAs(absoluteMove);
-        capturedProjection.Actions[0].IsAbsolute.Should().BeTrue();
-        capturedProjection.Actions[0].X.Should().Be(100);
-        capturedProjection.Actions[0].Y.Should().Be(200);
-        capturedProjection.Actions[1].Should().NotBeSameAs(relativeMove);
-        capturedProjection.Actions[1].IsAbsolute.Should().BeFalse();
-        capturedProjection.Actions[1].X.Should().Be(5);
-        capturedProjection.Actions[1].Y.Should().Be(-3);
-        capturedProjection.IsAbsoluteCoordinates.Should().BeTrue();
+        _ = capturedProjection.Should().NotBeNull();
+        _ = capturedProjection!.Actions.Should().HaveCount(2);
+        _ = capturedProjection.Actions[0].Should().NotBeSameAs(absoluteMove);
+        _ = capturedProjection.Actions[0].IsAbsolute.Should().BeTrue();
+        _ = capturedProjection.Actions[0].X.Should().Be(100);
+        _ = capturedProjection.Actions[0].Y.Should().Be(200);
+        _ = capturedProjection.Actions[1].Should().NotBeSameAs(relativeMove);
+        _ = capturedProjection.Actions[1].IsAbsolute.Should().BeFalse();
+        _ = capturedProjection.Actions[1].X.Should().Be(5);
+        _ = capturedProjection.Actions[1].Y.Should().Be(-3);
+        _ = capturedProjection.IsAbsoluteCoordinates.Should().BeTrue();
     }
 
     [Fact]
@@ -4909,16 +4916,16 @@ public class EditorViewModelTests
         // Arrange
         _viewModel.AddCurrentPositionClick();
 
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns("/tmp/editor-viewmodel-current-position-click.macro");
 
         var generatedSequence = new MacroSequence
         {
             Name = "Generated",
-            Events = {new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 0, Y = 0 }},
+            Events = { new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Left, X = 0, Y = 0 } },
         };
-        _converter
+        _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(generatedSequence);
 
@@ -4926,7 +4933,7 @@ public class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         // Assert
-        _converter.Received(1).ToMacroSequence(
+        _ = _converter.Received(1).ToMacroSequence(
             Arg.Is<EditorMacroProjection>(projection =>
                 !projection.IsAbsoluteCoordinates && projection.SkipInitialZeroZero));
     }
@@ -4946,17 +4953,17 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(currentPositionClick);
 
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns("/tmp/editor-viewmodel-stale-current-position.macro");
 
         IReadOnlyList<EditorAction>? validatedActions = null;
-        _validator
+        _ = _validator
             .ValidateAll(Arg.Do<IEnumerable<EditorAction>>(actions => validatedActions = actions.ToList()))
             .Returns((true, new List<string>()));
 
         EditorMacroProjection? convertedProjection = null;
-        _converter
+        _ = _converter
             .ToMacroSequence(
                 Arg.Do<EditorMacroProjection>(projection => convertedProjection = projection))
             .Returns(new MacroSequence { Name = "Generated" });
@@ -4965,18 +4972,18 @@ public class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         // Assert
-        currentPositionClick.X.Should().Be(123);
-        currentPositionClick.Y.Should().Be(456);
-        currentPositionClick.IsAbsolute.Should().BeTrue();
-        validatedActions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
-        validatedActions![0].IsAbsolute.Should().BeFalse();
-        validatedActions[0].X.Should().Be(0);
-        validatedActions[0].Y.Should().Be(0);
-        convertedProjection.Should().NotBeNull();
-        convertedProjection!.Actions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
-        convertedProjection.Actions[0].IsAbsolute.Should().BeFalse();
-        convertedProjection.Actions[0].X.Should().Be(0);
-        convertedProjection.Actions[0].Y.Should().Be(0);
+        _ = currentPositionClick.X.Should().Be(123);
+        _ = currentPositionClick.Y.Should().Be(456);
+        _ = currentPositionClick.IsAbsolute.Should().BeTrue();
+        _ = validatedActions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
+        _ = validatedActions![0].IsAbsolute.Should().BeFalse();
+        _ = validatedActions[0].X.Should().Be(0);
+        _ = validatedActions[0].Y.Should().Be(0);
+        _ = convertedProjection.Should().NotBeNull();
+        _ = convertedProjection!.Actions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
+        _ = convertedProjection.Actions[0].IsAbsolute.Should().BeFalse();
+        _ = convertedProjection.Actions[0].X.Should().Be(0);
+        _ = convertedProjection.Actions[0].Y.Should().Be(0);
     }
 
     [Fact]
@@ -4994,11 +5001,11 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(currentPositionClick);
 
-        _converter
+        _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(new MacroSequence { Name = "Generated" });
 
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns((string?)null);
 
@@ -5006,9 +5013,9 @@ public class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         // Assert
-        currentPositionClick.IsAbsolute.Should().BeTrue();
-        currentPositionClick.X.Should().Be(123);
-        currentPositionClick.Y.Should().Be(456);
+        _ = currentPositionClick.IsAbsolute.Should().BeTrue();
+        _ = currentPositionClick.X.Should().Be(123);
+        _ = currentPositionClick.Y.Should().Be(456);
     }
 
     [Fact]
@@ -5026,7 +5033,7 @@ public class EditorViewModelTests
         };
         _viewModel.Actions.Add(currentPositionClick);
 
-        _converter
+        _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns((MacroSequence?)null);
 
@@ -5034,9 +5041,9 @@ public class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         // Assert
-        currentPositionClick.IsAbsolute.Should().BeTrue();
-        currentPositionClick.X.Should().Be(123);
-        currentPositionClick.Y.Should().Be(456);
+        _ = currentPositionClick.IsAbsolute.Should().BeTrue();
+        _ = currentPositionClick.X.Should().Be(123);
+        _ = currentPositionClick.Y.Should().Be(456);
     }
 
     [Fact]
@@ -5048,7 +5055,7 @@ public class EditorViewModelTests
         _viewModel.AddAction();
         _viewModel.SelectedAction!.IsAbsolute = true;
 
-        _dialogService
+        _ = _dialogService
             .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns("/tmp/editor-viewmodel-current-position-with-absolute.macro");
 
@@ -5062,7 +5069,7 @@ public class EditorViewModelTests
                 new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 },
             },
         };
-        _converter
+        _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
             .Returns(generatedSequence);
 
@@ -5070,7 +5077,7 @@ public class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         // Assert
-        _converter.Received(1).ToMacroSequence(
+        _ = _converter.Received(1).ToMacroSequence(
             Arg.Is<EditorMacroProjection>(projection =>
                 projection.IsAbsoluteCoordinates && projection.SkipInitialZeroZero));
     }

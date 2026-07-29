@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-public class MacOSAssignmentPlaybackRegressionTests
+public sealed class MacOSAssignmentPlaybackRegressionTests
 {
     [Theory]
     [InlineData(0x65, InputEventCode.KEY_F9, "F9")]

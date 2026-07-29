@@ -1,7 +1,7 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
 
-public class PeerCredentialsProviderTests
+public sealed class PeerCredentialsProviderTests
 {
     [Fact]
     public void WrapperMethods_ShouldNotThrowForInvalidInputs()

@@ -5,7 +5,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 /// Mouse position provider for Wayfire compositor.
 /// Requires ipc and ipc-rules plugins to expose cursor/output methods.
 /// </summary>
-public class WayfirePositionProvider : IMousePositionProvider
+public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisposable
 {
     private const string CursorMethod = "window-rules/get_cursor_position";
     private const string ListOutputsMethod = "window-rules/list-outputs";
@@ -13,6 +13,8 @@ public class WayfirePositionProvider : IMousePositionProvider
 
     private readonly IWayfireIpcClient _ipcClient;
     private readonly SemaphoreSlim _layoutGate = new(1, 1);
+    private readonly CancellationTokenSource _probeCts = new();
+    private readonly Task _probeTask;
 
     private bool _disposed;
     private volatile bool _isSupported;
@@ -26,39 +28,34 @@ public class WayfirePositionProvider : IMousePositionProvider
     public string ProviderName => "Wayfire IPC";
     public bool IsSupported => !_disposed && _isSupported;
 
-    public WayfirePositionProvider() : this(new WayfireIpcClient())
-    {
-    }
+    public WayfirePositionProvider() : this(new WayfireIpcClient()) { /* Empty */ }
 
     internal WayfirePositionProvider(IWayfireIpcClient ipcClient)
     {
         _ipcClient = ipcClient ?? throw new ArgumentNullException(nameof(ipcClient));
-        _isSupported = ProbeCapabilities();
-
-        if (_isSupported)
-        {
-            Log.Information("[WayfirePositionProvider] Capability probe succeeded");
-        }
-        else
-        {
-            Log.Debug("[WayfirePositionProvider] Capability probe failed; provider unavailable");
-        }
+        _probeTask = ProbeCapabilitiesAsync(_probeCts.Token);
     }
 
     public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {
+        if (_disposed)
+        {
+            return null;
+        }
+
+        await _probeTask.ConfigureAwait(false);
         if (_disposed || !_isSupported)
         {
             return null;
         }
 
-        await EnsureLayoutAsync().ConfigureAwait(false);
+        await EnsureLayoutAsync(_probeCts.Token).ConfigureAwait(false);
         if (!_isSupported)
         {
             return null;
         }
 
-        var response = await _ipcClient.SendRequestAsync(CursorMethod).ConfigureAwait(false);
+        var response = await _ipcClient.SendRequestAsync(CursorMethod, _probeCts.Token).ConfigureAwait(false);
         if (!TryParseCursorPosition(response, out var rawX, out var rawY, out var methodUnavailable))
         {
             if (methodUnavailable)
@@ -90,60 +87,75 @@ public class WayfirePositionProvider : IMousePositionProvider
 
     public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
     {
+        if (_disposed)
+        {
+            return null;
+        }
+
+        await _probeTask.ConfigureAwait(false);
         if (_disposed || !_isSupported)
         {
             return null;
         }
 
-        var layout = await RefreshLayoutAsync().ConfigureAwait(false);
+        var layout = await RefreshLayoutAsync(_probeCts.Token).ConfigureAwait(false);
         return layout is not null ? (layout.Value.Width, layout.Value.Height) : null;
     }
 
-    private bool ProbeCapabilities()
+    private async Task ProbeCapabilitiesAsync(CancellationToken cancellationToken)
     {
         if (!_ipcClient.IsAvailable)
         {
-            return false;
+            return;
         }
 
         try
         {
-            using var cts = new CancellationTokenSource(CapabilityProbeTimeout);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(CapabilityProbeTimeout);
 
-            var cursorResponse = _ipcClient.SendRequestAsync(CursorMethod, cts.Token).GetAwaiter().GetResult();
+            var cursorResponse = await _ipcClient.SendRequestAsync(CursorMethod, cts.Token).ConfigureAwait(false);
             if (!TryParseCursorPosition(cursorResponse, out _, out _, out _))
             {
-                return false;
+                _isSupported = false;
+                Log.Debug("[WayfirePositionProvider] Capability probe failed; provider unavailable");
+                return;
             }
 
-            var outputsResponse = _ipcClient.SendRequestAsync(ListOutputsMethod, cts.Token).GetAwaiter().GetResult();
+            var outputsResponse = await _ipcClient.SendRequestAsync(ListOutputsMethod, cts.Token).ConfigureAwait(false);
             if (!TryParseOutputLayout(outputsResponse, out var layout, out _))
             {
-                return false;
+                _isSupported = false;
+                Log.Debug("[WayfirePositionProvider] Capability probe failed; provider unavailable");
+                return;
             }
 
             SetLayout(layout);
-            return true;
+            _isSupported = true;
+            Log.Information("[WayfirePositionProvider] Capability probe succeeded");
         }
         catch (OperationCanceledException)
         {
-            return false;
+            if (!_disposed)
+            {
+                _isSupported = false;
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[WayfirePositionProvider] Capability probe error");
-            return false;
+            _isSupported = false;
         }
     }
 
-    private async Task EnsureLayoutAsync()
+    private async Task EnsureLayoutAsync(CancellationToken cancellationToken)
     {
         if (Volatile.Read(ref _hasLayout))
         {
             return;
         }
 
-        await _layoutGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        await _layoutGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_disposed || !_isSupported || Volatile.Read(ref _hasLayout))
@@ -151,17 +163,17 @@ public class WayfirePositionProvider : IMousePositionProvider
                 return;
             }
 
-            await RefreshLayoutCoreAsync().ConfigureAwait(false);
+            _ = await RefreshLayoutCoreAsync().ConfigureAwait(false);
         }
         finally
         {
-            _layoutGate.Release();
+            _ = _layoutGate.Release();
         }
     }
 
-    private async Task<OutputLayout?> RefreshLayoutAsync()
+    private async Task<OutputLayout?> RefreshLayoutAsync(CancellationToken cancellationToken)
     {
-        await _layoutGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        await _layoutGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_disposed || !_isSupported)
@@ -173,13 +185,13 @@ public class WayfirePositionProvider : IMousePositionProvider
         }
         finally
         {
-            _layoutGate.Release();
+            _ = _layoutGate.Release();
         }
     }
 
     private async Task<OutputLayout?> RefreshLayoutCoreAsync()
     {
-        var response = await _ipcClient.SendRequestAsync(ListOutputsMethod, CancellationToken.None).ConfigureAwait(false);
+        var response = await _ipcClient.SendRequestAsync(ListOutputsMethod, _probeCts.Token).ConfigureAwait(false);
         if (!TryParseOutputLayout(response, out var layout, out var methodUnavailable))
         {
             if (methodUnavailable)
@@ -196,10 +208,10 @@ public class WayfirePositionProvider : IMousePositionProvider
 
     private void SetLayout(OutputLayout layout)
     {
-        Interlocked.Exchange(ref _originX, layout.OriginX);
-        Interlocked.Exchange(ref _originY, layout.OriginY);
-        Interlocked.Exchange(ref _layoutWidth, layout.Width);
-        Interlocked.Exchange(ref _layoutHeight, layout.Height);
+        _ = Interlocked.Exchange(ref _originX, layout.OriginX);
+        _ = Interlocked.Exchange(ref _originY, layout.OriginY);
+        _ = Interlocked.Exchange(ref _layoutWidth, layout.Width);
+        _ = Interlocked.Exchange(ref _layoutHeight, layout.Height);
         Volatile.Write(ref _hasLayout, true);
     }
 
@@ -280,19 +292,42 @@ public class WayfirePositionProvider : IMousePositionProvider
                 return false;
             }
 
-            JsonElement outputs;
-            if (root.ValueKind is JsonValueKind.Array)
-            {
-                outputs = root;
-            }
-            else if (root.ValueKind is JsonValueKind.Object && root.TryGetProperty("outputs", out var outputsElement) && outputsElement.ValueKind is JsonValueKind.Array)
-            {
-                outputs = outputsElement;
-            }
-            else
+            if (!TryGetOutputArray(root, out var outputs))
             {
                 return false;
             }
+
+            return TryCalculateOutputLayout(outputs, out layout);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetOutputArray(JsonElement root, out JsonElement outputs)
+    {
+        if (root.ValueKind is JsonValueKind.Array)
+        {
+            outputs = root;
+            return true;
+        }
+
+        if (root.ValueKind is JsonValueKind.Object &&
+            root.TryGetProperty("outputs", out var outputsElement) &&
+            outputsElement.ValueKind is JsonValueKind.Array)
+        {
+            outputs = outputsElement;
+            return true;
+        }
+
+        outputs = default;
+        return false;
+    }
+
+    private static bool TryCalculateOutputLayout(JsonElement outputs, out OutputLayout layout)
+    {
+        layout = default;
 
             bool hasAnyGeometry = false;
             int minX = 0;
@@ -302,33 +337,10 @@ public class WayfirePositionProvider : IMousePositionProvider
 
             foreach (var output in outputs.EnumerateArray())
             {
-                if (output.ValueKind is not JsonValueKind.Object ||
-                    !output.TryGetProperty("geometry", out var geometry) ||
-                    geometry.ValueKind is not JsonValueKind.Object)
+                if (!TryGetOutputBounds(output, out var x, out var y, out var right, out var bottom))
                 {
                     continue;
                 }
-
-                if (!TryGetNumericValue(geometry, "x", out var gx) ||
-                    !TryGetNumericValue(geometry, "y", out var gy) ||
-                    !TryGetNumericValue(geometry, "width", out var gw) ||
-                    !TryGetNumericValue(geometry, "height", out var gh))
-                {
-                    continue;
-                }
-
-                int x = (int)Math.Round(gx, MidpointRounding.AwayFromZero);
-                int y = (int)Math.Round(gy, MidpointRounding.AwayFromZero);
-                int width = (int)Math.Round(gw, MidpointRounding.AwayFromZero);
-                int height = (int)Math.Round(gh, MidpointRounding.AwayFromZero);
-
-                if (width <= 0 || height <= 0)
-                {
-                    continue;
-                }
-
-                int right = x + width;
-                int bottom = y + height;
 
                 if (!hasAnyGeometry)
                 {
@@ -358,11 +370,38 @@ public class WayfirePositionProvider : IMousePositionProvider
                 Height: maxY - minY);
 
             return layout.Width > 0 && layout.Height > 0;
-        }
-        catch (JsonException)
+    }
+
+    private static bool TryGetOutputBounds(JsonElement output, out int x, out int y, out int right, out int bottom)
+    {
+        x = 0;
+        y = 0;
+        right = 0;
+        bottom = 0;
+
+        if (output.ValueKind is not JsonValueKind.Object ||
+            !output.TryGetProperty("geometry", out var geometry) ||
+            geometry.ValueKind is not JsonValueKind.Object ||
+            !TryGetNumericValue(geometry, "x", out var gx) ||
+            !TryGetNumericValue(geometry, "y", out var gy) ||
+            !TryGetNumericValue(geometry, "width", out var gw) ||
+            !TryGetNumericValue(geometry, "height", out var gh))
         {
             return false;
         }
+
+        x = (int)Math.Round(gx, MidpointRounding.AwayFromZero);
+        y = (int)Math.Round(gy, MidpointRounding.AwayFromZero);
+        int width = (int)Math.Round(gw, MidpointRounding.AwayFromZero);
+        int height = (int)Math.Round(gh, MidpointRounding.AwayFromZero);
+        if (width <= 0 || height <= 0)
+        {
+            return false;
+        }
+
+        right = x + width;
+        bottom = y + height;
+        return true;
     }
 
     private static bool TryGetMethodError(JsonElement root, out bool methodUnavailable)
@@ -402,6 +441,22 @@ public class WayfirePositionProvider : IMousePositionProvider
         return false;
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        await _probeCts.CancelAsync().ConfigureAwait(false);
+        await _probeTask.ConfigureAwait(false);
+        _probeCts.Dispose();
+        _layoutGate.Dispose();
+        _ipcClient.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -410,6 +465,8 @@ public class WayfirePositionProvider : IMousePositionProvider
         }
 
         _disposed = true;
+        _probeCts.Cancel();
+        _probeCts.Dispose();
         _layoutGate.Dispose();
         _ipcClient.Dispose();
         GC.SuppressFinalize(this);

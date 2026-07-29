@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Strategies;
 
-public class MacOSRelativeCoordinateStrategyTests
+public sealed class MacOSRelativeCoordinateStrategyTests
 {
     [Fact]
     public async Task ProcessPosition_WhenSyncEvent_ReturnsDeltaFromInitialPosition()
@@ -9,13 +9,13 @@ public class MacOSRelativeCoordinateStrategyTests
         var strategy = new MacOSRelativeCoordinateStrategy(() => (100, 200));
         await strategy.InitializeAsync(CancellationToken.None);
 
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = 115,
         });
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
@@ -68,7 +68,7 @@ public class MacOSRelativeCoordinateStrategyTests
         var strategy = new MacOSRelativeCoordinateStrategy(() => (10, 10));
         await strategy.InitializeAsync(CancellationToken.None);
 
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
@@ -82,7 +82,7 @@ public class MacOSRelativeCoordinateStrategyTests
             Value = 1,
         });
 
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
@@ -95,13 +95,13 @@ public class MacOSRelativeCoordinateStrategyTests
 
     private static void MoveTo(MacOSRelativeCoordinateStrategy strategy, int x, int y)
     {
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = x,
         });
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,

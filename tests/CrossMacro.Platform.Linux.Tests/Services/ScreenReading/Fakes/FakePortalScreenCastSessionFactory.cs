@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSessionFactory
+internal sealed class FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult result) : IPortalScreenCastSessionFactory
 {
-    private readonly PortalScreenCastSessionResult _result;
-
-    public FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult result)
-    {
-        _result = result;
-    }
+    private readonly PortalScreenCastSessionResult _result = result;
 
     public int StartCalls { get; private set; }
 
@@ -28,7 +23,7 @@ internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSess
 
     public static PortalScreenCastSession CreateSession(int x = 0, int y = 0, int width = 2, int height = 1, uint nodeId = 42, string? id = "monitor-1")
     {
-        var properties = new Dictionary<string, object>
+        var properties = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["source_type"] = 1U,
             ["position"] = new object[] { x, y },

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Models;
 
-public class EditorActionTests
+public sealed class EditorActionTests
 {
     [Fact]
     public void CommandPayloads_ProjectOnlyTheirOwnedEditorFields()
@@ -20,11 +20,11 @@ public class EditorActionTests
             WindowSelectorValue = "ignored",
         };
 
-        action.TryGetScreenshotPayload(out var screenshot).Should().BeTrue();
-        screenshot.OutputPath.Should().Be("capture.png");
-        screenshot.RegionWidth.Should().Be("30");
-        action.TryGetShellPayload(out _).Should().BeFalse();
-        action.TryGetWindowPayload(out _).Should().BeFalse();
+        _ = action.TryGetScreenshotPayload(out var screenshot).Should().BeTrue();
+        _ = screenshot.OutputPath.Should().Be("capture.png");
+        _ = screenshot.RegionWidth.Should().Be("30");
+        _ = action.TryGetShellPayload(out _).Should().BeFalse();
+        _ = action.TryGetWindowPayload(out _).Should().BeFalse();
     }
 
     [Fact]
@@ -32,10 +32,10 @@ public class EditorActionTests
     {
         var action = new EditorAction { Type = EditorActionType.ShellCommand, ShellCommand = "echo ok" };
 
-        action.TryGetShellPayload(out var shell).Should().BeTrue();
-        shell.Command.Should().Be("echo ok");
-        action.TryGetScreenshotPayload(out _).Should().BeFalse();
-        action.TryGetWindowPayload(out _).Should().BeFalse();
+        _ = action.TryGetShellPayload(out var shell).Should().BeTrue();
+        _ = shell.Command.Should().Be("echo ok");
+        _ = action.TryGetScreenshotPayload(out _).Should().BeFalse();
+        _ = action.TryGetWindowPayload(out _).Should().BeFalse();
     }
 
     [Fact]
@@ -101,59 +101,59 @@ public class EditorActionTests
         var clone = source.Clone();
 
         // Assert
-        clone.Should().NotBeSameAs(source);
-        clone.Id.Should().NotBe(source.Id);
-        clone.Type.Should().Be(source.Type);
-        clone.X.Should().Be(source.X);
-        clone.Y.Should().Be(source.Y);
-        clone.IsAbsolute.Should().Be(source.IsAbsolute);
-        clone.Button.Should().Be(source.Button);
-        clone.KeyCode.Should().Be(source.KeyCode);
-        clone.KeyName.Should().Be(source.KeyName);
-        clone.DelayMs.Should().Be(source.DelayMs);
-        clone.UseRandomDelay.Should().Be(source.UseRandomDelay);
-        clone.RandomDelayMinMs.Should().Be(source.RandomDelayMinMs);
-        clone.RandomDelayMaxMs.Should().Be(source.RandomDelayMaxMs);
-        clone.ScrollAmount.Should().Be(source.ScrollAmount);
-        clone.Text.Should().Be(source.Text);
-        clone.ScriptVariableName.Should().Be(source.ScriptVariableName);
-        clone.ScriptValueType.Should().Be(source.ScriptValueType);
-        clone.ScriptValue.Should().Be(source.ScriptValue);
-        clone.ScriptNumericSourceType.Should().Be(source.ScriptNumericSourceType);
-        clone.ScriptNumericValue.Should().Be(source.ScriptNumericValue);
-        clone.ScriptLeftOperandType.Should().Be(source.ScriptLeftOperandType);
-        clone.ScriptLeftOperand.Should().Be(source.ScriptLeftOperand);
-        clone.ScriptConditionOperator.Should().Be(source.ScriptConditionOperator);
-        clone.ScriptRightOperandType.Should().Be(source.ScriptRightOperandType);
-        clone.ScriptRightOperand.Should().Be(source.ScriptRightOperand);
-        clone.ForVariableName.Should().Be(source.ForVariableName);
-        clone.ForStartType.Should().Be(source.ForStartType);
-        clone.ForStartValue.Should().Be(source.ForStartValue);
-        clone.ForEndType.Should().Be(source.ForEndType);
-        clone.ForEndValue.Should().Be(source.ForEndValue);
-        clone.ForHasStep.Should().Be(source.ForHasStep);
-        clone.ForStepType.Should().Be(source.ForStepType);
-        clone.ForStepValue.Should().Be(source.ForStepValue);
-        clone.ShellCommandMode.Should().Be(source.ShellCommandMode);
-        clone.ShellCommand.Should().Be(source.ShellCommand);
-        clone.ShellStandardInput.Should().Be(source.ShellStandardInput);
-        clone.ShellExitCodeVariableName.Should().Be(source.ShellExitCodeVariableName);
-        clone.ShellStandardOutputVariableName.Should().Be(source.ShellStandardOutputVariableName);
-        clone.ShellStandardErrorVariableName.Should().Be(source.ShellStandardErrorVariableName);
-        clone.ShellRetries.Should().Be(source.ShellRetries);
-        clone.ShellBackoffMs.Should().Be(source.ShellBackoffMs);
-        clone.ShellTimeoutMs.Should().Be(source.ShellTimeoutMs);
-        clone.WindowCommandMode.Should().Be(source.WindowCommandMode);
-        clone.WindowSelectorKind.Should().Be(source.WindowSelectorKind);
-        clone.WindowSelectorValue.Should().Be(source.WindowSelectorValue);
-        clone.WindowActiveField.Should().Be(source.WindowActiveField);
-        clone.WindowOutputVariable.Should().Be(source.WindowOutputVariable);
-        clone.WindowTimeoutMs.Should().Be(source.WindowTimeoutMs);
-        clone.WindowX.Should().Be(source.WindowX);
-        clone.WindowY.Should().Be(source.WindowY);
-        clone.WindowWidth.Should().Be(source.WindowWidth);
-        clone.WindowHeight.Should().Be(source.WindowHeight);
-        clone.WindowWorkspace.Should().Be(source.WindowWorkspace);
+        _ = clone.Should().NotBeSameAs(source);
+        _ = clone.Id.Should().NotBe(source.Id);
+        _ = clone.Type.Should().Be(source.Type);
+        _ = clone.X.Should().Be(source.X);
+        _ = clone.Y.Should().Be(source.Y);
+        _ = clone.IsAbsolute.Should().Be(source.IsAbsolute);
+        _ = clone.Button.Should().Be(source.Button);
+        _ = clone.KeyCode.Should().Be(source.KeyCode);
+        _ = clone.KeyName.Should().Be(source.KeyName);
+        _ = clone.DelayMs.Should().Be(source.DelayMs);
+        _ = clone.UseRandomDelay.Should().Be(source.UseRandomDelay);
+        _ = clone.RandomDelayMinMs.Should().Be(source.RandomDelayMinMs);
+        _ = clone.RandomDelayMaxMs.Should().Be(source.RandomDelayMaxMs);
+        _ = clone.ScrollAmount.Should().Be(source.ScrollAmount);
+        _ = clone.Text.Should().Be(source.Text);
+        _ = clone.ScriptVariableName.Should().Be(source.ScriptVariableName);
+        _ = clone.ScriptValueType.Should().Be(source.ScriptValueType);
+        _ = clone.ScriptValue.Should().Be(source.ScriptValue);
+        _ = clone.ScriptNumericSourceType.Should().Be(source.ScriptNumericSourceType);
+        _ = clone.ScriptNumericValue.Should().Be(source.ScriptNumericValue);
+        _ = clone.ScriptLeftOperandType.Should().Be(source.ScriptLeftOperandType);
+        _ = clone.ScriptLeftOperand.Should().Be(source.ScriptLeftOperand);
+        _ = clone.ScriptConditionOperator.Should().Be(source.ScriptConditionOperator);
+        _ = clone.ScriptRightOperandType.Should().Be(source.ScriptRightOperandType);
+        _ = clone.ScriptRightOperand.Should().Be(source.ScriptRightOperand);
+        _ = clone.ForVariableName.Should().Be(source.ForVariableName);
+        _ = clone.ForStartType.Should().Be(source.ForStartType);
+        _ = clone.ForStartValue.Should().Be(source.ForStartValue);
+        _ = clone.ForEndType.Should().Be(source.ForEndType);
+        _ = clone.ForEndValue.Should().Be(source.ForEndValue);
+        _ = clone.ForHasStep.Should().Be(source.ForHasStep);
+        _ = clone.ForStepType.Should().Be(source.ForStepType);
+        _ = clone.ForStepValue.Should().Be(source.ForStepValue);
+        _ = clone.ShellCommandMode.Should().Be(source.ShellCommandMode);
+        _ = clone.ShellCommand.Should().Be(source.ShellCommand);
+        _ = clone.ShellStandardInput.Should().Be(source.ShellStandardInput);
+        _ = clone.ShellExitCodeVariableName.Should().Be(source.ShellExitCodeVariableName);
+        _ = clone.ShellStandardOutputVariableName.Should().Be(source.ShellStandardOutputVariableName);
+        _ = clone.ShellStandardErrorVariableName.Should().Be(source.ShellStandardErrorVariableName);
+        _ = clone.ShellRetries.Should().Be(source.ShellRetries);
+        _ = clone.ShellBackoffMs.Should().Be(source.ShellBackoffMs);
+        _ = clone.ShellTimeoutMs.Should().Be(source.ShellTimeoutMs);
+        _ = clone.WindowCommandMode.Should().Be(source.WindowCommandMode);
+        _ = clone.WindowSelectorKind.Should().Be(source.WindowSelectorKind);
+        _ = clone.WindowSelectorValue.Should().Be(source.WindowSelectorValue);
+        _ = clone.WindowActiveField.Should().Be(source.WindowActiveField);
+        _ = clone.WindowOutputVariable.Should().Be(source.WindowOutputVariable);
+        _ = clone.WindowTimeoutMs.Should().Be(source.WindowTimeoutMs);
+        _ = clone.WindowX.Should().Be(source.WindowX);
+        _ = clone.WindowY.Should().Be(source.WindowY);
+        _ = clone.WindowWidth.Should().Be(source.WindowWidth);
+        _ = clone.WindowHeight.Should().Be(source.WindowHeight);
+        _ = clone.WindowWorkspace.Should().Be(source.WindowWorkspace);
     }
 
     [Fact]
@@ -170,8 +170,8 @@ public class EditorActionTests
         var display = action.DisplayName;
 
         // Assert
-        display.Should().Contain("Type");
-        display.Should().Contain("...");
+        _ = display.Should().Contain("Type");
+        _ = display.Should().Contain("...");
     }
 
     [Fact]
@@ -189,9 +189,9 @@ public class EditorActionTests
         var scroll = new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 0 };
 
         // Assert
-        delay.IsValid().Should().BeFalse();
-        randomDelay.IsValid().Should().BeFalse();
-        scroll.IsValid().Should().BeFalse();
+        _ = delay.IsValid().Should().BeFalse();
+        _ = randomDelay.IsValid().Should().BeFalse();
+        _ = scroll.IsValid().Should().BeFalse();
     }
 
     [Theory]
@@ -215,7 +215,7 @@ public class EditorActionTests
             Button = MacroMouseButton.Left,
         };
 
-        action.IsValid().Should().BeTrue();
+        _ = action.IsValid().Should().BeTrue();
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public class EditorActionTests
             Button = MacroMouseButton.Side1,
         };
 
-        action.IsValid().Should().BeFalse();
+        _ = action.IsValid().Should().BeFalse();
     }
 
     [Theory]
@@ -242,12 +242,12 @@ public class EditorActionTests
     [InlineData(EditorActionType.WaitImage)]
     public void ScreenReadingPayload_CoversImageActions(EditorActionType actionType)
     {
-        EditorActionScreenReadingPayload.TryCreateDefault(actionType, out var defaults).Should().BeTrue();
-        defaults.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
-        defaults.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
-        defaults.ImageSearchSimilarity.Should().Be(1.0);
-        defaults.ImageSearchDownsample.Should().Be(1);
-        defaults.Button.Should().Be(MacroMouseButton.Left);
+        _ = EditorActionScreenReadingPayload.TryCreateDefault(actionType, out var defaults).Should().BeTrue();
+        _ = defaults.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
+        _ = defaults.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
+        _ = defaults.ImageSearchSimilarity.Should().Be(1.0);
+        _ = defaults.ImageSearchDownsample.Should().Be(1);
+        _ = defaults.Button.Should().Be(MacroMouseButton.Left);
 
         var action = new EditorAction
         {
@@ -258,11 +258,11 @@ public class EditorActionTests
             ScreenFoundYVariableName = "found_y",
         };
 
-        action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
-        payload.OutputVariableNames.Should().Equal("found", "found_x", "found_y");
-        payload.GetOutputVariableRole("found").Should().Be(EditorActionScreenReadingVariableRole.Boolean);
-        payload.GetOutputVariableRole("found_x").Should().Be(EditorActionScreenReadingVariableRole.Number);
-        payload.GetOutputVariableRole("found_y").Should().Be(EditorActionScreenReadingVariableRole.Number);
+        _ = action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
+        _ = payload.OutputVariableNames.Should().Equal("found", "found_x", "found_y");
+        _ = payload.GetOutputVariableRole("found").Should().Be(EditorActionScreenReadingVariableRole.Boolean);
+        _ = payload.GetOutputVariableRole("found_x").Should().Be(EditorActionScreenReadingVariableRole.Number);
+        _ = payload.GetOutputVariableRole("found_y").Should().Be(EditorActionScreenReadingVariableRole.Number);
     }
 
     [Fact]
@@ -274,7 +274,7 @@ public class EditorActionTests
             Text = " \n\t",
         };
 
-        action.IsValid().Should().BeTrue();
+        _ = action.IsValid().Should().BeTrue();
     }
 
     [Fact]
@@ -286,7 +286,7 @@ public class EditorActionTests
             Text = string.Empty,
         };
 
-        action.IsValid().Should().BeFalse();
+        _ = action.IsValid().Should().BeFalse();
     }
 
     [Fact]
@@ -302,7 +302,7 @@ public class EditorActionTests
         };
 
         // Act + Assert
-        action.IsValid().Should().BeTrue();
+        _ = action.IsValid().Should().BeTrue();
     }
 
     [Fact]
@@ -326,10 +326,10 @@ public class EditorActionTests
         var displayName = action.DisplayName;
 
         // Assert
-        displayName.Should().Contain("$start");
-        displayName.Should().Contain("$finish");
-        displayName.Should().Contain("$step");
-        displayName.Should().NotContain("$$");
+        _ = displayName.Should().Contain("$start");
+        _ = displayName.Should().Contain("$finish");
+        _ = displayName.Should().Contain("$step");
+        _ = displayName.Should().NotContain("$$");
     }
 
     [Fact]
@@ -345,7 +345,7 @@ public class EditorActionTests
             ScriptRightOperand = "$bar",
         };
 
-        action.DisplayName.Should().Contain("$$foo == $bar");
+        _ = action.DisplayName.Should().Contain("$$foo == $bar");
     }
 
     [Theory]
@@ -354,7 +354,7 @@ public class EditorActionTests
     [InlineData("00ff00")]
     public void ValidateOperandToken_WhenColorIsValidRgbHex_ReturnsTrue(string value)
     {
-        EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeTrue();
+        _ = EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeTrue();
     }
 
     [Theory]
@@ -364,13 +364,13 @@ public class EditorActionTests
     [InlineData("")]
     public void ValidateOperandToken_WhenColorIsInvalidRgbHex_ReturnsFalse(string value)
     {
-        EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeFalse();
+        _ = EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeFalse();
     }
 
     [Fact]
     public void FormatOperandToken_WhenColorUsesLowercaseHex_ReturnsUppercaseRgbHex()
     {
-        EditorActionScriptTokens.FormatOperandToken(ScriptOperandType.Color, "1c2d3e").Should().Be("1C2D3E");
+        _ = EditorActionScriptTokens.FormatOperandToken(ScriptOperandType.Color, "1c2d3e").Should().Be("1C2D3E");
     }
 
     [Fact]
@@ -383,7 +383,7 @@ public class EditorActionTests
             ScriptNumericValue = "$count",
         };
 
-        action.IsValid().Should().BeTrue();
+        _ = action.IsValid().Should().BeTrue();
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public class EditorActionTests
             ShellStandardErrorVariableName = "_",
         };
 
-        action.IsValid().Should().BeTrue();
+        _ = action.IsValid().Should().BeTrue();
     }
 
     [Fact]
@@ -411,12 +411,12 @@ public class EditorActionTests
             Text = "legacy image search",
         };
 
-        action.SetImageSearchScaleAware(true);
+        action.SetImageSearchScaleAware(value: true);
         action.SetImageSearchMatchMode(EditorImageMatchMode.BestMatch);
 
-        action.ImageSearchScaleAware.Should().BeTrue();
-        action.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
-        action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
-        action.PreferLegacyScriptText.Should().BeFalse();
+        _ = action.ImageSearchScaleAware.Should().BeTrue();
+        _ = action.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
+        _ = action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
+        _ = action.PreferLegacyScriptText.Should().BeFalse();
     }
 }

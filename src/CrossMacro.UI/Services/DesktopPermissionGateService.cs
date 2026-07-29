@@ -1,7 +1,9 @@
 
 namespace CrossMacro.UI.Services;
 
-internal sealed class DesktopPermissionGateService
+internal sealed class DesktopPermissionGateService(
+    IDisplaySessionService displaySessionService,
+    Func<IPermissionChecker?> getPermissionChecker)
 {
     internal readonly record struct GateResult(bool Handled, string? UnsupportedSessionReason)
     {
@@ -22,16 +24,8 @@ internal sealed class DesktopPermissionGateService
         Accessibility,
     }
 
-    private readonly IDisplaySessionService _displaySessionService;
-    private readonly Func<IPermissionChecker?> _getPermissionChecker;
-
-    public DesktopPermissionGateService(
-        IDisplaySessionService displaySessionService,
-        Func<IPermissionChecker?> getPermissionChecker)
-    {
-        _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
-        _getPermissionChecker = getPermissionChecker ?? throw new ArgumentNullException(nameof(getPermissionChecker));
-    }
+    private readonly IDisplaySessionService _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
+    private readonly Func<IPermissionChecker?> _getPermissionChecker = getPermissionChecker ?? throw new ArgumentNullException(nameof(getPermissionChecker));
 
     public async Task<GateResult> TryHandleAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
@@ -49,9 +43,10 @@ internal sealed class DesktopPermissionGateService
             }
         }
 
-        if (!_displaySessionService.IsSessionSupported(out var reason))
+        var sessionSupport = await _displaySessionService.IsSessionSupportedAsync(CancellationToken.None).ConfigureAwait(false);
+        if (!sessionSupport.Supported)
         {
-            return GateResult.UnsupportedSession(reason);
+            return GateResult.UnsupportedSession(sessionSupport.Reason);
         }
 
         return GateResult.Continue();
@@ -71,7 +66,7 @@ internal sealed class DesktopPermissionGateService
 
         if (permissionChecker is IMacOSPermissionChecker macOSPermissionChecker)
         {
-            macOSPermissionChecker.RequestListenEventAccess();
+            _ = macOSPermissionChecker.RequestListenEventAccess();
         }
     }
 
@@ -142,7 +137,7 @@ internal sealed class DesktopPermissionGateService
             {
                 bootstrapOwner.Close();
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 // Ignore close races if owner was already disposed by the windowing backend.
             }
@@ -203,7 +198,7 @@ internal sealed class DesktopPermissionGateService
 
                 permissionResolved = true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[DesktopStartupCoordinator] macOS startup permission gate flow failed");
             }
@@ -215,7 +210,7 @@ internal sealed class DesktopPermissionGateService
             {
                 desktop.Shutdown();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "[DesktopStartupCoordinator] Failed to shutdown app after macOS permission gate");
             }
@@ -254,7 +249,7 @@ internal sealed class DesktopPermissionGateService
             noText: null,
             dangerYes: true);
 
-        await pendingDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
+        _ = await pendingDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
     }
 
     private static string GetApprovalPendingMessage(StartupPermissionGateKind gateKind)
@@ -270,7 +265,7 @@ internal sealed class DesktopPermissionGateService
         {
             if (permissionChecker is IMacOSPermissionChecker accessibilityPermissionChecker)
             {
-                accessibilityPermissionChecker.RequestPermission(MacOSPermissionRequirement.Accessibility);
+                _ = accessibilityPermissionChecker.RequestPermission(MacOSPermissionRequirement.Accessibility);
             }
 
             permissionChecker.OpenAccessibilitySettings();
@@ -279,7 +274,7 @@ internal sealed class DesktopPermissionGateService
 
         if (permissionChecker is IMacOSPermissionChecker macOSPermissionChecker)
         {
-            macOSPermissionChecker.RequestListenEventAccess();
+            _ = macOSPermissionChecker.RequestListenEventAccess();
             macOSPermissionChecker.OpenInputMonitoringSettings();
             return;
         }

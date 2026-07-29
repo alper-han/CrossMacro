@@ -1,22 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class PortalScreenCastScreenFrameProvider : IScreenFrameProvider
+public sealed class PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture, PortalScreenCastSupportResult support) : IScreenFrameProvider
 {
-    private readonly IPortalScreenCastCapture _capture;
-    private readonly PortalScreenCastSupportResult _support;
+    private readonly IPortalScreenCastCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly PortalScreenCastSupportResult _support = support;
     private bool _disposed;
 
     public PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture, PortalScreenCastSupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "XDG Desktop Portal ScreenCast";
 
@@ -71,24 +63,29 @@ public sealed class PortalScreenCastScreenFrameProvider : IScreenFrameProvider
 
         try
         {
-            if (!frame.LogicalBounds.Contains(region.Value))
-            {
-                return ScreenReadResultFactory.Failure<ScreenFrame>(
-                    ScreenReadErrorKind.OutOfBounds,
-                    $"Requested region {region.Value} is outside XDG Desktop Portal frame bounds {frame.LogicalBounds}.");
-            }
-
-            return ScreenReadResultFactory.Success<ScreenFrame>(LinuxScreenFrameProviderResults.CopyRegion(
-                frame.LogicalBounds,
-                frame.Stride,
-                frame.PixelFormat,
-                frame.Pixels,
-                region.Value));
+            return CopyRegionForResult(region.Value, frame);
         }
         finally
         {
             frame.Dispose();
         }
+    }
+
+    private static ScreenReadResult<ScreenFrame> CopyRegionForResult(ScreenRect region, PortalPipeWireFrame frame)
+    {
+        if (!frame.LogicalBounds.Contains(region))
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
+                ScreenReadErrorKind.OutOfBounds,
+                $"Requested region {region} is outside XDG Desktop Portal frame bounds {frame.LogicalBounds}.");
+        }
+
+        return ScreenReadResultFactory.Success<ScreenFrame>(LinuxScreenFrameProviderResults.CopyRegion(
+            frame.LogicalBounds,
+            frame.Stride,
+            frame.PixelFormat,
+            frame.Pixels,
+            region));
     }
 
     public void Dispose()

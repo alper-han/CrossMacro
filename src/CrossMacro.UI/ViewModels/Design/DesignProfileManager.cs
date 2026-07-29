@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignProfileManager : IProfileManager
 {
@@ -20,8 +20,8 @@ internal sealed class DesignProfileManager : IProfileManager
 
     public event EventHandler<ProfileChangedEventArgs>? ProfileChanged
     {
-        add { }
-        remove { }
+        add { /* Empty */ }
+        remove { /* Empty */ }
     }
 
     public Task InitializeAsync() => Task.CompletedTask;
@@ -33,11 +33,16 @@ internal sealed class DesignProfileManager : IProfileManager
     }
 
     public Task<ProfileInfo> CreateProfileAsync(string displayName) =>
-        Task.FromResult(new ProfileInfo { Id = displayName.ToLowerInvariant(), Name = displayName });
+        Task.FromResult(new ProfileInfo { Id = NormalizeProfileId(displayName), Name = displayName });
 
     public Task RenameProfileAsync(string profileId, string newDisplayName) => Task.CompletedTask;
 
     public Task DeleteProfileAsync(string profileId) => Task.CompletedTask;
 
     public string GetProfileDirectory(string profileId) => $"/home/demo/.config/crossmacro/{profileId}";
+
+    private static string NormalizeProfileId(string displayName)
+    {
+        return CultureInfo.InvariantCulture.TextInfo.ToLower(displayName);
+    }
 }

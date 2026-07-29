@@ -1,18 +1,12 @@
 
 namespace CrossMacro.UI.Services;
 
-internal sealed class DesktopQuickSetupGateService
+internal sealed class DesktopQuickSetupGateService(
+    Func<IFlatpakQuickSetupService?> getFlatpakQuickSetupService,
+    Func<IAppImageQuickSetupService?> getAppImageQuickSetupService)
 {
-    private readonly Func<IFlatpakQuickSetupService?> _getFlatpakQuickSetupService;
-    private readonly Func<IAppImageQuickSetupService?> _getAppImageQuickSetupService;
-
-    public DesktopQuickSetupGateService(
-        Func<IFlatpakQuickSetupService?> getFlatpakQuickSetupService,
-        Func<IAppImageQuickSetupService?> getAppImageQuickSetupService)
-    {
-        _getFlatpakQuickSetupService = getFlatpakQuickSetupService ?? throw new ArgumentNullException(nameof(getFlatpakQuickSetupService));
-        _getAppImageQuickSetupService = getAppImageQuickSetupService ?? throw new ArgumentNullException(nameof(getAppImageQuickSetupService));
-    }
+    private readonly Func<IFlatpakQuickSetupService?> _getFlatpakQuickSetupService = getFlatpakQuickSetupService ?? throw new ArgumentNullException(nameof(getFlatpakQuickSetupService));
+    private readonly Func<IAppImageQuickSetupService?> _getAppImageQuickSetupService = getAppImageQuickSetupService ?? throw new ArgumentNullException(nameof(getAppImageQuickSetupService));
 
     public async Task<bool> TryHandleAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
@@ -84,7 +78,7 @@ internal sealed class DesktopQuickSetupGateService
                     return;
                 }
 
-                var setupResult = await quickSetupService.RunAsync().ConfigureAwait(false);
+                var setupResult = await quickSetupService.RunAsync(default).ConfigureAwait(false);
                 if (!setupResult.Success)
                 {
                     ShowUnsupportedSessionDialog(desktop, $"{initialReason}\n\n{setupResult.Message}");
@@ -93,7 +87,7 @@ internal sealed class DesktopQuickSetupGateService
 
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[DesktopStartupCoordinator] Flatpak quick setup flow failed");
                 ShowUnsupportedSessionDialog(desktop, "Quick setup failed due to an unexpected error.");
@@ -134,7 +128,7 @@ internal sealed class DesktopQuickSetupGateService
                 var shouldRunSetup = await setupDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
                 if (shouldRunSetup)
                 {
-                    var setupResult = await quickSetupService.RunAsync().ConfigureAwait(false);
+                    var setupResult = await quickSetupService.RunAsync(default).ConfigureAwait(false);
                     if (!setupResult.Success)
                     {
                         var failureDialog = DesktopPermissionGateService.CreateCenteredConfirmationDialog(
@@ -144,13 +138,13 @@ internal sealed class DesktopQuickSetupGateService
 noText: null,
                             dangerYes: false);
 
-                        await failureDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
+                        _ = await failureDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
                     }
                 }
 
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[DesktopStartupCoordinator] AppImage quick setup flow failed");
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);

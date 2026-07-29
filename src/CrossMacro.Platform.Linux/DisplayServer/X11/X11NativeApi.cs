@@ -5,9 +5,7 @@ internal sealed class X11NativeApi : IX11NativeApi
 {
     public static X11NativeApi Instance { get; } = new();
 
-    private X11NativeApi()
-    {
-    }
+    private X11NativeApi() { /* Empty */ }
 
     public IntPtr OpenDisplay(string? display) => X11Native.XOpenDisplay(display);
 

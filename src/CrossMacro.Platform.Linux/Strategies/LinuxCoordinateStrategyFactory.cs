@@ -1,18 +1,12 @@
 
 namespace CrossMacro.Platform.Linux.Strategies;
 
-public class LinuxCoordinateStrategyFactory : ICoordinateStrategyFactory
+public class LinuxCoordinateStrategyFactory(
+    IEnumerable<ICoordinateStrategySelector> selectors,
+    ILinuxEnvironmentDetector environmentDetector) : ICoordinateStrategyFactory
 {
-    private readonly IEnumerable<ICoordinateStrategySelector> _selectors;
-    private readonly ILinuxEnvironmentDetector _environmentDetector;
-
-    public LinuxCoordinateStrategyFactory(
-        IEnumerable<ICoordinateStrategySelector> selectors,
-        ILinuxEnvironmentDetector environmentDetector)
-    {
-        _selectors = selectors;
-        _environmentDetector = environmentDetector;
-    }
+    private readonly IEnumerable<ICoordinateStrategySelector> _selectors = selectors;
+    private readonly ILinuxEnvironmentDetector _environmentDetector = environmentDetector;
 
     public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero)
     {

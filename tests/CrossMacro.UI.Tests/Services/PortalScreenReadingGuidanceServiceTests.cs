@@ -25,7 +25,7 @@ public sealed class PortalScreenReadingGuidanceServiceTests
 
         await service.ShowBeforePortalWarmupAsync();
 
-        Assert.Single(dialog.MessageCalls);
+        _ = Assert.Single(dialog.MessageCalls);
     }
 
     [Theory]
@@ -92,7 +92,7 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         await service.ShowBeforePortalWarmupAsync();
         await service.ShowBeforePortalWarmupAsync();
 
-        Assert.Single(dialog.MessageCalls);
+        _ = Assert.Single(dialog.MessageCalls);
     }
 
     [Fact]
@@ -164,14 +164,9 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         }
     }
 
-    private sealed class StaticDiagnosticProvider : IScreenReadingDiagnosticProvider
+    private sealed class StaticDiagnosticProvider(string? selectedBackend) : IScreenReadingDiagnosticProvider
     {
-        private readonly string? _selectedBackend;
-
-        public StaticDiagnosticProvider(string? selectedBackend)
-        {
-            _selectedBackend = selectedBackend;
-        }
+        private readonly string? _selectedBackend = selectedBackend;
 
         public ScreenReadingDiagnosticSnapshot GetSnapshot()
         {

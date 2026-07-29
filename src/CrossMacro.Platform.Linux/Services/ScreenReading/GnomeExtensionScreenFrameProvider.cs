@@ -59,33 +59,38 @@ public sealed class GnomeExtensionScreenFrameProvider : IScreenFrameProvider
 
         try
         {
-            var captureResult = await _positionProvider.CaptureAreaAsync(bounds).ConfigureAwait(false);
-            if (captureResult is null)
-            {
-                return ScreenReadResultFactory.Failure<ScreenFrame>(
-                    ScreenReadErrorKind.CaptureFailed,
-                    "GNOME Shell extension capture returned no data.");
-            }
-
-            var frame = new GnomeExtensionScreenFrame(bounds, captureResult.Value.Stride, captureResult.Value.Format, captureResult.Value.Pixels);
-
-            return LinuxScreenFrameProviderResults.CreateSharedFrame(
-                frame.LogicalBounds,
-                frame.Stride,
-                frame.PixelFormat,
-                frame.Pixels,
-                frame);
+            return await CaptureCoreAsync(bounds).ConfigureAwait(false);
         }
         catch (Exception ex) when (LinuxScreenFrameProviderResults.IsKnownCaptureException(ex))
         {
             return LinuxScreenFrameProviderResults.FromKnownCaptureException(ex, "GNOME Shell extension capture was canceled.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 ex.Message);
         }
+    }
+
+    private async Task<ScreenReadResult<ScreenFrame>> CaptureCoreAsync(ScreenRect bounds)
+    {
+        var captureResult = await _positionProvider.CaptureAreaAsync(bounds).ConfigureAwait(false);
+        if (captureResult is null)
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
+                ScreenReadErrorKind.CaptureFailed,
+                "GNOME Shell extension capture returned no data.");
+        }
+
+        var frame = new GnomeExtensionScreenFrame(bounds, captureResult.Value.Stride, captureResult.Value.Format, captureResult.Value.Pixels);
+
+        return LinuxScreenFrameProviderResults.CreateSharedFrame(
+            frame.LogicalBounds,
+            frame.Stride,
+            frame.PixelFormat,
+            frame.Pixels,
+            frame);
     }
 
     private static GnomeExtensionSupportResult ProbeSupport(GnomePositionProvider provider)

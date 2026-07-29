@@ -1,30 +1,20 @@
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
-public sealed class ScreenImageAutomation : IScreenImageAutomation
+public sealed class ScreenImageAutomation(
+    IScreenPixelReader screenPixelReader,
+    IImageAssetCodec imageAssetCodec,
+    IMousePositionProvider? mousePositionProvider,
+    Func<IInputSimulator>? inputSimulatorFactory,
+    IInputSimulatorPool? simulatorPool,
+    IImageClickMovementResolver movementResolver) : IScreenImageAutomation
 {
-    private readonly IScreenPixelReader _screenPixelReader;
-    private readonly IImageAssetCodec _imageAssetCodec;
-    private readonly IMousePositionProvider? _mousePositionProvider;
-    private readonly Func<IInputSimulator>? _inputSimulatorFactory;
-    private readonly IInputSimulatorPool? _simulatorPool;
-    private readonly IImageClickMovementResolver _movementResolver;
-
-    public ScreenImageAutomation(
-        IScreenPixelReader screenPixelReader,
-        IImageAssetCodec imageAssetCodec,
-        IMousePositionProvider? mousePositionProvider,
-        Func<IInputSimulator>? inputSimulatorFactory,
-        IInputSimulatorPool? simulatorPool,
-        IImageClickMovementResolver movementResolver)
-    {
-        _screenPixelReader = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
-        _imageAssetCodec = imageAssetCodec ?? throw new ArgumentNullException(nameof(imageAssetCodec));
-        _mousePositionProvider = mousePositionProvider;
-        _inputSimulatorFactory = inputSimulatorFactory;
-        _simulatorPool = simulatorPool;
-        _movementResolver = movementResolver ?? throw new ArgumentNullException(nameof(movementResolver));
-    }
+    private readonly IScreenPixelReader _screenPixelReader = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
+    private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? throw new ArgumentNullException(nameof(imageAssetCodec));
+    private readonly IMousePositionProvider? _mousePositionProvider = mousePositionProvider;
+    private readonly Func<IInputSimulator>? _inputSimulatorFactory = inputSimulatorFactory;
+    private readonly IInputSimulatorPool? _simulatorPool = simulatorPool;
+    private readonly IImageClickMovementResolver _movementResolver = movementResolver ?? throw new ArgumentNullException(nameof(movementResolver));
 
     public string ProviderName => _screenPixelReader.ProviderName;
 
@@ -32,6 +22,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
 
     public async Task<ScreenImageAutomationResult> SearchAsync(ScreenImageAutomationRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
         var setup = await PrepareAsync(request, cancellationToken).ConfigureAwait(false);
         if (setup.Error is { } error)
         {
@@ -46,6 +37,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
 
     public async Task<ScreenImageAutomationResult> WaitAsync(ScreenImageAutomationRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
         var setup = await PrepareAsync(request, cancellationToken).ConfigureAwait(false);
         if (setup.Error is { } error)
         {
@@ -88,6 +80,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
 
     public async Task<ScreenImageAutomationResult> ClickAsync(ScreenImageAutomationRequest request, int buttonCode, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
         if (_inputSimulatorFactory is null)
         {
             return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.Unsupported, "No supported IInputSimulator is available for the current platform/session.");
@@ -96,7 +89,9 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
         var resolution = _mousePositionProvider is null ? null : await _mousePositionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
         var width = resolution?.Width ?? 0;
         var height = resolution?.Height ?? 0;
-        var simulator = _simulatorPool?.Acquire(width, height) ?? _inputSimulatorFactory();
+        var simulator = _simulatorPool is not null
+            ? await _simulatorPool.AcquireAsync(width, height, cancellationToken).ConfigureAwait(false)
+            : _inputSimulatorFactory();
         var pooled = _simulatorPool is not null;
         try
         {
@@ -122,7 +117,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
                 var point = new ScreenPoint(
                     checked(result.Value.Point.X + (setup.Template!.LogicalBounds.Width / 2)),
                     checked(result.Value.Point.Y + (setup.Template.LogicalBounds.Height / 2)));
-                simulator.Initialize(width, height);
+                await simulator.InitializeAsync(width, height, cancellationToken).ConfigureAwait(false);
                 var movement = await _movementResolver.ResolveAsync(simulator, point, cancellationToken).ConfigureAwait(false);
                 if (!movement.IsSuccess)
                 {
@@ -203,10 +198,13 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
 
     private static async Task<ScreenReadResult<ScreenImageMatch>> SearchOnceAsync(ImageSearchSetup setup, TimeSpan? timeout, CancellationToken cancellationToken)
     {
-        return await setup.Reader!.SearchImageAsync(
+        var reader = setup.Reader ?? throw new InvalidOperationException("Reader is not initialized in a success setup.");
+        var template = setup.Template ?? throw new InvalidOperationException("Template is not initialized in a success setup.");
+        var options = setup.Options ?? throw new InvalidOperationException("Options is not initialized in a success setup.");
+        return await reader.SearchImageAsync(
             setup.Region,
-            setup.Template!,
-            setup.Options!,
+            template,
+            options,
             new ScreenReadOptions(timeout, ScreenReadOptions.Default.PollInterval, cancellationToken)).ConfigureAwait(false);
     }
 
@@ -215,7 +213,7 @@ public sealed class ScreenImageAutomation : IScreenImageAutomation
             ? ScreenImageAutomationResult.FoundAt(result.Value.Point, result.Value.Score)
             : ScreenImageAutomationResult.Failure(result.ErrorKind ?? ScreenReadErrorKind.CaptureFailed, result.ErrorMessage ?? "Screen image search failed.");
 
-    private sealed record class ImageSearchSetup(
+    private sealed record ImageSearchSetup(
         IScreenImageSearchReader? Reader,
         ScreenFrame? Template,
         ScreenRect? Region,

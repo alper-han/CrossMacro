@@ -1,11 +1,9 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 public sealed class DesignPlaybackViewModel : PlaybackViewModel
 {
-    public DesignPlaybackViewModel() : this(new DesignPreviewContext())
-    {
-    }
+    public DesignPlaybackViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignPlaybackViewModel(DesignPreviewContext context)
         : base(context.MacroPlayer, context.SettingsService, context.LoadedMacroSession, context.LocalizationService)

@@ -1,39 +1,60 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
 
-public class VirtualDeviceManagerTests
+public sealed class VirtualDeviceManagerTests
 {
     [Fact]
-    public void SendEvent_WhenNotConfigured_DoesNotThrow()
+    public async Task SendEvent_WhenNotConfigured_DoesNotThrow()
     {
-        var manager = new VirtualDeviceManager();
+        await using var manager = new VirtualDeviceManager();
 
-        var ex = Record.Exception(() => manager.SendEvent(type: 1, code: 2, value: 3));
+        var ex = await Record.ExceptionAsync(() => manager.SendEventAsync(type: 1, code: 2, value: 3));
 
         Assert.Null(ex);
     }
 
     [Fact]
-    public void Reset_WhenNotConfigured_DoesNotThrow()
+    public async Task Reset_WhenNotConfigured_DoesNotThrow()
     {
-        var manager = new VirtualDeviceManager();
+        await using var manager = new VirtualDeviceManager();
 
-        var ex = Record.Exception(manager.Reset);
+        var ex = await Record.ExceptionAsync(() => manager.ResetAsync());
 
         Assert.Null(ex);
     }
 
     [Fact]
-    public void Dispose_CanBeCalledMultipleTimes()
+    public async Task Dispose_CanBeCalledMultipleTimes()
     {
         var manager = new VirtualDeviceManager();
 
-        var ex = Record.Exception(() =>
+        var ex = await Record.ExceptionAsync(async () =>
         {
-            manager.Dispose();
-            manager.Dispose();
+            await manager.DisposeAsync();
+            await manager.DisposeAsync();
         });
 
         Assert.Null(ex);
+    }
+
+    [Fact]
+    public async Task OperationsAfterDispose_ShouldThrowObjectDisposedException()
+    {
+        await using var manager = new VirtualDeviceManager();
+        await manager.DisposeAsync();
+
+        await TestAssertions.ThrowsAsync<ObjectDisposedException>(
+            () => manager.SendEventAsync(type: 1, code: 2, value: 3));
+    }
+
+    [Fact]
+    public async Task Configure_WhenCanceledBeforeCreation_ShouldHonorCancellation()
+    {
+        await using var manager = new VirtualDeviceManager();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(
+            () => manager.ConfigureAsync(0, 0, cancellation.Token));
     }
 }

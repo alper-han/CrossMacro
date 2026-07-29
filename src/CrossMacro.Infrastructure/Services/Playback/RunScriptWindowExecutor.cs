@@ -12,11 +12,7 @@ internal sealed class RunScriptWindowExecutor
 
     internal const string CommandToken = "window";
 
-    private static readonly Dictionary<string, IWindowCommandHandler> _handlers;
-
-    static RunScriptWindowExecutor()
-    {
-        var handlers = new IWindowCommandHandler[]
+    private static readonly Dictionary<string, IWindowCommandHandler> _handlers = new IWindowCommandHandler[]
         {
             new WindowActiveCommandHandler(),
             new WindowSearchCommandHandler(),
@@ -32,9 +28,8 @@ internal sealed class RunScriptWindowExecutor
             new WindowWorkspaceCommandHandler("getdesktop"),
             new WindowWorkspaceCommandHandler("setdesktop"),
             new WindowWorkspaceCommandHandler("setdesktopforwindow"),
-        };
-        _handlers = handlers.ToDictionary(h => h.SubCommand, StringComparer.OrdinalIgnoreCase);
-    }
+        }
+        .ToDictionary(h => h.SubCommand, StringComparer.OrdinalIgnoreCase);
 
     public RunScriptWindowExecutor(IWindowManager windowManager)
     {
@@ -69,7 +64,7 @@ internal sealed class RunScriptWindowExecutor
             return $"Invalid window syntax: '{step}'.";
         }
 
-        var sub = parts[1].ToLowerInvariant();
+        var sub = parts[1];
         if (!_handlers.TryGetValue(sub, out var handler))
         {
             return $"Unknown window sub-command '{sub}'. Expected: {string.Join(", ", _handlers.Keys)}.";
@@ -104,7 +99,7 @@ internal sealed class RunScriptWindowExecutor
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Invalid window syntax: '{resolvedStep}'.");
         }
 
-        var sub = parts[1].ToLowerInvariant();
+        var sub = parts[1];
         if (!_handlers.TryGetValue(sub, out var handler))
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Unknown window sub-command '{sub}'.");

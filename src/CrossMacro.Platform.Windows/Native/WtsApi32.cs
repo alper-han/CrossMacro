@@ -3,9 +3,11 @@ namespace CrossMacro.Platform.Windows.Native;
 
 internal static partial class WtsApi32
 {
-    [DllImport("wtsapi32.dll", SetLastError = true)]
-    public static extern bool WTSRegisterSessionNotification(IntPtr hWnd, uint dwFlags);
+    [LibraryImport("wtsapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool WTSRegisterSessionNotification(IntPtr hWnd, uint dwFlags);
 
-    [DllImport("wtsapi32.dll", SetLastError = true)]
-    public static extern bool WTSUnRegisterSessionNotification(IntPtr hWnd);
+    [LibraryImport("wtsapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool WTSUnRegisterSessionNotification(IntPtr hWnd);
 }

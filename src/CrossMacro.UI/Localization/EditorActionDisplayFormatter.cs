@@ -1,14 +1,9 @@
 
 namespace CrossMacro.UI.Localization;
 
-public sealed class EditorActionDisplayFormatter
+public sealed class EditorActionDisplayFormatter(ILocalizationService localizationService)
 {
-    private readonly ILocalizationService localizationService;
-
-    public EditorActionDisplayFormatter(ILocalizationService localizationService)
-    {
-        this.localizationService = localizationService;
-    }
+    private readonly ILocalizationService localizationService = localizationService;
 
     public string Format(EditorAction action)
     {
@@ -121,7 +116,36 @@ public sealed class EditorActionDisplayFormatter
             EditorActionType.WhileBlockStart => localizationService["Editor_BlockName_While"],
             EditorActionType.ForBlockStart => localizationService["Editor_BlockName_For"],
             EditorActionType.RepeatBlockStart => localizationService["Editor_BlockName_Repeat"],
-            _ => localizationService["Editor_BlockName_Block"],
+            EditorActionType.MouseMove => localizationService["Editor_BlockName_Block"],
+            EditorActionType.MouseClick => localizationService["Editor_BlockName_Block"],
+            EditorActionType.MouseDown => localizationService["Editor_BlockName_Block"],
+            EditorActionType.MouseUp => localizationService["Editor_BlockName_Block"],
+            EditorActionType.KeyPress => localizationService["Editor_BlockName_Block"],
+            EditorActionType.KeyDown => localizationService["Editor_BlockName_Block"],
+            EditorActionType.KeyUp => localizationService["Editor_BlockName_Block"],
+            EditorActionType.Delay => localizationService["Editor_BlockName_Block"],
+            EditorActionType.ScrollVertical => localizationService["Editor_BlockName_Block"],
+            EditorActionType.ScrollHorizontal => localizationService["Editor_BlockName_Block"],
+            EditorActionType.TextInput => localizationService["Editor_BlockName_Block"],
+            EditorActionType.SetVariable => localizationService["Editor_BlockName_Block"],
+            EditorActionType.IncrementVariable => localizationService["Editor_BlockName_Block"],
+            EditorActionType.DecrementVariable => localizationService["Editor_BlockName_Block"],
+            EditorActionType.BlockEnd => localizationService["Editor_BlockName_Block"],
+            EditorActionType.Break => localizationService["Editor_BlockName_Block"],
+            EditorActionType.Continue => localizationService["Editor_BlockName_Block"],
+            EditorActionType.PixelColor => localizationService["Editor_BlockName_Block"],
+            EditorActionType.WaitColor => localizationService["Editor_BlockName_Block"],
+            EditorActionType.PixelSearch => localizationService["Editor_BlockName_Block"],
+            EditorActionType.ImageSearch => localizationService["Editor_BlockName_Block"],
+            EditorActionType.ImageClick => localizationService["Editor_BlockName_Block"],
+            EditorActionType.WaitImage => localizationService["Editor_BlockName_Block"],
+            EditorActionType.ClipboardGet => localizationService["Editor_BlockName_Block"],
+            EditorActionType.ClipboardSet => localizationService["Editor_BlockName_Block"],
+            EditorActionType.ShellCommand => localizationService["Editor_BlockName_Block"],
+            EditorActionType.Screenshot => localizationService["Editor_BlockName_Block"],
+            EditorActionType.WindowCommand => localizationService["Editor_BlockName_Block"],
+            EditorActionType.RawScriptStep => localizationService["Editor_BlockName_Block"],
+            _ => throw new ArgumentOutOfRangeException(nameof(actionType), actionType, message: null),
         };
     }
 
@@ -136,7 +160,10 @@ public sealed class EditorActionDisplayFormatter
             MacroMouseButton.ScrollDown => localizationService["MouseButton_ScrollDown"],
             MacroMouseButton.ScrollLeft => localizationService["MouseButton_ScrollLeft"],
             MacroMouseButton.ScrollRight => localizationService["MouseButton_ScrollRight"],
-            _ => button.ToString(),
+            MacroMouseButton.None => button.ToString(),
+            MacroMouseButton.Side1 => button.ToString(),
+            MacroMouseButton.Side2 => button.ToString(),
+            _ => throw new ArgumentOutOfRangeException(nameof(button), button, message: null),
         };
     }
 
@@ -231,7 +258,8 @@ public sealed class EditorActionDisplayFormatter
             ShellCommandMode.ShellCapture => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCapture"], command, action.ShellExitCodeVariableName, action.ShellStandardOutputVariableName, action.ShellStandardErrorVariableName),
             ShellCommandMode.ShellInput => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellInput"], command),
             ShellCommandMode.ShellCaptureInput => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCaptureInput"], command, action.ShellExitCodeVariableName, action.ShellStandardOutputVariableName, action.ShellStandardErrorVariableName),
-            _ => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCommand"], command),
+            ShellCommandMode.Shell => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ShellCommand"], command),
+            _ => throw new ArgumentOutOfRangeException(nameof(action), action.ShellCommandMode, message: null),
         };
     }
 
@@ -276,7 +304,7 @@ public sealed class EditorActionDisplayFormatter
             WindowCommandMode.WorkspaceSwitch => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceSwitch"], action.WindowWorkspace),
             WindowCommandMode.WorkspaceMoveActive => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceMoveActive"], action.WindowWorkspace),
             WindowCommandMode.WorkspaceMoveWindow => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_WindowWorkspaceMoveWindow"], action.WindowSelectorValue, action.WindowWorkspace),
-            _ => localizationService["Editor_ActionType_WindowCommand"],
+            _ => throw new ArgumentOutOfRangeException(nameof(action), action.WindowCommandMode, message: null),
         };
     }
 

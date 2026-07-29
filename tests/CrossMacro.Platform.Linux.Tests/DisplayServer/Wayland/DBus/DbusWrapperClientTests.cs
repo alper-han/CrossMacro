@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
-public class DbusWrapperClientTests
+public sealed class DbusWrapperClientTests
 {
     [LinuxFact]
     public void DbusWrapper_KWinScriptingScalarReply_ShouldParseScriptId()
@@ -41,6 +41,6 @@ public class DbusWrapperClientTests
 
         Assert.Equal((uint)1, info["state"]);
         Assert.Equal("Cursor Spy", info["name"]);
-        Assert.Equal(true, info["enabled"]);
+        Assert.True((bool)info["enabled"]);
     }
 }

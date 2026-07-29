@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Services.Factories.Selectors;
 
-public class KdePositionProviderSelector : IPositionProviderSelector
+public class KdePositionProviderSelector(KdePositionProvider provider) : IPositionProviderSelector
 {
-    private readonly KdePositionProvider _provider;
-
-    public KdePositionProviderSelector(KdePositionProvider provider)
-    {
-        _provider = provider;
-    }
+    private readonly KdePositionProvider _provider = provider;
 
     public int Priority => 10;
 

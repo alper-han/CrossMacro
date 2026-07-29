@@ -1,18 +1,11 @@
 
 namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 
-public sealed class ScreenshotCaptureService : IScreenshotCaptureService
+public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFrameProvider, IImageClipboardService? imageClipboardService, IImageAssetCodec? imageAssetCodec = null) : IScreenshotCaptureService
 {
-    private readonly IScreenFrameProvider? _screenFrameProvider;
-    private readonly IImageClipboardService? _imageClipboardService;
-    private readonly IImageAssetCodec _imageAssetCodec;
-
-    public ScreenshotCaptureService(IScreenFrameProvider? screenFrameProvider, IImageClipboardService? imageClipboardService, IImageAssetCodec? imageAssetCodec = null)
-    {
-        _screenFrameProvider = screenFrameProvider;
-        _imageClipboardService = imageClipboardService;
-        _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
-    }
+    private readonly IScreenFrameProvider? _screenFrameProvider = screenFrameProvider;
+    private readonly IImageClipboardService? _imageClipboardService = imageClipboardService;
+    private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
 
     public async Task<ScreenshotCaptureResult> CaptureAsync(
         string? outputPath,
@@ -48,12 +41,12 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
         string? fullOutputPath = null;
         if (copyToClipboard)
         {
-            pngBytes = EncodeToPngBytes(frame);
+            pngBytes = await EncodeToPngBytesAsync(frame, cancellationToken).ConfigureAwait(false);
         }
 
         if (!string.IsNullOrWhiteSpace(outputPath))
         {
-            var writeResult = WriteOutput(outputPath, frame, pngBytes);
+            var writeResult = await WriteOutputAsync(outputPath, frame, pngBytes, cancellationToken).ConfigureAwait(false);
             if (!writeResult.Success)
             {
                 return writeResult.Failure!;
@@ -97,7 +90,7 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return (false, null, ScreenshotCaptureResult.Fail(
                 ScreenshotCaptureFailureKind.CaptureFailed,
@@ -117,18 +110,22 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
             captureResult.ErrorKind));
     }
 
-    private (bool Success, string? OutputPath, ScreenshotCaptureResult? Failure) WriteOutput(string outputPath, ScreenFrame frame, byte[]? pngBytes)
+    private async Task<(bool Success, string? OutputPath, ScreenshotCaptureResult? Failure)> WriteOutputAsync(
+        string outputPath,
+        ScreenFrame frame,
+        byte[]? pngBytes,
+        CancellationToken cancellationToken)
     {
         try
         {
             var fullOutputPath = Path.GetFullPath(outputPath);
             if (pngBytes is null)
             {
-                WriteFrameToFile(frame, fullOutputPath);
+                await WriteFrameToFileAsync(frame, fullOutputPath, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                WriteBytesToFile(pngBytes, fullOutputPath);
+                await WriteBytesToFileAsync(pngBytes, fullOutputPath, cancellationToken).ConfigureAwait(false);
             }
 
             return (true, fullOutputPath, null);
@@ -137,7 +134,7 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return (false, null, ScreenshotCaptureResult.Fail(
                 ScreenshotCaptureFailureKind.FileWriteFailed,
@@ -167,7 +164,7 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
                 "Image clipboard is not supported in this runtime.",
                 [ex.Message]);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return ScreenshotCaptureResult.Fail(
                 ScreenshotCaptureFailureKind.ClipboardWriteFailed,
@@ -176,24 +173,26 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
         }
     }
 
-    private byte[] EncodeToPngBytes(ScreenFrame frame)
+    private async Task<byte[]> EncodeToPngBytesAsync(ScreenFrame frame, CancellationToken cancellationToken)
     {
         using var pngStream = new MemoryStream();
-        _imageAssetCodec.EncodePng(frame, pngStream);
+        await _imageAssetCodec.EncodePngAsync(frame, pngStream, cancellationToken).ConfigureAwait(false);
         return pngStream.ToArray();
     }
 
-    private void WriteFrameToFile(ScreenFrame frame, string outputPath)
+    private async Task WriteFrameToFileAsync(ScreenFrame frame, string outputPath, CancellationToken cancellationToken)
     {
         EnsureOutputDirectory(outputPath);
-        using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        _imageAssetCodec.EncodePng(frame, fileStream);
+        var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous);
+        await using var fileStreamDisposal = fileStream.ConfigureAwait(false);
+        await _imageAssetCodec.EncodePngAsync(frame, fileStream, cancellationToken).ConfigureAwait(false);
+        await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static void WriteBytesToFile(byte[] pngBytes, string outputPath)
+    private static async Task WriteBytesToFileAsync(byte[] pngBytes, string outputPath, CancellationToken cancellationToken)
     {
         EnsureOutputDirectory(outputPath);
-        File.WriteAllBytes(outputPath, pngBytes);
+        await File.WriteAllBytesAsync(outputPath, pngBytes, cancellationToken).ConfigureAwait(false);
     }
 
     private static void EnsureOutputDirectory(string outputPath)
@@ -201,7 +200,7 @@ public sealed class ScreenshotCaptureService : IScreenshotCaptureService
         var directory = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(directory))
         {
-            Directory.CreateDirectory(directory);
+            _ = Directory.CreateDirectory(directory);
         }
     }
 }

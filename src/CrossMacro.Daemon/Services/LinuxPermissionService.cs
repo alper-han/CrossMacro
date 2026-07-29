@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public class LinuxPermissionService : ILinuxPermissionService
+internal sealed partial class LinuxPermissionService : ILinuxPermissionService
 {
     private const int UnchangedOwner = -1;
 
@@ -10,8 +10,8 @@ public class LinuxPermissionService : ILinuxPermissionService
     private readonly Func<string, int, int, int> _chown;
     private readonly Action<string> _setSocketPermissions;
 
-    [DllImport("libc", EntryPoint = "chown", SetLastError = true)]
-    private static extern int NativeChown(string path, int owner, int group);
+    [LibraryImport("libc", EntryPoint = "chown", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int NativeChown(string path, int owner, int group);
 
     public LinuxPermissionService()
         : this(
@@ -19,8 +19,7 @@ public class LinuxPermissionService : ILinuxPermissionService
             File.ReadLines,
             NativeChown,
             SetUnixSocketPermissions)
-    {
-    }
+    { /* Empty */ }
 
     internal LinuxPermissionService(
         Func<string, bool> fileExists,
@@ -53,7 +52,7 @@ public class LinuxPermissionService : ILinuxPermissionService
         {
             Log.Warning("Socket path disappeared before file mode could be set: {Msg}", ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to set socket file mode");
             throw;
@@ -77,13 +76,13 @@ public class LinuxPermissionService : ILinuxPermissionService
                 }
 
                 var parts = line.Split(':');
-                if (parts.Length >= 3 && int.TryParse(parts[2], out var gid))
+                if (parts.Length >= 3 && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var gid))
                 {
                     return gid;
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning("Failed to lookup crossmacro group GID: {Msg}", ex.Message);
         }
@@ -104,7 +103,7 @@ public class LinuxPermissionService : ILinuxPermissionService
 
             Log.Warning("Failed to chown socket to crossmacro group. Errno: {Err}", Marshal.GetLastWin32Error());
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning("Failed to chown socket to crossmacro group: {Msg}", ex.Message);
         }
@@ -112,11 +111,9 @@ public class LinuxPermissionService : ILinuxPermissionService
 
     private static void SetUnixSocketPermissions(string socketPath)
     {
-#pragma warning disable CA1416 // CrossMacro.Daemon is the privileged Linux daemon runtime.
         File.SetUnixFileMode(socketPath,
             UnixFileMode.UserRead | UnixFileMode.UserWrite |
             UnixFileMode.GroupRead | UnixFileMode.GroupWrite);
-#pragma warning restore CA1416
         Log.Information("Socket permissions set to 660 (User+Group RW)");
     }
 }

@@ -1,6 +1,7 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
+[System.Runtime.Versioning.SupportedOSPlatform("linux")]
 public sealed class FlatpakHostClipboardServiceTests
 {
     [Fact]
@@ -13,10 +14,10 @@ public sealed class FlatpakHostClipboardServiceTests
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("wayland"));
 
-        await service.SetTextAsync("hello");
+        await service.SetTextAsync("hello", CancellationToken.None);
 
         Assert.Empty(runner.RunCalls);
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal("flatpak-spawn", runner.WriteCalls[0].Command);
         Assert.Equal("--host wl-copy --type text/plain", runner.WriteCalls[0].Args);
         Assert.Equal("hello", runner.WriteCalls[0].Input);
@@ -33,7 +34,7 @@ public sealed class FlatpakHostClipboardServiceTests
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("wayland"));
 
-        var result = await service.GetTextAsync();
+        var result = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Equal("host-value", result);
         Assert.Contains(runner.ReadCalls, call =>
@@ -50,10 +51,10 @@ public sealed class FlatpakHostClipboardServiceTests
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("x11"));
 
-        await service.SetTextAsync("hello");
+        await service.SetTextAsync("hello", CancellationToken.None);
 
         Assert.Empty(runner.RunCalls);
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal("--host xclip -selection clipboard", runner.WriteCalls[0].Args);
     }
 
@@ -67,10 +68,10 @@ public sealed class FlatpakHostClipboardServiceTests
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("x11"));
 
-        await service.SetTextAsync("hello");
+        await service.SetTextAsync("hello", CancellationToken.None);
 
         Assert.Empty(runner.RunCalls);
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal("--host xclip -selection clipboard", runner.WriteCalls[0].Args);
     }
 
@@ -87,7 +88,7 @@ public sealed class FlatpakHostClipboardServiceTests
             new TestRuntimeContext(sessionType: null),
                 name => string.Equals(name, "WAYLAND_DISPLAY", StringComparison.Ordinal) ? "wayland-1" : null);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetTextAsync("hello"));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetTextAsync("hello", CancellationToken.None));
 
         Assert.Empty(runner.RunCalls);
         Assert.DoesNotContain(runner.ReadCalls, call => call.Args.Contains("command -v xclip", StringComparison.Ordinal));
@@ -102,7 +103,7 @@ public sealed class FlatpakHostClipboardServiceTests
         };
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("wayland"));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetTextAsync("hello"));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetTextAsync("hello", CancellationToken.None));
         Assert.False(service.IsSupported);
     }
 
@@ -112,12 +113,12 @@ public sealed class FlatpakHostClipboardServiceTests
         var runner = new FakeProcessRunner();
         var service = new FlatpakHostClipboardService(runner, new TestRuntimeContext("wayland"));
 
-        await service.InitializeAsync();
+        await service.InitializeAsync(CancellationToken.None);
 
         Assert.False(service.IsSupported);
     }
 
-    private sealed class FakeProcessRunner : CrossMacro.Infrastructure.Services.IProcessRunner
+    private sealed class FakeProcessRunner : CrossMacro.Platform.Abstractions.IProcessRunner
     {
         public Dictionary<string, bool> CheckResults { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, bool> HostCommandResults { get; } = new(StringComparer.Ordinal);
@@ -194,17 +195,12 @@ public sealed class FlatpakHostClipboardServiceTests
         }
     }
 
-    private sealed class TestRuntimeContext : IRuntimeContext
+    private sealed class TestRuntimeContext(string? sessionType) : IRuntimeContext
     {
-        public TestRuntimeContext(string? sessionType)
-        {
-            SessionType = sessionType;
-        }
-
         public bool IsLinux => true;
         public bool IsWindows => false;
         public bool IsMacOS => false;
         public bool IsFlatpak => true;
-        public string? SessionType { get; }
+        public string? SessionType { get; } = sessionType;
     }
 }

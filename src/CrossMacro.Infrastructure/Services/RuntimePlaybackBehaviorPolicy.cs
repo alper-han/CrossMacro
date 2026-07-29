@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-public sealed class RuntimePlaybackBehaviorPolicy : IPlaybackBehaviorPolicy
+public sealed class RuntimePlaybackBehaviorPolicy(IRuntimeContext runtimeContext) : IPlaybackBehaviorPolicy
 {
-    private readonly IRuntimeContext _runtimeContext;
-
-    public RuntimePlaybackBehaviorPolicy(IRuntimeContext runtimeContext)
-    {
-        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
-    }
+    private readonly IRuntimeContext _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
 
     public bool UseHybridAbsoluteDragMovement => _runtimeContext.IsLinux;
 }

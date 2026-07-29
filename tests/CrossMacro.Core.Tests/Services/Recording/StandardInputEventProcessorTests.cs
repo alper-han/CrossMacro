@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services.Recording;
 
-public class StandardInputEventProcessorTests
+public sealed class StandardInputEventProcessorTests
 {
     private readonly ICoordinateStrategy _strategy;
     private readonly StandardInputEventProcessor _processor;
@@ -21,17 +21,17 @@ public class StandardInputEventProcessorTests
     public void Process_MouseMove_ShouldReturnEvent_WhenRecordingMouse()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
         var args = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.Type.Should().Be(EventType.MouseMove);
-        result.Value.X.Should().Be(10);
-        result.Value.Y.Should().Be(20);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Type.Should().Be(EventType.MouseMove);
+        _ = result.Value.X.Should().Be(10);
+        _ = result.Value.Y.Should().Be(20);
     }
 
     [Theory]
@@ -41,15 +41,15 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
         var args = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.CoordinateMode.Should().Be(expectedMode);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.CoordinateMode.Should().Be(expectedMode);
     }
 
     [Fact]
@@ -57,28 +57,28 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: false, recordKeyboard: true, ignoredKeys: null);
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((10, 20));
         var args = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().BeNull();
+        _ = result.Should().BeNull();
     }
 
     [Fact]
     public void Process_MouseMove_ShouldReturnNull_WhenZeroDelta()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((0, 0));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((0, 0));
         var args = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().BeNull();
+        _ = result.Should().BeNull();
     }
 
     #endregion
@@ -95,9 +95,9 @@ public class StandardInputEventProcessorTests
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.Type.Should().Be(EventType.KeyPress);
-        result.Value.KeyCode.Should().Be(30);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Type.Should().Be(EventType.KeyPress);
+        _ = result.Value.KeyCode.Should().Be(30);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class StandardInputEventProcessorTests
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().BeNull();
+        _ = result.Should().BeNull();
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class StandardInputEventProcessorTests
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().BeNull();
+        _ = result.Should().BeNull();
     }
 
     [Fact]
@@ -139,8 +139,8 @@ public class StandardInputEventProcessorTests
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.Type.Should().Be(EventType.KeyRelease);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Type.Should().Be(EventType.KeyRelease);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public class StandardInputEventProcessorTests
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert - repeats are filtered
-        result.Should().BeNull();
+        _ = result.Should().BeNull();
     }
 
     #endregion
@@ -164,16 +164,16 @@ public class StandardInputEventProcessorTests
     public void Process_MouseButton_ShouldReturnButtonPressEvent()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
         var args = new CapturedInputEvent { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.Type.Should().Be(EventType.ButtonPress);
-        result.Value.Button.Should().Be(MacroMouseButton.Left);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Type.Should().Be(EventType.ButtonPress);
+        _ = result.Value.Button.Should().Be(MacroMouseButton.Left);
     }
 
     [Theory]
@@ -183,30 +183,30 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
         var args = new CapturedInputEvent { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.CoordinateMode.Should().Be(expectedMode);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.CoordinateMode.Should().Be(expectedMode);
     }
 
     [Fact]
     public void Process_MouseButton_ShouldReturnButtonReleaseEvent()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
         var args = new CapturedInputEvent { Type = InputEventType.MouseButton, Code = InputEventCode.BTN_LEFT, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.Type.Should().Be(EventType.ButtonRelease);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Type.Should().Be(EventType.ButtonRelease);
     }
 
     #endregion
@@ -217,45 +217,45 @@ public class StandardInputEventProcessorTests
     public void Process_MouseScroll_ShouldReturnScrollUpEvent()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
         var args = new CapturedInputEvent { Type = InputEventType.MouseScroll, Code = 0, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.Type.Should().Be(EventType.Click);
-        result.Value.Button.Should().Be(MacroMouseButton.ScrollUp);
-        result.Value.CoordinateMode.Should().BeNull();
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Type.Should().Be(EventType.Click);
+        _ = result.Value.Button.Should().Be(MacroMouseButton.ScrollUp);
+        _ = result.Value.CoordinateMode.Should().BeNull();
     }
 
     [Fact]
     public void Process_MouseScroll_ShouldReturnScrollDownEvent()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
         var args = new CapturedInputEvent { Type = InputEventType.MouseScroll, Code = 0, Value = -1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.Button.Should().Be(MacroMouseButton.ScrollDown);
-        result.Value.CoordinateMode.Should().BeNull();
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Button.Should().Be(MacroMouseButton.ScrollDown);
+        _ = result.Value.CoordinateMode.Should().BeNull();
     }
 
     [Fact]
     public void Process_MouseScroll_ShouldReturnHorizontalScrollEvents()
     {
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((100, 100));
         var args = new CapturedInputEvent { Type = InputEventType.MouseScroll, Code = InputEventCode.REL_HWHEEL, Value = 1 };
 
         var result = _processor.Process(args, timestamp: 1000);
 
-        result.Should().NotBeNull();
-        result.Value.Button.Should().Be(MacroMouseButton.ScrollRight);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Button.Should().Be(MacroMouseButton.ScrollRight);
     }
 
     #endregion
@@ -266,17 +266,17 @@ public class StandardInputEventProcessorTests
     public void Process_Sync_ShouldFlushBufferedDeltas()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((15, 25));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((15, 25));
         var args = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.Type.Should().Be(EventType.MouseMove);
-        result.Value.X.Should().Be(15);
-        result.Value.Y.Should().Be(25);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.Type.Should().Be(EventType.MouseMove);
+        _ = result.Value.X.Should().Be(15);
+        _ = result.Value.Y.Should().Be(25);
     }
 
     [Theory]
@@ -286,29 +286,29 @@ public class StandardInputEventProcessorTests
     {
         // Arrange
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: isAbsoluteCoordinates);
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((15, 25));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((15, 25));
         var args = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Value.CoordinateMode.Should().Be(expectedMode);
+        _ = result.Should().NotBeNull();
+        _ = result.Value.CoordinateMode.Should().Be(expectedMode);
     }
 
     [Fact]
     public void Process_Sync_ShouldReturnNull_WhenZeroDeltas()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((0, 0));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((0, 0));
         var args = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().BeNull();
+        _ = result.Should().BeNull();
     }
 
     #endregion
@@ -317,13 +317,13 @@ public class StandardInputEventProcessorTests
     public void Process_UnknownInputType_ShouldReturnNull()
     {
         // Arrange
-        _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((50, 60));
+        _ = _strategy.ProcessPosition(Arg.Any<CapturedInputEvent>()).Returns((50, 60));
         var args = new CapturedInputEvent { Type = InputEventType.Unknown, Code = 999, Value = 1 };
 
         // Act
         var result = _processor.Process(args, timestamp: 1000);
 
         // Assert
-        result.Should().BeNull();
+        _ = result.Should().BeNull();
     }
 }

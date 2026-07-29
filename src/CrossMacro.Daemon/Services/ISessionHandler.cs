@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public interface ISessionHandler
+internal interface ISessionHandler
 {
     /// <summary>
     /// Runs the session loop for the given client socket.

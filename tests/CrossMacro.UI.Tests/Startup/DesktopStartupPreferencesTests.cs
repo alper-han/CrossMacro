@@ -10,11 +10,11 @@ public sealed class DesktopStartupPreferencesTests
             new AppSettings { EnableTrayIcon = false, StartMinimized = false },
             GuiStartupOptions.Default);
 
-        preferences.ShouldStartMinimized.Should().BeFalse();
-        preferences.PersistTrayEnabled.Should().BeFalse();
-        preferences.UseStartupTrayOnly.Should().BeFalse();
-        preferences.ShouldEnableTrayDuringStartup.Should().BeFalse();
-        preferences.ResolveDisplayMode(trayAvailable: true).Should().Be(DesktopStartupDisplayMode.Visible);
+        _ = preferences.ShouldStartMinimized.Should().BeFalse();
+        _ = preferences.PersistTrayEnabled.Should().BeFalse();
+        _ = preferences.UseStartupTrayOnly.Should().BeFalse();
+        _ = preferences.ShouldEnableTrayDuringStartup.Should().BeFalse();
+        _ = preferences.ResolveDisplayMode(trayAvailable: true).Should().Be(DesktopStartupDisplayMode.Visible);
     }
 
     [Fact]
@@ -24,12 +24,12 @@ public sealed class DesktopStartupPreferencesTests
             new AppSettings { EnableTrayIcon = false, StartMinimized = false },
             new GuiStartupOptions(StartMinimized: true));
 
-        preferences.ShouldStartMinimized.Should().BeTrue();
-        preferences.PersistTrayEnabled.Should().BeFalse();
-        preferences.UseStartupTrayOnly.Should().BeTrue();
-        preferences.ShouldEnableTrayDuringStartup.Should().BeTrue();
-        preferences.ResolveDisplayMode(trayAvailable: true).Should().Be(DesktopStartupDisplayMode.HiddenToTray);
-        preferences.ResolveDisplayMode(trayAvailable: false).Should().Be(DesktopStartupDisplayMode.Minimized);
+        _ = preferences.ShouldStartMinimized.Should().BeTrue();
+        _ = preferences.PersistTrayEnabled.Should().BeFalse();
+        _ = preferences.UseStartupTrayOnly.Should().BeTrue();
+        _ = preferences.ShouldEnableTrayDuringStartup.Should().BeTrue();
+        _ = preferences.ResolveDisplayMode(trayAvailable: true).Should().Be(DesktopStartupDisplayMode.HiddenToTray);
+        _ = preferences.ResolveDisplayMode(trayAvailable: false).Should().Be(DesktopStartupDisplayMode.Minimized);
     }
 
     [Fact]
@@ -39,10 +39,10 @@ public sealed class DesktopStartupPreferencesTests
             new AppSettings { EnableTrayIcon = false, StartMinimized = true },
             GuiStartupOptions.Default);
 
-        preferences.ShouldStartMinimized.Should().BeTrue();
-        preferences.PersistTrayEnabled.Should().BeTrue();
-        preferences.UseStartupTrayOnly.Should().BeFalse();
-        preferences.ShouldEnableTrayDuringStartup.Should().BeTrue();
-        preferences.ResolveDisplayMode(trayAvailable: true).Should().Be(DesktopStartupDisplayMode.HiddenToTray);
+        _ = preferences.ShouldStartMinimized.Should().BeTrue();
+        _ = preferences.PersistTrayEnabled.Should().BeTrue();
+        _ = preferences.UseStartupTrayOnly.Should().BeFalse();
+        _ = preferences.ShouldEnableTrayDuringStartup.Should().BeTrue();
+        _ = preferences.ResolveDisplayMode(trayAvailable: true).Should().Be(DesktopStartupDisplayMode.HiddenToTray);
     }
 }

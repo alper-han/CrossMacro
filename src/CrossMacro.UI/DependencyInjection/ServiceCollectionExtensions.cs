@@ -12,8 +12,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrossMacroServices(
         this IServiceCollection services)
     {
-        services.AddCrossMacroGuiRuntimeServices();
-        services.AddViewModels();
+        _ = services.AddCrossMacroGuiRuntimeServices();
+        _ = services.AddViewModels();
 
         return services;
     }
@@ -25,84 +25,18 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services)
     {
         services.TryAddSingleton(GuiStartupOptions.Default);
-        services.AddGuiOnlyServices();
-
-        services.AddSingleton<IManageProfile, ManageProfile>();
-        services.AddSingleton<IManageTextExpansion, ManageTextExpansion>();
-        services.AddSingleton<IManageSchedule, ManageSchedule>();
-        services.AddSingleton<IManageShortcut, ManageShortcut>();
-        services.AddSingleton<IManageTrigger, ManageTrigger>();
+        GuiPresentationServiceRegistration.Register(services);
+        GuiManagementServiceRegistration.Register(services);
 
         return services;
     }
-
-    private static IServiceCollection AddGuiOnlyServices(this IServiceCollection services)
-    {
-        services.AddSingleton<IDesktopLifetimeContext, DesktopLifetimeContext>();
-        services.AddSingleton<LocalizationService>();
-        services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
-        services.AddSingleton<EditorActionDisplayFormatter>();
-        services.AddSingleton<ITrayIconService, TrayIconService>();
-        services.AddSingleton<IDialogService, DialogService>();
-        services.AddSingleton<IPortalScreenReadingGuidanceService>(sp =>
-            new PortalScreenReadingGuidanceService(
-                sp.GetRequiredService<IDialogService>(),
-                sp.GetRequiredService<ISettingsService>(),
-                sp.GetService<IScreenReadingDiagnosticProvider>()));
-        services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
-        services.AddSingleton<IThemeService, ThemeService>();
-        services.AddSingleton<Func<ISettingsService>>(sp => () => sp.GetRequiredService<ISettingsService>());
-        services.AddSingleton<Func<IThemeService>>(sp => () => sp.GetRequiredService<IThemeService>());
-        services.AddSingleton<Func<ITrayIconService>>(sp => () => sp.GetRequiredService<ITrayIconService>());
-        services.AddSingleton<Func<ITextExpansionService>>(sp => () => sp.GetRequiredService<ITextExpansionService>());
-        services.AddSingleton<Func<LocalizationService>>(sp => () => sp.GetRequiredService<LocalizationService>());
-        services.AddSingleton<Func<EditorActionDisplayFormatter>>(sp => () => sp.GetRequiredService<EditorActionDisplayFormatter>());
-        services.AddSingleton<Func<MainWindow>>(_ => () => new MainWindow());
-        services.AddSingleton<Func<MainWindowViewModel>>(sp => () => sp.GetRequiredService<MainWindowViewModel>());
-        services.AddSingleton<Func<IFlatpakQuickSetupService?>>(sp => () => sp.GetService<IFlatpakQuickSetupService>());
-        services.AddSingleton<Func<IAppImageQuickSetupService?>>(sp => () => sp.GetService<IAppImageQuickSetupService>());
-        services.AddSingleton<Func<IPermissionChecker?>>(sp => () => sp.GetService<IPermissionChecker>());
-        services.AddSingleton<Func<IInputSimulatorPool?>>(sp => () => sp.GetService<IInputSimulatorPool>());
-        services.AddSingleton<Func<IMousePositionProvider?>>(sp => () => sp.GetService<IMousePositionProvider>());
-        services.AddSingleton<DesktopStartupInitializationService>();
-        services.AddSingleton<DesktopPermissionGateService>();
-        services.AddSingleton<DesktopQuickSetupGateService>();
-        services.AddSingleton<InputSimulatorWarmupService>();
-        services.AddSingleton<IRuntimeLifecycle>(sp =>
-            DesktopStartupRuntimeService.CreateLifecycle(
-                () => sp.GetRequiredService<ITextExpansionService>()));
-        services.AddSingleton<DesktopStartupRuntimeService>();
-        services.AddSingleton<IDesktopStartupCoordinator>(sp =>
-            new DesktopStartupCoordinator(
-                sp.GetRequiredService<DesktopStartupInitializationService>(),
-                sp.GetRequiredService<DesktopPermissionGateService>(),
-                sp.GetRequiredService<DesktopQuickSetupGateService>(),
-                sp.GetRequiredService<DesktopStartupRuntimeService>()));
-        return services;
-    }
-
 
     /// <summary>
     /// Registers all ViewModels.
     /// </summary>
     public static IServiceCollection AddViewModels(this IServiceCollection services)
     {
-        services.AddSingleton<ILoadedMacroSession, LoadedMacroSession>();
-        services.AddSingleton<RecordingViewModel>();
-        services.AddSingleton<PlaybackViewModel>();
-        services.AddSingleton<FilesViewModel>();
-        services.AddSingleton<TextExpansionViewModel>(sp =>
-            new TextExpansionViewModel(
-                sp.GetRequiredService<IManageTextExpansion>(),
-                sp.GetRequiredService<IDialogService>(),
-                sp.GetRequiredService<IEnvironmentInfoProvider>(),
-                sp.GetRequiredService<ILocalizationService>()));
-        services.AddSingleton<ScheduleViewModel>();
-        services.AddSingleton<ShortcutViewModel>();
-        services.AddSingleton<TriggerViewModel>();
-        services.AddSingleton<SettingsViewModel>();
-        services.AddSingleton<EditorViewModel>();
-        services.AddSingleton<MainWindowViewModel>();
+        ViewModelServiceRegistration.Register(services);
 
         return services;
     }

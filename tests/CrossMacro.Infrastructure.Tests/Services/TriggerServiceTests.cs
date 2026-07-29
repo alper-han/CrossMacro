@@ -1,10 +1,11 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class TriggerServiceTests : IDisposable
+public sealed class TriggerServiceTests : IDisposable
 {
+    private static readonly CancellationToken NonCancelableToken = new(canceled: false);
     private readonly IWindowManager _windowManager;
-    private readonly IProfileManager _profileManager;
+    private readonly IProfileSwitchRequests _profileSwitchRequests;
     private readonly IMacroFileManager _macroFileManager;
     private readonly IMacroPlayer _macroPlayer;
     private readonly TriggerService _service;
@@ -18,11 +19,11 @@ public class TriggerServiceTests : IDisposable
             "crossmacro-tests",
             nameof(TriggerServiceTests),
             Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_testRootDirectory);
+        _ = Directory.CreateDirectory(_testRootDirectory);
         _triggersFilePath = Path.Combine(_testRootDirectory, "triggers.json");
 
         _windowManager = Substitute.For<IWindowManager>();
-        _profileManager = Substitute.For<IProfileManager>();
+        _profileSwitchRequests = Substitute.For<IProfileSwitchRequests>();
         _macroFileManager = Substitute.For<IMacroFileManager>();
         _macroPlayer = Substitute.For<IMacroPlayer>();
 
@@ -32,7 +33,7 @@ public class TriggerServiceTests : IDisposable
         {
             _service = new TriggerService(
                 _windowManager,
-                () => _profileManager,
+                _profileSwitchRequests,
                 _macroFileManager,
                 () => _macroPlayer,
                 _triggersFilePath);
@@ -60,7 +61,7 @@ public class TriggerServiceTests : IDisposable
     public void Start_SetsIsMonitoringTrue()
     {
         _service.Start();
-        _service.IsMonitoring.Should().BeTrue();
+        _ = _service.IsMonitoring.Should().BeTrue();
     }
 
     [Fact]
@@ -68,7 +69,7 @@ public class TriggerServiceTests : IDisposable
     {
         _service.Start();
         _service.StopMonitoring();
-        _service.IsMonitoring.Should().BeFalse();
+        _ = _service.IsMonitoring.Should().BeFalse();
     }
 
     [Fact]
@@ -80,7 +81,7 @@ public class TriggerServiceTests : IDisposable
 
         await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
 
-        _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
+        _ = _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
     }
 
     [Fact]
@@ -91,13 +92,13 @@ public class TriggerServiceTests : IDisposable
         var replacementPollGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var pollCount = 0;
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(async callInfo =>
             {
                 var token = callInfo.Arg<CancellationToken>();
                 if (Interlocked.Increment(ref pollCount) is 1)
                 {
-                    token.Register(() =>
+                    _ = token.Register(() =>
                     {
                         _service.Start();
                         replacementStarted.SetResult();
@@ -119,11 +120,131 @@ public class TriggerServiceTests : IDisposable
         await replacementStarted.Task;
         await stopTask;
 
-        _service.IsMonitoring.Should().BeTrue();
+        _ = _service.IsMonitoring.Should().BeTrue();
 
         replacementPollGate.SetResult();
         await _service.StopAsync();
-        _service.IsMonitoring.Should().BeFalse();
+        _ = _service.IsMonitoring.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StopAsync_ConcurrentRestartPreservesReplacementMatchingState()
+    {
+        var oldMonitorStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var replacementStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var replacementStateWritten = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var oldPollGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pollCount = 0;
+        var task = new TriggerTask
+        {
+            Value = "firefox",
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Equals,
+            Action = TriggerOperation.SwitchProfile,
+            TargetProfileId = "work",
+            FireMode = TriggerFireMode.OnceOnChange,
+            IsEnabled = true,
+        };
+        _service.AddTask(task);
+        _service.TriggerFired += (_, _) => replacementStateWritten.TrySetResult();
+
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var token = callInfo.Arg<CancellationToken>();
+                if (Interlocked.Increment(ref pollCount) is 1)
+                {
+                    _ = token.Register(() =>
+                    {
+                        _service.Start();
+                        replacementStarted.SetResult();
+                    });
+                    oldMonitorStarted.SetResult();
+                    await oldPollGate.Task;
+                }
+
+                return new WindowInfo { Class = "firefox" };
+            });
+
+        _service.Start();
+        await oldMonitorStarted.Task;
+
+        var stopTask = _service.StopAsync();
+        await replacementStarted.Task;
+        await replacementStateWritten.Task;
+        _ = stopTask.IsCompleted.Should().BeFalse();
+
+        oldPollGate.SetResult();
+        await stopTask;
+
+        await _service.PollOnceAsync(CancellationToken.None);
+
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
+
+        await _service.StopAsync();
+    }
+
+    [Fact]
+    public async Task StopAsync_WaitsForCanceledMonitorToExit()
+    {
+        var oldMonitorStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancellationObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var monitorExitGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var monitorToken = CancellationToken.None;
+
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var token = callInfo.Arg<CancellationToken>();
+                monitorToken = token;
+                _ = token.Register(() => cancellationObserved.TrySetResult());
+                _ = oldMonitorStarted.TrySetResult();
+                await monitorExitGate.Task;
+                return (WindowInfo?)new WindowInfo();
+            });
+
+        _service.Start();
+        await oldMonitorStarted.Task;
+
+        var stopTask = _service.StopAsync(monitorToken);
+        await cancellationObserved.Task;
+
+        _ = stopTask.IsCompleted.Should().BeFalse();
+
+        monitorExitGate.SetResult();
+        await stopTask;
+        _ = _service.IsMonitoring.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Dispose_WaitsForCanceledMonitorToExit_AndIsIdempotent()
+    {
+        var monitorStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancellationObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var monitorExitGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var token = callInfo.Arg<CancellationToken>();
+                _ = token.Register(() => cancellationObserved.TrySetResult());
+                _ = monitorStarted.TrySetResult();
+                await monitorExitGate.Task;
+                return (WindowInfo?)new WindowInfo();
+            });
+
+        _service.Start();
+        await monitorStarted.Task;
+
+        var disposeTask = Task.Run(_service.Dispose);
+        await cancellationObserved.Task;
+
+        _ = disposeTask.IsCompleted.Should().BeFalse();
+        monitorExitGate.SetResult();
+        await disposeTask;
+
+        _ = _service.IsMonitoring.Should().BeFalse();
+        _service.Dispose();
     }
 
     [Fact]
@@ -131,7 +252,7 @@ public class TriggerServiceTests : IDisposable
     {
         var task = new TriggerTask();
         _service.AddTask(task);
-        _service.Tasks.Should().Contain(task);
+        _ = _service.Tasks.Should().Contain(task);
     }
 
     [Fact]
@@ -140,7 +261,7 @@ public class TriggerServiceTests : IDisposable
         var task = new TriggerTask();
         _service.AddTask(task);
         _service.RemoveTask(task.Id);
-        _service.Tasks.Should().NotContain(task);
+        _ = _service.Tasks.Should().NotContain(task);
     }
 
     [Fact]
@@ -157,7 +278,7 @@ public class TriggerServiceTests : IDisposable
 
         _service.SetTaskEnabled(task.Id, enabled: false);
 
-        task.IsEnabled.Should().BeFalse();
+        _ = task.IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -175,14 +296,14 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received().SwitchProfileAsync("gaming");
-        task.LastTriggeredTime.Should().NotBeNull();
-        task.LastStatus.Should().Contain("gaming");
+        await _profileSwitchRequests.Received().RequestSwitchAsync("gaming");
+        _ = task.LastTriggeredTime.Should().NotBeNull();
+        _ = task.LastStatus.Should().Contain("gaming");
     }
 
     [Fact]
@@ -200,7 +321,7 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "Code", Title = "main.rs - VS Code" });
 
         // First poll: match becomes true → fires
@@ -208,7 +329,7 @@ public class TriggerServiceTests : IDisposable
         // Second poll: match still true → should NOT fire again
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(1).SwitchProfileAsync("dev");
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("dev");
     }
 
     [Fact]
@@ -226,14 +347,14 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { ProcessName = "firefox", Class = "Firefox", Title = "Firefox" });
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received().SwitchProfileAsync("gaming");
-        task.LastTriggeredTime.Should().NotBeNull();
-        task.LastStatus.Should().Contain("gaming");
+        await _profileSwitchRequests.Received().RequestSwitchAsync("gaming");
+        _ = task.LastTriggeredTime.Should().NotBeNull();
+        _ = task.LastStatus.Should().Contain("gaming");
     }
 
     [Fact]
@@ -252,21 +373,21 @@ public class TriggerServiceTests : IDisposable
         _service.AddTask(task);
 
         // Poll 1: matching → fires
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "Code", Title = "main.rs - VS Code" });
         await _service.PollOnceAsync(CancellationToken.None);
 
         // Poll 2: no longer matching → no fire, state resets
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "terminal", Title = "Terminal" });
         await _service.PollOnceAsync(CancellationToken.None);
 
         // Poll 3: matching again → should fire again
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "Code", Title = "main.rs - VS Code" });
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(2).SwitchProfileAsync("dev");
+        await _profileSwitchRequests.Received(2).RequestSwitchAsync("dev");
     }
 
     [Fact]
@@ -284,12 +405,12 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "terminal", Title = "Terminal" });
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.DidNotReceive().SwitchProfileAsync(Arg.Any<string>());
+        await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
     }
 
     [Fact]
@@ -307,13 +428,13 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>())
             .Returns("dev");
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(1).SwitchProfileAsync("work");
-        task.LastStatus.Should().Contain("work");
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
+        _ = task.LastStatus.Should().Contain("work");
     }
 
     [Fact]
@@ -331,22 +452,22 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>())
             .Returns("personal");
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.DidNotReceive().SwitchProfileAsync(Arg.Any<string>());
+        await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
     }
 
     [Fact]
     public async Task PollOnce_RunMacroAction_LoadsAndPlaysMacro()
     {
         var macroPath = Path.Combine(_testRootDirectory, "demo.macro");
-        await File.WriteAllTextAsync(macroPath, "{}");
+        await File.WriteAllTextAsync(macroPath, "{}", NonCancelableToken);
         var macro = new MacroSequence();
 
-        _macroFileManager.LoadAsync(macroPath).Returns(macro);
+        _ = _macroFileManager.LoadAsync(macroPath).Returns(macro);
 
         var task = new TriggerTask
         {
@@ -360,14 +481,14 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _macroFileManager.Received(1).LoadAsync(macroPath);
+        _ = await _macroFileManager.Received(1).LoadAsync(macroPath);
         await _macroPlayer.Received(1).PlayAsync(macro, options: null, Arg.Any<CancellationToken>());
-        task.LastStatus.Should().Contain("Ran macro");
+        _ = task.LastStatus.Should().Contain("Ran macro");
     }
 
     [Fact]
@@ -385,15 +506,15 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _macroFileManager.DidNotReceive().LoadAsync(Arg.Any<string>());
+        _ = await _macroFileManager.DidNotReceive().LoadAsync(Arg.Any<string>());
         await _macroPlayer.DidNotReceive().PlayAsync(
             Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions?>(), Arg.Any<CancellationToken>());
-        task.LastStatus.Should().Be("Macro file not found");
+        _ = task.LastStatus.Should().Be("Macro file not found");
     }
 
     [Fact]
@@ -412,14 +533,14 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns((WindowInfo?)null);
-        _windowManager.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>())
             .Returns("dev");
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(1).SwitchProfileAsync("work");
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
     }
 
     [Fact]
@@ -438,17 +559,17 @@ public class TriggerServiceTests : IDisposable
         _service.AddTask(task);
 
         // Poll 1: matches → no fire (OnExit only fires on break).
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
         await _service.PollOnceAsync(CancellationToken.None);
-        await _profileManager.DidNotReceive().SwitchProfileAsync(Arg.Any<string>());
+        await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
 
         // Poll 2: no longer matching → fire
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "terminal", Title = "Terminal" });
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(1).SwitchProfileAsync("work");
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
     }
 
     [Fact]
@@ -466,11 +587,11 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "terminal", Title = "Terminal" });
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.DidNotReceive().SwitchProfileAsync(Arg.Any<string>());
+        await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
     }
 
     [Fact]
@@ -489,14 +610,14 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
 
         await _service.PollOnceAsync(CancellationToken.None);
         await _service.PollOnceAsync(CancellationToken.None);
 
         // Cooldown blocks the second fire.
-        await _profileManager.Received(1).SwitchProfileAsync("work");
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
     }
 
     [Fact]
@@ -515,12 +636,12 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
         await _service.PollOnceAsync(CancellationToken.None);
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(2).SwitchProfileAsync("work");
+        await _profileSwitchRequests.Received(2).RequestSwitchAsync("work");
     }
 
     [Fact]
@@ -536,13 +657,13 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns((WindowInfo?)null);
 
         await _service.PollOnceAsync(CancellationToken.None);
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(2).SwitchProfileAsync("work");
+        await _profileSwitchRequests.Received(2).RequestSwitchAsync("work");
     }
 
     [Fact]
@@ -560,12 +681,12 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "Firefox", Title = "Firefox" });
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(1).SwitchProfileAsync("work");
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
     }
 
     [Fact]
@@ -583,12 +704,12 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "chrome", Title = "Chrome" });
 
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.DidNotReceive().SwitchProfileAsync(Arg.Any<string>());
+        await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
     }
 
     [Fact]
@@ -606,13 +727,13 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "anything", Title = "" });
 
         // Should not throw, should not fire.
-        await _service.Invoking(s => s.PollOnceAsync(CancellationToken.None))
+        _ = await _service.Invoking(s => s.PollOnceAsync(CancellationToken.None))
             .Should().NotThrowAsync();
-        await _profileManager.DidNotReceive().SwitchProfileAsync(Arg.Any<string>());
+        await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
     }
 
     [Fact]
@@ -634,18 +755,18 @@ public class TriggerServiceTests : IDisposable
         };
         _service.AddTask(task);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
 
         // First poll: debounce records start, no fire.
         await _service.PollOnceAsync(CancellationToken.None);
-        await _profileManager.DidNotReceive().SwitchProfileAsync(Arg.Any<string>());
+        await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
 
         // Wait past the 1ms debounce window, then poll again — match stable, should fire.
         await Task.Delay(20);
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.Received(1).SwitchProfileAsync("work");
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
     }
 
     [Fact]
@@ -665,19 +786,19 @@ public class TriggerServiceTests : IDisposable
         _service.AddTask(task);
 
         // Match → break → match within the debounce window: should not fire.
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
         await _service.PollOnceAsync(CancellationToken.None);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "terminal", Title = "Terminal" });
         await _service.PollOnceAsync(CancellationToken.None);
 
-        _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
         await _service.PollOnceAsync(CancellationToken.None);
 
-        await _profileManager.DidNotReceive().SwitchProfileAsync(Arg.Any<string>());
+        await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
     }
 
     [Fact]
@@ -699,18 +820,18 @@ public class TriggerServiceTests : IDisposable
 
         // New service instance loads from same file
         using var service2 = new TriggerService(
-            _windowManager, () => _profileManager, _macroFileManager, () => _macroPlayer, _triggersFilePath);
+            _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, _triggersFilePath);
         await service2.LoadAsync();
 
-        service2.Tasks.Should().HaveCount(1);
-        var loaded = service2.Tasks.First();
-        loaded.Name.Should().Be("Test Trigger");
-        loaded.Value.Should().Be("firefox");
-        loaded.Field.Should().Be(TriggerField.WindowClass);
-        loaded.Action.Should().Be(TriggerOperation.SwitchProfile);
-        loaded.TargetProfileId.Should().Be("gaming");
-        loaded.FireMode.Should().Be(TriggerFireMode.OnceOnChange);
-        loaded.IsEnabled.Should().BeFalse();
+        _ = service2.Tasks.Should().HaveCount(1);
+        var loaded = service2.Tasks[0];
+        _ = loaded.Name.Should().Be("Test Trigger");
+        _ = loaded.Value.Should().Be("firefox");
+        _ = loaded.Field.Should().Be(TriggerField.WindowClass);
+        _ = loaded.Action.Should().Be(TriggerOperation.SwitchProfile);
+        _ = loaded.TargetProfileId.Should().Be("gaming");
+        _ = loaded.FireMode.Should().Be(TriggerFireMode.OnceOnChange);
+        _ = loaded.IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -726,16 +847,16 @@ public class TriggerServiceTests : IDisposable
         try
         {
             using var service2 = new TriggerService(
-                _windowManager, () => _profileManager, _macroFileManager, () => _macroPlayer, _triggersFilePath);
+                _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, _triggersFilePath);
             SynchronizationContext.SetSynchronizationContext(syncContext: null);
             try
             {
                 var loadTask = Task.Run(service2.LoadAsync);
                 await context.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-                loadTask.IsCompleted.Should().BeFalse();
-                service2.Tasks.Should().BeEmpty();
-                context.PendingCallbacks.Should().Be(1);
+                _ = loadTask.IsCompleted.Should().BeFalse();
+                _ = service2.Tasks.Should().BeEmpty();
+                _ = context.PendingCallbacks.Should().Be(1);
 
                 context.Drain();
                 await loadTask.WaitAsync(TimeSpan.FromSeconds(2));
@@ -745,8 +866,8 @@ public class TriggerServiceTests : IDisposable
                 SynchronizationContext.SetSynchronizationContext(context);
             }
 
-            service2.Tasks.Should().ContainSingle().Which.Name.Should().Be("Captured Context Trigger");
-            context.PendingCallbacks.Should().Be(0);
+            _ = service2.Tasks.Should().ContainSingle().Which.Name.Should().Be("Captured Context Trigger");
+            _ = context.PendingCallbacks.Should().Be(0);
         }
         finally
         {
@@ -771,16 +892,16 @@ public class TriggerServiceTests : IDisposable
 
         // Create a second profile directory with a different triggers file
         var profileDir = Path.Combine(_testRootDirectory, "profile2");
-        Directory.CreateDirectory(profileDir);
+        _ = Directory.CreateDirectory(profileDir);
         var profileTriggersPath = Path.Combine(profileDir, "triggers.json");
         File.Copy(_triggersFilePath, profileTriggersPath);
 
         using var service2 = new TriggerService(
-            _windowManager, () => _profileManager, _macroFileManager, () => _macroPlayer, _triggersFilePath);
+            _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, _triggersFilePath);
         await service2.ReloadAsync(profileDir);
 
-        service2.Tasks.Should().HaveCount(1);
-        service2.Tasks.First().Name.Should().Be("Profile Trigger");
+        _ = service2.Tasks.Should().HaveCount(1);
+        _ = service2.Tasks[0].Name.Should().Be("Profile Trigger");
     }
 
     private sealed class DeferredSynchronizationContext : SynchronizationContext
@@ -807,7 +928,7 @@ public class TriggerServiceTests : IDisposable
                 _callbacks.Enqueue((callback, state));
             }
 
-            PostObserved.TrySetResult();
+            _ = PostObserved.TrySetResult();
         }
 
         public void Drain()

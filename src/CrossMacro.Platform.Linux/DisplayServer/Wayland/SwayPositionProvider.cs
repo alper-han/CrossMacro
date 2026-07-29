@@ -14,9 +14,7 @@ public sealed class SwayPositionProvider : IMousePositionProvider
     private bool _disposed;
 
     public SwayPositionProvider()
-        : this(new SwayIpcClient())
-    {
-    }
+        : this(new SwayIpcClient()) { /* Empty */ }
 
     internal SwayPositionProvider(ISwayIpcClient ipcClient)
     {
@@ -54,16 +52,16 @@ public sealed class SwayPositionProvider : IMousePositionProvider
                 return null;
             }
 
-            var activeOutputs = outputs.Where(o => o.Active && o.Rect is not null).ToArray();
+            var activeOutputs = outputs.Where(static o => o.Active && o.Rect is not null).ToArray();
             if (activeOutputs.Length is 0)
             {
                 return null;
             }
 
-            int minX = activeOutputs.Min(o => o.Rect!.X);
-            int minY = activeOutputs.Min(o => o.Rect!.Y);
-            int maxX = activeOutputs.Max(o => o.Rect!.X + o.Rect.Width);
-            int maxY = activeOutputs.Max(o => o.Rect!.Y + o.Rect.Height);
+            int minX = activeOutputs.Min(static o => o.Rect!.X);
+            int minY = activeOutputs.Min(static o => o.Rect!.Y);
+            int maxX = activeOutputs.Max(static o => o.Rect!.X + o.Rect.Width);
+            int maxY = activeOutputs.Max(static o => o.Rect!.Y + o.Rect.Height);
 
             if (maxX <= minX || maxY <= minY)
             {
@@ -76,7 +74,7 @@ public sealed class SwayPositionProvider : IMousePositionProvider
             Log.Information("[SwayPositionProvider] Screen resolution detected: {Width}x{Height}", width, height);
             return (width, height);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[SwayPositionProvider] Failed to get screen resolution");
             return null;

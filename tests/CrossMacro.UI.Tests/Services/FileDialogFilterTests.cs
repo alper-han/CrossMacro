@@ -1,13 +1,13 @@
 
 namespace CrossMacro.UI.Tests.Services;
 
-public class FileDialogFilterTests
+public sealed class FileDialogFilterTests
 {
     [Fact]
     public void NormalizePatterns_WhenNull_ReturnsEmpty()
     {
         var normalized = FileDialogFilter.NormalizePatterns(extensions: null);
-        normalized.Should().BeEmpty();
+        _ = normalized.Should().BeEmpty();
     }
 
     [Theory]
@@ -17,14 +17,22 @@ public class FileDialogFilterTests
     [InlineData("*macro")]
     public void NormalizePatterns_AcceptsCommonExtensionFormats(string extension)
     {
-        var normalized = FileDialogFilter.NormalizePatterns(new[] { extension });
-        normalized.Should().Equal("*.macro");
+        var normalized = FileDialogFilter.NormalizePatterns([extension]);
+        _ = normalized.Should().Equal("*.macro");
     }
 
     [Fact]
     public void NormalizePatterns_RemovesDuplicatesCaseInsensitive()
     {
-        var normalized = FileDialogFilter.NormalizePatterns(new[] { "macro", "*.MACRO", ".macro" });
-        normalized.Should().Equal("*.macro");
+        var normalized = FileDialogFilter.NormalizePatterns(["macro", "*.MACRO", ".macro"]);
+        _ = normalized.Should().Equal("*.macro");
+    }
+
+    [Fact]
+    public void Extensions_AcceptsArrayAssignmentsThroughReadOnlyCollectionContract()
+    {
+        var filter = new FileDialogFilter { Extensions = ["macro", "png"] };
+
+        _ = filter.Extensions.Should().Equal("macro", "png");
     }
 }

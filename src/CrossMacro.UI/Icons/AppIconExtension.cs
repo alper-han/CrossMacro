@@ -3,9 +3,7 @@ namespace CrossMacro.UI.Icons;
 
 public sealed class AppIconExtension : MarkupExtension
 {
-    public AppIconExtension()
-    {
-    }
+    public AppIconExtension() { /* Empty */ }
 
     public AppIconExtension(AppIcon icon)
     {

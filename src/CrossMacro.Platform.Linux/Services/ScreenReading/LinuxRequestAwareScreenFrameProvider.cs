@@ -1,35 +1,24 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-internal sealed class LinuxRequestAwareScreenFrameProvider : IScreenFrameProvider
+internal sealed class LinuxRequestAwareScreenFrameProvider(
+    ILinuxScreenReaderCapabilityDetector capabilityDetector,
+    IReadOnlyList<LinuxScreenReaderBackend> order,
+    Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
+    Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
+    Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
+    Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
+    Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory) : IScreenFrameProvider
 {
-    private readonly ILinuxScreenReaderCapabilityDetector _capabilityDetector;
-    private readonly IReadOnlyList<LinuxScreenReaderBackend> _order;
-    private readonly Func<ExtImageCopySupportResult, IScreenFrameProvider> _extFactory;
-    private readonly Func<WlrScreencopySupportResult, IScreenFrameProvider> _wlrFactory;
-    private readonly Func<PortalScreenCastSupportResult, IScreenFrameProvider> _portalFactory;
-    private readonly Func<KWinScreenShotSupportResult, IScreenFrameProvider> _kWinFactory;
-    private readonly Func<GnomeExtensionSupportResult, IScreenFrameProvider> _gnomeFactory;
+    private readonly ILinuxScreenReaderCapabilityDetector _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
+    private readonly IReadOnlyList<LinuxScreenReaderBackend> _order = order ?? throw new ArgumentNullException(nameof(order));
+    private readonly Func<ExtImageCopySupportResult, IScreenFrameProvider> _extFactory = extFactory ?? throw new ArgumentNullException(nameof(extFactory));
+    private readonly Func<WlrScreencopySupportResult, IScreenFrameProvider> _wlrFactory = wlrFactory ?? throw new ArgumentNullException(nameof(wlrFactory));
+    private readonly Func<PortalScreenCastSupportResult, IScreenFrameProvider> _portalFactory = portalFactory ?? throw new ArgumentNullException(nameof(portalFactory));
+    private readonly Func<KWinScreenShotSupportResult, IScreenFrameProvider> _kWinFactory = kWinFactory ?? throw new ArgumentNullException(nameof(kWinFactory));
+    private readonly Func<GnomeExtensionSupportResult, IScreenFrameProvider> _gnomeFactory = gnomeFactory ?? throw new ArgumentNullException(nameof(gnomeFactory));
     private readonly Dictionary<LinuxScreenReaderBackend, IScreenFrameProvider> _providers = [];
     private bool _disposed;
-
-    public LinuxRequestAwareScreenFrameProvider(
-        ILinuxScreenReaderCapabilityDetector capabilityDetector,
-        IReadOnlyList<LinuxScreenReaderBackend> order,
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
-        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory)
-    {
-        _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
-        _order = order ?? throw new ArgumentNullException(nameof(order));
-        _extFactory = extFactory ?? throw new ArgumentNullException(nameof(extFactory));
-        _wlrFactory = wlrFactory ?? throw new ArgumentNullException(nameof(wlrFactory));
-        _portalFactory = portalFactory ?? throw new ArgumentNullException(nameof(portalFactory));
-        _kWinFactory = kWinFactory ?? throw new ArgumentNullException(nameof(kWinFactory));
-        _gnomeFactory = gnomeFactory ?? throw new ArgumentNullException(nameof(gnomeFactory));
-    }
 
     public string ProviderName => GetProvider(SelectFirstAvailable()).ProviderName;
 

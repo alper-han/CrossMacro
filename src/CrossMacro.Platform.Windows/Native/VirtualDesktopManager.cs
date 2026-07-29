@@ -1,10 +1,10 @@
 
 namespace CrossMacro.Platform.Windows.Native;
 
-internal sealed unsafe class VirtualDesktopManager : IDisposable
+internal sealed partial class VirtualDesktopManager : IDisposable
 {
-    private static readonly Guid Clsid = new("aa509086-5ca9-4c25-8f95-589d3c07b48a");
-    private static readonly Guid Iid = new("a5cd92ff-29be-454c-8d04-d82879fb3f1b");
+    private static readonly Guid Clsid = new(0xaa509086, 0x5ca9, 0x4c25, 0x8f, 0x95, 0x58, 0x9d, 0x3c, 0x07, 0xb4, 0x8a);
+    private static readonly Guid Iid = new(0xa5cd92ff, 0x29be, 0x454c, 0x8d, 0x04, 0xd8, 0x28, 0x79, 0xfb, 0x3f, 0x1b);
     private const uint ClsctxAll = 0x17;
     private const uint CoinitApartmentThreaded = 0x2;
     private const int SOk = 0;
@@ -36,32 +36,26 @@ internal sealed unsafe class VirtualDesktopManager : IDisposable
 
             return new VirtualDesktopManager(instance, apartment);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             apartment.Dispose();
             throw;
         }
     }
 
+    private delegate int VirtualDesktopManagerMethod(IntPtr instance, IntPtr hwnd, ref Guid desktopId);
+
     public int GetWindowDesktopId(IntPtr hwnd, out Guid desktopId)
     {
-        desktopId = default;
-        var function = GetGuidMethod(4);
-
-        fixed (Guid* desktopIdPtr = &desktopId)
-        {
-            return function(_instance, hwnd, desktopIdPtr);
-        }
+        desktopId = Guid.Empty;
+        var function = GetMethodDelegate<VirtualDesktopManagerMethod>(4);
+        return function(_instance, hwnd, ref desktopId);
     }
 
     public int MoveWindowToDesktop(IntPtr hwnd, ref Guid desktopId)
     {
-        var function = GetGuidMethod(5);
-
-        fixed (Guid* desktopIdPtr = &desktopId)
-        {
-            return function(_instance, hwnd, desktopIdPtr);
-        }
+        var function = GetMethodDelegate<VirtualDesktopManagerMethod>(5);
+        return function(_instance, hwnd, ref desktopId);
     }
 
     public void Dispose()
@@ -73,7 +67,7 @@ internal sealed unsafe class VirtualDesktopManager : IDisposable
 
         if (_instance != IntPtr.Zero)
         {
-            Marshal.Release(_instance);
+            _ = Marshal.Release(_instance);
             _instance = IntPtr.Zero;
         }
 
@@ -81,12 +75,13 @@ internal sealed unsafe class VirtualDesktopManager : IDisposable
         _disposed = true;
     }
 
-    private delegate* unmanaged[Stdcall]<IntPtr, IntPtr, Guid*, int> GetGuidMethod(int slot)
+    private T GetMethodDelegate<T>(int slot) where T : Delegate
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        var vtable = *(IntPtr**)_instance;
-        return (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, Guid*, int>)vtable[slot];
+        IntPtr vtable = Marshal.ReadIntPtr(_instance);
+        IntPtr methodPtr = Marshal.ReadIntPtr(vtable, slot * IntPtr.Size);
+        return Marshal.GetDelegateForFunctionPointer<T>(methodPtr);
     }
 
     private sealed class ComApartmentScope : IDisposable
@@ -135,14 +130,14 @@ internal sealed unsafe class VirtualDesktopManager : IDisposable
         }
     }
 
-    [DllImport("ole32.dll", ExactSpelling = true, PreserveSig = true)]
-    private static extern int CoInitializeEx(IntPtr pvReserved, uint dwCoInit);
+    [LibraryImport("ole32.dll")]
+    private static partial int CoInitializeEx(IntPtr pvReserved, uint dwCoInit);
 
-    [DllImport("ole32.dll", ExactSpelling = true)]
-    private static extern void CoUninitialize();
+    [LibraryImport("ole32.dll")]
+    private static partial void CoUninitialize();
 
-    [DllImport("ole32.dll", ExactSpelling = true, PreserveSig = true)]
-    private static extern int CoCreateInstance(
+    [LibraryImport("ole32.dll")]
+    private static partial int CoCreateInstance(
         ref Guid rclsid,
         IntPtr pUnkOuter,
         uint dwClsContext,

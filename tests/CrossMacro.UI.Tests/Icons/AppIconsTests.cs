@@ -15,8 +15,8 @@ public sealed class AppIconsTests
 
             var source = EmojiAppIcon.GetImageSource(icon);
 
-            source.Should().NotBeNull();
-            source!.Size.Should().Be(new Size(128, 128));
+            _ = source.Should().NotBeNull();
+            _ = source!.Size.Should().Be(new Size(128, 128));
         }
     }
 
@@ -30,7 +30,7 @@ public sealed class AppIconsTests
             "settings", "stop", "success", "timer", "tip", "tools", "trigger", "warning",
         };
 
-        Enum.GetValues<AppIcon>()
+        _ = Enum.GetValues<AppIcon>()
             .Select(EmojiAppIcon.GetAssetName)
             .Where(name => name is not null)
             .Should().BeEquivalentTo(expected);
@@ -39,7 +39,7 @@ public sealed class AppIconsTests
     [Fact]
     public void GetImageSource_WhenIconIsInfo_ReturnsInformationalVectorImage()
     {
-        EmojiAppIcon.GetImageSource(AppIcon.Info).Should().NotBeNull();
+        _ = EmojiAppIcon.GetImageSource(AppIcon.Info).Should().NotBeNull();
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class AppIconsTests
     {
         foreach (var icon in Enum.GetValues<AppIcon>())
         {
-            AppIcons.GetPath(icon).Should().NotBeNullOrWhiteSpace($"{icon} must have a vector path");
+            _ = AppIcons.GetPath(icon).Should().NotBeNullOrWhiteSpace($"{icon} must have a vector path");
         }
     }
 
@@ -58,7 +58,7 @@ public sealed class AppIconsTests
 
         var act = () => AppIcons.GetPath(invalid);
 
-        act.Should().Throw<ArgumentOutOfRangeException>();
+        _ = act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class AppIconsTests
     {
         var act = () => AppIconGeometryConverter.Instance.ConvertBack(value: null, typeof(AppIcon), parameter: null, CultureInfo.InvariantCulture);
 
-        act.Should().Throw<NotSupportedException>();
+        _ = act.Should().Throw<NotSupportedException>();
     }
 
 }

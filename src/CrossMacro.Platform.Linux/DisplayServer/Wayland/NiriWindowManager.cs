@@ -5,14 +5,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 /// Window manager implementation using Niri IPC socket commands.
 /// </summary>
 
-internal sealed class NiriWindowManager : IWindowManager
+internal sealed class NiriWindowManager(INiriIpcClient ipcClient) : IWindowManager
 {
-    private readonly INiriIpcClient _ipcClient;
-
-    public NiriWindowManager(INiriIpcClient ipcClient)
-    {
-        _ipcClient = ipcClient ?? throw new ArgumentNullException(nameof(ipcClient));
-    }
+    private readonly INiriIpcClient _ipcClient = ipcClient ?? throw new ArgumentNullException(nameof(ipcClient));
 
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
@@ -35,7 +30,7 @@ internal sealed class NiriWindowManager : IWindowManager
 
             return MapWindow(dto.Ok.FocusedWindow, workspaces, outputs);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[NiriWindowManager] Failed to parse FocusedWindow response");
             return null;
@@ -47,7 +42,7 @@ internal sealed class NiriWindowManager : IWindowManager
         var response = await _ipcClient.SendRequestAsync("\"Windows\"", cancellationToken).ConfigureAwait(false);
         if (response is null)
         {
-            return Array.Empty<WindowInfo>();
+            return [];
         }
 
         try
@@ -55,7 +50,7 @@ internal sealed class NiriWindowManager : IWindowManager
             var dto = JsonSerializer.Deserialize(response, NiriJsonContext.Default.NiriResponseNiriWindowsData);
             if ((dto?.Ok?.Windows) is null)
             {
-                return Array.Empty<WindowInfo>();
+                return [];
             }
 
             var workspaces = await GetWorkspacesMapAsync(cancellationToken).ConfigureAwait(false);
@@ -63,10 +58,10 @@ internal sealed class NiriWindowManager : IWindowManager
 
             return dto.Ok.Windows.Select(w => MapWindow(w, workspaces, outputs)).ToArray();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[NiriWindowManager] Failed to parse Windows response");
-            return Array.Empty<WindowInfo>();
+            return [];
         }
     }
 
@@ -90,7 +85,7 @@ internal sealed class NiriWindowManager : IWindowManager
 
     private async Task<Dictionary<string, NiriOutputDto>> GetOutputsMapAsync(CancellationToken cancellationToken)
     {
-        var map = new Dictionary<string, NiriOutputDto>();
+        var map = new Dictionary<string, NiriOutputDto>(StringComparer.Ordinal);
         var resp = await _ipcClient.SendRequestAsync("\"Outputs\"", cancellationToken).ConfigureAwait(false);
         if (resp is not null)
         {
@@ -190,7 +185,7 @@ internal sealed class NiriWindowManager : IWindowManager
                                     var targetWs = wsData?.Ok?.Workspaces?.FirstOrDefault(w => string.Equals(w.Output, targetOutput.Name, StringComparison.Ordinal) && w.IsActive);
                                     if (targetWs is not null)
                                     {
-                                        await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": null, ""reference"": {{""Id"": {targetWs.Id}}}, ""focus"": false}}}}", cancellationToken).ConfigureAwait(false);
+                                        _ = await SendActionAsync($@"{{""MoveWindowToWorkspace"": {{""id"": null, ""reference"": {{""Id"": {targetWs.Id}}}, ""focus"": false}}}}", cancellationToken).ConfigureAwait(false);
                                     }
                                 }
                             }
@@ -201,7 +196,7 @@ internal sealed class NiriWindowManager : IWindowManager
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "[NiriWindowManager] Failed to map global coordinates to relative");
             }
@@ -280,7 +275,7 @@ internal sealed class NiriWindowManager : IWindowManager
 
             return await MoveActiveWindowAsync(targetX, targetY, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[NiriWindowManager] Failed to calculate center position");
             return false;
@@ -298,10 +293,10 @@ internal sealed class NiriWindowManager : IWindowManager
         try
         {
             var dto = JsonSerializer.Deserialize(response, NiriJsonContext.Default.NiriResponseNiriWorkspacesData);
-            var active = dto?.Ok?.Workspaces?.FirstOrDefault(w => w.IsFocused);
+            var active = dto?.Ok?.Workspaces?.FirstOrDefault(static w => w.IsFocused);
             return active?.Id.ToString(CultureInfo.InvariantCulture) ?? active?.Name;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[NiriWindowManager] Failed to parse Workspaces response");
             return null;
@@ -357,7 +352,7 @@ internal sealed class NiriWindowManager : IWindowManager
 
         if (dto.Layout is not null)
         {
-            if (dto.Layout.TilePosInWorkspaceView is not null && dto.Layout.TilePosInWorkspaceView.Length >= 2)
+            if (dto.Layout.TilePosInWorkspaceView is not null && dto.Layout.TilePosInWorkspaceView.Count >= 2)
             {
                 x = (int)Math.Round(dto.Layout.TilePosInWorkspaceView[0], MidpointRounding.AwayFromZero);
                 y = (int)Math.Round(dto.Layout.TilePosInWorkspaceView[1], MidpointRounding.AwayFromZero);
@@ -370,7 +365,7 @@ internal sealed class NiriWindowManager : IWindowManager
                 }
             }
 
-            if (dto.Layout.WindowSize is not null && dto.Layout.WindowSize.Length >= 2)
+            if (dto.Layout.WindowSize is not null && dto.Layout.WindowSize.Count >= 2)
             {
                 w = (int)Math.Round(dto.Layout.WindowSize[0], MidpointRounding.AwayFromZero);
                 h = (int)Math.Round(dto.Layout.WindowSize[1], MidpointRounding.AwayFromZero);

@@ -1,6 +1,6 @@
 global using CrossMacro.Core.Services;
 global using CrossMacro.Infrastructure.Services;
-global using CrossMacro.Infrastructure.Services.Recording.Strategies;
+global using CrossMacro.Platform.Abstractions.Recording.Strategies;
 global using CrossMacro.Platform.Abstractions;
 global using CrossMacro.Platform.Windows.DependencyInjection;
 global using CrossMacro.Platform.Windows.Native;

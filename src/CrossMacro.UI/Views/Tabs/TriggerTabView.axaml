@@ -1,7 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
               xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
+             xmlns:conv="using:CrossMacro.UI.Converters"
               xmlns:core="using:CrossMacro.Core.Models"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -13,7 +15,7 @@
              x:DataType="vm:TriggerViewModel">
 
     <Design.DataContext>
-        <vm:DesignTriggerViewModel/>
+        <designVm:DesignTriggerViewModel/>
     </Design.DataContext>
 
     <ScrollViewer Padding="10">
@@ -160,7 +162,7 @@
                         </StackPanel>
                         <!-- Match Mode (hidden when Field = None/Interval) -->
                         <StackPanel Grid.Column="2" Spacing="4"
-                                    IsVisible="{Binding SelectedTask.Field, Converter={x:Static tabs:TriggerTabConverters.NeedsMatchValueConverter}}">
+                                    IsVisible="{Binding SelectedTask.Field, Converter={x:Static conv:TriggerTabConverters.NeedsMatchValueConverter}}">
                             <TextBlock Text="{localization:Loc Trigger_MatchMode}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.MatchMode, Mode=TwoWay}"
                                       ItemsSource="{x:Static core:TriggerEnums.AvailableMatchModes}"
@@ -170,7 +172,7 @@
 
                     <!-- Match Value (hidden when Field = None/Interval) -->
                     <StackPanel Spacing="4"
-                                IsVisible="{Binding SelectedTask.Field, Converter={x:Static tabs:TriggerTabConverters.NeedsMatchValueConverter}}">
+                                IsVisible="{Binding SelectedTask.Field, Converter={x:Static conv:TriggerTabConverters.NeedsMatchValueConverter}}">
                         <TextBlock Text="{localization:Loc Trigger_Value}" Classes="caption"/>
 
                         <!-- Primary: manual text entry -->
@@ -194,7 +196,7 @@
                         <ComboBox ItemsSource="{Binding AvailableWindowValues}"
                                   PlaceholderText="{localization:Loc Trigger_WindowPickerPlaceholder}"
                                   SelectedItem="{Binding SelectedWindowValue, Mode=TwoWay}"
-                                  IsVisible="{Binding AvailableWindowValues.Count, Converter={x:Static tabs:TriggerTabConverters.IsNonZeroConverter}}"
+                                  IsVisible="{Binding AvailableWindowValues.Count, Converter={x:Static conv:TriggerTabConverters.IsNonZeroConverter}}"
                                   HorizontalAlignment="Stretch"/>
                     </StackPanel>
 
@@ -216,7 +218,7 @@
 
                     <!-- Target Profile (visible when Action = SwitchProfile) -->
                     <StackPanel Spacing="4"
-                                IsVisible="{Binding SelectedTask.Action, Converter={x:Static tabs:TriggerTabConverters.IsSwitchProfileConverter}, FallbackValue=False}">
+                                IsVisible="{Binding SelectedTask.Action, Converter={x:Static conv:TriggerTabConverters.IsSwitchProfileConverter}, FallbackValue=False}">
                         <TextBlock Text="{localization:Loc Trigger_TargetProfile}" Classes="caption"/>
                         <ComboBox SelectedItem="{Binding TargetProfileInfo, Mode=TwoWay}"
                                   ItemsSource="{Binding AvailableProfiles}"
@@ -231,7 +233,7 @@
 
                     <!-- Macro File (visible when Action = RunMacro) -->
                     <StackPanel Spacing="4"
-                                IsVisible="{Binding SelectedTask.Action, Converter={x:Static tabs:TriggerTabConverters.IsRunMacroConverter}, FallbackValue=False}">
+                                IsVisible="{Binding SelectedTask.Action, Converter={x:Static conv:TriggerTabConverters.IsRunMacroConverter}, FallbackValue=False}">
                         <TextBlock Text="{localization:Loc Trigger_MacroFile}" Classes="caption"/>
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Grid.Column="0"

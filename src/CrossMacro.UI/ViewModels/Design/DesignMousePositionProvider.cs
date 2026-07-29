@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignMousePositionProvider : IMousePositionProvider
 {
@@ -11,7 +11,5 @@ internal sealed class DesignMousePositionProvider : IMousePositionProvider
 
     public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>((1920, 1080));
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

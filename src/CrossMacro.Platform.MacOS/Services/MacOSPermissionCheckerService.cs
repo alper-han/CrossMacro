@@ -21,8 +21,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionChecker.IsPostEventAccessGranted,
             MacOSPermissionChecker.RequestListenEventAccess,
             MacOSPermissionChecker.RequestPostEventAccess)
-    {
-    }
+    { /* Empty */ }
 
     internal MacOSPermissionCheckerService(
         Func<MacOSPermissionStatus> getCurrentStatus,
@@ -106,6 +105,12 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
     {
         // Not applicable on macOS
         return false;
+    }
+
+    public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(false);
     }
 
     public void OpenAccessibilitySettings()

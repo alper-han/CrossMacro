@@ -60,7 +60,7 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
             Array.Clear(validPixelMask, 0, validPixelCount);
             return new WaylandScreenFrameComposer(logicalBounds, stride, pixelByteCount, validPixelCount, pixels, validPixelMask);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (pixels is not null)
             {
@@ -190,7 +190,7 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
                 validityIndex = ScreenFrameValidityIndex.Create(validPixelMask.AsSpan(0, _validPixelCount), LogicalBounds.Width, LogicalBounds.Height);
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (validPixelMask is not null)
             {
@@ -234,17 +234,13 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
         switch (sourceFormat)
         {
             case ScreenPixelFormat.Rgb24:
+            case ScreenPixelFormat.Xbgr8888:
                 target[targetOffset] = source[sourceOffset + 2];
                 target[targetOffset + 1] = source[sourceOffset + 1];
                 target[targetOffset + 2] = source[sourceOffset];
                 target[targetOffset + 3] = 255;
                 break;
             case ScreenPixelFormat.Bgr24:
-                target[targetOffset] = source[sourceOffset];
-                target[targetOffset + 1] = source[sourceOffset + 1];
-                target[targetOffset + 2] = source[sourceOffset + 2];
-                target[targetOffset + 3] = 255;
-                break;
             case ScreenPixelFormat.Xrgb8888:
                 target[targetOffset] = source[sourceOffset];
                 target[targetOffset + 1] = source[sourceOffset + 1];
@@ -262,12 +258,6 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
                 target[targetOffset + 1] = source[sourceOffset + 1];
                 target[targetOffset + 2] = source[sourceOffset];
                 target[targetOffset + 3] = source[sourceOffset + 3];
-                break;
-            case ScreenPixelFormat.Xbgr8888:
-                target[targetOffset] = source[sourceOffset + 2];
-                target[targetOffset + 1] = source[sourceOffset + 1];
-                target[targetOffset + 2] = source[sourceOffset];
-                target[targetOffset + 3] = 255;
                 break;
             default:
                 throw new InvalidOperationException($"Unsupported screen pixel format '{sourceFormat}'.");

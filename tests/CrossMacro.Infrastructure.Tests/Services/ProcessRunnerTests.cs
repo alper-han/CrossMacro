@@ -1,7 +1,7 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
-public class ProcessRunnerTests
+public sealed class ProcessRunnerTests
 {
     [Fact]
     public async Task CheckCommandAsync_WhenCommandDoesNotExist_ReturnsFalse()
@@ -27,7 +27,7 @@ public class ProcessRunnerTests
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
         var runner = new ProcessRunner();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             runner.RunCommandAsync("sh", ["-c", $"sleep 1; touch {marker}"], string.Empty, cancellation.Token));
 
         await Task.Delay(TimeSpan.FromMilliseconds(1500));
@@ -159,14 +159,9 @@ public class ProcessRunnerTests
             CancellationToken.None);
     }
 
-    private sealed class TempFileCleanup : IAsyncDisposable
+    private sealed class TempFileCleanup(string path) : IAsyncDisposable
     {
-        private readonly string _path;
-
-        public TempFileCleanup(string path)
-        {
-            _path = path;
-        }
+        private readonly string _path = path;
 
         public ValueTask DisposeAsync()
         {

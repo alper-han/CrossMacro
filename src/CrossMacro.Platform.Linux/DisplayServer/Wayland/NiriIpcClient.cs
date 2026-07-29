@@ -10,37 +10,30 @@ internal sealed class NiriIpcClient : INiriIpcClient
     private const string RuntimeDirectoryEnvironmentVariable = "XDG_RUNTIME_DIR";
     private const int SocketTimeoutMs = 1000;
     private const int BufferSize = 8192;
-
-    private readonly string? _socketPath;
     private bool _disposed;
 
     public NiriIpcClient()
         : this(
             Environment.GetEnvironmentVariable(SocketPathEnvironmentVariable),
             Environment.GetEnvironmentVariable(RuntimeDirectoryEnvironmentVariable))
-    {
-    }
+    { /* Empty */ }
 
     public NiriIpcClient(LinuxEnvironmentSnapshot environment)
-        : this(environment.NiriSocket, environment.RuntimeDir)
-    {
-    }
+        : this(environment.NiriSocket, environment.RuntimeDir) { /* Empty */ }
 
     internal NiriIpcClient(string? socketPath)
-        : this(socketPath, Environment.GetEnvironmentVariable(RuntimeDirectoryEnvironmentVariable))
-    {
-    }
+        : this(socketPath, Environment.GetEnvironmentVariable(RuntimeDirectoryEnvironmentVariable)) { /* Empty */ }
 
     internal NiriIpcClient(string? socketPath, string? runtimeDirectory)
     {
-        _socketPath = TryNormalizeSocketPath(socketPath, runtimeDirectory, out var normalizedSocketPath)
+        SocketPath = TryNormalizeSocketPath(socketPath, runtimeDirectory, out var normalizedSocketPath)
             ? normalizedSocketPath
             : null;
-        IsAvailable = _socketPath is not null && File.Exists(_socketPath);
+        IsAvailable = SocketPath is not null && File.Exists(SocketPath);
 
         if (IsAvailable)
         {
-            Log.Information("[NiriIpcClient] Socket found: {SocketPath}", _socketPath);
+            Log.Information("[NiriIpcClient] Socket found: {SocketPath}", SocketPath);
         }
         else
         {
@@ -50,7 +43,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
 
     public bool IsAvailable { get; }
 
-    public string? SocketPath => _socketPath;
+    public string? SocketPath { get; }
 
     internal static bool TryNormalizeSocketPath(string? socketPath, string? runtimeDirectory, out string? normalizedSocketPath)
     {
@@ -95,7 +88,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
 
     public async Task<string?> SendRequestAsync(string requestJson, CancellationToken cancellationToken = default)
     {
-        if (_disposed || !IsAvailable || _socketPath is null)
+        if (_disposed || !IsAvailable || SocketPath is null)
         {
             return null;
         }
@@ -108,7 +101,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[NiriIpcClient] Failed to send IPC request");
             return null;
@@ -123,12 +116,12 @@ internal sealed class NiriIpcClient : INiriIpcClient
 
         try
         {
-            var endpoint = new UnixDomainSocketEndPoint(_socketPath!);
+            var endpoint = new UnixDomainSocketEndPoint(SocketPath!);
             await socket.ConnectAsync(endpoint, linkedCts.Token).ConfigureAwait(false);
 
             var request = requestJson.EndsWith('\n') ? requestJson : requestJson + "\n";
             var requestBytes = Encoding.UTF8.GetBytes(request);
-            await socket.SendAsync(requestBytes, SocketFlags.None, linkedCts.Token).ConfigureAwait(false);
+            _ = await socket.SendAsync(requestBytes, SocketFlags.None, linkedCts.Token).ConfigureAwait(false);
 
             var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
             try
@@ -168,7 +161,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
                 {
                     socket.Shutdown(SocketShutdown.Both);
                 }
-                catch
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     // Ignore shutdown errors during cleanup.
                 }

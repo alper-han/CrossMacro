@@ -1,20 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakeX11ScreenCapture : IX11ScreenCapture
+internal sealed class FakeX11ScreenCapture(
+    X11ScreenCaptureSupportResult support,
+    X11ScreenCaptureResult? captureResult = null) : IX11ScreenCapture
 {
-    private readonly X11ScreenCaptureSupportResult _support;
-    private readonly X11ScreenCaptureResult _captureResult;
-
-    public FakeX11ScreenCapture(
-        X11ScreenCaptureSupportResult support,
-        X11ScreenCaptureResult? captureResult = null)
-    {
-        _support = support;
-        _captureResult = captureResult ?? X11ScreenCaptureResult.Failure(
+    private readonly X11ScreenCaptureSupportResult _support = support;
+    private readonly X11ScreenCaptureResult _captureResult = captureResult ?? X11ScreenCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake X11 frame configured");
-    }
 
     public int CaptureCalls { get; private set; }
 

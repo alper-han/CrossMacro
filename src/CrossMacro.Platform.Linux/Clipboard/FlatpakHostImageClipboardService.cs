@@ -1,12 +1,15 @@
 
 namespace CrossMacro.Platform.Linux.Clipboard;
 
-public sealed class FlatpakHostImageClipboardService : IImageClipboardService
+public sealed class FlatpakHostImageClipboardService(
+    IProcessRunner processRunner,
+    IRuntimeContext runtimeContext,
+    Func<string, string?> getEnvironmentVariable) : IImageClipboardService
 {
     private const string FlatpakSpawn = "flatpak-spawn";
-    private readonly IProcessRunner _processRunner;
-    private readonly IRuntimeContext _runtimeContext;
-    private readonly Func<string, string?> _getEnvironmentVariable;
+    private readonly IProcessRunner _processRunner = processRunner;
+    private readonly IRuntimeContext _runtimeContext = runtimeContext;
+    private readonly Func<string, string?> _getEnvironmentVariable = getEnvironmentVariable;
     private readonly LinuxEnvironmentSnapshot? _environment;
     private ClipboardTool _tool = ClipboardTool.Unknown;
     private bool _initialized;
@@ -19,9 +22,7 @@ public sealed class FlatpakHostImageClipboardService : IImageClipboardService
     }
 
     public FlatpakHostImageClipboardService(IProcessRunner processRunner, IRuntimeContext runtimeContext)
-        : this(processRunner, runtimeContext, LinuxEnvironmentVariables.CaptureCurrentSnapshot())
-    {
-    }
+        : this(processRunner, runtimeContext, LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
 
     public FlatpakHostImageClipboardService(
         IProcessRunner processRunner,
@@ -30,16 +31,6 @@ public sealed class FlatpakHostImageClipboardService : IImageClipboardService
         : this(processRunner, runtimeContext, static _ => null)
     {
         _environment = environment;
-    }
-
-    public FlatpakHostImageClipboardService(
-        IProcessRunner processRunner,
-        IRuntimeContext runtimeContext,
-        Func<string, string?> getEnvironmentVariable)
-    {
-        _processRunner = processRunner;
-        _runtimeContext = runtimeContext;
-        _getEnvironmentVariable = getEnvironmentVariable;
     }
 
     public bool IsSupported => _tool is not ClipboardTool.Unknown || !_initialized;
@@ -108,7 +99,7 @@ public sealed class FlatpakHostImageClipboardService : IImageClipboardService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[FlatpakHostImageClipboard] Failed to set host image clipboard");
             throw;
@@ -150,7 +141,7 @@ public sealed class FlatpakHostImageClipboardService : IImageClipboardService
         {
             throw;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }

@@ -38,9 +38,7 @@ public class TextExpansionEntry
     /// <summary>
     /// Creates a new text expansion
     /// </summary>
-    public TextExpansionEntry()
-    {
-    }
+    public TextExpansionEntry() { /* Empty */ }
 
     /// <summary>
     /// Creates a new text expansion with the specified trigger and replacement

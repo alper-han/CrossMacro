@@ -12,7 +12,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
         string? display,
         string expectedCompositor)
     {
-        var environment = new Dictionary<string, string?>
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["XDG_SESSION_TYPE"] = sessionType,
             ["WAYLAND_DISPLAY"] = waylandDisplay,

@@ -1,6 +1,6 @@
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public class ShortcutTaskEditorTests
+public sealed class ShortcutTaskEditorTests
 {
     [Fact]
     public void LoadAndApplyToCore_PreservesAllPersistedFields()
@@ -26,7 +26,7 @@ public class ShortcutTaskEditorTests
 
         var saved = editor.ToCore();
 
-        saved.Should().BeEquivalentTo(source);
+        _ = saved.Should().BeEquivalentTo(source);
     }
 
     [Fact]
@@ -48,10 +48,10 @@ public class ShortcutTaskEditorTests
 
         editor.Rollback();
 
-        editor.Name.Should().Be("Original");
-        editor.PlaybackSpeed.Should().Be(1.5);
-        source.Name.Should().Be("Original");
-        source.PlaybackSpeed.Should().Be(1.5);
+        _ = editor.Name.Should().Be("Original");
+        _ = editor.PlaybackSpeed.Should().Be(1.5);
+        _ = source.Name.Should().Be("Original");
+        _ = source.PlaybackSpeed.Should().Be(1.5);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class ShortcutTaskEditorTests
 
         editor.SyncRuntimeStatus(DateTime.UtcNow, "Running");
 
-        editor.Name.Should().Be("Macro");
-        editor.LastStatus.Should().Be("Running");
+        _ = editor.Name.Should().Be("Macro");
+        _ = editor.LastStatus.Should().Be("Running");
     }
 }

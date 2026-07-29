@@ -14,7 +14,6 @@ public sealed class ScreenImageMatcher : IDisposable
     internal const long MaxTemplateCacheBytes = 64L * 1024 * 1024;
     private static readonly double[] PrimaryScales = [1.0, 0.9, 1.1, 0.8, 1.2, 1.25, 0.75, 1.5];
     private static readonly double[] SecondaryScales = [0.95, 1.05, 0.85, 1.15, 1.3, 0.7, 1.35, 1.4, 1.45];
-    private static readonly double[] SupportedScales = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35, 1.4, 1.45, 1.5];
 
     private readonly Lock _lifetimeLock = new();
     private readonly Lock _templateCacheLock = new();
@@ -93,7 +92,6 @@ public sealed class ScreenImageMatcher : IDisposable
                 $"A single image matcher candidate requires more than {MaxMatcherWork.ToString("N0", CultureInfo.InvariantCulture)} channel comparisons, exceeding the internal limit.");
         }
 
-        var singleCandidateSampleWork = samplePixelCount * ColorChannelCount;
         var requestedAnchorCount = Math.Min((long)options.AnchorPointCount, samplePixelCount);
         if (samplePixelCount + requestedAnchorCount > MaxMatcherWork / ColorChannelCount)
         {
@@ -230,7 +228,7 @@ public sealed class ScreenImageMatcher : IDisposable
         _disposeCompleted.Dispose();
     }
 
-    private IDisposable EnterSearchLease()
+    private MatcherSearchLease EnterSearchLease()
     {
         lock (_lifetimeLock)
         {
@@ -330,7 +328,7 @@ public sealed class ScreenImageMatcher : IDisposable
         var bestCandidateLock = new Lock();
         var frameFullyValid = validityFrame.IsFullyValid;
         var parallelOptions = new ParallelOptions { CancellationToken = cancellationToken };
-        Parallel.For(startY, endY, parallelOptions, candidateYValue =>
+        _ = Parallel.For(startY, endY, parallelOptions, candidateYValue =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             var candidateY = checked((int)candidateYValue);
@@ -419,7 +417,7 @@ public sealed class ScreenImageMatcher : IDisposable
         var bestCandidateLock = new Lock();
         var parallelOptions = new ParallelOptions { CancellationToken = cancellationToken };
 
-        Parallel.For(0, endYDown, parallelOptions, yDown =>
+        _ = Parallel.For(0, endYDown, parallelOptions, yDown =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             var rowBestDown = FindBestCandidateInRow(
@@ -430,7 +428,7 @@ frameFullyValid: true,
                 new ScreenRect(0, 0, frameDown.Width, frameDown.Height),
                 startXDown,
                 endXDown,
-                (int)yDown,
+                yDown,
                 anchorsDown,
                 allowedSadDown,
                 1,
@@ -499,7 +497,7 @@ frameFullyValid: true,
 
         if (ShouldParallelizeRows(w, h))
         {
-            Parallel.For(0, h, CopyRow);
+            _ = Parallel.For(0, h, CopyRow);
         }
         else
         {
@@ -536,7 +534,7 @@ frameFullyValid: true,
 
         if (ShouldParallelizeRows(w, h))
         {
-            Parallel.For(0, h, CopyRow);
+            _ = Parallel.For(0, h, CopyRow);
         }
         else
         {
@@ -649,7 +647,7 @@ frameFullyValid: true,
 
     private static void EnsureReadable(ScreenFrame frame)
     {
-        frame.TryGetPixel(new ScreenPoint(frame.LogicalBounds.X, frame.LogicalBounds.Y), out _);
+        _ = frame.TryGetPixel(new ScreenPoint(frame.LogicalBounds.X, frame.LogicalBounds.Y), out _);
     }
 
     private static int GetSampleCount(int length, int downsampleFactor) => ((length - 1) / downsampleFactor) + 1;
@@ -669,7 +667,7 @@ frameFullyValid: true,
         }
 
         var normalized = NormalizeFrame(template, cancellationToken);
-        Interlocked.Increment(ref _templateNormalizationCount);
+        _ = Interlocked.Increment(ref _templateNormalizationCount);
         var entryBytes = checked((long)key.Content.Length + normalized.Pixels.LongLength);
         if (entryBytes > _maxTemplateCacheBytes)
         {
@@ -829,7 +827,7 @@ frameFullyValid: true,
 
     private RgbImage GetScaledTemplate(ScreenFrame template, RgbImage source, int width, int height, double scale, int downsampleFactor, CancellationToken cancellationToken)
     {
-        var key = CreateTemplateCacheKey(template, downsampleFactor, cancellationToken, (int)Math.Round(scale * 1000)) with { Width = width, Height = height };
+        var key = CreateTemplateCacheKey(template, downsampleFactor, cancellationToken, (int)Math.Round(scale * 1000, MidpointRounding.AwayFromZero)) with { Width = width, Height = height };
         lock (_templateCacheLock)
         {
             if (_templateCache.TryGetValue(key, out var cached))
@@ -926,7 +924,7 @@ frameFullyValid: true,
     private void RemoveTemplateCacheEntry(LinkedListNode<TemplateCacheEntry> node)
     {
         _templateCacheLru.Remove(node);
-        _templateCache.Remove(node.Value.Key);
+        _ = _templateCache.Remove(node.Value.Key);
         _templateCacheBytes -= node.Value.SizeBytes;
     }
 
@@ -946,7 +944,7 @@ frameFullyValid: true,
         {
             var sampleIndex = anchorCount is 1
                 ? 0
-                : (int)Math.Round(anchorIndex * (sampleCount - 1) / (double)(anchorCount - 1));
+                : (int)Math.Round(anchorIndex * (sampleCount - 1) / (double)(anchorCount - 1), MidpointRounding.AwayFromZero);
             if (sampleIndex == previousIndex)
             {
                 continue;
@@ -1095,7 +1093,7 @@ frameFullyValid: true,
             NormalizeFrameInto(frame, target, cancellationToken);
             return new RgbImage(frame.Width, frame.Height, target, checked(frame.Width * ColorChannelCount));
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             ArrayPool<byte>.Shared.Return(target);
             throw;
@@ -1138,7 +1136,7 @@ frameFullyValid: true,
                 }
             }
 
-            Parallel.For(
+            _ = Parallel.For(
                 0,
                 frame.Height,
                 new ParallelOptions { CancellationToken = cancellationToken },
@@ -1167,6 +1165,8 @@ frameFullyValid: true,
         switch (pixelFormat)
         {
             case ScreenPixelFormat.Rgb24:
+            case ScreenPixelFormat.Abgr8888:
+            case ScreenPixelFormat.Xbgr8888:
                 target[targetOffset] = source[sourceOffset];
                 target[targetOffset + 1] = source[sourceOffset + 1];
                 target[targetOffset + 2] = source[sourceOffset + 2];
@@ -1177,12 +1177,6 @@ frameFullyValid: true,
                 target[targetOffset] = source[sourceOffset + 2];
                 target[targetOffset + 1] = source[sourceOffset + 1];
                 target[targetOffset + 2] = source[sourceOffset];
-                break;
-            case ScreenPixelFormat.Abgr8888:
-            case ScreenPixelFormat.Xbgr8888:
-                target[targetOffset] = source[sourceOffset];
-                target[targetOffset + 1] = source[sourceOffset + 1];
-                target[targetOffset + 2] = source[sourceOffset + 2];
                 break;
             default:
                 throw new InvalidOperationException($"Unsupported screen pixel format '{pixelFormat}'.");
@@ -1277,6 +1271,7 @@ frameFullyValid: true,
         return Math.Clamp(1.0 - (sad / maximumSad), 0.0, 1.0);
     }
 
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     private readonly record struct AnchorPoint(int X, int Y);
 
     private readonly record struct RgbImage(int Width, int Height, byte[] Pixels, int RowStride);
@@ -1317,30 +1312,18 @@ frameFullyValid: true,
         }
     }
 
-    private sealed class TemplateCacheEntry
+    private sealed class TemplateCacheEntry(ScreenImageMatcher.TemplateCacheKey key, ScreenImageMatcher.RgbImage image, long sizeBytes)
     {
-        public TemplateCacheEntry(TemplateCacheKey key, RgbImage image, long sizeBytes)
-        {
-            Key = key;
-            Image = image;
-            SizeBytes = sizeBytes;
-        }
+        public TemplateCacheKey Key { get; } = key;
 
-        public TemplateCacheKey Key { get; }
+        public RgbImage Image { get; } = image;
 
-        public RgbImage Image { get; }
-
-        public long SizeBytes { get; }
+        public long SizeBytes { get; } = sizeBytes;
     }
 
-    private sealed class MatcherSearchLease : IDisposable
+    private sealed class MatcherSearchLease(ScreenImageMatcher owner) : IDisposable
     {
-        private ScreenImageMatcher? _owner;
-
-        public MatcherSearchLease(ScreenImageMatcher owner)
-        {
-            _owner = owner;
-        }
+        private ScreenImageMatcher? _owner = owner;
 
         public void Dispose()
         {
@@ -1348,6 +1331,7 @@ frameFullyValid: true,
         }
     }
 
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     private readonly record struct MatchCandidate(int X, int Y, long Sad, double MaximumSad = 0, int Width = 0, int Height = 0, double Scale = 1.0)
     {
         public static MatchCandidate None => new(0, 0, long.MaxValue);
@@ -1391,10 +1375,8 @@ frameFullyValid: true,
 
     private struct EarlySuccessSignal
     {
-        private bool _requested;
+        public bool IsRequested { get; private set; }
 
-        public bool IsRequested => _requested;
-
-        public void Request() => _requested = true;
+        public void Request() => IsRequested = true;
     }
 }

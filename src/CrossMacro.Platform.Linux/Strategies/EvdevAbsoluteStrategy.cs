@@ -5,9 +5,9 @@ namespace CrossMacro.Platform.Linux.Strategies;
 /// Absolute coordinate strategy for Wayland that polls the compositor for real-time position.
 /// Uses background sync loop + cache to avoid IPC latency in ProcessPosition().
 /// </summary>
-public class EvdevAbsoluteStrategy : ICoordinateStrategy
+public sealed class EvdevAbsoluteStrategy(IMousePositionProvider positionProvider) : ICoordinateStrategy
 {
-    private readonly IMousePositionProvider _positionProvider;
+    private IMousePositionProvider PositionProvider { get; } = positionProvider;
     private int _currentX;
     private int _currentY;
     private int _screenWidth = 1920;
@@ -16,15 +16,10 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
     private Task? _syncTask;
     private CancellationTokenSource? _cts;
 
-    public EvdevAbsoluteStrategy(IMousePositionProvider positionProvider)
-    {
-        _positionProvider = positionProvider;
-    }
-
     public async Task InitializeAsync(CancellationToken ct)
     {
         // 1. Get Screen Resolution
-        var res = await _positionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
+        var res = await PositionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
         if (res is not null)
         {
             _screenWidth = res.Value.Width;
@@ -37,7 +32,7 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
         }
 
         // 2. Get Initial Position
-        var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+        var pos = await PositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
         if (pos is not null)
         {
             _currentX = pos.Value.X;
@@ -70,12 +65,12 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
         {
             try
             {
-                var pos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                var pos = await PositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
                 if (pos is not null)
                 {
                     // Thread-safe update
-                    Interlocked.Exchange(ref _currentX, pos.Value.X);
-                    Interlocked.Exchange(ref _currentY, pos.Value.Y);
+                    _ = Interlocked.Exchange(ref _currentX, pos.Value.X);
+                    _ = Interlocked.Exchange(ref _currentY, pos.Value.Y);
                     errorCount = 0; // Reset on success
                 }
 
@@ -86,7 +81,7 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 errorCount++;
                 if (errorCount <= 3)
@@ -127,11 +122,12 @@ public class EvdevAbsoluteStrategy : ICoordinateStrategy
         // Give sync loop a moment to exit gracefully
         try
         {
-            _syncTask?.Wait(100);
+            _ = _syncTask?.Wait(100, _cts?.Token ?? CancellationToken.None);
         }
-        catch { /* Ignore */ }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { /* Ignore */ }
 
         _cts?.Dispose();
         Log.Debug("[EvdevAbsoluteStrategy] Disposed");
+        GC.SuppressFinalize(this);
     }
 }

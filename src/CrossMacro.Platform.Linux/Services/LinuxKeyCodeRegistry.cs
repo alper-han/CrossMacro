@@ -342,7 +342,7 @@ public static class LinuxKeyCodeRegistry
     /// <summary>
     /// Gets all known key names
     /// </summary>
-    public static IReadOnlyDictionary<int, string> GetAllKeyNames() => KeyNames;
+    public static IReadOnlyDictionary<int, string> AllKeyNames => KeyNames;
 
     /// <summary>
     /// Gets a display-friendly name for a key code

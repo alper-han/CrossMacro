@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services;
 
-public class PlaybackValidatorExtendedTests
+public sealed class PlaybackValidatorExtendedTests
 {
     private readonly PlaybackValidator _validator = new(CreateKeyCodeMapper());
 
@@ -20,8 +20,8 @@ public class PlaybackValidatorExtendedTests
         var result = _validator.Validate(macro);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("invalid/undefined EventType"));
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().Contain(e => e.Contains("invalid/undefined EventType"));
     }
 
     [Fact]
@@ -40,8 +40,8 @@ public class PlaybackValidatorExtendedTests
 
         // Assert
         // Should be valid (warn only)
-        result.IsValid.Should().BeTrue();
-        result.Warnings.Should().Contain(w => w.Contains("None"));
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Warnings.Should().Contain(w => w.Contains("None"));
     }
 
     private static IKeyCodeMapper CreateKeyCodeMapper()

@@ -17,10 +17,10 @@ public sealed class LoadedMacroListItemTests
         var item = new LoadedMacroListItem(new MacroSequence
         {
             Name = "Screen Reading Macro",
-            ScriptSteps = {scriptStep},
+            ScriptSteps = { scriptStep },
         });
 
-        item.EventCount.Should().Be(1);
+        _ = item.EventCount.Should().Be(1);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class LoadedMacroListItemTests
             },
         });
 
-        item.EventCount.Should().Be(4);
+        _ = item.EventCount.Should().Be(4);
     }
 
     [Theory]
@@ -51,9 +51,9 @@ public sealed class LoadedMacroListItemTests
         var item = new LoadedMacroListItem(new MacroSequence
         {
             Name = "Script Macro",
-            ScriptSteps = {scriptStep},
+            ScriptSteps = { scriptStep },
         });
 
-        item.EventCount.Should().Be(0);
+        _ = item.EventCount.Should().Be(0);
     }
 }

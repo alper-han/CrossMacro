@@ -8,7 +8,7 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
-    public GnomeWindowManager() { }
+    public GnomeWindowManager() { /* Empty */ }
 
     private async Task EnsureInitializedAsync(CancellationToken ct)
     {
@@ -32,16 +32,17 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
         }
         finally
         {
-            _initLock.Release();
+            _ = _initLock.Release();
         }
     }
 
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
         try
         {
-            var json = await _trackerClient!.GetActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+            var json = await client.GetActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(json) || string.Equals(json, "null", StringComparison.Ordinal))
             {
                 return null;
@@ -50,15 +51,16 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
             var win = JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfo);
             return win is not null ? win with { ProcessName = Helpers.ProcessHelper.GetProcessName(win.Pid) } : null;
         }
-        catch { return null; }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { return null; }
     }
 
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
         try
         {
-            var json = await _trackerClient!.GetWindowsAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+            var json = await client.GetWindowsAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(json))
             {
                 return [];
@@ -70,15 +72,16 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
                 return [];
             }
 
-            return list.Select(w => w with { ProcessName = Helpers.ProcessHelper.GetProcessName(w.Pid) }).ToArray();
+            return list.Select(static w => w with { ProcessName = Helpers.ProcessHelper.GetProcessName(w.Pid) }).ToArray();
         }
-        catch { return []; }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { return []; }
     }
 
     public async Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.FocusWindowAsync(address).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.FocusWindowAsync(address).WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> FocusWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
@@ -108,7 +111,8 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
     public async Task<bool> CloseWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.CloseWindowAsync(address).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.CloseWindowAsync(address).WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> CloseWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
@@ -126,25 +130,29 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
     public async Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.MoveActiveWindowAsync(x, y).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.MoveActiveWindowAsync(x, y).WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.ResizeActiveWindowAsync(width, height).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.ResizeActiveWindowAsync(width, height).WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.FullscreenActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.FullscreenActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.MaximizeActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.MaximizeActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default)
@@ -155,40 +163,46 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
     public async Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.CenterActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.CenterActiveWindowAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
         try
         {
-            var ws = await _trackerClient!.GetActiveWorkspaceAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+            var ws = await client.GetActiveWorkspaceAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
             return string.IsNullOrEmpty(ws) ? null : ws;
         }
-        catch { return null; }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { return null; }
     }
 
     public async Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.SwitchWorkspaceAsync(workspace).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.SwitchWorkspaceAsync(workspace).WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.MoveActiveWindowToWorkspaceAsync(workspace).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.MoveActiveWindowToWorkspaceAsync(workspace).WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        return await _trackerClient!.MoveWindowToWorkspaceByAddressAsync(address, workspace).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var client = _trackerClient ?? throw new InvalidOperationException("Tracker client is not initialized.");
+        return await client.MoveWindowToWorkspaceByAddressAsync(address, workspace).WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
     {
         _dbusConnection?.Dispose();
+        _initLock.Dispose();
     }
 }

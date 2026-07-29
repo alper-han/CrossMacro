@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services.Playback;
 
-public class KeyStateTrackerTests
+public sealed class KeyStateTrackerTests
 {
     private readonly KeyStateTracker _tracker;
 
@@ -20,7 +20,7 @@ public class KeyStateTrackerTests
         _tracker.Press(keyCode);
 
         // Assert
-        _tracker.PressedKeys.Should().Contain(keyCode);
+        _ = _tracker.PressedKeys.Should().Contain(keyCode);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class KeyStateTrackerTests
         _tracker.Release(keyCode);
 
         // Assert
-        _tracker.PressedKeys.Should().NotContain(keyCode);
+        _ = _tracker.PressedKeys.Should().NotContain(keyCode);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class KeyStateTrackerTests
         _tracker.Clear();
 
         // Assert
-        _tracker.PressedKeys.Should().BeEmpty();
+        _ = _tracker.PressedKeys.Should().BeEmpty();
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class KeyStateTrackerTests
         // Assert
         simulator.Received().KeyPress(30, pressed: false);
         simulator.Received().KeyPress(31, pressed: false);
-        _tracker.PressedKeys.Should().BeEmpty();
+        _ = _tracker.PressedKeys.Should().BeEmpty();
     }
 
     [Fact]
@@ -95,8 +95,8 @@ public class KeyStateTrackerTests
         // Assert
         simulator.Received().KeyPress(30, pressed: true);
         simulator.Received().KeyPress(31, pressed: true);
-        _tracker.PressedKeys.Should().Contain(30);
-        _tracker.PressedKeys.Should().Contain(31);
+        _ = _tracker.PressedKeys.Should().Contain(30);
+        _ = _tracker.PressedKeys.Should().Contain(31);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class KeyStateTrackerTests
         _tracker.Press(keyCode);
 
         // Assert
-        _tracker.PressedKeys.Should().HaveCount(1);
+        _ = _tracker.PressedKeys.Should().HaveCount(1);
     }
 
     [Fact]
@@ -124,6 +124,6 @@ public class KeyStateTrackerTests
         _tracker.Press(31);
 
         // Assert - snapshot should not include 31
-        snapshot.Should().NotContain(31);
+        _ = snapshot.Should().NotContain(31);
     }
 }

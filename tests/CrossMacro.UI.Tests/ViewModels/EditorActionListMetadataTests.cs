@@ -9,9 +9,9 @@ public sealed class EditorActionListMetadataTests
         var move = new EditorAction { Type = EditorActionType.MouseMove };
         var shortWait = new EditorAction { Type = EditorActionType.Delay, DelayMs = 5 };
 
-        EditorActionListMetadata.IsHidden(move, hideMouseMoves: true, hideShortWaits: false).Should().BeTrue();
-        EditorActionListMetadata.IsHidden(shortWait, hideMouseMoves: false, hideShortWaits: true).Should().BeTrue();
-        EditorActionListMetadata.IsHidden(move, hideMouseMoves: false, hideShortWaits: true).Should().BeFalse();
+        _ = EditorActionListMetadata.IsHidden(move, hideMouseMoves: true, hideShortWaits: false).Should().BeTrue();
+        _ = EditorActionListMetadata.IsHidden(shortWait, hideMouseMoves: false, hideShortWaits: true).Should().BeTrue();
+        _ = EditorActionListMetadata.IsHidden(move, hideMouseMoves: false, hideShortWaits: true).Should().BeFalse();
     }
 
     [Theory]
@@ -21,8 +21,14 @@ public sealed class EditorActionListMetadataTests
     [InlineData(EditorActionType.IfBlockStart, EditorActionVisualKind.ControlFlow)]
     public void GetVisualKind_PreservesActionTaxonomy(EditorActionType actionType, EditorActionVisualKind expected)
     {
-        EditorActionListMetadata.GetVisualKind(new EditorAction { Type = actionType }, isNoise: false)
+        _ = EditorActionListMetadata.GetVisualKind(new EditorAction { Type = actionType }, isNoise: false)
             .Should().Be(expected);
+    }
+
+    [Fact]
+    public void PointerVisualKind_PreservesExistingNumericToken()
+    {
+        _ = ((int)EditorActionVisualKind.PointerInput).Should().Be(2);
     }
 
     [Fact]
@@ -31,8 +37,8 @@ public sealed class EditorActionListMetadataTests
         var isDragging = false;
 
         EditorActionListMetadata.UpdateDragState(new EditorAction { Type = EditorActionType.MouseDown }, ref isDragging);
-        isDragging.Should().BeTrue();
+        _ = isDragging.Should().BeTrue();
         EditorActionListMetadata.UpdateDragState(new EditorAction { Type = EditorActionType.MouseUp }, ref isDragging);
-        isDragging.Should().BeFalse();
+        _ = isDragging.Should().BeFalse();
     }
 }

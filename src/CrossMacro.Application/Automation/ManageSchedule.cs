@@ -1,22 +1,24 @@
 
 namespace CrossMacro.Application.Automation;
 
-public sealed class ManageSchedule : IManageSchedule
+public sealed class ManageSchedule(ISchedulerService service) : IManageSchedule
 {
-    private readonly ISchedulerService _service;
-    public ManageSchedule(ISchedulerService service) => _service = service ?? throw new ArgumentNullException(nameof(service));
+    private readonly ISchedulerService _service = service ?? throw new ArgumentNullException(nameof(service));
+
     public async Task<TaskCollectionResult<ScheduledTask>> ListAsync(CancellationToken cancellationToken = default) => new(await LoadAndCheckAsync(cancellationToken).ConfigureAwait(false));
-    public async Task<ScheduledTask> AddAsync(ScheduledTask task, CancellationToken cancellationToken = default) { await LoadAsync(cancellationToken).ConfigureAwait(false); cancellationToken.ThrowIfCancellationRequested(); _service.AddTask(task); cancellationToken.ThrowIfCancellationRequested(); await _service.SaveAsync().ConfigureAwait(false); return task; }
-    public async Task<ScheduledTask> UpdateAsync(ScheduledTask task, CancellationToken cancellationToken = default) { await LoadAsync(cancellationToken).ConfigureAwait(false); cancellationToken.ThrowIfCancellationRequested(); _service.UpdateTask(task); cancellationToken.ThrowIfCancellationRequested(); await _service.SaveAsync().ConfigureAwait(false); return task; }
+    public async Task<ScheduledTask> AddAsync(ScheduledTask task, CancellationToken cancellationToken = default) { _ = await LoadAsync(cancellationToken).ConfigureAwait(false); cancellationToken.ThrowIfCancellationRequested(); _service.AddTask(task); cancellationToken.ThrowIfCancellationRequested(); await _service.SaveAsync().ConfigureAwait(false); return task; }
+    public async Task<ScheduledTask> UpdateAsync(ScheduledTask task, CancellationToken cancellationToken = default) { _ = await LoadAsync(cancellationToken).ConfigureAwait(false); cancellationToken.ThrowIfCancellationRequested(); _service.UpdateTask(task); cancellationToken.ThrowIfCancellationRequested(); await _service.SaveAsync().ConfigureAwait(false); return task; }
     public async Task<ScheduledTask> RemoveAsync(TaskRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var task = await FindAsync(request, cancellationToken).ConfigureAwait(false); cancellationToken.ThrowIfCancellationRequested(); _service.RemoveTask(task.Id); try { cancellationToken.ThrowIfCancellationRequested(); await _service.SaveAsync().ConfigureAwait(false); } catch { await _service.LoadAsync().ConfigureAwait(false); throw; } return task;
+        var task = await FindAsync(request, cancellationToken).ConfigureAwait(false); cancellationToken.ThrowIfCancellationRequested(); _service.RemoveTask(task.Id); try { cancellationToken.ThrowIfCancellationRequested(); await _service.SaveAsync().ConfigureAwait(false); } catch (Exception ex) when (ex is not OutOfMemoryException) { await _service.LoadAsync().ConfigureAwait(false); throw; }
+        return task;
     }
     public async Task<ScheduledTask> SetEnabledAsync(TaskRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var task = await FindAsync(request, cancellationToken).ConfigureAwait(false); cancellationToken.ThrowIfCancellationRequested(); var previousEnabled = task.IsEnabled; try { _service.SetTaskEnabled(task.Id, request.Enabled ?? false); cancellationToken.ThrowIfCancellationRequested(); await _service.SaveAsync().ConfigureAwait(false); } catch { _service.SetTaskEnabled(task.Id, previousEnabled); throw; } return task;
+        var task = await FindAsync(request, cancellationToken).ConfigureAwait(false); cancellationToken.ThrowIfCancellationRequested(); var previousEnabled = task.IsEnabled; try { _service.SetTaskEnabled(task.Id, request.Enabled ?? false); cancellationToken.ThrowIfCancellationRequested(); await _service.SaveAsync().ConfigureAwait(false); } catch (Exception ex) when (ex is not OutOfMemoryException) { _service.SetTaskEnabled(task.Id, previousEnabled); throw; }
+        return task;
     }
     public async Task RunAsync(TaskRequest request, CancellationToken cancellationToken = default)
     {

@@ -1,18 +1,15 @@
 
 namespace CrossMacro.Application.Runtime;
 
-public sealed class RuntimeLifecycle : IRuntimeLifecycle
+public sealed class RuntimeLifecycle(IReadOnlyList<RuntimeLifecycleStep> steps) : IRuntimeLifecycle
 {
-    private readonly IReadOnlyList<RuntimeLifecycleStep> _steps;
+    private readonly IReadOnlyList<RuntimeLifecycleStep> _steps = steps ?? throw new ArgumentNullException(nameof(steps));
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly List<RuntimeLifecycleStep> _startedSteps = [];
+    private readonly Lock _disposeLock = new();
     private bool _started;
     private bool _stopped;
-
-    public RuntimeLifecycle(IReadOnlyList<RuntimeLifecycleStep> steps)
-    {
-        _steps = steps ?? throw new ArgumentNullException(nameof(steps));
-    }
+    private Task? _disposeTask;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -35,7 +32,7 @@ public sealed class RuntimeLifecycle : IRuntimeLifecycle
                 _started = true;
                 _stopped = false;
             }
-            catch (Exception startError)
+            catch (Exception startError) when (startError is not OutOfMemoryException)
             {
                 var cleanupErrors = await StopStartedStepsAsync(CancellationToken.None).ConfigureAwait(false);
                 _started = false;
@@ -43,7 +40,7 @@ public sealed class RuntimeLifecycle : IRuntimeLifecycle
                 ThrowWithCleanupErrors(startError, cleanupErrors);
             }
         }
-        finally { _gate.Release(); }
+        finally { _ = _gate.Release(); }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -64,13 +61,31 @@ public sealed class RuntimeLifecycle : IRuntimeLifecycle
                 throw new AggregateException("Runtime shutdown failed.", cleanupErrors);
             }
         }
-        finally { _gate.Release(); }
+        finally { _ = _gate.Release(); }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await StopAsync(CancellationToken.None).ConfigureAwait(false);
-        _gate.Dispose();
+        Task disposeTask;
+        lock (_disposeLock)
+        {
+            _disposeTask ??= DisposeCoreAsync();
+            disposeTask = _disposeTask;
+        }
+
+        await disposeTask.ConfigureAwait(false);
+    }
+
+    private async Task DisposeCoreAsync()
+    {
+        try
+        {
+            await StopAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Dispose();
+        }
     }
 
     private async Task<List<Exception>> StopStartedStepsAsync(CancellationToken cancellationToken)
@@ -79,13 +94,13 @@ public sealed class RuntimeLifecycle : IRuntimeLifecycle
         for (var index = _startedSteps.Count - 1; index >= 0; index--)
         {
             try { await _startedSteps[index].StopAsync(cancellationToken).ConfigureAwait(false); }
-            catch (Exception ex) { errors.Add(new InvalidOperationException($"Runtime step '{_startedSteps[index].Name}' failed to stop.", ex)); }
+            catch (Exception ex) when (ex is not OutOfMemoryException) { errors.Add(new InvalidOperationException($"Runtime step '{_startedSteps[index].Name}' failed to stop.", ex)); }
         }
         _startedSteps.Clear();
         return errors;
     }
 
-    private static void ThrowWithCleanupErrors(Exception startError, IReadOnlyList<Exception> cleanupErrors)
+    private static void ThrowWithCleanupErrors(Exception startError, List<Exception> cleanupErrors)
     {
         if (cleanupErrors.Count is 0)
         {

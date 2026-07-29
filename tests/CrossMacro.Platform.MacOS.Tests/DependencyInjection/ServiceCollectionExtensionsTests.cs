@@ -2,7 +2,7 @@
 namespace CrossMacro.Platform.MacOS.Tests.DependencyInjection;
 
 [SupportedOSPlatform("macos")]
-public class ServiceCollectionExtensionsTests
+public sealed class ServiceCollectionExtensionsTests
 {
     [Fact]
     public void AddMacOSServices_RegistersExpectedServices()
@@ -11,13 +11,13 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
 
         // Act
-        services.AddMacOSServices();
+        _ = services.AddMacOSServices();
         using var provider = services.BuildServiceProvider();
 
         // Assert
-        Assert.IsType<MacOSInputCapture>(provider.GetRequiredService<IInputCapture>());
-        Assert.IsType<MacOSInputSimulator>(provider.GetRequiredService<IInputSimulator>());
-        Assert.IsType<MacOSMousePositionProvider>(provider.GetRequiredService<IMousePositionProvider>());
-        Assert.IsType<MacOSPermissionCheckerService>(provider.GetRequiredService<IPermissionChecker>());
+        _ = Assert.IsType<MacOSInputCapture>(provider.GetRequiredService<IInputCapture>());
+        _ = Assert.IsType<MacOSInputSimulator>(provider.GetRequiredService<IInputSimulator>());
+        _ = Assert.IsType<MacOSMousePositionProvider>(provider.GetRequiredService<IMousePositionProvider>());
+        _ = Assert.IsType<MacOSPermissionCheckerService>(provider.GetRequiredService<IPermissionChecker>());
     }
 }

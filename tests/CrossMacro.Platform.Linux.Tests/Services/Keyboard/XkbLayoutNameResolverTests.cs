@@ -29,27 +29,25 @@ public sealed class XkbLayoutNameResolverTests
         var rulesPath = Path.Combine(Path.GetTempPath(), $"crossmacro-xkb-rules-{Guid.NewGuid():N}.xml");
         File.WriteAllText(
             rulesPath,
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <xkbConfigRegistry>
-              <layoutList>
-                <layout>
-                  <configItem>
-                    <name>us</name>
-                    <description>English (US)</description>
-                  </configItem>
-                  <variantList>
-                    <variant>
-                      <configItem>
-                        <name>intl</name>
-                        <description>English (US, intl., with dead keys)</description>
-                      </configItem>
-                    </variant>
-                  </variantList>
-                </layout>
-              </layoutList>
-            </xkbConfigRegistry>
-            """);
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+          + "<xkbConfigRegistry>\n"
+          + "  <layoutList>\n"
+          + "    <layout>\n"
+          + "      <configItem>\n"
+          + "        <name>us</name>\n"
+          + "        <description>English (US)</description>\n"
+          + "      </configItem>\n"
+          + "      <variantList>\n"
+          + "        <variant>\n"
+          + "          <configItem>\n"
+          + "            <name>intl</name>\n"
+          + "            <description>English (US, intl., with dead keys)</description>\n"
+          + "          </configItem>\n"
+          + "        </variant>\n"
+          + "      </variantList>\n"
+          + "    </layout>\n"
+          + "  </layoutList>\n"
+          + "</xkbConfigRegistry>" + '\n');
 
         try
         {

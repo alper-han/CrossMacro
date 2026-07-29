@@ -11,13 +11,13 @@ internal sealed class WindowFocusCommandHandler : IWindowCommandHandler
             return "Syntax: window focus active|title|class|address <value>";
         }
 
-        var field = parts[2].ToLowerInvariant();
-        if (field is "active")
+        var field = parts[2].ToUpperInvariant();
+        if (field is "ACTIVE")
         {
             return parts.Length is 3 ? null : "Syntax: window focus active";
         }
 
-        if (field is not ("title" or "class" or "address"))
+        if (field is not ("TITLE" or "CLASS" or "ADDRESS"))
         {
             return $"Unknown field '{parts[2]}'. Expected: active, title, class, address.";
         }
@@ -32,13 +32,13 @@ internal sealed class WindowFocusCommandHandler : IWindowCommandHandler
     }
     public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
     {
-        var field = parts[2].ToLowerInvariant();
-        if (field is "active")
+        var field = parts[2].ToUpperInvariant();
+        if (field is "ACTIVE")
         {
             var info = await query.GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
             if (info != null)
             {
-                await mutator.FocusWindowByAddressAsync(info.Address, cancellationToken).ConfigureAwait(false);
+                _ = await mutator.FocusWindowByAddressAsync(info.Address, cancellationToken).ConfigureAwait(false);
             }
 
             return;
@@ -46,16 +46,11 @@ internal sealed class WindowFocusCommandHandler : IWindowCommandHandler
         var term = Unquote(string.Join(' ', parts[3..]));
         _ = field switch
         {
-            "title" => await mutator.FocusWindowByTitleAsync(term, cancellationToken).ConfigureAwait(false),
-            "class" => await mutator.FocusWindowByClassAsync(term, cancellationToken).ConfigureAwait(false),
-            "address" => await mutator.FocusWindowByAddressAsync(term, cancellationToken).ConfigureAwait(false),
+            "TITLE" => await mutator.FocusWindowByTitleAsync(term, cancellationToken).ConfigureAwait(false),
+            "CLASS" => await mutator.FocusWindowByClassAsync(term, cancellationToken).ConfigureAwait(false),
+            "ADDRESS" => await mutator.FocusWindowByAddressAsync(term, cancellationToken).ConfigureAwait(false),
             _ => false,
         };
     }
 
-    private static async Task<bool> UnlockAndCenterAsync(IWindowQueryService query, IWindowMutationService mutator, CancellationToken cancellationToken)
-    {
-        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
-        return await mutator.CenterActiveWindowAsync(cancellationToken).ConfigureAwait(false);
-    }
 }

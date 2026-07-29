@@ -1,20 +1,10 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-public class ProfileManager : IProfileManager
+internal class ProfileManager : IProfileCatalog
 {
     private const string DefaultProfileId = "default";
     private const string DefaultProfileName = "Default";
-
-    private static readonly string[] DefaultProfileConfigFiles =
-    [
-        ConfigFileNames.Settings,
-        ConfigFileNames.Hotkeys,
-        ConfigFileNames.Shortcuts,
-        ConfigFileNames.Schedules,
-        ConfigFileNames.TextExpansions,
-        ConfigFileNames.Triggers,
-    ];
 
     private static readonly string[] MigratedProfileConfigFiles =
     [
@@ -29,26 +19,13 @@ public class ProfileManager : IProfileManager
     private readonly string _profilesRootPath;
     private readonly string _registryFilePath;
     private readonly SemaphoreSlim _gate = new(1, 1);
-
-    // Runtime service dependencies for live profile switching
-    private readonly ISettingsService? _settingsService;
-    private readonly IHotkeyConfigurationService? _hotkeyConfigService;
-    private readonly HotkeySettings? _hotkeySettings;
-    private readonly IGlobalHotkeyService? _hotkeyService;
-    private readonly IShortcutService? _shortcutService;
-    private readonly ISchedulerService? _schedulerService;
-    private readonly ITextExpansionService? _textExpansionService;
-    private readonly ITriggerService? _triggerService;
-    private readonly IScheduledTaskRepository? _scheduledTaskRepository;
-    private readonly ITextExpansionStorageService? _textExpansionStorageService;
+    private int _disposed;
 
     private ProfileRegistry _registry = new();
 
     public ProfileInfo ActiveProfile { get; private set; } = new();
 
     public IReadOnlyList<ProfileInfo> Profiles { get; private set; } = [];
-
-    public event EventHandler<ProfileChangedEventArgs>? ProfileChanged;
 
     public ProfileManager() : this(configRootPath: null)
     {
@@ -64,32 +41,6 @@ public class ProfileManager : IProfileManager
         _registryFilePath = Path.Combine(_configRootPath, ConfigFileNames.ProfileRegistry);
     }
 
-    public ProfileManager(
-        string? configRootPath,
-        ISettingsService settingsService,
-        IHotkeyConfigurationService hotkeyConfigService,
-        HotkeySettings hotkeySettings,
-        IGlobalHotkeyService? hotkeyService,
-        IShortcutService? shortcutService,
-        ISchedulerService? schedulerService,
-        ITextExpansionService? textExpansionService,
-        ITriggerService? triggerService,
-        IScheduledTaskRepository scheduledTaskRepository,
-        ITextExpansionStorageService textExpansionStorageService)
-        : this(configRootPath)
-    {
-        _settingsService = settingsService;
-        _hotkeyConfigService = hotkeyConfigService;
-        _hotkeySettings = hotkeySettings;
-        _hotkeyService = hotkeyService;
-        _shortcutService = shortcutService;
-        _schedulerService = schedulerService;
-        _textExpansionService = textExpansionService;
-        _triggerService = triggerService;
-        _scheduledTaskRepository = scheduledTaskRepository;
-        _textExpansionStorageService = textExpansionStorageService;
-    }
-
     public async Task InitializeAsync()
     {
         await _gate.WaitAsync().ConfigureAwait(false);
@@ -97,8 +48,8 @@ public class ProfileManager : IProfileManager
         {
             ValidateRootAncestors(_configRootPath, "Configuration root");
             ValidateRootAncestors(_profilesRootPath, "Profiles root");
-            Directory.CreateDirectory(_configRootPath);
-            Directory.CreateDirectory(_profilesRootPath);
+            _ = Directory.CreateDirectory(_configRootPath);
+            _ = Directory.CreateDirectory(_profilesRootPath);
 
             if (File.Exists(_registryFilePath))
             {
@@ -123,209 +74,39 @@ public class ProfileManager : IProfileManager
 
             ApplyRegistrySnapshot();
 
-            if (_settingsService is not null || _hotkeyConfigService is not null || _shortcutService is not null || _triggerService is not null || _scheduledTaskRepository is not null || _textExpansionStorageService is not null)
-            {
-                await ReloadProfileServicesAsync(GetProfileDirectory(_registry.ActiveProfile)).ConfigureAwait(false);
-            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to initialize profile manager");
             throw;
         }
         finally
         {
-            _gate.Release();
+            _ = _gate.Release();
         }
     }
 
-    public async Task SwitchProfileAsync(string profileId)
+    public async Task SetActiveProfileAsync(string profileId)
     {
-        ProfileInfo activeProfile;
-
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            var previousProfileId = _registry.ActiveProfile;
             var profile = FindProfile(profileId)
                 ?? throw new InvalidOperationException($"Profile '{profileId}' does not exist.");
-
-            if (string.Equals(profile.Id, _registry.ActiveProfile, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            var profileDir = GetProfileDirectory(profile.Id);
-
-            // 1. Capture running states before stopping
-            var hotkeyWasRunning = _hotkeyService?.IsRunning ?? false;
-            var shortcutWasListening = _shortcutService?.IsListening ?? false;
-            var schedulerWasRunning = _schedulerService?.IsRunning ?? false;
-            var textExpansionWasRunning = _textExpansionService?.IsRunning ?? false;
-            var triggerWasMonitoring = _triggerService?.IsMonitoring ?? false;
-
-            // 2. Stop runtime services (reverse dependency order)
-            StopRuntimeServices();
-
-            try
-            {
-                // 3. Reload all profile-backed storage services
-                await ReloadProfileServicesAsync(profileDir).ConfigureAwait(false);
-
-                // 4. Update registry
-                _registry.ActiveProfile = profile.Id;
-                await SaveRegistryAsync().ConfigureAwait(false);
-                ApplyRegistrySnapshot();
-                activeProfile = ActiveProfile;
-            }
-            catch
-            {
-                _registry.ActiveProfile = previousProfileId;
-                await ReloadProfileServicesAsync(GetProfileDirectory(previousProfileId)).ConfigureAwait(false);
-                RestartRuntimeServices(
-                    hotkeyWasRunning,
-                    shortcutWasListening,
-                    schedulerWasRunning,
-                    textExpansionWasRunning,
-                    triggerWasMonitoring);
-                throw;
-            }
-
-            // 5. Restart services that were running and are still eligible
-            RestartRuntimeServices(
-                hotkeyWasRunning,
-                shortcutWasListening,
-                schedulerWasRunning,
-                textExpansionWasRunning,
-                triggerWasMonitoring);
-
-            Log.Information("Switched active profile to {ProfileId}", profile.Id);
+            _registry.ActiveProfile = profile.Id;
+            await SaveRegistryAsync().ConfigureAwait(false);
+            ApplyRegistrySnapshot();
         }
         finally
         {
-            _gate.Release();
-        }
-
-        ProfileChanged?.Invoke(this, new ProfileChangedEventArgs(activeProfile));
-    }
-
-    private void StopRuntimeServices()
-    {
-        try { _textExpansionService?.StopExpansion(); }
-        catch (Exception ex) { Log.Warning(ex, "Failed to stop text expansion service"); }
-
-        try { _schedulerService?.StopScheduler(); }
-        catch (Exception ex) { Log.Warning(ex, "Failed to stop scheduler service"); }
-
-        try { _triggerService?.StopMonitoring(); }
-        catch (Exception ex) { Log.Warning(ex, "Failed to stop trigger service"); }
-
-        try { _shortcutService?.StopShortcuts(); }
-        catch (Exception ex) { Log.Warning(ex, "Failed to stop shortcut service"); }
-
-        try { _hotkeyService?.StopHotkeyService(); }
-        catch (Exception ex) { Log.Warning(ex, "Failed to stop hotkey service"); }
-    }
-
-    private async Task ReloadProfileServicesAsync(string profileDir)
-    {
-        if (_settingsService is not null)
-        {
-            await _settingsService.ReloadAsync(profileDir).ConfigureAwait(false);
-        }
-
-        if (_hotkeyConfigService is not null)
-        {
-            await _hotkeyConfigService.ReloadAsync(profileDir).ConfigureAwait(false);
-
-            // Mutate the singleton HotkeySettings object with values from the new profile
-            if (_hotkeySettings is not null)
-            {
-                var loaded = _hotkeyConfigService.Load();
-                _hotkeySettings.RecordingHotkey = loaded.RecordingHotkey;
-                _hotkeySettings.PlaybackHotkey = loaded.PlaybackHotkey;
-                _hotkeySettings.PauseHotkey = loaded.PauseHotkey;
-
-                _hotkeyService?.ApplyHotkeys(
-                    _hotkeySettings.RecordingHotkey,
-                    _hotkeySettings.PlaybackHotkey,
-                    _hotkeySettings.PauseHotkey);
-            }
-        }
-
-        if (_shortcutService is not null)
-        {
-            await _shortcutService.ReloadAsync(profileDir).ConfigureAwait(false);
-        }
-
-        if (_triggerService is not null)
-        {
-            await _triggerService.ReloadAsync(profileDir).ConfigureAwait(false);
-        }
-
-        if (_scheduledTaskRepository is not null)
-        {
-            await _scheduledTaskRepository.ReloadAsync(profileDir).ConfigureAwait(false);
-        }
-
-        if (_schedulerService is not null)
-        {
-            await _schedulerService.LoadAsync().ConfigureAwait(false);
-        }
-
-        if (_textExpansionStorageService is not null)
-        {
-            await _textExpansionStorageService.ReloadAsync(profileDir).ConfigureAwait(false);
+            _ = _gate.Release();
         }
     }
 
-    private void RestartRuntimeServices(
-        bool hotkeyWasRunning,
-        bool shortcutWasListening,
-        bool schedulerWasRunning,
-        bool textExpansionWasRunning,
-        bool triggerWasMonitoring)
+    public void RestoreActiveProfile(string profileId)
     {
-        if (hotkeyWasRunning && _hotkeyService is not null)
-        {
-            try
-            {
-                _hotkeyService.Start();
-                if (_hotkeySettings is not null)
-                {
-                    _hotkeyService.ApplyHotkeys(
-                        _hotkeySettings.RecordingHotkey,
-                        _hotkeySettings.PlaybackHotkey,
-                        _hotkeySettings.PauseHotkey);
-                }
-            }
-            catch (Exception ex) { Log.Warning(ex, "Failed to restart hotkey service after profile switch"); }
-        }
-
-        if (shortcutWasListening && _shortcutService is not null)
-        {
-            try { _shortcutService.Start(); }
-            catch (Exception ex) { Log.Warning(ex, "Failed to restart shortcut service after profile switch"); }
-        }
-
-        if (triggerWasMonitoring && _triggerService is not null)
-        {
-            try { _triggerService.Start(); }
-            catch (Exception ex) { Log.Warning(ex, "Failed to restart trigger service after profile switch"); }
-        }
-
-        if (schedulerWasRunning && _schedulerService is not null)
-        {
-            try { _schedulerService.Start(); }
-            catch (Exception ex) { Log.Warning(ex, "Failed to restart scheduler after profile switch"); }
-        }
-
-        // Restart text expansion only if it was running AND the new profile has it enabled
-        if (textExpansionWasRunning && _textExpansionService is not null && (_settingsService?.Current.EnableTextExpansion ?? false))
-        {
-            try { _textExpansionService.Start(); }
-            catch (Exception ex) { Log.Warning(ex, "Failed to restart text expansion after profile switch"); }
-        }
+        _registry.ActiveProfile = profileId;
+        ApplyRegistrySnapshot();
     }
 
     public async Task<ProfileInfo> CreateProfileAsync(string displayName)
@@ -357,7 +138,7 @@ public class ProfileManager : IProfileManager
         }
         finally
         {
-            _gate.Release();
+            _ = _gate.Release();
         }
     }
 
@@ -387,7 +168,7 @@ public class ProfileManager : IProfileManager
         }
         finally
         {
-            _gate.Release();
+            _ = _gate.Release();
         }
     }
 
@@ -410,7 +191,7 @@ public class ProfileManager : IProfileManager
                 ?? throw new InvalidOperationException($"Profile '{profileId}' does not exist.");
 
             var profileDirectory = GetProfileDirectory(profile.Id);
-            _registry.Profiles.Remove(profile);
+            _ = _registry.Profiles.Remove(profile);
             await SaveRegistryAsync().ConfigureAwait(false);
             ApplyRegistrySnapshot();
 
@@ -423,7 +204,21 @@ public class ProfileManager : IProfileManager
         }
         finally
         {
-            _gate.Release();
+            _ = _gate.Release();
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing && Interlocked.Exchange(ref _disposed, 1) is 0)
+        {
+            _gate.Dispose();
         }
     }
 
@@ -500,7 +295,7 @@ public class ProfileManager : IProfileManager
     private async Task<ProfileRegistry> MigrateFlatConfigurationAsync()
     {
         var defaultProfileDirectory = GetProfileDirectory(DefaultProfileId);
-        Directory.CreateDirectory(defaultProfileDirectory);
+        _ = Directory.CreateDirectory(defaultProfileDirectory);
 
         var oldSettings = await FileBackedJsonStorage.ReadAsync(
                 GetRootConfigPath(ConfigFileNames.Settings),
@@ -511,13 +306,15 @@ public class ProfileManager : IProfileManager
         await FileBackedJsonStorage.WriteAsync(
                 GetRootConfigPath(ConfigFileNames.GlobalSettings),
                 SettingsMapper.ToGlobal(oldSettings),
-                CrossMacroJsonContext.Default.GlobalSettings)
+                CrossMacroJsonContext.Default.GlobalSettings,
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(defaultProfileDirectory, ConfigFileNames.Settings),
                 SettingsMapper.ToProfile(oldSettings),
-                CrossMacroJsonContext.Default.ProfileSettings)
+                CrossMacroJsonContext.Default.ProfileSettings,
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         await CopyExistingProfileConfigFilesAsync(defaultProfileDirectory).ConfigureAwait(false);
@@ -532,13 +329,15 @@ public class ProfileManager : IProfileManager
         await FileBackedJsonStorage.WriteAsync(
                 GetRootConfigPath(ConfigFileNames.GlobalSettings),
                 new GlobalSettings(),
-                CrossMacroJsonContext.Default.GlobalSettings)
+                CrossMacroJsonContext.Default.GlobalSettings,
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(GetProfileDirectory(DefaultProfileId), ConfigFileNames.Settings),
                 new ProfileSettings(),
-                CrossMacroJsonContext.Default.ProfileSettings)
+                CrossMacroJsonContext.Default.ProfileSettings,
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         return CreateDefaultRegistry();
@@ -547,7 +346,7 @@ public class ProfileManager : IProfileManager
     private async Task EnsureDefaultProfileDirectoryAsync()
     {
         var defaultProfileDirectory = GetProfileDirectory(DefaultProfileId);
-        Directory.CreateDirectory(defaultProfileDirectory);
+        _ = Directory.CreateDirectory(defaultProfileDirectory);
 
         var defaultSettingsPath = Path.Combine(defaultProfileDirectory, ConfigFileNames.Settings);
         if (!File.Exists(defaultSettingsPath))
@@ -555,7 +354,8 @@ public class ProfileManager : IProfileManager
             await FileBackedJsonStorage.WriteAsync(
                     defaultSettingsPath,
                     new ProfileSettings(),
-                    CrossMacroJsonContext.Default.ProfileSettings)
+                    CrossMacroJsonContext.Default.ProfileSettings,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
         }
     }
@@ -563,36 +363,41 @@ public class ProfileManager : IProfileManager
     private async Task CreateProfileFilesAsync(string profileId)
     {
         var profileDirectory = GetProfileDirectory(profileId);
-        Directory.CreateDirectory(profileDirectory);
+        _ = Directory.CreateDirectory(profileDirectory);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.Settings),
                 new ProfileSettings(),
-                CrossMacroJsonContext.Default.ProfileSettings)
+                CrossMacroJsonContext.Default.ProfileSettings,
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.Hotkeys),
                 new HotkeySettings(),
-                CrossMacroJsonContext.Default.HotkeySettings)
+                CrossMacroJsonContext.Default.HotkeySettings,
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.Shortcuts),
                 new List<ShortcutTask>(),
-                CrossMacroJsonContext.Default.ListShortcutTask)
+                CrossMacroJsonContext.Default.ListShortcutTask,
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.Schedules),
                 new List<ScheduledTask>(),
-                CrossMacroJsonContext.Default.ListScheduledTask)
+                CrossMacroJsonContext.Default.ListScheduledTask,
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.TextExpansions),
                 new List<global::CrossMacro.Core.Models.TextExpansionEntry>(),
-                CrossMacroJsonContext.Default.ListTextExpansionEntry)
+                CrossMacroJsonContext.Default.ListTextExpansionEntry,
+                CancellationToken.None)
             .ConfigureAwait(false);
     }
 
@@ -612,7 +417,7 @@ public class ProfileManager : IProfileManager
 
     private async Task SaveRegistryAsync()
     {
-        await FileBackedJsonStorage.WriteAsync(_registryFilePath, _registry, CrossMacroJsonContext.Default.ProfileRegistry)
+        await FileBackedJsonStorage.WriteAsync(_registryFilePath, _registry, CrossMacroJsonContext.Default.ProfileRegistry, CancellationToken.None)
             .ConfigureAwait(false);
     }
 
@@ -670,16 +475,17 @@ public class ProfileManager : IProfileManager
         var builder = new StringBuilder(displayName.Length);
         var previousWasHyphen = false;
 
-        foreach (var character in displayName.ToLowerInvariant())
+        foreach (var character in displayName)
         {
-            if (character is (>= 'a' and <= 'z') or (>= '0' and <= '9'))
+            var normalizedCharacter = char.ToLowerInvariant(character);
+            if (normalizedCharacter is (>= 'a' and <= 'z') or (>= '0' and <= '9'))
             {
-                builder.Append(character);
+                _ = builder.Append(normalizedCharacter);
                 previousWasHyphen = false;
             }
             else if (!previousWasHyphen)
             {
-                builder.Append('-');
+                _ = builder.Append('-');
                 previousWasHyphen = true;
             }
         }

@@ -5,19 +5,19 @@ namespace CrossMacro.Platform.Linux.Services;
 /// Base class for X11 Input Capture implementations.
 /// Handles X server connection, XInput2 initialization, and the main event loop.
 /// </summary>
-public abstract class X11CaptureBase : IInputCapture, IDisposable
+public abstract class X11CaptureBase : IInputCapture
 {
-    protected IntPtr _display;
-    protected IntPtr _rootWindow;
+    private protected IntPtr _display;
+    private protected IntPtr _rootWindow;
     private Thread? _captureThread;
-    protected volatile bool _isRunning;
+    private protected volatile bool _isRunning;
     private bool _disposed;
     private CancellationTokenRegistration _startCancellationRegistration;
     private Task? _startupTask;
     private TaskCompletionSource<object?>? _startupCompletionSource;
 
-    protected bool _captureMouse;
-    protected bool _captureKeyboard;
+    private protected bool _captureMouse;
+    private protected bool _captureKeyboard;
 
     public abstract string ProviderName { get; }
 
@@ -36,11 +36,11 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
                 int major = XInput2Consts.XINPUT2_MAJOR_VERSION;
                 int minor = XInput2Consts.XINPUT2_MINOR_VERSION;
                 int res = X11Native.XIQueryVersion(dpy, ref major, ref minor);
-                X11Native.XCloseDisplay(dpy);
+                _ = X11Native.XCloseDisplay(dpy);
 
                 return res is 0;
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 return false;
             }
@@ -72,8 +72,43 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
         _startupCompletionSource = startupCompletionSource;
         _startupTask = startupCompletionSource.Task;
 
-        _startCancellationRegistration.Dispose();
-        _startCancellationRegistration = ct.Register(() => HandleStartCancellation(startupCompletionSource));
+        return StartAsyncCoreAsync(startupCompletionSource, ct);
+    }
+
+    public void StopCapture()
+    {
+        _isRunning = false;
+        var startCancellationRegistration = _startCancellationRegistration;
+        _startCancellationRegistration = default;
+        startCancellationRegistration.Dispose();
+        _ = _startupCompletionSource?.TrySetCanceled(startCancellationRegistration.Token);
+
+        var captureThread = _captureThread;
+        if (captureThread is not null && captureThread.IsAlive && !ReferenceEquals(Thread.CurrentThread, captureThread))
+        {
+            _ = captureThread.Join(500);
+        }
+    }
+
+    private void HandleStartCancellation(TaskCompletionSource<object?> startupCompletionSource, CancellationToken cancellationToken)
+    {
+        _isRunning = false;
+        _ = startupCompletionSource.TrySetCanceled(cancellationToken);
+    }
+
+    private async ValueTask DisposeStartCancellationRegistrationAsync()
+    {
+        var startCancellationRegistration = _startCancellationRegistration;
+        _startCancellationRegistration = default;
+        await startCancellationRegistration.DisposeAsync().ConfigureAwait(false);
+    }
+
+    private async Task StartAsyncCoreAsync(
+        TaskCompletionSource<object?> startupCompletionSource,
+        CancellationToken ct)
+    {
+        await DisposeStartCancellationRegistrationAsync().ConfigureAwait(false);
+        _startCancellationRegistration = ct.Register(() => HandleStartCancellation(startupCompletionSource, ct));
 
         _captureThread = new Thread(() => CaptureLoop(startupCompletionSource))
         {
@@ -82,26 +117,7 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
         };
         _captureThread.Start();
 
-        return _startupTask;
-    }
-
-    public void StopCapture()
-    {
-        _isRunning = false;
-        _startCancellationRegistration.Dispose();
-        _startupCompletionSource?.TrySetCanceled();
-
-        var captureThread = _captureThread;
-        if (captureThread is not null && captureThread.IsAlive && !ReferenceEquals(Thread.CurrentThread, captureThread))
-        {
-            captureThread.Join(500);
-        }
-    }
-
-    private void HandleStartCancellation(TaskCompletionSource<object?> startupCompletionSource)
-    {
-        _isRunning = false;
-        startupCompletionSource.TrySetCanceled();
+        _ = await startupCompletionSource.Task.ConfigureAwait(false);
     }
 
     private void CaptureLoop(TaskCompletionSource<object?> startupCompletionSource)
@@ -115,107 +131,116 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
                 return;
             }
 
-            _rootWindow = X11Native.XDefaultRootWindow(_display);
-
-            // Init XI2
-            int major = XInput2Consts.XINPUT2_MAJOR_VERSION;
-            int minor = XInput2Consts.XINPUT2_MINOR_VERSION;
-            if (X11Native.XIQueryVersion(_display, ref major, ref minor) is not 0)
+            if (!InitializeXInput(startupCompletionSource))
             {
-                FailStartup(startupCompletionSource, "XInput2 extension not available");
                 return;
             }
 
-            var maskBytes = new byte[4];
-
-            if (_captureKeyboard)
-            {
-                XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawKeyPress);
-                XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawKeyRelease);
-            }
-
-            if (_captureMouse)
-            {
-                XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawButtonPress);
-                XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawButtonRelease);
-                XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawMotion);
-            }
-
-            IntPtr maskPtr = Marshal.AllocHGlobal(maskBytes.Length);
-            try
-            {
-                Marshal.Copy(maskBytes, 0, maskPtr, maskBytes.Length);
-
-                var mask = new XIEventMask
-                {
-                    DeviceId = XInput2Consts.XIAllMasterDevices,
-                    MaskLen = maskBytes.Length,
-                    Mask = maskPtr,
-                };
-
-                X11Native.XISelectEvents(_display, _rootWindow, ref mask, 1);
-                X11Native.XFlush(_display);
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(maskPtr);
-            }
-
             OnCaptureStarted();
-            startupCompletionSource.TrySetResult(null);
+            _ = startupCompletionSource.TrySetResult(null);
 
-            IntPtr eventPtr = Marshal.AllocHGlobal(XInput2Consts.XEVENT_STRUCT_SIZE);
-            try
-            {
-                while (_isRunning)
-                {
-                    // Check if we have events pending
-                    if (X11Native.XPending(_display) > 0)
-                    {
-                        X11Native.XNextEvent(_display, eventPtr);
-                        var xEvent = Marshal.PtrToStructure<XEvent>(eventPtr);
-
-                        if (xEvent.xcookie.type == XInput2Consts.GenericEvent &&
-                            X11Native.XGetEventData(_display, eventPtr))
-                        {
-                            try
-                            {
-                                var cookie = Marshal.PtrToStructure<XGenericEventCookie>(eventPtr);
-                                ProcessGenericEvent(cookie);
-                            }
-                            finally
-                            {
-                                X11Native.XFreeEventData(_display, eventPtr);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        OnLoopIdle();
-                    }
-                }
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(eventPtr);
-            }
+            RunEventLoop();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             FailStartup(startupCompletionSource, ex);
         }
         finally
         {
-            if (_display != IntPtr.Zero)
-            {
-                X11Native.XCloseDisplay(_display);
-                _display = IntPtr.Zero;
-            }
+            CloseDisplayOnce();
 
             if (ReferenceEquals(_captureThread, Thread.CurrentThread))
             {
                 _captureThread = null;
             }
+        }
+    }
+
+    private bool InitializeXInput(TaskCompletionSource<object?> startupCompletionSource)
+    {
+        _rootWindow = X11Native.XDefaultRootWindow(_display);
+        int major = XInput2Consts.XINPUT2_MAJOR_VERSION;
+        int minor = XInput2Consts.XINPUT2_MINOR_VERSION;
+        if (X11Native.XIQueryVersion(_display, ref major, ref minor) is not 0)
+        {
+            FailStartup(startupCompletionSource, "XInput2 extension not available");
+            return false;
+        }
+
+        var maskBytes = new byte[4];
+        if (_captureKeyboard)
+        {
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawKeyPress);
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawKeyRelease);
+        }
+
+        if (_captureMouse)
+        {
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawButtonPress);
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawButtonRelease);
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawMotion);
+        }
+
+        IntPtr maskPtr = Marshal.AllocHGlobal(maskBytes.Length);
+        try
+        {
+            Marshal.Copy(maskBytes, 0, maskPtr, maskBytes.Length);
+            var mask = new XIEventMask
+            {
+                DeviceId = XInput2Consts.XIAllMasterDevices,
+                MaskLen = maskBytes.Length,
+                Mask = maskPtr,
+            };
+            _ = X11Native.XISelectEvents(_display, _rootWindow, ref mask, 1);
+            _ = X11Native.XFlush(_display);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(maskPtr);
+        }
+
+        return true;
+    }
+
+    private void RunEventLoop()
+    {
+        IntPtr eventPtr = Marshal.AllocHGlobal(XInput2Consts.XEVENT_STRUCT_SIZE);
+        try
+        {
+            while (_isRunning)
+            {
+                if (X11Native.XPending(_display) > 0)
+                {
+                    _ = X11Native.XNextEvent(_display, eventPtr);
+                    ProcessPendingEvent(eventPtr);
+                }
+                else
+                {
+                    OnLoopIdle();
+                }
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(eventPtr);
+        }
+    }
+
+    private void ProcessPendingEvent(IntPtr eventPtr)
+    {
+        var xEvent = Marshal.PtrToStructure<XEvent>(eventPtr);
+        if (xEvent.xcookie.type != XInput2Consts.GenericEvent || !X11Native.XGetEventData(_display, eventPtr))
+        {
+            return;
+        }
+
+        try
+        {
+            ProcessGenericEvent(Marshal.PtrToStructure<XGenericEventCookie>(eventPtr));
+        }
+        finally
+        {
+            X11Native.XFreeEventData(_display, eventPtr);
         }
     }
 
@@ -236,7 +261,7 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
     /// <summary>
     /// Called after X11 connection and selection are established, before the loop starts.
     /// </summary>
-    protected virtual void OnCaptureStarted() { }
+    protected virtual void OnCaptureStarted() { /* Empty */ }
 
     /// <summary>
     /// Called when no X events are pending. Default implementation sleeps 1ms.
@@ -249,7 +274,7 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
     /// <summary>
     /// Called before processing a Key/Button event. subclasses can override to flush pending motion.
     /// </summary>
-    protected virtual void FlushPendingMotion() { }
+    protected virtual void FlushPendingMotion() { /* Empty */ }
 
     /// <summary>
     /// Handles motion events.
@@ -258,7 +283,6 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
 
     private void ProcessGenericEvent(XGenericEventCookie cookie)
     {
-        // Motion
         if (cookie.evtype == XInput2Consts.XI_RawMotion)
         {
             ProcessMotion(cookie);
@@ -267,79 +291,79 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
 
         var rawEvent = Marshal.PtrToStructure<XIRawEvent>(cookie.data);
 
-        // Keyboard
         if (cookie.evtype is XInput2Consts.XI_RawKeyPress or XInput2Consts.XI_RawKeyRelease)
         {
-            // Hook for subclasses to flush motion before key
-            FlushPendingMotion();
-
-            int code = rawEvent.detail - LinuxConstants.X11ToLinuxKeycodeOffset;
-            int value = (cookie.evtype == XInput2Consts.XI_RawKeyPress) ? 1 : 0;
-
-            var args = new CapturedInputEvent
-            {
-                Type = InputEventType.Key,
-                Code = (ushort)code,
-                Value = value,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                DeviceName = ProviderName,
-            };
-            InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+            ProcessKeyboardEvent(cookie, rawEvent);
             return;
         }
 
-        // Mouse Buttons
         if (cookie.evtype is XInput2Consts.XI_RawButtonPress or XInput2Consts.XI_RawButtonRelease)
         {
-            // Hook for subclasses to flush motion before click
-            FlushPendingMotion();
-
-            int code = rawEvent.detail;
-            int value = (cookie.evtype == XInput2Consts.XI_RawButtonPress) ? 1 : 0;
-            InputEventType type = InputEventType.MouseButton;
-
-            // Handle Scroll (buttons 4-7)
-            if (code is >= XInput2Consts.X11_SCROLL_UP and <= XInput2Consts.X11_SCROLL_RIGHT)
-            {
-                if (value is 0)
-                {
-                    return;
-                }
-
-                type = InputEventType.MouseScroll;
-
-                if (code is XInput2Consts.X11_SCROLL_UP or XInput2Consts.X11_SCROLL_DOWN)
-                {
-                    // Vertical
-                    value = (code == XInput2Consts.X11_SCROLL_UP)
-                        ? XInput2Consts.SCROLL_DELTA
-                        : -XInput2Consts.SCROLL_DELTA;
-                    code = XInput2Consts.SCROLL_AXIS_VERTICAL;
-                }
-                else
-                {
-                    // Horizontal (Left=6, Right=7)
-                    value = (code == XInput2Consts.X11_SCROLL_RIGHT)
-                        ? XInput2Consts.SCROLL_DELTA
-                        : -XInput2Consts.SCROLL_DELTA;
-                    code = XInput2Consts.SCROLL_AXIS_HORIZONTAL;
-                }
-            }
-            else
-            {
-                code = MapX11ButtonToLinux(code);
-            }
-
-            var args = new CapturedInputEvent
-            {
-                Type = type,
-                Code = (ushort)code,
-                Value = value,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                DeviceName = ProviderName,
-            };
-            InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+            ProcessMouseButtonEvent(cookie, rawEvent);
         }
+    }
+
+    private void ProcessKeyboardEvent(XGenericEventCookie cookie, XIRawEvent rawEvent)
+    {
+        FlushPendingMotion();
+
+        int code = rawEvent.detail - LinuxConstants.X11ToLinuxKeycodeOffset;
+        int value = cookie.evtype == XInput2Consts.XI_RawKeyPress ? 1 : 0;
+        var args = new CapturedInputEvent
+        {
+            Type = InputEventType.Key,
+            Code = (ushort)code,
+            Value = value,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            DeviceName = ProviderName,
+        };
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+    }
+
+    private void ProcessMouseButtonEvent(XGenericEventCookie cookie, XIRawEvent rawEvent)
+    {
+        FlushPendingMotion();
+
+        int code = rawEvent.detail;
+        int value = cookie.evtype == XInput2Consts.XI_RawButtonPress ? 1 : 0;
+        InputEventType type = InputEventType.MouseButton;
+
+        if (code is >= XInput2Consts.X11_SCROLL_UP and <= XInput2Consts.X11_SCROLL_RIGHT)
+        {
+            if (value is 0)
+            {
+                return;
+            }
+
+            type = InputEventType.MouseScroll;
+            (code, value) = MapScroll(code);
+        }
+        else
+        {
+            code = MapX11ButtonToLinux(code);
+        }
+
+        var args = new CapturedInputEvent
+        {
+            Type = type,
+            Code = (ushort)code,
+            Value = value,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            DeviceName = ProviderName,
+        };
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+    }
+
+    private static (int Code, int Value) MapScroll(int code)
+    {
+        if (code is XInput2Consts.X11_SCROLL_UP or XInput2Consts.X11_SCROLL_DOWN)
+        {
+            return (XInput2Consts.SCROLL_AXIS_VERTICAL,
+                code == XInput2Consts.X11_SCROLL_UP ? XInput2Consts.SCROLL_DELTA : -XInput2Consts.SCROLL_DELTA);
+        }
+
+        return (XInput2Consts.SCROLL_AXIS_HORIZONTAL,
+            code == XInput2Consts.X11_SCROLL_RIGHT ? XInput2Consts.SCROLL_DELTA : -XInput2Consts.SCROLL_DELTA);
     }
 
     private static int MapX11ButtonToLinux(int x11Btn)
@@ -356,7 +380,13 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
         };
     }
 
-    public virtual void Dispose()
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
     {
         if (_disposed)
         {
@@ -364,7 +394,25 @@ public abstract class X11CaptureBase : IInputCapture, IDisposable
         }
 
         StopCapture();
+
+        // Close only if the capture thread has exited; otherwise its finally owns the close
+        // (the thread may still be using the display after the 500 ms Join window).
+        var captureThread = _captureThread;
+        if (captureThread is null || !captureThread.IsAlive)
+        {
+            CloseDisplayOnce();
+        }
+
         _disposed = true;
+    }
+
+    private void CloseDisplayOnce()
+    {
+        var display = Interlocked.Exchange(ref _display, IntPtr.Zero);
+        if (display != IntPtr.Zero)
+        {
+            _ = X11Native.XCloseDisplay(display);
+        }
     }
 
     // Helper for subclasses to emit events

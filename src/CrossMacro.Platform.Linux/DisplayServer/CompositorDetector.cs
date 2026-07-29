@@ -9,7 +9,7 @@ public static class CompositorDetector
     /// <summary>
     /// Detects the current compositor by checking environment variables
     /// </summary>
-    private static readonly Lazy<CompositorType> _current = new(() =>
+    private static readonly Lazy<CompositorType> _current = new(static () =>
         ClassifyFromEnvironment(
             LinuxEnvironmentVariables.CaptureCurrentSnapshot(),
             OperatingSystem.IsLinux()));
@@ -49,6 +49,11 @@ public static class CompositorDetector
             return CompositorType.Unknown;
         }
 
+        return ClassifyWaylandCompositor(environment, isWayland);
+    }
+
+    private static CompositorType ClassifyWaylandCompositor(LinuxEnvironmentSnapshot environment, bool isWayland)
+    {
         var currentDesktop = environment.CurrentDesktop ?? "";
         var gdmSession = environment.GdmSession ?? "";
         var desktopIdentity = $"{currentDesktop}:{gdmSession}".ToUpperInvariant();

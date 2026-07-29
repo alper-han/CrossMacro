@@ -13,8 +13,8 @@ public sealed class RunScriptShellRuntimeTests
 
         await executor.ExecuteStepAsync("shell \"printf hello   $name\"", 1, variables, CancellationToken.None);
 
-        runner.Calls.Should().ContainSingle();
-        runner.Calls[0].Request.Command.Should().Be("printf hello   world");
+        _ = runner.Calls.Should().ContainSingle();
+        _ = runner.Calls[0].Request.Command.Should().Be("printf hello   world");
     }
 
     [Fact]
@@ -25,13 +25,13 @@ public sealed class RunScriptShellRuntimeTests
             new ShellCommandResult(0, "", ""));
         var timingService = Substitute.For<IPlaybackTimingService>();
         var pauseToken = Substitute.For<IPlaybackPauseToken>();
-        timingService.WaitAsync(Arg.Any<int>(), Arg.Any<IPlaybackPauseToken>(), Arg.Any<CancellationToken>())
+        _ = timingService.WaitAsync(Arg.Any<int>(), Arg.Any<IPlaybackPauseToken>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
         var executor = new RunScriptShellExecutor(runner, timingService, pauseToken);
 
         await executor.ExecuteStepAsync("shell \"false\" 1 1 0", 3, Vars(), CancellationToken.None);
 
-        runner.Calls.Should().HaveCount(2);
+        _ = runner.Calls.Should().HaveCount(2);
         await timingService.Received(1).WaitAsync(1, pauseToken, Arg.Any<CancellationToken>());
     }
 
@@ -43,8 +43,8 @@ public sealed class RunScriptShellRuntimeTests
 
         await executor.ExecuteStepAsync("shell \"printf \\\"ok\\\"\"", 2, Vars(), CancellationToken.None);
 
-        runner.Calls.Should().ContainSingle();
-        runner.Calls[0].Request.Command.Should().Be("printf \"ok\"");
+        _ = runner.Calls.Should().ContainSingle();
+        _ = runner.Calls[0].Request.Command.Should().Be("printf \"ok\"");
     }
 
     [Fact]
@@ -55,8 +55,8 @@ public sealed class RunScriptShellRuntimeTests
 
         await executor.ExecuteStepAsync(@"shell capture ""printf C:\\temp\\"" code stdout stderr", 2, Vars(), CancellationToken.None);
 
-        runner.Calls.Should().ContainSingle();
-        runner.Calls[0].Request.Command.Should().Be(@"printf C:\temp\");
+        _ = runner.Calls.Should().ContainSingle();
+        _ = runner.Calls[0].Request.Command.Should().Be(@"printf C:\temp\");
     }
 
     [Fact]
@@ -67,8 +67,8 @@ public sealed class RunScriptShellRuntimeTests
 
         await executor.ExecuteStepAsync("shell \"printf $$HOME\"", 2, Vars(), CancellationToken.None);
 
-        runner.Calls.Should().ContainSingle();
-        runner.Calls[0].Request.Command.Should().Be("printf $HOME");
+        _ = runner.Calls.Should().ContainSingle();
+        _ = runner.Calls[0].Request.Command.Should().Be("printf $HOME");
     }
 
     [Fact]
@@ -80,9 +80,9 @@ public sealed class RunScriptShellRuntimeTests
 
         await executor.ExecuteStepAsync("shell capture \"printf ok\" code stdout stderr", 2, variables, CancellationToken.None);
 
-        variables.Should().Contain("code", "0");
-        variables.Should().Contain("stdout", "out");
-        variables.Should().Contain("stderr", "err");
+        _ = variables.Should().Contain("code", "0");
+        _ = variables.Should().Contain("stdout", "out");
+        _ = variables.Should().Contain("stderr", "err");
     }
 
     [Fact]
@@ -96,10 +96,10 @@ public sealed class RunScriptShellRuntimeTests
 
         await executor.ExecuteStepAsync("shell capture \"false\" code _ stderr 3 0 0", 2, variables, CancellationToken.None);
 
-        runner.Calls.Should().ContainSingle();
-        variables.Should().Contain("code", "7");
-        variables.Should().Contain("stderr", "failure");
-        variables.Should().NotContainKey("_");
+        _ = runner.Calls.Should().ContainSingle();
+        _ = variables.Should().Contain("code", "7");
+        _ = variables.Should().Contain("stderr", "failure");
+        _ = variables.Should().NotContainKey("_");
     }
 
     [Fact]
@@ -112,9 +112,9 @@ public sealed class RunScriptShellRuntimeTests
 
         await executor.ExecuteStepAsync("shell input \"$payload\" \"cat\"", 2, variables, CancellationToken.None);
 
-        runner.Calls.Should().ContainSingle();
-        runner.Calls[0].Request.Command.Should().Be("cat");
-        runner.Calls[0].Request.StandardInput.Should().Be("hello stdin");
+        _ = runner.Calls.Should().ContainSingle();
+        _ = runner.Calls[0].Request.Command.Should().Be("cat");
+        _ = runner.Calls[0].Request.StandardInput.Should().Be("hello stdin");
     }
 
     [Fact]
@@ -127,10 +127,10 @@ public sealed class RunScriptShellRuntimeTests
 
         await executor.ExecuteStepAsync("shell capture-input \"$payload\" \"cat\" code out _", 2, variables, CancellationToken.None);
 
-        runner.Calls.Should().ContainSingle();
-        runner.Calls[0].Request.StandardInput.Should().Be("hello");
-        variables.Should().Contain("code", "0");
-        variables.Should().Contain("out", "echoed");
+        _ = runner.Calls.Should().ContainSingle();
+        _ = runner.Calls[0].Request.StandardInput.Should().Be("hello");
+        _ = variables.Should().Contain("code", "0");
+        _ = variables.Should().Contain("out", "echoed");
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class RunScriptShellRuntimeTests
 
         var act = async () => await executor.ExecuteStepAsync("shell \"false\" 1 0 0", 4, Vars(), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Step 4*attempt 2/2*exited with code 9*second failure*");
     }
 
@@ -157,9 +157,9 @@ public sealed class RunScriptShellRuntimeTests
 
         var act = async () => await executor.ExecuteStepAsync("shell \"sleep\" 1 0 5", 8, Vars(), CancellationToken.None);
 
-        await act.Should().ThrowAsync<TimeoutException>()
+        _ = await act.Should().ThrowAsync<TimeoutException>()
             .WithMessage("*Step 8*attempt 2/2*timed out after 5 ms*");
-        runner.Calls.Should().HaveCount(2);
+        _ = runner.Calls.Should().HaveCount(2);
     }
 
     [Fact]
@@ -171,8 +171,8 @@ public sealed class RunScriptShellRuntimeTests
 
         var act = async () => await executor.ExecuteStepAsync("shell \"sleep\" 3 0 0", 1, Vars(), cts.Token);
 
-        await act.Should().ThrowAsync<OperationCanceledException>();
-        runner.Calls.Should().ContainSingle();
+        _ = await act.Should().ThrowAsync<OperationCanceledException>();
+        _ = runner.Calls.Should().ContainSingle();
     }
 
     [Fact]
@@ -182,7 +182,7 @@ public sealed class RunScriptShellRuntimeTests
 
         var act = async () => await executor.ExecuteStepAsync("shell \"echo ok\"", 1, Vars(), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*IShellCommandRunner*");
     }
 
@@ -195,12 +195,12 @@ public sealed class RunScriptShellRuntimeTests
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"));
         var macro = new MacroSequence
         {
-            ScriptSteps = {"shell \"printf ok\""},
+            ScriptSteps = { "shell \"printf ok\"" },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        runner.Calls.Should().ContainSingle();
+        _ = runner.Calls.Should().ContainSingle();
     }
 
     private static Dictionary<string, string> Vars() => new(StringComparer.OrdinalIgnoreCase);
@@ -209,7 +209,7 @@ public sealed class RunScriptShellRuntimeTests
     {
         var timingService = Substitute.For<IPlaybackTimingService>();
         var pauseToken = Substitute.For<IPlaybackPauseToken>();
-        timingService.WaitAsync(Arg.Any<int>(), Arg.Any<IPlaybackPauseToken>(), Arg.Any<CancellationToken>())
+        _ = timingService.WaitAsync(Arg.Any<int>(), Arg.Any<IPlaybackPauseToken>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
         return new RunScriptShellExecutor(runner, timingService, pauseToken);
     }
@@ -219,30 +219,44 @@ public sealed class RunScriptShellRuntimeTests
         Func<IInputSimulator>? inputSimulatorFactory = null)
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
-        keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
+        _ = keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
+        _ = keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
+        _ = keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        positionProvider.ProviderName.Returns("fake-position");
-        positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.ProviderName.Returns("fake-position");
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
 
         return new MacroPlayer(
-            positionProvider,
             new PlaybackValidator(keyCodeMapper, positionProvider),
-            playbackWaitAsync: (_, _) => Task.CompletedTask,
-            inputSimulatorFactory: inputSimulatorFactory ?? (() => Substitute.For<IInputSimulator>()),
-            keyCodeMapper: keyCodeMapper,
-            shellCommandRunner: shellCommandRunner);
+            CreateDependencies(
+            positionProvider,
+            keyCodeMapper,
+            inputSimulatorFactory ?? (() => Substitute.For<IInputSimulator>()),
+            shellCommandRunner: shellCommandRunner));
     }
 
-    private sealed class FakeShellCommandRunner : IShellCommandRunner
+    private static MacroPlayerDependencies CreateDependencies(
+        IMousePositionProvider positionProvider,
+        IKeyCodeMapper keyCodeMapper,
+        Func<IInputSimulator> inputSimulatorFactory,
+        IShellCommandRunner? shellCommandRunner = null)
     {
-        private readonly Queue<object> _outcomes;
+        return new MacroPlayerDependencies(positionProvider, new PlaybackTimingService(), (_, _) => Task.CompletedTask,
+            CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
+            () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
+            new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false), NullScreenPixelReader.Instance, keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner,
+            screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
+    }
 
-        public FakeShellCommandRunner(params object[] outcomes)
-        {
-            _outcomes = new Queue<object>(outcomes);
-        }
+    private static Func<double> CreateElapsedMillisecondsProvider()
+    {
+        var stopwatch = Stopwatch.StartNew();
+        return () => stopwatch.Elapsed.TotalMilliseconds;
+    }
+
+    private sealed class FakeShellCommandRunner(params object[] outcomes) : IShellCommandRunner
+    {
+        private readonly Queue<object> _outcomes = new Queue<object>(outcomes);
 
         public List<(ShellCommandRequest Request, TimeSpan? Timeout)> Calls { get; } = [];
 

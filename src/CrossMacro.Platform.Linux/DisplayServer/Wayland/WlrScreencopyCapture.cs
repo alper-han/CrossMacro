@@ -6,9 +6,7 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
     private readonly Func<WlrScreencopySupportResult> _probeSupport;
 
     public WlrScreencopyCapture()
-        : this(ProbeSupportCore)
-    {
-    }
+        : this(ProbeSupportCore) { /* Empty */ }
 
     internal WlrScreencopyCapture(Func<WlrScreencopySupportResult> probeSupport)
     {
@@ -64,7 +62,8 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
 
         try
         {
-            return await Task.Run(() => CaptureRegion(region, options)).ConfigureAwait(false);
+            // Task.Run keeps the blocking native capture off the caller's SynchronizationContext.
+            return await Task.Run(() => CaptureRegion(region, options), options.CancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -76,9 +75,7 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
         }
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 
     private static WlrScreencopyCaptureResult CaptureRegion(ScreenRect? region, ScreenReadOptions options)
     {

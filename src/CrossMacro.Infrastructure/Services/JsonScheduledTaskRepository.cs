@@ -1,17 +1,12 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-public class JsonScheduledTaskRepository : IScheduledTaskRepository
+public class JsonScheduledTaskRepository(string scheduleFilePath) : IScheduledTaskRepository
 {
-    private string _scheduleFilePath;
+    private string _scheduleFilePath = scheduleFilePath;
 
     public JsonScheduledTaskRepository() : this(PathHelper.GetConfigFilePath(ConfigFileNames.Schedules))
     {
-    }
-
-    public JsonScheduledTaskRepository(string scheduleFilePath)
-    {
-        _scheduleFilePath = scheduleFilePath;
     }
 
     public async Task<IReadOnlyList<ScheduledTask>> LoadAsync()
@@ -20,15 +15,15 @@ public class JsonScheduledTaskRepository : IScheduledTaskRepository
         {
             if (!File.Exists(_scheduleFilePath))
             {
-                return Array.Empty<ScheduledTask>();
+                return [];
             }
 
             var tasks = await FileBackedJsonStorage.ReadAsync(_scheduleFilePath, CrossMacroJsonContext.Default.ListScheduledTask)
                 .ConfigureAwait(false);
 
-            return (IReadOnlyList<ScheduledTask>?)tasks ?? Array.Empty<ScheduledTask>();
+            return (IReadOnlyList<ScheduledTask>?)tasks ?? [];
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "Failed to load scheduled tasks from {Path}", _scheduleFilePath);
             return new List<ScheduledTask>();
@@ -51,7 +46,7 @@ public class JsonScheduledTaskRepository : IScheduledTaskRepository
                     CrossMacroJsonContext.Default.ListScheduledTask)
                 .ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "Failed to save scheduled tasks to {Path}", _scheduleFilePath);
             throw;

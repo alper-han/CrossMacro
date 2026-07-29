@@ -1,7 +1,7 @@
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
 
-public class LinuxEnvironmentInfoProviderTests
+public sealed class LinuxEnvironmentInfoProviderTests
 {
     [Theory]
     [InlineData(CompositorType.X11, DisplayEnvironment.LinuxX11, false)]

@@ -30,55 +30,15 @@ internal sealed class GdiWindowsScreenCaptureBackend : IWindowsScreenCaptureBack
             throw CreateWin32Exception("GetDC(NULL) failed");
         }
 
-        var memoryDc = IntPtr.Zero;
-        var bitmap = IntPtr.Zero;
-        var previousObject = IntPtr.Zero;
+        IntPtr memoryDc = IntPtr.Zero;
+        IntPtr bitmap = IntPtr.Zero;
+        IntPtr previousObject = IntPtr.Zero;
         try
         {
-            memoryDc = Gdi32.CreateCompatibleDC(screenDc);
-            if (memoryDc == IntPtr.Zero)
-            {
-                throw CreateWin32Exception("CreateCompatibleDC failed");
-            }
-
-            var bitmapInfo = CreateBitmapInfo(region.Width, region.Height);
-            bitmap = Gdi32.CreateDIBSection(
-                screenDc,
-                ref bitmapInfo,
-                Gdi32.DibRgbColors,
-                out var bits,
-                IntPtr.Zero,
-                0);
-            if (bitmap == IntPtr.Zero || bits == IntPtr.Zero)
-            {
-                throw CreateWin32Exception("CreateDIBSection failed");
-            }
-
-            previousObject = Gdi32.SelectObject(memoryDc, bitmap);
-            if (previousObject == IntPtr.Zero || previousObject == Gdi32.HbitmapError)
-            {
-                throw CreateWin32Exception("SelectObject failed");
-            }
+            CreateCaptureResources(screenDc, region.Width, region.Height, out memoryDc, out bitmap, out var bits, out previousObject);
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (!Gdi32.BitBlt(
-                    memoryDc,
-                    0,
-                    0,
-                    region.Width,
-                    region.Height,
-                    screenDc,
-                    region.X,
-                    region.Y,
-                    Gdi32.Srccopy | Gdi32.CaptureBlt))
-            {
-                throw CreateWin32Exception("BitBlt failed");
-            }
-
-            if (!Gdi32.GdiFlush())
-            {
-                throw CreateWin32Exception("GdiFlush failed");
-            }
+            PerformCaptureBlt(screenDc, memoryDc, region.X, region.Y, region.Width, region.Height);
 
             var stride = checked(region.Width * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Bgra8888));
             var pixels = new byte[checked(stride * region.Height)];
@@ -88,32 +48,96 @@ internal sealed class GdiWindowsScreenCaptureBackend : IWindowsScreenCaptureBack
         }
         finally
         {
-            if (previousObject != IntPtr.Zero && previousObject != Gdi32.HbitmapError && memoryDc != IntPtr.Zero)
-            {
-                Gdi32.SelectObject(memoryDc, previousObject);
-            }
-
-            if (bitmap != IntPtr.Zero)
-            {
-                Gdi32.DeleteObject(bitmap);
-            }
-
-            if (memoryDc != IntPtr.Zero)
-            {
-                Gdi32.DeleteDC(memoryDc);
-            }
-
-            User32.ReleaseDC(IntPtr.Zero, screenDc);
+            ReleaseCaptureResources(screenDc, memoryDc, bitmap, previousObject);
         }
     }
 
-    private static BITMAPINFO CreateBitmapInfo(int width, int height)
+    private static void CreateCaptureResources(
+        IntPtr screenDc,
+        int width,
+        int height,
+        out IntPtr memoryDc,
+        out IntPtr bitmap,
+        out IntPtr bits,
+        out IntPtr previousObject)
     {
-        return new BITMAPINFO
+        memoryDc = Gdi32.CreateCompatibleDC(screenDc);
+        if (memoryDc == IntPtr.Zero)
         {
-            bmiHeader = new BITMAPINFOHEADER
+            throw CreateWin32Exception("CreateCompatibleDC failed");
+        }
+
+        var bitmapInfo = CreateBitmapInfo(width, height);
+        bitmap = Gdi32.CreateDIBSection(
+            screenDc,
+            ref bitmapInfo,
+            Gdi32.DibRgbColors,
+            out bits,
+            IntPtr.Zero,
+            0);
+        if (bitmap == IntPtr.Zero || bits == IntPtr.Zero)
+        {
+            // No cleanup here: out params alias the caller's locals, so the caller's finally
+            // (ReleaseCaptureResources) would double-free anything deleted in this method.
+            throw CreateWin32Exception("CreateDIBSection failed");
+        }
+
+        previousObject = Gdi32.SelectObject(memoryDc, bitmap);
+        if (previousObject == IntPtr.Zero || previousObject == Gdi32.HbitmapError)
+        {
+            throw CreateWin32Exception("SelectObject failed");
+        }
+    }
+
+    private static void PerformCaptureBlt(IntPtr screenDc, IntPtr memoryDc, int x, int y, int width, int height)
+    {
+        if (!Gdi32.BitBlt(
+                memoryDc,
+                0,
+                0,
+                width,
+                height,
+                screenDc,
+                x,
+                y,
+                Gdi32.Srccopy | Gdi32.CaptureBlt))
+        {
+            throw CreateWin32Exception("BitBlt failed");
+        }
+
+        if (!Gdi32.GdiFlush())
+        {
+            throw CreateWin32Exception("GdiFlush failed");
+        }
+    }
+
+    private static void ReleaseCaptureResources(IntPtr screenDc, IntPtr memoryDc, IntPtr bitmap, IntPtr previousObject)
+    {
+        if (previousObject != IntPtr.Zero && previousObject != Gdi32.HbitmapError && memoryDc != IntPtr.Zero)
+        {
+            _ = Gdi32.SelectObject(memoryDc, previousObject);
+        }
+
+        if (bitmap != IntPtr.Zero)
+        {
+            _ = Gdi32.DeleteObject(bitmap);
+        }
+
+        if (memoryDc != IntPtr.Zero)
+        {
+            _ = Gdi32.DeleteDC(memoryDc);
+        }
+
+        _ = User32.ReleaseDC(IntPtr.Zero, screenDc);
+    }
+
+    private static BitmapInfo CreateBitmapInfo(int width, int height)
+    {
+        return new BitmapInfo
+        {
+            bmiHeader = new BitmapInfoHeader
             {
-                biSize = (uint)Marshal.SizeOf<BITMAPINFOHEADER>(),
+                biSize = (uint)Marshal.SizeOf<BitmapInfoHeader>(),
                 biWidth = width,
                 biHeight = checked(-height),
                 biPlanes = 1,

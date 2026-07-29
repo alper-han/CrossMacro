@@ -1,10 +1,8 @@
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 public sealed class DesignSettingsViewModel : SettingsViewModel
 {
-    public DesignSettingsViewModel() : this(new DesignPreviewContext())
-    {
-    }
+    public DesignSettingsViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignSettingsViewModel(DesignPreviewContext context)
         : base(
@@ -17,6 +15,5 @@ public sealed class DesignSettingsViewModel : SettingsViewModel
             context.ThemeService,
             context.RuntimeContext,
             context.LocalizationService)
-    {
-    }
+    { /* Empty */ }
 }

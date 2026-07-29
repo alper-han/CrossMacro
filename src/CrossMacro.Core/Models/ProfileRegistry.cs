@@ -28,9 +28,7 @@ public class ProfileRegistry
     /// </summary>
     public IList<ProfileInfo> Profiles { get; } = [];
 
-    public ProfileRegistry()
-    {
-    }
+    public ProfileRegistry() { /* Empty */ }
 
     [JsonConstructor]
     public ProfileRegistry(int version, string activeProfile, IList<ProfileInfo>? profiles)

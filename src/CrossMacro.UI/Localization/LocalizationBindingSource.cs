@@ -21,10 +21,7 @@ public sealed class LocalizationBindingSource : ObservableObject
             return;
         }
 
-        if (_service is not null)
-        {
-            _service.CultureChanged -= OnCultureChanged;
-        }
+        _service?.CultureChanged -= OnCultureChanged;
 
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _service.CultureChanged += OnCultureChanged;

@@ -11,11 +11,14 @@ public sealed class LinuxEnvironmentVariables : ILinuxEnvironmentVariables
         return new LinuxEnvironmentVariables(Environment.GetEnvironmentVariable, File.Exists).CaptureSnapshot();
     }
 
-    [Obsolete("Capture the Linux environment once at the composition boundary and pass the snapshot.", error: false)]
+    /// <summary>
+    /// Captures the live environment at call time. Prefer the snapshot-backed
+    /// constructor in production composition so the environment is captured
+    /// once at the boundary and passed through.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
     public LinuxEnvironmentVariables()
-        : this(Environment.GetEnvironmentVariable, File.Exists)
-    {
-    }
+        : this(Environment.GetEnvironmentVariable, File.Exists) { /* Empty */ }
 
     public LinuxEnvironmentVariables(LinuxEnvironmentSnapshot snapshot)
     {
@@ -25,9 +28,7 @@ public sealed class LinuxEnvironmentVariables : ILinuxEnvironmentVariables
     }
 
     internal LinuxEnvironmentVariables(Func<string, string?> getEnvironmentVariable)
-        : this(getEnvironmentVariable, File.Exists)
-    {
-    }
+        : this(getEnvironmentVariable, File.Exists) { /* Empty */ }
 
     internal LinuxEnvironmentVariables(Func<string, string?> getEnvironmentVariable, Func<string, bool> fileExists)
     {

@@ -13,9 +13,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
     private bool _disposed;
 
     public NiriPositionProvider()
-        : this(new NiriIpcClient())
-    {
-    }
+        : this(new NiriIpcClient()) { /* Empty */ }
 
     internal NiriPositionProvider(INiriIpcClient ipcClient)
     {
@@ -50,7 +48,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
             Log.Warning("[NiriPositionProvider] Failed to parse screen resolution from Niri outputs response");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[NiriPositionProvider] Failed to get screen resolution");
             return null;
@@ -77,59 +75,67 @@ public sealed class NiriPositionProvider : IMousePositionProvider
                 return false;
             }
 
-            (int X, int Y, int Right, int Bottom)? TryGetOutputBounds(JsonProperty outputProperty)
-            {
-                var output = outputProperty.Value;
-                if (output.ValueKind is not JsonValueKind.Object || !IsOutputEnabled(output))
-                {
-                    return null;
-                }
-
-                if (!output.TryGetProperty("logical", out var logical) || logical.ValueKind is not JsonValueKind.Object)
-                {
-                    return null;
-                }
-
-                if (!TryGetInt32(logical, "x", out var x) ||
-                    !TryGetInt32(logical, "y", out var y) ||
-                    !TryGetPositiveInt32(logical, "width", out var logicalWidth) ||
-                    !TryGetPositiveInt32(logical, "height", out var logicalHeight))
-                {
-                    return null;
-                }
-
-                return (x, y, x + logicalWidth, y + logicalHeight);
-            }
-
             var bounds = outputsElement.EnumerateObject()
                 .Select(TryGetOutputBounds)
-                .Where(b => b is not null)
+                .Where(static b => b is not null)
                 .Cast<(int X, int Y, int Right, int Bottom)>()
                 .ToList();
 
-            if (bounds.Count == 0)
+            if (bounds.Count is 0)
             {
                 return false;
             }
 
-            var minX = bounds.Min(b => b.X);
-            var minY = bounds.Min(b => b.Y);
-            var maxX = bounds.Max(b => b.Right);
-            var maxY = bounds.Max(b => b.Bottom);
-
-            if (maxX <= minX || maxY <= minY)
-            {
-                return false;
-            }
-
-            width = maxX - minX;
-            height = maxY - minY;
-            return true;
+            return TryComputeScreenExtents(bounds, out width, out height);
         }
         catch (JsonException)
         {
             return false;
         }
+    }
+
+    private static (int X, int Y, int Right, int Bottom)? TryGetOutputBounds(JsonProperty outputProperty)
+    {
+        var output = outputProperty.Value;
+        if (output.ValueKind is not JsonValueKind.Object || !IsOutputEnabled(output))
+        {
+            return null;
+        }
+
+        if (!output.TryGetProperty("logical", out var logical) || logical.ValueKind is not JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!TryGetInt32(logical, "x", out var x) ||
+            !TryGetInt32(logical, "y", out var y) ||
+            !TryGetPositiveInt32(logical, "width", out var logicalWidth) ||
+            !TryGetPositiveInt32(logical, "height", out var logicalHeight))
+        {
+            return null;
+        }
+
+        return (x, y, x + logicalWidth, y + logicalHeight);
+    }
+
+    private static bool TryComputeScreenExtents(List<(int X, int Y, int Right, int Bottom)> bounds, out int width, out int height)
+    {
+        width = 0;
+        height = 0;
+
+        var minX = bounds.Min(static b => b.X);
+        var minY = bounds.Min(static b => b.Y);
+        var maxX = bounds.Max(static b => b.Right);
+        var maxY = bounds.Max(static b => b.Bottom);
+
+        if (maxX <= minX || maxY <= minY)
+        {
+            return false;
+        }
+
+        width = maxX - minX;
+        height = maxY - minY;
+        return true;
     }
 
     private static bool TryGetOutputsElement(JsonElement root, out JsonElement outputsElement)

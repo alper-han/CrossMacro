@@ -7,18 +7,18 @@ public static class ServiceCollectionExtensions
     [SupportedOSPlatform("macos")]
     public static IServiceCollection AddMacOSServices(this IServiceCollection services)
     {
-        services.AddTransient<IInputCapture>(sp =>
+        _ = services.AddTransient<IInputCapture>(sp =>
         {
             var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
             return new MacOSInputCapture(MacOSPermissionRequestDelegates.RequestListenEventAccess(permissionChecker));
         });
-        services.AddTransient<IInputSimulator>(sp =>
+        _ = services.AddTransient<IInputSimulator>(sp =>
         {
             var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
             return new MacOSInputSimulator(MacOSPermissionRequestDelegates.RequestPostEventAccess(permissionChecker));
         });
-        services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
-        services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
+        _ = services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
+        _ = services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
         return services;
     }
 }

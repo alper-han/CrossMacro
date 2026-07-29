@@ -1,20 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakeWlrScreencopyCapture : IWlrScreencopyCapture
+internal sealed class FakeWlrScreencopyCapture(
+    WlrScreencopySupportResult support,
+    WlrScreencopyCaptureResult? captureResult = null) : IWlrScreencopyCapture
 {
-    private readonly WlrScreencopySupportResult _support;
-    private readonly WlrScreencopyCaptureResult _captureResult;
-
-    public FakeWlrScreencopyCapture(
-        WlrScreencopySupportResult support,
-        WlrScreencopyCaptureResult? captureResult = null)
-    {
-        _support = support;
-        _captureResult = captureResult ?? WlrScreencopyCaptureResult.Failure(
+    private readonly WlrScreencopySupportResult _support = support;
+    private readonly WlrScreencopyCaptureResult _captureResult = captureResult ?? WlrScreencopyCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake wlr-screencopy frame configured");
-    }
 
     public int CaptureCalls { get; private set; }
 
@@ -40,7 +34,7 @@ internal sealed class FakeWlrScreencopyCapture : IWlrScreencopyCapture
         LastRegion = region;
         if (DelayBeforeResult > TimeSpan.Zero)
         {
-            await Task.Delay(DelayBeforeResult)
+            await Task.Delay(DelayBeforeResult, options.CancellationToken)
                 .WaitAsync(options.Timeout ?? Timeout.InfiniteTimeSpan, options.CancellationToken)
                 ;
         }

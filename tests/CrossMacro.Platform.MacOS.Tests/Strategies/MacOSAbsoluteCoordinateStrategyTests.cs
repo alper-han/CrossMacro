@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Strategies;
 
-public class MacOSAbsoluteCoordinateStrategyTests
+public sealed class MacOSAbsoluteCoordinateStrategyTests
 {
     [Fact]
     public void ProcessPosition_WhenSyncEvent_ReturnsZeroTuple()
@@ -21,13 +21,13 @@ public class MacOSAbsoluteCoordinateStrategyTests
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = 42,
         });
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
@@ -49,7 +49,7 @@ public class MacOSAbsoluteCoordinateStrategyTests
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
@@ -71,7 +71,7 @@ public class MacOSAbsoluteCoordinateStrategyTests
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
-        strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,

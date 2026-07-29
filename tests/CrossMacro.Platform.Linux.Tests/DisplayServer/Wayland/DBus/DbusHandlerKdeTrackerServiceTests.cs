@@ -1,7 +1,7 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
 
-public class DbusHandlerKdeTrackerServiceTests
+public sealed class DbusHandlerKdeTrackerServiceTests
 {
     [Fact]
     public async Task UpdateMethods_ShouldInvokeProvidedCallbacks()
@@ -21,7 +21,7 @@ public class DbusHandlerKdeTrackerServiceTests
     }
 
     [LinuxFact]
-    public void TryDispatchMethod_ShouldHandlePositionAndResolutionUpdates()
+    public async Task TryDispatchMethod_ShouldHandlePositionAndResolutionUpdates()
     {
         var lastPosition = (X: 0, Y: 0);
         var lastResolution = (Width: 0, Height: 0);
@@ -36,21 +36,21 @@ public class DbusHandlerKdeTrackerServiceTests
 
         Assert.Equal(
             KdeTrackerServiceMethodHandler.DispatchResult.Handled,
-            handler.TryDispatchMethod(
+            await handler.TryDispatchMethodAsync(
                 KdeTrackerService.TrackerInterface,
                 KdeTrackerService.UpdatePositionMethod,
                 "ii",
                 positionRequest));
         Assert.Equal(
             KdeTrackerServiceMethodHandler.DispatchResult.Handled,
-            handler.TryDispatchMethod(
+            await handler.TryDispatchMethodAsync(
                 KdeTrackerService.TrackerInterface,
                 KdeTrackerService.UpdateResolutionMethod,
                 "ii",
                 resolutionRequest));
         Assert.Equal(
             KdeTrackerServiceMethodHandler.DispatchResult.UnknownMethod,
-            handler.TryDispatchMethod(
+            await handler.TryDispatchMethodAsync(
                 KdeTrackerService.TrackerInterface,
                 "Unknown",
                 "ii",
@@ -61,7 +61,7 @@ public class DbusHandlerKdeTrackerServiceTests
     }
 
     [Fact]
-    public void TryDispatchMethod_ShouldRejectWrongInterfaceWithoutInvokingCallbacks()
+    public async Task TryDispatchMethod_ShouldRejectWrongInterfaceWithoutInvokingCallbacks()
     {
         var lastPosition = (X: 0, Y: 0);
         var service = new KdeTrackerService(
@@ -73,7 +73,7 @@ public class DbusHandlerKdeTrackerServiceTests
 
         Assert.Equal(
             KdeTrackerServiceMethodHandler.DispatchResult.UnknownMethod,
-            handler.TryDispatchMethod(
+            await handler.TryDispatchMethodAsync(
                 "wrong.iface",
                 KdeTrackerService.UpdatePositionMethod,
                 "ii",
@@ -82,7 +82,7 @@ public class DbusHandlerKdeTrackerServiceTests
     }
 
     [Fact]
-    public void TryDispatchMethod_ShouldRejectInvalidSignatureWithoutInvokingCallbacks()
+    public async Task TryDispatchMethod_ShouldRejectInvalidSignatureWithoutInvokingCallbacks()
     {
         var lastPosition = (X: 0, Y: 0);
         var service = new KdeTrackerService(
@@ -95,7 +95,7 @@ public class DbusHandlerKdeTrackerServiceTests
 
         Assert.Equal(
             KdeTrackerServiceMethodHandler.DispatchResult.InvalidArguments,
-            handler.TryDispatchMethod(
+            await handler.TryDispatchMethodAsync(
                 KdeTrackerService.TrackerInterface,
                 KdeTrackerService.UpdatePositionMethod,
                 "s",

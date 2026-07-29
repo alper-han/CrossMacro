@@ -9,7 +9,7 @@ namespace CrossMacro.Daemon.Security;
 /// Linux-specific paths (systemd runtime directory, XDG state home).
 /// It is not intended to be used on Windows or macOS.
 /// </summary>
-public class AuditLogger
+internal sealed class AuditLogger : IDisposable, IAsyncDisposable
 {
     private readonly string _logDirectory;
     private readonly string _logPath;
@@ -66,11 +66,11 @@ public class AuditLogger
         {
             if (!Directory.Exists(_logDirectory))
             {
-                Directory.CreateDirectory(_logDirectory);
+                _ = Directory.CreateDirectory(_logDirectory);
                 Log.Information("[AuditLogger] Created log directory: {Dir}", _logDirectory);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[AuditLogger] Failed to create log directory: {Dir}", _logDirectory);
         }
@@ -95,7 +95,7 @@ public class AuditLogger
     /// </summary>
     public void LogDisconnect(uint uid, int pid, TimeSpan sessionDuration)
     {
-        WriteEntry(uid, pid, "DISCONNECT", $"duration={sessionDuration.TotalSeconds:F1}s");
+        WriteEntry(uid, pid, "DISCONNECT", string.Create(CultureInfo.InvariantCulture, $"duration={sessionDuration.TotalSeconds:F1}s"));
     }
 
     /// <summary>
@@ -124,7 +124,7 @@ public class AuditLogger
             return;
         }
 
-        WriteEntry(uid, pid, "SIMULATE", $"type={type} code={code} value={value}");
+        WriteEntry(uid, pid, "SIMULATE", string.Create(CultureInfo.InvariantCulture, $"type={type} code={code} value={value}"));
     }
 
     /// <summary>
@@ -158,7 +158,7 @@ public class AuditLogger
         var builder = new StringBuilder(value.Length);
         foreach (var character in value)
         {
-            builder.Append(character switch
+            _ = builder.Append(character switch
             {
                 '\r' => "\\r",
                 '\n' => "\\n",
@@ -180,17 +180,17 @@ public class AuditLogger
             {
                 RotateIfNeeded();
 
-                var timestamp = DateTime.UtcNow.ToString("O");
+                var timestamp = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 var line = string.IsNullOrEmpty(details)
-                    ? $"{timestamp}|UID={uid}|PID={pid}|{action}"
-                    : $"{timestamp}|UID={uid}|PID={pid}|{action}|{details}";
+                    ? string.Create(CultureInfo.InvariantCulture, $"{timestamp}|UID={uid}|PID={pid}|{action}")
+                    : string.Create(CultureInfo.InvariantCulture, $"{timestamp}|UID={uid}|PID={pid}|{action}|{details}");
 
                 EnsureWriter();
                 _writer?.WriteLine(line);
                 _writer?.Flush();
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[AuditLogger] Failed to write audit entry");
         }
@@ -204,7 +204,7 @@ public class AuditLogger
             {
                 _writer = new StreamWriter(_logPath, append: true);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "[AuditLogger] Failed to open log file: {Path}", _logPath);
             }
@@ -229,8 +229,8 @@ public class AuditLogger
                 // Rotate: audit.log -> audit.log.1, audit.log.1 -> audit.log.2, etc.
                 for (int i = 5; i >= 1; i--)
                 {
-                    var oldPath = i is 1 ? _logPath : $"{_logPath}.{i - 1}";
-                    var newPath = $"{_logPath}.{i}";
+                    var oldPath = i is 1 ? _logPath : string.Create(CultureInfo.InvariantCulture, $"{_logPath}.{i - 1}");
+                    var newPath = string.Create(CultureInfo.InvariantCulture, $"{_logPath}.{i}");
                     if (File.Exists(oldPath))
                     {
                         if (File.Exists(newPath))
@@ -245,7 +245,7 @@ public class AuditLogger
                 Log.Information("[AuditLogger] Rotated log file");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[AuditLogger] Failed to rotate log file");
         }
@@ -260,6 +260,30 @@ public class AuditLogger
         {
             _writer?.Dispose();
             _writer = null;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        StreamWriter? writer;
+        lock (_lock)
+        {
+            writer = _writer;
+            _writer = null;
+        }
+
+        return writer is null ? ValueTask.CompletedTask : DisposeWriterAsync(writer);
+    }
+
+    private static async ValueTask DisposeWriterAsync(StreamWriter writer)
+    {
+        try
+        {
+            await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        finally
+        {
+            await writer.DisposeAsync().ConfigureAwait(false);
         }
     }
 }

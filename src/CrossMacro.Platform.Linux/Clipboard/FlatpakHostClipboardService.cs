@@ -4,12 +4,15 @@ namespace CrossMacro.Platform.Linux.Clipboard;
 /// <summary>
 /// Clipboard service for Flatpak sandboxes that delegates clipboard access to the host session.
 /// </summary>
-public sealed class FlatpakHostClipboardService : IHostClipboardService
+public sealed class FlatpakHostClipboardService(
+    IProcessRunner processRunner,
+    IRuntimeContext runtimeContext,
+    Func<string, string?> getEnvironmentVariable) : IHostClipboardService
 {
     private const string FlatpakSpawn = "flatpak-spawn";
-    private readonly IProcessRunner _processRunner;
-    private readonly IRuntimeContext _runtimeContext;
-    private readonly Func<string, string?> _getEnvironmentVariable;
+    private readonly IProcessRunner _processRunner = processRunner;
+    private readonly IRuntimeContext _runtimeContext = runtimeContext;
+    private readonly Func<string, string?> _getEnvironmentVariable = getEnvironmentVariable;
     private readonly LinuxEnvironmentSnapshot? _environment;
     private ClipboardTool _tool = ClipboardTool.Unknown;
     private bool _initialized;
@@ -23,9 +26,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
     }
 
     public FlatpakHostClipboardService(IProcessRunner processRunner, IRuntimeContext runtimeContext)
-        : this(processRunner, runtimeContext, LinuxEnvironmentVariables.CaptureCurrentSnapshot())
-    {
-    }
+        : this(processRunner, runtimeContext, LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
 
     public FlatpakHostClipboardService(
         IProcessRunner processRunner,
@@ -34,16 +35,6 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
         : this(processRunner, runtimeContext, static _ => null)
     {
         _environment = environment;
-    }
-
-    public FlatpakHostClipboardService(
-        IProcessRunner processRunner,
-        IRuntimeContext runtimeContext,
-        Func<string, string?> getEnvironmentVariable)
-    {
-        _processRunner = processRunner;
-        _runtimeContext = runtimeContext;
-        _getEnvironmentVariable = getEnvironmentVariable;
     }
 
     public bool IsSupported => _tool is not ClipboardTool.Unknown || !_initialized;
@@ -129,7 +120,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[FlatpakHostClipboard] Failed to set host clipboard text");
             throw;
@@ -156,14 +147,15 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
                     FlatpakSpawn,
                     ["--host", "xsel", "--clipboard", "--output"],
                     cancellationToken).ConfigureAwait(false),
-                _ => throw new InvalidOperationException("No supported host clipboard tool is available."),
+                ClipboardTool.Unknown => throw new InvalidOperationException("No supported host clipboard tool is available."),
+                _ => throw new SwitchExpressionException(_tool),
             };
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (_tool is ClipboardTool.HostWlClipboard && IsEmptyWlPasteResult(ex))
             {
@@ -217,7 +209,7 @@ public sealed class FlatpakHostClipboardService : IHostClipboardService
         {
             throw;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }

@@ -2,14 +2,15 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 [Collection("EnvironmentVariableSensitive")]
-public class LinuxShellClipboardServiceTests
+[System.Runtime.Versioning.SupportedOSPlatform("linux")]
+public sealed class LinuxShellClipboardServiceTests
 {
-    private readonly CrossMacro.Infrastructure.Services.IProcessRunner _processRunner;
+    private readonly CrossMacro.Platform.Abstractions.IProcessRunner _processRunner;
     private readonly LinuxShellClipboardService _service;
 
     public LinuxShellClipboardServiceTests()
     {
-        _processRunner = Substitute.For<CrossMacro.Infrastructure.Services.IProcessRunner>();
+        _processRunner = Substitute.For<CrossMacro.Platform.Abstractions.IProcessRunner>();
         _service = new LinuxShellClipboardService(_processRunner);
     }
 
@@ -21,16 +22,16 @@ public class LinuxShellClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
-            _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
 
             // Act
             await _service.InitializeAsync();
 
             // Assert
             Assert.True(_service.IsSupported);
-            await _processRunner.Received(1).CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>());
-            await _processRunner.Received(1).CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>());
+            _ = await _processRunner.Received(1).CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>());
+            _ = await _processRunner.Received(1).CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>());
         }
         finally
         {
@@ -46,8 +47,8 @@ public class LinuxShellClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
-            _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             await _service.InitializeAsync();
 
             // Act
@@ -69,8 +70,8 @@ public class LinuxShellClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
-            _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             await _service.InitializeAsync();
 
             await _service.SetTextAsync(string.Empty);
@@ -91,15 +92,15 @@ public class LinuxShellClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
-            _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.WriteClipboardInputAndCloseAsync("wl-copy", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            _ = _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.WriteClipboardInputAndCloseAsync("wl-copy", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns<Task>(_ => throw new InvalidOperationException("wl-copy failed"));
             await _service.InitializeAsync();
 
-            var act = async () => await _service.SetTextAsync("test");
+            async Task act() => await _service.SetTextAsync("test");
 
-            await Assert.ThrowsAsync<InvalidOperationException>(act);
+            _ = await Assert.ThrowsAsync<InvalidOperationException>(act);
         }
         finally
         {
@@ -116,9 +117,9 @@ public class LinuxShellClipboardServiceTests
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", value: null);
             var service = new LinuxShellClipboardService(_processRunner);
 
-            var act = async () => await service.SetTextAsync("test");
+            async Task act() => await service.SetTextAsync("test");
 
-            await Assert.ThrowsAsync<InvalidOperationException>(act);
+            _ = await Assert.ThrowsAsync<InvalidOperationException>(act);
             Assert.False(service.IsSupported);
         }
         finally
@@ -135,7 +136,7 @@ public class LinuxShellClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", value: null);
-            _processRunner.CheckCommandAsync("xclip", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("xclip", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             // Force re-init if possible or just use new instance
             var service = new LinuxShellClipboardService(_processRunner);
             await service.InitializeAsync();
@@ -159,9 +160,9 @@ public class LinuxShellClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
-            _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
-            _processRunner.CheckCommandAsync("xclip", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
+            _ = _processRunner.CheckCommandAsync("xclip", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
             var service = new LinuxShellClipboardService(_processRunner);
 
             await service.InitializeAsync();
@@ -182,9 +183,9 @@ public class LinuxShellClipboardServiceTests
         try
         {
             Environment.SetEnvironmentVariable("WAYLAND_DISPLAY", "wayland-0");
-            _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
-            _processRunner.ReadCommandAsync("wl-paste", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            _ = _processRunner.CheckCommandAsync("wl-copy", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.CheckCommandAsync("wl-paste", Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            _ = _processRunner.ReadCommandAsync("wl-paste", Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns<Task<string>>(_ => throw new InvalidOperationException("Command 'wl-paste' exited with code 1: Nothing is copied"));
             await _service.InitializeAsync();
 

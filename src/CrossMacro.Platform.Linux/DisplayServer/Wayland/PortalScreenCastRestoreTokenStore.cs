@@ -1,19 +1,15 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class PortalScreenCastRestoreTokenStore : IPortalScreenCastRestoreTokenStore
+internal sealed class PortalScreenCastRestoreTokenStore(ISettingsService settingsService) : IPortalScreenCastRestoreTokenStore
 {
-    private readonly ISettingsService _settingsService;
+    private readonly ISettingsService _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
 
-    public PortalScreenCastRestoreTokenStore(ISettingsService settingsService)
+    public Task<string?> LoadRestoreTokenAsync(CancellationToken cancellationToken)
     {
-        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
-    }
-
-    public string? LoadRestoreToken()
-    {
+        cancellationToken.ThrowIfCancellationRequested();
         var token = _settingsService.Current.PortalScreenCastRestoreToken;
-        return string.IsNullOrWhiteSpace(token) ? null : token;
+        return Task.FromResult<string?>(string.IsNullOrWhiteSpace(token) ? null : token);
     }
 
     public async Task SaveRestoreTokenAsync(string restoreToken)

@@ -5,16 +5,11 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// Default playback coordinator implementation.
 /// Handles Corner Reset for relative mode and position sync for absolute mode.
 /// </summary>
-public class DefaultPlaybackCoordinator : IPlaybackCoordinator
+public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider = null) : IPlaybackCoordinator
 {
-    private readonly IMousePositionProvider? _positionProvider;
+    private readonly IMousePositionProvider? _positionProvider = positionProvider;
     public int CurrentX { get; private set; }
     public int CurrentY { get; private set; }
-
-    public DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider = null)
-    {
-        _positionProvider = positionProvider;
-    }
 
     public void UpdatePosition(int x, int y)
     {
@@ -35,6 +30,8 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         int screenHeight,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(macro);
+        ArgumentNullException.ThrowIfNull(simulator);
         // Reset position
         CurrentX = 0;
         CurrentY = 0;
@@ -52,7 +49,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
                     Log.Information("[PlaybackCoordinator] Position initialized from provider: ({X}, {Y})", CurrentX, CurrentY);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[PlaybackCoordinator] Failed to get initial position from provider");
             }
@@ -106,6 +103,8 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         int screenHeight,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(macro);
+        ArgumentNullException.ThrowIfNull(simulator);
         // First iteration is handled by InitializeAsync
         if (iteration is 0)
         {
@@ -133,7 +132,7 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
                             iteration + 1, CurrentX, CurrentY);
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Warning(ex, "[PlaybackCoordinator] Failed to sync position from provider");
                 }

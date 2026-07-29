@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Strategies.Selectors;
 
-public class WaylandAbsoluteStrategySelector : ICoordinateStrategySelector
+public class WaylandAbsoluteStrategySelector(IMousePositionProvider positionProvider) : ICoordinateStrategySelector
 {
-    private readonly IMousePositionProvider _positionProvider;
-
-    public WaylandAbsoluteStrategySelector(IMousePositionProvider positionProvider)
-    {
-        _positionProvider = positionProvider;
-    }
+    private readonly IMousePositionProvider _positionProvider = positionProvider;
 
     public int Priority => 10;
 

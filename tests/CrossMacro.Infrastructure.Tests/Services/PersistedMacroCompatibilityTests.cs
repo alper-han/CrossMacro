@@ -1,18 +1,18 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class PersistedMacroCompatibilityTests
+public sealed class PersistedMacroCompatibilityTests
 {
     [Fact]
     public void CanonicalSchema_UsesCurrentVersionAndFormat()
     {
-        Canonical.PersistedMacroDocument.CurrentSchemaVersion.Should().Be(2);
-        Canonical.PersistedMacroDocument.CurrentFormat.Should().Be("CrossMacroFormatV2");
-        new Canonical.PersistedMacroDocument().Format.Should().Be("CrossMacroFormatV2");
+        _ = PersistedMacroDocument.CurrentSchemaVersion.Should().Be(2);
+        _ = PersistedMacroDocument.CurrentFormat.Should().Be("CrossMacroFormatV2");
+        _ = new PersistedMacroDocument().Format.Should().Be("CrossMacroFormatV2");
     }
 
     [Fact]
-    public void CompatibilityTypes_PreserveInheritanceAndForwardingFactories()
+    public void CanonicalCodec_RoundTripsMacroSequence()
     {
         var macroEvent = new MacroEvent
         {
@@ -25,14 +25,10 @@ public class PersistedMacroCompatibilityTests
         };
         var macro = new MacroSequence { Events = { macroEvent } };
 
-        var document = Compatibility.PersistedMacroDocument.FromRuntime(macro);
-        var persistedEvent = Compatibility.PersistedMacroEvent.FromRuntime(macroEvent);
+        var persistedEvent = PersistedMacroEvent.FromRuntime(macroEvent);
 
-        document.Should().BeAssignableTo<Canonical.PersistedMacroDocument>();
-        document.Events.Should().ContainSingle().Which.Should().BeAssignableTo<Canonical.PersistedMacroEvent>();
-        persistedEvent.Should().BeAssignableTo<Canonical.PersistedMacroEvent>();
-        persistedEvent.ToRuntime().Should().Be(macroEvent);
-        Compatibility.PersistedMacroCodec.Decode(Compatibility.PersistedMacroCodec.Encode(macro))
+        _ = persistedEvent.ToRuntime().Should().Be(macroEvent);
+        _ = PersistedMacroCodec.Decode(PersistedMacroCodec.Encode(macro))
             .Should().BeEquivalentTo(macro);
     }
 }

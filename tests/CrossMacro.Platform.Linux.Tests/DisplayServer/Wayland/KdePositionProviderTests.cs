@@ -1,12 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-public class KdePositionProviderTests
+public sealed class KdePositionProviderTests
 {
+    private static readonly string[] ExpectedScriptCalls = ["stop:42", "unload:42"];
+
     [LinuxFact]
     public async Task GetAbsolutePositionAsync_ShouldReturnLatestHandlerState()
     {
-        using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
+        await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
 
         provider.ApplyPositionUpdate(320, 640);
 
@@ -18,7 +20,7 @@ public class KdePositionProviderTests
     [LinuxFact]
     public async Task GetAbsolutePositionAsync_ShouldWaitForFirstHandlerState()
     {
-        using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
+        await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
 
         var positionTask = provider.GetAbsolutePositionAsync();
         provider.ApplyPositionUpdate(320, 640);
@@ -31,7 +33,7 @@ public class KdePositionProviderTests
     [LinuxFact]
     public async Task GetScreenResolutionAsync_ShouldReturnResolutionAfterInitializationCallback()
     {
-        using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
+        await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
 
         provider.ApplyResolutionUpdate(2560, 1440);
 
@@ -131,99 +133,117 @@ public class KdePositionProviderTests
     }
 
     [LinuxFact]
-    public void StopLoadedScript_ShouldStopBeforeUnload()
+    public async Task StopLoadedScript_ShouldStopBeforeUnload()
     {
         var calls = new List<string>();
 
-        KdePositionProvider.StopLoadedScript(
+        await KdePositionProvider.StopLoadedScriptAsync(
             "42",
-            scriptId =>
+            stopScriptAsync: scriptId =>
             {
                 calls.Add($"stop:{scriptId}");
                 return Task.CompletedTask;
             },
-            scriptId =>
+            unloadScriptAsync: scriptId =>
             {
                 calls.Add($"unload:{scriptId}");
                 return Task.CompletedTask;
             },
-            _ => throw new InvalidOperationException("Unexpected error callback."));
+            onError: _ => throw new InvalidOperationException("Unexpected error callback."));
 
-        Assert.Equal(new[] { "stop:42", "unload:42" }, calls);
+        Assert.Equal(ExpectedScriptCalls, calls);
     }
 
     [LinuxFact]
-    public void StopLoadedScript_ShouldSkipCleanupWhenDisposedDuringInitializationBeforeScriptLoads()
+    public async Task StopLoadedScript_ShouldSkipCleanupWhenDisposedDuringInitializationBeforeScriptLoads()
     {
         var calls = new List<string>();
 
-        KdePositionProvider.StopLoadedScript(
+        await KdePositionProvider.StopLoadedScriptAsync(
             scriptId: null,
-            scriptId =>
+            stopScriptAsync: scriptId =>
             {
                 calls.Add($"stop:{scriptId}");
                 return Task.CompletedTask;
             },
-            scriptId =>
+            unloadScriptAsync: scriptId =>
             {
                 calls.Add($"unload:{scriptId}");
                 return Task.CompletedTask;
             },
-            _ => throw new InvalidOperationException("Unexpected error callback."));
+            onError: _ => throw new InvalidOperationException("Unexpected error callback."));
 
         Assert.Empty(calls);
     }
 
     [LinuxFact]
-    public void CleanupLoadedScriptIfShutdownRequested_ShouldStopAndUnloadWhenCancellationWasRequested()
+    public async Task CleanupLoadedScriptIfShutdownRequested_ShouldStopAndUnloadWhenCancellationWasRequested()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
         var calls = new List<string>();
 
-        var cleanedUp = KdePositionProvider.CleanupLoadedScriptIfShutdownRequested(
+        var cleanedUp = await KdePositionProvider.CleanupLoadedScriptIfShutdownRequestedAsync(
             disposed: false,
-            cancellationToken: cts.Token,
             scriptId: "42",
-            scriptId =>
+            cancellationToken: cts.Token,
+            stopScriptAsync: scriptId =>
             {
                 calls.Add($"stop:{scriptId}");
                 return Task.CompletedTask;
             },
-            scriptId =>
+            unloadScriptAsync: scriptId =>
             {
                 calls.Add($"unload:{scriptId}");
                 return Task.CompletedTask;
             },
-            _ => throw new InvalidOperationException("Unexpected error callback."));
+            onError: _ => throw new InvalidOperationException("Unexpected error callback."));
 
         Assert.True(cleanedUp);
-        Assert.Equal(new[] { "stop:42", "unload:42" }, calls);
+        Assert.Equal(ExpectedScriptCalls, calls);
     }
 
     [LinuxFact]
-    public void CleanupLoadedScriptIfShutdownRequested_ShouldBeNoOpWhenStillRunning()
+    public async Task CleanupLoadedScriptIfShutdownRequested_ShouldBeNoOpWhenStillRunning()
     {
         using var cts = new CancellationTokenSource();
         var calls = new List<string>();
 
-        var cleanedUp = KdePositionProvider.CleanupLoadedScriptIfShutdownRequested(
+        var cleanedUp = await KdePositionProvider.CleanupLoadedScriptIfShutdownRequestedAsync(
             disposed: false,
-            cancellationToken: cts.Token,
             scriptId: "42",
-            scriptId =>
+            cancellationToken: cts.Token,
+            stopScriptAsync: scriptId =>
             {
                 calls.Add($"stop:{scriptId}");
                 return Task.CompletedTask;
             },
-            scriptId =>
+            unloadScriptAsync: scriptId =>
             {
                 calls.Add($"unload:{scriptId}");
                 return Task.CompletedTask;
             },
-            _ => throw new InvalidOperationException("Unexpected error callback."));
+            onError: _ => throw new InvalidOperationException("Unexpected error callback."));
 
         Assert.False(cleanedUp);
         Assert.Empty(calls);
+    }
+
+    [LinuxFact]
+    public async Task StopLoadedScriptAsync_PropagatesCancellation()
+    {
+        using var cts = new CancellationTokenSource();
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var cleanup = KdePositionProvider.StopLoadedScriptAsync(
+            "42",
+            _ => pending.Task,
+            _ => Task.CompletedTask,
+            _ => throw new InvalidOperationException("Unexpected error callback."),
+            cts.Token);
+
+        cts.Cancel();
+
+        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => cleanup);
     }
 }

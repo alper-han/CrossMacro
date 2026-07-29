@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services.Playback;
 
-public class DefaultPlaybackCoordinatorTests
+public sealed class DefaultPlaybackCoordinatorTests
 {
     [Fact]
     public async Task InitializeAsync_AbsoluteMode_DoesNotPreMoveFirstEvent()
@@ -14,7 +14,7 @@ public class DefaultPlaybackCoordinatorTests
             IsAbsoluteCoordinates = true,
             Events =
             {
-                new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 }
+                new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 },
             },
         };
 
@@ -24,8 +24,8 @@ public class DefaultPlaybackCoordinatorTests
         // Assert
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
-        coordinator.CurrentX.Should().Be(0);
-        coordinator.CurrentY.Should().Be(0);
+        _ = coordinator.CurrentX.Should().Be(0);
+        _ = coordinator.CurrentY.Should().Be(0);
     }
 
     [Fact]
@@ -34,15 +34,15 @@ public class DefaultPlaybackCoordinatorTests
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        positionProvider.IsSupported.Returns(returnThis: true);
-        positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((50, 40)));
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((50, 40)));
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
         var macro = new MacroSequence
         {
             IsAbsoluteCoordinates = true,
             Events =
             {
-                new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 }
+                new MacroEvent { Type = EventType.MouseMove, X = 120, Y = 90 },
             },
         };
 
@@ -52,8 +52,8 @@ public class DefaultPlaybackCoordinatorTests
         // Assert
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
-        coordinator.CurrentX.Should().Be(50);
-        coordinator.CurrentY.Should().Be(40);
+        _ = coordinator.CurrentX.Should().Be(50);
+        _ = coordinator.CurrentY.Should().Be(40);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class DefaultPlaybackCoordinatorTests
             IsAbsoluteCoordinates = true,
             Events =
             {
-                new MacroEvent { Type = EventType.MouseMove, X = 200, Y = 150 }
+                new MacroEvent { Type = EventType.MouseMove, X = 200, Y = 150 },
             },
         };
 
@@ -79,8 +79,8 @@ public class DefaultPlaybackCoordinatorTests
         // Assert
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
-        coordinator.CurrentX.Should().Be(50);
-        coordinator.CurrentY.Should().Be(40);
+        _ = coordinator.CurrentX.Should().Be(50);
+        _ = coordinator.CurrentY.Should().Be(40);
     }
 
     [Fact]
@@ -130,14 +130,14 @@ public class DefaultPlaybackCoordinatorTests
                     Type = EventType.MouseMove,
                     X = 10,
                     Y = -5,
-                    CoordinateMode = MouseCoordinateMode.Relative
+                    CoordinateMode = MouseCoordinateMode.Relative,
                 },
                 new MacroEvent
                 {
                     Type = EventType.Click,
                     Button = MacroMouseButton.Left,
-                    UseCurrentPosition = true
-                }
+                    UseCurrentPosition = true,
+                },
             },
         };
 
@@ -166,8 +166,8 @@ public class DefaultPlaybackCoordinatorTests
                     Button = MacroMouseButton.Left,
                     X = 0,
                     Y = 0,
-                    UseCurrentPosition = true
-                }
+                    UseCurrentPosition = true,
+                },
             },
         };
 
@@ -195,8 +195,8 @@ public class DefaultPlaybackCoordinatorTests
                     Button = MacroMouseButton.Left,
                     X = 800,
                     Y = 600,
-                    UseCurrentPosition = true
-                }
+                    UseCurrentPosition = true,
+                },
             },
         };
 
@@ -225,7 +225,7 @@ public class DefaultPlaybackCoordinatorTests
                     Button = MacroMouseButton.Left,
                     X = 0,
                     Y = 0,
-                    UseCurrentPosition = true
+                    UseCurrentPosition = true,
                 },
                 new MacroEvent
                 {
@@ -262,7 +262,7 @@ public class DefaultPlaybackCoordinatorTests
                     Button = MacroMouseButton.Left,
                     X = 0,
                     Y = 0,
-                    UseCurrentPosition = true
+                    UseCurrentPosition = true,
                 },
                 new MacroEvent
                 {
@@ -296,8 +296,8 @@ public class DefaultPlaybackCoordinatorTests
                     Type = EventType.MouseMove,
                     X = 300,
                     Y = 250,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
             },
         };
 
@@ -305,8 +305,8 @@ public class DefaultPlaybackCoordinatorTests
 
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(-20000, -20000);
-        coordinator.CurrentX.Should().Be(0);
-        coordinator.CurrentY.Should().Be(0);
+        _ = coordinator.CurrentX.Should().Be(0);
+        _ = coordinator.CurrentY.Should().Be(0);
     }
 
     [Fact]
@@ -325,8 +325,8 @@ public class DefaultPlaybackCoordinatorTests
                     Type = EventType.MouseMove,
                     X = 10,
                     Y = -5,
-                    CoordinateMode = MouseCoordinateMode.Relative
-                }
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
             },
         };
 
@@ -352,8 +352,8 @@ public class DefaultPlaybackCoordinatorTests
                     Type = EventType.MouseMove,
                     X = 300,
                     Y = 250,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
             },
         };
 
@@ -361,7 +361,7 @@ public class DefaultPlaybackCoordinatorTests
 
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
-        coordinator.CurrentX.Should().Be(20);
-        coordinator.CurrentY.Should().Be(30);
+        _ = coordinator.CurrentX.Should().Be(20);
+        _ = coordinator.CurrentY.Should().Be(30);
     }
 }

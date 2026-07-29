@@ -76,7 +76,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             Marshal.WriteIntPtr(_connectParameters, _formatParameter);
             Marshal.WriteIntPtr(_connectParameters + IntPtr.Size, _bufferParameter);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Dispose();
             throw;
@@ -129,7 +129,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
 
         if (_core != IntPtr.Zero)
         {
-            _lib.CoreDisconnect(_core);
+            _ = _lib.CoreDisconnect(_core);
         }
 
         if (_context != IntPtr.Zero)
@@ -147,11 +147,12 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         Free(_connectParameters);
         Free(_formatParameter);
         Free(_bufferParameter);
-        if (_selfHandle.IsAllocated)
+         if (_selfHandle.IsAllocated)
         {
             _selfHandle.Free();
         }
 
+        _frame?.Dispose();
         _lib?.Dispose();
     }
 
@@ -165,7 +166,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
                 _stream,
                 PipeWireDirection.Input,
                 _nodeId,
-                PipeWireStreamFlags.Autoconnect | PipeWireStreamFlags.MapBuffers | PipeWireStreamFlags.AllocBuffers,
+                PipeWireStreamOption.Autoconnect | PipeWireStreamOption.MapBuffers | PipeWireStreamOption.AllocBuffers,
                 _connectParameters,
                 2);
             if (rc < 0)
@@ -177,7 +178,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             while (_frame is null && _error is null && DateTimeOffset.UtcNow < deadline)
             {
                 options.CancellationToken.ThrowIfCancellationRequested();
-                _lib.ThreadLoopTimedWait(_threadLoop, 1);
+                _ = _lib.ThreadLoopTimedWait(_threadLoop, 1);
             }
         }
         finally
@@ -221,7 +222,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
 
     private static IntPtr ConnectCore(PipeWireLibrary lib, IntPtr context, SafeFileHandle remote)
     {
-        var fd = PortalPipeWireLibc.dup((int)remote.DangerousGetHandle());
+        var fd = PortalPipeWireLibc.dup(remote);
         if (fd < 0)
         {
             throw new InvalidOperationException($"dup(pipewire fd) failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
@@ -233,15 +234,15 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             return core;
         }
 
-        PortalPipeWireLibc.close(fd);
+        _ = PortalPipeWireLibc.close(fd);
         throw new InvalidOperationException("pw_context_connect_fd failed.");
     }
 
     private static IntPtr CreateStream(PipeWireLibrary lib, IntPtr core)
     {
         var props = lib.PropertiesNew("media.type", "Video");
-        lib.PropertiesSet(props, "media.category", "Capture");
-        lib.PropertiesSet(props, "media.role", "Screen");
+        _ = lib.PropertiesSet(props, "media.category", "Capture");
+        _ = lib.PropertiesSet(props, "media.role", "Screen");
         var stream = lib.StreamNew(core, "CrossMacro Portal Capture", props);
         return stream == IntPtr.Zero ? throw new InvalidOperationException("pw_stream_new failed.") : stream;
     }

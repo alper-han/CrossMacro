@@ -9,9 +9,7 @@ internal sealed class NiriLayoutSource
     private readonly Func<string, string?> _resolveLayoutName;
 
     internal NiriLayoutSource()
-        : this(() => new NiriIpcClient(), new XkbLayoutNameResolver().TryResolveLayoutCode)
-    {
-    }
+        : this(static () => new NiriIpcClient(), new XkbLayoutNameResolver().TryResolveLayoutCode) { /* Empty */ }
 
     internal NiriLayoutSource(Func<INiriIpcClient> createIpcClient, Func<string, string?> resolveLayoutName)
     {
@@ -19,7 +17,7 @@ internal sealed class NiriLayoutSource
         _resolveLayoutName = resolveLayoutName ?? throw new ArgumentNullException(nameof(resolveLayoutName));
     }
 
-    public string? DetectLayout()
+    public async Task<string?> DetectLayoutAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -29,10 +27,14 @@ internal sealed class NiriLayoutSource
                 return null;
             }
 
-            var response = ipcClient.SendRequestAsync(KeyboardLayoutsRequestJson, CancellationToken.None).GetAwaiter().GetResult();
+            var response = await ipcClient.SendRequestAsync(KeyboardLayoutsRequestJson, cancellationToken).ConfigureAwait(false);
             return TryParseLayout(response, _resolveLayoutName);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[NiriLayoutSource] Niri IPC failed");
             return null;

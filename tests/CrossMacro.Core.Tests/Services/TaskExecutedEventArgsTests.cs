@@ -1,7 +1,7 @@
 namespace CrossMacro.Core.Tests.Services;
 
 
-public class TaskExecutedEventArgsTests
+public sealed class TaskExecutedEventArgsTests
 {
     [Fact]
     public void Constructor_ShouldAssignAllProperties()

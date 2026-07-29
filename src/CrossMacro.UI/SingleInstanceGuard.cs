@@ -86,7 +86,7 @@ internal sealed class SingleInstanceGuard : IDisposable
 
             try
             {
-                Directory.CreateDirectory(lockDirectory);
+                _ = Directory.CreateDirectory(lockDirectory);
                 var lockFile = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
                 try
                 {
@@ -96,18 +96,18 @@ internal sealed class SingleInstanceGuard : IDisposable
                 catch (IOException)
                 {
                     lockFile.Dispose();
-                    HeldUnixLockPaths.Remove(lockPath);
+                    _ = HeldUnixLockPaths.Remove(lockPath);
                     return null;
                 }
             }
             catch (IOException)
             {
-                HeldUnixLockPaths.Remove(lockPath);
+                _ = HeldUnixLockPaths.Remove(lockPath);
                 return null;
             }
             catch (UnauthorizedAccessException)
             {
-                HeldUnixLockPaths.Remove(lockPath);
+                _ = HeldUnixLockPaths.Remove(lockPath);
                 return null;
             }
         }
@@ -165,7 +165,7 @@ internal sealed class SingleInstanceGuard : IDisposable
             mutex?.Dispose();
             return (null, true);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             mutex?.Dispose();
             throw;
@@ -208,7 +208,7 @@ internal sealed class SingleInstanceGuard : IDisposable
             {
                 lock (UnixLockGate)
                 {
-                    HeldUnixLockPaths.Remove(_unixLockPath);
+                    _ = HeldUnixLockPaths.Remove(_unixLockPath);
                 }
             }
         }

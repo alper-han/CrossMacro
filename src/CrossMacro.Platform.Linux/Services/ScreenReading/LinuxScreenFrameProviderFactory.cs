@@ -26,27 +26,9 @@ public sealed class LinuxScreenFrameProviderFactory
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
         IX11ScreenCaptureSupportProbe x11SupportProbe,
         Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
-        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider: null, extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory, _: true)
-    {
-    }
+        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider: null, extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory) { /* Empty */ }
 
     internal LinuxScreenFrameProviderFactory(
-        ILinuxEnvironmentDetector environmentDetector,
-        IRuntimeContext runtimeContext,
-        ILinuxScreenReaderCapabilityDetector capabilityDetector,
-        ILinuxCapabilitySnapshotProvider snapshotProvider,
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
-        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
-        IX11ScreenCaptureSupportProbe x11SupportProbe,
-        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
-        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory, _: true)
-    {
-    }
-
-    private LinuxScreenFrameProviderFactory(
         ILinuxEnvironmentDetector environmentDetector,
         IRuntimeContext runtimeContext,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
@@ -57,8 +39,7 @@ public sealed class LinuxScreenFrameProviderFactory
         Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
         IX11ScreenCaptureSupportProbe x11SupportProbe,
-        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory,
-        bool _)
+        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
     {
         _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
@@ -91,11 +72,10 @@ public sealed class LinuxScreenFrameProviderFactory
             wlrFactory,
             portalFactory,
             kWinFactory,
-            _ => new UnavailableLinuxScreenFrameProvider(ScreenReadErrorKind.BackendUnavailable, "Gnome extension is not configured in tests."),
+            static _ => new UnavailableLinuxScreenFrameProvider(ScreenReadErrorKind.BackendUnavailable, "Gnome extension is not configured in tests."),
             x11SupportProbe,
             x11Factory)
-    {
-    }
+    { /* Empty */ }
 
     public IScreenFrameProvider Create()
     {

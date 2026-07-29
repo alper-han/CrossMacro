@@ -45,7 +45,5 @@ public sealed class MacOSMousePositionProvider : IMousePositionProvider
         ));
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

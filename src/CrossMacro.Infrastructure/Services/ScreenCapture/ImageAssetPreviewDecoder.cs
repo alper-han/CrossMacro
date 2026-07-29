@@ -1,21 +1,27 @@
 
 namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 
-public sealed class ImageAssetPreviewDecoder : IImageAssetPreviewDecoder
+public sealed class ImageAssetPreviewDecoder(IImageAssetCodec imageAssetCodec) : IImageAssetPreviewDecoder
 {
     public const int MaxPreviewWidth = 640;
     public const int MaxPreviewHeight = 360;
 
-    private readonly IImageAssetCodec _imageAssetCodec;
-
-    public ImageAssetPreviewDecoder(IImageAssetCodec imageAssetCodec)
-    {
-        _imageAssetCodec = imageAssetCodec ?? throw new ArgumentNullException(nameof(imageAssetCodec));
-    }
+    private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? throw new ArgumentNullException(nameof(imageAssetCodec));
 
     public ImageAssetPreview Decode(string encoded, string? assetName = null)
     {
         using var frame = _imageAssetCodec.DecodeBase64Png(encoded, assetName);
+        return CreatePreview(frame);
+    }
+
+    public async Task<ImageAssetPreview> DecodeAsync(string encoded, string? assetName = null, CancellationToken cancellationToken = default)
+    {
+        using var frame = await _imageAssetCodec.DecodeBase64PngAsync(encoded, assetName, cancellationToken).ConfigureAwait(false);
+        return CreatePreview(frame);
+    }
+
+    private static ImageAssetPreview CreatePreview(ScreenFrame frame)
+    {
         var (width, height) = GetPreviewSize(frame.Width, frame.Height);
         var stride = checked(width * 4);
         var pixels = new byte[checked(stride * height)];
@@ -51,7 +57,7 @@ public sealed class ImageAssetPreviewDecoder : IImageAssetPreviewDecoder
 
         var scale = Math.Min((double)MaxPreviewWidth / width, (double)MaxPreviewHeight / height);
         return (
-            Math.Max(1, (int)Math.Round(width * scale)),
-            Math.Max(1, (int)Math.Round(height * scale)));
+            Math.Max(1, (int)Math.Round(width * scale, MidpointRounding.AwayFromZero)),
+            Math.Max(1, (int)Math.Round(height * scale, MidpointRounding.AwayFromZero)));
     }
 }

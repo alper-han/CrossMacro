@@ -147,7 +147,7 @@ internal static class KeyMap
 
         // Volume/Media Keys
         { InputEventCode.KEY_MUTE, 0x4A },          // kVK_Mute
-        { InputEventCode.KEY_VOLUMEDOWN, 0x49 },    // kVK_VolumeDown  
+        { InputEventCode.KEY_VOLUMEDOWN, 0x49 },    // kVK_VolumeDown
         { InputEventCode.KEY_VOLUMEUP, 0x48 },      // kVK_VolumeUp
 
         // Help Key
@@ -170,7 +170,7 @@ internal static class KeyMap
     {
         foreach (var kvp in _toMac)
         {
-            _fromMac.TryAdd(kvp.Value, kvp.Key);
+            _ = _fromMac.TryAdd(kvp.Value, kvp.Key);
         }
     }
 }

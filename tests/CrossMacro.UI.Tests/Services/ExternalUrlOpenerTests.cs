@@ -1,10 +1,14 @@
 
 namespace CrossMacro.UI.Tests.Services;
 
-public class ExternalUrlOpenerTests
+public sealed class ExternalUrlOpenerTests
 {
+    private static readonly Uri RepositoryUri = new("https://github.com/alper-han/CrossMacro", UriKind.Absolute);
+    private static readonly string[] XdgOpenArguments = ["https://github.com/alper-han/CrossMacro"];
+    private static readonly string[] GioOpenArguments = ["open", "https://github.com/alper-han/CrossMacro"];
+
     [Fact]
-    public void Open_OnLinuxHost_TriesDesktopLauncherDirectly()
+    public async Task Open_OnLinuxHost_TriesDesktopLauncherDirectly()
     {
         var attempts = new List<ProcessStartInfo>();
         var opener = new ExternalUrlOpener(
@@ -12,23 +16,23 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return ExternalUrlOpener.LaunchResult.Succeeded;
+                return Task.FromResult(ExternalUrlOpener.LaunchResult.Succeeded);
             },
             _ => true);
 
-        opener.Open("https://github.com/alper-han/CrossMacro");
+        await opener.OpenAsync(RepositoryUri);
 
-        attempts.Should().ContainSingle();
-        attempts[0].Should().Match<ProcessStartInfo>(startInfo =>
+        _ = attempts.Should().ContainSingle();
+        _ = attempts[0].Should().Match<ProcessStartInfo>(startInfo =>
             startInfo.FileName == "xdg-open"
             && !startInfo.UseShellExecute
             && startInfo.RedirectStandardError
             && startInfo.RedirectStandardOutput
-            && startInfo.ArgumentList.SequenceEqual(new[] { "https://github.com/alper-han/CrossMacro" }));
+            && startInfo.ArgumentList.SequenceEqual(XdgOpenArguments));
     }
 
     [Fact]
-    public void Open_OnLinux_WhenPrimaryLauncherFails_TriesOnlyExistingDesktopAgnosticFallbacks()
+    public async Task Open_OnLinux_WhenPrimaryLauncherFails_TriesOnlyExistingDesktopAgnosticFallbacks()
     {
         var attempts = new List<ProcessStartInfo>();
         var opener = new ExternalUrlOpener(
@@ -36,31 +40,31 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return attempts.Count is 2
+                return Task.FromResult(attempts.Count is 2
                     ? ExternalUrlOpener.LaunchResult.Succeeded
-                    : ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed"));
+                    : ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
             },
             command => command is "xdg-open" or "gio");
 
-        opener.Open("https://github.com/alper-han/CrossMacro");
+        await opener.OpenAsync(RepositoryUri);
 
-        attempts.Should().HaveCount(2);
-        attempts[0].Should().Match<ProcessStartInfo>(startInfo =>
+        _ = attempts.Should().HaveCount(2);
+        _ = attempts[0].Should().Match<ProcessStartInfo>(startInfo =>
             startInfo.FileName == "xdg-open"
             && !startInfo.UseShellExecute
             && startInfo.RedirectStandardError
             && startInfo.RedirectStandardOutput
-            && startInfo.ArgumentList.SequenceEqual(new[] { "https://github.com/alper-han/CrossMacro" }));
-        attempts[1].Should().Match<ProcessStartInfo>(startInfo =>
+            && startInfo.ArgumentList.SequenceEqual(XdgOpenArguments));
+        _ = attempts[1].Should().Match<ProcessStartInfo>(startInfo =>
             startInfo.FileName == "gio"
             && !startInfo.UseShellExecute
             && startInfo.RedirectStandardError
             && startInfo.RedirectStandardOutput
-            && startInfo.ArgumentList.SequenceEqual(new[] { "open", "https://github.com/alper-han/CrossMacro" }));
+            && startInfo.ArgumentList.SequenceEqual(GioOpenArguments));
     }
 
     [Fact]
-    public void Open_OnLinux_WhenXdgOpenReportsPortalOpenUriFailure_DoesNotDuplicateShellPortalFailure()
+    public async Task Open_OnLinux_WhenXdgOpenReportsPortalOpenUriFailure_DoesNotDuplicateShellPortalFailure()
     {
         const string portalError = "Error: GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: No such interface “org.freedesktop.portal.OpenURI” on object at path /org/freedesktop/portal/desktop";
         var attempts = new List<ProcessStartInfo>();
@@ -69,20 +73,20 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"Launcher '{startInfo.FileName}' exited with code 4: {portalError}"));
+                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"Launcher '{startInfo.FileName}' exited with code 4: {portalError}")));
             },
             command => command is "xdg-open");
 
-        var act = () => opener.Open("https://github.com/alper-han/CrossMacro");
+        var act = async () => await opener.OpenAsync(RepositoryUri);
 
-        var exception = act.Should().Throw<InvalidOperationException>().Which;
-        attempts.Select(startInfo => startInfo.FileName).Should().Equal("xdg-open");
-        exception.ToString().Should().Contain("org.freedesktop.portal.OpenURI");
-        exception.ToString().Should().NotContain("Launcher 'https://github.com/alper-han/CrossMacro' exited with code 4");
+        var exception = (await act.Should().ThrowAsync<InvalidOperationException>()).Which;
+        _ = attempts.Select(startInfo => startInfo.FileName).Should().Equal("xdg-open");
+        _ = exception.ToString().Should().Contain("org.freedesktop.portal.OpenURI");
+        _ = exception.ToString().Should().NotContain("Launcher 'https://github.com/alper-han/CrossMacro' exited with code 4");
     }
 
     [Fact]
-    public void Open_OnLinux_WhenOptionalFallbackCommandsAreMissing_DoesNotReportMissingCommandNoise()
+    public async Task Open_OnLinux_WhenOptionalFallbackCommandsAreMissing_DoesNotReportMissingCommandNoise()
     {
         var attempts = new List<ProcessStartInfo>();
         var opener = new ExternalUrlOpener(
@@ -90,21 +94,21 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed"));
+                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
             },
             command => command is "xdg-open");
 
-        var act = () => opener.Open("https://github.com/alper-han/CrossMacro");
+        var act = async () => await opener.OpenAsync(RepositoryUri);
 
-        var exception = act.Should().Throw<InvalidOperationException>().Which;
-        attempts.Select(startInfo => startInfo.FileName).Should().Equal(
+        var exception = (await act.Should().ThrowAsync<InvalidOperationException>()).Which;
+        _ = attempts.Select(startInfo => startInfo.FileName).Should().Equal(
             "xdg-open");
-        exception.ToString().Should().NotContain("gio");
-        exception.ToString().Should().NotContain("sensible-browser");
+        _ = exception.ToString().Should().NotContain("gio");
+        _ = exception.ToString().Should().NotContain("sensible-browser");
     }
 
     [Fact]
-    public void Open_OnLinux_WhenCommandDisappearsAfterProbe_DoesNotReportMissingCommandNoise()
+    public async Task Open_OnLinux_WhenCommandDisappearsAfterProbe_DoesNotReportMissingCommandNoise()
     {
         var attempts = new List<ProcessStartInfo>();
         var opener = new ExternalUrlOpener(
@@ -117,37 +121,37 @@ public class ExternalUrlOpenerTests
                     throw new Win32Exception(2, "No such file or directory");
                 }
 
-                return ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed"));
+                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
             },
             command => command is "xdg-open" or "gio");
 
-        var act = () => opener.Open("https://github.com/alper-han/CrossMacro");
+        var act = async () => await opener.OpenAsync(RepositoryUri);
 
-        var exception = act.Should().Throw<InvalidOperationException>().Which;
-        attempts.Select(startInfo => startInfo.FileName).Should().Equal(
+        var exception = (await act.Should().ThrowAsync<InvalidOperationException>()).Which;
+        _ = attempts.Select(startInfo => startInfo.FileName).Should().Equal(
             "xdg-open",
             "gio");
-        exception.ToString().Should().Contain("xdg-open failed");
-        exception.ToString().Should().NotContain("No such file or directory");
+        _ = exception.ToString().Should().Contain("xdg-open failed");
+        _ = exception.ToString().Should().NotContain("No such file or directory");
     }
 
     [Fact]
-    public void Open_WhenAllAvailableLaunchersFail_ThrowsClearError()
+    public async Task Open_WhenAllAvailableLaunchersFail_ThrowsClearError()
     {
         var opener = new ExternalUrlOpener(
             FakeRuntimeContext.Linux(),
-            _ => ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("launcher failed")),
+            _ => Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("launcher failed"))),
             _ => false);
 
-        var act = () => opener.Open("https://github.com/alper-han/CrossMacro");
+        var act = async () => await opener.OpenAsync(RepositoryUri);
 
-        act.Should().Throw<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Unable to open the URL with the available desktop launchers.");
     }
 
     [Theory]
     [MemberData(nameof(NonLinuxRuntimeContexts))]
-    public void Open_OnWindowsAndMacOS_WhenShellLauncherFails_DoesNotAttemptLinuxFallbacks(FakeRuntimeContext runtimeContext)
+    public async Task Open_OnWindowsAndMacOS_WhenShellLauncherFails_DoesNotAttemptLinuxFallbacks(IRuntimeContext runtimeContext)
     {
         var attempts = new List<ProcessStartInfo>();
         var opener = new ExternalUrlOpener(
@@ -155,24 +159,24 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("shell failed"));
+                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("shell failed")));
             },
             _ => true);
 
-        var act = () => opener.Open("https://github.com/alper-han/CrossMacro");
+        var act = async () => await opener.OpenAsync(RepositoryUri);
 
-        act.Should().Throw<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Unable to open the URL with the available desktop launchers.");
-        attempts.Should().ContainSingle();
-        attempts[0].FileName.Should().Be("https://github.com/alper-han/CrossMacro");
-        attempts[0].UseShellExecute.Should().BeTrue();
+        _ = attempts.Should().ContainSingle();
+        _ = attempts[0].FileName.Should().Be("https://github.com/alper-han/CrossMacro");
+        _ = attempts[0].UseShellExecute.Should().BeTrue();
     }
 
     [Theory]
     [InlineData("github.com/alper-han/CrossMacro")]
     [InlineData("file:///tmp/crossmacro")]
     [InlineData("javascript:alert(1)")]
-    public void Open_WhenUrlIsNotAbsoluteHttpOrHttps_RejectsIt(string url)
+    public async Task Open_WhenUrlIsNotAbsoluteHttpOrHttps_RejectsIt(string value)
     {
         var attempts = new List<ProcessStartInfo>();
         var opener = new ExternalUrlOpener(
@@ -180,19 +184,20 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return ExternalUrlOpener.LaunchResult.Succeeded;
+                return Task.FromResult(ExternalUrlOpener.LaunchResult.Succeeded);
             },
             _ => true);
 
-        var act = () => opener.Open(url);
+        Func<string, Task> open = opener.OpenAsync;
+        var act = async () => await open(value);
 
-        act.Should().Throw<ArgumentException>()
+        _ = await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage("Only absolute HTTP and HTTPS URLs can be opened. (Parameter 'url')");
-        attempts.Should().BeEmpty();
+        _ = attempts.Should().BeEmpty();
     }
 
     [Fact]
-    public void Open_OnFlatpak_WhenPortalLauncherFails_DoesNotAttemptHostOrDesktopFallbacks()
+    public async Task Open_OnFlatpak_WhenPortalLauncherFails_DoesNotAttemptHostOrDesktopFallbacks()
     {
         var attempts = new List<ProcessStartInfo>();
         var opener = new ExternalUrlOpener(
@@ -200,29 +205,29 @@ public class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("portal failed"));
+                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("portal failed")));
             },
             _ => true);
 
-        var act = () => opener.Open("https://github.com/alper-han/CrossMacro");
+        var act = async () => await opener.OpenAsync(RepositoryUri);
 
-        act.Should().Throw<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Unable to open the URL with the available desktop launchers.");
-        attempts.Should().ContainSingle();
-        attempts[0].FileName.Should().Be("https://github.com/alper-han/CrossMacro");
-        attempts[0].UseShellExecute.Should().BeTrue();
+        _ = attempts.Should().ContainSingle();
+        _ = attempts[0].FileName.Should().Be("https://github.com/alper-han/CrossMacro");
+        _ = attempts[0].UseShellExecute.Should().BeTrue();
     }
 
-    public static TheoryData<FakeRuntimeContext> NonLinuxRuntimeContexts()
+    public static TheoryData<IRuntimeContext> NonLinuxRuntimeContexts()
     {
-        return new TheoryData<FakeRuntimeContext>
+        return new TheoryData<IRuntimeContext>
         {
             FakeRuntimeContext.Windows(),
             FakeRuntimeContext.MacOS(),
         };
     }
 
-    public sealed class FakeRuntimeContext : IRuntimeContext
+    internal sealed class FakeRuntimeContext : IRuntimeContext
     {
         private FakeRuntimeContext(bool isLinux, bool isWindows, bool isMacOS, bool isFlatpak)
         {

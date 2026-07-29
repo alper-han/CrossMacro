@@ -3,17 +3,6 @@ namespace CrossMacro.UI.ViewModels;
 
 public partial class EditorViewModel
 {
-    private static async Task RunOnUiThreadAsync(Action action)
-    {
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            return;
-        }
-
-        await Dispatcher.UIThread.InvokeAsync(action);
-    }
-
     public async Task CaptureMouseAsync()
     {
         var targetAction = SelectedAction;
@@ -66,13 +55,13 @@ public partial class EditorViewModel
                 Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedPosition"), result.Value.X, result.Value.Y);
             }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message)).ConfigureAwait(false);
         }
         finally
         {
-            CaptureMode = EditorCaptureMode.None;
+            await RunOnUiThreadAsync(() => CaptureMode = EditorCaptureMode.None).ConfigureAwait(false);
         }
     }
 
@@ -112,13 +101,13 @@ public partial class EditorViewModel
                 Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCapturedKey"), targetAction.KeyName, result.Value);
             }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message)).ConfigureAwait(false);
         }
         finally
         {
-            CaptureMode = EditorCaptureMode.None;
+            await RunOnUiThreadAsync(() => CaptureMode = EditorCaptureMode.None).ConfigureAwait(false);
         }
     }
 
@@ -202,13 +191,13 @@ public partial class EditorViewModel
                     positionResult.Value.Y);
             }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message)).ConfigureAwait(false);
         }
         finally
         {
-            CaptureMode = EditorCaptureMode.None;
+            await RunOnUiThreadAsync(() => CaptureMode = EditorCaptureMode.None).ConfigureAwait(false);
         }
     }
 
@@ -325,13 +314,13 @@ public partial class EditorViewModel
                     positionResult.Value.Y);
             }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message)).ConfigureAwait(false);
         }
         finally
         {
-            CaptureMode = EditorCaptureMode.None;
+            await RunOnUiThreadAsync(() => CaptureMode = EditorCaptureMode.None).ConfigureAwait(false);
         }
     }
 
@@ -474,13 +463,13 @@ public partial class EditorViewModel
                 applyPoint(targetAction, result.Value.X, result.Value.Y);
             }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message)).ConfigureAwait(false);
         }
         finally
         {
-            CaptureMode = EditorCaptureMode.None;
+            await RunOnUiThreadAsync(() => CaptureMode = EditorCaptureMode.None).ConfigureAwait(false);
         }
     }
 
@@ -524,13 +513,13 @@ public partial class EditorViewModel
                 applyPoint(targetAction, result.Value.X, result.Value.Y);
             }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message)).ConfigureAwait(false);
         }
         finally
         {
-            CaptureMode = EditorCaptureMode.None;
+            await RunOnUiThreadAsync(() => CaptureMode = EditorCaptureMode.None).ConfigureAwait(false);
         }
     }
 
@@ -571,7 +560,7 @@ public partial class EditorViewModel
         {
             var errorMessage = $"{Localize("Editor_ValidationErrorHeader")}\n\n{string.Join('\n', errors.Select(error => $"• {error}"))}";
             await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleValidationErrors"), errorMessage).ConfigureAwait(false);
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusValidationFailed"), errors.Count);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusValidationFailed"), errors.Count)).ConfigureAwait(false);
             return null;
         }
 
@@ -579,11 +568,14 @@ public partial class EditorViewModel
             UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action));
         var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
         var skipInitialZeroZero = _skipInitialZeroZero || RequiresSkipInitialZeroZero;
-        if (_skipInitialZeroZero != skipInitialZeroZero)
+        await RunOnUiThreadAsync(() =>
         {
-            _skipInitialZeroZero = skipInitialZeroZero;
-            OnPropertyChanged(nameof(SkipInitialZeroZero));
-        }
+            if (_skipInitialZeroZero != skipInitialZeroZero)
+            {
+                _skipInitialZeroZero = skipInitialZeroZero;
+                OnPropertyChanged(nameof(SkipInitialZeroZero));
+            }
+        }).ConfigureAwait(false);
 
         var projection = new EditorMacroProjection(
             normalizedActions,
@@ -625,7 +617,10 @@ public partial class EditorViewModel
     {
         if (IsRunningTest)
         {
-            _testPlaybackCts?.Cancel();
+            if (_testPlaybackCts is not null)
+            {
+                await _testPlaybackCts.CancelAsync().ConfigureAwait(false);
+            }
             _macroPlayer.StopPlayback();
             return;
         }
@@ -642,31 +637,38 @@ public partial class EditorViewModel
             return;
         }
 
-        IsRunningTest = true;
-        Status = Localize("Editor_StatusTestRunning");
-        _testPlaybackCts = new CancellationTokenSource();
+        await RunOnUiThreadAsync(() =>
+        {
+            IsRunningTest = true;
+            Status = Localize("Editor_StatusTestRunning");
+            _testPlaybackCts = new CancellationTokenSource();
+        }).ConfigureAwait(false);
         try
         {
             var options = new CrossMacro.Core.Models.PlaybackOptions { Loop = false, RepeatCount = 1 };
-            await _macroPlayer.PlayAsync(sequence, options, _testPlaybackCts.Token).ConfigureAwait(false);
-            if (!_testPlaybackCts.IsCancellationRequested)
+            var testPlaybackCts = _testPlaybackCts ?? throw new InvalidOperationException("Test playback cancellation was not initialized.");
+            await _macroPlayer.PlayAsync(sequence, options, testPlaybackCts.Token).ConfigureAwait(false);
+            if (!testPlaybackCts.IsCancellationRequested)
             {
-                Status = Localize("Editor_StatusTestComplete");
+                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusTestComplete")).ConfigureAwait(false);
             }
             else
             {
-                Status = Localize("Editor_StatusTestCancelled");
+                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusTestCancelled")).ConfigureAwait(false);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusTestError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusTestError"), ex.Message)).ConfigureAwait(false);
         }
         finally
         {
-            IsRunningTest = false;
-            _testPlaybackCts?.Dispose();
-            _testPlaybackCts = null;
+            await RunOnUiThreadAsync(() =>
+            {
+                IsRunningTest = false;
+                _testPlaybackCts?.Dispose();
+                _testPlaybackCts = null;
+            }).ConfigureAwait(false);
         }
     }
 
@@ -682,7 +684,7 @@ public partial class EditorViewModel
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } },
+                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = [MacroFileExtension.TrimStart('.')] },
             };
 
             var baseName = MacroName.EndsWith(MacroFileExtension, StringComparison.OrdinalIgnoreCase)
@@ -692,18 +694,21 @@ public partial class EditorViewModel
 
             if (string.IsNullOrEmpty(filePath))
             {
-                Status = Localize("Editor_StatusSaveCancelled");
+                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusSaveCancelled")).ConfigureAwait(false);
                 return;
             }
 
             await _fileManager.SaveAsync(sequence, filePath).ConfigureAwait(false);
 
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaved"), Path.GetFileName(filePath));
-            MacroCreated?.Invoke(this, new EditorMacroCreatedEventArgs(sequence, filePath));
+            await RunOnUiThreadAsync(() =>
+            {
+                Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaved"), Path.GetFileName(filePath));
+                MacroCreated?.Invoke(this, new EditorMacroCreatedEventArgs(sequence, filePath));
+            }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaveError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaveError"), ex.Message)).ConfigureAwait(false);
         }
     }
 
@@ -724,7 +729,7 @@ public partial class EditorViewModel
 
         var filters = new[]
         {
-            new FileDialogFilter { Name = Localize("Editor_ScreenshotFileDialogName"), Extensions = new[] { "png" } },
+            new FileDialogFilter { Name = Localize("Editor_ScreenshotFileDialogName"), Extensions = ["png"] },
         };
         var currentFileName = Path.GetFileName(action.ScreenshotOutputPath);
         var defaultFileName = string.IsNullOrWhiteSpace(currentFileName)
@@ -738,7 +743,7 @@ public partial class EditorViewModel
 
         if (!string.IsNullOrEmpty(filePath))
         {
-            action.ScreenshotOutputPath = filePath;
+            await RunOnUiThreadAsync(() => action.ScreenshotOutputPath = filePath).ConfigureAwait(false);
         }
     }
 
@@ -746,13 +751,13 @@ public partial class EditorViewModel
     {
         var filters = new[]
         {
-            new FileDialogFilter { Name = Localize("Editor_ImageAssetFileDialogName"), Extensions = new[] { "png" } },
+            new FileDialogFilter { Name = Localize("Editor_ImageAssetFileDialogName"), Extensions = ["png"] },
         };
 
         var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_ImageAssetImportDialogTitle"), filters).ConfigureAwait(false);
         if (string.IsNullOrEmpty(filePath))
         {
-            Status = Localize("Editor_StatusImageImportCancelled");
+            await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusImageImportCancelled")).ConfigureAwait(false);
             return;
         }
 
@@ -760,24 +765,29 @@ public partial class EditorViewModel
         {
             var imageAssetCodec = _imageAssetCodec
                 ?? throw new InvalidOperationException("Image asset codec is not registered.");
-            using var frame = await imageAssetCodec.DecodeFileAsync(filePath).ConfigureAwait(false);
+            var cancellationToken = _viewModelCts.Token;
+            using var frame = await imageAssetCodec.DecodeFileAsync(filePath, cancellationToken).ConfigureAwait(false);
             using var encoded = new MemoryStream();
-            imageAssetCodec.EncodePng(frame, encoded);
-            var assetName = GenerateUniqueImageAssetName(Path.GetFileNameWithoutExtension(filePath));
-            _imageAssets[assetName] = Convert.ToBase64String(encoded.ToArray());
-            ImageAssetNames.Add(assetName);
-            OnPropertyChanged(nameof(HasImageAssets));
-
-            if (SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage)
+            await imageAssetCodec.EncodePngAsync(frame, encoded, cancellationToken).ConfigureAwait(false);
+            var encodedImage = Convert.ToBase64String(encoded.ToArray());
+            await RunOnUiThreadAsync(() =>
             {
-                SelectedAction.ImageAssetName = assetName;
-            }
+                var assetName = GenerateUniqueImageAssetName(Path.GetFileNameWithoutExtension(filePath));
+                _imageAssets[assetName] = encodedImage;
+                ImageAssetNames.Add(assetName);
+                OnPropertyChanged(nameof(HasImageAssets));
 
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusImageImported"), assetName);
+                if (SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage)
+                {
+                    SelectedAction.ImageAssetName = assetName;
+                }
+
+                Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusImageImported"), assetName);
+            }).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusImageImportError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusImageImportError"), ex.Message)).ConfigureAwait(false);
         }
     }
 
@@ -819,34 +829,40 @@ public partial class EditorViewModel
         {
             var filters = new[]
             {
-                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = new[] { MacroFileExtension.TrimStart('.') } },
+                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = [MacroFileExtension.TrimStart('.')] },
             };
 
             var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_LoadDialogTitle"), filters).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(filePath))
             {
-                Status = Localize("Editor_StatusLoadCancelled");
+                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusLoadCancelled")).ConfigureAwait(false);
                 return;
             }
 
             var sequence = await _fileManager.LoadAsync(filePath).ConfigureAwait(false);
             if (sequence is null)
             {
-                SetLoadWarnings(Array.Empty<EditorActionRestoreWarning>());
-                Status = Localize("Editor_StatusLoadFailed");
+                await RunOnUiThreadAsync(() =>
+                {
+                    SetLoadWarnings([]);
+                    Status = Localize("Editor_StatusLoadFailed");
+                }).ConfigureAwait(false);
                 return;
             }
 
-            LoadMacroSequence(sequence);
-            var baseStatus = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoaded"), Path.GetFileName(filePath));
-            Status = HasLoadWarnings
-                ? string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadedWithWarnings"), Path.GetFileName(filePath), LoadWarnings.Count)
-                : baseStatus;
+            await RunOnUiThreadAsync(() =>
+            {
+                LoadMacroSequence(sequence);
+                var baseStatus = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoaded"), Path.GetFileName(filePath));
+                Status = HasLoadWarnings
+                    ? string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadedWithWarnings"), Path.GetFileName(filePath), LoadWarnings.Count)
+                    : baseStatus;
+            }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadError"), ex.Message);
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadError"), ex.Message)).ConfigureAwait(false);
         }
     }
 
@@ -855,6 +871,7 @@ public partial class EditorViewModel
     /// </summary>
     public void LoadMacroSequence(MacroSequence sequence)
     {
+        ArgumentNullException.ThrowIfNull(sequence);
         SaveUndoState();
 
         ClearLoadedMacroSessionLink();

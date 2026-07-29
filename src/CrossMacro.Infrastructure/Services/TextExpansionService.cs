@@ -5,7 +5,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// Service for monitoring keystrokes and performing text expansion.
 /// Refactored to coordinate InputProcessor, BufferState, and Executor.
 /// </summary>
-public class TextExpansionService : ITextExpansionService
+public sealed class TextExpansionService : ITextExpansionService
 {
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionStorageService _storageService;
@@ -18,15 +18,18 @@ public class TextExpansionService : ITextExpansionService
 
     // Lifecycle management
     private readonly Lock _lock;
-    private bool _isRunning;
     private readonly SemaphoreSlim _expansionLock;
     private bool _expansionInProgress;
     private CancellationTokenSource? _expansionCancellation;
+    private Task? _expansionTask;
     private bool _disposed;
+    private bool _asyncStartupInProgress;
+    private CancellationTokenSource? _asyncStartupCancellation;
+    private long _startupGeneration;
     private readonly InputCaptureLifecycle _captureLifecycle;
     private int _lastCharacterKeyCode;
 
-    public bool IsRunning => _isRunning;
+    public bool IsRunning { get; private set; }
 
     public TextExpansionService(
         ISettingsService settingsService,
@@ -63,15 +66,18 @@ public class TextExpansionService : ITextExpansionService
 
         lock (_lock)
         {
-            if (_disposed || _isRunning)
+            if (_disposed || IsRunning)
             {
                 return;
             }
 
+            _startupGeneration++;
+            _asyncStartupInProgress = false;
+
             try
             {
-                _storageService.Load();
-                _isRunning = true;
+                _ = _storageService.Load();
+                IsRunning = true;
                 _captureLifecycle.Start(
                     _inputCaptureFactory,
                     captureMouse: false,
@@ -85,34 +91,239 @@ public class TextExpansionService : ITextExpansionService
                 _inputProcessor.Reset();
                 _bufferState.Clear();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[TextExpansionService] Failed to start");
                 CleanupCapture_NoLock();
-                _isRunning = false;
+                IsRunning = false;
             }
+        }
+    }
+
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        if (!_settingsService.Current.EnableTextExpansion)
+        {
+            Log.Information("[TextExpansionService] Not starting because feature is disabled");
+            return;
+        }
+
+        using var startupCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        long startupGeneration;
+        lock (_lock)
+        {
+            if (_disposed || IsRunning || _asyncStartupInProgress)
+            {
+                return;
+            }
+
+            startupGeneration = ++_startupGeneration;
+            _asyncStartupInProgress = true;
+            _asyncStartupCancellation = startupCancellation;
+        }
+
+        try
+        {
+            startupCancellation.Token.ThrowIfCancellationRequested();
+            _ = await _storageService.LoadAsync().ConfigureAwait(false);
+            startupCancellation.Token.ThrowIfCancellationRequested();
+
+            lock (_lock)
+            {
+                if (!_asyncStartupInProgress ||
+                    startupGeneration != _startupGeneration ||
+                    _disposed ||
+                    IsRunning)
+                {
+                    return;
+                }
+
+                if (!_settingsService.Current.EnableTextExpansion)
+                {
+                    _asyncStartupInProgress = false;
+                    Log.Information("[TextExpansionService] Not starting because feature is disabled");
+                    return;
+                }
+
+                if (startupCancellation.IsCancellationRequested)
+                {
+                    _asyncStartupInProgress = false;
+                    startupCancellation.Token.ThrowIfCancellationRequested();
+                }
+
+            }
+
+            await _captureLifecycle.StartAsync(
+                _inputCaptureFactory,
+                captureMouse: false,
+                captureKeyboard: true,
+                OnInputReceived,
+                OnInputCaptureError,
+                OnCaptureStarted,
+                OnCaptureFaulted,
+                startupCancellation.Token).ConfigureAwait(false);
+
+            lock (_lock)
+            {
+                if (startupGeneration == _startupGeneration &&
+                    _asyncStartupInProgress &&
+                    !_disposed)
+                {
+                    _inputProcessor.Reset();
+                    _bufferState.Clear();
+                    _lastCharacterKeyCode = 0;
+                    IsRunning = true;
+                }
+                else
+                {
+                    CleanupCapture_NoLock();
+                }
+            }
+
+            lock (_lock)
+            {
+                if (startupGeneration == _startupGeneration)
+                {
+                    _asyncStartupInProgress = false;
+                    _asyncStartupCancellation = null;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            lock (_lock)
+            {
+                if (startupGeneration == _startupGeneration)
+                {
+                    _asyncStartupInProgress = false;
+                    _asyncStartupCancellation = null;
+                }
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[TextExpansionService] Failed to start");
+            lock (_lock)
+            {
+                if (startupGeneration == _startupGeneration)
+                {
+                    _asyncStartupInProgress = false;
+                }
+            }
+        }
+        catch (OutOfMemoryException)
+        {
+            lock (_lock)
+            {
+                if (startupGeneration == _startupGeneration)
+                {
+                    CleanupCapture_NoLock();
+                    IsRunning = false;
+                    _asyncStartupInProgress = false;
+                    _asyncStartupCancellation = null;
+                }
+            }
+
+            throw;
         }
     }
 
     public void StopExpansion()
     {
+        _ = CompleteStopExpansionAsync(BeginStopExpansion());
+    }
+
+    public async Task StopExpansionAsync(CancellationToken cancellationToken = default)
+    {
+        var completionTask = CompleteStopExpansionAsync(BeginStopExpansion());
+        await completionTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private (Task? StartupCancellationTask, Task? ExpansionCancellationTask, Task? ExpansionTask) BeginStopExpansion()
+    {
         lock (_lock)
         {
-            _expansionCancellation?.Cancel();
-
-            if (!_isRunning && !_captureLifecycle.HasActiveResources)
+            _startupGeneration++;
+            var startupInProgress = _asyncStartupInProgress;
+            _asyncStartupInProgress = false;
+            Task? startupCancellationTask = null;
+            try
             {
-                return;
+                startupCancellationTask = _asyncStartupCancellation?.CancelAsync();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.LogError(ex, "[TextExpansionService] Error canceling startup");
             }
 
-            var wasRunning = _isRunning;
-            CleanupCapture_NoLock();
-            _isRunning = false;
+            _asyncStartupCancellation = null;
+            Task? expansionCancellationTask = null;
+            try
+            {
+                expansionCancellationTask = _expansionCancellation?.CancelAsync();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.LogError(ex, "[TextExpansionService] Error canceling expansion");
+            }
+
+            var expansionTask = _expansionTask;
+            if (!IsRunning && !_captureLifecycle.HasActiveResources && expansionTask is null)
+            {
+                return (startupCancellationTask, expansionCancellationTask, null);
+            }
+
+            var wasRunning = IsRunning;
+            if (!startupInProgress || _captureLifecycle.HasActiveResources)
+            {
+                CleanupCapture_NoLock();
+            }
+            IsRunning = false;
 
             if (wasRunning)
             {
                 Log.Information("[TextExpansionService] Stopped");
             }
+
+            return (startupCancellationTask, expansionCancellationTask, expansionTask);
+        }
+    }
+
+    private static async Task CompleteStopExpansionAsync(
+        (Task? StartupCancellationTask, Task? ExpansionCancellationTask, Task? ExpansionTask) stop)
+    {
+        await AwaitCancellationAsync(
+            stop.StartupCancellationTask,
+            "[TextExpansionService] Error canceling startup").ConfigureAwait(false);
+        await AwaitCancellationAsync(
+            stop.ExpansionCancellationTask,
+            "[TextExpansionService] Error canceling expansion").ConfigureAwait(false);
+
+        if (stop.ExpansionTask is not null)
+        {
+            await stop.ExpansionTask.ConfigureAwait(false);
+        }
+    }
+
+    private static async Task AwaitCancellationAsync(Task? cancellationTask, string errorMessage)
+    {
+        if (cancellationTask is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await cancellationTask.ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, errorMessage);
         }
     }
 
@@ -141,14 +352,14 @@ public class TextExpansionService : ITextExpansionService
         lock (_lock)
         {
             if (sender is not IInputCapture capture ||
-                !_isRunning ||
+                !IsRunning ||
                 !_captureLifecycle.IsCurrent(capture))
             {
                 return;
             }
 
             CleanupCapture_NoLock();
-            _isRunning = false;
+            IsRunning = false;
             Log.Information("[TextExpansionService] Stopped");
         }
     }
@@ -157,7 +368,7 @@ public class TextExpansionService : ITextExpansionService
     {
         lock (_lock)
         {
-            if (_isRunning && _captureLifecycle.IsCurrent(capture))
+            if (IsRunning && _captureLifecycle.IsCurrent(capture))
             {
                 Log.Information("[TextExpansionService] Started via {Provider}", capture.ProviderName);
             }
@@ -170,13 +381,13 @@ public class TextExpansionService : ITextExpansionService
 
         lock (_lock)
         {
-            if (!_isRunning || !_captureLifecycle.IsCurrent(capture))
+            if ((!IsRunning && !_asyncStartupInProgress) || !_captureLifecycle.IsCurrent(capture))
             {
                 return;
             }
 
             CleanupCapture_NoLock();
-            _isRunning = false;
+            IsRunning = false;
         }
     }
 
@@ -192,7 +403,7 @@ public class TextExpansionService : ITextExpansionService
     {
         lock (_lock)
         {
-            if (!_isRunning)
+            if (!IsRunning)
             {
                 return;
             }
@@ -228,7 +439,7 @@ public class TextExpansionService : ITextExpansionService
             CancellationTokenSource expansionCancellation;
             lock (_lock)
             {
-                if (!_isRunning || _expansionInProgress)
+                if (!IsRunning || _expansionInProgress)
                 {
                     return;
                 }
@@ -238,7 +449,7 @@ public class TextExpansionService : ITextExpansionService
                 _expansionCancellation = expansionCancellation;
             }
 
-            _ = Task.Run(() => RunExpansionSafelyAsync(match, triggerLastKeyCode, expansionCancellation));
+            _expansionTask = RunExpansionSafelyAsync(match, triggerLastKeyCode, expansionCancellation);
         }
     }
 
@@ -273,7 +484,7 @@ public class TextExpansionService : ITextExpansionService
                     break;
                 }
 
-                await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.ModifierReleasePollInterval), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.ModifierReleasePollInterval), TimeProvider.System, cancellationToken).ConfigureAwait(false);
             }
 
             await WaitForTriggerKeyReleaseAsync(triggerLastKeyCode, cancellationToken).ConfigureAwait(false);
@@ -287,7 +498,7 @@ public class TextExpansionService : ITextExpansionService
             _inputProcessor.Suspend();
             try
             {
-                await _startExecutor.ExpandAsync(expansion).ConfigureAwait(false);
+                await _startExecutor.ExpandAsync(expansion, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -300,7 +511,7 @@ public class TextExpansionService : ITextExpansionService
         }
         finally
         {
-            _expansionLock.Release();
+            _ = _expansionLock.Release();
         }
     }
 
@@ -321,7 +532,7 @@ public class TextExpansionService : ITextExpansionService
                 break;
             }
 
-            await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.DirectTypingInterElementDelay), cancellationToken).ConfigureAwait(false);
+            await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.DirectTypingInterElementDelay), TimeProvider.System, cancellationToken).ConfigureAwait(false);
         }
 
         if (_inputProcessor.IsKeyPressed(keyCode))
@@ -342,8 +553,9 @@ public class TextExpansionService : ITextExpansionService
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            Log.Debug("[TextExpansionService] Expansion canceled.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[TextExpansionService] Expansion failed");
         }
@@ -355,6 +567,7 @@ public class TextExpansionService : ITextExpansionService
                 {
                     _expansionInProgress = false;
                     _expansionCancellation = null;
+                    _expansionTask = null;
                 }
             }
 

@@ -3,7 +3,7 @@ namespace CrossMacro.UI.Icons;
 
 public sealed class EmojiAppIcon : Image
 {
-    private static readonly IReadOnlyDictionary<AppIcon, Lazy<IImage>> Sources = new Dictionary<AppIcon, Lazy<IImage>>
+    private static readonly Dictionary<AppIcon, Lazy<IImage>> Sources = new Dictionary<AppIcon, Lazy<IImage>>
     {
         [AppIcon.ArrowNorthEast] = CreateSource(ArrowNorthEastEmojiIcon.Picture),
         [AppIcon.Calendar] = CreateSource(CalendarEmojiIcon.Picture),
@@ -37,7 +37,7 @@ public sealed class EmojiAppIcon : Image
 
     static EmojiAppIcon()
     {
-        IconProperty.Changed.AddClassHandler<EmojiAppIcon>((icon, _) => icon.UpdateSource());
+        _ = IconProperty.Changed.AddClassHandler<EmojiAppIcon>((icon, _) => icon.UpdateSource());
     }
 
     public EmojiAppIcon()
@@ -89,7 +89,20 @@ public sealed class EmojiAppIcon : Image
             AppIcon.Cancel => "cancel",
             AppIcon.Warning => "warning",
             AppIcon.Trigger => "trigger",
-            _ => null,
+            AppIcon.Add => null,
+            AppIcon.ArrowDown => null,
+            AppIcon.ArrowRight => null,
+            AppIcon.ArrowUp => null,
+            AppIcon.Check => null,
+            AppIcon.Close => null,
+            AppIcon.GitHub => null,
+            AppIcon.Info => null,
+            AppIcon.Menu => null,
+            AppIcon.Minus => null,
+            AppIcon.Redo => null,
+            AppIcon.Refresh => null,
+            AppIcon.Undo => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(icon), icon, message: null),
         };
     }
 

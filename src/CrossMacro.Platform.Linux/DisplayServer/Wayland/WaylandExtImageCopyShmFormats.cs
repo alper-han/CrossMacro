@@ -83,20 +83,20 @@ internal static class WaylandExtImageCopyShmFormats
         }
 
         var builder = new StringBuilder((advertisedFormats.Length * 11) + 2);
-        builder.Append('[');
+        _ = builder.Append('[');
 
         for (var index = 0; index < advertisedFormats.Length; index++)
         {
             if (index > 0)
             {
-                builder.Append(',');
+                _ = builder.Append(',');
             }
 
-            builder.Append("0x");
-            builder.Append(advertisedFormats[index].ToString("x8", CultureInfo.InvariantCulture));
+            _ = builder.Append("0x");
+            _ = builder.Append(advertisedFormats[index].ToString("x8", CultureInfo.InvariantCulture));
         }
 
-        builder.Append(']');
+        _ = builder.Append(']');
         return builder.ToString();
     }
 }

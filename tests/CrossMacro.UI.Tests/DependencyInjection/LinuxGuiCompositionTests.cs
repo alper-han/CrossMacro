@@ -1,7 +1,10 @@
 
+using System.Runtime.Versioning;
+
 namespace CrossMacro.UI.Tests.DependencyInjection;
 
-public class LinuxGuiCompositionTests
+[SupportedOSPlatform("linux")]
+public sealed class LinuxGuiCompositionTests
 {
     [Fact]
     public async Task FullLinuxGuiComposition_ResolvesStartupServicesWithoutClipboardCycle()
@@ -23,8 +26,8 @@ public class LinuxGuiCompositionTests
             WindowButtons: null);
 
         LinuxProgram.ConfigureGuiServices(services, environment);
-        LinuxProgram.ConfigureGuiRuntimeServices(services);
-        services.AddCrossMacroServices();
+        CrossMacro.UI.Hosting.GuiHostBootstrap.ConfigureGuiRuntimeServices(services);
+        _ = services.AddCrossMacroServices();
 
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -34,6 +37,8 @@ public class LinuxGuiCompositionTests
         var startupCoordinator = provider.GetRequiredService<IDesktopStartupCoordinator>();
         var textExpansionService = provider.GetRequiredService<ITextExpansionService>();
         var clipboard = provider.GetRequiredService<IClipboardService>();
+        var profileManager = provider.GetRequiredService<IProfileManager>();
+        var triggerService = provider.GetRequiredService<ITriggerService>();
 
         var composite = Assert.IsType<CompositeClipboardService>(clipboard);
         var fallbackField = typeof(CompositeClipboardService).GetField(
@@ -42,6 +47,9 @@ public class LinuxGuiCompositionTests
 
         Assert.NotNull(startupCoordinator);
         Assert.NotNull(textExpansionService);
+        TestAssertions.IsType<ProfileRuntimeCoordinator>(profileManager);
+        TestAssertions.IsType<TriggerService>(triggerService);
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(Func<IProfileManager>));
         Assert.NotNull(fallbackField);
         Assert.Same(provider.GetRequiredService<AvaloniaClipboardService>(), fallbackField!.GetValue(composite));
     }

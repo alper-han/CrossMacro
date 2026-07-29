@@ -5,9 +5,7 @@ internal sealed class PortalScreenCastSupportProbe : IPortalScreenCastSupportPro
 {
     public static PortalScreenCastSupportProbe Instance { get; } = new();
 
-    private PortalScreenCastSupportProbe()
-    {
-    }
+    private PortalScreenCastSupportProbe() { /* Empty */ }
 
     public PortalScreenCastSupportResult ProbeSupport()
     {

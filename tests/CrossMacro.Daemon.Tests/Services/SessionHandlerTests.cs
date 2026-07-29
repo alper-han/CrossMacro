@@ -11,7 +11,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1000, pid: 2000, cts.Token);
@@ -42,7 +42,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1010, pid: 2020, cts.Token);
@@ -58,7 +58,7 @@ public sealed class SessionHandlerTests
 
         Assert.Empty(virtualDevice.ConfigureCalls);
         Assert.Equal(0, captureManager.StartCaptureCalls);
-        Assert.ThrowsAny<IOException>(() => reader.ReadByte());
+        _ = Assert.ThrowsAny<IOException>(() => reader.ReadByte());
     }
 
     [LinuxFact]
@@ -69,7 +69,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1011, pid: 2021, cts.Token);
@@ -91,12 +91,14 @@ public sealed class SessionHandlerTests
     public async Task RunAsync_WhenVirtualDeviceInitializationFails_ShouldReturnErrorAndExitFailClosed()
     {
         var security = new FakeSecurityService();
-        var virtualDevice = new FakeVirtualDeviceManager();
-        virtualDevice.ThrowOnInitialConfigure = new InvalidOperationException("uinput unavailable");
+        var virtualDevice = new FakeVirtualDeviceManager
+        {
+            ThrowOnInitialConfigure = new InvalidOperationException("uinput unavailable"),
+        };
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1012, pid: 2022, cts.Token);
@@ -116,7 +118,7 @@ public sealed class SessionHandlerTests
 
         await runTask.WaitAsync(TimeSpan.FromSeconds(2));
 
-        Assert.Single(virtualDevice.ConfigureCalls);
+        _ = Assert.Single(virtualDevice.ConfigureCalls);
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
         Assert.Equal(0, captureManager.StartCaptureCalls);
     }
@@ -129,7 +131,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -160,8 +162,8 @@ public sealed class SessionHandlerTests
         writer.Flush();
 
         writer.Write((byte)IpcOpCode.SimulateEvent);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT);
         writer.Write(1);
         writer.Flush();
 
@@ -199,7 +201,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -212,12 +214,12 @@ public sealed class SessionHandlerTests
         writer.Write((byte)IpcOpCode.SimulateEventBatch);
         writer.Write(3030);
         writer.Write(2);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
         writer.Write((ushort)InputEventCode.KEY_A);
         writer.Write(1);
         writer.Write(0);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_SYN);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.SYN_REPORT);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_SYN);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.SYN_REPORT);
         writer.Write(0);
         writer.Write(0);
         writer.Flush();
@@ -241,7 +243,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -276,7 +278,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -289,7 +291,7 @@ public sealed class SessionHandlerTests
         writer.Write((byte)IpcOpCode.SimulateEventBatch);
         writer.Write(5050);
         writer.Write(1);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
         writer.Write((ushort)InputEventCode.KEY_A);
         writer.Write(1);
         writer.Write(-1);
@@ -313,7 +315,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
@@ -328,7 +330,7 @@ public sealed class SessionHandlerTests
         writer.Write(6);
         for (var i = 0; i < 6; i++)
         {
-            writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+            writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
             writer.Write((ushort)InputEventCode.KEY_A);
             writer.Write(i % 2);
             writer.Write(1000);
@@ -353,7 +355,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1013, pid: 2023, cts.Token);
@@ -387,7 +389,7 @@ public sealed class SessionHandlerTests
 
         Assert.Equal(1, captureManager.StartCaptureCalls);
         Assert.True(captureManager.StopCaptureCalls >= 1);
-        Assert.Single(virtualDevice.ConfigureCalls);
+        _ = Assert.Single(virtualDevice.ConfigureCalls);
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
     }
 
@@ -399,7 +401,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1019, pid: 2029, cts.Token);
@@ -433,7 +435,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1020, pid: 2030, cts.Token);
@@ -446,7 +448,7 @@ public sealed class SessionHandlerTests
         StartCapture(reader, writer, requestId: 2020);
 
         writer.Write((byte)IpcOpCode.SimulateEvent);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
         writer.Write((byte)0x01);
         writer.Flush();
         socketPair.Client.Shutdown(SocketShutdown.Send);
@@ -467,7 +469,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1021, pid: 2031, cts.Token);
@@ -495,7 +497,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1022, pid: 2032, cts.Token);
@@ -516,19 +518,18 @@ public sealed class SessionHandlerTests
     }
 
     [LinuxFact]
-    public async Task RunAsync_WhenUndefinedOpcodeIsReceived_ShouldHaveNoResponseSideEffectsAndKeepSessionAlive()
+    public async Task RunAsync_WhenUndefinedOpcodeIsReceived_ShouldStopCaptureAndTerminateSession()
     {
         var security = new FakeSecurityService();
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1023, pid: 2033, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
-        stream.ReadTimeout = 750;
         using var reader = new BinaryReader(stream);
         using var writer = new BinaryWriter(stream);
 
@@ -537,19 +538,15 @@ public sealed class SessionHandlerTests
         writer.Write((byte)0x7F);
         writer.Flush();
 
-        AssertNoMessageAvailable(stream, reader, TimeSpan.FromMilliseconds(200));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await AssertRemoteClosedAsync(stream, TimeSpan.FromSeconds(2));
 
         Assert.Equal([(0, 0)], virtualDevice.ConfigureCalls);
         Assert.Empty(virtualDevice.SentEvents);
         Assert.Equal(0, captureManager.StartCaptureCalls);
-        Assert.Equal(0, captureManager.StopCaptureCalls);
+        Assert.True(captureManager.StopCaptureCalls >= 1);
         Assert.Equal(0, security.CaptureStartCalls);
         Assert.Equal(0, security.CaptureStopCalls);
-
-        StartCapture(reader, writer, requestId: 2323);
-
-        socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
     [LinuxFact]
@@ -560,7 +557,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1002, pid: 9876, cts.Token);
@@ -617,7 +614,7 @@ public sealed class SessionHandlerTests
         });
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1004, pid: 6543, cts.Token);
@@ -663,7 +660,7 @@ public sealed class SessionHandlerTests
         captureManager.ConfigureStartFailure("No matching input devices found.");
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1006, pid: 1111, cts.Token);
@@ -702,7 +699,7 @@ public sealed class SessionHandlerTests
         captureManager.ConfigureStartException(new InvalidOperationException("boom from capture manager"));
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1008, pid: 3333, cts.Token);
@@ -744,7 +741,7 @@ public sealed class SessionHandlerTests
             new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 12, value = 1 });
         var handler = new SessionHandler(security, virtualDevice, captureManager, maxBufferedCaptureEvents: 2);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1007, pid: 2222, cts.Token);
@@ -793,7 +790,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1005, pid: 7654, cts.Token);
@@ -865,7 +862,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1014, pid: 2024, cts.Token);
@@ -931,19 +928,18 @@ public sealed class SessionHandlerTests
     }
 
     [LinuxFact]
-    public async Task RunAsync_WhenUnknownOpcodeIsReceived_ShouldHaveNoSideEffectsAndKeepSessionAlive()
+    public async Task RunAsync_WhenUnknownOpcodeIsReceived_ShouldTerminateSessionWithoutCommandSideEffects()
     {
         var security = new FakeSecurityService();
         var virtualDevice = new FakeVirtualDeviceManager();
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1015, pid: 2025, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
-        stream.ReadTimeout = 750;
         using var reader = new BinaryReader(stream);
         using var writer = new BinaryWriter(stream);
 
@@ -955,29 +951,22 @@ public sealed class SessionHandlerTests
         Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
 
         writer.Write(byte.MaxValue);
+        writer.Write((byte)IpcOpCode.StartCapture);
+        writer.Write(1016);
+        writer.Write(value: true);
+        writer.Write(value: true);
         writer.Flush();
 
-        AssertNoMessageAvailable(stream, reader, TimeSpan.FromMilliseconds(200));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await AssertRemoteClosedAsync(stream, TimeSpan.FromSeconds(2));
 
-        Assert.Single(virtualDevice.ConfigureCalls);
+        _ = Assert.Single(virtualDevice.ConfigureCalls);
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
         Assert.Empty(virtualDevice.SentEvents);
         Assert.Equal(0, captureManager.StartCaptureCalls);
-        Assert.Equal(0, captureManager.StopCaptureCalls);
+        Assert.True(captureManager.StopCaptureCalls >= 1);
         Assert.Equal(0, security.CaptureStartCalls);
         Assert.Equal(0, security.CaptureStopCalls);
-
-        writer.Write((byte)IpcOpCode.StartCapture);
-        writer.Write(1015);
-        writer.Write(value: true);
-        writer.Write(value: true);
-        writer.Flush();
-
-        Assert.Equal(IpcOpCode.CaptureStarted, (IpcOpCode)reader.ReadByte());
-        Assert.Equal(1015, reader.ReadInt32());
-
-        socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
     [LinuxFact]
@@ -988,7 +977,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1016, pid: 2026, cts.Token);
@@ -1009,7 +998,7 @@ public sealed class SessionHandlerTests
 
         await captureManager.WaitForStopCaptureCountAsync(expectedCount: 1, TimeSpan.FromSeconds(2));
 
-        Assert.Single(virtualDevice.ConfigureCalls);
+        _ = Assert.Single(virtualDevice.ConfigureCalls);
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
         Assert.Equal(0, captureManager.StartCaptureCalls);
         Assert.True(captureManager.StopCaptureCalls >= 1);
@@ -1040,7 +1029,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1017, pid: 2027, cts.Token);
@@ -1089,7 +1078,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1018, pid: 2028, cts.Token);
@@ -1115,8 +1104,8 @@ public sealed class SessionHandlerTests
         Assert.Equal(1818, reader.ReadInt32());
 
         writer.Write((byte)IpcOpCode.SimulateEvent);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
-        writer.Write((ushort)CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT);
         writer.Write(1);
         writer.Flush();
 
@@ -1124,7 +1113,7 @@ public sealed class SessionHandlerTests
 
         Assert.Equal(1, captureManager.StartCaptureCalls);
         Assert.True(captureManager.StopCaptureCalls >= 1);
-        Assert.Single(virtualDevice.SentEvents);
+        _ = Assert.Single(virtualDevice.SentEvents);
         Assert.Equal((CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, 1), virtualDevice.SentEvents[0]);
         Assert.Empty(security.SimulationCalls);
         await AssertRemoteClosedAsync(stream, TimeSpan.FromSeconds(1));
@@ -1138,7 +1127,7 @@ public sealed class SessionHandlerTests
         var captureManager = new FakeInputCaptureManager();
         var handler = new SessionHandler(security, virtualDevice, captureManager);
 
-        await using var socketPair = (await UnixSocketPair.CreateAsync());
+        await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1003, pid: 5432, cts.Token);
@@ -1187,7 +1176,7 @@ public sealed class SessionHandlerTests
         public int CaptureStopCalls { get; private set; }
         public List<(uint Uid, int Pid, ushort Type, ushort Code, int Value)> SimulationCalls { get; } = [];
 
-        public Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client) =>
+        public Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client, CancellationToken cancellationToken = default) =>
             Task.FromResult<(uint Uid, int Pid)?>(null);
 
         public void LogDisconnect(uint uid, int pid, TimeSpan duration)
@@ -1218,8 +1207,9 @@ public sealed class SessionHandlerTests
         public List<(int Width, int Height)> ConfigureCalls { get; } = [];
         public List<(ushort Type, ushort Code, int Value)> SentEvents { get; } = [];
 
-        public void Configure(int width, int height)
+        public Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ConfigureCalls.Add((width, height));
 
             if (width is 0 && height is 0 && ThrowOnInitialConfigure is not null)
@@ -1231,38 +1221,21 @@ public sealed class SessionHandlerTests
             {
                 throw ThrowOnReconfigure;
             }
-        }
 
-        public Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            Configure(width, height);
             return Task.CompletedTask;
         }
 
-        public void SendEvent(ushort type, ushort code, int value)
+        public Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             SentEvents.Add((type, code, value));
 
             if (ThrowOnSendEvent is not null)
             {
                 throw ThrowOnSendEvent;
             }
-        }
 
-        public Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            SendEvent(type, code, value);
             return Task.CompletedTask;
-        }
-
-        public void SendEvents(ReadOnlySpan<IpcSimulationRequest> events)
-        {
-            foreach (var inputEvent in events)
-            {
-                SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
-            }
         }
 
         public Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default)
@@ -1270,14 +1243,10 @@ public sealed class SessionHandlerTests
             cancellationToken.ThrowIfCancellationRequested();
             foreach (var inputEvent in events)
             {
-                SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
+                SentEvents.Add((inputEvent.Type, inputEvent.Code, inputEvent.Value));
             }
 
             return Task.CompletedTask;
-        }
-
-        public void Reset()
-        {
         }
 
         public Task ResetAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -1289,7 +1258,7 @@ public sealed class SessionHandlerTests
 
     private sealed class FakeInputCaptureManager : IInputCaptureManager
     {
-        private readonly object _sync = new();
+        private readonly Lock _sync = new();
         private Action<CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event>? _onEvent;
         private readonly TaskCompletionSource _captureStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly List<StopCaptureWaiter> _stopCaptureWaiters = [];
@@ -1340,7 +1309,7 @@ public sealed class SessionHandlerTests
                 onEvent(_currentGenerationStartEvent);
                 _emitPreviousAndCurrentOnNextStart = false;
             }
-            _captureStarted.TrySetResult();
+            _ = _captureStarted.TrySetResult();
             var startResult = _startResult;
             _startResult = CaptureStartResult.Started(startedDeviceCount: 1);
             return startResult;
@@ -1391,19 +1360,13 @@ public sealed class SessionHandlerTests
             {
                 lock (_sync)
                 {
-                    _stopCaptureWaiters.Remove(waiter);
+                    _ = _stopCaptureWaiters.Remove(waiter);
                 }
 
                 throw new TimeoutException(
                     $"Timed out waiting for StopCaptureCalls >= {expectedCount}. Current StopCaptureCalls={GetStopCaptureCalls()}.",
                     ex);
             }
-        }
-
-        public Task WaitForStopCaptureAsync(TimeSpan timeout)
-        {
-            var expectedCount = GetStopCaptureCalls() + 1;
-            return WaitForStopCaptureCountAsync(expectedCount, timeout);
         }
 
         private int GetStopCaptureCalls()
@@ -1432,16 +1395,11 @@ public sealed class SessionHandlerTests
             return completedWaiters;
         }
 
-        private sealed class StopCaptureWaiter
+        private sealed class StopCaptureWaiter(int expectedCount)
         {
             private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            public StopCaptureWaiter(int expectedCount)
-            {
-                ExpectedCount = expectedCount;
-            }
-
-            public int ExpectedCount { get; }
+            public int ExpectedCount { get; } = expectedCount;
 
             public Task Task => _completion.Task;
 
@@ -1500,7 +1458,7 @@ public sealed class SessionHandlerTests
 
         public static async Task<UnixSocketPair> CreateAsync()
         {
-            var path = Path.Combine(Path.GetTempPath(), $"crossmacro-daemon-session-{Guid.NewGuid():N}.sock");
+            var path = TestSocketPaths.CreateShort("cm-session");
             if (File.Exists(path))
             {
                 File.Delete(path);

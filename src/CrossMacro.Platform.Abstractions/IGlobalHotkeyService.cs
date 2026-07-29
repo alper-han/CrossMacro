@@ -37,7 +37,11 @@ public interface IGlobalHotkeyService : IDisposable
 
     public void Start();
 
+    public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     public void StopHotkeyService();
+
+    public Task StopHotkeyServiceAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey);
 

@@ -1,18 +1,10 @@
 
 namespace CrossMacro.Platform.Windows.Strategies;
 
-public class WindowsCoordinateStrategyFactory : ICoordinateStrategyFactory
+public class WindowsCoordinateStrategyFactory(
+    IMousePositionProvider positionProvider) : ICoordinateStrategyFactory
 {
-    private readonly IMousePositionProvider _positionProvider;
-    private readonly Func<IInputSimulator>? _inputSimulatorFactory;
-
-    public WindowsCoordinateStrategyFactory(
-        IMousePositionProvider positionProvider,
-        Func<IInputSimulator>? inputSimulatorFactory = null)
-    {
-        _positionProvider = positionProvider;
-        _inputSimulatorFactory = inputSimulatorFactory;
-    }
+    private readonly IMousePositionProvider _positionProvider = positionProvider;
 
     public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero)
     {

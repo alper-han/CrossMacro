@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public class RecordingViewModelTests
+public sealed class RecordingViewModelTests : IDisposable
 {
     private readonly IMacroRecorder _recorder;
     private readonly IGlobalHotkeyService _hotkeyService;
@@ -17,21 +17,21 @@ public class RecordingViewModelTests
         _settingsService = Substitute.For<ISettingsService>();
         _localizationService = Substitute.For<ILocalizationService>();
         _runtimeContext = Substitute.For<IRuntimeContext>();
-        _runtimeContext.IsLinux.Returns(returnThis: true);
-        _localizationService["Recording_StatusReady"].Returns("[Recording_StatusReady]");
-        _localizationService["Recording_StatusRecording"].Returns("[Recording_StatusRecording]");
-        _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents] {0}");
-        _localizationService["Recording_StatusRecordedEvents"].Returns("[Recording_StatusRecordedEvents] {0}");
-        _localizationService["Recording_StatusError"].Returns("[Recording_StatusError] {0}");
-        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = _runtimeContext.IsLinux.Returns(returnThis: true);
+        _ = _localizationService["Recording_StatusReady"].Returns("[Recording_StatusReady]");
+        _ = _localizationService["Recording_StatusRecording"].Returns("[Recording_StatusRecording]");
+        _ = _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents] {0}");
+        _ = _localizationService["Recording_StatusRecordedEvents"].Returns("[Recording_StatusRecordedEvents] {0}");
+        _ = _localizationService["Recording_StatusError"].Returns("[Recording_StatusError] {0}");
+        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
 
         // Setup default settings
-        _settingsService.Current.Returns(new AppSettings
+        _ = _settingsService.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
             IsKeyboardRecordingEnabled = true,
         });
-        _settingsService.SaveAsync().Returns(Task.CompletedTask);
+        _ = _settingsService.SaveAsync().Returns(Task.CompletedTask);
 
         _viewModel = new RecordingViewModel(
             _recorder,
@@ -39,6 +39,11 @@ public class RecordingViewModelTests
             _settingsService,
             _localizationService,
             _runtimeContext);
+    }
+
+    public void Dispose()
+    {
+        _viewModel.Dispose();
     }
 
     [Fact]
@@ -55,9 +60,10 @@ public class RecordingViewModelTests
     public async Task StartRecordingAsync_WhileRecorderStartIsPending_DefersRecordingState()
     {
         // Arrange
-        _viewModel.CanStartRecordingExternal = true;
+        using var viewModel = CreateViewModel(action => action());
+        viewModel.CanStartRecordingExternal = true;
         var startCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _recorder.StartRecordingAsync(
+        _ = _recorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -68,44 +74,43 @@ public class RecordingViewModelTests
 
         var recordingStateChangedCount = 0;
         var recordingStateChangedValue = false;
-        _viewModel.RecordingStateChanged += (_, isRecording) =>
+        viewModel.RecordingStateChanged += (_, isRecording) =>
         {
             recordingStateChangedCount++;
             recordingStateChangedValue = isRecording;
         };
 
         // Act
-        var startTask = _viewModel.StartRecordingAsync();
+        var startTask = viewModel.StartRecordingAsync();
 
         // Assert while pending
         Assert.False(startTask.IsCompleted);
-        Assert.False(_viewModel.IsRecording);
-        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
-        Assert.False(_viewModel.CanStartRecording);
-        Assert.False(_viewModel.CanToggleRecording);
+        Assert.False(viewModel.IsRecording);
+        Assert.Equal("[Recording_StatusReady]", viewModel.RecordingStatus);
+        Assert.False(viewModel.CanStartRecording);
+        Assert.False(viewModel.CanToggleRecording);
+        Assert.False(viewModel.ToggleRecordingCommand.CanExecute(parameter: null));
         Assert.Equal(0, recordingStateChangedCount);
-        Assert.Equal(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
 
-        InvokeNonPublicMethod(_viewModel, "ApplyLiveCounterUpdate", 1L, new MacroEvent { Type = EventType.MouseMove });
-        Assert.Equal(0, _viewModel.EventCount);
-        Assert.Equal(0, _viewModel.MouseEventCount);
-        Assert.Equal(0, _viewModel.KeyboardEventCount);
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        Assert.Equal(0, viewModel.EventCount);
+        Assert.Equal(0, viewModel.MouseEventCount);
+        Assert.Equal(0, viewModel.KeyboardEventCount);
 
         startCompletion.SetResult(true);
         await startTask;
 
         // Assert
-        Assert.True(_viewModel.IsRecording);
-        Assert.Equal("[Recording_StatusRecording]", _viewModel.RecordingStatus);
-        Assert.True(_viewModel.CanToggleRecording);
-        Assert.NotEqual(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
+        Assert.True(viewModel.IsRecording);
+        Assert.Equal("[Recording_StatusRecording]", viewModel.RecordingStatus);
+        Assert.True(viewModel.CanToggleRecording);
         Assert.Equal(1, recordingStateChangedCount);
         Assert.True(recordingStateChangedValue);
 
-        InvokeNonPublicMethod(_viewModel, "ApplyLiveCounterUpdate", GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"), new MacroEvent { Type = EventType.MouseMove });
-        Assert.Equal(1, _viewModel.EventCount);
-        Assert.Equal(1, _viewModel.MouseEventCount);
-        Assert.Equal(0, _viewModel.KeyboardEventCount);
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        Assert.Equal(1, viewModel.EventCount);
+        Assert.Equal(1, viewModel.MouseEventCount);
+        Assert.Equal(0, viewModel.KeyboardEventCount);
 
         await _recorder.Received(1).StartRecordingAsync(
             Arg.Any<bool>(),
@@ -122,9 +127,10 @@ public class RecordingViewModelTests
     public async Task StartRecordingAsync_WhenRecorderStartCompletes_SetsRecordingStateAndActivatesLiveCounters()
     {
         // Arrange
-        _viewModel.CanStartRecordingExternal = true;
+        using var viewModel = CreateViewModel(action => action());
+        viewModel.CanStartRecordingExternal = true;
         var startCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _recorder.StartRecordingAsync(
+        _ = _recorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -134,7 +140,7 @@ public class RecordingViewModelTests
             .Returns(startCompletion.Task);
 
         var recordingStateChangedCount = 0;
-        _viewModel.RecordingStateChanged += (_, isRecording) =>
+        viewModel.RecordingStateChanged += (_, isRecording) =>
         {
             if (isRecording)
             {
@@ -143,17 +149,22 @@ public class RecordingViewModelTests
         };
 
         // Act
-        var startTask = _viewModel.StartRecordingAsync();
+        var startTask = viewModel.StartRecordingAsync();
         startCompletion.SetResult(true);
         await startTask;
 
         // Assert
-        Assert.True(_viewModel.IsRecording);
-        Assert.Equal("[Recording_StatusRecording]", _viewModel.RecordingStatus);
-        Assert.False(_viewModel.CanStartRecording);
-        Assert.True(_viewModel.CanToggleRecording);
+        Assert.True(viewModel.IsRecording);
+        Assert.Equal("[Recording_StatusRecording]", viewModel.RecordingStatus);
+        Assert.False(viewModel.CanStartRecording);
+        Assert.True(viewModel.CanToggleRecording);
+        Assert.True(viewModel.ToggleRecordingCommand.CanExecute(parameter: null));
         Assert.Equal(1, recordingStateChangedCount);
-        Assert.NotEqual(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
+
+        PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
+        Assert.Equal(1, viewModel.EventCount);
+        Assert.Equal(0, viewModel.MouseEventCount);
+        Assert.Equal(1, viewModel.KeyboardEventCount);
 
         await _recorder.Received(1).StartRecordingAsync(
             Arg.Any<bool>(),
@@ -184,15 +195,14 @@ public class RecordingViewModelTests
     }
 
     [Fact]
-    public void StopRecording_WhenRecording_StopsAndReturnsMacro()
+    public async Task StopRecording_WhenRecording_StopsAndReturnsMacro()
     {
         // Arrange
         var expectedMacro = new MacroSequence();
         expectedMacro.Events.Add(new MacroEvent { Type = EventType.MouseMove });
-        _recorder.StopRecording().Returns(expectedMacro);
+        _ = _recorder.StopRecording().Returns(expectedMacro);
 
-        // Manually set IsRecording to true via reflection or by calling StartRecordingAsync
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
+        await _viewModel.StartRecordingAsync();
 
         // Act
         var result = _viewModel.StopRecording();
@@ -204,14 +214,14 @@ public class RecordingViewModelTests
     }
 
     [Fact]
-    public void StopRecording_WhenRecordingCompletedHandlerThrows_DoesNotConvertSuccessToError()
+    public async Task StopRecording_WhenRecordingCompletedHandlerThrows_DoesNotConvertSuccessToError()
     {
         // Arrange
         var expectedMacro = new MacroSequence();
         expectedMacro.Events.Add(new MacroEvent { Type = EventType.MouseMove });
-        _recorder.StopRecording().Returns(expectedMacro);
-        _viewModel.RecordingCompleted += (_, _) => throw new NullReferenceException("handler failure");
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
+        _ = _recorder.StopRecording().Returns(expectedMacro);
+        _viewModel.RecordingCompleted += (_, _) => throw new InvalidOperationException("handler failure");
+        await _viewModel.StartRecordingAsync();
 
         // Act
         var result = _viewModel.StopRecording();
@@ -223,7 +233,7 @@ public class RecordingViewModelTests
     }
 
     [Fact]
-    public void CultureChanged_AfterRecordedMacro_PreservesRecordedStatus()
+    public async Task CultureChanged_AfterRecordedMacro_PreservesRecordedStatus()
     {
         var recordedMacro = new MacroSequence
         {
@@ -233,13 +243,13 @@ public class RecordingViewModelTests
                 new MacroEvent { Type = EventType.KeyPress },
             },
         };
-        _recorder.StopRecording().Returns(recordedMacro);
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
+        _ = _recorder.StopRecording().Returns(recordedMacro);
+        await _viewModel.StartRecordingAsync();
 
-        _viewModel.StopRecording();
+        _ = _viewModel.StopRecording();
 
-        _localizationService["Recording_StatusRecordedEvents"].Returns("[Recording_StatusRecordedEvents:tr] {0}");
-        _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents:tr] {0}");
+        _ = _localizationService["Recording_StatusRecordedEvents"].Returns("[Recording_StatusRecordedEvents:tr] {0}");
+        _ = _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents:tr] {0}");
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
@@ -257,29 +267,234 @@ public class RecordingViewModelTests
                 new MacroEvent { Type = EventType.KeyPress },
             },
         };
-        _recorder.StopRecording().Returns(recordedMacro);
-        _viewModel.CanStartRecordingExternal = true;
+        _ = _recorder.StopRecording().Returns(recordedMacro);
+        var queuedCallbacks = new Queue<Action>();
+        using var viewModel = CreateViewModel(queuedCallbacks.Enqueue);
+        viewModel.CanStartRecordingExternal = true;
 
-        await _viewModel.StartRecordingAsync();
+        await viewModel.StartRecordingAsync();
 
-        var sessionId = GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId");
-        Assert.NotEqual(0, sessionId);
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        Assert.Single(queuedCallbacks);
 
-        _viewModel.StopRecording();
-        InvokeNonPublicMethod(_viewModel, "ApplyLiveCounterUpdate", sessionId, new MacroEvent { Type = EventType.MouseMove });
+        var stoppedMacro = viewModel.StopRecording();
+        Assert.Same(recordedMacro, stoppedMacro);
+        while (queuedCallbacks.Count > 0)
+        {
+            var queuedCallback = queuedCallbacks.Dequeue();
+            queuedCallback();
+        }
 
-        Assert.Equal(2, _viewModel.EventCount);
-        Assert.Equal(1, _viewModel.MouseEventCount);
-        Assert.Equal(1, _viewModel.KeyboardEventCount);
-        Assert.Equal("[Recording_StatusRecordedEvents] 2", _viewModel.RecordingStatus);
+        Assert.Equal(2, viewModel.EventCount);
+        Assert.Equal(1, viewModel.MouseEventCount);
+        Assert.Equal(1, viewModel.KeyboardEventCount);
+        Assert.Equal("[Recording_StatusRecordedEvents] 2", viewModel.RecordingStatus);
     }
 
     [Fact]
-    public void StopRecording_WhenMacroEventsCollectionIsNull_DoesNotThrowOrSetErrorStatus()
+    public async Task LiveCounters_WhenBurstArrives_CoalescesIntoOnePostWithExactCategories()
+    {
+        var queuedCallbacks = new Queue<Action>();
+        using var viewModel = CreateViewModel(queuedCallbacks.Enqueue);
+        await viewModel.StartRecordingAsync();
+
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
+        PublishRecordedEvent(new MacroEvent { Type = EventType.Click });
+        PublishRecordedEvent(new MacroEvent { Type = EventType.KeyRelease });
+
+        Assert.Single(queuedCallbacks);
+
+        queuedCallbacks.Dequeue()();
+
+        Assert.Equal(4, viewModel.EventCount);
+        Assert.Equal(2, viewModel.MouseEventCount);
+        Assert.Equal(2, viewModel.KeyboardEventCount);
+    }
+
+    [Fact]
+    public async Task LiveCounters_WhenEventArrivesAfterDrain_SchedulesNewPost()
+    {
+        var queuedCallbacks = new Queue<Action>();
+        using var viewModel = CreateViewModel(queuedCallbacks.Enqueue);
+        await viewModel.StartRecordingAsync();
+
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        queuedCallbacks.Dequeue()();
+
+        PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
+
+        Assert.Single(queuedCallbacks);
+
+        queuedCallbacks.Dequeue()();
+
+        Assert.Equal(2, viewModel.EventCount);
+        Assert.Equal(1, viewModel.MouseEventCount);
+        Assert.Equal(1, viewModel.KeyboardEventCount);
+    }
+
+    [Fact]
+    public async Task LiveCounters_WhenEventCountSubscriberThrows_DrainReleasesSchedulingOwnership()
+    {
+        var queuedCallbacks = new Queue<Action>();
+        using var viewModel = CreateViewModel(queuedCallbacks.Enqueue);
+        await viewModel.StartRecordingAsync();
+
+        PropertyChangedEventHandler throwingHandler = (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(RecordingViewModel.EventCount), StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("subscriber failed");
+            }
+        };
+        viewModel.PropertyChanged += throwingHandler;
+
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        queuedCallbacks.Dequeue()();
+
+        viewModel.PropertyChanged -= throwingHandler;
+        PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
+
+        Assert.Single(queuedCallbacks);
+        queuedCallbacks.Dequeue()();
+
+        Assert.Equal(2, viewModel.EventCount);
+        Assert.Equal(1, viewModel.MouseEventCount);
+        Assert.Equal(1, viewModel.KeyboardEventCount);
+    }
+
+    [Fact]
+    public async Task LiveCounters_WhenConcurrentProducersPublishDuringDrainRelease_DoNotLoseOrStallUpdates()
+    {
+        var callbackCollector = new CallbackCollector();
+        using var viewModel = CreateViewModel(callbackCollector.Post);
+        await viewModel.StartRecordingAsync();
+
+        var drainReachedCounterApplication = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseDrain = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (!string.Equals(args.PropertyName, nameof(RecordingViewModel.EventCount), StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (!drainReachedCounterApplication.TrySetResult(true))
+            {
+                return;
+            }
+
+            releaseDrain.Task.GetAwaiter().GetResult();
+        };
+
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        Assert.Equal(1, callbackCollector.QueuedCount);
+
+        var drainTask = Task.Run(callbackCollector.ExecuteNext, CancellationToken.None);
+        await drainReachedCounterApplication.Task;
+
+        var producers = Enumerable.Range(0, 128)
+            .Select(_ => Task.Run(
+                () => PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress }),
+                CancellationToken.None));
+        await Task.WhenAll(producers);
+        Assert.Equal(0, callbackCollector.QueuedCount);
+
+        _ = releaseDrain.TrySetResult(true);
+        await drainTask;
+
+        Assert.Equal(1, callbackCollector.QueuedCount);
+        Assert.Equal(1, callbackCollector.MaximumQueuedCount);
+
+        callbackCollector.ExecuteNext();
+
+        Assert.Equal(129, viewModel.EventCount);
+        Assert.Equal(1, viewModel.MouseEventCount);
+        Assert.Equal(128, viewModel.KeyboardEventCount);
+        Assert.Equal(0, callbackCollector.QueuedCount);
+        Assert.Equal(1, callbackCollector.MaximumQueuedCount);
+    }
+
+    [Fact]
+    public async Task LiveCounters_WhenPostCallbackThrows_ReleasesSchedulingOwnershipForLaterEvents()
+    {
+        var callbackCollector = new CallbackCollector();
+        Action<Action> postCallback = _ => throw new InvalidOperationException("post failed");
+        using var viewModel = CreateViewModel(callback => postCallback(callback));
+        await viewModel.StartRecordingAsync();
+
+        Assert.Throws<InvalidOperationException>(() => PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove }));
+
+        postCallback = callbackCollector.Post;
+        PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
+
+        Assert.Equal(1, callbackCollector.QueuedCount);
+        callbackCollector.ExecuteNext();
+
+        Assert.Equal(2, viewModel.EventCount);
+        Assert.Equal(1, viewModel.MouseEventCount);
+        Assert.Equal(1, viewModel.KeyboardEventCount);
+        Assert.Equal(0, callbackCollector.QueuedCount);
+    }
+
+    [Fact]
+    public async Task LiveCounters_WhenSessionAIsStale_CannotConsumeOrUpdateSessionB()
+    {
+        var queuedCallbacks = new Queue<Action>();
+        using var viewModel = CreateViewModel(queuedCallbacks.Enqueue);
+        var firstMacro = new MacroSequence
+        {
+            Events = { new MacroEvent { Type = EventType.MouseMove } },
+        };
+        var secondMacro = new MacroSequence
+        {
+            Events = { new MacroEvent { Type = EventType.KeyPress } },
+        };
+        _ = _recorder.StopRecording().Returns(firstMacro, secondMacro);
+
+        await viewModel.StartRecordingAsync();
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        viewModel.StopRecording();
+
+        await viewModel.StartRecordingAsync();
+        PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
+
+        var staleSessionCallback = queuedCallbacks.Dequeue();
+        staleSessionCallback();
+
+        Assert.Equal(0, viewModel.EventCount);
+        Assert.Single(queuedCallbacks);
+
+        queuedCallbacks.Dequeue()();
+
+        Assert.Equal(1, viewModel.EventCount);
+        Assert.Equal(0, viewModel.MouseEventCount);
+        Assert.Equal(1, viewModel.KeyboardEventCount);
+        viewModel.StopRecording();
+    }
+
+    [Fact]
+    public async Task LiveCounters_WhenDisposed_QueuedCallbackDoesNothing()
+    {
+        var queuedCallbacks = new Queue<Action>();
+        var viewModel = CreateViewModel(queuedCallbacks.Enqueue);
+        await viewModel.StartRecordingAsync();
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+
+        viewModel.Dispose();
+        queuedCallbacks.Dequeue()();
+
+        Assert.Equal(0, viewModel.EventCount);
+        Assert.Equal(0, viewModel.MouseEventCount);
+        Assert.Equal(0, viewModel.KeyboardEventCount);
+    }
+
+    [Fact]
+    public async Task StopRecording_WhenMacroEventsCollectionIsNull_DoesNotThrowOrSetErrorStatus()
     {
         // Arrange
-        _recorder.StopRecording().Returns(new MacroSequence());
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
+        _ = _recorder.StopRecording().Returns(new MacroSequence());
+        await _viewModel.StartRecordingAsync();
 
         // Act
         var result = _viewModel.StopRecording();
@@ -293,30 +508,27 @@ public class RecordingViewModelTests
     [Fact]
     public void StopRecording_WhenNotRecording_ReturnsNull()
     {
-        // Arrange
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: false);
-
         // Act
         var result = _viewModel.StopRecording();
 
         // Assert
         Assert.Null(result);
-        _recorder.DidNotReceive().StopRecording();
+        _ = _recorder.DidNotReceive().StopRecording();
     }
 
     [Fact]
-    public void ToggleRecording_WhenRecording_Stops()
+    public async Task ToggleRecording_WhenRecording_Stops()
     {
         // Arrange
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
-        _recorder.StopRecording().Returns(new MacroSequence());
+        _ = _recorder.StopRecording().Returns(new MacroSequence());
+        await _viewModel.StartRecordingAsync();
 
         // Act
         _viewModel.ToggleRecording();
 
         // Assert
         Assert.False(_viewModel.IsRecording);
-        _recorder.Received(1).StopRecording();
+        _ = _recorder.Received(1).StopRecording();
     }
 
     [Fact]
@@ -324,8 +536,6 @@ public class RecordingViewModelTests
     {
         // Arrange
         _viewModel.CanStartRecordingExternal = true;
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: false);
-
         // Act
         _viewModel.ToggleRecording();
 
@@ -347,29 +557,30 @@ public class RecordingViewModelTests
         // Assert
         Assert.False(canExecute);
         Assert.False(_viewModel.IsRecording);
-        _recorder.DidNotReceiveWithAnyArgs().StartRecordingAsync(default!, default!, default!);
+        _ = _recorder.DidNotReceiveWithAnyArgs().StartRecordingAsync(default!, default!, default!);
     }
 
     [Fact]
-    public void ToggleRecordingCommand_WhenRecording_CanExecuteEvenIfStartingIsDisabled()
+    public async Task ToggleRecordingCommand_WhenRecording_CanExecuteEvenIfStartingIsDisabled()
     {
         // Arrange
+        await _viewModel.StartRecordingAsync();
         _viewModel.CanStartRecordingExternal = false;
         _viewModel.IsMouseRecordingEnabled = false;
         _viewModel.IsKeyboardRecordingEnabled = false;
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
 
         // Assert
         Assert.True(_viewModel.ToggleRecordingCommand.CanExecute(parameter: null));
     }
 
     [Fact]
-    public async Task StartRecordingAsync_WhenRecorderThrows_ReenablesHotkeysAndResetsState()
+    public async Task StartRecordingAsync_WhenRecorderThrows_LogsAndExposesLocalizedErrorAndReenablesHotkeys()
     {
         // Arrange
         _viewModel.CanStartRecordingExternal = true;
+        var startException = new InvalidOperationException("start failed");
         var startCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _recorder.StartRecordingAsync(
+        _ = _recorder.StartRecordingAsync(
                 Arg.Any<bool>(),
                 Arg.Any<bool>(),
                 Arg.Any<IEnumerable<int>>(),
@@ -377,6 +588,8 @@ public class RecordingViewModelTests
                 Arg.Any<bool>(),
                 Arg.Any<CancellationToken>())
             .Returns(startCompletion.Task);
+        var logger = Substitute.For<CrossMacro.Core.Logging.ICoreLogger>();
+        using var loggingScope = CrossMacro.Core.Logging.Log.PushLogger(logger);
 
         // Act
         var startTask = _viewModel.StartRecordingAsync();
@@ -386,15 +599,21 @@ public class RecordingViewModelTests
         Assert.False(_viewModel.CanStartRecording);
         Assert.False(_viewModel.CanToggleRecording);
 
-        startCompletion.SetException(new InvalidOperationException("start failed"));
+        startCompletion.SetException(startException);
         await startTask;
 
         // Assert
         Assert.False(_viewModel.IsRecording);
-        Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
+        Assert.Equal("[Recording_StatusError] start failed", _viewModel.RecordingStatus);
         Assert.True(_viewModel.CanStartRecording);
         Assert.True(_viewModel.CanToggleRecording);
-        Assert.Equal(0L, GetPrivateField<long>(_viewModel, "_activeCounterUpdateSessionId"));
+        Assert.True(_viewModel.ToggleRecordingCommand.CanExecute(parameter: null));
+        PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
+        Assert.Equal(0, _viewModel.EventCount);
+        logger.Received(1).LogError(
+            startException,
+            Arg.Any<string>(),
+            Arg.Any<object?[]>());
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: false);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
@@ -424,15 +643,15 @@ public class RecordingViewModelTests
     public void Constructor_WhenRuntimeDoesNotSupportForceRelative_DisablesSetting()
     {
         var settingsService = Substitute.For<ISettingsService>();
-        settingsService.Current.Returns(new AppSettings
+        _ = settingsService.Current.Returns(new AppSettings
         {
             ForceRelativeCoordinates = true,
         });
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsLinux.Returns(returnThis: false);
-        runtimeContext.IsWindows.Returns(returnThis: false);
-        runtimeContext.IsMacOS.Returns(returnThis: false);
+        _ = runtimeContext.IsLinux.Returns(returnThis: false);
+        _ = runtimeContext.IsWindows.Returns(returnThis: false);
+        _ = runtimeContext.IsMacOS.Returns(returnThis: false);
 
         var viewModel = new RecordingViewModel(
             _recorder,
@@ -449,15 +668,15 @@ public class RecordingViewModelTests
     public void Constructor_WhenRuntimeIsMacOS_SupportsForceRelativeSetting()
     {
         var settingsService = Substitute.For<ISettingsService>();
-        settingsService.Current.Returns(new AppSettings
+        _ = settingsService.Current.Returns(new AppSettings
         {
             ForceRelativeCoordinates = true,
         });
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsLinux.Returns(returnThis: false);
-        runtimeContext.IsWindows.Returns(returnThis: false);
-        runtimeContext.IsMacOS.Returns(returnThis: true);
+        _ = runtimeContext.IsLinux.Returns(returnThis: false);
+        _ = runtimeContext.IsWindows.Returns(returnThis: false);
+        _ = runtimeContext.IsMacOS.Returns(returnThis: true);
 
         var viewModel = new RecordingViewModel(
             _recorder,
@@ -473,7 +692,7 @@ public class RecordingViewModelTests
     [Fact]
     public void IsMouseRecordingEnabled_WhenSaveFails_RollsBackValue()
     {
-        _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.IsMouseRecordingEnabled = false;
 
@@ -482,11 +701,24 @@ public class RecordingViewModelTests
     }
 
     [Fact]
-    public void StopRecording_WhenRecorderThrows_ReturnsNullAndResetsState()
+    public void IsKeyboardRecordingEnabled_WhenSaveFails_RollsBackValueAndCommandAvailability()
+    {
+        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+
+        _viewModel.IsKeyboardRecordingEnabled = false;
+
+        Assert.True(_viewModel.IsKeyboardRecordingEnabled);
+        Assert.True(_settingsService.Current.IsKeyboardRecordingEnabled);
+        Assert.True(_viewModel.CanToggleRecording);
+        Assert.True(_viewModel.ToggleRecordingCommand.CanExecute(parameter: null));
+    }
+
+    [Fact]
+    public async Task StopRecording_WhenRecorderThrows_ReturnsNullAndResetsState()
     {
         // Arrange
-        _recorder.StopRecording().Returns(_ => throw new InvalidOperationException("stop failed"));
-        _viewModel.GetType().GetProperty("IsRecording")?.SetValue(_viewModel, value: true);
+        _ = _recorder.StopRecording().Returns(_ => throw new InvalidOperationException("stop failed"));
+        await _viewModel.StartRecordingAsync();
 
         // Act
         var result = _viewModel.StopRecording();
@@ -544,17 +776,54 @@ public class RecordingViewModelTests
         Assert.Equal("[Recording_StatusReady]", _viewModel.RecordingStatus);
     }
 
-    private static T GetPrivateField<T>(object target, string fieldName)
+    private RecordingViewModel CreateViewModel(Action<Action> postCallback)
     {
-        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(field);
-        return (T)field!.GetValue(target)!;
+        return new RecordingViewModel(
+            _recorder,
+            _hotkeyService,
+            _settingsService,
+            _localizationService,
+            _runtimeContext,
+            postCallback);
     }
 
-    private static void InvokeNonPublicMethod(object target, string methodName, params object?[]? args)
+    private void PublishRecordedEvent(MacroEvent macroEvent)
     {
-        var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        method!.Invoke(target, args);
+        _recorder.EventRecorded += Raise.Event<EventHandler<MacroEventRecordedEventArgs>>(
+            _recorder,
+            new MacroEventRecordedEventArgs(macroEvent));
+    }
+
+    private sealed class CallbackCollector
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _callbacks = new();
+        private int _queuedCount;
+        private int _maximumQueuedCount;
+
+        public int QueuedCount => Volatile.Read(ref _queuedCount);
+
+        public int MaximumQueuedCount => Volatile.Read(ref _maximumQueuedCount);
+
+        public void Post(Action callback)
+        {
+            _callbacks.Enqueue(callback);
+            var queuedCount = Interlocked.Increment(ref _queuedCount);
+            while (true)
+            {
+                var maximumQueuedCount = Volatile.Read(ref _maximumQueuedCount);
+                if (maximumQueuedCount >= queuedCount ||
+                    Interlocked.CompareExchange(ref _maximumQueuedCount, queuedCount, maximumQueuedCount) == maximumQueuedCount)
+                {
+                    return;
+                }
+            }
+        }
+
+        public void ExecuteNext()
+        {
+            Assert.True(_callbacks.TryDequeue(out var callback));
+            _ = Interlocked.Decrement(ref _queuedCount);
+            callback();
+        }
     }
 }

@@ -1,23 +1,21 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-internal sealed class WindowStateCommandHandler : IWindowCommandHandler
+internal sealed class WindowStateCommandHandler(string state) : IWindowCommandHandler
 {
-    private readonly string _state;
-    public WindowStateCommandHandler(string state) => _state = state;
-    public string SubCommand => _state;
+    public string SubCommand { get; } = state;
     public string? Validate(string[] parts)
     {
         if (parts.Length >= 3 && !parts[2].Equals("active", StringComparison.OrdinalIgnoreCase))
         {
-            return $"Syntax: window {_state} [active]";
+            return $"Syntax: window {SubCommand} [active]";
         }
 
         return null;
     }
     public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
     {
-        _ = _state switch
+        _ = SubCommand switch
         {
             "fullscreen" => await mutator.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false),
             "maximize" => await mutator.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false),

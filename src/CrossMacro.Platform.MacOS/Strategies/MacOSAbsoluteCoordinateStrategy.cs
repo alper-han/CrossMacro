@@ -57,7 +57,5 @@ public sealed class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
         return (_lastX, _lastY);
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

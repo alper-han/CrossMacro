@@ -110,10 +110,18 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
             lParam |= ExtendedKeyMask;
         }
 
-        var sb = new StringBuilder(KeyNameBufferSize);
-        if (User32.GetKeyNameTextW(lParam, sb, sb.Capacity) > 0)
+        var buffer = new char[KeyNameBufferSize];
+        var handle = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
+        try
         {
-            return sb.ToString();
+            if (User32.GetKeyNameTextW(lParam, handle.AddrOfPinnedObject(), buffer.Length) > 0)
+            {
+                return new string(buffer, 0, Array.IndexOf(buffer, '\0') is int idx and >= 0 ? idx : buffer.Length);
+            }
+        }
+        finally
+        {
+            handle.Free();
         }
 
         return vk.ToString(CultureInfo.InvariantCulture);
@@ -142,15 +150,39 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
         }
 
         uint scanCode = User32.MapVirtualKey(vk, User32.MAPVK_VK_TO_VSC);
+        byte[] keyState = BuildKeyState(leftShift, rightShift, rightAlt, leftAlt, leftCtrl, capsLock);
+        IntPtr layout = ResolveKeyboardLayout();
 
+        var buffer = new char[5];
+        int result;
+        var handle = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
+        try
+        {
+            result = User32.ToUnicodeEx(vk, scanCode, keyState, handle.AddrOfPinnedObject(), buffer.Length, 0, layout);
+        }
+        finally
+        {
+            handle.Free();
+        }
+
+        if (result > 0)
+        {
+            return buffer[0];
+        }
+
+        return null;
+    }
+
+    private static byte[] BuildKeyState(bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock)
+    {
         byte[] keyState = new byte[256];
 
-        // Exact modifier mapping
         if (leftShift)
         {
             keyState[Vk.Shift] = 0x80; // VK_SHIFT
             keyState[Vk.LeftShift] = 0x80; // VK_LSHIFT
         }
+
         if (rightShift)
         {
             keyState[Vk.Shift] = 0x80; // VK_SHIFT
@@ -185,8 +217,11 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
             keyState[Vk.CapsLock] = 0x01; // VK_CAPITAL
         }
 
-        var sb = new StringBuilder(5);
+        return keyState;
+    }
 
+    private static IntPtr ResolveKeyboardLayout()
+    {
         // Get layout from the foreground window
         IntPtr hwnd = User32.GetForegroundWindow();
         uint threadId = User32.GetWindowThreadProcessId(hwnd, IntPtr.Zero);
@@ -198,14 +233,7 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
             layout = User32.GetKeyboardLayout(0);
         }
 
-        int result = User32.ToUnicodeEx(vk, scanCode, keyState, sb, sb.Capacity, 0, layout);
-
-        if (result > 0)
-        {
-            return sb[0];
-        }
-
-        return null;
+        return layout;
     }
 
     public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c)

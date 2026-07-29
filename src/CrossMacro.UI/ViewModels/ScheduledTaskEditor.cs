@@ -4,6 +4,7 @@ namespace CrossMacro.UI.ViewModels;
 public sealed partial class ScheduledTaskEditor : ObservableObject
 {
     private ScheduledTask? _source;
+    private bool _isSyncingRuntimeStatus;
 
     [ObservableProperty] private Guid id;
     [ObservableProperty] private string name = "New Task";
@@ -28,6 +29,7 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
 
     public void Load(ScheduledTask source)
     {
+        ArgumentNullException.ThrowIfNull(source);
         _source = source;
         Id = source.Id; Name = source.Name; MacroFilePath = source.MacroFilePath; Type = source.Type;
         PlaybackSpeed = source.PlaybackSpeed; IsEnabled = source.IsEnabled; IntervalValue = source.IntervalValue;
@@ -47,18 +49,24 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
 
     public void ApplyToCore(ScheduledTask target)
     {
+        ArgumentNullException.ThrowIfNull(target);
         target.Id = Id; target.Name = Name; target.MacroFilePath = MacroFilePath; target.Type = Type;
         target.PlaybackSpeed = PlaybackSpeed; target.IntervalValue = IntervalValue; target.IntervalUnit = IntervalUnit;
         target.UseRandomIntervalDelay = UseRandomIntervalDelay; target.IntervalMinValue = IntervalMinValue;
         target.IntervalMaxValue = IntervalMaxValue; target.ScheduledDateTime = ScheduledDateTime;
-        target.WeeklyDays = WeeklyDays; target.WeeklyTime = WeeklyTime; target.LastRunTime = LastRunTime;
-        target.NextRunTime = NextRunTime; target.LastStatus = LastStatus;
+        target.WeeklyDays = WeeklyDays; target.WeeklyTime = WeeklyTime;
         target.IsEnabled = IsEnabled;
         target.Normalize();
-        if (IsEnabled && !target.TrySetEnabled(true))
+        if (IsEnabled && !target.TrySetEnabled(enabled: true))
         {
             target.IsEnabled = false;
         }
+
+        // Runtime fields are persisted state owned by the scheduler. Apply them after
+        // the enablement invariant above, because enabling recalculates NextRunTime.
+        target.LastRunTime = LastRunTime;
+        target.NextRunTime = NextRunTime;
+        target.LastStatus = LastStatus;
     }
 
     public void Rollback()
@@ -74,7 +82,15 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
         LastRunTime = lastRunTime;
         NextRunTime = nextRunTime;
         LastStatus = status;
-        IsEnabled = isEnabled;
+        _isSyncingRuntimeStatus = true;
+        try
+        {
+            IsEnabled = isEnabled;
+        }
+        finally
+        {
+            _isSyncingRuntimeStatus = false;
+        }
     }
 
     public void CalculateNextRunTime(DateTime now)
@@ -89,7 +105,9 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
     partial void OnWeeklyDaysChanged(ScheduleDays value) => NotifyCanBeEnabledChanged();
     partial void OnIsEnabledChanged(bool value)
     {
-        if (value && !CanBeEnabled) IsEnabled = false;
+        // Runtime status sync mirrors the authoritative scheduler state and must not
+        // be re-coerced by the local editability guard.
+        if (value && !CanBeEnabled && !_isSyncingRuntimeStatus) IsEnabled = false;
     }
     partial void OnPlaybackSpeedChanged(double value)
     {
@@ -104,7 +122,15 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
     partial void OnIntervalMaxValueChanged(int value) => NormalizeIntervalRange();
     partial void OnWeeklyTimeChanged(TimeSpan value)
     {
-        var normalized = value < TimeSpan.Zero ? TimeSpan.Zero : value >= TimeSpan.FromDays(1) ? TimeSpan.FromTicks(TimeSpan.TicksPerDay - 1) : value;
+        var normalized = value;
+        if (value < TimeSpan.Zero)
+        {
+            normalized = TimeSpan.Zero;
+        }
+        else if (value >= TimeSpan.FromDays(1))
+        {
+            normalized = TimeSpan.FromTicks(TimeSpan.TicksPerDay - 1);
+        }
         if (value != normalized) WeeklyTime = normalized;
     }
 

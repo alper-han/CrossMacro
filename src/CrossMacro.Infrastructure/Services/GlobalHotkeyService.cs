@@ -5,9 +5,8 @@ namespace CrossMacro.Infrastructure.Services;
 /// Manages global hotkeys for recording, playback, and pause actions.
 /// Refactored to delegate responsibilities to specialized services.
 /// </summary>
-public class GlobalHotkeyService : IGlobalHotkeyService
+public sealed class GlobalHotkeyService : IGlobalHotkeyService
 {
-    private bool _isRunning;
     private bool _disposed;
     private readonly Lock _lock = new();
     private int _restartInProgress;
@@ -43,7 +42,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     public int RecordingHotkeyCode => _recordingHotkey.MainKey;
     public int PlaybackHotkeyCode => _playbackHotkey.MainKey;
     public int PauseHotkeyCode => _pauseHotkey.MainKey;
-    public bool IsRunning => _isRunning;
+    public bool IsRunning { get; private set; }
     public string? LastError { get; private set; }
 
     // Capture mode
@@ -72,11 +71,21 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         UpdateHotkeys(settings.RecordingHotkey, settings.PlaybackHotkey, settings.PauseHotkey, save: false);
     }
 
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var settings = await _configService.LoadAsync().ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        UpdateHotkeys(settings.RecordingHotkey, settings.PlaybackHotkey, settings.PauseHotkey, save: false);
+    }
+
     public void Start()
     {
         using (_lock.EnterScope())
         {
-            if (_isRunning)
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
+            if (IsRunning)
             {
                 return;
             }
@@ -86,15 +95,15 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 throw new InvalidOperationException("No input capture factory configured");
             }
 
-            _isRunning = true;
+            IsRunning = true;
 
             try
             {
                 StartCapture_NoLock();
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                _isRunning = false;
+                IsRunning = false;
                 CleanupCapture_NoLock();
                 throw;
             }
@@ -105,18 +114,49 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
-            if (!_isRunning && !_captureLifecycle.HasActiveResources)
+            _ = _captureTcs?.TrySetCanceled();
+            _captureTcs = null;
+            _isCapturing = false;
+
+            if (!IsRunning && !_captureLifecycle.HasActiveResources)
             {
                 return;
             }
 
-            var wasRunning = _isRunning;
-            _isRunning = false;
+            var wasRunning = IsRunning;
+            IsRunning = false;
             CleanupCapture_NoLock();
             if (wasRunning)
             {
                 Log.Information("[GlobalHotkeyService] Stopped");
             }
+        }
+    }
+
+    public async Task StopHotkeyServiceAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var shouldLog = false;
+        using (_lock.EnterScope())
+        {
+            _ = _captureTcs?.TrySetCanceled(cancellationToken);
+            _captureTcs = null;
+            _isCapturing = false;
+            shouldLog = IsRunning;
+            IsRunning = false;
+        }
+
+        if (_captureLifecycle.HasActiveResources)
+        {
+            await _captureLifecycle.CleanupAsync(
+                OnInputReceived,
+                OnInputCaptureError,
+                ex => Log.LogError(ex, "[GlobalHotkeyService] Error stopping input capture")).ConfigureAwait(false);
+        }
+
+        if (shouldLog)
+        {
+            Log.Information("[GlobalHotkeyService] Stopped");
         }
     }
 
@@ -155,7 +195,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
     public async Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default)
     {
-        if (!_isRunning)
+        if (!IsRunning)
         {
             throw new InvalidOperationException(LastError ?? "Global hotkey capture is not running.");
         }
@@ -165,21 +205,36 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             throw new InvalidOperationException("No input capture factory configured");
         }
 
-        _captureTcs = new TaskCompletionSource<string>();
-        _isCapturing = true;
+        var captureTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using (_lock.EnterScope())
+        {
+            if (_captureTcs is not null)
+            {
+                throw new InvalidOperationException("A hotkey capture is already in progress.");
+            }
+
+            _captureTcs = captureTcs;
+            _isCapturing = true;
+        }
 
         _modifierTracker.Clear();
 
-        using (cancellationToken.Register(() => _captureTcs.TrySetCanceled()))
+        using (cancellationToken.Register(() => captureTcs.TrySetCanceled(cancellationToken)))
         {
             try
             {
-                return await _captureTcs.Task.ConfigureAwait(false);
+                return await captureTcs.Task.ConfigureAwait(false);
             }
             finally
             {
-                _isCapturing = false;
-                _captureTcs = null;
+                using (_lock.EnterScope())
+                {
+                    if (ReferenceEquals(_captureTcs, captureTcs))
+                    {
+                        _isCapturing = false;
+                        _captureTcs = null;
+                    }
+                }
             }
         }
     }
@@ -241,8 +296,9 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         if (_isCapturing && _captureTcs is not null)
         {
+            var captureTcs = _captureTcs;
             Log.Debug("[GlobalHotkeyService] Captured hotkey: {HotkeyString}", hotkeyString);
-            _ = Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
+            _ = captureTcs.TrySetResult(hotkeyString);
             return;
         }
 
@@ -305,7 +361,8 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         if (_isCapturing && _captureTcs is not null)
         {
-            _ = Task.Run(() => _captureTcs.TrySetResult(hotkeyString));
+            var captureTcs = _captureTcs;
+            _ = captureTcs.TrySetResult(hotkeyString);
             return;
         }
 
@@ -354,7 +411,8 @@ public class GlobalHotkeyService : IGlobalHotkeyService
             LastError = errorMessage;
             shouldNotify = !errorMessage.StartsWith(InputCaptureRecoveryPrefix, StringComparison.Ordinal);
 
-            if (!_isRunning)
+            if (!IsRunning ||
+                (sender is IInputCapture capture && !_captureLifecycle.IsCurrent(capture)))
             {
                 return;
             }
@@ -428,7 +486,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
-            if (_isRunning && _captureLifecycle.IsCurrent(capture))
+            if (IsRunning && _captureLifecycle.IsCurrent(capture))
             {
                 Log.Information("[GlobalHotkeyService] Started via {ProviderName}", capture.ProviderName);
             }
@@ -440,14 +498,14 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         bool shouldReport;
         using (_lock.EnterScope())
         {
-            shouldReport = _isRunning && _captureLifecycle.IsCurrent(capture);
+            shouldReport = IsRunning && _captureLifecycle.IsCurrent(capture);
             if (!shouldReport)
             {
                 return;
             }
 
             LastError = ex.Message;
-            _isRunning = false;
+            IsRunning = false;
             CleanupCapture_NoLock();
         }
 
@@ -464,11 +522,11 @@ public class GlobalHotkeyService : IGlobalHotkeyService
 
         try
         {
-            await Task.Delay(250).ConfigureAwait(false);
+            await Task.Delay(250, CancellationToken.None).ConfigureAwait(false);
 
             using (_lock.EnterScope())
             {
-                if (!_isRunning || _inputCaptureFactory is null)
+                if (!IsRunning || _inputCaptureFactory is null)
                 {
                     return;
                 }
@@ -482,10 +540,10 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                     StartCapture_NoLock();
                     LastError = null;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     CleanupCapture_NoLock();
-                    _isRunning = false;
+                    IsRunning = false;
                     LastError = $"Restart failed: {ex.Message}";
                     ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(LastError));
                     Log.LogError(ex, "[GlobalHotkeyService] Failed to restart input capture");
@@ -494,7 +552,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         }
         finally
         {
-            Interlocked.Exchange(ref _restartInProgress, 0);
+            _ = Interlocked.Exchange(ref _restartInProgress, 0);
         }
     }
 
@@ -510,7 +568,7 @@ public class GlobalHotkeyService : IGlobalHotkeyService
         {
             _configService = configService;
             _reportFailure = reportFailure;
-            _worker = Task.Run(ProcessAsync);
+            _worker = Task.Run(ProcessAsync, CancellationToken.None);
         }
 
         public void Enqueue(HotkeyConfigurationSaveRequest request)
@@ -528,22 +586,23 @@ public class GlobalHotkeyService : IGlobalHotkeyService
                 return;
             }
 
-            _requests.Writer.TryComplete();
+            _ = _requests.Writer.TryComplete();
             _worker.GetAwaiter().GetResult();
         }
 
         private async Task ProcessAsync()
         {
-            await foreach (var request in _requests.Reader.ReadAllAsync().ConfigureAwait(false))
+            await foreach (var request in _requests.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false))
             {
                 try
                 {
-                    if (!_configService.TrySave(request))
+                    var saved = await _configService.TrySaveAsync(request).ConfigureAwait(false);
+                    if (!saved)
                     {
                         _reportFailure($"Failed to save hotkey configuration to '{request.ConfigPath}'.");
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.LogError(ex, "Failed to save hotkey configuration asynchronously");
                     _reportFailure($"Failed to save hotkey configuration to '{request.ConfigPath}': {ex.Message}");

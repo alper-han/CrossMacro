@@ -1,43 +1,30 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandComposedFrame : IDisposable
+internal sealed class WaylandComposedFrame(
+    ScreenRect logicalBounds,
+    int stride,
+    ScreenPixelFormat pixelFormat,
+    ReadOnlyMemory<byte> pixels,
+    ReadOnlyMemory<byte> validPixelMask,
+    byte[] pixelArray,
+    byte[]? validPixelMaskArray,
+    ScreenFrameValidityIndex? validityIndex) : IDisposable
 {
-    private byte[]? _pixels;
-    private byte[]? _validPixelMask;
-    private ScreenFrameValidityIndex? _validityIndex;
+    private byte[]? _pixels = pixelArray;
+    private byte[]? _validPixelMask = validPixelMaskArray;
 
-    public WaylandComposedFrame(
-        ScreenRect logicalBounds,
-        int stride,
-        ScreenPixelFormat pixelFormat,
-        ReadOnlyMemory<byte> pixels,
-        ReadOnlyMemory<byte> validPixelMask,
-        byte[] pixelArray,
-        byte[]? validPixelMaskArray,
-        ScreenFrameValidityIndex? validityIndex)
-    {
-        LogicalBounds = logicalBounds;
-        Stride = stride;
-        PixelFormat = pixelFormat;
-        Pixels = pixels;
-        ValidPixelMask = validPixelMask;
-        _pixels = pixelArray;
-        _validPixelMask = validPixelMaskArray;
-        _validityIndex = validityIndex;
-    }
+    public ScreenRect LogicalBounds { get; } = logicalBounds;
 
-    public ScreenRect LogicalBounds { get; }
+    public int Stride { get; } = stride;
 
-    public int Stride { get; }
+    public ScreenPixelFormat PixelFormat { get; } = pixelFormat;
 
-    public ScreenPixelFormat PixelFormat { get; }
+    public ReadOnlyMemory<byte> Pixels { get; } = pixels;
 
-    public ReadOnlyMemory<byte> Pixels { get; }
-
-    public ReadOnlyMemory<byte> ValidPixelMask { get; }
-    public bool IsFullyValid => ValidPixelMask.IsEmpty && _validityIndex is null;
-    public ScreenFrameValidityIndex? ValidityIndex => _validityIndex;
+    public ReadOnlyMemory<byte> ValidPixelMask { get; } = validPixelMask;
+    public bool IsFullyValid => ValidPixelMask.IsEmpty && ValidityIndex is null;
+    public ScreenFrameValidityIndex? ValidityIndex { get; private set; } = validityIndex;
 
     public void Dispose()
     {
@@ -53,7 +40,7 @@ internal sealed class WaylandComposedFrame : IDisposable
             _validPixelMask = null;
         }
 
-        _validityIndex?.Dispose();
-        _validityIndex = null;
+        ValidityIndex?.Dispose();
+        ValidityIndex = null;
     }
 }

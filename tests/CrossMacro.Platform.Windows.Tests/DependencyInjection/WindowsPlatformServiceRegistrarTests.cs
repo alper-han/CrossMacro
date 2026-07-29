@@ -2,7 +2,7 @@
 namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 
 [SupportedOSPlatform("windows")]
-public class WindowsPlatformServiceRegistrarTests
+public sealed class WindowsPlatformServiceRegistrarTests
 {
     [Fact]
     public void RegisterGuiImageClipboardServices_RegistersStaMessageThreadFactory()
@@ -78,7 +78,7 @@ public class WindowsPlatformServiceRegistrarTests
 
         var displayDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(IDisplaySessionService));
         Assert.NotNull(displayDescriptor);
-        Assert.Equal(typeof(CrossMacro.Platform.Windows.Services.GenericDisplaySessionService), displayDescriptor!.ImplementationType);
+        Assert.Equal(typeof(GenericDisplaySessionService), displayDescriptor!.ImplementationType);
     }
 
     [WindowsFact]
@@ -92,8 +92,8 @@ public class WindowsPlatformServiceRegistrarTests
         var simulatorFactory = provider.GetRequiredService<Func<IInputSimulator>>();
         var captureFactory = provider.GetRequiredService<Func<IInputCapture>>();
 
-        Assert.IsType<WindowsInputSimulator>(simulatorFactory());
-        Assert.IsType<WindowsInputCapture>(captureFactory());
+        _ = Assert.IsType<WindowsInputSimulator>(simulatorFactory());
+        _ = Assert.IsType<WindowsInputCapture>(captureFactory());
     }
 
     [WindowsFact]

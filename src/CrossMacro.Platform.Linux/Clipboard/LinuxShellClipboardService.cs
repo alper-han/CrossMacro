@@ -5,26 +5,18 @@ namespace CrossMacro.Platform.Linux.Clipboard;
 /// Clipboard service that uses Linux command line tools (wl-copy, xclip)
 /// to ensure reliable background operation where GUI frameworks fail.
 /// </summary>
-public class LinuxShellClipboardService : ILinuxClipboardService
+public class LinuxShellClipboardService(IProcessRunner processRunner, LinuxEnvironmentSnapshot environment) : IClipboardService, ILinuxClipboardService
 {
-    private readonly IProcessRunner _processRunner;
+    private readonly IProcessRunner _processRunner = processRunner;
     private enum ClipboardTool { Unknown, WlClipboard, Xclip, Xsel }
     private ClipboardTool _tool = ClipboardTool.Unknown;
-    private bool _initialized = false;
-    private readonly LinuxEnvironmentSnapshot _environment;
+    private bool _initialized;
+    private readonly LinuxEnvironmentSnapshot _environment = environment;
 
     public bool IsSupported => _tool is not ClipboardTool.Unknown || !_initialized;
 
     public LinuxShellClipboardService(IProcessRunner processRunner)
-        : this(processRunner, LinuxEnvironmentVariables.CaptureCurrentSnapshot())
-    {
-    }
-
-    public LinuxShellClipboardService(IProcessRunner processRunner, LinuxEnvironmentSnapshot environment)
-    {
-        _processRunner = processRunner;
-        _environment = environment;
-    }
+        : this(processRunner, LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -97,7 +89,7 @@ public class LinuxShellClipboardService : ILinuxClipboardService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to set clipboard text via shell");
             throw;
@@ -115,14 +107,15 @@ public class LinuxShellClipboardService : ILinuxClipboardService
                 ClipboardTool.WlClipboard => await _processRunner.ReadCommandAsync("wl-paste", "--no-newline", cancellationToken).ConfigureAwait(false),
                 ClipboardTool.Xclip => await _processRunner.ReadCommandAsync("xclip", "-selection clipboard -o", cancellationToken).ConfigureAwait(false),
                 ClipboardTool.Xsel => await _processRunner.ReadCommandAsync("xsel", "--clipboard --output", cancellationToken).ConfigureAwait(false),
-                _ => throw new InvalidOperationException("No supported Linux clipboard tool is available."),
+                ClipboardTool.Unknown => throw new InvalidOperationException("No supported Linux clipboard tool is available."),
+                _ => throw new SwitchExpressionException(_tool),
             };
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (_tool is ClipboardTool.WlClipboard && IsEmptyWlPasteResult(ex))
             {

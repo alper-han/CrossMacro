@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services;
 
-public class RunScriptCompilerTests
+public sealed class RunScriptCompilerTests
 {
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly RunScriptCompiler _compiler;
@@ -9,17 +9,17 @@ public class RunScriptCompilerTests
     public RunScriptCompilerTests()
     {
         _keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        _keyCodeMapper.GetKeyCode("Shift").Returns(42);
-        _keyCodeMapper.GetKeyCode("AltGr").Returns(100);
-        _keyCodeMapper.GetKeyCode("Enter").Returns(28);
-        _keyCodeMapper.GetKeyCode("Tab").Returns(15);
-        _keyCodeMapper.GetKeyCodeForCharacter('A').Returns(30);
-        _keyCodeMapper.RequiresShift('A').Returns(returnThis: true);
-        _keyCodeMapper.RequiresAltGr('A').Returns(returnThis: false);
-        _keyCodeMapper.GetKeyCodeForCharacter('@').Returns(16);
-        _keyCodeMapper.RequiresShift('@').Returns(returnThis: false);
-        _keyCodeMapper.RequiresAltGr('@').Returns(returnThis: true);
-        _keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
+        _ = _keyCodeMapper.GetKeyCode("Shift").Returns(42);
+        _ = _keyCodeMapper.GetKeyCode("AltGr").Returns(100);
+        _ = _keyCodeMapper.GetKeyCode("Enter").Returns(28);
+        _ = _keyCodeMapper.GetKeyCode("Tab").Returns(15);
+        _ = _keyCodeMapper.GetKeyCodeForCharacter('A').Returns(30);
+        _ = _keyCodeMapper.RequiresShift('A').Returns(returnThis: true);
+        _ = _keyCodeMapper.RequiresAltGr('A').Returns(returnThis: false);
+        _ = _keyCodeMapper.GetKeyCodeForCharacter('@').Returns(16);
+        _ = _keyCodeMapper.RequiresShift('@').Returns(returnThis: false);
+        _ = _keyCodeMapper.RequiresAltGr('@').Returns(returnThis: true);
+        _ = _keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
 
         _compiler = new RunScriptCompiler(_keyCodeMapper);
     }
@@ -29,10 +29,10 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep("type A")]);
 
-        result.Success.Should().BeTrue();
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().HaveCount(4);
-        result.Sequence.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().HaveCount(4);
+        _ = result.Sequence.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
             (EventType.KeyPress, 42),
             (EventType.KeyPress, 30),
             (EventType.KeyRelease, 30),
@@ -48,14 +48,14 @@ public class RunScriptCompilerTests
             new RunScriptStep("move rel 10 -5"),
         ]);
 
-        result.Success.Should().BeTrue();
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
-        result.Sequence.Events.Should().HaveCount(2);
-        result.Sequence.Events.Select(e => (e.Type, e.X, e.Y, e.CoordinateMode)).Should().Equal(
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = result.Sequence.Events.Should().HaveCount(2);
+        _ = result.Sequence.Events.Select(e => (e.Type, e.X, e.Y, e.CoordinateMode)).Should().Equal(
             (EventType.MouseMove, 100, 200, MouseCoordinateMode.Absolute),
             (EventType.MouseMove, 10, -5, MouseCoordinateMode.Relative));
-        MacroPositionSemantics.GetCoordinateModeSummary(result.Sequence).Should().Be(CoordinateModeSummary.Mixed);
+        _ = MacroPositionSemantics.GetCoordinateModeSummary(result.Sequence).Should().Be(CoordinateModeSummary.Mixed);
     }
 
     [Fact]
@@ -67,16 +67,16 @@ public class RunScriptCompilerTests
             new RunScriptStep("click left"),
         ]);
 
-        result.Success.Should().BeTrue();
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().HaveCount(2);
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().HaveCount(2);
         var click = result.Sequence.Events[1];
-        click.Type.Should().Be(EventType.Click);
-        click.Button.Should().Be(MacroMouseButton.Left);
-        click.UseCurrentPosition.Should().BeFalse();
-        click.X.Should().Be(0);
-        click.Y.Should().Be(0);
-        click.CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = click.Type.Should().Be(EventType.Click);
+        _ = click.Button.Should().Be(MacroMouseButton.Left);
+        _ = click.UseCurrentPosition.Should().BeFalse();
+        _ = click.X.Should().Be(0);
+        _ = click.Y.Should().Be(0);
+        _ = click.CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
     }
 
     [Fact]
@@ -90,16 +90,16 @@ public class RunScriptCompilerTests
             new RunScriptStep("click right"),
         ]);
 
-        result.Success.Should().BeTrue();
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
-        result.Sequence.Events.Should().HaveCount(4);
-        result.Sequence.Events.Select(e => (e.Type, e.Button, e.X, e.Y, e.CoordinateMode)).Should().Equal(
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = result.Sequence.Events.Should().HaveCount(4);
+        _ = result.Sequence.Events.Select(e => (e.Type, e.Button, e.X, e.Y, e.CoordinateMode)).Should().Equal(
             (EventType.MouseMove, MacroMouseButton.None, 100, 200, MouseCoordinateMode.Absolute),
             (EventType.Click, MacroMouseButton.Left, 100, 200, MouseCoordinateMode.Absolute),
             (EventType.MouseMove, MacroMouseButton.None, 10, -5, MouseCoordinateMode.Relative),
             (EventType.Click, MacroMouseButton.Right, 0, 0, MouseCoordinateMode.Relative));
-        MacroPositionSemantics.GetCoordinateModeSummary(result.Sequence).Should().Be(CoordinateModeSummary.Mixed);
+        _ = MacroPositionSemantics.GetCoordinateModeSummary(result.Sequence).Should().Be(CoordinateModeSummary.Mixed);
     }
 
     [Fact]
@@ -111,13 +111,13 @@ public class RunScriptCompilerTests
             new RunScriptStep("click current left"),
         ]);
 
-        result.Success.Should().BeTrue();
-        result.Sequence.Should().NotBeNull();
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
         var click = result.Sequence!.Events[1];
-        click.UseCurrentPosition.Should().BeTrue();
-        click.X.Should().Be(0);
-        click.Y.Should().Be(0);
-        click.CoordinateMode.Should().BeNull();
+        _ = click.UseCurrentPosition.Should().BeTrue();
+        _ = click.X.Should().Be(0);
+        _ = click.Y.Should().Be(0);
+        _ = click.CoordinateMode.Should().BeNull();
     }
 
     [Fact]
@@ -125,8 +125,32 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep("move abs 100")]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("unsupported step syntax");
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("unsupported step syntax");
+    }
+
+    [Fact]
+    public void Compile_WhenInvalidStaticCommand_ReturnsPreExtractionDiagnosticWithoutParameterName()
+    {
+        var result = _compiler.Compile([new RunScriptStep("delay nope")]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: Invalid delay value. Expected: delay <ms> with ms >= 0.");
+        _ = result.ErrorMessage.Should().NotContain("Parameter 'step'");
+    }
+
+    [Theory]
+    [InlineData("delay nope", "Step 1: Invalid delay value. Expected: delay <ms> with ms >= 0.")]
+    [InlineData("move sideways 1 2", "Step 1: Invalid move mode. Expected: abs|absolute|rel|relative.")]
+    [InlineData("click invalid", "Step 1: Unknown mouse button 'invalid'.")]
+    [InlineData("key press Enter", "Step 1: Invalid key action. Expected: key down <key> | key up <key>.")]
+    public void Compile_WhenStaticSyntaxIsInvalid_PreservesExactDiagnosticWithoutParameterSuffix(string step, string expectedError)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be(expectedError);
+        _ = result.ErrorMessage.Should().NotContain("(Parameter");
     }
 
     [Fact]
@@ -134,9 +158,9 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep("type @")]);
 
-        result.Success.Should().BeTrue();
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
             (EventType.KeyPress, 100),
             (EventType.KeyPress, 16),
             (EventType.KeyRelease, 16),
@@ -146,13 +170,13 @@ public class RunScriptCompilerTests
     [Fact]
     public void Compile_WhenTapContainsSingleModifier_EmitsPressAndRelease()
     {
-        _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
+        _ = _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
 
         var result = _compiler.Compile([new RunScriptStep("tap ctrl")]);
 
-        result.Success.Should().BeTrue();
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
             (EventType.KeyPress, 29),
             (EventType.KeyRelease, 29));
     }
@@ -170,12 +194,12 @@ public class RunScriptCompilerTests
 
         var result = _compiler.Compile(steps);
 
-        result.Success.Should().BeTrue();
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().ContainSingle();
-        result.Sequence.Events[0].Type.Should().Be(EventType.Click);
-        result.Sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
-        result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().ContainSingle();
+        _ = result.Sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = result.Sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
+        _ = result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
     }
 
     [Fact]
@@ -191,23 +215,35 @@ public class RunScriptCompilerTests
 
         var result = _compiler.Compile(steps);
 
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().ContainSingle();
-        result.Sequence.Events[0].Type.Should().Be(EventType.Click);
-        result.Sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
-        result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().ContainSingle();
+        _ = result.Sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = result.Sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
+        _ = result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
     }
 
     [Fact]
     public void Compile_WhenTypeCharacterCannotBeMapped_ReturnsDetailedFailure()
     {
-        _keyCodeMapper.GetKeyCodeForCharacter('?').Returns(-1);
+        _ = _keyCodeMapper.GetKeyCodeForCharacter('?').Returns(-1);
 
         var result = _compiler.Compile([new RunScriptStep("type ?")]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("cannot map character '?' for type command");
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("cannot map character '?' for type command");
+    }
+
+    [Fact]
+    public void Compile_WhenTypeControlKeyCannotBeMapped_PreservesExactDiagnosticWithoutParameterSuffix()
+    {
+        _ = _keyCodeMapper.GetKeyCode("Enter").Returns(-1);
+
+        var result = _compiler.Compile([new RunScriptStep("type \n")]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: Unknown key 'Enter'.");
+        _ = result.ErrorMessage.Should().NotContain("(Parameter");
     }
 
     [Fact]
@@ -215,10 +251,10 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep("clipboard get $clip")]);
 
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().BeEmpty();
-        result.Sequence.ScriptSteps.Should().Equal("clipboard get $clip");
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.ScriptSteps.Should().Equal("clipboard get $clip");
     }
 
     [Theory]
@@ -234,10 +270,10 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep(step)]);
 
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().BeEmpty();
-        result.Sequence.ScriptSteps.Should().ContainSingle().Which.Should().Be(step);
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.ScriptSteps.Should().ContainSingle().Which.Should().Be(step);
     }
 
     [Fact]
@@ -245,8 +281,8 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep("clipboard get clip extra")]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Syntax: clipboard get <var>");
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("Syntax: clipboard get <var>");
     }
 
     [Fact]
@@ -254,10 +290,10 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep("shell \"printf hello   world\" 2 100 5000")]);
 
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().BeEmpty();
-        result.Sequence.ScriptSteps.Should().Equal("shell \"printf hello   world\" 2 100 5000");
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.ScriptSteps.Should().Equal("shell \"printf hello   world\" 2 100 5000");
     }
 
     [Fact]
@@ -267,25 +303,10 @@ public class RunScriptCompilerTests
 
         var result = _compiler.Compile([new RunScriptStep(step)]);
 
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().BeEmpty();
-        result.Sequence.ScriptSteps.Should().Equal(step);
-    }
-
-    [Theory]
-    [InlineData("shell capture \"printf ok\" code stdout stderr")]
-    [InlineData("shell capture \"printf ok\" _ stdout _ 1 250 5000")]
-    [InlineData("shell input \"payload\" \"cat\" 1 250 5000")]
-    [InlineData("shell capture-input \"payload\" \"cat\" code stdout stderr")]
-    public void Compile_WhenShellExtendedStepIsWellFormed_PreservesScriptStep(string step)
-    {
-        var result = _compiler.Compile([new RunScriptStep(step)]);
-
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().BeEmpty();
-        result.Sequence.ScriptSteps.Should().Equal(step);
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.ScriptSteps.Should().Equal(step);
     }
 
     [Theory]
@@ -295,8 +316,8 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep(step)]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Shell command cannot be empty");
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("Shell command cannot be empty");
     }
 
     [Theory]
@@ -315,8 +336,8 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep(step)]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain(expected);
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain(expected);
     }
 
     [Fact]
@@ -324,41 +345,8 @@ public class RunScriptCompilerTests
     {
         var result = _compiler.Compile([new RunScriptStep("shell echo 1")]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Quote the shell command");
-    }
-
-    [Theory]
-    [InlineData("pixelcolor 1 2")]
-    [InlineData("pixelcolor 1 2 mycolor")]
-    [InlineData("pixelcolor rel -1 2")]
-    [InlineData("pixelcolor rel 1 2 underCursor")]
-    [InlineData("waitcolor 1 2 FF0000")]
-    [InlineData("waitcolor 1 2 FF0000 1000")]
-    [InlineData("waitcolor 1 2 FF0000 1000 wait_ok")]
-    [InlineData("waitcolor 1 2 $sampled 100 wait_ok")]
-    [InlineData("pixelsearch 0 0 10 10 123456")]
-    [InlineData("pixelsearch 0 0 10 10 123456 found_x found_y")]
-    [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y")]
-    [InlineData("pixelsearch 0 0 10 10 123456 tolerance 10")]
-    [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y tolerance 26")]
-    [InlineData("pixelsearch 0 0 10 10 $sampled found found_x found_y tolerance 10")]
-    [InlineData("imagesearch TargetImage")]
-    [InlineData("imagesearch 0 0 10 10 TargetImage")]
-    [InlineData("imagesearch TargetImage found found_x found_y")]
-    [InlineData("imagesearch TargetImage similarity 0")]
-    [InlineData("imagesearch TargetImage similarity 1")]
-    [InlineData("imagesearch TargetImage similarity 0.9")]
-    [InlineData("imagesearch TargetImage downsample 2")]
-    [InlineData("imagesearch 0 0 10 10 TargetImage found found_x found_y similarity 0.85 downsample 2")]
-    public void Compile_WhenScreenReadingStepIsWellFormed_PreservesScriptStep(string step)
-    {
-        var result = _compiler.Compile([new RunScriptStep(step)]);
-
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().BeEmpty();
-        result.Sequence.ScriptSteps.Should().Equal(step);
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("Quote the shell command");
     }
 
     [Theory]
@@ -388,31 +376,6 @@ public class RunScriptCompilerTests
     [InlineData("waitcolorful 1 2 FF0000", "unsupported step syntax")]
     [InlineData("pixelsearchful 0 0 10 10 123456 found_x found_y", "unsupported step syntax")]
     [InlineData("imagesearchful TargetImage", "unsupported step syntax")]
-    public void Compile_WhenScreenReadingStepIsMalformed_ReturnsFailure(string step, string expectedError)
-    {
-        var result = _compiler.Compile([new RunScriptStep(step)]);
-
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain(expectedError);
-    }
-
-    [Theory]
-    [InlineData("screenshot output shot.png")]
-    [InlineData("screenshot clipboard")]
-    [InlineData("screenshot output shot.png clipboard")]
-    [InlineData("screenshot region 1 2 3 4 output shot.png")]
-    [InlineData("screenshot region $x $y $w $h clipboard")]
-    public void Compile_WhenScreenshotStepIsWellFormed_PreservesScriptStep(string step)
-    {
-        var result = _compiler.Compile([new RunScriptStep(step)]);
-
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.Events.Should().BeEmpty();
-        result.Sequence.ScriptSteps.Should().Equal(step);
-    }
-
-    [Theory]
     [InlineData("screenshot", "at least one destination")]
     [InlineData("screenshot region 1 2 0 4 clipboard", "width and height > 0")]
     [InlineData("screenshot region 1 2 3 -4 clipboard", "width and height > 0")]
@@ -421,12 +384,54 @@ public class RunScriptCompilerTests
     [InlineData("screenshot region 1 2 3 4 region 5 6 7 8 clipboard", "Unknown screenshot token 'region'")]
     [InlineData("screenshot output", "Syntax: screenshot output <path>")]
     [InlineData("screenshot unknown", "Unknown screenshot token 'unknown'")]
-    public void Compile_WhenScreenshotStepIsMalformed_ReturnsFailure(string step, string expectedError)
+    public void Compile_WhenScreenReadingStepIsMalformed_ReturnsFailure(string step, string expectedError)
     {
         var result = _compiler.Compile([new RunScriptStep(step)]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain(expectedError);
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain(expectedError);
+    }
+
+    [Theory]
+    [InlineData("shell capture \"printf ok\" code stdout stderr")]
+    [InlineData("shell capture \"printf ok\" _ stdout _ 1 250 5000")]
+    [InlineData("shell input \"payload\" \"cat\" 1 250 5000")]
+    [InlineData("shell capture-input \"payload\" \"cat\" code stdout stderr")]
+    [InlineData("pixelcolor 1 2")]
+    [InlineData("pixelcolor 1 2 mycolor")]
+    [InlineData("pixelcolor rel -1 2")]
+    [InlineData("pixelcolor rel 1 2 underCursor")]
+    [InlineData("waitcolor 1 2 FF0000")]
+    [InlineData("waitcolor 1 2 FF0000 1000")]
+    [InlineData("waitcolor 1 2 FF0000 1000 wait_ok")]
+    [InlineData("waitcolor 1 2 $sampled 100 wait_ok")]
+    [InlineData("pixelsearch 0 0 10 10 123456")]
+    [InlineData("pixelsearch 0 0 10 10 123456 found_x found_y")]
+    [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y")]
+    [InlineData("pixelsearch 0 0 10 10 123456 tolerance 10")]
+    [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y tolerance 26")]
+    [InlineData("pixelsearch 0 0 10 10 $sampled found found_x found_y tolerance 10")]
+    [InlineData("imagesearch TargetImage")]
+    [InlineData("imagesearch 0 0 10 10 TargetImage")]
+    [InlineData("imagesearch TargetImage found found_x found_y")]
+    [InlineData("imagesearch TargetImage similarity 0")]
+    [InlineData("imagesearch TargetImage similarity 1")]
+    [InlineData("imagesearch TargetImage similarity 0.9")]
+    [InlineData("imagesearch TargetImage downsample 2")]
+    [InlineData("imagesearch 0 0 10 10 TargetImage found found_x found_y similarity 0.85 downsample 2")]
+    [InlineData("screenshot output shot.png")]
+    [InlineData("screenshot clipboard")]
+    [InlineData("screenshot output shot.png clipboard")]
+    [InlineData("screenshot region 1 2 3 4 output shot.png")]
+    [InlineData("screenshot region $x $y $w $h clipboard")]
+    public void Compile_WhenRuntimeScriptStepIsWellFormed_PreservesScriptStep(string step)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.ScriptSteps.Should().Equal(step);
     }
 
     [Fact]
@@ -438,8 +443,8 @@ public class RunScriptCompilerTests
             new RunScriptStep("bogus"),
         ]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("unsupported step syntax");
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("unsupported step syntax");
     }
 
     [Fact]
@@ -451,8 +456,8 @@ public class RunScriptCompilerTests
             new RunScriptStep("break"),
         ]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("inside repeat/while/for blocks");
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("inside repeat/while/for blocks");
     }
 
     [Fact]
@@ -465,9 +470,9 @@ public class RunScriptCompilerTests
             new RunScriptStep("delay $wait_ms"),
         ]);
 
-        result.Success.Should().BeTrue(result.ErrorMessage);
-        result.Sequence.Should().NotBeNull();
-        result.Sequence!.ScriptSteps.Should().Equal("set wait_ms 5", "pixelcolor 1 2 sampled", "delay $wait_ms");
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.ScriptSteps.Should().Equal("set wait_ms 5", "pixelcolor 1 2 sampled", "delay $wait_ms");
     }
 
     [Fact]
@@ -479,7 +484,7 @@ public class RunScriptCompilerTests
             new RunScriptStep("delay nope"),
         ]);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Invalid delay value");
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("Invalid delay value");
     }
 }

@@ -15,13 +15,13 @@ internal static class RunScriptRuntimeText
         {
             if (input[i] != '$')
             {
-                output.Append(input[i]);
+                _ = output.Append(input[i]);
                 continue;
             }
 
             if (i + 1 < input.Length && input[i + 1] == '$')
             {
-                output.Append('$');
+                _ = output.Append('$');
                 i++;
                 continue;
             }
@@ -39,7 +39,7 @@ internal static class RunScriptRuntimeText
                 throw new InvalidOperationException($"{errorPrefix}Unknown variable '${variableName}'.");
             }
 
-            output.Append(value);
+            _ = output.Append(value);
             i = j - 1;
         }
 

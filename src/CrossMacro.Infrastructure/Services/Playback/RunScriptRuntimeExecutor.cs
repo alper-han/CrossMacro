@@ -1,7 +1,16 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-internal sealed class RunScriptRuntimeExecutor
+internal sealed class RunScriptRuntimeExecutor(
+    IKeyCodeMapper keyCodeMapper,
+    IPlaybackTimingService timingService,
+    IPlaybackPauseToken pauseToken,
+    IDictionary<string, string> runtimeVariables,
+    RunScriptScreenReadExecutor screenReadExecutor,
+    RunScriptWindowExecutor windowExecutor,
+    RunScriptClipboardExecutor clipboardExecutor,
+    RunScriptShellExecutor shellExecutor,
+    RunScriptScreenshotExecutor screenshotExecutor)
 {
     private enum LoopControlSignal
     {
@@ -10,37 +19,15 @@ internal sealed class RunScriptRuntimeExecutor
         Continue,
     }
 
-    private readonly IKeyCodeMapper _keyCodeMapper;
-    private readonly IPlaybackTimingService _timingService;
-    private readonly IPlaybackPauseToken _pauseToken;
-    private readonly IDictionary<string, string> _runtimeVariables;
-    private readonly RunScriptScreenReadExecutor _screenReadExecutor;
-    private readonly RunScriptWindowExecutor _windowExecutor;
-    private readonly RunScriptClipboardExecutor _clipboardExecutor;
-    private readonly RunScriptShellExecutor _shellExecutor;
-    private readonly RunScriptScreenshotExecutor _screenshotExecutor;
-
-    public RunScriptRuntimeExecutor(
-        IKeyCodeMapper keyCodeMapper,
-        IPlaybackTimingService timingService,
-        IPlaybackPauseToken pauseToken,
-        IDictionary<string, string> runtimeVariables,
-        RunScriptScreenReadExecutor screenReadExecutor,
-        RunScriptWindowExecutor windowExecutor,
-        RunScriptClipboardExecutor clipboardExecutor,
-        RunScriptShellExecutor shellExecutor,
-        RunScriptScreenshotExecutor screenshotExecutor)
-    {
-        _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
-        _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
-        _pauseToken = pauseToken ?? throw new ArgumentNullException(nameof(pauseToken));
-        _runtimeVariables = runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables));
-        _screenReadExecutor = screenReadExecutor ?? throw new ArgumentNullException(nameof(screenReadExecutor));
-        _windowExecutor = windowExecutor ?? throw new ArgumentNullException(nameof(windowExecutor));
-        _clipboardExecutor = clipboardExecutor ?? throw new ArgumentNullException(nameof(clipboardExecutor));
-        _shellExecutor = shellExecutor ?? throw new ArgumentNullException(nameof(shellExecutor));
-        _screenshotExecutor = screenshotExecutor ?? throw new ArgumentNullException(nameof(screenshotExecutor));
-    }
+    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+    private readonly IPlaybackTimingService _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
+    private readonly IPlaybackPauseToken _pauseToken = pauseToken ?? throw new ArgumentNullException(nameof(pauseToken));
+    private readonly IDictionary<string, string> _runtimeVariables = runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables));
+    private readonly RunScriptScreenReadExecutor _screenReadExecutor = screenReadExecutor ?? throw new ArgumentNullException(nameof(screenReadExecutor));
+    private readonly RunScriptWindowExecutor _windowExecutor = windowExecutor ?? throw new ArgumentNullException(nameof(windowExecutor));
+    private readonly RunScriptClipboardExecutor _clipboardExecutor = clipboardExecutor ?? throw new ArgumentNullException(nameof(clipboardExecutor));
+    private readonly RunScriptShellExecutor _shellExecutor = shellExecutor ?? throw new ArgumentNullException(nameof(shellExecutor));
+    private readonly RunScriptScreenshotExecutor _screenshotExecutor = screenshotExecutor ?? throw new ArgumentNullException(nameof(screenshotExecutor));
 
     public async Task ExecuteAsync(RunScriptRuntimeExecutionRequest request, CancellationToken cancellationToken)
     {
@@ -51,7 +38,7 @@ internal sealed class RunScriptRuntimeExecutor
             .Select(step => step.Trim())
             .ToList();
 
-        await ExecuteRangeAsync(steps, 0, steps.Count, request, cancellationToken).ConfigureAwait(false);
+        _ = await ExecuteRangeAsync(steps, 0, steps.Count, request, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<LoopControlSignal> ExecuteRangeAsync(
@@ -86,11 +73,19 @@ internal sealed class RunScriptRuntimeExecutor
                     afterIf = falseEnd + 1;
                 }
 
-                var signal = EvaluateCondition(ifCondition)
-                    ? await ExecuteRangeAsync(steps, trueStart, trueEnd, request, cancellationToken).ConfigureAwait(false)
-                    : falseStart >= 0
-                        ? await ExecuteRangeAsync(steps, falseStart, falseEnd, request, cancellationToken).ConfigureAwait(false)
-                        : LoopControlSignal.None;
+                LoopControlSignal signal;
+                if (EvaluateCondition(ifCondition))
+                {
+                    signal = await ExecuteRangeAsync(steps, trueStart, trueEnd, request, cancellationToken).ConfigureAwait(false);
+                }
+                else if (falseStart >= 0)
+                {
+                    signal = await ExecuteRangeAsync(steps, falseStart, falseEnd, request, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    signal = LoopControlSignal.None;
+                }
                 if (signal is not LoopControlSignal.None)
                 {
                     return signal;
@@ -274,7 +269,7 @@ internal sealed class RunScriptRuntimeExecutor
         if (step.StartsWith("set ", StringComparison.OrdinalIgnoreCase))
         {
             var payload = step[4..].Trim();
-            var equalIndex = payload.IndexOf('=');
+            var equalIndex = payload.IndexOf('=', StringComparison.Ordinal);
             string variableName;
             string value;
             if (equalIndex >= 0)

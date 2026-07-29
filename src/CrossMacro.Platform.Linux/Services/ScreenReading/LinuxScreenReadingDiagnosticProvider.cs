@@ -14,8 +14,12 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         IRuntimeContext runtimeContext,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
         IX11ScreenCaptureSupportProbe x11SupportProbe)
-        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider: null, x11SupportProbe, _: true)
     {
+        _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
+        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+        _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
+        _snapshotProvider = null;
+        _x11SupportProbe = x11SupportProbe ?? throw new ArgumentNullException(nameof(x11SupportProbe));
     }
 
     public LinuxScreenReadingDiagnosticProvider(
@@ -24,22 +28,11 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
         ILinuxCapabilitySnapshotProvider snapshotProvider,
         IX11ScreenCaptureSupportProbe x11SupportProbe)
-        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), x11SupportProbe, _: true)
-    {
-    }
-
-    private LinuxScreenReadingDiagnosticProvider(
-        ILinuxEnvironmentDetector environmentDetector,
-        IRuntimeContext runtimeContext,
-        ILinuxScreenReaderCapabilityDetector capabilityDetector,
-        ILinuxCapabilitySnapshotProvider? snapshotProvider,
-        IX11ScreenCaptureSupportProbe x11SupportProbe,
-        bool _)
     {
         _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
         _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
-        _snapshotProvider = snapshotProvider;
+        _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
         _x11SupportProbe = x11SupportProbe ?? throw new ArgumentNullException(nameof(x11SupportProbe));
     }
 
@@ -73,7 +66,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
 
         var screenSnapshot = capabilitySnapshot?.ScreenReading ?? _capabilityDetector.GetSnapshot();
         var orderedCapabilities = order.Select(screenSnapshot.GetCapability).ToArray();
-        var selected = orderedCapabilities.FirstOrDefault(capability => capability.IsAvailable);
+        var selected = orderedCapabilities.FirstOrDefault(static capability => capability.IsAvailable);
         var hasSelected = selected.IsAvailable;
         var failure = hasSelected ? null : SelectFailure(orderedCapabilities);
 
@@ -91,7 +84,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
     }
 
     private static string[] FormatPolicyOrder(IReadOnlyList<LinuxScreenReaderBackend> order) =>
-        order.Select(backend => backend.ToString()).ToArray();
+        order.Select(static backend => backend.ToString()).ToArray();
 
     private ScreenReadingDiagnosticSnapshot GetX11Snapshot(CompositorType compositor)
     {
@@ -125,14 +118,14 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
 
     private static LinuxScreenReaderBackendCapability? SelectFailure(IReadOnlyList<LinuxScreenReaderBackendCapability> orderedCapabilities)
     {
-        var permissionDenied = orderedCapabilities.FirstOrDefault(capability =>
+        var permissionDenied = orderedCapabilities.FirstOrDefault(static capability =>
             !capability.IsAvailable && capability.ErrorKind is ScreenReadErrorKind.PermissionDenied);
         if (permissionDenied.ErrorKind is ScreenReadErrorKind.PermissionDenied)
         {
             return permissionDenied;
         }
 
-        return orderedCapabilities.LastOrDefault(capability => !capability.IsAvailable);
+        return orderedCapabilities.LastOrDefault(static capability => !capability.IsAvailable);
     }
 
     private static string? GetRemediation(LinuxScreenReaderBackendCapability failure)
@@ -158,6 +151,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
             LinuxScreenReaderBackend.ExtImageCopy => "Use a compositor that exposes ext-image-copy-capture-v1, or allow fallback to another backend.",
             LinuxScreenReaderBackend.WlrScreencopy => "Use a compositor that exposes wlr-screencopy-unstable-v1, or allow fallback to another backend.",
             LinuxScreenReaderBackend.Portal => "Install and enable XDG Desktop Portal ScreenCast with PipeWire, or use a native Wayland backend.",
+            LinuxScreenReaderBackend.KWinScreenShot2 => null,
             _ => null,
         };
     }

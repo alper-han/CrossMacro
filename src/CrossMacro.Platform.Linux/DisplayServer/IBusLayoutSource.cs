@@ -29,7 +29,7 @@ public static class IBusLayoutSource
             }
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Error detecting IBus layout");
             return null;

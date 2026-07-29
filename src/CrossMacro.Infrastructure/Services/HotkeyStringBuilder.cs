@@ -4,9 +4,9 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Builds human-readable hotkey strings from key codes and modifiers.
 /// </summary>
-public class HotkeyStringBuilder : IHotkeyStringBuilder
+public class HotkeyStringBuilder(IKeyCodeMapper keyCodeMapper) : IHotkeyStringBuilder
 {
-    private readonly IKeyCodeMapper _keyCodeMapper;
+    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper;
 
     // Modifier key codes (Linux evdev)
     private const int LeftCtrl = 29;
@@ -18,13 +18,9 @@ public class HotkeyStringBuilder : IHotkeyStringBuilder
     private const int LeftSuper = 125;
     private const int RightSuper = 126;
 
-    public HotkeyStringBuilder(IKeyCodeMapper keyCodeMapper)
-    {
-        _keyCodeMapper = keyCodeMapper;
-    }
-
     public string Build(int keyCode, IReadOnlySet<int> modifiers)
     {
+        ArgumentNullException.ThrowIfNull(modifiers);
         var parts = BuildModifierParts(modifiers);
         parts.Add(_keyCodeMapper.GetKeyName(keyCode));
         return string.Join('+', parts);
@@ -32,6 +28,7 @@ public class HotkeyStringBuilder : IHotkeyStringBuilder
 
     public string BuildForMouse(string buttonName, IReadOnlySet<int> modifiers)
     {
+        ArgumentNullException.ThrowIfNull(modifiers);
         var parts = BuildModifierParts(modifiers);
         parts.Add(buttonName);
         return string.Join('+', parts);

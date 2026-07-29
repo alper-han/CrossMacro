@@ -4,19 +4,18 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Polls the active window and runs configured <see cref="TriggerTask"/> actions on match.
 /// </summary>
-public class TriggerService : ITriggerService
+public sealed class TriggerService : ITriggerService
 {
     private readonly IWindowManager? _windowManager;
-    // Factory delegate to break the circular dependency between IProfileManager and ITriggerService.
-    private readonly Func<IProfileManager> _profileManagerAccessor;
+    private readonly IProfileSwitchRequests _profileSwitchRequests;
     private readonly IMacroFileManager _macroFileManager;
     private readonly Func<IMacroPlayer> _macroPlayerFactory;
     private SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
-    private bool _isMonitoring;
-    private bool _disposed;
+    private TaskCompletionSource? _disposeCompletion;
     private CancellationTokenSource? _cts;
     private Task _monitorTask = Task.CompletedTask;
+    private long _monitorGeneration;
 
     private string _triggersFilePath;
 
@@ -33,7 +32,7 @@ public class TriggerService : ITriggerService
     private const int PollIntervalMs = 1000;
 
     public ObservableCollection<TriggerTask> Tasks { get; } = new();
-    public bool IsMonitoring => _isMonitoring;
+    public bool IsMonitoring { get; private set; }
 
     public Task Completion
     {
@@ -50,13 +49,13 @@ public class TriggerService : ITriggerService
 
     public TriggerService(
         IWindowManager? windowManager,
-        Func<IProfileManager> profileManagerAccessor,
+        IProfileSwitchRequests profileSwitchRequests,
         IMacroFileManager macroFileManager,
         Func<IMacroPlayer> macroPlayerFactory,
         string? triggersFilePath = null)
     {
         _windowManager = windowManager;
-        _profileManagerAccessor = profileManagerAccessor;
+        _profileSwitchRequests = profileSwitchRequests;
         _macroFileManager = macroFileManager;
         _macroPlayerFactory = macroPlayerFactory;
         _syncContext = SynchronizationContext.Current;
@@ -92,14 +91,15 @@ public class TriggerService : ITriggerService
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
-                Tasks.Remove(task);
-                _wasMatching.Remove(id);
+                _ = Tasks.Remove(task);
+                _ = _wasMatching.Remove(id);
             }
         }
     }
 
     public void UpdateTask(TriggerTask task)
     {
+        ArgumentNullException.ThrowIfNull(task);
         EnsureSyncContext();
         lock (_lock)
         {
@@ -129,10 +129,10 @@ public class TriggerService : ITriggerService
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
-                task.TrySetEnabled(enabled);
+                _ = task.TrySetEnabled(enabled);
                 if (!enabled)
                 {
-                    _wasMatching.Remove(id);
+                    _ = _wasMatching.Remove(id);
                 }
             }
         }
@@ -146,15 +146,18 @@ public class TriggerService : ITriggerService
 
         lock (_lock)
         {
-            if (_isMonitoring)
+            if (IsMonitoring)
             {
                 return;
             }
 
-            _isMonitoring = true;
+            IsMonitoring = true;
+            _monitorGeneration++;
             _cts = new CancellationTokenSource();
             monitorCts = _cts;
-            _monitorTask = Task.Run(() => MonitorLoopAsync(monitorCts.Token));
+            // No token for Task.Run: cancel-before-start would make Completion transition to
+            // Canceled; MonitorLoopAsync already ends gracefully on cancellation.
+            _monitorTask = Task.Run(() => MonitorLoopAsync(monitorCts.Token), CancellationToken.None);
             monitorTask = _monitorTask;
         }
         _ = ObserveMonitorTaskAsync(monitorTask, monitorCts);
@@ -162,7 +165,7 @@ public class TriggerService : ITriggerService
 
     public void StopMonitoring()
     {
-        _ = StopAsync();
+        _ = StopAsync(CancellationToken.None);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -170,17 +173,19 @@ public class TriggerService : ITriggerService
         EnsureSyncContext();
         CancellationTokenSource? cts;
         Task monitorTask;
+        long monitorGeneration;
 
         lock (_lock)
         {
-            if (!_isMonitoring)
+            if (!IsMonitoring)
             {
                 return;
             }
-            _isMonitoring = false;
+            IsMonitoring = false;
             cts = _cts;
             _cts = null;
             monitorTask = _monitorTask;
+            monitorGeneration = _monitorGeneration;
         }
 
         if (cts is null)
@@ -188,14 +193,23 @@ public class TriggerService : ITriggerService
             return;
         }
 
-        try { cts.Cancel(); }
-        catch (ObjectDisposedException) { }
+        try { await cts.CancelAsync().ConfigureAwait(false); }
+        catch (ObjectDisposedException)
+        {
+            Log.Debug("[TriggerService] Cancellation source was already disposed while stopping.");
+        }
 
-        await CompleteStopAsync(monitorTask, cts, cancellationToken).ConfigureAwait(false);
+        var completionCancellationToken = cancellationToken == cts.Token
+            ? CancellationToken.None
+            : cancellationToken;
+        await CompleteStopAsync(monitorTask, cts, completionCancellationToken).ConfigureAwait(false);
 
         lock (_lock)
         {
-            _wasMatching.Clear();
+            if (_monitorGeneration == monitorGeneration)
+            {
+                _wasMatching.Clear();
+            }
         }
     }
 
@@ -207,6 +221,7 @@ public class TriggerService : ITriggerService
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
+            Log.Debug("[TriggerService] Monitor task canceled during shutdown.");
         }
         finally
         {
@@ -222,8 +237,9 @@ public class TriggerService : ITriggerService
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
+            // Cancellation is expected while the monitor is shutting down.
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Trigger monitoring loop faulted");
         }
@@ -241,19 +257,26 @@ public class TriggerService : ITriggerService
                     await PollOnceAsync(ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Warning(ex, "Trigger poll iteration failed");
                 }
 
                 try
                 {
-                    await timer.WaitForNextTickAsync(ct).ConfigureAwait(false);
+                    _ = await timer.WaitForNextTickAsync(ct).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) { break; }
+                catch (OperationCanceledException)
+                {
+                    Log.Debug("[TriggerService] Poll timer canceled.");
+                    break;
+                }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            Log.Debug("[TriggerService] Monitor loop canceled.");
+        }
     }
 
     /// <summary>
@@ -272,7 +295,7 @@ public class TriggerService : ITriggerService
         {
             window = await _windowManager.GetActiveWindowAsync(ct).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "Failed to query active window for trigger poll");
             return;
@@ -288,7 +311,7 @@ public class TriggerService : ITriggerService
             {
                 workspace = await _windowManager.GetActiveWorkspaceAsync(ct).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "Failed to query active workspace for trigger poll");
             }
@@ -304,7 +327,7 @@ public class TriggerService : ITriggerService
             bool shouldFire;
             lock (_lock)
             {
-                _wasMatching.TryGetValue(task.Id, out var was);
+                _ = _wasMatching.TryGetValue(task.Id, out var was);
 
                 shouldFire = task.FireMode switch
                 {
@@ -337,7 +360,7 @@ public class TriggerService : ITriggerService
                     {
                         // Stable match survived the debounce window — allow fire this once.
                         // Reset the debounce tracking timestamp now that the trigger has fired.
-                        _firstMatchedAt.Remove(task.Id);
+                        _ = _firstMatchedAt.Remove(task.Id);
                         if (task.FireMode is TriggerFireMode.OnceOnChange
 or TriggerFireMode.OnEnter)
                         {
@@ -361,8 +384,8 @@ or TriggerFireMode.OnEnter)
                 }
                 else
                 {
-                    _wasMatching.Remove(task.Id);
-                    _firstMatchedAt.Remove(task.Id);
+                    _ = _wasMatching.Remove(task.Id);
+                    _ = _firstMatchedAt.Remove(task.Id);
                 }
             }
 
@@ -452,7 +475,7 @@ or TriggerFireMode.OnEnter)
                 }
                 else
                 {
-                    await _profileManagerAccessor().SwitchProfileAsync(task.TargetProfileId).ConfigureAwait(false);
+                    await _profileSwitchRequests.RequestSwitchAsync(task.TargetProfileId).ConfigureAwait(false);
                     success = true;
                     message = $"Switched to profile '{task.TargetProfileId}'";
                 }
@@ -480,7 +503,7 @@ or TriggerFireMode.OnEnter)
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             message = ex.Message;
             Log.Warning(ex, "Trigger action failed for task {TaskId}", task.Id);
@@ -504,7 +527,7 @@ or TriggerFireMode.OnEnter)
         void Raise(object? _)
         {
             try { TriggerFired?.Invoke(this, args); }
-            catch (Exception ex) { Log.Warning(ex, "TriggerFired subscriber threw"); }
+            catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "TriggerFired subscriber threw"); }
         }
 
         if (_syncContext is not null)
@@ -531,10 +554,11 @@ or TriggerFireMode.OnEnter)
             await FileBackedJsonStorage.WriteAsync(
                     _triggersFilePath,
                     snapshot,
-                    CrossMacroJsonContext.Default.ListTriggerTask)
+                    CrossMacroJsonContext.Default.ListTriggerTask,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "Failed to save trigger tasks to {Path}", _triggersFilePath);
             throw;
@@ -573,7 +597,7 @@ or TriggerFireMode.OnEnter)
                 await ExecuteOnCapturedContextAsync(UpdateCollection).ConfigureAwait(false);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "Failed to load trigger tasks from {Path}", _triggersFilePath);
         }
@@ -617,11 +641,17 @@ or TriggerFireMode.OnEnter)
             try
             {
                 callback(state: null);
-                completion.TrySetResult();
+                if (!completion.TrySetResult())
+                {
+                    return;
+                }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                completion.TrySetException(ex);
+                if (!completion.TrySetException(ex))
+                {
+                    return;
+                }
             }
         }, state: null);
         await completion.Task.ConfigureAwait(false);
@@ -629,13 +659,36 @@ or TriggerFireMode.OnEnter)
 
     public void Dispose()
     {
-        if (_disposed)
+        TaskCompletionSource disposeCompletion;
+        var initiateDispose = false;
+
+        lock (_lock)
         {
-            return;
+            if (_disposeCompletion is null)
+            {
+                _disposeCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                initiateDispose = true;
+            }
+
+            disposeCompletion = _disposeCompletion;
         }
 
-        _disposed = true;
+        if (initiateDispose)
+        {
+            try
+            {
+                StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+                Completion.GetAwaiter().GetResult();
+                _ = disposeCompletion.TrySetResult();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                _ = disposeCompletion.TrySetException(ex);
+                throw;
+            }
+        }
 
-        StopMonitoring();
+        disposeCompletion.Task.GetAwaiter().GetResult();
+        GC.SuppressFinalize(this);
     }
 }

@@ -1,14 +1,9 @@
 
 namespace CrossMacro.UI.ViewModels;
 
-internal sealed class MainWindowNavigationCatalog
+internal sealed class MainWindowNavigationCatalog(ILocalizationService localizationService)
 {
-    private readonly ILocalizationService _localizationService;
-
-    public MainWindowNavigationCatalog(ILocalizationService localizationService)
-    {
-        _localizationService = localizationService;
-    }
+    private readonly ILocalizationService _localizationService = localizationService;
 
     public ObservableCollection<NavigationItem> CreateTopItems(
         RecordingViewModel recording,

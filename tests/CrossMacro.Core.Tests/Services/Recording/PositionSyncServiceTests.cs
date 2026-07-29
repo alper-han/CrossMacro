@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services.Recording;
 
-public class PositionSyncServiceTests : IDisposable
+public sealed class PositionSyncServiceTests : IDisposable
 {
     private readonly IMousePositionProvider _providerSubstitute;
     private readonly PositionSyncService _service;
@@ -23,49 +23,53 @@ public class PositionSyncServiceTests : IDisposable
     [Fact]
     public void IsRunning_ShouldBeFalse_Initially()
     {
-        _service.IsRunning.Should().BeFalse();
+        _ = _service.IsRunning.Should().BeFalse();
     }
 
     [Fact]
     public async Task StartAsync_ShouldNotStart_IfProviderNotSupported()
     {
         // Arrange
-        _providerSubstitute.IsSupported.Returns(returnThis: false);
+        _ = _providerSubstitute.IsSupported.Returns(returnThis: false);
         var callback = Substitute.For<Action<int, int, long>>();
 
         // Act
         await _service.StartAsync(callback, () => (0, 0), _cts.Token);
 
         // Assert
-        _service.IsRunning.Should().BeFalse();
+        _ = _service.IsRunning.Should().BeFalse();
     }
 
     [Fact]
     public async Task StartAsync_ShouldStart_IfProviderSupported()
     {
         // Arrange
-        _providerSubstitute.IsSupported.Returns(returnThis: true);
+        _ = _providerSubstitute.IsSupported.Returns(returnThis: true);
         var callback = Substitute.For<Action<int, int, long>>();
 
         // Act
         await _service.StartAsync(callback, () => (0, 0), _cts.Token);
 
         // Assert
-        _service.IsRunning.Should().BeTrue();
+        _ = _service.IsRunning.Should().BeTrue();
     }
 
     [Fact]
     public async Task Stop_WhenProviderQueryDoesNotObserveCancellation_ReturnsWithoutBlockingIndefinitely()
     {
-        _providerSubstitute.IsSupported.Returns(returnThis: true);
+        _ = _providerSubstitute.IsSupported.Returns(returnThis: true);
 
         var queryStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _providerSubstitute.GetAbsolutePositionAsync()
-            .Returns(_ =>
+        _ = _providerSubstitute.GetAbsolutePositionAsync()
+            .Returns(unusedCallInfo =>
             {
-                queryStarted.TrySetResult();
+                _ = queryStarted.TrySetResult();
                 return Task.Delay(Timeout.Infinite, CancellationToken.None)
-                    .ContinueWith<(int X, int Y)?>(_ => null, CancellationToken.None);
+                    .ContinueWith<(int X, int Y)?>(
+                        _ => null,
+                        CancellationToken.None,
+                        TaskContinuationOptions.None,
+                        TaskScheduler.Default);
             });
 
         await _service.StartAsync((_, _, _) => { }, () => (0, 0), _cts.Token);
@@ -73,6 +77,6 @@ public class PositionSyncServiceTests : IDisposable
 
         await Task.Run(_service.StopPositionSync).WaitAsync(TimeSpan.FromSeconds(2));
 
-        _service.IsRunning.Should().BeFalse();
+        _ = _service.IsRunning.Should().BeFalse();
     }
 }

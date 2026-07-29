@@ -4,7 +4,6 @@ namespace CrossMacro.Platform.MacOS.Services;
 public sealed class MacOSInputSimulator :
     IInputSimulator,
     IInputSimulatorCapabilities,
-    IUnicodeTextInputSimulator,
     ITaggedKeyboardInputSimulator,
     ITaggedUnicodeTextInputSimulator,
     IPlatformPasteShortcutProvider
@@ -13,7 +12,7 @@ public sealed class MacOSInputSimulator :
     private readonly Func<bool> _requestPostEventAccess;
     private readonly Func<bool> _isMacOS;
     private readonly HashSet<int> _pressedModifierKeys = [];
-    private CoreGraphics.CGEventFlags _keyboardFlags;
+    private CoreGraphics.CGEventModifiers _keyboardFlags;
     private bool _postEventPermissionGranted;
 
     public string ProviderName => "macOS CoreGraphics";
@@ -24,9 +23,7 @@ public sealed class MacOSInputSimulator :
     public bool UsesMetaKeyForStandardPaste => true;
 
     public MacOSInputSimulator()
-        : this(MacOSPermissionChecker.RequestPostEventAccess)
-    {
-    }
+        : this(MacOSPermissionChecker.RequestPostEventAccess) { /* Empty */ }
 
     internal MacOSInputSimulator(Func<bool> requestPostEventAccess, Func<bool>? isMacOS = null)
     {
@@ -34,8 +31,13 @@ public sealed class MacOSInputSimulator :
         _isMacOS = isMacOS ?? OperatingSystem.IsMacOS;
     }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
+    public void Initialize(int screenWidth = 0, int screenHeight = 0) { /* Empty */ }
+
+    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        Initialize(screenWidth, screenHeight);
+        return Task.CompletedTask;
     }
 
     public void MoveAbsolute(int x, int y)
@@ -124,13 +126,9 @@ public sealed class MacOSInputSimulator :
         TypeTextCore(text, tag);
     }
 
-    public void Sync()
-    {
-    }
+    public void Sync() { /* Empty */ }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 
     private static void TypeTextCore(string text, long? marker)
     {
@@ -230,7 +228,7 @@ public sealed class MacOSInputSimulator :
         int nxKeyType,
         bool pressed,
         long? marker,
-        CoreGraphics.CGEventFlags activeModifierFlags)
+        CoreGraphics.CGEventModifiers activeModifierFlags)
     {
         if (!MacOSSystemKeyEventFactory.TryCreateEvent(
                 nxKeyType,
@@ -277,7 +275,7 @@ public sealed class MacOSInputSimulator :
         return MacOSKeyboardEventRoute.Keyboard;
     }
 
-    internal CoreGraphics.CGEventFlags UpdateKeyboardFlags(int keyCode, bool pressed)
+    internal CoreGraphics.CGEventModifiers UpdateKeyboardFlags(int keyCode, bool pressed)
     {
         lock (_keyboardLock)
         {
@@ -285,7 +283,7 @@ public sealed class MacOSInputSimulator :
         }
     }
 
-    private CoreGraphics.CGEventFlags UpdateKeyboardFlagsCore(int keyCode, bool pressed)
+    private CoreGraphics.CGEventModifiers UpdateKeyboardFlagsCore(int keyCode, bool pressed)
     {
         if (GetModifierFlag(keyCode) == default)
         {
@@ -294,20 +292,20 @@ public sealed class MacOSInputSimulator :
 
         if (pressed)
         {
-            _pressedModifierKeys.Add(keyCode);
+            _ = _pressedModifierKeys.Add(keyCode);
         }
         else
         {
-            _pressedModifierKeys.Remove(keyCode);
+            _ = _pressedModifierKeys.Remove(keyCode);
         }
 
         _keyboardFlags = CreateKeyboardFlags(_pressedModifierKeys);
         return _keyboardFlags;
     }
 
-    internal static CoreGraphics.CGEventFlags CreateKeyboardFlags(IEnumerable<int> pressedModifierKeys)
+    internal static CoreGraphics.CGEventModifiers CreateKeyboardFlags(IEnumerable<int> pressedModifierKeys)
     {
-        var flags = default(CoreGraphics.CGEventFlags);
+        var flags = default(CoreGraphics.CGEventModifiers);
         foreach (var keyCode in pressedModifierKeys)
         {
             flags |= GetModifierFlag(keyCode);
@@ -316,15 +314,15 @@ public sealed class MacOSInputSimulator :
         return flags;
     }
 
-    private static CoreGraphics.CGEventFlags GetModifierFlag(int keyCode)
+    private static CoreGraphics.CGEventModifiers GetModifierFlag(int keyCode)
     {
         return keyCode switch
         {
-            InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT => CoreGraphics.CGEventFlags.Shift,
-            InputEventCode.KEY_LEFTCTRL or InputEventCode.KEY_RIGHTCTRL => CoreGraphics.CGEventFlags.Control,
-            InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT => CoreGraphics.CGEventFlags.Alternate,
-            InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA => CoreGraphics.CGEventFlags.Command,
-            InputEventCode.KEY_CAPSLOCK => CoreGraphics.CGEventFlags.AlphaShift,
+            InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT => CoreGraphics.CGEventModifiers.Shift,
+            InputEventCode.KEY_LEFTCTRL or InputEventCode.KEY_RIGHTCTRL => CoreGraphics.CGEventModifiers.Control,
+            InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT => CoreGraphics.CGEventModifiers.Alternate,
+            InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA => CoreGraphics.CGEventModifiers.Command,
+            InputEventCode.KEY_CAPSLOCK => CoreGraphics.CGEventModifiers.AlphaShift,
             _ => default,
         };
     }

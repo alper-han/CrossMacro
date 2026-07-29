@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 
-public class LinuxPositionProviderFactoryTests
+public sealed class LinuxPositionProviderFactoryTests
 {
     private readonly ILinuxEnvironmentDetector _mockEnvironmentDetector;
     private readonly List<IPositionProviderSelector> _selectors;
@@ -23,15 +23,15 @@ public class LinuxPositionProviderFactoryTests
     {
         // Arrange
         var lowPrioritySelector = Substitute.For<IPositionProviderSelector>();
-        lowPrioritySelector.Priority.Returns(10);
-        lowPrioritySelector.CanHandle(Arg.Any<CompositorType>()).Returns(returnThis: true);
-        lowPrioritySelector.Create().Returns(Substitute.For<IMousePositionProvider>());
+        _ = lowPrioritySelector.Priority.Returns(10);
+        _ = lowPrioritySelector.CanHandle(Arg.Any<CompositorType>()).Returns(returnThis: true);
+        _ = lowPrioritySelector.Create().Returns(Substitute.For<IMousePositionProvider>());
 
         var highPrioritySelector = Substitute.For<IPositionProviderSelector>();
-        highPrioritySelector.Priority.Returns(100);
-        highPrioritySelector.CanHandle(Arg.Any<CompositorType>()).Returns(returnThis: true);
+        _ = highPrioritySelector.Priority.Returns(100);
+        _ = highPrioritySelector.CanHandle(Arg.Any<CompositorType>()).Returns(returnThis: true);
         var expectedProvider = Substitute.For<IMousePositionProvider>();
-        highPrioritySelector.Create().Returns(expectedProvider);
+        _ = highPrioritySelector.Create().Returns(expectedProvider);
 
         _selectors.Add(lowPrioritySelector);
         _selectors.Add(highPrioritySelector);
@@ -48,15 +48,15 @@ public class LinuxPositionProviderFactoryTests
     public void Create_ShouldSelectCorrectSelector_BasedOnCompositor()
     {
         // Arrange
-        _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
 
         var gnomeSelector = Substitute.For<IPositionProviderSelector>();
-        gnomeSelector.CanHandle(CompositorType.GNOME).Returns(returnThis: true);
+        _ = gnomeSelector.CanHandle(CompositorType.GNOME).Returns(returnThis: true);
         var gnomeProvider = Substitute.For<IMousePositionProvider>();
-        gnomeSelector.Create().Returns(gnomeProvider);
+        _ = gnomeSelector.Create().Returns(gnomeProvider);
 
         var kdeSelector = Substitute.For<IPositionProviderSelector>();
-        kdeSelector.CanHandle(CompositorType.GNOME).Returns(returnThis: false); // Can't handle Gnome
+        _ = kdeSelector.CanHandle(CompositorType.GNOME).Returns(returnThis: false); // Can't handle Gnome
 
         _selectors.Add(gnomeSelector);
         _selectors.Add(kdeSelector);
@@ -73,7 +73,7 @@ public class LinuxPositionProviderFactoryTests
     public void Create_ShouldReturnFallback_WhenNoSelectorMatches()
     {
         // Arrange
-        _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
         // Empty selectors list
         SetupFactory();
 
@@ -81,20 +81,20 @@ public class LinuxPositionProviderFactoryTests
         var result = _factory!.Create();
 
         // Assert
-        Assert.IsType<FallbackPositionProvider>(result);
+        _ = Assert.IsType<FallbackPositionProvider>(result);
     }
 
     [LinuxFact]
     public void Create_ShouldReturnFallback_WhenSelectorsExistButNoneCanHandle()
     {
         // Arrange
-        _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.KDE);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.KDE);
 
         var selectorA = Substitute.For<IPositionProviderSelector>();
-        selectorA.CanHandle(CompositorType.KDE).Returns(returnThis: false);
+        _ = selectorA.CanHandle(CompositorType.KDE).Returns(returnThis: false);
 
         var selectorB = Substitute.For<IPositionProviderSelector>();
-        selectorB.CanHandle(CompositorType.KDE).Returns(returnThis: false);
+        _ = selectorB.CanHandle(CompositorType.KDE).Returns(returnThis: false);
 
         _selectors.Add(selectorA);
         _selectors.Add(selectorB);
@@ -104,9 +104,9 @@ public class LinuxPositionProviderFactoryTests
         var result = _factory!.Create();
 
         // Assert
-        Assert.IsType<FallbackPositionProvider>(result);
-        selectorA.DidNotReceive().Create();
-        selectorB.DidNotReceive().Create();
+        _ = Assert.IsType<FallbackPositionProvider>(result);
+        _ = selectorA.DidNotReceive().Create();
+        _ = selectorB.DidNotReceive().Create();
     }
 
     [LinuxFact]
@@ -118,7 +118,7 @@ public class LinuxPositionProviderFactoryTests
         Assert.False(selector.CanHandle(CompositorType.Other));
 
         using var provider = selector.Create();
-        Assert.IsType<NiriPositionProvider>(provider);
+        _ = Assert.IsType<NiriPositionProvider>(provider);
         Assert.False(provider.IsSupported);
         Assert.Equal("Niri IPC (Resolution Only)", provider.ProviderName);
     }
@@ -132,7 +132,7 @@ public class LinuxPositionProviderFactoryTests
         Assert.False(selector.CanHandle(CompositorType.Other));
 
         using var provider = selector.Create();
-        Assert.IsType<CosmicPositionProvider>(provider);
+        _ = Assert.IsType<CosmicPositionProvider>(provider);
         Assert.False(provider.IsSupported);
         Assert.Equal("COSMIC RandR (Resolution Only)", provider.ProviderName);
     }

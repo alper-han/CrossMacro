@@ -1,7 +1,8 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public sealed class PolkitAuthorizationService : IPolkitAuthorizationService
+internal sealed class PolkitAuthorizationService : IPolkitAuthorizationService
 {
-    public Task<bool> IsInputCaptureAuthorizedAsync(uint uid, int pid) => PolkitChecker.CheckAuthorizationAsync(uid, pid, PolkitChecker.Actions.InputCapture);
+    public Task<bool> IsInputCaptureAuthorizedAsync(uint uid, int pid, CancellationToken cancellationToken = default) =>
+        PolkitChecker.CheckAuthorizationAsync(uid, pid, PolkitChecker.Actions.InputCapture, cancellationToken);
 }

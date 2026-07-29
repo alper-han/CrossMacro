@@ -29,7 +29,7 @@ internal sealed class PipeWireLibrary : IDisposable
     private delegate IntPtr PwStreamNew(IntPtr core, string name, IntPtr props);
     private delegate void PwStreamDestroy(IntPtr stream);
     private delegate void PwStreamAddListener(IntPtr stream, IntPtr listener, IntPtr events, IntPtr data);
-    private delegate int PwStreamConnect(IntPtr stream, PipeWireDirection direction, uint targetId, PipeWireStreamFlags flags, IntPtr parameters, uint parameterCount);
+    private delegate int PwStreamConnect(IntPtr stream, PipeWireDirection direction, uint targetId, PipeWireStreamOption flags, IntPtr parameters, uint parameterCount);
     private delegate int PwStreamUpdateParams(IntPtr stream, IntPtr parameters, uint parameterCount);
     private delegate IntPtr PwStreamDequeueBuffer(IntPtr stream);
     private delegate int PwStreamQueueBuffer(IntPtr stream, IntPtr buffer);
@@ -117,7 +117,7 @@ internal sealed class PipeWireLibrary : IDisposable
     public IntPtr StreamNew(IntPtr core, string name, IntPtr props) => _streamNew(core, name, props);
     public void StreamDestroy(IntPtr stream) => _streamDestroy(stream);
     public void StreamAddListener(IntPtr stream, IntPtr listener, IntPtr events, IntPtr data) => _streamAddListener(stream, listener, events, data);
-    public int StreamConnect(IntPtr stream, PipeWireDirection direction, uint targetId, PipeWireStreamFlags flags, IntPtr parameters, uint parameterCount) => _streamConnect(stream, direction, targetId, flags, parameters, parameterCount);
+    public int StreamConnect(IntPtr stream, PipeWireDirection direction, uint targetId, PipeWireStreamOption flags, IntPtr parameters, uint parameterCount) => _streamConnect(stream, direction, targetId, flags, parameters, parameterCount);
     public int StreamUpdateParams(IntPtr stream, IntPtr parameters, uint parameterCount) => _streamUpdateParams(stream, parameters, parameterCount);
     public IntPtr StreamDequeueBuffer(IntPtr stream) => _streamDequeueBuffer(stream);
     public int StreamQueueBuffer(IntPtr stream, IntPtr buffer) => _streamQueueBuffer(stream, buffer);

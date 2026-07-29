@@ -30,13 +30,13 @@ public sealed class RunScriptClipboardRuntimeTests
     public async Task ExecuteStepAsync_WhenGetDestinationUsesDollar_DoesNotResolveDestinationAsVariable()
     {
         var clipboard = SupportedClipboard();
-        clipboard.GetTextAsync(Arg.Any<CancellationToken>()).Returns("clipboard text");
+        _ = clipboard.GetTextAsync(Arg.Any<CancellationToken>()).Returns("clipboard text");
         var executor = new RunScriptClipboardExecutor(clipboard);
         var variables = Vars();
 
         await executor.ExecuteStepAsync("clipboard get $dest", 1, variables, CancellationToken.None);
 
-        variables.Should().Contain("dest", "clipboard text");
+        _ = variables.Should().Contain("dest", "clipboard text");
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class RunScriptClipboardRuntimeTests
     {
         var result = RunScriptClipboardExecutor.Validate("clipboard get 1bad");
 
-        result.Should().Contain("Invalid variable name");
+        _ = result.Should().Contain("Invalid variable name");
     }
 
     [Fact]
@@ -52,19 +52,19 @@ public sealed class RunScriptClipboardRuntimeTests
     {
         var result = RunScriptClipboardExecutor.Validate("clipboard get dest extra");
 
-        result.Should().Contain("Syntax: clipboard get <var>");
+        _ = result.Should().Contain("Syntax: clipboard get <var>");
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenClipboardServiceIsUnsupported_ThrowsMeaningfulError()
     {
         var clipboard = Substitute.For<IClipboardService>();
-        clipboard.IsSupported.Returns(returnThis: false);
+        _ = clipboard.IsSupported.Returns(returnThis: false);
         var executor = new RunScriptClipboardExecutor(clipboard);
 
         var act = async () => await executor.ExecuteStepAsync("clipboard set value", 1, Vars(), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*supported IClipboardService*");
         await clipboard.DidNotReceive().SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -74,14 +74,14 @@ public sealed class RunScriptClipboardRuntimeTests
     {
         var clipboard = SupportedClipboard();
         var failure = new InvalidOperationException("backend failed");
-        clipboard.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(failure));
+        _ = clipboard.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(failure));
         var executor = new RunScriptClipboardExecutor(clipboard);
 
         var act = async () => await executor.ExecuteStepAsync("clipboard set value", 7, Vars(), CancellationToken.None);
 
         var exception = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Step 7: Failed to set clipboard text.");
-        exception.Which.InnerException.Should().BeSameAs(failure);
+        _ = exception.Which.InnerException.Should().BeSameAs(failure);
     }
 
     [Fact]
@@ -90,12 +90,12 @@ public sealed class RunScriptClipboardRuntimeTests
         var clipboard = SupportedClipboard();
         var cts = new CancellationTokenSource();
         await cts.CancelAsync();
-        clipboard.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.FromCanceled(cts.Token));
+        _ = clipboard.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.FromCanceled(cts.Token));
         var executor = new RunScriptClipboardExecutor(clipboard);
 
         var act = async () => await executor.ExecuteStepAsync("clipboard set value", 1, Vars(), cts.Token);
 
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        _ = await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class RunScriptClipboardRuntimeTests
 
         var act = async () => await executor.ExecuteStepAsync("clipboard set value", 1, Vars(), CancellationToken.None);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*IClipboardService*");
     }
 
@@ -115,7 +115,7 @@ public sealed class RunScriptClipboardRuntimeTests
     private static IClipboardService SupportedClipboard()
     {
         var clipboard = Substitute.For<IClipboardService>();
-        clipboard.IsSupported.Returns(returnThis: true);
+        _ = clipboard.IsSupported.Returns(returnThis: true);
         return clipboard;
     }
 }

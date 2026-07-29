@@ -1,26 +1,24 @@
 
 namespace CrossMacro.UI;
 
-public partial class App : Avalonia.Application
+public class App : Avalonia.Application
 {
     private readonly GuiBootstrapContext? _bootstrapContext;
-    private IServiceProvider? _serviceProvider;
     private bool _shutdownStarted;
     private bool _shutdownCompleted;
 
-    public App()
-    {
-    }
+    public App() { /* Empty */ }
 
     internal App(GuiBootstrapContext bootstrapContext)
     {
         _bootstrapContext = bootstrapContext ?? throw new ArgumentNullException(nameof(bootstrapContext));
     }
 
-    public IServiceProvider? Services => _serviceProvider;
+    public IServiceProvider? Services { get; private set; }
 
     public override void Initialize()
     {
+        Name = "CrossMacro";
         AvaloniaXamlLoader.Load(this);
         ConfigureServices();
     }
@@ -30,21 +28,21 @@ public partial class App : Avalonia.Application
         if (_bootstrapContext is null)
         {
             // Allow tooling/design-time hosts to construct App without a platform host project.
-            _serviceProvider = new ServiceCollection().BuildServiceProvider();
+            Services = new ServiceCollection().BuildServiceProvider();
             return;
         }
 
         var services = new ServiceCollection();
-        services.AddSingleton(_bootstrapContext.StartupOptions);
+        _ = services.AddSingleton(_bootstrapContext.StartupOptions);
         _bootstrapContext.ConfigureServices(services);
         _bootstrapContext.ConfigureRuntimeServices(services);
-        services.AddCrossMacroServices();
-        _serviceProvider = services.BuildServiceProvider();
+        _ = services.AddCrossMacroServices();
+        Services = services.BuildServiceProvider();
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
         {
             if (!Design.IsDesignMode && _bootstrapContext is null)
             {
@@ -53,12 +51,11 @@ public partial class App : Avalonia.Application
             }
 
 
-            if (_serviceProvider is null)
+            if (Services is null)
             {
                 throw new InvalidOperationException("Service provider is not initialized");
             }
 
-            var desktopLifetime = (IClassicDesktopStyleApplicationLifetime)ApplicationLifetime;
             AttachDesktopLifetime(desktopLifetime);
             desktopLifetime.ShutdownRequested += OnShutdownRequested;
             QueueDesktopStartup(desktopLifetime);
@@ -69,7 +66,7 @@ public partial class App : Avalonia.Application
 
     private void AttachDesktopLifetime(IClassicDesktopStyleApplicationLifetime desktopLifetime)
     {
-        var context = _serviceProvider?.GetService<IDesktopLifetimeContext>();
+        var context = Services?.GetService<IDesktopLifetimeContext>();
         context?.Attach(desktopLifetime);
     }
 
@@ -82,16 +79,17 @@ public partial class App : Avalonia.Application
                 () => _ = RunStartupAsync(startupCoordinator, desktop),
                 DispatcherPriority.Send);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             SerilogLog.Error(ex, "Desktop startup initialization failed");
-            Dispatcher.UIThread.Post(() => desktop.Shutdown(1), DispatcherPriority.Send);
+            // Already on the UI thread; blocking on InvokeAsync would deadlock the dispatcher.
+            desktop.Shutdown(1);
         }
     }
 
     private IDesktopStartupCoordinator GetDesktopStartupCoordinator()
     {
-        var services = _serviceProvider
+        var services = Services
             ?? throw new InvalidOperationException("Service provider is not initialized.");
 
         return services.GetRequiredService<IDesktopStartupCoordinator>();
@@ -105,10 +103,10 @@ public partial class App : Avalonia.Application
         {
             await startupCoordinator.StartAsync(desktop).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             SerilogLog.Error(ex, "Desktop startup failed");
-            desktop.Shutdown(1);
+            await Dispatcher.UIThread.InvokeAsync(() => desktop.Shutdown(1), DispatcherPriority.Send, CancellationToken.None);
         }
     }
 
@@ -131,7 +129,7 @@ public partial class App : Avalonia.Application
 
     private async Task CompleteShutdownAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
-        var services = _serviceProvider;
+        var services = Services;
         if (services is not null)
         {
             var cleanupError = await CleanupAsync(
@@ -174,7 +172,7 @@ public partial class App : Avalonia.Application
         {
             await stopRuntime().ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             errors.Add(ex);
         }
@@ -183,7 +181,7 @@ public partial class App : Avalonia.Application
         {
             disposeViewModel();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             errors.Add(ex);
         }
@@ -192,7 +190,7 @@ public partial class App : Avalonia.Application
         {
             await disposeProvider().ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             errors.Add(ex);
         }

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Native.UInput;
 
-public static class UInputNative
+public static partial class UInputNative
 {
     private const string LibC = "libc";
 
@@ -25,6 +25,8 @@ public static class UInputNative
     public const ushort REL_Y = 0x01;
     public const ushort REL_HWHEEL = 0x06;
     public const ushort REL_WHEEL = 0x08;
+    public const ushort REL_WHEEL_HI_RES = 0x0B;
+    public const ushort REL_HWHEEL_HI_RES = 0x0C;
 
     public const ushort ABS_X = 0x00;
     public const ushort ABS_Y = 0x01;
@@ -102,26 +104,26 @@ public static class UInputNative
         public ushort version;
     }
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern int open([MarshalAs(UnmanagedType.LPStr)] string pathname, int flags);
+    [LibraryImport(LibC, SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int open(string pathname, int flags);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern int close(int fd);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int close(int fd);
 
-    [DllImport(LibC, SetLastError = true, EntryPoint = "write")]
-    public static extern IntPtr write_setup(int fd, ref uinput_user_dev buf, IntPtr count);
+    [LibraryImport(LibC, SetLastError = true, EntryPoint = "write")]
+    public static partial IntPtr write_setup(int fd, IntPtr buf, IntPtr count);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern IntPtr write(int fd, ref input_event buf, IntPtr count);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial IntPtr write(int fd, ref input_event buf, IntPtr count);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern IntPtr write(int fd, IntPtr buf, IntPtr count);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial IntPtr write(int fd, IntPtr buf, IntPtr count);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern int ioctl(int fd, uint request, int value);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int ioctl(int fd, uint request, int value);
 
-    [DllImport(LibC, SetLastError = true)]
-    public static extern int ioctl(int fd, uint request, ref uinput_user_dev value);
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int ioctl(int fd, uint request, IntPtr value);
 
     public static bool IsMouseButton(ushort code)
     {

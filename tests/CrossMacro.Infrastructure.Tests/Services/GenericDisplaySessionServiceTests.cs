@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class GenericDisplaySessionServiceTests
+public sealed class GenericDisplaySessionServiceTests
 {
     [Fact]
     public void IsSessionSupported_ReturnsTrueWithEmptyReason()
@@ -10,7 +10,7 @@ public class GenericDisplaySessionServiceTests
 
         var result = service.IsSessionSupported(out var reason);
 
-        result.Should().BeTrue();
-        reason.Should().BeEmpty();
+        _ = result.Should().BeTrue();
+        _ = reason.Should().BeEmpty();
     }
 }

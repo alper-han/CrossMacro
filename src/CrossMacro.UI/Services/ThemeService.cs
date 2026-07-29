@@ -5,9 +5,7 @@ public sealed class ThemeService : IThemeService
 {
     private readonly IResourceDictionary? _resourceRoot;
 
-    public ThemeService()
-    {
-    }
+    public ThemeService() { /* Empty */ }
 
     public ThemeService(IResourceDictionary? resourceRoot)
     {
@@ -55,6 +53,12 @@ public sealed class ThemeService : IThemeService
             }
         }
 
+        if (targetThemeDictionary is null)
+        {
+            themeError = "Applied theme resource dictionary was null.";
+            return false;
+        }
+
         mergedDictionaries.Add(targetThemeDictionary);
         CurrentTheme = appliedTheme.Name;
 
@@ -77,9 +81,9 @@ public sealed class ThemeService : IThemeService
     private static bool TryResolveThemeDictionary(
         IResourceDictionary root,
         ThemeDescriptor descriptor,
-        out IResourceDictionary dictionary)
+        out IResourceDictionary? dictionary)
     {
-        dictionary = null!;
+        dictionary = null;
         if (!root.TryGetResource(descriptor.ResourceKey, theme: null, out var resource) || resource is not IResourceDictionary resolved)
         {
             return false;

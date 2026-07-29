@@ -1,8 +1,11 @@
+using System.Runtime.Versioning;
+
 namespace CrossMacro.UI.Tests.Services;
 
 
 [Collection("EnvironmentVariableSensitive")]
-public class CompositeClipboardServiceTests
+[SupportedOSPlatform("linux")]
+public sealed class CompositeClipboardServiceTests
 {
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenLinuxClipboardSupported_ShouldUseLinuxService_AndInitializeOnce()
@@ -22,8 +25,8 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = true, ReadResult = "avalonia-value" },
             runtimeContext);
 
-        var first = await service.GetTextAsync();
-        var second = await service.GetTextAsync();
+        var first = await service.GetTextAsync(CancellationToken.None);
+        var second = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Equal("linux-value", first);
         Assert.Equal("linux-value", second);
@@ -49,10 +52,10 @@ public class CompositeClipboardServiceTests
             avalonia,
             runtimeContext);
 
-        await service.SetTextAsync("abc");
+        await service.SetTextAsync("abc", CancellationToken.None);
 
         Assert.Empty(runner.RunCalls);
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal(("xclip", "-selection clipboard", "abc"), runner.WriteCalls[0]);
         Assert.Empty(avalonia.Writes);
     }
@@ -75,7 +78,7 @@ public class CompositeClipboardServiceTests
             avalonia,
             runtimeContext);
 
-        await service.SetTextAsync("abc");
+        await service.SetTextAsync("abc", CancellationToken.None);
 
         Assert.Equal(["abc"], avalonia.Writes);
         Assert.Empty(runner.CheckCalls);
@@ -101,7 +104,7 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = true, ReadResult = "avalonia-value" },
             runtimeContext);
 
-        var result = await service.GetTextAsync();
+        var result = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Equal("avalonia-value", result);
         Assert.Empty(runner.CheckCalls);
@@ -126,10 +129,10 @@ public class CompositeClipboardServiceTests
             avalonia,
             runtimeContext);
 
-        await service.SetTextAsync("abc");
+        await service.SetTextAsync("abc", CancellationToken.None);
 
         Assert.Empty(avalonia.Writes);
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal(("xclip", "-selection clipboard", "abc"), runner.WriteCalls[0]);
     }
 
@@ -151,10 +154,10 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = true, ThrowOnRead = true },
             runtimeContext);
 
-        var result = await service.GetTextAsync();
+        var result = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Equal("shell-value", result);
-        Assert.Single(runner.ReadCalls);
+        _ = Assert.Single(runner.ReadCalls);
         Assert.Equal(("xclip", "-selection clipboard -o"), runner.ReadCalls[0]);
     }
 
@@ -177,11 +180,11 @@ public class CompositeClipboardServiceTests
             avalonia,
             runtimeContext);
 
-        await service.SetTextAsync("abc");
+        await service.SetTextAsync("abc", CancellationToken.None);
 
         Assert.Empty(avalonia.Writes);
         Assert.Empty(runner.RunCalls);
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal(("flatpak-spawn", "--host wl-copy --type text/plain", "abc"), runner.WriteCalls[0]);
         Assert.DoesNotContain("xsel", runner.CheckCalls);
     }
@@ -205,11 +208,11 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = true, ReadResult = "avalonia-value" },
             runtimeContext);
 
-        var result = await service.GetTextAsync();
+        var result = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Equal(string.Empty, result);
         Assert.DoesNotContain("xsel", runner.CheckCalls);
-        Assert.Single(runner.ReadCalls, call => call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
+        _ = Assert.Single(runner.ReadCalls, call => call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
     }
 
     [Fact(Timeout = 5000)]
@@ -231,11 +234,11 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = true, ReadResult = "avalonia-value" },
             runtimeContext);
 
-        var result = await service.GetTextAsync();
+        var result = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Equal(string.Empty, result);
         Assert.DoesNotContain("xsel", runner.CheckCalls);
-        Assert.Single(runner.ReadCalls, call => call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
+        _ = Assert.Single(runner.ReadCalls, call => call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
     }
 
     [Fact(Timeout = 5000)]
@@ -258,7 +261,7 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = true, ReadResult = "avalonia-value" },
             runtimeContext);
 
-        var result = await service.GetTextAsync();
+        var result = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Equal("shell-value", result);
         Assert.Contains(runner.ReadCalls, call => call.Command is "flatpak-spawn" && call.Args is "--host wl-paste --no-newline");
@@ -283,10 +286,10 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = true, ReadResult = "avalonia-value" },
             runtimeContext);
 
-        var result = await service.GetTextAsync();
+        var result = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Equal("shell-value", result);
-        Assert.Single(runner.ReadCalls);
+        _ = Assert.Single(runner.ReadCalls);
         Assert.Equal(("xclip", "-selection clipboard -o"), runner.ReadCalls[0]);
     }
 
@@ -307,10 +310,10 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = false },
             runtimeContext);
 
-        await service.SetTextAsync("abc");
+        await service.SetTextAsync("abc", CancellationToken.None);
 
         Assert.Empty(runner.RunCalls);
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal(("xclip", "-selection clipboard", "abc"), runner.WriteCalls[0]);
     }
 
@@ -328,13 +331,13 @@ public class CompositeClipboardServiceTests
             new FakeClipboardService { Supported = false },
             runtimeContext);
 
-        var ex = await Record.ExceptionAsync(() => service.GetTextAsync());
+        var ex = await Record.ExceptionAsync(() => service.GetTextAsync(CancellationToken.None));
 
         Assert.Null(ex);
         Assert.True(runner.CheckCalls.Count >= 2);
     }
 
-    private sealed class FakeProcessRunner : CrossMacro.Infrastructure.Services.IProcessRunner
+    private sealed class FakeProcessRunner : CrossMacro.Platform.Abstractions.IProcessRunner
     {
         public Dictionary<string, bool> CheckResults { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, bool> HostCommandResults { get; } = new(StringComparer.Ordinal);
@@ -453,8 +456,6 @@ public class CompositeClipboardServiceTests
 
         public override bool IsSupported => Supported;
 
-        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
         public override Task SetTextAsync(string text, CancellationToken cancellationToken = default)
         {
             Writes.Add(text);
@@ -472,19 +473,13 @@ public class CompositeClipboardServiceTests
         }
     }
 
-    private sealed class TestRuntimeContext : IRuntimeContext
+    private sealed class TestRuntimeContext(bool isFlatpak, string? sessionType = "wayland") : IRuntimeContext
     {
-        public TestRuntimeContext(bool isFlatpak, string? sessionType = "wayland")
-        {
-            IsFlatpak = isFlatpak;
-            SessionType = sessionType;
-        }
-
         public bool IsLinux => true;
         public bool IsWindows => false;
         public bool IsMacOS => false;
-        public bool IsFlatpak { get; }
-        public string? SessionType { get; }
+        public bool IsFlatpak { get; } = isFlatpak;
+        public string? SessionType { get; } = sessionType;
     }
 
     private sealed class EnvironmentVariableScope : IDisposable

@@ -155,17 +155,11 @@ public sealed class PortalPipeWireStructLayoutTests
     }
 
     private static T RoundTrip<T>(T value)
-        where T : struct
+        where T : unmanaged
     {
-        var pointer = Marshal.AllocHGlobal(Marshal.SizeOf<T>());
-        try
-        {
-            Marshal.StructureToPtr(value, pointer, fDeleteOld: false);
-            return Marshal.PtrToStructure<T>(pointer);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(pointer);
-        }
+        Span<T> storage = stackalloc T[1];
+        Span<byte> bytes = MemoryMarshal.AsBytes(storage);
+        MemoryMarshal.Write(bytes, in value);
+        return MemoryMarshal.Read<T>(bytes);
     }
 }

@@ -24,7 +24,7 @@ public sealed class WindowsWindowManager : IWindowManager
         }
 
         var windows = new List<WindowInfo>();
-        User32.EnumWindows((hwnd, _) =>
+        _ = User32.EnumWindows((hwnd, _) =>
         {
             if (IsRealDesktopWindow(hwnd))
             {
@@ -160,10 +160,10 @@ public sealed class WindowsWindowManager : IWindowManager
     }
 
     public Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default) =>
-        ShowActiveWindow(User32.SW_MAXIMIZE);
+        ShowActiveWindowAsync(User32.SW_MAXIMIZE);
 
     public Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default) =>
-        ShowActiveWindow(User32.SW_MAXIMIZE);
+        ShowActiveWindowAsync(User32.SW_MAXIMIZE);
 
     public Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default)
     {
@@ -207,7 +207,7 @@ public sealed class WindowsWindowManager : IWindowManager
             return Task.FromResult(false);
         }
 
-        var monitorInfo = new User32.MONITORINFO { cbSize = (uint)Marshal.SizeOf<User32.MONITORINFO>() };
+        var monitorInfo = new User32.MonitorInfo { cbSize = (uint)Marshal.SizeOf<User32.MonitorInfo>() };
         if (!User32.GetMonitorInfoW(monitor, ref monitorInfo))
         {
             return Task.FromResult(false);
@@ -287,7 +287,11 @@ public sealed class WindowsWindowManager : IWindowManager
             using var process = System.Diagnostics.Process.GetProcessById(pid);
             return process.ProcessName;
         }
-        catch
+        catch (ArgumentException)
+        {
+            return string.Empty;
+        }
+        catch (InvalidOperationException)
         {
             return string.Empty;
         }
@@ -301,7 +305,7 @@ public sealed class WindowsWindowManager : IWindowManager
         var foreground = User32.GetForegroundWindow();
         var exStyle = GetExtendedStyle(hwnd);
 
-        User32.GetWindowThreadProcessId(hwnd, out var processId);
+        _ = User32.GetWindowThreadProcessId(hwnd, out var processId);
 
         return new WindowInfo
         {
@@ -387,7 +391,7 @@ public sealed class WindowsWindowManager : IWindowManager
         return hwnd != IntPtr.Zero && User32.IsWindow(hwnd);
     }
 
-    private static Task<bool> ShowActiveWindow(int command)
+    private static Task<bool> ShowActiveWindowAsync(int command)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -402,9 +406,9 @@ public sealed class WindowsWindowManager : IWindowManager
         return Task.FromResult(User32.ShowWindow(hwnd, command));
     }
 
-    private static RECT GetVisibleBounds(IntPtr hwnd)
+    private static RectStruct GetVisibleBounds(IntPtr hwnd)
     {
-        if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_EXTENDED_FRAME_BOUNDS, out RECT bounds, Marshal.SizeOf<RECT>()) is 0)
+        if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_EXTENDED_FRAME_BOUNDS, out RectStruct bounds, Marshal.SizeOf<RectStruct>()) is 0)
         {
             return bounds;
         }
@@ -420,23 +424,51 @@ public sealed class WindowsWindowManager : IWindowManager
             return string.Empty;
         }
 
-        var buffer = new StringBuilder(length + 1);
-        var copied = User32.GetWindowTextW(hwnd, buffer, buffer.Capacity);
-        return copied <= 0 ? string.Empty : buffer.ToString();
+        var buffer = new char[length + 1];
+        int copied;
+        var handle = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
+        try
+        {
+            copied = User32.GetWindowTextW(hwnd, handle.AddrOfPinnedObject(), buffer.Length);
+        }
+        finally
+        {
+            handle.Free();
+        }
+        if (copied <= 0)
+        {
+            return string.Empty;
+        }
+
+        return new string(buffer, 0, copied);
     }
 
     private static string GetClassName(IntPtr hwnd)
     {
         const int ClassNameBufferLength = 256;
-        var buffer = new StringBuilder(ClassNameBufferLength);
-        var copied = User32.GetClassNameW(hwnd, buffer, buffer.Capacity);
-        return copied <= 0 ? string.Empty : buffer.ToString();
+        var buffer = new char[ClassNameBufferLength];
+        int copied;
+        var handle = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
+        try
+        {
+            copied = User32.GetClassNameW(hwnd, handle.AddrOfPinnedObject(), buffer.Length);
+        }
+        finally
+        {
+            handle.Free();
+        }
+        if (copied <= 0)
+        {
+            return string.Empty;
+        }
+
+        return new string(buffer, 0, copied);
     }
 
     private static IntPtr FindWindow(Func<WindowInfo, bool> predicate)
     {
         var found = IntPtr.Zero;
-        User32.EnumWindows((hwnd, _) =>
+        _ = User32.EnumWindows((hwnd, _) =>
         {
             if (!IsRealDesktopWindow(hwnd) || !predicate(MapWindow(hwnd)))
             {
@@ -468,9 +500,9 @@ public sealed class WindowsWindowManager : IWindowManager
 
         try
         {
-            User32.SystemParametersInfo(User32.SPI_SETFOREGROUNDLOCKTIMEOUT, 0, IntPtr.Zero, 0);
-            User32.AllowSetForegroundWindow(User32.ASFW_ANY);
-            User32.LockSetForegroundWindow(User32.LSFW_UNLOCK);
+            _ = User32.SystemParametersInfo(User32.SPI_SETFOREGROUNDLOCKTIMEOUT, 0, IntPtr.Zero, 0);
+            _ = User32.AllowSetForegroundWindow(User32.ASFW_ANY);
+            _ = User32.LockSetForegroundWindow(User32.LSFW_UNLOCK);
 
             if (targetThread != 0 && targetThread != currentThread)
             {
@@ -484,30 +516,30 @@ public sealed class WindowsWindowManager : IWindowManager
 
             if (User32.IsIconic(hwnd))
             {
-                User32.ShowWindow(hwnd, User32.SW_RESTORE);
+                _ = User32.ShowWindow(hwnd, User32.SW_RESTORE);
             }
 
-            User32.BringWindowToTop(hwnd);
+            _ = User32.BringWindowToTop(hwnd);
             var focused = User32.SetForegroundWindow(hwnd);
-            User32.SetActiveWindow(hwnd);
-            User32.SetFocus(hwnd);
+            _ = User32.SetActiveWindow(hwnd);
+            _ = User32.SetFocus(hwnd);
             return focused || User32.GetForegroundWindow() == hwnd;
         }
         finally
         {
             if (attachedToForeground)
             {
-                User32.AttachThreadInput(currentThread, foregroundThread, fAttach: false);
+                _ = User32.AttachThreadInput(currentThread, foregroundThread, fAttach: false);
             }
 
             if (attachedToTarget)
             {
-                User32.AttachThreadInput(currentThread, targetThread, fAttach: false);
+                _ = User32.AttachThreadInput(currentThread, targetThread, fAttach: false);
             }
 
             if (timeoutRead)
             {
-                User32.SystemParametersInfo(User32.SPI_SETFOREGROUNDLOCKTIMEOUT, 0, new IntPtr(oldTimeout), 0);
+                _ = User32.SystemParametersInfo(User32.SPI_SETFOREGROUNDLOCKTIMEOUT, 0, new IntPtr(oldTimeout), 0);
             }
         }
     }
@@ -568,7 +600,7 @@ public sealed class WindowsWindowManager : IWindowManager
     private static uint GetExtendedStyle(IntPtr hwnd) =>
         (uint)User32.GetWindowLongPtr(hwnd, User32.GWL_EXSTYLE).ToInt64();
 
-    private static bool IsFullscreen(IntPtr hwnd, RECT visibleBounds)
+    private static bool IsFullscreen(IntPtr hwnd, RectStruct visibleBounds)
     {
         var monitor = User32.MonitorFromWindow(hwnd, User32.MONITOR_DEFAULTTONEAREST);
         if (monitor == IntPtr.Zero)
@@ -576,7 +608,7 @@ public sealed class WindowsWindowManager : IWindowManager
             return false;
         }
 
-        var monitorInfo = new User32.MONITORINFO { cbSize = (uint)Marshal.SizeOf<User32.MONITORINFO>() };
+        var monitorInfo = new User32.MonitorInfo { cbSize = (uint)Marshal.SizeOf<User32.MonitorInfo>() };
         if (!User32.GetMonitorInfoW(monitor, ref monitorInfo))
         {
             return false;
@@ -589,7 +621,8 @@ public sealed class WindowsWindowManager : IWindowManager
             && visibleBounds.bottom >= monitorBounds.bottom;
     }
 
-    private readonly record struct WindowPlacement(IntPtr Hwnd, RECT OuterBounds, RECT VisibleBounds)
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private readonly record struct WindowPlacement(IntPtr Hwnd, RectStruct OuterBounds, RectStruct VisibleBounds)
     {
         public int LeftMargin => VisibleBounds.left - OuterBounds.left;
         public int TopMargin => VisibleBounds.top - OuterBounds.top;

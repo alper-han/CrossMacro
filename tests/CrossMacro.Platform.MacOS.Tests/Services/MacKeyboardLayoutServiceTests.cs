@@ -1,9 +1,11 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-public class MacKeyboardLayoutServiceTests
+public sealed class MacKeyboardLayoutServiceTests : IDisposable
 {
     private readonly MacKeyboardLayoutService _service = new();
+
+    public void Dispose() => _service.Dispose();
 
     [Theory]
     [InlineData("Ctrl", InputEventCode.KEY_LEFTCTRL)]

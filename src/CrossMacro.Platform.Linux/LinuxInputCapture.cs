@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux;
 
-public class LinuxInputCapture : IInputCapture
+public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
 {
     private readonly List<ILinuxInputReader> _readers = new();
     private readonly Func<IReadOnlyList<InputDeviceHelper.InputDevice>> _deviceEnumerator;
@@ -22,7 +22,7 @@ public class LinuxInputCapture : IInputCapture
             {
                 return Directory.Exists("/dev/input");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Debug(ex, "[LinuxInputCapture] Failed to check /dev/input directory");
                 return false;
@@ -35,10 +35,9 @@ public class LinuxInputCapture : IInputCapture
 
     public LinuxInputCapture()
         : this(
-            () => InputDeviceHelper.GetAvailableDevices(),
-            device => new EvdevReaderAdapter(new EvdevReader(device.Path, device.Name)))
-    {
-    }
+            static () => InputDeviceHelper.GetAvailableDevices(),
+            static device => new EvdevReaderAdapter(new EvdevReader(device.Path, device.Name)))
+    { /* Empty */ }
 
     internal LinuxInputCapture(
         Func<IReadOnlyList<InputDeviceHelper.InputDevice>> deviceEnumerator,
@@ -90,7 +89,7 @@ public class LinuxInputCapture : IInputCapture
                 _readers.Add(reader);
                 Log.Information("[LinuxInputCapture]   - {Name} ({Path})", device.Name, device.Path);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[LinuxInputCapture] Failed to open {Name}", device.Name);
             }
@@ -103,7 +102,7 @@ public class LinuxInputCapture : IInputCapture
             throw new InvalidOperationException(errorMsg);
         }
 
-        _stopRegistration.Dispose();
+        await _stopRegistration.DisposeAsync().ConfigureAwait(false);
         _stopRegistration = ct.Register(StopCapture);
         await Task.CompletedTask.ConfigureAwait(false);
     }
@@ -119,20 +118,20 @@ public class LinuxInputCapture : IInputCapture
                     reader.EventReceived -= OnEvdevEventReceived;
                     reader.ErrorOccurred -= OnEvdevError;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Debug(ex, "[LinuxInputCapture] Error unsubscribing from reader events");
                 }
             }
 
-            Parallel.ForEach(_readers, reader =>
+            _ = Parallel.ForEach(_readers, static reader =>
             {
                 try
                 {
                     reader.StopCapture();
                     reader.Dispose();
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.LogError(ex, "[LinuxInputCapture] Error stopping reader");
                 }
@@ -145,6 +144,58 @@ public class LinuxInputCapture : IInputCapture
         _stopRegistration.Dispose();
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        await StopCaptureAsync().ConfigureAwait(false);
+        _disposed = true;
+        GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask StopCaptureAsync()
+    {
+        if (_readers.Count > 0)
+        {
+            foreach (var reader in _readers)
+            {
+                try
+                {
+                    reader.EventReceived -= OnEvdevEventReceived;
+                    reader.ErrorOccurred -= OnEvdevError;
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    Log.Debug(ex, "[LinuxInputCapture] Error unsubscribing from reader events");
+                }
+            }
+
+            await Task.WhenAll(_readers.Select(StopAndDisposeReaderAsync)).ConfigureAwait(false);
+            _readers.Clear();
+            Log.Information("[LinuxInputCapture] Stopped all readers");
+        }
+
+        var stopRegistration = _stopRegistration;
+        _stopRegistration = default;
+        await stopRegistration.DisposeAsync().ConfigureAwait(false);
+    }
+
+    private static async Task StopAndDisposeReaderAsync(ILinuxInputReader reader)
+    {
+        try
+        {
+            reader.StopCapture();
+            await reader.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[LinuxInputCapture] Error stopping reader");
+        }
+    }
+
     private void OnEvdevEventReceived(ILinuxInputReader reader, UInputNative.input_event e)
     {
         var eventType = e.type switch
@@ -152,7 +203,10 @@ public class LinuxInputCapture : IInputCapture
             UInputNative.EV_KEY => UInputNative.IsMouseButton(e.code)
                 ? InputEventType.MouseButton
                 : InputEventType.Key,
-            UInputNative.EV_REL => e.code is UInputNative.REL_WHEEL or UInputNative.REL_HWHEEL
+            UInputNative.EV_REL => e.code is UInputNative.REL_WHEEL
+                or UInputNative.REL_HWHEEL
+                or UInputNative.REL_WHEEL_HI_RES
+                or UInputNative.REL_HWHEEL_HI_RES
                 ? InputEventType.MouseScroll
                 : InputEventType.MouseMove,
             UInputNative.EV_ABS when e.code is UInputNative.ABS_X or UInputNative.ABS_Y
@@ -187,6 +241,7 @@ public class LinuxInputCapture : IInputCapture
             InputEventType.MouseMove => _captureMouse,
             InputEventType.MouseScroll => _captureMouse,
             InputEventType.Sync => _captureMouse,
+            InputEventType.Unknown => false,
             _ => false,
         };
     }
@@ -214,9 +269,10 @@ public class LinuxInputCapture : IInputCapture
             StopCapture();
             _disposed = true;
         }
+        GC.SuppressFinalize(this);
     }
 
-    internal interface ILinuxInputReader : IDisposable
+    internal interface ILinuxInputReader : IDisposable, IAsyncDisposable
     {
         public string DeviceName { get; }
         public event Action<ILinuxInputReader, UInputNative.input_event>? EventReceived;
@@ -252,14 +308,21 @@ public class LinuxInputCapture : IInputCapture
             _reader.Dispose();
         }
 
-        private void OnReaderEventReceived(EvdevReader reader, UInputNative.input_event inputEvent)
+        public ValueTask DisposeAsync()
         {
-            EventReceived?.Invoke(this, inputEvent);
+            _reader.EventReceived -= OnReaderEventReceived;
+            _reader.ErrorOccurred -= OnReaderErrorOccurred;
+            return _reader.DisposeAsync();
         }
 
-        private void OnReaderErrorOccurred(Exception exception)
+        private void OnReaderEventReceived(object? sender, EvdevInputEventArgs e)
         {
-            ErrorOccurred?.Invoke(exception);
+            EventReceived?.Invoke(this, e.Event);
+        }
+
+        private void OnReaderErrorOccurred(object? sender, EvdevErrorEventArgs e)
+        {
+            ErrorOccurred?.Invoke(e.Exception);
         }
     }
 }

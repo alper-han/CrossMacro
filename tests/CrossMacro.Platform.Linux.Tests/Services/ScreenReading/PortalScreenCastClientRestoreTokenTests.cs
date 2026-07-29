@@ -28,7 +28,7 @@ public sealed class PortalScreenCastClientRestoreTokenTests
     [Fact]
     public void TryGetResponseString_WhenRestoreTokenIsReturned_ReadsToken()
     {
-        var results = new Dictionary<string, VariantValue>
+        var results = new Dictionary<string, VariantValue>(StringComparer.Ordinal)
         {
             ["restore_token"] = VariantValue.String("next-token"),
         };
@@ -42,7 +42,7 @@ public sealed class PortalScreenCastClientRestoreTokenTests
     public void TryGetResponseString_WhenRestoreTokenIsMissing_ReturnsNull()
     {
         var token = PortalScreenCastClient.TryGetResponseString(
-            new Dictionary<string, VariantValue>(),
+            new Dictionary<string, VariantValue>(StringComparer.Ordinal),
             "restore_token");
 
         Assert.Null(token);

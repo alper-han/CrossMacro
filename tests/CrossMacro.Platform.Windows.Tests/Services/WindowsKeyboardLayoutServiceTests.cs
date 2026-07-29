@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
-public class WindowsKeyboardLayoutServiceTests
+public sealed class WindowsKeyboardLayoutServiceTests
 {
     private readonly WindowsKeyboardLayoutService _service = new();
 

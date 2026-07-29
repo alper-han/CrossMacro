@@ -1,16 +1,16 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 
-public class LinuxSimulatorFactoryTests
+public sealed class LinuxSimulatorFactoryTests
 {
     [LinuxFact]
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcSimulator()
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(returnThis: true);
+        _ = env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
-        capability.DetermineMode().Returns(InputProviderMode.Daemon);
+        _ = capability.DetermineMode().Returns(InputProviderMode.Daemon);
 
         var legacy = new LinuxInputSimulator();
         using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
@@ -40,9 +40,9 @@ public class LinuxSimulatorFactoryTests
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(returnThis: true);
+        _ = env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
-        capability.DetermineMode().Returns(InputProviderMode.Legacy);
+        _ = capability.DetermineMode().Returns(InputProviderMode.Legacy);
 
         var legacy = new LinuxInputSimulator();
         using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
@@ -72,9 +72,9 @@ public class LinuxSimulatorFactoryTests
     {
         // Arrange
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(returnThis: true);
+        _ = env.IsWayland.Returns(returnThis: true);
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
-        capability.DetermineMode().Returns(InputProviderMode.None);
+        _ = capability.DetermineMode().Returns(InputProviderMode.None);
 
         var legacy = new LinuxInputSimulator();
         using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
@@ -91,7 +91,7 @@ public class LinuxSimulatorFactoryTests
 
         // Assert
         Assert.False(result.IsSupported);
-        Assert.IsType<UnavailableInputSimulator>(result);
+        _ = Assert.IsType<UnavailableInputSimulator>(result);
         Assert.Contains("No usable Linux input backend is available", ((UnavailableInputSimulator)result).FailureMessage, StringComparison.Ordinal);
     }
 
@@ -99,10 +99,10 @@ public class LinuxSimulatorFactoryTests
     public void Create_WhenX11NativeSimulatorSupported_ReturnsX11BeforeCapabilityFallback()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(returnThis: false);
+        _ = env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
-        capability.DetermineMode().Returns(InputProviderMode.Daemon);
+        _ = capability.DetermineMode().Returns(InputProviderMode.Daemon);
 
         var legacy = new LinuxInputSimulator();
         using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
@@ -119,17 +119,17 @@ public class LinuxSimulatorFactoryTests
         var result = factory.Create();
 
         Assert.Same(x11, result);
-        capability.DidNotReceive().DetermineMode();
+        _ = capability.DidNotReceive().DetermineMode();
     }
 
     [LinuxFact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDaemon_ReturnsIpcSimulator()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(returnThis: false);
+        _ = env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
-        capability.DetermineMode().Returns(InputProviderMode.Daemon);
+        _ = capability.DetermineMode().Returns(InputProviderMode.Daemon);
 
         var legacy = new LinuxInputSimulator();
         using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
@@ -146,17 +146,17 @@ public class LinuxSimulatorFactoryTests
         var result = factory.Create();
 
         Assert.Same(ipc, result);
-        capability.Received(1).DetermineMode();
+        _ = capability.Received(1).DetermineMode();
     }
 
     [LinuxFact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDirect_ReturnsLegacySimulator()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(returnThis: false);
+        _ = env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
-        capability.DetermineMode().Returns(InputProviderMode.Legacy);
+        _ = capability.DetermineMode().Returns(InputProviderMode.Legacy);
 
         var legacy = new LinuxInputSimulator();
         using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
@@ -173,17 +173,17 @@ public class LinuxSimulatorFactoryTests
         var result = factory.Create();
 
         Assert.Same(legacy, result);
-        capability.Received(1).DetermineMode();
+        _ = capability.Received(1).DetermineMode();
     }
 
     [LinuxFact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsNone_ReturnsUnsupportedSimulator()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(returnThis: false);
+        _ = env.IsWayland.Returns(returnThis: false);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
-        capability.DetermineMode().Returns(InputProviderMode.None);
+        _ = capability.DetermineMode().Returns(InputProviderMode.None);
 
         var legacy = new LinuxInputSimulator();
         using var ipc = new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock"));
@@ -200,8 +200,8 @@ public class LinuxSimulatorFactoryTests
         var result = factory.Create();
 
         Assert.False(result.IsSupported);
-        Assert.IsType<UnavailableInputSimulator>(result);
-        capability.Received(1).DetermineMode();
+        _ = Assert.IsType<UnavailableInputSimulator>(result);
+        _ = capability.Received(1).DetermineMode();
         Assert.Contains("direct input fallback is unavailable", ((UnavailableInputSimulator)result).FailureMessage, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -209,11 +209,11 @@ public class LinuxSimulatorFactoryTests
     public void Create_WhenWaylandPermissionDeniedAndNoReadableEvents_ReturnsDiagnosticReason()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();
-        env.IsWayland.Returns(returnThis: true);
+        _ = env.IsWayland.Returns(returnThis: true);
 
         var capability = Substitute.For<ILinuxInputCapabilityDetector>();
-        capability.DetermineMode().Returns(InputProviderMode.None);
-        capability.GetSnapshot().Returns(new LinuxInputCapabilitySnapshot(
+        _ = capability.DetermineMode().Returns(InputProviderMode.None);
+        _ = capability.GetSnapshot().Returns(new LinuxInputCapabilitySnapshot(
             "/run/crossmacro/crossmacro.sock",
 DaemonSocketExists: true,
 DaemonHandshakeSucceeded: false,

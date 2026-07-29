@@ -4,14 +4,25 @@ namespace CrossMacro.UI.Services;
 /// <summary>
 /// Service for managing system tray icon with Discord-like behavior
 /// </summary>
-public class TrayIconService : ITrayIconService
+public sealed class TrayIconService(
+    IDesktopLifetimeContext desktopLifetimeContext,
+    MainWindowViewModel viewModel,
+    ILocalizationService localizationService,
+    IRuntimeContext? runtimeContext = null) : ITrayIconService, IAsyncDisposable
 {
+    private const string TrayIconAssetScheme = "avares";
+    private const string TrayIconAssetPath = "CrossMacro.UI.Core/Assets/mouse-icon.png";
+
     private TrayIcon? _trayIcon;
-    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
-    private readonly MainWindowViewModel _viewModel;
-    private readonly IRuntimeContext _runtimeContext;
-    private readonly ILocalizationService _localizationService;
+    private readonly Lock _disposeLock = new();
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext = desktopLifetimeContext;
+    private readonly MainWindowViewModel _viewModel = viewModel;
+    private readonly IRuntimeContext _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+    private readonly ILocalizationService _localizationService = localizationService;
     private Window? _mainWindow;
+    private int _disposeRequested;
+    private Task? _disposeTask;
+    private bool _initialized;
     private bool _isExiting;
     private bool _isEnabled = true;
 
@@ -21,19 +32,7 @@ public class TrayIconService : ITrayIconService
     private NativeMenuItem? _showHideItem;
     private NativeMenuItem? _exitItem;
 
-    public TrayIconService(
-        IDesktopLifetimeContext desktopLifetimeContext,
-        MainWindowViewModel viewModel,
-        ILocalizationService localizationService,
-        IRuntimeContext? runtimeContext = null)
-    {
-        _desktopLifetimeContext = desktopLifetimeContext;
-        _viewModel = viewModel;
-        _localizationService = localizationService;
-        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
-    }
-
-    public bool IsAvailable => _trayIcon is not null;
+    public bool IsAvailable => Volatile.Read(ref _disposeRequested) is 0 && _trayIcon is not null;
 
     public static bool IsTraySupported(IRuntimeContext runtimeContext)
     {
@@ -45,7 +44,6 @@ public class TrayIconService : ITrayIconService
     /// Returns true if tray icon is supported in the current environment.
     /// Flatpak lacks StatusNotifierItem portal: https://github.com/flatpak/xdg-desktop-portal/issues/266
     /// </summary>
-    [Obsolete("Use the overload accepting IRuntimeContext.")]
     public static bool IsTraySupported()
     {
         throw new InvalidOperationException("IRuntimeContext must be supplied by composition.");
@@ -53,6 +51,22 @@ public class TrayIconService : ITrayIconService
 
     public void Initialize()
     {
+        if (IsDisposeRequested)
+        {
+            return;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(Initialize);
+            return;
+        }
+
+        if (IsDisposeRequested || _initialized)
+        {
+            return;
+        }
+
         try
         {
             var desktop = _desktopLifetimeContext.DesktopLifetime;
@@ -60,10 +74,7 @@ public class TrayIconService : ITrayIconService
             {
                 _mainWindow = _desktopLifetimeContext.MainWindow;
 
-                if (_mainWindow is not null)
-                {
-                    _mainWindow.Closing += OnWindowClosing;
-                }
+                _mainWindow?.Closing += OnWindowClosing;
 
                 desktop.ShutdownRequested += OnShutdownRequested;
             }
@@ -80,10 +91,11 @@ public class TrayIconService : ITrayIconService
             // Subscribe to hotkey changes
             _viewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
             _localizationService.CultureChanged += OnCultureChanged;
+            _initialized = true;
 
             Log.Information("Tray icon initialized successfully");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to initialize tray icon");
             _isEnabled = false;
@@ -105,7 +117,7 @@ public class TrayIconService : ITrayIconService
 
             _trayIcon = new TrayIcon
             {
-                Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://CrossMacro.UI.Core/Assets/mouse-icon.png"))),
+                Icon = new WindowIcon(AssetLoader.Open(new Uri($"{TrayIconAssetScheme}://{TrayIconAssetPath}", UriKind.Absolute))),
                 ToolTipText = AppConstants.AppName,
             };
 
@@ -145,7 +157,7 @@ public class TrayIconService : ITrayIconService
 
             return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Log the specific error for debugging
             Log.Warning(ex, "Could not initialize tray icon (this is expected in Flatpak sandbox)");
@@ -153,7 +165,7 @@ public class TrayIconService : ITrayIconService
             // Clean up partial initialization
             if (_trayIcon is not null)
             {
-                try { _trayIcon.Dispose(); } catch { }
+                try { _trayIcon.Dispose(); } catch (Exception disposeException) when (disposeException is not OutOfMemoryException) { /* Empty */ }
                 _trayIcon = null;
             }
 
@@ -173,6 +185,17 @@ public class TrayIconService : ITrayIconService
 
     private void RefreshMenuLabels(string? changedPropertyName = null)
     {
+        if (IsDisposeRequested)
+        {
+            return;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(() => RefreshMenuLabels(changedPropertyName));
+            return;
+        }
+
         switch (changedPropertyName)
         {
             case nameof(_viewModel.Settings.RecordingHotkey):
@@ -185,45 +208,30 @@ public class TrayIconService : ITrayIconService
                 UpdateStopHeader();
                 break;
             default:
-                if (_showHideItem is not null)
-                {
-                    _showHideItem.Header = _localizationService["Tray_ShowHide"];
-                }
+                _ = _showHideItem?.Header = _localizationService["Tray_ShowHide"];
 
                 UpdateRecordingHeader();
                 UpdatePlaybackHeader();
                 UpdateStopHeader();
 
-                if (_exitItem is not null)
-                {
-                    _exitItem.Header = _localizationService["Tray_Exit"];
-                }
+                _ = _exitItem?.Header = _localizationService["Tray_Exit"];
                 break;
         }
     }
 
     private void UpdateRecordingHeader()
     {
-        if (_startRecordingItem is not null)
-        {
-            _startRecordingItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartRecording"], _viewModel.Settings.RecordingHotkey);
-        }
+        _ = _startRecordingItem?.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartRecording"], _viewModel.Settings.RecordingHotkey);
     }
 
     private void UpdatePlaybackHeader()
     {
-        if (_startPlaybackItem is not null)
-        {
-            _startPlaybackItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartPlayback"], _viewModel.Settings.PlaybackHotkey);
-        }
+        _ = _startPlaybackItem?.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_StartPlayback"], _viewModel.Settings.PlaybackHotkey);
     }
 
     private void UpdateStopHeader()
     {
-        if (_stopItem is not null)
-        {
-            _stopItem.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_Stop"], _viewModel.Settings.PauseHotkey);
-        }
+        _ = _stopItem?.Header = string.Format(_localizationService.CurrentCulture, _localizationService["Tray_Stop"], _viewModel.Settings.PauseHotkey);
     }
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
@@ -238,10 +246,6 @@ public class TrayIconService : ITrayIconService
         {
             e.Cancel = true;
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
-            if (_mainWindow is not null)
-            {
-                _mainWindow.ShowInTaskbar = false;
-            }
             _mainWindow?.Hide();
             Log.Debug("Window minimized to tray");
         }
@@ -263,6 +267,17 @@ public class TrayIconService : ITrayIconService
 
     private void ToggleWindowVisibility()
     {
+        if (IsDisposeRequested)
+        {
+            return;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(ToggleWindowVisibility);
+            return;
+        }
+
         _mainWindow ??= _desktopLifetimeContext.MainWindow;
         if (_mainWindow is null)
         {
@@ -273,27 +288,24 @@ public class TrayIconService : ITrayIconService
         if (_mainWindow.IsVisible)
         {
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
-            _mainWindow.ShowInTaskbar = false;
             _mainWindow.Hide();
             Log.Debug("Window hidden via tray icon");
         }
         else
         {
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
-            PrepareWindowForRestore(_mainWindow);
+            
             _mainWindow.Show();
+            
+            if (_mainWindow.WindowState is WindowState.Minimized)
+            {
+                _mainWindow.WindowState = WindowState.Normal;
+            }
+            
             _mainWindow.Activate();
             _mainWindow.BringIntoView();
             Log.Debug("Window shown via tray icon");
         }
-    }
-
-    internal static void PrepareWindowForRestore(Window mainWindow)
-    {
-        ArgumentNullException.ThrowIfNull(mainWindow);
-
-        mainWindow.ShowInTaskbar = true;
-        mainWindow.WindowState = WindowState.Normal;
     }
 
     private void OnStartRecordingClicked(object? sender, EventArgs e)
@@ -303,7 +315,7 @@ public class TrayIconService : ITrayIconService
             // Access recording through the child ViewModel
             _viewModel.Recording.ToggleRecording();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Error toggling recording from tray");
         }
@@ -316,7 +328,7 @@ public class TrayIconService : ITrayIconService
             // Access playback through the child ViewModel
             _viewModel.Playback.TogglePlayback();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Error toggling playback from tray");
         }
@@ -329,14 +341,14 @@ public class TrayIconService : ITrayIconService
             // Stop whatever is currently running
             if (_viewModel.Recording.IsRecording)
             {
-                _viewModel.Recording.StopRecording();
+                _ = _viewModel.Recording.StopRecording();
             }
             else if (_viewModel.Playback.IsPlaying)
             {
                 _viewModel.Playback.StopPlayback();
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Error stopping from tray");
         }
@@ -349,14 +361,11 @@ public class TrayIconService : ITrayIconService
             _isExiting = true;
 
             var desktop = _desktopLifetimeContext.DesktopLifetime;
-            if (desktop is not null)
-            {
-                desktop.Shutdown();
-            }
+            desktop?.Shutdown();
 
             Log.Information("Application exiting via tray menu");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Error exiting application from tray");
         }
@@ -364,37 +373,67 @@ public class TrayIconService : ITrayIconService
 
     public void Show()
     {
-        if (_trayIcon is not null)
+        if (IsDisposeRequested)
         {
-            _trayIcon.IsVisible = true;
+            return;
         }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(Show);
+            return;
+        }
+
+        _ = _trayIcon?.IsVisible = true;
     }
 
     public void Hide()
     {
-        if (_trayIcon is not null)
+        if (IsDisposeRequested)
         {
-            _trayIcon.IsVisible = false;
+            return;
         }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(Hide);
+            return;
+        }
+
+        _ = _trayIcon?.IsVisible = false;
     }
 
     public void UpdateTooltip(string tooltip)
     {
-        if (_trayIcon is not null)
+        if (IsDisposeRequested)
         {
-            _trayIcon.ToolTipText = tooltip;
+            return;
         }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(() => UpdateTooltip(tooltip));
+            return;
+        }
+        _ = _trayIcon?.ToolTipText = tooltip;
     }
 
     public void SetEnabled(bool enabled)
     {
+        if (IsDisposeRequested)
+        {
+            return;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(() => SetEnabled(enabled));
+            return;
+        }
         var isEnabled = enabled && _trayIcon is not null;
         _isEnabled = isEnabled;
 
-        if (_trayIcon is not null)
-        {
-            _trayIcon.IsVisible = isEnabled;
-        }
+        _ = _trayIcon?.IsVisible = isEnabled;
 
         SetShutdownMode(_desktopLifetimeContext, isEnabled && (_mainWindow?.IsVisible) is not true
             ? ShutdownMode.OnExplicitShutdown
@@ -413,20 +452,77 @@ public class TrayIconService : ITrayIconService
 
     public void Dispose()
     {
-        if (_mainWindow is not null)
+        GC.SuppressFinalize(this);
+        _ = StartDisposeAsync();
+    }
+
+    public ValueTask DisposeAsync() => new(StartDisposeAsync());
+
+    private Task StartDisposeAsync()
+    {
+        lock (_disposeLock)
         {
-            _mainWindow.Closing -= OnWindowClosing;
+            if (_disposeTask is not null)
+            {
+                return _disposeTask;
+            }
+
+            _ = Interlocked.Exchange(ref _disposeRequested, 1);
+            _viewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
+            _localizationService.CultureChanged -= OnCultureChanged;
+
+            _disposeTask = DisposeOnUiThreadAsync();
+            return _disposeTask;
         }
+    }
+
+    private async Task DisposeOnUiThreadAsync()
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            DisposeOnUiThread();
+            return;
+        }
+
+        await Avalonia.Threading.Dispatcher.UIThread
+            .InvokeAsync(DisposeOnUiThread, Avalonia.Threading.DispatcherPriority.Send, CancellationToken.None);
+    }
+
+    private void DisposeOnUiThread()
+    {
+        _mainWindow?.Closing -= OnWindowClosing;
 
         if (_desktopLifetimeContext.DesktopLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownRequested -= OnShutdownRequested;
         }
 
-        _viewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
-        _localizationService.CultureChanged -= OnCultureChanged;
-
         _trayIcon?.Dispose();
+        _trayIcon = null;
+        _mainWindow = null;
+        _startRecordingItem = null;
+        _startPlaybackItem = null;
+        _stopItem = null;
+        _showHideItem = null;
+        _exitItem = null;
         Log.Debug("Tray icon service disposed");
+    }
+
+    private bool IsDisposeRequested => Volatile.Read(ref _disposeRequested) is not 0;
+
+    private void PostToUiThread(Action action)
+    {
+        if (IsDisposeRequested)
+        {
+            return;
+        }
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsDisposeRequested)
+            {
+                action();
+            }
+        });
     }
 }

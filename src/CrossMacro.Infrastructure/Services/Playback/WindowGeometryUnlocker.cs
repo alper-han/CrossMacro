@@ -11,17 +11,17 @@ internal static class WindowGeometryUnlocker
             bool stateChanged = false;
             if (info.IsFullscreen)
             {
-                await mutator.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+                _ = await mutator.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false);
                 stateChanged = true;
             }
             if (info.IsMaximized)
             {
-                await mutator.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+                _ = await mutator.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false);
                 stateChanged = true;
             }
             if (!info.IsFloating)
             {
-                await mutator.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+                _ = await mutator.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false);
                 stateChanged = true;
             }
             if (stateChanged)

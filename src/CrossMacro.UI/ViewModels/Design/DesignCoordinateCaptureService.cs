@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignCoordinateCaptureService : ICoordinateCaptureService
 {
@@ -9,7 +9,5 @@ internal sealed class DesignCoordinateCaptureService : ICoordinateCaptureService
 
     public Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default) => Task.FromResult<int?>(30);
 
-    public void CancelCapture()
-    {
-    }
+    public void CancelCapture() { /* Empty */ }
 }

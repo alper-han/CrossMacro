@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class HotkeyParserTests
+public sealed class HotkeyParserTests
 {
     private readonly IKeyCodeMapper _mapper;
     private readonly HotkeyParser _parser;
@@ -19,77 +19,77 @@ public class HotkeyParserTests
         var result = _parser.Parse("");
 
         // Assert
-        result.MainKey.Should().Be(-1);
-        result.RequiredModifiers.Should().BeEmpty();
+        _ = result.MainKey.Should().Be(-1);
+        _ = result.RequiredModifiers.Should().BeEmpty();
     }
 
     [Fact]
     public void Parse_WhenSingleKey_ReturnsMappingWithMainKey()
     {
         // Arrange
-        _mapper.GetKeyCode("A").Returns(30);
-        _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
+        _ = _mapper.GetKeyCode("A").Returns(30);
+        _ = _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
 
         // Act
         var result = _parser.Parse("A");
 
         // Assert
-        result.MainKey.Should().Be(30);
-        result.RequiredModifiers.Should().BeEmpty();
+        _ = result.MainKey.Should().Be(30);
+        _ = result.RequiredModifiers.Should().BeEmpty();
     }
 
     [Fact]
     public void Parse_WhenKeyWithModifier_ReturnsMappingWithModifier()
     {
         // Arrange
-        _mapper.GetKeyCode("Ctrl").Returns(29);
-        _mapper.IsModifierKeyCode(29).Returns(returnThis: true);
+        _ = _mapper.GetKeyCode("Ctrl").Returns(29);
+        _ = _mapper.IsModifierKeyCode(29).Returns(returnThis: true);
 
-        _mapper.GetKeyCode("A").Returns(30);
-        _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
+        _ = _mapper.GetKeyCode("A").Returns(30);
+        _ = _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
 
         // Act
         var result = _parser.Parse("Ctrl+A");
 
         // Assert
-        result.MainKey.Should().Be(30);
-        result.RequiredModifiers.Should().Contain(29);
+        _ = result.MainKey.Should().Be(30);
+        _ = result.RequiredModifiers.Should().Contain(29);
     }
 
     [Fact]
     public void Parse_WhenMultipleModifiers_ReturnsMappingWithAllModifiers()
     {
         // Arrange
-        _mapper.GetKeyCode("Ctrl").Returns(29);
-        _mapper.IsModifierKeyCode(29).Returns(returnThis: true);
+        _ = _mapper.GetKeyCode("Ctrl").Returns(29);
+        _ = _mapper.IsModifierKeyCode(29).Returns(returnThis: true);
 
-        _mapper.GetKeyCode("Shift").Returns(42);
-        _mapper.IsModifierKeyCode(42).Returns(returnThis: true);
+        _ = _mapper.GetKeyCode("Shift").Returns(42);
+        _ = _mapper.IsModifierKeyCode(42).Returns(returnThis: true);
 
-        _mapper.GetKeyCode("B").Returns(48);
-        _mapper.IsModifierKeyCode(48).Returns(returnThis: false);
+        _ = _mapper.GetKeyCode("B").Returns(48);
+        _ = _mapper.IsModifierKeyCode(48).Returns(returnThis: false);
 
         // Act
         var result = _parser.Parse("Ctrl+Shift+B");
 
         // Assert
-        result.MainKey.Should().Be(48);
-        result.RequiredModifiers.Should().BeEquivalentTo([29, 42]);
+        _ = result.MainKey.Should().Be(48);
+        _ = result.RequiredModifiers.Should().BeEquivalentTo([29, 42]);
     }
 
     [Fact]
     public void Parse_IgnoresUnknownKeys()
     {
         // Arrange
-        _mapper.GetKeyCode("Unknown").Returns(-1);
-        _mapper.GetKeyCode("A").Returns(30);
-        _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
+        _ = _mapper.GetKeyCode("Unknown").Returns(-1);
+        _ = _mapper.GetKeyCode("A").Returns(30);
+        _ = _mapper.IsModifierKeyCode(30).Returns(returnThis: false);
 
         // Act
         var result = _parser.Parse("Unknown+A");
 
         // Assert
-        result.MainKey.Should().Be(30);
+        _ = result.MainKey.Should().Be(30);
     }
 
     [Theory]
@@ -114,12 +114,12 @@ public class HotkeyParserTests
     [InlineData("Yen", InputEventCode.KEY_YEN)]
     public void Parse_WhenRoundTripDisplayNameIsSupported_ReturnsCanonicalMainKey(string displayName, int expectedCode)
     {
-        _mapper.GetKeyCode(displayName).Returns(expectedCode);
-        _mapper.IsModifierKeyCode(expectedCode).Returns(returnThis: false);
+        _ = _mapper.GetKeyCode(displayName).Returns(expectedCode);
+        _ = _mapper.IsModifierKeyCode(expectedCode).Returns(returnThis: false);
 
         var result = _parser.Parse(displayName);
 
-        result.MainKey.Should().Be(expectedCode);
+        _ = result.MainKey.Should().Be(expectedCode);
     }
 
     [Theory]
@@ -130,10 +130,10 @@ public class HotkeyParserTests
     [InlineData("Menu")]
     public void Parse_WhenNameIsUnsupported_DoesNotAssignUnrelatedMainKey(string displayName)
     {
-        _mapper.GetKeyCode(displayName).Returns(-1);
+        _ = _mapper.GetKeyCode(displayName).Returns(-1);
 
         var result = _parser.Parse(displayName);
 
-        result.MainKey.Should().Be(-1);
+        _ = result.MainKey.Should().Be(-1);
     }
 }

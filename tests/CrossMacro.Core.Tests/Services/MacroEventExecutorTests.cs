@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services;
 
-public class MacroEventExecutorTests
+public sealed class MacroEventExecutorTests : IDisposable
 {
     private readonly IInputSimulator _simulator;
     private readonly IButtonStateTracker _buttonTracker;
@@ -27,6 +27,8 @@ public class MacroEventExecutorTests
 
         _executor.Initialize(1920, 1080);
     }
+
+    public void Dispose() => _executor.Dispose();
 
     [Fact]
     public void Execute_MouseMove_Relative_MovesSimulatorAndUpdatesCoordinator()
@@ -62,9 +64,9 @@ public class MacroEventExecutorTests
     public void Execute_MouseMove_Absolute_ButtonPressed_UsesRelativeDeltaForSmoothCurve()
     {
         // Arrange: simulate a button being held and the coordinator reporting previous position
-        _buttonTracker.IsAnyPressed.Returns(returnThis: true);
-        _coordinator.CurrentX.Returns(60);
-        _coordinator.CurrentY.Returns(40);
+        _ = _buttonTracker.IsAnyPressed.Returns(returnThis: true);
+        _ = _coordinator.CurrentX.Returns(60);
+        _ = _coordinator.CurrentY.Returns(40);
 
         var ev = new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 };
 
@@ -81,9 +83,9 @@ public class MacroEventExecutorTests
     public void Execute_MouseMove_Absolute_ButtonPressed_WhenHybridDisabled_UsesAbsoluteOnly()
     {
         // Arrange
-        _buttonTracker.IsAnyPressed.Returns(returnThis: true);
-        _coordinator.CurrentX.Returns(60);
-        _coordinator.CurrentY.Returns(40);
+        _ = _buttonTracker.IsAnyPressed.Returns(returnThis: true);
+        _ = _coordinator.CurrentX.Returns(60);
+        _ = _coordinator.CurrentY.Returns(40);
 
         var executor = new MacroEventExecutor(
             _simulator,
@@ -110,7 +112,7 @@ public class MacroEventExecutorTests
     {
         // Arrange
         var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left };
-        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
+        _ = _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
@@ -125,7 +127,7 @@ public class MacroEventExecutorTests
     {
         // Arrange
         var ev = new MacroEvent { Type = EventType.ButtonRelease, Button = MacroMouseButton.Left };
-        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
+        _ = _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
@@ -154,7 +156,7 @@ public class MacroEventExecutorTests
     {
         // Arrange
         var ev = new MacroEvent { Type = EventType.Click, Button = MacroMouseButton.Right };
-        _buttonMapper.Map(MacroMouseButton.Right).Returns((int)MacroMouseButton.Right);
+        _ = _buttonMapper.Map(MacroMouseButton.Right).Returns((int)MacroMouseButton.Right);
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
@@ -176,7 +178,7 @@ public class MacroEventExecutorTests
             Y = 300,
             UseCurrentPosition = true,
         };
-        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
+        _ = _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         // Act
         _executor.Execute(ev, coordinateMode: null);
@@ -193,8 +195,8 @@ public class MacroEventExecutorTests
     {
         var simulator = new TrackingSimulator(supportsAbsoluteCoordinates: false);
         var coordinator = Substitute.For<IPlaybackCoordinator>();
-        coordinator.CurrentX.Returns(25);
-        coordinator.CurrentY.Returns(40);
+        _ = coordinator.CurrentX.Returns(25);
+        _ = coordinator.CurrentY.Returns(40);
 
         var executor = new MacroEventExecutor(
             simulator,
@@ -204,9 +206,9 @@ public class MacroEventExecutorTests
             coordinator);
         executor.Initialize(0, 0);
 
-        var act = () => executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 90 }, MouseCoordinateMode.Absolute);
+        void act() => executor.Execute(new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 90 }, MouseCoordinateMode.Absolute);
 
-        Assert.Throws<AbsolutePlaybackUnsupportedException>(act);
+        _ = Assert.Throws<AbsolutePlaybackUnsupportedException>(act);
         Assert.Null(simulator.LastRelativeMove);
         Assert.Null(simulator.LastAbsoluteMove);
         coordinator.DidNotReceive().AddDelta(Arg.Any<int>(), Arg.Any<int>());
@@ -229,7 +231,7 @@ public class MacroEventExecutorTests
     public void Execute_ButtonPress_Absolute_MovesToRecordedPositionBeforeButton()
     {
         var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 100, Y = 200 };
-        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
+        _ = _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         _executor.Execute(ev, MouseCoordinateMode.Absolute);
 
@@ -245,7 +247,7 @@ public class MacroEventExecutorTests
     public void Execute_ButtonPress_Relative_MovesByDeltaBeforeButton()
     {
         var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 10, Y = -5 };
-        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
+        _ = _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         _executor.Execute(ev, MouseCoordinateMode.Relative);
 
@@ -261,7 +263,7 @@ public class MacroEventExecutorTests
     public void Execute_ButtonPress_NullMode_EmitsButtonWithoutImplicitMovement()
     {
         var ev = new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 10, Y = -5 };
-        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
+        _ = _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         _executor.Execute(ev, coordinateMode: null);
 
@@ -275,9 +277,9 @@ public class MacroEventExecutorTests
     {
         var simulator = new TrackingSimulator(supportsAbsoluteCoordinates: false);
         var coordinator = Substitute.For<IPlaybackCoordinator>();
-        coordinator.CurrentX.Returns(25);
-        coordinator.CurrentY.Returns(40);
-        _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
+        _ = coordinator.CurrentX.Returns(25);
+        _ = coordinator.CurrentY.Returns(40);
+        _ = _buttonMapper.Map(MacroMouseButton.Left).Returns((int)MacroMouseButton.Left);
 
         var executor = new MacroEventExecutor(
             simulator,
@@ -287,31 +289,33 @@ public class MacroEventExecutorTests
             coordinator);
         executor.Initialize(0, 0);
 
-        var act = () => executor.Execute(new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 100, Y = 90 }, MouseCoordinateMode.Absolute);
+        void act() => executor.Execute(new MacroEvent { Type = EventType.ButtonPress, Button = MacroMouseButton.Left, X = 100, Y = 90 }, MouseCoordinateMode.Absolute);
 
-        Assert.Throws<AbsolutePlaybackUnsupportedException>(act);
+        _ = Assert.Throws<AbsolutePlaybackUnsupportedException>(act);
         Assert.Null(simulator.LastRelativeMove);
         Assert.Null(simulator.LastAbsoluteMove);
         coordinator.DidNotReceive().AddDelta(Arg.Any<int>(), Arg.Any<int>());
-        simulator.ButtonTransitions.Should().BeEmpty();
+        _ = simulator.ButtonTransitions.Should().BeEmpty();
     }
 
-    private sealed class TrackingSimulator : IInputSimulator, IInputSimulatorCapabilities
+    private sealed class TrackingSimulator(bool supportsAbsoluteCoordinates) : IInputSimulator, IInputSimulatorCapabilities
     {
-        public TrackingSimulator(bool supportsAbsoluteCoordinates)
-        {
-            SupportsAbsoluteCoordinates = supportsAbsoluteCoordinates;
-        }
-
         public string ProviderName => "Tracking";
         public bool IsSupported => true;
-        public bool SupportsAbsoluteCoordinates { get; }
+        public bool SupportsAbsoluteCoordinates { get; } = supportsAbsoluteCoordinates;
         public (int X, int Y)? LastAbsoluteMove { get; private set; }
         public (int X, int Y)? LastRelativeMove { get; private set; }
         public List<(int Button, bool Pressed)> ButtonTransitions { get; } = new();
 
         public void Initialize(int screenWidth = 0, int screenHeight = 0)
         {
+        }
+
+        public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Initialize(screenWidth, screenHeight);
+            return Task.CompletedTask;
         }
 
         public void MoveAbsolute(int x, int y)

@@ -114,14 +114,9 @@ public sealed class X11ScreenCaptureTests
     private static X11ScreenCapture CreateCapture(FakeX11NativeApi native) =>
         new(new FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult.Supported()), native);
 
-    private sealed class FakeX11ScreenCaptureSupportProbe : IX11ScreenCaptureSupportProbe
+    private sealed class FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult support) : IX11ScreenCaptureSupportProbe
     {
-        private readonly X11ScreenCaptureSupportResult _support;
-
-        public FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult support)
-        {
-            _support = support;
-        }
+        private readonly X11ScreenCaptureSupportResult _support = support;
 
         public X11ScreenCaptureSupportResult ProbeSupport() => _support;
     }

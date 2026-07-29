@@ -16,9 +16,6 @@ internal sealed class DesktopLifetimeContext : IDesktopLifetimeContext
     public void SetMainWindow(Window? mainWindow)
     {
         MainWindow = mainWindow;
-        if (DesktopLifetime is not null)
-        {
-            DesktopLifetime.MainWindow = mainWindow;
-        }
+        _ = DesktopLifetime?.MainWindow = mainWindow;
     }
 }

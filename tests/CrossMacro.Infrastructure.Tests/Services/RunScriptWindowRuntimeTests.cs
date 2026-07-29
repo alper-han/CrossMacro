@@ -13,7 +13,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window active title result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", "My Window");
+        _ = vars.Should().Contain("result", "My Window");
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window active class result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", "myapp");
+        _ = vars.Should().Contain("result", "myapp");
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window active address result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", "0x1234");
+        _ = vars.Should().Contain("result", "0x1234");
     }
 
     [Fact]
@@ -47,8 +47,8 @@ public sealed class RunScriptWindowRuntimeTests
         await Executor(wm).ExecuteStepAsync("window active fullscreen res1", 1, vars, CancellationToken.None);
         await Executor(wm).ExecuteStepAsync("window active float res2", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("res1", "true");
-        vars.Should().Contain("res2", "false");
+        _ = vars.Should().Contain("res1", "true");
+        _ = vars.Should().Contain("res2", "false");
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window active title result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", string.Empty);
+        _ = vars.Should().Contain("result", string.Empty);
     }
 
     // ---- search -----------------------------------------------------------------------
@@ -74,7 +74,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window search title Firefox result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", "0xAABB");
+        _ = vars.Should().Contain("result", "0xAABB");
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window search class alacritty result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", "0xCCDD");
+        _ = vars.Should().Contain("result", "0xCCDD");
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window search title missing result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", string.Empty);
+        _ = vars.Should().Contain("result", string.Empty);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window search title \"Code Editor\" result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", "0xEEFF");
+        _ = vars.Should().Contain("result", "0xEEFF");
     }
 
     // ---- focus ------------------------------------------------------------------------
@@ -119,55 +119,55 @@ public sealed class RunScriptWindowRuntimeTests
     public async Task ExecuteStepAsync_WhenFocusActive_FocusesActiveWindowByAddress()
     {
         var wm = FakeWindowManager(new WindowInfo { Address = "0x5678", Title = "T", Class = "C" });
-        wm.FocusWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FocusWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window focus active", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).FocusWindowByAddressAsync("0x5678", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).FocusWindowByAddressAsync("0x5678", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenFocusByTitle_CallsFocusWindowByTitle()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.FocusWindowByTitleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FocusWindowByTitleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window focus title Firefox", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).FocusWindowByTitleAsync("Firefox", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).FocusWindowByTitleAsync("Firefox", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenFocusByQuotedTitleWithEscapes_CallsFocusWindowByTitle()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.FocusWindowByTitleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FocusWindowByTitleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window focus title \"Fire\\\" Fox\"", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).FocusWindowByTitleAsync("Fire\" Fox", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).FocusWindowByTitleAsync("Fire\" Fox", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenFocusByClass_CallsFocusWindowByClass()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.FocusWindowByClassAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FocusWindowByClassAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window focus class alacritty", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).FocusWindowByClassAsync("alacritty", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).FocusWindowByClassAsync("alacritty", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenFocusByAddress_CallsFocusWindowByAddress()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.FocusWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FocusWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window focus address 0xABCD", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).FocusWindowByAddressAsync("0xABCD", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).FocusWindowByAddressAsync("0xABCD", Arg.Any<CancellationToken>());
     }
 
     // ---- close ------------------------------------------------------------------------
@@ -176,33 +176,33 @@ public sealed class RunScriptWindowRuntimeTests
     public async Task ExecuteStepAsync_WhenCloseActive_ClosesActiveWindowByAddress()
     {
         var wm = FakeWindowManager(new WindowInfo { Address = "0x9ABC", Title = "T", Class = "C" });
-        wm.CloseWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.CloseWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window close active", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).CloseWindowByAddressAsync("0x9ABC", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).CloseWindowByAddressAsync("0x9ABC", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenCloseByTitle_CallsCloseWindowByTitle()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.CloseWindowByTitleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.CloseWindowByTitleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window close title notepad", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).CloseWindowByTitleAsync("notepad", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).CloseWindowByTitleAsync("notepad", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenCloseByAddress_CallsCloseWindowByAddress()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.CloseWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.CloseWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window close address 0xDEAD", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).CloseWindowByAddressAsync("0xDEAD", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).CloseWindowByAddressAsync("0xDEAD", Arg.Any<CancellationToken>());
     }
 
 
@@ -212,44 +212,44 @@ public sealed class RunScriptWindowRuntimeTests
     public async Task ExecuteStepAsync_WhenMove_CallsMoveActiveWindowWithCoordinates()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.MoveActiveWindowAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.MoveActiveWindowAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window move 100 200", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).MoveActiveWindowAsync(100, 200, Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).MoveActiveWindowAsync(100, 200, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenResize_CallsResizeActiveWindowWithDimensions()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.ResizeActiveWindowAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.ResizeActiveWindowAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window resize 1280 720", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).ResizeActiveWindowAsync(1280, 720, Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).ResizeActiveWindowAsync(1280, 720, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenFullscreen_CallsFullscreenActiveWindow()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.FullscreenActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FullscreenActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window fullscreen", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).FullscreenActiveWindowAsync(Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).FullscreenActiveWindowAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenFloat_CallsFloatActiveWindow()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.FloatActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FloatActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window float", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).FloatActiveWindowAsync(Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).FloatActiveWindowAsync(Arg.Any<CancellationToken>());
     }
 
     // ---- wait -------------------------------------------------------------------------
@@ -262,7 +262,7 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window wait title Firefox 1000 result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", "0xAABB");
+        _ = vars.Should().Contain("result", "0xAABB");
     }
 
     // ---- workspace --------------------------------------------------------------------
@@ -271,45 +271,45 @@ public sealed class RunScriptWindowRuntimeTests
     public async Task ExecuteStepAsync_WhenGetDesktop_StoresActiveWorkspace()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<string?>("2"));
+        _ = wm.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<string?>("2"));
         var vars = Vars();
 
         await Executor(wm).ExecuteStepAsync("window getdesktop result", 1, vars, CancellationToken.None);
 
-        vars.Should().Contain("result", "2");
+        _ = vars.Should().Contain("result", "2");
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenSetDesktop_CallsSwitchWorkspace()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.SwitchWorkspaceAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.SwitchWorkspaceAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window setdesktop 3", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).SwitchWorkspaceAsync("3", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).SwitchWorkspaceAsync("3", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenSetDesktopForWindowActive_CallsMoveActiveWindowToWorkspace()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.MoveActiveWindowToWorkspaceAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.MoveActiveWindowToWorkspaceAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window setdesktopforwindow active 4", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).MoveActiveWindowToWorkspaceAsync("4", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).MoveActiveWindowToWorkspaceAsync("4", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteStepAsync_WhenSetDesktopForWindowByAddress_CallsMoveWindowToWorkspace()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.MoveWindowToWorkspaceByAddressAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.MoveWindowToWorkspaceByAddressAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
 
         await Executor(wm).ExecuteStepAsync("window setdesktopforwindow address 0x123 5", 1, Vars(), CancellationToken.None);
 
-        await wm.Received(1).MoveWindowToWorkspaceByAddressAsync("0x123", "5", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).MoveWindowToWorkspaceByAddressAsync("0x123", "5", Arg.Any<CancellationToken>());
     }
 
     // ---- variable resolution ----------------------------------------------------------
@@ -318,13 +318,13 @@ public sealed class RunScriptWindowRuntimeTests
     public async Task ExecuteStepAsync_WhenStepUsesVariable_ResolvesBeforeExecution()
     {
         var wm = FakeWindowManager(activeWindow: null);
-        wm.FocusWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FocusWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
         var vars = Vars();
         vars["addr"] = "0xBEEF";
 
         await Executor(wm).ExecuteStepAsync("window focus address $addr", 1, vars, CancellationToken.None);
 
-        await wm.Received(1).FocusWindowByAddressAsync("0xBEEF", Arg.Any<CancellationToken>());
+        _ = await wm.Received(1).FocusWindowByAddressAsync("0xBEEF", Arg.Any<CancellationToken>());
     }
 
     // ---- static helpers ---------------------------------------------------------------
@@ -338,7 +338,7 @@ public sealed class RunScriptWindowRuntimeTests
     [InlineData("pixelcolor 1 2 x", false)]
     public void IsWindowStep_ReturnsExpected(string step, bool expected)
     {
-        RunScriptWindowExecutor.IsWindowStep(step).Should().Be(expected);
+        _ = RunScriptWindowExecutor.IsWindowStep(step).Should().Be(expected);
     }
 
     [Theory]
@@ -372,11 +372,11 @@ public sealed class RunScriptWindowRuntimeTests
 
         if (errorFragment is null)
         {
-            result.Should().BeNull();
+            _ = result.Should().BeNull();
         }
         else
         {
-            result.Should().Contain(errorFragment);
+            _ = result.Should().Contain(errorFragment);
         }
     }
 
@@ -390,7 +390,7 @@ public sealed class RunScriptWindowRuntimeTests
     private static IWindowManager FakeWindowManager(WindowInfo? activeWindow)
     {
         var wm = Substitute.For<IWindowManager>();
-        wm.GetActiveWindowAsync(Arg.Any<CancellationToken>())
+        _ = wm.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<WindowInfo?>(activeWindow));
         return wm;
     }
@@ -398,7 +398,7 @@ public sealed class RunScriptWindowRuntimeTests
     private static IWindowManager FakeWindowList(params WindowInfo[] windows)
     {
         var wm = Substitute.For<IWindowManager>();
-        wm.GetWindowsAsync(Arg.Any<CancellationToken>())
+        _ = wm.GetWindowsAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<System.Collections.Generic.IReadOnlyList<WindowInfo>>(windows));
         return wm;
     }

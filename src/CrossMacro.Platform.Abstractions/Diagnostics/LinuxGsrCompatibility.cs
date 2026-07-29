@@ -43,7 +43,7 @@ public static class LinuxGsrCompatibility
             {
                 var handlers = GetHandlers(line);
                 hasKeyboardHandler = HasHandler(handlers, "kbd");
-                hasEventHandler = Array.Exists(handlers, handler => handler.StartsWith("event", StringComparison.Ordinal));
+                hasEventHandler = Array.Exists(handlers, static handler => handler.StartsWith("event", StringComparison.Ordinal));
             }
         }
 

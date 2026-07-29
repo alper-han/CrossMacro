@@ -31,21 +31,16 @@ public sealed class ProgramCompositionTests
         var permissionService = new StubLinuxPermissionService();
         var socketPathResolver = new StubDaemonSocketPathResolver("/tmp/test-crossmacro.sock");
 
-        Assert.Throws<ArgumentNullException>(() => Program.CreateDaemonService(
+        _ = Assert.Throws<ArgumentNullException>(() => Program.CreateDaemonService(
             security,
             permissionService,
             socketPathResolver,
             null!));
     }
 
-    private sealed class RecordingSessionHandlerFactory : ISessionHandlerFactory
+    private sealed class RecordingSessionHandlerFactory(ISessionHandler handler) : ISessionHandlerFactory
     {
-        private readonly ISessionHandler _handler;
-
-        public RecordingSessionHandlerFactory(ISessionHandler handler)
-        {
-            _handler = handler;
-        }
+        private readonly ISessionHandler _handler = handler;
 
         public int CreateCalls { get; private set; }
         public ISessionHandler? LastCreated { get; private set; }
@@ -58,14 +53,9 @@ public sealed class ProgramCompositionTests
         }
     }
 
-    private sealed class StubDaemonSocketPathResolver : IDaemonSocketPathResolver
+    private sealed class StubDaemonSocketPathResolver(string path) : IDaemonSocketPathResolver
     {
-        private readonly string _path;
-
-        public StubDaemonSocketPathResolver(string path)
-        {
-            _path = path;
-        }
+        private readonly string _path = path;
 
         public int ResolveCalls { get; private set; }
 
@@ -86,7 +76,7 @@ public sealed class ProgramCompositionTests
 
     private sealed class StubSecurityService : ISecurityService
     {
-        public Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client)
+        public Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();
         }

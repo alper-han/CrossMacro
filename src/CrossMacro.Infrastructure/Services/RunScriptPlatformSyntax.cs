@@ -13,10 +13,10 @@ internal static class RunScriptPlatformSyntax
 
     public static bool TryParseImageMatchMode(string? token, out EditorImageMatchMode mode)
     {
-        mode = token?.Trim().ToLowerInvariant() switch
+        mode = token?.Trim().ToUpperInvariant() switch
         {
-            "first" => EditorImageMatchMode.FirstThresholdMatch,
-            "best" => EditorImageMatchMode.BestMatch,
+            "FIRST" => EditorImageMatchMode.FirstThresholdMatch,
+            "BEST" => EditorImageMatchMode.BestMatch,
             _ => default,
         };
 
@@ -182,7 +182,7 @@ internal static class RunScriptPlatformSyntax
             {
                 if (value[index] == '\\' && index + 1 < value.Length && (value[index + 1] == quote || value[index + 1] == '\\'))
                 {
-                    builder.Append(value[index + 1]);
+                    _ = builder.Append(value[index + 1]);
                     index += 2;
                     continue;
                 }
@@ -190,7 +190,7 @@ internal static class RunScriptPlatformSyntax
                 {
                     break;
                 }
-                builder.Append(value[index++]);
+                _ = builder.Append(value[index++]);
             }
             if (index >= value.Length)
             {

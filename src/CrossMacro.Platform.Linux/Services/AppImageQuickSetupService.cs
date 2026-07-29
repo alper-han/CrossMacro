@@ -20,7 +20,7 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
         _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
-        _getEnvironmentVariable = _ => null;
+        _getEnvironmentVariable = static _ => null;
         _capabilityDetector = null;
     }
 

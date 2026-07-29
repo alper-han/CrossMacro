@@ -31,14 +31,14 @@ internal sealed class PortalPipeWireBufferAllocation : IDisposable
 
         if (PortalPipeWireLibc.ftruncate(fd, size) is not 0)
         {
-            PortalPipeWireLibc.close(fd);
+            _ = PortalPipeWireLibc.close(fd);
             throw new InvalidOperationException($"ftruncate failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
         var address = PortalPipeWireLibc.mmap(IntPtr.Zero, (UIntPtr)size, ProtRead | ProtWrite, MapShared, fd, IntPtr.Zero);
         if (address == MapFailed)
         {
-            PortalPipeWireLibc.close(fd);
+            _ = PortalPipeWireLibc.close(fd);
             throw new InvalidOperationException($"mmap failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
@@ -55,12 +55,12 @@ internal sealed class PortalPipeWireBufferAllocation : IDisposable
         _disposed = true;
         if (Address != IntPtr.Zero)
         {
-            PortalPipeWireLibc.munmap(Address, (UIntPtr)Size);
+            _ = PortalPipeWireLibc.munmap(Address, (UIntPtr)Size);
         }
 
         if (Fd >= 0)
         {
-            PortalPipeWireLibc.close(Fd);
+            _ = PortalPipeWireLibc.close(Fd);
         }
     }
 }

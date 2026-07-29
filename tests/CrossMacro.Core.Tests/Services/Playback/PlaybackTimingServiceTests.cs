@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services.Playback;
 
-public class PlaybackTimingServiceTests
+public sealed class PlaybackTimingServiceTests
 {
     [Fact]
     public async Task WaitAsync_WhenDelayIsZero_ReturnsImmediately()
@@ -14,8 +14,8 @@ public class PlaybackTimingServiceTests
         var act = async () => await service.WaitAsync(0, pauseToken, CancellationToken.None);
 
         // Assert
-        await act.Should().NotThrowAsync();
-        pauseToken.WaitCallCount.Should().Be(0);
+        _ = await act.Should().NotThrowAsync();
+        _ = pauseToken.WaitCallCount.Should().Be(0);
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public class PlaybackTimingServiceTests
         await service.WaitAsync(10, pauseToken, CancellationToken.None);
 
         // Assert
-        pauseToken.WaitCallCount.Should().Be(1);
+        _ = pauseToken.WaitCallCount.Should().Be(1);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class PlaybackTimingServiceTests
         var act = async () => await service.WaitAsync(100, pauseToken, cts.Token);
 
         // Assert
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        _ = await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     private sealed class FakePauseToken : IPlaybackPauseToken

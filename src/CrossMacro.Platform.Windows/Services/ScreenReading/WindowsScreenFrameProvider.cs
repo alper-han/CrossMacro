@@ -8,9 +8,7 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
     private bool _disposed;
 
     public WindowsScreenFrameProvider()
-        : this(new GdiWindowsScreenCaptureBackend(), OperatingSystem.IsWindows)
-    {
-    }
+        : this(new GdiWindowsScreenCaptureBackend(), OperatingSystem.IsWindows) { /* Empty */ }
 
     internal WindowsScreenFrameProvider(
         IWindowsScreenCaptureBackend captureBackend,
@@ -24,22 +22,22 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
 
     public bool IsSupported => _isSupportedProbe();
 
-    public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (!IsSupported)
         {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Unsupported,
-                "Windows GDI screen reading is available only on Windows desktop sessions."));
+                "Windows GDI screen reading is available only on Windows desktop sessions.");
         }
 
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Canceled,
-                "Windows GDI screen capture was canceled before it started."));
+                "Windows GDI screen capture was canceled before it started.");
         }
 
         try
@@ -48,29 +46,39 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
             var captureRegion = region ?? virtualScreen;
             if (!virtualScreen.Contains(captureRegion))
             {
-                return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
+                return ScreenReadResultFactory.Failure<ScreenFrame>(
                     ScreenReadErrorKind.OutOfBounds,
-                    $"Requested region {captureRegion} is outside Windows virtual screen bounds {virtualScreen}."));
+                    $"Requested region {captureRegion} is outside Windows virtual screen bounds {virtualScreen}.");
             }
 
             var captured = _captureBackend.Capture(captureRegion, options.CancellationToken);
-            return Task.FromResult(ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(
-                captured.LogicalBounds,
-                captured.Stride,
-                captured.PixelFormat,
-                captured.Pixels)));
+            ScreenFrame? frame = null;
+            try
+            {
+                frame = new ScreenFrame(
+                    captured.LogicalBounds,
+                    captured.Stride,
+                    captured.PixelFormat,
+                    captured.Pixels);
+                return ScreenReadResultFactory.Success(frame);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                frame?.Dispose();
+                throw;
+            }
         }
         catch (OperationCanceledException)
         {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Canceled,
-                "Windows GDI screen capture was canceled."));
+                "Windows GDI screen capture was canceled.");
         }
         catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or Win32Exception or InvalidOperationException)
         {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
-                ex.Message));
+                ex.Message);
         }
     }
 

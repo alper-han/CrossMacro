@@ -1,6 +1,6 @@
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public class ScheduledTaskEditorTests
+public sealed class ScheduledTaskEditorTests
 {
     [Fact]
     public void LoadAndApplyToCore_PreservesEveryPersistedField()
@@ -17,7 +17,7 @@ public class ScheduledTaskEditorTests
             UseRandomIntervalDelay = true,
             IntervalMinValue = 2,
             IntervalMaxValue = 8,
-            ScheduledDateTime = new DateTime(2030, 1, 2, 3, 4, 5),
+            ScheduledDateTime = new DateTime(2030, 1, 2, 3, 4, 5, DateTimeKind.Unspecified),
             WeeklyDays = ScheduleDays.Monday | ScheduleDays.Friday,
             WeeklyTime = new TimeSpan(8, 30, 0),
             LastRunTime = new DateTime(2030, 1, 1, 1, 0, 0, DateTimeKind.Utc),
@@ -29,7 +29,7 @@ public class ScheduledTaskEditorTests
         editor.Load(source);
         var target = editor.ToCore();
 
-        target.Should().BeEquivalentTo(source);
+        _ = target.Should().BeEquivalentTo(source);
     }
 
     [Fact]
@@ -43,8 +43,8 @@ public class ScheduledTaskEditorTests
         editor.IntervalValue = 99;
         editor.Rollback();
 
-        editor.MacroFilePath.Should().Be("original.macro");
-        editor.IntervalValue.Should().Be(30);
+        _ = editor.MacroFilePath.Should().Be("original.macro");
+        _ = editor.IntervalValue.Should().Be(30);
     }
 
     [Fact]
@@ -61,10 +61,10 @@ public class ScheduledTaskEditorTests
 
         var task = editor.ToCore();
 
-        task.IntervalValue.Should().Be(1);
-        task.IntervalMinValue.Should().Be(1);
-        task.IntervalMaxValue.Should().Be(1);
-        task.WeeklyTime.Should().BeLessThan(TimeSpan.FromDays(1));
+        _ = task.IntervalValue.Should().Be(1);
+        _ = task.IntervalMinValue.Should().Be(1);
+        _ = task.IntervalMaxValue.Should().Be(1);
+        _ = task.WeeklyTime.Should().BeLessThan(TimeSpan.FromDays(1));
     }
 
     [Fact]
@@ -76,9 +76,9 @@ public class ScheduledTaskEditorTests
 
         editor.SyncRuntimeStatus(last, next, "Running...", isEnabled: true);
 
-        editor.LastRunTime.Should().Be(last);
-        editor.NextRunTime.Should().Be(next);
-        editor.LastStatus.Should().Be("Running...");
-        editor.IsEnabled.Should().BeTrue();
+        _ = editor.LastRunTime.Should().Be(last);
+        _ = editor.NextRunTime.Should().Be(next);
+        _ = editor.LastStatus.Should().Be("Running...");
+        _ = editor.IsEnabled.Should().BeTrue();
     }
 }

@@ -1,6 +1,6 @@
 namespace CrossMacro.Daemon.Services;
 
-public readonly record struct CaptureStartResult(
+internal readonly record struct CaptureStartResult(
     bool Success,
     int StartedDeviceCount,
     string? ErrorMessage = null)

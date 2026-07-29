@@ -6,9 +6,8 @@ public static class ThemeCatalog
     public const string DefaultThemeName = "Mocha";
     public const string ThemeMarkerKey = "Theme.Name";
 
-    private static readonly IReadOnlyList<ThemeDescriptor> ThemeDescriptors = new ReadOnlyCollection<ThemeDescriptor>(
-        new[]
-        {
+    public static IReadOnlyList<ThemeDescriptor> Themes { get; } = new ReadOnlyCollection<ThemeDescriptor>(
+        [
             new ThemeDescriptor("Classic", "Theme.Classic", "/Themes/Classic.axaml"),
             new ThemeDescriptor("Latte", "Theme.Latte", "/Themes/Latte.axaml"),
             new ThemeDescriptor("Mocha", "Theme.Mocha", "/Themes/Mocha.axaml"),
@@ -18,19 +17,17 @@ public static class ThemeCatalog
             new ThemeDescriptor("Gruvbox", "Theme.Gruvbox", "/Themes/Gruvbox.axaml"),
             new ThemeDescriptor("Solarized", "Theme.Solarized", "/Themes/Solarized.axaml"),
             new ThemeDescriptor("Crimson", "Theme.Crimson", "/Themes/Crimson.axaml"),
-        });
-
-    public static IReadOnlyList<ThemeDescriptor> Themes => ThemeDescriptors;
+        ]);
 
     public static IReadOnlyList<string> ThemeNames { get; } =
-        new ReadOnlyCollection<string>(ThemeDescriptors.Select(theme => theme.Name).ToArray());
+        new ReadOnlyCollection<string>(Themes.Select(theme => theme.Name).ToArray());
 
-    public static ThemeDescriptor DefaultTheme { get; } = ThemeDescriptors
+    public static ThemeDescriptor DefaultTheme { get; } = Themes
         .First(theme => string.Equals(theme.Name, DefaultThemeName, StringComparison.Ordinal));
 
     public static bool TryResolve(string? name, out ThemeDescriptor descriptor)
     {
-        descriptor = ThemeDescriptors.FirstOrDefault(theme =>
+        descriptor = Themes.FirstOrDefault(theme =>
             string.Equals(theme.Name, name, StringComparison.OrdinalIgnoreCase)) ?? DefaultTheme;
         return string.Equals(descriptor.Name, name, StringComparison.OrdinalIgnoreCase);
     }

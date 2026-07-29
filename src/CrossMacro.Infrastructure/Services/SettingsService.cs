@@ -4,16 +4,15 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Service for managing application settings with XDG Base Directory support
 /// </summary>
-public class SettingsService : ISettingsService
+public class SettingsService : ISettingsService, IDisposable
 {
-    private readonly string _configRootPath;
     private readonly string _globalSettingsFilePath;
     private string _profileSettingsFilePath;
     private int _profileGeneration;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
-    private AppSettings _currentSettings;
+    private int _disposed;
 
-    public AppSettings Current => _currentSettings;
+    public AppSettings Current { get; private set; }
 
     public SettingsService() : this(configRootPath: null)
     {
@@ -26,15 +25,14 @@ public class SettingsService : ISettingsService
             configRootPath = PathHelper.GetConfigDirectory();
         }
 
-        _configRootPath = configRootPath;
-        _globalSettingsFilePath = Path.Combine(_configRootPath, ConfigFileNames.GlobalSettings);
+        _globalSettingsFilePath = Path.Combine(configRootPath, ConfigFileNames.GlobalSettings);
         _profileSettingsFilePath = Path.Combine(
-            _configRootPath,
+            configRootPath,
             ConfigFileNames.ProfilesDirectory,
             "default",
             ConfigFileNames.Settings);
 
-        _currentSettings = new AppSettings();
+        Current = new AppSettings();
     }
 
     /// <summary>
@@ -59,7 +57,7 @@ public class SettingsService : ISettingsService
                         return globalSettings.LogLevel;
                     }
                 }
-                catch
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     // Fall back to the legacy settings file below.
                 }
@@ -77,7 +75,7 @@ public class SettingsService : ISettingsService
 
             return settings?.LogLevel ?? "Information";
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Silently fail and use default - logger isn't initialized yet
             return "Information";
@@ -90,18 +88,18 @@ public class SettingsService : ISettingsService
         {
             var globalSettings = await LoadGlobalSettingsAsync().ConfigureAwait(false);
             var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-            _currentSettings = SettingsMapper.Combine(globalSettings, profileSettings);
-            NormalizeSettings(_currentSettings);
+            Current = SettingsMapper.Combine(globalSettings, profileSettings);
+            NormalizeSettings(Current);
 
             Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
-            return _currentSettings;
+            return Current;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to load settings, using defaults");
-            _currentSettings = new AppSettings();
-            NormalizeSettings(_currentSettings);
-            return _currentSettings;
+            Current = new AppSettings();
+            NormalizeSettings(Current);
+            return Current;
         }
     }
 
@@ -111,18 +109,18 @@ public class SettingsService : ISettingsService
         {
             var globalSettings = LoadGlobalSettings();
             var profileSettings = LoadProfileSettings();
-            _currentSettings = SettingsMapper.Combine(globalSettings, profileSettings);
-            NormalizeSettings(_currentSettings);
+            Current = SettingsMapper.Combine(globalSettings, profileSettings);
+            NormalizeSettings(Current);
 
             Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
-            return _currentSettings;
+            return Current;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to load settings, using defaults");
-            _currentSettings = new AppSettings();
-            NormalizeSettings(_currentSettings);
-            return _currentSettings;
+            Current = new AppSettings();
+            NormalizeSettings(Current);
+            return Current;
         }
     }
 
@@ -131,8 +129,8 @@ public class SettingsService : ISettingsService
         var snapshot = new SaveSnapshot(
             _globalSettingsFilePath,
             _profileSettingsFilePath,
-            SettingsMapper.ToGlobal(_currentSettings),
-            SettingsMapper.ToProfile(_currentSettings),
+            SettingsMapper.ToGlobal(Current),
+            SettingsMapper.ToProfile(Current),
             _profileGeneration);
 
         await _saveGate.WaitAsync().ConfigureAwait(false);
@@ -155,14 +153,14 @@ public class SettingsService : ISettingsService
 
             Log.Information("Settings saved to {GlobalPath} and {ProfilePath}", snapshot.GlobalPath, snapshot.ProfilePath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to save settings");
             throw;
         }
         finally
         {
-            _saveGate.Release();
+            _ = _saveGate.Release();
         }
     }
 
@@ -173,24 +171,24 @@ public class SettingsService : ISettingsService
         {
             FileBackedJsonStorage.Write(
                 _globalSettingsFilePath,
-                SettingsMapper.ToGlobal(_currentSettings),
+                SettingsMapper.ToGlobal(Current),
                 CrossMacroJsonContext.Default.GlobalSettings);
 
             FileBackedJsonStorage.Write(
                 _profileSettingsFilePath,
-                SettingsMapper.ToProfile(_currentSettings),
+                SettingsMapper.ToProfile(Current),
                 CrossMacroJsonContext.Default.ProfileSettings);
 
             Log.Information("Settings saved to {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to save settings");
             throw;
         }
         finally
         {
-            _saveGate.Release();
+            _ = _saveGate.Release();
         }
     }
 
@@ -202,21 +200,35 @@ public class SettingsService : ISettingsService
         {
             _profileSettingsFilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Settings);
             var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-            SettingsMapper.ApplyProfile(_currentSettings, profileSettings);
-            NormalizeSettings(_currentSettings);
+            SettingsMapper.ApplyProfile(Current, profileSettings);
+            NormalizeSettings(Current);
 
             Log.Information("Profile settings reloaded from {ProfilePath}", _profileSettingsFilePath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to reload profile settings, using defaults");
-            SettingsMapper.ApplyProfile(_currentSettings, new ProfileSettings());
-            NormalizeSettings(_currentSettings);
+            SettingsMapper.ApplyProfile(Current, new ProfileSettings());
+            NormalizeSettings(Current);
         }
         finally
         {
             _profileGeneration++;
-            _saveGate.Release();
+            _ = _saveGate.Release();
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing && Interlocked.Exchange(ref _disposed, 1) is 0)
+        {
+            _saveGate.Dispose();
         }
     }
 
@@ -229,7 +241,8 @@ public class SettingsService : ISettingsService
             await FileBackedJsonStorage.WriteAsync(
                     _globalSettingsFilePath,
                     globalSettings,
-                    CrossMacroJsonContext.Default.GlobalSettings)
+                    CrossMacroJsonContext.Default.GlobalSettings,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
             return globalSettings;
         }
@@ -265,7 +278,8 @@ public class SettingsService : ISettingsService
             await FileBackedJsonStorage.WriteAsync(
                     _profileSettingsFilePath,
                     profileSettings,
-                    CrossMacroJsonContext.Default.ProfileSettings)
+                    CrossMacroJsonContext.Default.ProfileSettings,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
             return profileSettings;
         }
@@ -297,7 +311,7 @@ public class SettingsService : ISettingsService
         settings.Normalize();
     }
 
-    private sealed record class SaveSnapshot(
+    private sealed record SaveSnapshot(
         string GlobalPath,
         string ProfilePath,
         GlobalSettings GlobalSettings,

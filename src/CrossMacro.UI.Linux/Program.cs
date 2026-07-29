@@ -1,13 +1,36 @@
 
+using System.Runtime.Versioning;
+using CrossMacro.UI.Hosting;
+
 namespace CrossMacro.UI.Linux;
 
+[SupportedOSPlatform("linux")]
 internal static class Program
 {
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
-        => CrossMacro.UI.Program.BuildAvaloniaApp()
-            .UseLinuxWindowingSubsystem(LinuxEnvironmentVariables.CaptureCurrentSnapshot())
+        => ConfigureLinuxGuiBuilder(
+            CrossMacro.UI.Program.BuildAvaloniaApp(),
+            LinuxEnvironmentVariables.CaptureCurrentSnapshot());
+
+#pragma warning disable AVALONIA_WAYLAND_FORCE_CSD
+    private static AppBuilder ConfigureWaylandDecorationOptions(AppBuilder builder) =>
+        builder.With(new WaylandPlatformOptions { ForceDrawnDecorations = true });
+#pragma warning restore AVALONIA_WAYLAND_FORCE_CSD
+
+    private static AppBuilder ConfigureLinuxGuiBuilder(
+        AppBuilder builder,
+        LinuxEnvironmentSnapshot environment)
+    {
+        if (SelectLinuxWindowingBackend(environment) is "Wayland")
+        {
+            builder = ConfigureWaylandDecorationOptions(builder);
+        }
+
+        return builder
+            .UseLinuxWindowingSubsystem(environment)
             .UseSkia();
+    }
 
     [System.STAThread]
     public static Task<int> Main(string[] args)
@@ -20,49 +43,43 @@ internal static class Program
             startGui: () => CrossMacro.UI.Program.RunGui(
                 args,
                 services => ConfigureGuiServices(services, environment),
-                ConfigureGuiRuntimeServices,
-                appBuilder => appBuilder
-                    .UseLinuxWindowingSubsystem(environment)
-                    .UseSkia()),
+                GuiHostBootstrap.ConfigureGuiRuntimeServices,
+                appBuilder => ConfigureLinuxGuiBuilder(appBuilder, environment)),
             getVersionString: CrossMacro.UI.Program.GetVersionString,
             tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard,
-            bootstrapCallbacks: new CliBootstrapCallbacks(ConfigureInitialLogging, ConfigureCommandLogging, ConfigureHostLogging));
+            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks());
     }
 
     private static void ConfigurePlatformServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
     {
         LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
-        services.AddSingleton<IRuntimeContext>(new LinuxRuntimeContext(environment));
-        services.AddSingleton<IDisplayEnvironmentDiagnostic>(sp =>
-            (IDisplayEnvironmentDiagnostic)sp.GetRequiredService<IRuntimeContext>());
-        services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
+        _ = services.AddSingleton<IRuntimeContext>(new LinuxRuntimeContext(environment));
+        GuiHostBootstrap.AddRuntimeDiagnostics(services);
     }
 
     internal static void ConfigureGuiServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
     {
         ConfigurePlatformServices(services, environment);
-        services.AddSingleton<AvaloniaClipboardService>();
-        services.AddSingleton<PlatformProcessRunner, ProcessRunner>();
-        services.AddSingleton<IHostClipboardService>(sp => new PlatformFlatpakClipboard(
+        GuiHostBootstrap.AddCommonGuiServices(services);
+        _ = services.AddSingleton<PlatformProcessRunner, ProcessRunner>();
+        _ = services.AddSingleton<IHostClipboardService>(sp => new PlatformFlatpakClipboard(
             sp.GetRequiredService<PlatformProcessRunner>(),
             sp.GetRequiredService<IRuntimeContext>(),
             environment));
-        services.AddSingleton<ILinuxClipboardService>(sp => new PlatformLinuxClipboard(
+        _ = services.AddSingleton<PlatformLinuxClipboard>(sp => new PlatformLinuxClipboard(
             sp.GetRequiredService<PlatformProcessRunner>(), environment));
-        services.AddSingleton<PlatformFlatpakImageClipboard>(sp => new PlatformFlatpakImageClipboard(
+        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<PlatformLinuxClipboard>());
+        _ = services.AddSingleton<PlatformFlatpakImageClipboard>(sp => new PlatformFlatpakImageClipboard(
             sp.GetRequiredService<PlatformProcessRunner>(),
             sp.GetRequiredService<IRuntimeContext>(),
             environment));
-        services.AddSingleton<PlatformLinuxImageClipboard>(sp => new PlatformLinuxImageClipboard(
+        _ = services.AddSingleton<PlatformLinuxImageClipboard>(sp => new PlatformLinuxImageClipboard(
             sp.GetRequiredService<PlatformProcessRunner>(), environment));
-        services.AddSingleton<IClipboardService, CompositeClipboardService>();
-        services.AddSingleton<IUpdateService, GitHubUpdateService>();
-        services.AddSingleton<IImageClipboardService>(sp =>
+        _ = services.AddSingleton<IClipboardService, CompositeClipboardService>();
+        _ = services.AddSingleton<IImageClipboardService>(sp =>
             sp.GetRequiredService<IRuntimeContext>().IsFlatpak
                 ? sp.GetRequiredService<PlatformFlatpakImageClipboard>()
                 : sp.GetRequiredService<PlatformLinuxImageClipboard>());
-        services.AddSingleton<Func<CancellationToken, Task>>(sp =>
-            token => sp.GetRequiredService<IScreenReadingWarmupService>().WarmUpPortalSessionAsync(token));
     }
 
     private static void ConfigureCliServices(
@@ -71,52 +88,26 @@ internal static class Program
         CliRuntimeProfile runtimeProfile)
     {
         ConfigurePlatformServices(services, environment);
-        services.AddSingleton<PlatformProcessRunner, ProcessRunner>();
-        services.AddSingleton<ILinuxClipboardService>(sp => new PlatformLinuxClipboard(
+        _ = services.AddSingleton<PlatformProcessRunner, ProcessRunner>();
+        _ = services.AddSingleton<PlatformLinuxClipboard>(sp => new PlatformLinuxClipboard(
             sp.GetRequiredService<PlatformProcessRunner>(), environment));
-        services.AddSingleton<PlatformLinuxImageClipboard>(sp => new PlatformLinuxImageClipboard(
+        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<PlatformLinuxClipboard>());
+        _ = services.AddSingleton<PlatformLinuxImageClipboard>(sp => new PlatformLinuxImageClipboard(
             sp.GetRequiredService<PlatformProcessRunner>(), environment));
-        services.AddSingleton<PlatformFlatpakImageClipboard>(sp => new PlatformFlatpakImageClipboard(
+        _ = services.AddSingleton<PlatformFlatpakImageClipboard>(sp => new PlatformFlatpakImageClipboard(
             sp.GetRequiredService<PlatformProcessRunner>(),
             sp.GetRequiredService<IRuntimeContext>(),
             environment));
-        services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<ILinuxClipboardService>());
-        services.AddSingleton<IImageClipboardService>(sp =>
+        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<PlatformLinuxClipboard>());
+        _ = services.AddSingleton<IImageClipboardService>(sp =>
             sp.GetRequiredService<IRuntimeContext>().IsFlatpak
                 ? sp.GetRequiredService<PlatformFlatpakImageClipboard>()
                 : sp.GetRequiredService<PlatformLinuxImageClipboard>());
-        services.AddCrossMacroCommonRuntimeServices();
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(
+        _ = services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
-    }
-
-    internal static void ConfigureGuiRuntimeServices(IServiceCollection services)
-    {
-        services.AddCrossMacroCommonRuntimeServices();
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(sp => sp.GetService<IInputSimulatorPool>());
-    }
-
-    private static void ConfigureInitialLogging(CliParseResult parseResult)
-    {
-        var json = parseResult.PrefersJsonOutput;
-        LoggerSetup.Initialize(json ? "Fatal" : SettingsService.TryLoadLogLevelEarly(), !json, !json);
-    }
-
-    private static void ConfigureCommandLogging(CliCommandOptions options)
-    {
-        LoggerSetup.SetLogLevel(options.JsonOutput
-            ? "Fatal"
-            : string.IsNullOrWhiteSpace(options.LogLevel) ? "Warning" : options.LogLevel);
-    }
-
-    private static void ConfigureHostLogging(CliCommandOptions options)
-    {
-        if (options.JsonOutput)
-        {
-            LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-        }
     }
 
     internal static string SelectLinuxWindowingBackend(LinuxEnvironmentSnapshot environment) =>
@@ -128,25 +119,25 @@ internal static class Program
 
     private static AppBuilder UseLinuxWindowingSubsystem(this AppBuilder builder, LinuxEnvironmentSnapshot environment)
     {
-        builder.UseStandardRuntimePlatformSubsystem();
+        _ = builder.UseStandardRuntimePlatformSubsystem();
 
-        builder.UseWindowingSubsystem(() =>
+        _ = builder.UseWindowingSubsystem(() =>
         {
             if (SelectLinuxWindowingBackend(environment) is "Wayland")
             {
                 try
                 {
-                    builder.UseWayland();
+                    _ = builder.UseWayland();
                     builder.WindowingSubsystemInitializer?.Invoke();
                     return;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Warning(ex, "Wayland initialization failed, falling back to X11");
                 }
             }
 
-            builder.UseX11();
+            _ = builder.UseX11();
             builder.WindowingSubsystemInitializer?.Invoke();
         }, "Wayland/X11 Fallback");
 

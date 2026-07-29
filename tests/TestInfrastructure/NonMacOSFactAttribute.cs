@@ -1,9 +1,13 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class NonMacOSFactAttribute : ConditionalFactAttribute
+internal sealed class NonMacOSFactAttribute : FactAttribute
 {
-    public NonMacOSFactAttribute() : base(() => !OperatingSystem.IsMacOS(), "non-macOS environment")
+    public NonMacOSFactAttribute()
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            Skip = ConditionalSkipMessage.For("non-macOS environment");
+        }
     }
 }

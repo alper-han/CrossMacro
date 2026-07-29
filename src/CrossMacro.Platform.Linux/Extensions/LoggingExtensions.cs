@@ -6,7 +6,7 @@ namespace CrossMacro.Platform.Linux.Extensions;
 /// </summary>
 public static class LoggingExtensions
 {
-    private static readonly ConcurrentDictionary<string, bool> _loggedKeys = new();
+    private static readonly ConcurrentDictionary<string, bool> _loggedKeys = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Logs an information message only once for a given key.

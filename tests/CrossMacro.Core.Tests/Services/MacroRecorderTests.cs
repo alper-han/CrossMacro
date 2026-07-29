@@ -4,7 +4,7 @@ namespace CrossMacro.Core.Tests.Services;
 /// <summary>
 /// Tests for MacroRecorder focusing on initialization and error handling
 /// </summary>
-public class MacroRecorderTests
+public sealed class MacroRecorderTests
 {
     private readonly Func<IInputCapture> _captureFactory;
     private readonly ICoordinateStrategyFactory _strategyFactory;
@@ -22,7 +22,7 @@ public class MacroRecorderTests
 
         _strategy = Substitute.For<ICoordinateStrategy>();
         _strategyFactory = Substitute.For<ICoordinateStrategyFactory>();
-        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(_strategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(_strategy);
 
         _processor = Substitute.For<IInputEventProcessor>();
         _processorFactory = (s) => _processor;
@@ -40,7 +40,7 @@ public class MacroRecorderTests
         var recorder = CreateRecorder();
 
         // Assert
-        recorder.IsRecording.Should().BeFalse();
+        _ = recorder.IsRecording.Should().BeFalse();
     }
 
     [Fact]
@@ -52,10 +52,11 @@ public class MacroRecorderTests
         // Act
         var act = async () => await recorder.StartRecordingAsync(
             recordMouse: false,
-            recordKeyboard: false);
+            recordKeyboard: false,
+            cancellationToken: CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
+        _ = await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage("*at least one*");
     }
 
@@ -69,7 +70,7 @@ public class MacroRecorderTests
         var act = () => recorder.StopRecording();
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        _ = act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Not currently recording*");
     }
 
@@ -83,7 +84,7 @@ public class MacroRecorderTests
         var result = recorder.GetCurrentRecording();
 
         // Assert
-        result.Should().BeNull();
+        _ = result.Should().BeNull();
     }
 
     [Fact]
@@ -100,7 +101,7 @@ public class MacroRecorderTests
         };
 
         // Assert
-        act.Should().NotThrow();
+        _ = act.Should().NotThrow();
     }
 
     [Fact]
@@ -115,7 +116,7 @@ public class MacroRecorderTests
         recorder.EventRecorded += (s, e) => receivedEvents.Add(e.MacroEvent);
 
         // Setup processor to return an event when Process is called
-        _processor.Process(Arg.Any<CapturedInputEvent>(), Arg.Any<long>())
+        _ = _processor.Process(Arg.Any<CapturedInputEvent>(), Arg.Any<long>())
             .Returns(new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 });
 
         // Act
@@ -126,12 +127,12 @@ public class MacroRecorderTests
         this,
         new CapturedInputEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 });
 
-        recorder.StopRecording();
+        _ = recorder.StopRecording();
 
         // Assert
-        receivedEvents.Should().HaveCount(1);
-        receivedEvents[0].Type.Should().Be(EventType.KeyPress);
-        receivedEvents[0].KeyCode.Should().Be(30);
+        _ = receivedEvents.Should().HaveCount(1);
+        _ = receivedEvents[0].Type.Should().Be(EventType.KeyPress);
+        _ = receivedEvents[0].KeyCode.Should().Be(30);
     }
 
     [Fact]
@@ -153,7 +154,7 @@ public class MacroRecorderTests
     {
         // Arrange
         var absoluteStrategy = Substitute.For<ICoordinateStrategy>();
-        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(absoluteStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(absoluteStrategy);
         var recorder = CreateRecorder();
 
         // Act
@@ -163,7 +164,7 @@ public class MacroRecorderTests
         // Assert
         await absoluteStrategy.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
         _processor.Received(1).Configure(recordMouse: true, recordKeyboard: true, Arg.Is<HashSet<int>>(x => x == null), isAbsoluteCoordinates: true);
-        sequence.IsAbsoluteCoordinates.Should().BeTrue();
+        _ = sequence.IsAbsoluteCoordinates.Should().BeTrue();
     }
     [Fact]
     public async Task StartRecordingAsync_WithForceRelative_PerformsCornerReset()
@@ -177,7 +178,7 @@ public class MacroRecorderTests
 
         // Assert
         // Verify Corner Reset logic: Initialize() then MoveRelative(-20000, -20000)
-        mockSimulator.Received(1).Initialize();
+        await mockSimulator.Received(1).InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
         mockSimulator.Received(1).MoveRelative(-20000, -20000);
 
         await _strategy.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
@@ -188,8 +189,8 @@ public class MacroRecorderTests
     {
         // Arrange
         var captureRunTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _capture.ProviderName.Returns("TestCapture");
-        _capture.StartAsync(Arg.Any<CancellationToken>()).Returns(captureRunTcs.Task);
+        _ = _capture.ProviderName.Returns("TestCapture");
+        _ = _capture.StartAsync(Arg.Any<CancellationToken>()).Returns(captureRunTcs.Task);
 
         var recorder = CreateRecorder();
 
@@ -200,9 +201,9 @@ public class MacroRecorderTests
         captureRunTcs.SetResult();
 
         // Assert
-        stopResult.Should().NotBeNull();
+        _ = stopResult.Should().NotBeNull();
         Func<Task> act = async () => await startTask;
-        await act.Should().NotThrowAsync();
+        _ = await act.Should().NotThrowAsync();
     }
 
     [Fact]
@@ -210,7 +211,7 @@ public class MacroRecorderTests
     {
         // Arrange
         var relativeStrategy = new RelativeCoordinateStrategy();
-        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var mockSimulator = Substitute.For<IInputSimulator>();
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
@@ -220,8 +221,8 @@ public class MacroRecorderTests
 
         // Assert
         _processor.Received(1).Configure(recordMouse: true, recordKeyboard: true, Arg.Is<HashSet<int>>(x => x == null), isAbsoluteCoordinates: false);
-        sequence.IsAbsoluteCoordinates.Should().BeFalse();
-        mockSimulator.Received(1).Initialize();
+        _ = sequence.IsAbsoluteCoordinates.Should().BeFalse();
+        await mockSimulator.Received(1).InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
         mockSimulator.Received(1).MoveRelative(-20000, -20000);
     }
 
@@ -230,7 +231,7 @@ public class MacroRecorderTests
     {
         // Arrange
         var relativeStrategy = Substitute.For<IRelativeCoordinateStrategy>();
-        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var mockSimulator = Substitute.For<IInputSimulator>();
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
@@ -240,8 +241,8 @@ public class MacroRecorderTests
 
         // Assert
         _processor.Received(1).Configure(recordMouse: true, recordKeyboard: true, Arg.Is<HashSet<int>>(x => x == null), isAbsoluteCoordinates: false);
-        sequence.IsAbsoluteCoordinates.Should().BeFalse();
-        mockSimulator.Received(1).Initialize();
+        _ = sequence.IsAbsoluteCoordinates.Should().BeFalse();
+        await mockSimulator.Received(1).InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
         mockSimulator.Received(1).MoveRelative(-20000, -20000);
     }
 
@@ -250,7 +251,7 @@ public class MacroRecorderTests
     {
         // Arrange
         var relativeStrategy = new RelativeCoordinateStrategy();
-        _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var mockSimulator = Substitute.For<IInputSimulator>();
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
@@ -260,7 +261,7 @@ public class MacroRecorderTests
 
         // Assert
         _processor.Received(1).Configure(recordMouse: true, recordKeyboard: true, Arg.Is<HashSet<int>>(x => x == null), isAbsoluteCoordinates: false);
-        sequence.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = sequence.IsAbsoluteCoordinates.Should().BeFalse();
         mockSimulator.DidNotReceive().MoveRelative(-20000, -20000);
     }
 
@@ -274,16 +275,16 @@ public class MacroRecorderTests
         var act = async () => await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*No input capture factory configured*");
-        recorder.IsRecording.Should().BeFalse();
+        _ = recorder.IsRecording.Should().BeFalse();
     }
 
     [Fact]
     public async Task StartRecordingAsync_WhenCaptureStartThrows_CleansUpAndRethrows()
     {
         // Arrange
-        _capture.StartAsync(Arg.Any<CancellationToken>())
+        _ = _capture.StartAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("start failed")));
         var recorder = CreateRecorder();
 
@@ -291,9 +292,9 @@ public class MacroRecorderTests
         var act = async () => await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("start failed");
-        recorder.IsRecording.Should().BeFalse();
+        _ = recorder.IsRecording.Should().BeFalse();
         _capture.Received(1).StopCapture();
         _capture.Received(1).Dispose();
     }
@@ -304,13 +305,13 @@ public class MacroRecorderTests
         // Arrange
         var recorder = CreateRecorder();
         await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
-        _capture.When(x => x.StopCapture()).Do(_ => throw new Exception("stop fail"));
+        _capture.When(x => x.StopCapture()).Do(_ => throw new InvalidOperationException("stop fail"));
 
         // Act
         var result = recorder.StopRecording();
 
         // Assert
-        result.Should().NotBeNull();
-        recorder.IsRecording.Should().BeFalse();
+        _ = result.Should().NotBeNull();
+        _ = recorder.IsRecording.Should().BeFalse();
     }
 }

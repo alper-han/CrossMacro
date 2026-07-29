@@ -1,20 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakePortalScreenCastCapture : IPortalScreenCastCapture
+internal sealed class FakePortalScreenCastCapture(
+    PortalScreenCastSupportResult support,
+    PortalScreenCastCaptureResult? captureResult = null) : IPortalScreenCastCapture
 {
-    private readonly PortalScreenCastSupportResult _support;
-    private readonly PortalScreenCastCaptureResult _captureResult;
-
-    public FakePortalScreenCastCapture(
-        PortalScreenCastSupportResult support,
-        PortalScreenCastCaptureResult? captureResult = null)
-    {
-        _support = support;
-        _captureResult = captureResult ?? PortalScreenCastCaptureResult.Failure(
+    private readonly PortalScreenCastSupportResult _support = support;
+    private readonly PortalScreenCastCaptureResult _captureResult = captureResult ?? PortalScreenCastCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake portal frame configured");
-    }
 
     public int CaptureCalls { get; private set; }
 

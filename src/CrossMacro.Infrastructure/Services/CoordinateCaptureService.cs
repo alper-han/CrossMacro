@@ -5,21 +5,15 @@ namespace CrossMacro.Infrastructure.Services;
 /// Service for interactively capturing mouse coordinates and keyboard keys.
 /// Uses existing platform input capture infrastructure.
 /// </summary>
-public class CoordinateCaptureService : ICoordinateCaptureService
+public class CoordinateCaptureService(
+    IMousePositionProvider positionProvider,
+    Func<IInputCapture>? inputCaptureFactory = null) : ICoordinateCaptureService
 {
-    private readonly IMousePositionProvider _positionProvider;
-    private readonly Func<IInputCapture>? _inputCaptureFactory;
+    private readonly IMousePositionProvider _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
+    private readonly Func<IInputCapture>? _inputCaptureFactory = inputCaptureFactory;
     private readonly Lock _lock = new();
 
     private CancellationTokenSource? _currentCts;
-
-    public CoordinateCaptureService(
-        IMousePositionProvider positionProvider,
-        Func<IInputCapture>? inputCaptureFactory = null)
-    {
-        _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
-        _inputCaptureFactory = inputCaptureFactory;
-    }
 
     /// <inheritdoc/>
     public bool IsCapturing
@@ -36,7 +30,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
     /// <inheritdoc/>
     public async Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default)
     {
-        var captureCts = BeginCapture(ct);
+        var captureCts = await BeginCaptureAsync(ct).ConfigureAwait(false);
 
         try
         {
@@ -73,7 +67,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             Log.LogError("[CoordinateCaptureService] Input capture error while capturing mouse position: {Error}", error.Message);
         }
 
-        tcs.TrySetResult(null);
+        _ = tcs.TrySetResult(null);
     };
 
             using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
@@ -94,7 +88,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         {
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
             {
@@ -119,7 +113,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         {
             if (input.Type is InputEventType.Key && input.Value is 1 && input.Code == InputEventCode.KEY_ESC)
             {
-                completion.TrySetResult(null);
+                _ = completion.TrySetResult(null);
                 return;
             }
 
@@ -127,20 +121,20 @@ public class CoordinateCaptureService : ICoordinateCaptureService
 || (input.Type is InputEventType.Key && input.Value is 1 && input.Code == InputEventCode.KEY_ENTER))
             {
                 var position = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
-                completion.TrySetResult(position);
+                _ = completion.TrySetResult(position);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[CoordinateCaptureService] Error processing mouse capture callback");
-            completion.TrySetResult(null);
+            _ = completion.TrySetResult(null);
         }
     }
 
     /// <inheritdoc/>
     public async Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default)
     {
-        var captureCts = BeginCapture(ct);
+        var captureCts = await BeginCaptureAsync(ct).ConfigureAwait(false);
 
         try
         {
@@ -161,7 +155,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
                 // ESC is a valid key and should be captured, not used for cancellation
                 if (e.Type is InputEventType.Key && e.Value is 1)
                 {
-                    tcs.TrySetResult(e.Code);
+                    _ = tcs.TrySetResult(e.Code);
                 }
             };
 
@@ -176,7 +170,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             Log.LogError("[CoordinateCaptureService] Input capture error while capturing key code: {Error}", error.Message);
         }
 
-        tcs.TrySetResult(null);
+        _ = tcs.TrySetResult(null);
     };
 
             using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
@@ -189,7 +183,7 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         {
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
             {
@@ -222,11 +216,12 @@ public class CoordinateCaptureService : ICoordinateCaptureService
         }
         catch (ObjectDisposedException)
         {
+            Log.Debug("[CoordinateCaptureService] Previous capture cancellation source was already disposed.");
             // Already disposed, ignore
         }
     }
 
-    private CancellationTokenSource BeginCapture(CancellationToken externalToken)
+    private async Task<CancellationTokenSource> BeginCaptureAsync(CancellationToken externalToken)
     {
         CancellationTokenSource? previousCts;
         var captureCts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
@@ -237,12 +232,16 @@ public class CoordinateCaptureService : ICoordinateCaptureService
             _currentCts = captureCts;
         }
 
-        try
+        if (previousCts is not null)
         {
-            previousCts?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
+            try
+            {
+                await previousCts.CancelAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // The previous capture may already have disposed its cancellation source.
+            }
         }
 
         return captureCts;

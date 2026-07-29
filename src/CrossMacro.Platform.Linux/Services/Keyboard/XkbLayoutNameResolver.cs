@@ -28,9 +28,7 @@ internal sealed class XkbLayoutNameResolver
     private readonly IReadOnlyList<string> _rulesPaths;
 
     internal XkbLayoutNameResolver()
-        : this(DefaultRulesPaths)
-    {
-    }
+        : this(DefaultRulesPaths) { /* Empty */ }
 
     internal XkbLayoutNameResolver(IReadOnlyList<string> rulesPaths)
     {

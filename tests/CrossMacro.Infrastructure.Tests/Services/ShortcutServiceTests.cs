@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class ShortcutServiceTests : IDisposable
+public sealed class ShortcutServiceTests : IDisposable
 {
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
@@ -18,7 +18,7 @@ public class ShortcutServiceTests : IDisposable
             "crossmacro-tests",
             nameof(ShortcutServiceTests),
             Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_testRootDirectory);
+        _ = Directory.CreateDirectory(_testRootDirectory);
         _shortcutsFilePath = Path.Combine(_testRootDirectory, "shortcuts.json");
 
         _fileManager = Substitute.For<IMacroFileManager>();
@@ -26,18 +26,12 @@ public class ShortcutServiceTests : IDisposable
         _playerFactory = () => _player;
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
 
-        _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, _shortcutsFilePath);
+        _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, shortcutsFilePath: _shortcutsFilePath);
     }
 
     public void Dispose()
     {
-        try
-        {
-            _service.Dispose();
-        }
-        catch
-        {
-        }
+        _service.Dispose();
 
         try
         {
@@ -46,8 +40,9 @@ public class ShortcutServiceTests : IDisposable
                 Directory.Delete(_testRootDirectory, recursive: true);
             }
         }
-        catch
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+            // Best-effort test cleanup tolerates expected filesystem failures.
         }
     }
 
@@ -59,7 +54,7 @@ public class ShortcutServiceTests : IDisposable
         // We can verify this by checking if IsListening is true, 
         // verifying event subscription is hard with NSubstitute unless we inspect calls to add_Event.
         // But implementation sets IsListening.
-        _service.IsListening.Should().BeTrue();
+        _ = _service.IsListening.Should().BeTrue();
     }
 
     [Fact]
@@ -68,7 +63,7 @@ public class ShortcutServiceTests : IDisposable
         _service.Start();
         _service.StopShortcuts();
 
-        _service.IsListening.Should().BeFalse();
+        _ = _service.IsListening.Should().BeFalse();
     }
 
     [Fact]
@@ -76,7 +71,7 @@ public class ShortcutServiceTests : IDisposable
     {
         var task = new ShortcutTask();
         _service.AddTask(task);
-        _service.Tasks.Should().Contain(task);
+        _ = _service.Tasks.Should().Contain(task);
     }
 
     [Fact]
@@ -85,7 +80,7 @@ public class ShortcutServiceTests : IDisposable
         var task = new ShortcutTask();
         _service.AddTask(task);
         _service.RemoveTask(task.Id);
-        _service.Tasks.Should().NotContain(task);
+        _ = _service.Tasks.Should().NotContain(task);
     }
 
     [Fact]
@@ -98,13 +93,13 @@ public class ShortcutServiceTests : IDisposable
             MacroFilePath = "test.macro",
             HotkeyString = "F5",
             PlaybackSpeed = 0.0,
+            IsEnabled = true,
         };
-        task.IsEnabled = true;
         _service.AddTask(task);
 
-        _fileManager.LoadAsync(Arg.Any<string>())
+        _ = _fileManager.LoadAsync(Arg.Any<string>())
             .Returns(Task.FromResult<MacroSequence?>(new MacroSequence { Events = { new MacroEvent() } }));
-        _player
+        _ = _player
             .PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>())
             .Returns(Task.CompletedTask);
 
@@ -131,7 +126,7 @@ public class ShortcutServiceTests : IDisposable
             var result = await executed.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
             // Assert
-            result.Success.Should().BeTrue();
+            _ = result.Success.Should().BeTrue();
             await _player.Received(1).PlayAsync(
                 Arg.Any<MacroSequence>(),
                 Arg.Is<PlaybackOptions>(o => o.SpeedMultiplier == PlaybackOptions.MinSpeedMultiplier));
@@ -153,8 +148,8 @@ public class ShortcutServiceTests : IDisposable
         {
             HotkeyString = "F5",
             MacroFilePath = "test.macro",
+            IsEnabled = false,
         };
-        task.IsEnabled = false;
         _service.AddTask(task);
 
         _service.Start();
@@ -187,16 +182,16 @@ public class ShortcutServiceTests : IDisposable
         var startedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var releasePlaybackTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        _ = _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
         {
             Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, Timestamp = 0 } },
         }));
 
-        _player
+        _ = _player
             .PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
+            .Returns(unusedCallInfo =>
             {
-                startedTcs.TrySetResult(true);
+            _ = startedTcs.TrySetResult(true);
                 return releasePlaybackTcs.Task;
             });
 
@@ -208,20 +203,20 @@ public class ShortcutServiceTests : IDisposable
                 this,
                 new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, "Ctrl+F5"));
 
-            await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            _ = await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
             var releaseException = Record.Exception(() =>
                 _hotkeyService.RawKeyReleased += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
                     this,
                     new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, string.Empty)));
 
-            releaseException.Should().BeNull();
+            _ = releaseException.Should().BeNull();
 
             _player.Received(1).StopPlayback();
         }
         finally
         {
-            releasePlaybackTcs.TrySetResult(true);
+            _ = releasePlaybackTcs.TrySetResult(true);
             if (File.Exists(tempFile))
             {
                 File.Delete(tempFile);
@@ -235,8 +230,16 @@ public class ShortcutServiceTests : IDisposable
         var tempFile = Path.GetTempFileName();
         using var cts = new CancellationTokenSource();
 
+        // The service marshals status updates through the synchronization context captured
+        // at construction. xUnit's async context does not serialize posted callbacks with
+        // await continuations, so build a dedicated service with no ambient context to make
+        // SafeUpdate run inline and the post-await assertion deterministic.
+        var previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(syncContext: null);
+
         try
         {
+            using var service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, shortcutsFilePath: _shortcutsFilePath);
             var task = new ShortcutTask
             {
                 Name = "Manual Run",
@@ -245,29 +248,30 @@ public class ShortcutServiceTests : IDisposable
                 IsEnabled = true,
             };
 
-            _service.AddTask(task);
-            _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+            service.AddTask(task);
+            _ = _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
             {
                 Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 } },
             }));
 
             var playbackStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
                 .Returns(ci =>
                 {
-                    playbackStarted.TrySetResult(true);
+                    _ = playbackStarted.TrySetResult(true);
                     return Task.Delay(Timeout.Infinite, ci.ArgAt<CancellationToken>(2));
                 });
 
-            var runTask = _service.RunTaskAsync(task.Id, cts.Token);
-            await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            var runTask = service.RunTaskAsync(task.Id, cts.Token);
+            _ = await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
             cts.Cancel();
             await runTask;
 
-            task.LastStatus.Should().Be("Stopped");
+            _ = task.LastStatus.Should().Be("Stopped");
         }
         finally
         {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
             if (File.Exists(tempFile))
             {
                 File.Delete(tempFile);
@@ -296,33 +300,33 @@ public class ShortcutServiceTests : IDisposable
 
         await _service.SaveAsync();
 
-        var savedJson = await File.ReadAllTextAsync(_shortcutsFilePath);
-        savedJson.Should().Contain("\"macroFilePath\"");
-        savedJson.Should().Contain("\"hotkeyString\"");
-        savedJson.Should().Contain("\"loopEnabled\": true");
-        savedJson.Should().NotContain("\"isLoopEnabled\"");
+        var savedJson = await File.ReadAllTextAsync(_shortcutsFilePath, CancellationToken.None);
+        _ = savedJson.Should().Contain("\"macroFilePath\"");
+        _ = savedJson.Should().Contain("\"hotkeyString\"");
+        _ = savedJson.Should().Contain("\"loopEnabled\": true");
+        _ = savedJson.Should().NotContain("\"isLoopEnabled\"");
 
-        var reloadedService = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, _shortcutsFilePath);
+        var reloadedService = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, shortcutsFilePath: _shortcutsFilePath);
 
         try
         {
             await reloadedService.LoadAsync();
 
-            reloadedService.Tasks.Should().ContainSingle();
+            _ = reloadedService.Tasks.Should().ContainSingle();
             var loadedTask = reloadedService.Tasks[0];
-            loadedTask.Name.Should().Be("Launch Macro");
-            loadedTask.MacroFilePath.Should().Be("/tmp/sample.macro");
-            loadedTask.HotkeyString.Should().Be("Ctrl+Shift+M");
-            loadedTask.PlaybackSpeed.Should().Be(2.5);
-            loadedTask.IsEnabled.Should().BeTrue();
-            loadedTask.LoopEnabled.Should().BeTrue();
-            loadedTask.RunWhileHeld.Should().BeFalse();
-            loadedTask.IsLoopEnabled.Should().BeTrue();
-            loadedTask.CanBeEnabled.Should().BeTrue();
-            loadedTask.RepeatCount.Should().Be(4);
-            loadedTask.RepeatDelayMs.Should().Be(125);
-            loadedTask.LastStatus.Should().Be("Success");
-            loadedTask.LastTriggeredTime.Should().Be(new DateTime(2026, 4, 27, 10, 30, 0, DateTimeKind.Utc));
+            _ = loadedTask.Name.Should().Be("Launch Macro");
+            _ = loadedTask.MacroFilePath.Should().Be("/tmp/sample.macro");
+            _ = loadedTask.HotkeyString.Should().Be("Ctrl+Shift+M");
+            _ = loadedTask.PlaybackSpeed.Should().Be(2.5);
+            _ = loadedTask.IsEnabled.Should().BeTrue();
+            _ = loadedTask.LoopEnabled.Should().BeTrue();
+            _ = loadedTask.RunWhileHeld.Should().BeFalse();
+            _ = loadedTask.IsLoopEnabled.Should().BeTrue();
+            _ = loadedTask.CanBeEnabled.Should().BeTrue();
+            _ = loadedTask.RepeatCount.Should().Be(4);
+            _ = loadedTask.RepeatDelayMs.Should().Be(125);
+            _ = loadedTask.LastStatus.Should().Be("Success");
+            _ = loadedTask.LastTriggeredTime.Should().Be(new DateTime(2026, 4, 27, 10, 30, 0, DateTimeKind.Utc));
         }
         finally
         {
@@ -347,16 +351,17 @@ public class ShortcutServiceTests : IDisposable
 
         await File.WriteAllTextAsync(
             _shortcutsFilePath,
-            JsonSerializer.Serialize(expectedTasks, CrossMacroJsonContext.Default.ListShortcutTask));
+            JsonSerializer.Serialize(expectedTasks, CrossMacroJsonContext.Default.ListShortcutTask),
+            CancellationToken.None);
 
         await _service.LoadAsync();
 
-        _service.Tasks.Should().ContainSingle();
+        _ = _service.Tasks.Should().ContainSingle();
         var loadedTask = _service.Tasks[0];
-        loadedTask.Name.Should().Be("Typed Context Task");
-        loadedTask.RunWhileHeld.Should().BeTrue();
-        loadedTask.LoopEnabled.Should().BeFalse();
-        loadedTask.IsLoopEnabled.Should().BeTrue();
-        loadedTask.RepeatDelayMs.Should().Be(42);
+        _ = loadedTask.Name.Should().Be("Typed Context Task");
+        _ = loadedTask.RunWhileHeld.Should().BeTrue();
+        _ = loadedTask.LoopEnabled.Should().BeFalse();
+        _ = loadedTask.IsLoopEnabled.Should().BeTrue();
+        _ = loadedTask.RepeatDelayMs.Should().Be(42);
     }
 }

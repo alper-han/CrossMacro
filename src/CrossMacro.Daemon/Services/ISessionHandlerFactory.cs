@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public interface ISessionHandlerFactory
+internal interface ISessionHandlerFactory
 {
     public ISessionHandler Create();
 }

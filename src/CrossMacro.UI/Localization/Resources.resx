@@ -168,6 +168,9 @@
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>Star on GitHub</value>
   </data>
+  <data name="Settings_HotkeyAlreadyAssignedTo" xml:space="preserve">
+    <value>This hotkey is already assigned to {0}</value>
+  </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Hotkey Already Assigned</value>
   </data>

@@ -10,5 +10,5 @@ public interface ITextExpansionExecutor
     /// Performs the expansion asynchronously.
     /// </summary>
     /// <param name="expansion">The expansion to perform.</param>
-    public Task ExpandAsync(Models.TextExpansionEntry expansion);
+    public Task ExpandAsync(Models.TextExpansionEntry expansion, CancellationToken cancellationToken = default);
 }

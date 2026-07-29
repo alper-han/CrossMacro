@@ -39,7 +39,7 @@ public sealed class RuntimeLifecycleTests
                 }),
         ]);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => lifecycle.StartAsync(CancellationToken.None));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => lifecycle.StartAsync(CancellationToken.None));
 
         Assert.Equal(["start:first", "stop:first"], events);
     }

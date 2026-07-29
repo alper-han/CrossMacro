@@ -45,7 +45,8 @@ internal sealed class TextExpansionDirectTypingInserter
     public async Task InsertAsync(
         IInputSimulator inputSimulator,
         string text,
-        DirectTypingMethod method = DirectTypingMethod.FastBatch)
+        DirectTypingMethod method = DirectTypingMethod.FastBatch,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(inputSimulator);
         ArgumentNullException.ThrowIfNull(text);
@@ -54,12 +55,13 @@ internal sealed class TextExpansionDirectTypingInserter
             "Typing replacement directly (length={Length}, method={Method})",
             text.Length,
             method);
-        if (method is DirectTypingMethod.FastBatch && TryInsertBatch(inputSimulator, text))
+        cancellationToken.ThrowIfCancellationRequested();
+        if (method is DirectTypingMethod.FastBatch && await TryInsertBatchAsync(inputSimulator, text, cancellationToken).ConfigureAwait(false))
         {
             return;
         }
 
-        if (method is DirectTypingMethod.CompatibleKeyByKey && TryInsertCompatibleBatch(inputSimulator, text))
+        if (method is DirectTypingMethod.CompatibleKeyByKey && await TryInsertCompatibleBatchAsync(inputSimulator, text, cancellationToken).ConfigureAwait(false))
         {
             return;
         }
@@ -71,81 +73,72 @@ internal sealed class TextExpansionDirectTypingInserter
         {
             if (element.IsNewLine)
             {
-                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER).ConfigureAwait(false);
-                await Task.Delay(TextExpansionExecutionTimings.DirectTypingNewLineDelay).ConfigureAwait(false);
+                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TextExpansionExecutionTimings.DirectTypingNewLineDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
             if (preferNativeUnicodeInjection)
             {
-                await TypeUnicodeTextAsync(inputSimulator, unicodeTextInput, text, element).ConfigureAwait(false);
+                await TypeUnicodeTextAsync(inputSimulator, unicodeTextInput, text, element, cancellationToken).ConfigureAwait(false);
             }
             else
             {
                 var keyboardLayoutCharacter = element.KeyboardLayoutCharacter;
                 var typedViaLayout = keyboardLayoutCharacter is not null &&
-                    await TryTypeWithKeyboardLayoutAsync(inputSimulator, keyboardLayoutCharacter.Value).ConfigureAwait(false);
+                    await TryTypeWithKeyboardLayoutAsync(inputSimulator, keyboardLayoutCharacter.Value, cancellationToken).ConfigureAwait(false);
 
                 if (!typedViaLayout)
                 {
-                    await TypeUnicodeTextAsync(inputSimulator, unicodeTextInput, text, element).ConfigureAwait(false);
+                    await TypeUnicodeTextAsync(inputSimulator, unicodeTextInput, text, element, cancellationToken).ConfigureAwait(false);
                 }
             }
 
-            await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private bool TryInsertBatch(IInputSimulator inputSimulator, string text)
+    private async Task<bool> TryInsertBatchAsync(IInputSimulator inputSimulator, string text, CancellationToken cancellationToken)
     {
-        if (inputSimulator is not IBatchedInputSimulator { SupportsBatchedInput: true } batchedInputSimulator)
+        if (inputSimulator is not IBatchedInputSimulator { SupportsBatchedInput: true } batchedInputSimulator ||
+            !TryBuildBatchSteps(text, out var steps) ||
+            steps.Count > MaxBatchedInputEvents)
         {
             return false;
         }
 
-        if (!TryBuildBatchSteps(text, out var steps))
-        {
-            return false;
-        }
-
-        if (steps.Count > MaxBatchedInputEvents)
-        {
-            Log.Debug(
-                "Direct typing batch skipped because event count {EventCount} exceeds IPC batch limit {MaxEventCount}",
-                steps.Count,
-                MaxBatchedInputEvents);
-            return false;
-        }
-
-        Log.Debug("Typing replacement using batched input (events={EventCount})", steps.Count);
-        batchedInputSimulator.SimulateBatch(CollectionsMarshal.AsSpan(steps));
+        await SimulateBatchCoreAsync(batchedInputSimulator, steps, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
-    private bool TryInsertCompatibleBatch(IInputSimulator inputSimulator, string text)
+    private async Task<bool> TryInsertCompatibleBatchAsync(IInputSimulator inputSimulator, string text, CancellationToken cancellationToken)
     {
-        if (inputSimulator is not IBatchedInputSimulator { SupportsBatchedInput: true } batchedInputSimulator)
+        if (inputSimulator is not IBatchedInputSimulator { SupportsBatchedInput: true } batchedInputSimulator ||
+            !TryBuildCompatibleBatchSteps(text, out var steps) ||
+            steps.Count > MaxBatchedInputEvents)
         {
             return false;
         }
 
-        if (!TryBuildCompatibleBatchSteps(text, out var steps))
-        {
-            return false;
-        }
-
-        if (steps.Count > MaxBatchedInputEvents)
-        {
-            Log.Debug(
-                "Compatible batch skipped because event count {EventCount} exceeds IPC batch limit {MaxEventCount}",
-                steps.Count,
-                MaxBatchedInputEvents);
-            return false;
-        }
-
-        Log.Debug("Typing replacement using compatible batched input (events={EventCount})", steps.Count);
-        batchedInputSimulator.SimulateBatch(CollectionsMarshal.AsSpan(steps));
+        await SimulateBatchCoreAsync(batchedInputSimulator, steps, cancellationToken).ConfigureAwait(false);
         return true;
+    }
+
+    private static Task SimulateBatchCoreAsync(
+        IBatchedInputSimulator batchedInputSimulator,
+        List<InputSimulationStep> steps,
+        CancellationToken cancellationToken)
+    {
+        if (batchedInputSimulator is IAsyncBatchedInputSimulator asyncBatchedInputSimulator)
+        {
+            return asyncBatchedInputSimulator.SimulateBatchAsync(steps, cancellationToken);
+        }
+
+        // Fall back to sync batch for simulators without the async interface (e.g. legacy
+        // uinput); otherwise batching silently degrades to key-by-key typing.
+        cancellationToken.ThrowIfCancellationRequested();
+        batchedInputSimulator.SimulateBatch(CollectionsMarshal.AsSpan(steps));
+        return Task.CompletedTask;
     }
 
     private bool TryBuildCompatibleBatchSteps(string text, out List<InputSimulationStep> steps)
@@ -286,14 +279,14 @@ internal sealed class TextExpansionDirectTypingInserter
         return delay <= TimeSpan.Zero ? 0 : (int)Math.Ceiling(delay.TotalMilliseconds);
     }
 
-    private async Task<bool> TryTypeWithKeyboardLayoutAsync(IInputSimulator inputSimulator, char character)
+    private async Task<bool> TryTypeWithKeyboardLayoutAsync(IInputSimulator inputSimulator, char character, CancellationToken cancellationToken)
     {
         if (!TryResolveKeyboardLayoutInput(character, out var input))
         {
             return false;
         }
 
-        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, input.KeyCode, input.Shift, input.AltGr).ConfigureAwait(false);
+        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, input.KeyCode, input.Shift, input.AltGr, cancellationToken: cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -323,7 +316,8 @@ internal sealed class TextExpansionDirectTypingInserter
         IInputSimulator inputSimulator,
         IUnicodeTextInputSimulator? unicodeTextInput,
         string sourceText,
-        TextExpansionTextElement element)
+        TextExpansionTextElement element,
+        CancellationToken cancellationToken)
     {
         if (unicodeTextInput is { SupportsUnicodeTextInput: true } nativeUnicodeTextInput)
         {
@@ -342,7 +336,7 @@ internal sealed class TextExpansionDirectTypingInserter
 
         if (OperatingSystem.IsLinux())
         {
-            await TypeLinuxUnicodeHexAsync(inputSimulator, element.CodePoint).ConfigureAwait(false);
+            await TypeLinuxUnicodeHexAsync(inputSimulator, element.CodePoint, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -351,7 +345,7 @@ internal sealed class TextExpansionDirectTypingInserter
     }
 
     [SupportedOSPlatform("linux")]
-    private async Task TypeLinuxUnicodeHexAsync(IInputSimulator inputSimulator, int codePoint)
+    private async Task TypeLinuxUnicodeHexAsync(IInputSimulator inputSimulator, int codePoint, CancellationToken cancellationToken)
     {
         var composeSequence = ResolveLinuxUnicodeComposeSequence(codePoint);
 
@@ -360,18 +354,19 @@ internal sealed class TextExpansionDirectTypingInserter
             composeSequence.PrefixInput.KeyCode,
             shift: true,
             altGr: composeSequence.PrefixInput.AltGr,
-            ctrl: true).ConfigureAwait(false);
+            ctrl: true,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeActivationDelay).ConfigureAwait(false);
+        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeActivationDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
 
         foreach (var hexInput in composeSequence.HexInputs)
         {
-            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, hexInput.KeyCode, hexInput.Shift, hexInput.AltGr).ConfigureAwait(false);
-            await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeInterKeyDelay).ConfigureAwait(false);
+            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, hexInput.KeyCode, hexInput.Shift, hexInput.AltGr, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeInterKeyDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
         }
 
-        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeCompletionDelay).ConfigureAwait(false);
-        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER).ConfigureAwait(false);
+        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeCompletionDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private LinuxUnicodeComposeSequence ResolveLinuxUnicodeComposeSequence(int codePoint)
@@ -382,7 +377,7 @@ internal sealed class TextExpansionDirectTypingInserter
             failureMessage:
                 "Current keyboard layout cannot start Linux unicode input because neither 'u' nor 'U' is available for the Ctrl+Shift+U sequence.");
 
-        var hex = codePoint.ToString("x");
+        var hex = codePoint.ToString("x", CultureInfo.InvariantCulture);
         var hexInputs = new KeyboardLayoutInput[hex.Length];
 
         for (int i = 0; i < hex.Length; i++)

@@ -9,18 +9,14 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     private readonly ITriggerService _triggerService;
     private readonly IProfileManager? _profileManager;
     private readonly IDialogService _dialogService;
-    private readonly ILocalizationService _localizationService;
     private readonly IWindowManager? _windowManager;
     private readonly IManageTrigger? _manageTrigger;
-    private TriggerTaskEditor? _selectedTask;
     private readonly Dictionary<Guid, TriggerTaskEditor> _editors = [];
-    private IReadOnlyList<ProfileInfo> _availableProfiles = [];
-    private bool _isRefreshingWindows;
     private bool _disposed;
 
     public ObservableCollection<TriggerTaskEditor> Tasks { get; } = [];
 
-    public ILocalizationService LocalizationService => _localizationService;
+    public ILocalizationService LocalizationService { get; }
 
     public Task InitializationTask { get; }
 
@@ -32,10 +28,10 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     public bool IsRefreshingWindows
     {
-        get => _isRefreshingWindows;
+        get;
         private set
         {
-            if (SetProperty(ref _isRefreshingWindows, value))
+            if (SetProperty(ref field, value))
             {
                 RefreshWindowsCommand.NotifyCanExecuteChanged();
             }
@@ -63,34 +59,27 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     public IReadOnlyList<ProfileInfo> AvailableProfiles
     {
-        get => _availableProfiles;
-        private set => SetProperty(ref _availableProfiles, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = [];
 
     public string TaskCountText => string.Format(
-        _localizationService.CurrentCulture,
-        _localizationService["Trigger_ItemsText"],
+        LocalizationService.CurrentCulture,
+        LocalizationService["Trigger_ItemsText"],
         Tasks.Count);
 
     public bool IsMonitoring => _triggerService.IsMonitoring;
 
     public TriggerTaskEditor? SelectedTask
     {
-        get => _selectedTask;
-        set
+        get; set
         {
-            if (_selectedTask != value)
+            if (field != value)
             {
-                if (_selectedTask is not null)
-                {
-                    _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
-                }
+                field?.PropertyChanged -= OnSelectedTaskPropertyChanged;
 
-                _selectedTask = value;
-                if (_selectedTask is not null)
-                {
-                    _selectedTask.PropertyChanged += OnSelectedTaskPropertyChanged;
-                }
+                field = value;
+                field?.PropertyChanged += OnSelectedTaskPropertyChanged;
                 AvailableWindowValues.Clear();
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasSelectedTask));
@@ -106,13 +95,13 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     {
         if (e.PropertyName is nameof(TriggerTaskEditor.LastTriggeredTime) or nameof(TriggerTaskEditor.LastStatus))
         {
-            RaiseOnUiThread(OnSelectedTaskStatusChanged);
+            PostToUiThread(OnSelectedTaskStatusChanged);
         }
 
         // When the field changes, the previously fetched window values no longer apply.
         if (string.Equals(e.PropertyName, nameof(TriggerTaskEditor.Field), StringComparison.Ordinal))
         {
-            RaiseOnUiThread(() =>
+            PostToUiThread(() =>
             {
                 AvailableWindowValues.Clear();
                 RefreshWindowsCommand.NotifyCanExecuteChanged();
@@ -153,12 +142,12 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     }
 
     public string SelectedLastTriggeredText =>
-        SelectedTask?.LastTriggeredTime?.ToLocalTime().ToString("G", _localizationService.CurrentCulture)
-        ?? _localizationService["Trigger_Never"];
+        SelectedTask?.LastTriggeredTime?.ToLocalTime().ToString("G", LocalizationService.CurrentCulture)
+        ?? LocalizationService["Trigger_Never"];
 
     public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)
-        ? _localizationService["Trigger_StatusPlaceholder"]
-        : SelectedTask.LastStatus!;
+        ? LocalizationService["Trigger_StatusPlaceholder"]
+        : SelectedTask.LastStatus;
 
     public event EventHandler<string>? StatusChanged;
 
@@ -172,19 +161,16 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         _triggerService = triggerService;
         _profileManager = profileManager;
         _dialogService = dialogService;
-        _localizationService = localizationService;
+        LocalizationService = localizationService;
         _windowManager = windowManager;
-        _localizationService.CultureChanged += OnCultureChanged;
+        LocalizationService.CultureChanged += OnCultureChanged;
 
         _triggerService.TriggerFired += OnTriggerFired;
         _triggerService.Tasks.CollectionChanged += OnTasksCollectionChanged;
 
-        if (_profileManager is not null)
-        {
-            _profileManager.ProfileChanged += OnProfileChanged;
-        }
+        _profileManager?.ProfileChanged += OnProfileChanged;
 
-        InitializationTask = InitializeAsyncSafe();
+        InitializationTask = InitializeAsyncSafeAsync();
     }
 
     public TriggerViewModel(
@@ -199,22 +185,26 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         _manageTrigger = manageTrigger;
     }
 
-    private async Task InitializeAsyncSafe()
+    private async Task InitializeAsyncSafeAsync()
     {
         try
         {
             await _triggerService.LoadAsync().ConfigureAwait(false);
-            RefreshProfileData();
             _triggerService.Start();
-            OnPropertyChanged(nameof(IsMonitoring));
+            await RunOnUiThreadAsync(() =>
+            {
+                RefreshProfileData();
+                OnPropertyChanged(nameof(IsMonitoring));
+            }).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[TriggerViewModel] Failed to initialize triggers");
-            RaiseStatus(string.Format(
-                _localizationService.CurrentCulture,
-                _localizationService["Trigger_StatusInitFailed"],
-                ex.Message));
+            var status = string.Format(
+                LocalizationService.CurrentCulture,
+                LocalizationService["Trigger_StatusInitFailed"],
+                ex.Message);
+            await RunOnUiThreadAsync(() => RaiseStatus(status)).ConfigureAwait(false);
         }
     }
 
@@ -239,21 +229,24 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         var task = new TriggerTask
         {
             Name = string.Format(
-                _localizationService.CurrentCulture,
-                _localizationService["Trigger_DefaultTaskName"],
+                LocalizationService.CurrentCulture,
+                LocalizationService["Trigger_DefaultTaskName"],
                 Tasks.Count + 1),
         };
         if (_manageTrigger is not null)
         {
-            await _manageTrigger.AddAsync(task).ConfigureAwait(false);
+            _ = await _manageTrigger.AddAsync(task, default).ConfigureAwait(false);
         }
         else
         {
             _triggerService.AddTask(task);
         }
-        RemapEditors();
-        SelectedTask = _editors[task.Id];
-        OnPropertyChanged(nameof(TaskCountText));
+        await RunOnUiThreadAsync(() =>
+        {
+            RemapEditors();
+            SelectedTask = _editors[task.Id];
+            OnPropertyChanged(nameof(TaskCountText));
+        }).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -265,10 +258,10 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
 
         var confirmed = await _dialogService.ShowConfirmationAsync(
-            _localizationService["Trigger_DeleteTitle"],
+            LocalizationService["Trigger_DeleteTitle"],
             string.Format(
-                _localizationService.CurrentCulture,
-                _localizationService["Trigger_DeleteMessage"],
+                LocalizationService.CurrentCulture,
+                LocalizationService["Trigger_DeleteMessage"],
                 task.Name)).ConfigureAwait(false);
 
         if (!confirmed)
@@ -279,20 +272,27 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         if (_manageTrigger is not null)
         {
             var selectedTaskId = SelectedTask?.Id;
-            await _manageTrigger.RemoveAsync(new TaskRequest(task.Id)).ConfigureAwait(false);
-            SelectedTask = selectedTaskId is Guid id
-                ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
-                : Tasks.FirstOrDefault();
-            OnPropertyChanged(nameof(TaskCountText));
+            _ = await _manageTrigger.RemoveAsync(new TaskRequest(task.Id), default).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
+            {
+                RemapEditors();
+                SelectedTask = selectedTaskId is Guid id
+                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
+                    : Tasks.FirstOrDefault();
+                OnPropertyChanged(nameof(TaskCountText));
+            }).ConfigureAwait(false);
             return;
         }
 
         var wasSelected = SelectedTask?.Id == task.Id;
-        _triggerService.RemoveTask(task.Id);
-        if (wasSelected)
+        await RunOnUiThreadAsync(() =>
         {
-            SelectedTask = Tasks.FirstOrDefault();
-        }
+            _triggerService.RemoveTask(task.Id);
+            if (wasSelected)
+            {
+                SelectedTask = Tasks.FirstOrDefault();
+            }
+        }).ConfigureAwait(false);
         await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
         {
             _triggerService.AddTask(task.ToCore());
@@ -321,24 +321,28 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task BrowseMacroAsync()
     {
-        if (SelectedTask is null)
+        var selectedTask = SelectedTask;
+        if (selectedTask is null)
         {
             return;
         }
 
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = _localizationService["Trigger_OpenMacroDialogFilter"], Extensions = new[] { "macro" } },
+            new FileDialogFilter { Name = LocalizationService["Trigger_OpenMacroDialogFilter"], Extensions = ["macro"] },
         };
 
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
-            _localizationService["Trigger_OpenMacroDialogTitle"],
+            LocalizationService["Trigger_OpenMacroDialogTitle"],
             filters).ConfigureAwait(false);
 
-        if (!string.IsNullOrEmpty(filePath) && SelectedTask is not null)
+        if (!string.IsNullOrEmpty(filePath))
         {
-            SelectedTask.MacroFilePath = filePath;
-            OnPropertyChanged(nameof(SelectedTask));
+            await RunOnUiThreadAsync(() =>
+            {
+                selectedTask.MacroFilePath = filePath;
+                OnPropertyChanged(nameof(SelectedTask));
+            }).ConfigureAwait(false);
         }
     }
 
@@ -363,13 +367,14 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 TriggerField.WindowTitle => windows.Select(w => w.Title),
                 TriggerField.Workspace => windows.Select(w => w.Workspace),
                 TriggerField.ProcessName => windows.Select(w => w.ProcessName),
-                _ => [],
+                TriggerField.None => [],
+                _ => throw new InvalidOperationException("Unsupported trigger field."),
             };
 
             var distinct = values
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .Distinct(StringComparer.Ordinal)
-                .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
+                .Order(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             AvailableWindowValues.Clear();
@@ -378,7 +383,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 AvailableWindowValues.Add(v);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[TriggerViewModel] Failed to fetch window list");
         }
@@ -396,33 +401,39 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         {
             if (_manageTrigger is not null && SelectedTask is not null)
             {
-                await _manageTrigger.UpdateAsync(SelectedTask.ToCore()).ConfigureAwait(false);
+                _ = await _manageTrigger.UpdateAsync(SelectedTask.ToCore(), default).ConfigureAwait(false);
             }
-            else if (_manageTrigger is null && SelectedTask is not null)
+            else if (_manageTrigger is null && SelectedTask is { } selectedTask)
             {
-                SelectedTask.ApplyToCore(_triggerService.Tasks.First(t => t.Id == SelectedTask.Id));
+                await RunOnUiThreadAsync(() =>
+                {
+                    selectedTask.ApplyToCore(_triggerService.Tasks.First(task => task.Id == selectedTask.Id));
+                }).ConfigureAwait(false);
                 await _triggerService.SaveAsync().ConfigureAwait(false);
             }
             if (showSuccessStatus)
             {
-                RaiseStatus(_localizationService["Trigger_StatusChangesSaved"]);
+                await RunOnUiThreadAsync(() => RaiseStatus(LocalizationService["Trigger_StatusChangesSaved"])).ConfigureAwait(false);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            SelectedTask?.Rollback();
-            rollback?.Invoke();
             Log.LogError(ex, "[TriggerViewModel] Failed to save trigger tasks");
             var status = string.Format(
-                _localizationService.CurrentCulture,
-                _localizationService["Trigger_StatusSaveFailed"],
+                LocalizationService.CurrentCulture,
+                LocalizationService["Trigger_StatusSaveFailed"],
                 ex.Message);
-            RaiseStatus(status);
+            await RunOnUiThreadAsync(() =>
+            {
+                SelectedTask?.Rollback();
+                rollback?.Invoke();
+                RaiseStatus(status);
+            }).ConfigureAwait(false);
             try
             {
-                await _dialogService.ShowMessageAsync(_localizationService["Trigger_SaveFailedTitle"], status).ConfigureAwait(false);
+                await _dialogService.ShowMessageAsync(LocalizationService["Trigger_SaveFailedTitle"], status).ConfigureAwait(false);
             }
-            catch (Exception dialogEx)
+            catch (Exception dialogEx) when (dialogEx is not OutOfMemoryException)
             {
                 Log.Warning(dialogEx, "[TriggerViewModel] Failed to show save error dialog");
             }
@@ -438,21 +449,22 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             var selectedTaskId = SelectedTask?.Id;
             try
             {
-                await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled)).ConfigureAwait(false);
+                _ = await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled), default).ConfigureAwait(false);
             }
             finally
             {
-                SelectedTask = selectedTaskId is Guid id
-                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
-                    : null;
+                await RunOnUiThreadAsync(() =>
+                {
+                    RemapEditors();
+                    SelectedTask = selectedTaskId is Guid id
+                        ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
+                        : null;
+                }).ConfigureAwait(false);
             }
             return;
         }
 
-        if (_manageTrigger is null)
-        {
-            _triggerService.SetTaskEnabled(task.Id, task.IsEnabled);
-        }
+        _triggerService.SetTaskEnabled(task.Id, task.IsEnabled);
         await SaveChangesAsync(showSuccessStatus: false, rollback: () => _triggerService.SetTaskEnabled(task.Id, previousEnabled)).ConfigureAwait(false);
     }
 
@@ -462,13 +474,13 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         {
             var statusText = e.Success
                 ? string.Format(
-                    _localizationService.CurrentCulture,
-                    _localizationService["Trigger_StatusFired"],
+                    LocalizationService.CurrentCulture,
+                    LocalizationService["Trigger_StatusFired"],
                     e.Task.Name,
                     e.Message ?? "")
                 : string.Format(
-                    _localizationService.CurrentCulture,
-                    _localizationService["Trigger_StatusFailed"],
+                    LocalizationService.CurrentCulture,
+                    LocalizationService["Trigger_StatusFailed"],
                     e.Task.Name,
                     e.Message ?? "");
             RaiseStatus(statusText);
@@ -497,8 +509,11 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     private void OnTasksCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        RemapEditors();
-        OnPropertyChanged(nameof(TaskCountText));
+        PostToUiThread(() =>
+        {
+            RemapEditors();
+            OnPropertyChanged(nameof(TaskCountText));
+        });
     }
 
     private void RemapEditors()
@@ -519,20 +534,9 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
         foreach (var editor in Tasks.Where(editor => !current.ContainsKey(editor.Id)).ToArray())
         {
-            Tasks.Remove(editor);
-            _editors.Remove(editor.Id);
+            _ = Tasks.Remove(editor);
+            _ = _editors.Remove(editor.Id);
         }
-    }
-
-    private static void RaiseOnUiThread(Action action)
-    {
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            return;
-        }
-
-        Dispatcher.UIThread.Post(action);
     }
 
     private void RaiseStatus(string message)
@@ -548,12 +552,21 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        OnPropertyChanged(nameof(TaskCountText));
-        OnPropertyChanged(nameof(SelectedTask));
-        OnSelectedTaskStatusChanged();
+        PostToUiThread(() =>
+        {
+            OnPropertyChanged(nameof(TaskCountText));
+            OnPropertyChanged(nameof(SelectedTask));
+            OnSelectedTaskStatusChanged();
+        });
     }
 
     public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
     {
         if (_disposed)
         {
@@ -564,14 +577,8 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
         _triggerService.TriggerFired -= OnTriggerFired;
         _triggerService.Tasks.CollectionChanged -= OnTasksCollectionChanged;
-        if (_selectedTask is not null)
-        {
-            _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
-        }
-        if (_profileManager is not null)
-        {
-            _profileManager.ProfileChanged -= OnProfileChanged;
-        }
-        _localizationService.CultureChanged -= OnCultureChanged;
+        SelectedTask?.PropertyChanged -= OnSelectedTaskPropertyChanged;
+        _profileManager?.ProfileChanged -= OnProfileChanged;
+        LocalizationService.CultureChanged -= OnCultureChanged;
     }
 }

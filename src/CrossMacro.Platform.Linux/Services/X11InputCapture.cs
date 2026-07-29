@@ -6,7 +6,7 @@ namespace CrossMacro.Platform.Linux.Services;
 /// Manages both Absolute (Clamped) and Relative (Raw) capture strategies.
 /// Acts as a single entry point for dependency injection but delegates work to child captures.
 /// </summary>
-public class X11InputCapture : IInputCapture
+public sealed class X11InputCapture : IInputCapture
 {
     private readonly X11AbsoluteCapture _absoluteCapture;
     private readonly X11RelativeCapture _relativeCapture;
@@ -81,5 +81,6 @@ public class X11InputCapture : IInputCapture
         _absoluteCapture.Dispose();
         _relativeCapture.Dispose();
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

@@ -1,11 +1,9 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 public sealed class DesignEditorViewModel : EditorViewModel
 {
-    public DesignEditorViewModel() : this(new DesignPreviewContext())
-    {
-    }
+    public DesignEditorViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignEditorViewModel(DesignPreviewContext context)
         : base(

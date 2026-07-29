@@ -141,13 +141,17 @@ public sealed class MacOSScreenFrameProviderTests
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
     }
 
-    [Theory]
-    [InlineData(typeof(ArgumentException))]
-    [InlineData(typeof(ArithmeticException))]
-    [InlineData(typeof(InvalidOperationException))]
-    public async Task CaptureFrameAsync_WhenBackendThrowsKnownCaptureException_ReturnsCaptureFailed(Type exceptionType)
+    public static TheoryData<Exception> KnownCaptureExceptions => new()
     {
-        var exception = (Exception)Activator.CreateInstance(exceptionType, "capture failed")!;
+        new ArgumentException("capture failed"),
+        new ArithmeticException("capture failed"),
+        new InvalidOperationException("capture failed"),
+    };
+
+    [Theory]
+    [MemberData(nameof(KnownCaptureExceptions))]
+    public async Task CaptureFrameAsync_WhenBackendThrowsKnownCaptureException_ReturnsCaptureFailed(Exception exception)
+    {
         var backend = new RecordingCaptureBackend { CaptureException = exception };
         using var provider = new MacOSScreenFrameProvider(backend, new RecordingPermission(), () => true);
 

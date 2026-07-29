@@ -5,9 +5,9 @@ namespace CrossMacro.Platform.Linux.Services.Playback;
 /// UInput-based event executor implementation
 /// Single Responsibility: Executes input events through uinput virtual device
 /// </summary>
-public class UInputEventExecutor : IEventExecutor
+public sealed class UInputEventExecutor : IEventExecutor
 {
-    private UInputDevice? _device;
+    private UInputDevice? Device { get; set; }
     private bool _disposed;
 
     private readonly ConcurrentDictionary<ushort, byte> _pressedButtons = new();
@@ -17,9 +17,9 @@ public class UInputEventExecutor : IEventExecutor
 
     public void Initialize(int screenWidth, int screenHeight)
     {
-        _device?.Dispose();
-        _device = new UInputDevice(screenWidth, screenHeight);
-        _device.CreateVirtualInputDevice();
+        Device?.Dispose();
+        Device = new UInputDevice(screenWidth, screenHeight);
+        Device.CreateVirtualInputDevice();
 
         _pressedButtons.Clear();
         _pressedKeys.Clear();
@@ -29,32 +29,32 @@ public class UInputEventExecutor : IEventExecutor
 
     public void MoveAbsolute(int x, int y)
     {
-        _device?.MoveAbsolute(x, y);
+        Device?.MoveAbsolute(x, y);
         Log.Debug("[UInputEventExecutor] MoveAbsolute: X={X} Y={Y}", x, y);
     }
 
     public void MoveRelative(int dx, int dy)
     {
-        _device?.Move(dx, dy);
+        Device?.Move(dx, dy);
         Log.Debug("[UInputEventExecutor] MoveRelative: dX={dX} dY={dY}", dx, dy);
     }
 
     public void EmitButton(ushort button, bool pressed)
     {
-        if (_device is null)
+        if (Device is null)
         {
             return;
         }
 
-        _device.EmitButton(button, pressed);
+        Device.EmitButton(button, pressed);
 
         if (pressed)
         {
-            _pressedButtons.TryAdd(button, 0);
+            _ = _pressedButtons.TryAdd(button, 0);
         }
         else
         {
-            _pressedButtons.TryRemove(button, out _);
+            _ = _pressedButtons.TryRemove(button, out _);
         }
 
         Log.Debug("[UInputEventExecutor] Button: {Button} State={State}", button, pressed ? "Pressed" : "Released");
@@ -62,41 +62,41 @@ public class UInputEventExecutor : IEventExecutor
 
     public void EmitScroll(int value)
     {
-        if (_device is null)
+        if (Device is null)
         {
             return;
         }
 
-        _device.SendEvent(UInputNative.EV_REL, UInputNative.REL_WHEEL, value);
-        _device.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        Device.SendEvent(UInputNative.EV_REL, UInputNative.REL_WHEEL, value);
+        Device.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
 
         Log.Debug("[UInputEventExecutor] Scroll: {Value}", value > 0 ? "Up" : "Down");
     }
 
-    public void EmitKey(int keyCode, bool pressed)
+    public void EmitKey(int code, bool pressed)
     {
-        if (_device is null)
+        if (Device is null)
         {
             return;
         }
 
-        _device.EmitKey(keyCode, pressed);
+        Device.EmitKey(code, pressed);
 
         if (pressed)
         {
-            _pressedKeys.TryAdd(keyCode, 0);
+            _ = _pressedKeys.TryAdd(code, 0);
         }
         else
         {
-            _pressedKeys.TryRemove(keyCode, out _);
+            _ = _pressedKeys.TryRemove(code, out _);
         }
 
-        Log.Debug("[UInputEventExecutor] Key: {KeyCode} State={State}", keyCode, pressed ? "Pressed" : "Released");
+        Log.Debug("[UInputEventExecutor] Key: {KeyCode} State={State}", code, pressed ? "Pressed" : "Released");
     }
 
     public void ReleaseAll()
     {
-        if (_device is null)
+        if (Device is null)
         {
             return;
         }
@@ -109,9 +109,9 @@ public class UInputEventExecutor : IEventExecutor
         {
             try
             {
-                _device.EmitButton(button, pressed: false);
+                Device.EmitButton(button, pressed: false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[UInputEventExecutor] Failed to release button {Button}", button);
             }
@@ -120,11 +120,11 @@ public class UInputEventExecutor : IEventExecutor
         // Failsafe: release common buttons
         try
         {
-            _device.EmitButton(UInputNative.BTN_LEFT, pressed: false);
-            _device.EmitButton(UInputNative.BTN_RIGHT, pressed: false);
-            _device.EmitButton(UInputNative.BTN_MIDDLE, pressed: false);
+            Device.EmitButton(UInputNative.BTN_LEFT, pressed: false);
+            Device.EmitButton(UInputNative.BTN_RIGHT, pressed: false);
+            Device.EmitButton(UInputNative.BTN_MIDDLE, pressed: false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[UInputEventExecutor] Failsafe button release failed");
         }
@@ -137,9 +137,9 @@ public class UInputEventExecutor : IEventExecutor
         {
             try
             {
-                _device.EmitKey(keyCode, pressed: false);
+                Device.EmitKey(keyCode, pressed: false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[UInputEventExecutor] Failed to release key {KeyCode}", keyCode);
             }
@@ -229,6 +229,11 @@ public class UInputEventExecutor : IEventExecutor
             MacroMouseButton.Middle => UInputNative.BTN_MIDDLE,
             MacroMouseButton.Side1 => UInputNative.BTN_SIDE,
             MacroMouseButton.Side2 => UInputNative.BTN_EXTRA,
+            MacroMouseButton.None => UInputNative.BTN_LEFT,
+            MacroMouseButton.ScrollUp => UInputNative.BTN_LEFT,
+            MacroMouseButton.ScrollDown => UInputNative.BTN_LEFT,
+            MacroMouseButton.ScrollLeft => UInputNative.BTN_LEFT,
+            MacroMouseButton.ScrollRight => UInputNative.BTN_LEFT,
             _ => UInputNative.BTN_LEFT,
         };
     }
@@ -243,7 +248,7 @@ public class UInputEventExecutor : IEventExecutor
         _disposed = true;
 
         ReleaseAll();
-        _device?.Dispose();
-        _device = null;
+        Device?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

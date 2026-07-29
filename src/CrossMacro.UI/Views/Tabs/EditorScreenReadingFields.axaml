@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
+             xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -11,10 +12,10 @@
              x:DataType="vm:EditorViewModel">
 
     <UserControl.Resources>
-        <local:NullableIntConverter x:Key="NullableIntConverter"/>
-        <local:NullableDoubleConverter x:Key="NullableDoubleConverter"/>
-        <local:HexColorBrushConverter x:Key="HexColorBrushConverter"/>
-             <local:ScreenTargetColorSourceDisplayConverter x:Key="ScreenTargetColorSourceDisplayConverter"/>
+        <conv:NullableIntConverter x:Key="NullableIntConverter"/>
+        <conv:NullableDoubleConverter x:Key="NullableDoubleConverter"/>
+        <conv:HexColorBrushConverter x:Key="HexColorBrushConverter"/>
+             <conv:ScreenTargetColorSourceDisplayConverter x:Key="ScreenTargetColorSourceDisplayConverter"/>
     </UserControl.Resources>
 
     <StackPanel>
@@ -435,7 +436,7 @@
                        Foreground="{DynamicResource TextPrimaryBrush}">
                  <ComboBox.ItemTemplate>
                      <DataTemplate>
-                         <TextBlock Text="{Binding Converter={x:Static local:ImageMatchModeConverters.DisplayText}}"/>
+                         <TextBlock Text="{Binding Converter={x:Static conv:ImageMatchModeConverters.DisplayText}}"/>
                      </DataTemplate>
                  </ComboBox.ItemTemplate>
              </ComboBox>

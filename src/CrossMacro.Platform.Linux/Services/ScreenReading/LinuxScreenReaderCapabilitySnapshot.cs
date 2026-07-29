@@ -21,8 +21,7 @@ public readonly record struct LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackend.GnomeExtension,
                 ScreenReadErrorKind.BackendUnavailable,
                 "GNOME Shell extension backend is unavailable or not enabled."))
-    {
-    }
+    { /* Empty */ }
 
     public LinuxScreenReaderBackendCapability GetCapability(LinuxScreenReaderBackend backend) => backend switch
     {

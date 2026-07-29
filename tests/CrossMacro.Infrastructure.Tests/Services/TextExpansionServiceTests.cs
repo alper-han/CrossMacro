@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class TextExpansionServiceTests
+public sealed class TextExpansionServiceTests : IDisposable
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
 
@@ -19,7 +19,7 @@ public class TextExpansionServiceTests
     public TextExpansionServiceTests()
     {
         _settingsService = Substitute.For<ISettingsService>();
-        _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = true });
+        _ = _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = true });
 
         _storageService = Substitute.For<ITextExpansionStorageService>();
         _inputCapture = Substitute.For<IInputCapture>();
@@ -37,6 +37,11 @@ public class TextExpansionServiceTests
             _executor);
     }
 
+    public void Dispose()
+    {
+        _service.Dispose();
+    }
+
     [Fact]
     public async Task Start_WhenEnabled_StartsInputCaptureAndResetsState()
     {
@@ -45,7 +50,7 @@ public class TextExpansionServiceTests
 
         // Assert
         Assert.True(_service.IsRunning);
-        _storageService.Received(1).Load();
+        _ = _storageService.Received(1).Load();
         _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
 
@@ -60,7 +65,7 @@ public class TextExpansionServiceTests
 
         _service.Start();
 
-        _storageService.Received(1).Load();
+        _ = _storageService.Received(1).Load();
         _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
         _inputProcessor.Received(1).Reset();
@@ -68,17 +73,179 @@ public class TextExpansionServiceTests
     }
 
     [Fact]
+    public async Task StartAsync_LoadsStorageBeforeStartingCapture()
+    {
+        var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _storageService.When(storage => storage.LoadAsync()).Do(_ => loadStarted.TrySetResult());
+        _ = _storageService.LoadAsync().Returns(_ => allowLoad.Task.ContinueWith(
+            _ => (IList<TextExpansionEntry>)[],
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default));
+
+        var startTask = _service.StartAsync(CancellationToken.None);
+        await loadStarted.Task.WaitAsync(TestTimeout);
+
+        Assert.False(_service.IsRunning);
+        await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
+
+        allowLoad.SetResult();
+        await startTask;
+
+        Assert.True(_service.IsRunning);
+        _ = _storageService.Received(1).LoadAsync();
+        await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenFeatureIsDisabledDuringLoad_DoesNotActivateAndCanRetry()
+    {
+        var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _storageService.When(storage => storage.LoadAsync()).Do(_ => loadStarted.TrySetResult());
+        _ = _storageService.LoadAsync().Returns(_ => allowLoad.Task.ContinueWith(
+            _ => (IList<TextExpansionEntry>)[],
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default));
+
+        var startTask = _service.StartAsync(CancellationToken.None);
+        await loadStarted.Task.WaitAsync(TestTimeout);
+        _ = _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = false });
+
+        allowLoad.SetResult();
+        await startTask;
+
+        Assert.False(_service.IsRunning);
+        await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
+
+        _ = _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = true });
+        await _service.StartAsync(CancellationToken.None);
+
+        Assert.True(_service.IsRunning);
+        await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenStoppedDuringLoad_DoesNotStartCapture()
+    {
+        var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _storageService.When(storage => storage.LoadAsync()).Do(_ => loadStarted.TrySetResult());
+        _ = _storageService.LoadAsync().Returns(_ => allowLoad.Task.ContinueWith(
+            _ => (IList<TextExpansionEntry>)[],
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default));
+
+        var startTask = _service.StartAsync(CancellationToken.None);
+        await loadStarted.Task.WaitAsync(TestTimeout);
+
+        _service.StopExpansion();
+        allowLoad.SetResult();
+        await startTask;
+
+        Assert.False(_service.IsRunning);
+        await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenCancelledDuringLoad_DoesNotStartCapture()
+    {
+        var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _storageService.When(storage => storage.LoadAsync()).Do(_ => loadStarted.TrySetResult());
+        _ = _storageService.LoadAsync().Returns(_ => allowLoad.Task.ContinueWith(
+            _ => (IList<TextExpansionEntry>)[],
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default));
+        using var cancellation = new CancellationTokenSource();
+
+        var startTask = _service.StartAsync(cancellation.Token);
+        await loadStarted.Task.WaitAsync(TestTimeout);
+
+        await cancellation.CancelAsync();
+        allowLoad.SetResult();
+
+        await TestAssertions.ThrowsAsync<OperationCanceledException>(() => startTask);
+        Assert.False(_service.IsRunning);
+        await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenCancelledBeforeActivation_DoesNotStartCapture()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var settingsReadCount = 0;
+        _ = _settingsService.Current.Returns(_ =>
+        {
+            if (Interlocked.Increment(ref settingsReadCount) is 2)
+            {
+                cancellation.Cancel();
+            }
+
+            return new AppSettings { EnableTextExpansion = true };
+        });
+        _ = _storageService.LoadAsync().Returns(Task.FromResult<IList<TextExpansionEntry>>([]));
+
+        await TestAssertions.ThrowsAsync<OperationCanceledException>(() => _service.StartAsync(cancellation.Token));
+
+        Assert.False(_service.IsRunning);
+        await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenOutOfMemoryOccurs_ClearsStartupStateBeforeRethrowing()
+    {
+        _ = _storageService.LoadAsync().Returns(Task.FromException<IList<TextExpansionEntry>>(new OutOfMemoryException()));
+
+        await TestAssertions.ThrowsAsync<OutOfMemoryException>(() => _service.StartAsync(CancellationToken.None));
+
+        _ = _storageService.LoadAsync().Returns(Task.FromResult<IList<TextExpansionEntry>>([]));
+        await _service.StartAsync(CancellationToken.None);
+
+        Assert.True(_service.IsRunning);
+        await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenCalledTwice_OnlyOneAttemptLoadsAndStarts()
+    {
+        var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _storageService.When(storage => storage.LoadAsync()).Do(_ => loadStarted.TrySetResult());
+        _ = _storageService.LoadAsync().Returns(_ => allowLoad.Task.ContinueWith(
+            _ => (IList<TextExpansionEntry>)[],
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default));
+
+        var firstStartTask = _service.StartAsync(CancellationToken.None);
+        await loadStarted.Task.WaitAsync(TestTimeout);
+        var secondStartTask = _service.StartAsync(CancellationToken.None);
+
+        Assert.True(secondStartTask.IsCompletedSuccessfully);
+        allowLoad.SetResult();
+        await firstStartTask;
+
+        _ = _storageService.Received(1).LoadAsync();
+        await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Start_WhenDisabled_DoesNotStart()
     {
         // Arrange
-        _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = false });
+        _ = _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = false });
 
         // Act
         _service.Start();
 
         // Assert
         Assert.False(_service.IsRunning);
-        _storageService.DidNotReceive().Load();
+        _ = _storageService.DidNotReceive().Load();
         await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
     }
 
@@ -110,6 +277,106 @@ public class TextExpansionServiceTests
     }
 
     [Fact]
+    public async Task StopExpansionAsync_WhenExpansionIsActive_WaitsForExpansionCompletion()
+    {
+        _service.Start();
+
+        var expansion = new TextExpansionEntry { Trigger = ":a", Replacement = "alpha" };
+        _ = _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _ = _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = expansion;
+                return true;
+            });
+
+        var expansionStarted = new AsyncSignal();
+        var releaseExpansion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _executor.ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                expansionStarted.Signal();
+                await releaseExpansion.Task;
+            });
+
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+        await expansionStarted.WaitAsync(TestTimeout);
+
+        var stopTask = _service.StopExpansionAsync();
+
+        Assert.False(stopTask.IsCompleted);
+        releaseExpansion.SetResult();
+        await stopTask.WaitAsync(TestTimeout);
+
+        Assert.False(_service.IsRunning);
+    }
+
+    [Fact]
+    public async Task StopExpansionAsync_WhenCalledRepeatedly_WaitsForTheSameExpansionAndCleansUpOnce()
+    {
+        _service.Start();
+
+        var expansion = new TextExpansionEntry { Trigger = ":a", Replacement = "alpha" };
+        _ = _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _ = _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = expansion;
+                return true;
+            });
+
+        var expansionStarted = new AsyncSignal();
+        var releaseExpansion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _executor.ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                expansionStarted.Signal();
+                await releaseExpansion.Task;
+            });
+
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
+        await expansionStarted.WaitAsync(TestTimeout);
+
+        var firstStopTask = _service.StopExpansionAsync();
+        var secondStopTask = _service.StopExpansionAsync();
+
+        Assert.False(firstStopTask.IsCompleted);
+        Assert.False(secondStopTask.IsCompleted);
+        releaseExpansion.SetResult();
+        await Task.WhenAll(firstStopTask, secondStopTask).WaitAsync(TestTimeout);
+
+        Assert.False(_service.IsRunning);
+        _inputCapture.Received(1).StopCapture();
+        _inputCapture.Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenStoppedAsynchronouslyDuringLoad_DoesNotStartCapture()
+    {
+        var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _storageService.When(storage => storage.LoadAsync()).Do(_ => loadStarted.TrySetResult());
+        _ = _storageService.LoadAsync().Returns(_ => allowLoad.Task.ContinueWith(
+            _ => (IList<TextExpansionEntry>)[],
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default));
+
+        var startTask = _service.StartAsync(CancellationToken.None);
+        await loadStarted.Task.WaitAsync(TestTimeout);
+
+        var stopTask = _service.StopExpansionAsync();
+        await stopTask.WaitAsync(TestTimeout);
+
+        Assert.False(_service.IsRunning);
+        allowLoad.SetResult();
+        await startTask.WaitAsync(TestTimeout);
+
+        Assert.False(_service.IsRunning);
+        await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Start_AfterDispose_DoesNotRestartCapture()
     {
         _service.Start();
@@ -118,7 +385,7 @@ public class TextExpansionServiceTests
         _service.Start();
 
         Assert.False(_service.IsRunning);
-        _storageService.Received(1).Load();
+        _ = _storageService.Received(1).Load();
         _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
@@ -144,8 +411,8 @@ public class TextExpansionServiceTests
         _service.Start();
 
         var expansion = new TextExpansionEntry { Trigger = ":a", Replacement = "alpha" };
-        _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
-        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
+        _ = _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _ = _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = expansion;
@@ -155,7 +422,7 @@ public class TextExpansionServiceTests
         var invocationCount = 0;
         var firstExpansionStarted = new AsyncSignal();
         var secondExpansionStarted = new AsyncSignal();
-        _executor.ExpandAsync(Arg.Any<TextExpansionEntry>())
+        _ = _executor.ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 invocationCount++;
@@ -186,7 +453,7 @@ public class TextExpansionServiceTests
 
         // Assert
         await secondExpansionStarted.WaitAsync(TestTimeout);
-        await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansionEntry>());
+        await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>());
         Assert.True(_service.IsRunning);
     }
 
@@ -196,8 +463,8 @@ public class TextExpansionServiceTests
         _service.Start();
 
         var expansion = new TextExpansionEntry { Trigger = ":a", Replacement = "alpha" };
-        _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
-        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
+        _ = _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _ = _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = expansion;
@@ -209,7 +476,7 @@ public class TextExpansionServiceTests
         var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondStarted = new AsyncSignal();
         var invocationCount = 0;
-        _executor.ExpandAsync(Arg.Any<TextExpansionEntry>())
+        _ = _executor.ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>())
             .Returns(async _ =>
             {
                 if (Interlocked.Increment(ref invocationCount) is 1)
@@ -233,16 +500,17 @@ public class TextExpansionServiceTests
         }
 
         Assert.Equal(1, Volatile.Read(ref invocationCount));
-        await _executor.Received(1).ExpandAsync(expansion);
+        await _executor.Received(1).ExpandAsync(expansion, Arg.Any<CancellationToken>());
 
         releaseFirst.SetResult();
         await firstFinished.WaitAsync(TestTimeout);
+        await Task.Delay(50);
 
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
         await secondStarted.WaitAsync(TestTimeout);
 
         Assert.Equal(2, Volatile.Read(ref invocationCount));
-        await _executor.Received(2).ExpandAsync(expansion);
+        await _executor.Received(2).ExpandAsync(expansion, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -251,8 +519,8 @@ public class TextExpansionServiceTests
         _service.Start();
 
         var expansion = new TextExpansionEntry { Trigger = ":test", Replacement = "done" };
-        _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
-        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
+        _ = _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _ = _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = expansion;
@@ -260,7 +528,7 @@ public class TextExpansionServiceTests
             });
 
         var expansionStarted = new AsyncSignal();
-        _executor.ExpandAsync(Arg.Any<TextExpansionEntry>())
+        _ = _executor.ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 expansionStarted.Signal();
@@ -268,7 +536,7 @@ public class TextExpansionServiceTests
             });
         var triggerKeyReleaseWaitObserved = new AsyncSignal();
         var triggerKeyPressed = true;
-        _inputProcessor.IsKeyPressed(20).Returns(_ =>
+        _ = _inputProcessor.IsKeyPressed(20).Returns(_ =>
         {
             triggerKeyReleaseWaitObserved.Signal();
             return triggerKeyPressed;
@@ -280,12 +548,12 @@ public class TextExpansionServiceTests
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
 
         await triggerKeyReleaseWaitObserved.WaitAsync(TestTimeout);
-        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansionEntry>());
+        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>());
 
         triggerKeyPressed = false;
 
         await expansionStarted.WaitAsync(TestTimeout);
-        await _executor.Received(1).ExpandAsync(expansion);
+        await _executor.Received(1).ExpandAsync(expansion, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -302,8 +570,8 @@ public class TextExpansionServiceTests
         _service.Start();
 
         var expansion = new TextExpansionEntry { Trigger = ":test", Replacement = "done" };
-        _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
-        _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
+        _ = _storageService.GetCurrent().Returns(new List<TextExpansionEntry> { expansion });
+        _ = _bufferState.TryGetMatch(Arg.Any<IEnumerable<TextExpansionEntry>>(), out Arg.Any<TextExpansionEntry?>())
             .Returns(callInfo =>
             {
                 callInfo[1] = expansion;
@@ -311,7 +579,7 @@ public class TextExpansionServiceTests
             });
 
         var expansionStarted = new AsyncSignal();
-        _executor.ExpandAsync(Arg.Any<TextExpansionEntry>())
+        _ = _executor.ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 expansionStarted.Signal();
@@ -319,7 +587,7 @@ public class TextExpansionServiceTests
             });
         var modifierReleaseWaitObserved = new AsyncSignal();
         var modifierPressed = true;
-        _inputProcessor.AreModifiersPressed.Returns(_ =>
+        _ = _inputProcessor.AreModifiersPressed.Returns(_ =>
         {
             modifierReleaseWaitObserved.Signal();
             return modifierPressed;
@@ -331,12 +599,12 @@ public class TextExpansionServiceTests
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
 
         await modifierReleaseWaitObserved.WaitAsync(TestTimeout);
-        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansionEntry>());
+        await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>());
 
         modifierPressed = false;
 
         await expansionStarted.WaitAsync(TestTimeout);
-        await _executor.Received(1).ExpandAsync(expansion);
+        await _executor.Received(1).ExpandAsync(expansion, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -344,7 +612,7 @@ public class TextExpansionServiceTests
     {
         var startTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var cleanupObserved = new AsyncSignal();
-        _inputCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(startTcs.Task);
+        _ = _inputCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(startTcs.Task);
         _inputCapture.When(x => x.Dispose()).Do(_ => cleanupObserved.Signal());
 
         _service.Start();
@@ -368,7 +636,7 @@ public class TextExpansionServiceTests
     [Fact]
     public void Start_WhenCaptureStartFaultsSynchronously_CleansUpFailedCapture()
     {
-        _inputCapture.StartAsync(Arg.Any<CancellationToken>())
+        _ = _inputCapture.StartAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("startup failed")));
 
         _service.Start();
@@ -383,7 +651,7 @@ public class TextExpansionServiceTests
     {
         var firstCapture = Substitute.For<IInputCapture>();
         var cleanupObserved = new AsyncSignal();
-        firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        _ = firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         firstCapture.When(x => x.Dispose()).Do(_ => cleanupObserved.Signal());
 
         var factoryCallCount = 0;

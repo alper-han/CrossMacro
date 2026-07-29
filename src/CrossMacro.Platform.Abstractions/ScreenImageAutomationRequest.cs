@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Abstractions;
 
-public sealed record class ScreenImageAutomationRequest(
+public sealed record ScreenImageAutomationRequest(
     string ImagePath,
     ScreenRect? Region = null,
     double Similarity = 1.0,

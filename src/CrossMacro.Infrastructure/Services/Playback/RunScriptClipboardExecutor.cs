@@ -4,16 +4,11 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// <summary>
 /// Executes "clipboard get/set" script steps at runtime using the platform's IClipboardService.
 /// </summary>
-internal sealed class RunScriptClipboardExecutor
+internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardService)
 {
-    private readonly IClipboardService? _clipboardService;
+    private readonly IClipboardService? _clipboardService = clipboardService;
 
     internal const string CommandToken = "clipboard";
-
-    public RunScriptClipboardExecutor(IClipboardService? clipboardService)
-    {
-        _clipboardService = clipboardService;
-    }
 
     public async Task ExecuteStepAsync(string step, int stepNumber, IDictionary<string, string> variables, CancellationToken cancellationToken)
     {
@@ -34,8 +29,8 @@ internal sealed class RunScriptClipboardExecutor
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Syntax: {CommandToken} get <var> | {CommandToken} set <text>");
         }
 
-        var subCommand = parts[1].ToLowerInvariant();
-        if (subCommand is "get")
+        var subCommand = parts[1].ToUpperInvariant();
+        if (subCommand is "GET")
         {
             if (parts.Length is not 3)
             {
@@ -48,7 +43,7 @@ internal sealed class RunScriptClipboardExecutor
             return;
         }
 
-        if (subCommand is not "set")
+        if (subCommand is not "SET")
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Unknown clipboard subcommand: {subCommand}");
         }
@@ -65,7 +60,7 @@ internal sealed class RunScriptClipboardExecutor
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Failed to set clipboard text.", ex);
         }
@@ -104,8 +99,8 @@ internal sealed class RunScriptClipboardExecutor
             return $"Syntax: {CommandToken} get <var> | {CommandToken} set <text>";
         }
 
-        var subCommand = parts[1].ToLowerInvariant();
-        if (subCommand is "get")
+        var subCommand = parts[1].ToUpperInvariant();
+        if (subCommand is "GET")
         {
             if (parts.Length is not 3)
             {
@@ -121,7 +116,7 @@ internal sealed class RunScriptClipboardExecutor
             return null;
         }
 
-        if (subCommand is "set")
+        if (subCommand is "SET")
         {
             if (parts.Length < 3)
             {

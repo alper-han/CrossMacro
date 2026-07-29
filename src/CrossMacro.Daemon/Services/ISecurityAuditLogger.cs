@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public interface ISecurityAuditLogger
+internal interface ISecurityAuditLogger : IDisposable, IAsyncDisposable
 {
     public void LogConnectionAttempt(uint uid, int pid, string? executable, bool success, string? reason = null);
     public void LogSecurityViolation(uint uid, int pid, string violation);

@@ -8,6 +8,6 @@ public sealed class RunScriptRuntimeStepClassifierTests
     [InlineData("screenshot region 1 2 3 4 output shot.png clipboard")]
     public void IsRuntimeStep_WhenScreenshotStep_ReturnsTrue(string step)
     {
-        RunScriptRuntimeStepClassifier.IsRuntimeStep(step).Should().BeTrue();
+        _ = RunScriptRuntimeStepClassifier.IsRuntimeStep(step).Should().BeTrue();
     }
 }

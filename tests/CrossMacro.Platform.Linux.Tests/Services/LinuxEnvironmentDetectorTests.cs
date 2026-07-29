@@ -1,7 +1,7 @@
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
 
-public class LinuxEnvironmentDetectorTests
+public sealed class LinuxEnvironmentDetectorTests
 {
     [Fact]
     public void DetectedCompositor_ShouldReturnStableValueAcrossReads()

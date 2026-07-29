@@ -1,7 +1,7 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
 
-public class DaemonServiceTests
+public sealed class DaemonServiceTests
 {
     [Fact]
     public void DisposeOwnedResources_AttemptsCaptureVirtualDeviceAndAuditWhenOneFails()
@@ -76,7 +76,7 @@ public class DaemonServiceTests
         Assert.False(File.Exists(socketPath));
 
         using var client = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        await Assert.ThrowsAnyAsync<SocketException>(async () =>
+        _ = await Assert.ThrowsAnyAsync<SocketException>(async () =>
             await client.ConnectAsync(new UnixDomainSocketEndPoint(socketPath)));
     }
 
@@ -180,8 +180,6 @@ public class DaemonServiceTests
             ValidationResult = null,
             DisposeRejectedClient = true,
         };
-        var virtualDevice = new FakeVirtualDeviceManager();
-        var captureManager = new FakeInputCaptureManager();
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new RecordingSessionHandler();
         var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
@@ -215,8 +213,6 @@ public class DaemonServiceTests
         {
             ValidationException = new TimeoutException("polkit timeout"),
         };
-        var virtualDevice = new FakeVirtualDeviceManager();
-        var captureManager = new FakeInputCaptureManager();
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new RecordingSessionHandler();
         var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
@@ -292,8 +288,6 @@ public class DaemonServiceTests
         {
             ValidationResult = (uid, pid),
         };
-        var virtualDevice = new FakeVirtualDeviceManager();
-        var captureManager = new FakeInputCaptureManager();
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new RecordingSessionHandler();
         var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
@@ -332,8 +326,6 @@ public class DaemonServiceTests
         {
             ValidationResult = (uid, pid),
         };
-        var virtualDevice = new FakeVirtualDeviceManager();
-        var captureManager = new FakeInputCaptureManager();
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new CompletingSessionHandler();
         var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
@@ -372,8 +364,6 @@ public class DaemonServiceTests
         {
             ValidationResult = (uid, pid),
         };
-        var virtualDevice = new FakeVirtualDeviceManager();
-        var captureManager = new FakeInputCaptureManager();
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new ThrowingSessionHandler(new InvalidOperationException("boom"));
         var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
@@ -445,7 +435,7 @@ public class DaemonServiceTests
         private readonly TaskCompletionSource _validated = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _disconnected = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public (uint Uid, int Pid)? ValidationResult { get; init; } = null;
+        public (uint Uid, int Pid)? ValidationResult { get; init; }
         public bool DisposeRejectedClient { get; init; }
         public Exception? ValidationException { get; init; }
         public int ValidateCalls { get; private set; }
@@ -453,10 +443,10 @@ public class DaemonServiceTests
         public uint LastDisconnectUid { get; private set; }
         public int LastDisconnectPid { get; private set; }
 
-        public Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client)
+        public Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client, CancellationToken cancellationToken = default)
         {
             ValidateCalls++;
-            _validated.TrySetResult();
+            _ = _validated.TrySetResult();
 
             if (ValidationException is not null)
             {
@@ -476,7 +466,7 @@ public class DaemonServiceTests
             DisconnectCalls++;
             LastDisconnectUid = uid;
             LastDisconnectPid = pid;
-            _disconnected.TrySetResult();
+            _ = _disconnected.TrySetResult();
         }
 
         public void LogCaptureStart(uint uid, int pid, bool mouse, bool kb)
@@ -496,18 +486,11 @@ public class DaemonServiceTests
         public Task WaitForDisconnectAsync(TimeSpan timeout) => _disconnected.Task.WaitAsync(timeout);
     }
 
-    private sealed class RecordingDisposable : IDisposable
+    private sealed class RecordingDisposable(string name, List<string> events, bool throwOnDispose = false) : IDisposable
     {
-        private readonly string _name;
-        private readonly List<string> _events;
-        private readonly bool _throwOnDispose;
-
-        public RecordingDisposable(string name, List<string> events, bool throwOnDispose = false)
-        {
-            _name = name;
-            _events = events;
-            _throwOnDispose = throwOnDispose;
-        }
+        private readonly string _name = name;
+        private readonly List<string> _events = events;
+        private readonly bool _throwOnDispose = throwOnDispose;
 
         public int DisposeCalls { get; private set; }
 
@@ -524,27 +507,11 @@ public class DaemonServiceTests
 
     private sealed class FakeVirtualDeviceManager : IVirtualDeviceManager
     {
-        public void Configure(int width, int height)
-        {
-        }
-
         public Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public void SendEvent(ushort type, ushort code, int value)
-        {
-        }
 
         public Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-        public void SendEvents(ReadOnlySpan<IpcSimulationRequest> events)
-        {
-        }
-
         public Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public void Reset()
-        {
-        }
 
         public Task ResetAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
@@ -578,20 +545,15 @@ public class DaemonServiceTests
         public void ConfigureSocketPermissions(string socketPath)
         {
             ConfiguredSocketPath = socketPath;
-            _configuredPath.TrySetResult(socketPath);
+            _ = _configuredPath.TrySetResult(socketPath);
         }
 
         public Task<string> WaitForConfiguredPathAsync(TimeSpan timeout) => _configuredPath.Task.WaitAsync(timeout);
     }
 
-    private sealed class ThrowingLinuxPermissionService : ILinuxPermissionService
+    private sealed class ThrowingLinuxPermissionService(Exception exception) : ILinuxPermissionService
     {
-        private readonly Exception _exception;
-
-        public ThrowingLinuxPermissionService(Exception exception)
-        {
-            _exception = exception;
-        }
+        private readonly Exception _exception = exception;
 
         public string? ConfiguredSocketPath { get; private set; }
 
@@ -602,14 +564,9 @@ public class DaemonServiceTests
         }
     }
 
-    private sealed class RecordingSessionHandlerFactory : ISessionHandlerFactory
+    private sealed class RecordingSessionHandlerFactory(ISessionHandler handler) : ISessionHandlerFactory
     {
-        private readonly ISessionHandler _handler;
-
-        public RecordingSessionHandlerFactory(ISessionHandler handler)
-        {
-            _handler = handler;
-        }
+        private readonly ISessionHandler _handler = handler;
 
         public int CreateCalls { get; private set; }
 
@@ -624,7 +581,7 @@ public class DaemonServiceTests
     {
         public TestSocketPath()
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"crossmacro-daemon-test-{Guid.NewGuid():N}.sock");
+            Path = TestSocketPaths.CreateShort("cm-daemon");
             if (File.Exists(Path))
             {
                 File.Delete(Path);
@@ -659,7 +616,7 @@ public class DaemonServiceTests
             Uid = uid;
             Pid = pid;
             Token = token;
-            _runStarted.TrySetResult();
+            _ = _runStarted.TrySetResult();
 
             await Task.Delay(Timeout.InfiniteTimeSpan, token);
         }
@@ -676,21 +633,16 @@ public class DaemonServiceTests
         public Task RunAsync(Socket client, uint uid, int pid, CancellationToken token)
         {
             RunCalls++;
-            _runStarted.TrySetResult();
+            _ = _runStarted.TrySetResult();
             return Task.CompletedTask;
         }
 
         public Task WaitForRunAsync(TimeSpan timeout) => _runStarted.Task.WaitAsync(timeout);
     }
 
-    private sealed class ThrowingSessionHandler : ISessionHandler
+    private sealed class ThrowingSessionHandler(Exception exception) : ISessionHandler
     {
-        private readonly Exception _exception;
-
-        public ThrowingSessionHandler(Exception exception)
-        {
-            _exception = exception;
-        }
+        private readonly Exception _exception = exception;
 
         public int RunCalls { get; private set; }
 

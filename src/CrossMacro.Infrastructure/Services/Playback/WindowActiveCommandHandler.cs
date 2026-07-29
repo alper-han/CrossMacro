@@ -12,8 +12,8 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
             return "Syntax: window active title|class|address|fullscreen|maximize|float|pinned|hidden|geometry $variable";
         }
 
-        var field = parts[2].ToLowerInvariant();
-        if (field is not ("title" or "class" or "address" or "fullscreen" or "maximize" or "float" or "pinned" or "hidden" or "geometry"))
+        var field = parts[2].ToUpperInvariant();
+        if (field is not ("TITLE" or "CLASS" or "ADDRESS" or "FULLSCREEN" or "MAXIMIZE" or "FLOAT" or "PINNED" or "HIDDEN" or "GEOMETRY"))
         {
             return $"Unknown field '{parts[2]}'. Expected: title, class, address, fullscreen, maximize, float, pinned, hidden, geometry.";
         }
@@ -28,20 +28,20 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
 
     public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
     {
-        var field = parts[2].ToLowerInvariant();
+        var field = parts[2].ToUpperInvariant();
         var varName = StripDollar(parts[3]);
         var info = await query.GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
         var val = field switch
         {
-            "title" => info?.Title ?? string.Empty,
-            "class" => info?.Class ?? string.Empty,
-            "address" => info?.Address ?? string.Empty,
-            "fullscreen" => (info?.IsFullscreen ?? false) ? "true" : "false",
-            "maximize" => (info?.IsMaximized ?? false) ? "true" : "false",
-            "float" => (info?.IsFloating ?? false) ? "true" : "false",
-            "pinned" => (info?.IsPinned ?? false) ? "true" : "false",
-            "hidden" => (info?.IsHidden ?? false) ? "true" : "false",
-            "geometry" => info != null ? $"{info.X.ToString(CultureInfo.InvariantCulture)} {info.Y.ToString(CultureInfo.InvariantCulture)} {info.Width.ToString(CultureInfo.InvariantCulture)} {info.Height.ToString(CultureInfo.InvariantCulture)}" : string.Empty,
+            "TITLE" => info?.Title ?? string.Empty,
+            "CLASS" => info?.Class ?? string.Empty,
+            "ADDRESS" => info?.Address ?? string.Empty,
+            "FULLSCREEN" => (info?.IsFullscreen ?? false) ? "true" : "false",
+            "MAXIMIZE" => (info?.IsMaximized ?? false) ? "true" : "false",
+            "FLOAT" => (info?.IsFloating ?? false) ? "true" : "false",
+            "PINNED" => (info?.IsPinned ?? false) ? "true" : "false",
+            "HIDDEN" => (info?.IsHidden ?? false) ? "true" : "false",
+            "GEOMETRY" => info != null ? $"{info.X.ToString(CultureInfo.InvariantCulture)} {info.Y.ToString(CultureInfo.InvariantCulture)} {info.Width.ToString(CultureInfo.InvariantCulture)} {info.Height.ToString(CultureInfo.InvariantCulture)}" : string.Empty,
             _ => string.Empty,
         };
         StoreVariable(variables, varName, val, stepNumber);

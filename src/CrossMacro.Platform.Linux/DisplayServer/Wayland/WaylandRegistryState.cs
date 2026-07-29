@@ -1,20 +1,20 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandRegistryState
+internal sealed class WaylandRegistryState : IDisposable
 {
     private readonly WaylandLibrary _library;
     private readonly WaylandProtocolTables _protocol;
-#pragma warning disable S1450
-    private readonly RegistryDispatcher _dispatcher;
-#pragma warning restore S1450
+    private GCHandle _dispatcherHandle;
+    private bool _disposed;
 
     public WaylandRegistryState(WaylandLibrary library, WaylandProtocolTables protocol)
     {
         _library = library;
         _protocol = protocol;
-        _dispatcher = Dispatch;
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
+        var dispatcher = (RegistryDispatcher)Dispatch;
+        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
+        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
     }
 
     private delegate int RegistryDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
@@ -26,6 +26,20 @@ internal sealed class WaylandRegistryState
     public IntPtr ExtOutputSourceManager { get; private set; }
     public IntPtr ExtCopyManager { get; private set; }
     public IntPtr WlrScreencopyManager { get; private set; }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (_dispatcherHandle.IsAllocated)
+        {
+            _dispatcherHandle.Free();
+        }
+    }
 
     private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
     {
@@ -43,7 +57,7 @@ internal sealed class WaylandRegistryState
         if (string.Equals(iface, "wl_output", StringComparison.Ordinal))
         {
             var output = new WaylandOutputInfo(name, _library.Bind(target, name, iface, Math.Min(version, 4), _protocol.WlOutput));
-            _library.AddDispatcher(output.Proxy, output.DispatcherPtr);
+            _ = _library.AddDispatcher(output.Proxy, output.DispatcherPtr);
             Outputs.Add(output);
         }
         else if (string.Equals(iface, "wl_shm", StringComparison.Ordinal))

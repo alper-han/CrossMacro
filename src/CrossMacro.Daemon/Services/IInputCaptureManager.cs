@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public interface IInputCaptureManager : IDisposable
+internal interface IInputCaptureManager : IDisposable
 {
     /// <summary>
     /// Starts capturing input from physical devices.

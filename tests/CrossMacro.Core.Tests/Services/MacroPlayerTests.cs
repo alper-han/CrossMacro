@@ -4,7 +4,7 @@ namespace CrossMacro.Core.Tests.Services;
 /// <summary>
 /// Tests for MacroPlayer focusing on edge cases and error handling
 /// </summary>
-public class MacroPlayerTests
+public sealed class MacroPlayerTests
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
     private readonly IMousePositionProvider _positionProvider;
@@ -14,8 +14,8 @@ public class MacroPlayerTests
     public MacroPlayerTests()
     {
         _positionProvider = Substitute.For<IMousePositionProvider>();
-        _positionProvider.IsSupported.Returns(returnThis: true);
-        _positionProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
+        _ = _positionProvider.IsSupported.Returns(returnThis: true);
+        _ = _positionProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
         _keyCodeMapper = CreateKeyCodeMapper();
         _validator = new PlaybackValidator(_keyCodeMapper, _positionProvider);
     }
@@ -24,24 +24,65 @@ public class MacroPlayerTests
         Func<IInputSimulator>? inputSimulatorFactory = null,
         IPlaybackTimingService? timingService = null,
         Func<TimeSpan, CancellationToken, Task>? playbackWaitAsync = null,
-        Func<Func<double>>? playbackElapsedMillisecondsFactory = null)
+        Func<Func<double>>? playbackElapsedMillisecondsFactory = null,
+        IPlaybackValidator? validator = null)
     {
-        return new MacroPlayer(
+        return new MacroPlayer(validator ?? _validator, CreateDependencies(
             _positionProvider,
-            _validator,
-            timingService: timingService,
-            playbackWaitAsync: playbackWaitAsync ?? ((_, _) => Task.CompletedTask),
-            playbackElapsedMillisecondsFactory: playbackElapsedMillisecondsFactory,
-            inputSimulatorFactory: inputSimulatorFactory,
-            keyCodeMapper: _keyCodeMapper);
+            inputSimulatorFactory,
+            timingService,
+            playbackWaitAsync ?? ((_, _) => Task.CompletedTask),
+            playbackElapsedMillisecondsFactory,
+            _keyCodeMapper));
+    }
+
+    private static MacroPlayerDependencies CreateDependencies(
+        IMousePositionProvider? positionProvider,
+        Func<IInputSimulator>? inputSimulatorFactory,
+        IPlaybackTimingService? timingService,
+        Func<TimeSpan, CancellationToken, Task> playbackWaitAsync,
+        Func<Func<double>>? playbackElapsedMillisecondsFactory,
+        IKeyCodeMapper keyCodeMapper,
+        IScreenPixelReader? screenPixelReader = null,
+        IClipboardService? clipboardService = null,
+        IShellCommandRunner? shellCommandRunner = null,
+        IScreenshotCaptureService? screenshotCaptureService = null)
+    {
+        return new MacroPlayerDependencies(
+            positionProvider,
+            timingService ?? new PlaybackTimingService(),
+            playbackWaitAsync,
+            playbackElapsedMillisecondsFactory ?? CreateElapsedMillisecondsProvider,
+            () => new DefaultPlaybackCoordinator(positionProvider),
+            () => new ButtonStateTracker(),
+            () => new KeyStateTracker(),
+            new DefaultPlaybackMouseButtonMapper(),
+            inputSimulatorFactory,
+            simulatorPool: null,
+            new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false),
+            screenPixelReader ?? NullScreenPixelReader.Instance,
+            keyCodeMapper,
+            new NullWindowManager(),
+            clipboardService,
+            shellCommandRunner,
+            screenshotCaptureService,
+            new ImageClickMovementResolver(positionProvider),
+            new ImageAssetCodec(),
+            new PlaybackDelayResolver());
+    }
+
+    private static Func<double> CreateElapsedMillisecondsProvider()
+    {
+        var stopwatch = Stopwatch.StartNew();
+        return () => stopwatch.Elapsed.TotalMilliseconds;
     }
 
     private static IKeyCodeMapper CreateKeyCodeMapper()
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
-        keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
+        _ = keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
+        _ = keyCodeMapper.IsModifierKeyCode(Arg.Any<int>()).Returns(returnThis: false);
+        _ = keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(-1);
         return keyCodeMapper;
     }
 
@@ -49,114 +90,183 @@ public class MacroPlayerTests
     public async Task PlayAsync_NullMacro_ThrowsArgumentNullException()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Act
-        var act = async () => await player.PlayAsync(null!);
+        var act = async () => await player.PlayAsync(null!, cancellationToken: CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentNullException>();
+        _ = await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
     [Fact]
     public async Task PlayAsync_EmptyMacro_ThrowsInvalidOperationException()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
         var macro = new MacroSequence(); // Empty events
 
         // Act
-        var act = async () => await player.PlayAsync(macro);
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*validation failed*");
+    }
+
+    [Fact]
+    public async Task PlayAsync_UsesInjectedPlaybackValidator()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var validator = Substitute.For<IPlaybackValidator>();
+        _ = validator.Validate(Arg.Any<MacroSequence>()).Returns(new PlaybackValidationResult());
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            validator: validator);
+        var macro = new MacroSequence
+        {
+            Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
+        };
+
+        await player.PlayAsync(macro);
+
+        TestAssertions.Verify(() => validator.Received(1).Validate(macro));
+        simulator.Received().MoveRelative(10, 10);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenInjectedValidatorRejects_ThrowsInvalidOperationException()
+    {
+        var validator = Substitute.For<IPlaybackValidator>();
+        var validationResult = new PlaybackValidationResult();
+        validationResult.AddError("injected validation failure");
+        _ = validator.Validate(Arg.Any<MacroSequence>()).Returns(validationResult);
+        var player = CreatePlayer(validator: validator);
+        var macro = new MacroSequence
+        {
+            Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
+        };
+
+        async Task ActAsync() => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        await TestAssertions.ThrowsWithMessageAsync<InvalidOperationException>(ActAsync, "*injected validation failure*");
+        TestAssertions.Verify(() => validator.Received(1).Validate(macro));
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenValidationFails_DoesNotAcquireResourcesOrChangeObservableState()
+    {
+        var validator = Substitute.For<IPlaybackValidator>();
+        var validationResult = new PlaybackValidationResult();
+        validationResult.AddError("validation failure");
+        _ = validator.Validate(Arg.Any<MacroSequence>()).Returns(validationResult);
+        var factoryCalls = 0;
+        var player = CreatePlayer(
+            inputSimulatorFactory: () =>
+            {
+                factoryCalls++;
+                return Substitute.For<IInputSimulator>();
+            },
+            validator: validator);
+        var macro = new MacroSequence
+        {
+            Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>();
+        _ = factoryCalls.Should().Be(0);
+        _ = player.IsPlaying.Should().BeFalse();
+        _ = player.CurrentLoop.Should().Be(0);
+        _ = player.TotalLoops.Should().Be(0);
     }
 
     [Fact]
     public void IsPlaying_Initially_IsFalse()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Assert
-        player.IsPlaying.Should().BeFalse();
+        _ = player.IsPlaying.Should().BeFalse();
     }
 
     [Fact]
     public void IsPaused_Initially_IsFalse()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Assert
-        player.IsPaused.Should().BeFalse();
+        _ = player.IsPaused.Should().BeFalse();
     }
 
     [Fact]
     public void CurrentLoop_Initially_IsZero()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Assert
-        player.CurrentLoop.Should().Be(0);
+        _ = player.CurrentLoop.Should().Be(0);
     }
 
     [Fact]
     public void TotalLoops_Initially_IsZero()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Assert
-        player.TotalLoops.Should().Be(0);
+        _ = player.TotalLoops.Should().Be(0);
     }
 
     [Fact]
     public void Stop_WhenNotPlaying_DoesNotThrow()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Act
         var act = () => player.StopPlayback();
 
         // Assert
-        act.Should().NotThrow();
+        _ = act.Should().NotThrow();
     }
 
     [Fact]
     public void Pause_WhenNotPlaying_DoesNothing()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Act
         player.Pause();
 
         // Assert
-        player.IsPaused.Should().BeFalse(); // Can't pause when not playing
+        _ = player.IsPaused.Should().BeFalse(); // Can't pause when not playing
     }
 
     [Fact]
     public void Resume_WhenNotPlaying_DoesNothing()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Act
         player.ResumePlayback();
 
         // Assert
-        player.IsPaused.Should().BeFalse();
+        _ = player.IsPaused.Should().BeFalse();
     }
 
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        var player = new MacroPlayer(_positionProvider, _validator);
+        var player = CreatePlayer();
 
         // Act
         var act = () =>
@@ -167,7 +277,7 @@ public class MacroPlayerTests
         };
 
         // Assert
-        act.Should().NotThrow();
+        _ = act.Should().NotThrow();
     }
 
     [Fact]
@@ -175,12 +285,9 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -210,13 +317,9 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var timing = new RecordingTimingService();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -236,7 +339,45 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, options);
 
         // Assert
-        timing.WaitCalls.Should().Contain(123);
+        _ = timing.WaitCalls.Should().Contain(123);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenWaitingBetweenLoops_ExposesCurrentLoopAndTotalLoops()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService
+        {
+            WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
+        var macro = new MacroSequence
+        {
+            Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
+        };
+        var options = new PlaybackOptions
+        {
+            Loop = true,
+            RepeatCount = 2,
+            RepeatDelayMs = 123,
+        };
+
+        var playback = player.PlayAsync(macro, options);
+        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout);
+
+        _ = player.IsPlaying.Should().BeTrue();
+        _ = player.CurrentLoop.Should().Be(1);
+        _ = player.TotalLoops.Should().Be(2);
+        _ = player.IsWaitingBetweenLoops.Should().BeTrue();
+
+        _ = timing.ContinueWait.TrySetResult(true);
+        await playback;
+
+        _ = player.CurrentLoop.Should().Be(0);
+        _ = player.TotalLoops.Should().Be(0);
+        _ = player.IsWaitingBetweenLoops.Should().BeFalse();
     }
 
     [Fact]
@@ -244,13 +385,9 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var timing = new RecordingTimingService();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -270,20 +407,16 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, options);
 
         // Assert
-        timing.WaitCalls.Should().BeEmpty();
+        _ = timing.WaitCalls.Should().BeEmpty();
     }
 
     [Fact]
     public async Task PlayAsync_WhenLoopingWithRandomRepeatDelay_UsesRandomDelayRange()
     {
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var timing = new RecordingTimingService();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -304,7 +437,7 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro, options);
 
-        timing.WaitCalls.Should().ContainSingle().Which.Should().Be(77);
+        _ = timing.WaitCalls.Should().ContainSingle().Which.Should().Be(77);
     }
 
     [Fact]
@@ -312,13 +445,9 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var timing = new RecordingTimingService();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -341,8 +470,8 @@ public class MacroPlayerTests
         await player.PlayAsync(macro);
 
         // Assert
-        timing.WaitCalls.Should().ContainSingle();
-        timing.WaitCalls[0].Should().BeInRange(45, 50);
+        _ = timing.WaitCalls.Should().ContainSingle();
+        _ = timing.WaitCalls[0].Should().BeInRange(45, 50);
     }
 
     [Fact]
@@ -350,18 +479,14 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var timing = new RecordingTimingService
         {
             WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
             ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
         };
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -374,16 +499,16 @@ public class MacroPlayerTests
 
         // Act
         var playbackTask = player.PlayAsync(macro);
-        await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert (before delay released)
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
 
-        timing.ContinueWait.TrySetResult(true);
+        _ = timing.ContinueWait.TrySetResult(true);
         await playbackTask;
 
-        timing.WaitCalls.Should().ContainSingle();
-        timing.WaitCalls[0].Should().BeInRange(39, 40);
+        _ = timing.WaitCalls.Should().ContainSingle();
+        _ = timing.WaitCalls[0].Should().BeInRange(39, 40);
         Received.InOrder(() =>
         {
             simulator.MoveRelative(10, 10);
@@ -396,13 +521,9 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var timing = new RecordingTimingService();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -419,8 +540,8 @@ public class MacroPlayerTests
         await player.PlayAsync(macro);
 
         // Assert
-        timing.WaitCalls.Should().ContainSingle();
-        timing.WaitCalls[0].Should().BeInRange(35, 40);
+        _ = timing.WaitCalls.Should().ContainSingle();
+        _ = timing.WaitCalls[0].Should().BeInRange(35, 40);
     }
 
     [Fact]
@@ -428,13 +549,9 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var timing = new RecordingTimingService();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            timingService: timing,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
 
         var macro = new MacroSequence
         {
@@ -449,18 +566,82 @@ public class MacroPlayerTests
         timing.ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var firstPlayback = player.PlayAsync(macro);
-        await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Act
         var act = async () => await player.PlayAsync(macro);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*already in progress*");
 
         player.StopPlayback();
-        timing.ContinueWait.TrySetResult(true);
+        _ = timing.ContinueWait.TrySetResult(true);
         await firstPlayback;
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenCallerCancels_RethrowsCancellationAndCleansUpOnce()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService
+        {
+            WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
+            },
+        };
+        using var cancellation = new CancellationTokenSource();
+
+        var playback = player.PlayAsync(macro, cancellationToken: cancellation.Token);
+        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout);
+        await cancellation.CancelAsync();
+
+        var act = async () => await playback;
+        _ = await act.Should().ThrowAsync<OperationCanceledException>();
+        _ = player.IsPlaying.Should().BeFalse();
+        _ = player.CurrentLoop.Should().Be(0);
+        _ = player.TotalLoops.Should().Be(0);
+        simulator.Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenStoppedInternally_CompletesWithoutThrowingAndReleasesResourcesOnce()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService
+        {
+            WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
+            },
+        };
+
+        var playback = player.PlayAsync(macro);
+        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout);
+        player.StopPlayback();
+
+        await playback;
+        _ = player.IsPlaying.Should().BeFalse();
+        _ = player.CurrentLoop.Should().Be(0);
+        _ = player.TotalLoops.Should().Be(0);
+        simulator.Received(1).Dispose();
     }
 
     [Fact]
@@ -468,24 +649,25 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var delayWaitEntered = new AsyncSignal();
         var releaseDelayWait = new AsyncSignal();
         var pauseObserved = new AsyncSignal();
-        var timing = new ControlledTimingService();
-
-        timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
+        var timing = new ControlledTimingService
         {
-            if (callIndex is 1)
+            OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
             {
-                delayWaitEntered.Signal();
-                await releaseDelayWait.WaitAsync(TestTimeout, cancellationToken);
-                if (pauseToken.IsPaused)
+                if (callIndex is 1)
                 {
-                    pauseObserved.Signal();
-                    await pauseToken.WaitIfPausedAsync(cancellationToken);
+                    delayWaitEntered.Signal();
+                    await releaseDelayWait.WaitAsync(TestTimeout, cancellationToken);
+                    if (pauseToken.IsPaused)
+                    {
+                        pauseObserved.Signal();
+                        await pauseToken.WaitIfPausedAsync(cancellationToken);
+                    }
                 }
-            }
+            },
         };
 
         var player = CreatePlayer(
@@ -506,15 +688,15 @@ public class MacroPlayerTests
         await delayWaitEntered.WaitAsync(TestTimeout);
 
         player.Pause();
-        player.IsPaused.Should().BeTrue();
+        _ = player.IsPaused.Should().BeTrue();
 
         // Let the in-flight delay continue so pause is honored via pause token wait.
         releaseDelayWait.Signal();
         await pauseObserved.WaitAsync(TestTimeout);
-        playbackTask.IsCompleted.Should().BeFalse();
+        _ = playbackTask.IsCompleted.Should().BeFalse();
 
         player.ResumePlayback();
-        player.IsPaused.Should().BeFalse();
+        _ = player.IsPaused.Should().BeFalse();
 
         await playbackTask;
 
@@ -535,18 +717,19 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var secondEventStarted = new AsyncSignal();
         var pauseObserved = new AsyncSignal();
-        var timing = new ControlledTimingService();
-
-        timing.OnWaitAsync = async (_, _, pauseToken, cancellationToken) =>
+        var timing = new ControlledTimingService
         {
-            if (pauseToken.IsPaused)
+            OnWaitAsync = async (_, _, pauseToken, cancellationToken) =>
             {
-                pauseObserved.Signal();
-                await pauseToken.WaitIfPausedAsync(cancellationToken);
-            }
+                if (pauseToken.IsPaused)
+                {
+                    pauseObserved.Signal();
+                    await pauseToken.WaitIfPausedAsync(cancellationToken);
+                }
+            },
         };
 
         MacroPlayer? player = null;
@@ -576,9 +759,9 @@ public class MacroPlayerTests
         // Act
         var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
         await pauseObserved.WaitAsync(TestTimeout);
-        player.IsPaused.Should().BeTrue();
+        _ = player.IsPaused.Should().BeTrue();
 
-        playbackTask.IsCompleted.Should().BeFalse();
+        _ = playbackTask.IsCompleted.Should().BeFalse();
 
         player.ResumePlayback();
         await playbackTask;
@@ -606,12 +789,9 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -630,7 +810,7 @@ public class MacroPlayerTests
         var act = async () => await player.PlayAsync(macro, options);
 
         // Assert
-        await act.Should().NotThrowAsync();
+        _ = await act.Should().NotThrowAsync();
         simulator.Received().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
     }
 
@@ -639,7 +819,7 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         var timing = new ControlledTimingService
         {
@@ -672,8 +852,8 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
 
         // Assert
-        timing.WaitCalls.Should().HaveCount(2);
-        timing.WaitCalls.Should().OnlyContain(delay => delay > 0);
+        _ = timing.WaitCalls.Should().HaveCount(2);
+        _ = timing.WaitCalls.Should().OnlyContain(delay => delay > 0);
     }
 
     [Fact]
@@ -681,7 +861,7 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         var timing = new ControlledTimingService
         {
@@ -718,9 +898,9 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 5.0 });
 
         // Assert
-        timing.WaitCalls.Should().HaveCount(2);
-        timing.WaitCalls[0].Should().Be(33);
-        timing.WaitCalls[1].Should().Be(21);
+        _ = timing.WaitCalls.Should().HaveCount(2);
+        _ = timing.WaitCalls[0].Should().Be(33);
+        _ = timing.WaitCalls[1].Should().Be(21);
     }
 
     [Fact]
@@ -728,7 +908,7 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         int moveCallCount = 0;
         simulator
@@ -741,11 +921,13 @@ public class MacroPlayerTests
                 }
             });
 
-        var timing = new ControlledTimingService();
-        timing.OnWaitAsync = (callIndex, delayMs, _, _) =>
+        var timing = new ControlledTimingService
         {
-            clock.AdvanceBy(delayMs);
-            return Task.CompletedTask;
+            OnWaitAsync = (callIndex, delayMs, _, _) =>
+            {
+                clock.AdvanceBy(delayMs);
+                return Task.CompletedTask;
+            },
         };
 
         var player = CreatePlayer(
@@ -766,7 +948,7 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
 
         // Assert
-        timing.WaitCalls.Should().ContainInOrder(40, 40);
+        _ = timing.WaitCalls.Should().ContainInOrder(40, 40);
     }
 
     [Fact]
@@ -774,28 +956,29 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         var secondWaitEntered = new AsyncSignal();
-        var timing = new ControlledTimingService();
-
-        timing.OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
+        var timing = new ControlledTimingService
         {
-            if (callIndex is 1)
+            OnWaitAsync = async (callIndex, _, pauseToken, cancellationToken) =>
             {
-                clock.AdvanceBy(130);
-                return;
-            }
+                if (callIndex is 1)
+                {
+                    clock.AdvanceBy(130);
+                    return;
+                }
 
-            if (callIndex is 2)
-            {
-                secondWaitEntered.Signal();
-            }
+                if (callIndex is 2)
+                {
+                    secondWaitEntered.Signal();
+                }
 
-            if (pauseToken.IsPaused)
-            {
-                await pauseToken.WaitIfPausedAsync(cancellationToken);
-            }
+                if (pauseToken.IsPaused)
+                {
+                    await pauseToken.WaitIfPausedAsync(cancellationToken);
+                }
+            },
         };
 
         var player = CreatePlayer(
@@ -825,15 +1008,15 @@ public class MacroPlayerTests
         // Act
         var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
         await pausedAtSecondEvent.WaitAsync(TestTimeout);
-        playbackTask.IsCompleted.Should().BeFalse();
+        _ = playbackTask.IsCompleted.Should().BeFalse();
 
         player.ResumePlayback();
         await secondWaitEntered.WaitAsync(TestTimeout);
         await playbackTask;
 
         // Assert
-        timing.WaitCalls.Count.Should().BeGreaterThanOrEqualTo(2);
-        timing.WaitCalls.Skip(1).Should().Contain(delay => delay > 0);
+        _ = timing.WaitCalls.Count.Should().BeGreaterThanOrEqualTo(2);
+        _ = timing.WaitCalls.Skip(1).Should().Contain(delay => delay > 0);
     }
 
     [Fact]
@@ -841,7 +1024,7 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         var timing = new ControlledTimingService();
 
@@ -876,8 +1059,8 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
 
         // Assert
-        timing.WaitCalls.Count.Should().BeGreaterThanOrEqualTo(2);
-        timing.WaitCalls.Skip(1).Should().Contain(delay => delay > 0);
+        _ = timing.WaitCalls.Count.Should().BeGreaterThanOrEqualTo(2);
+        _ = timing.WaitCalls.Skip(1).Should().Contain(delay => delay > 0);
     }
 
     [Fact]
@@ -885,7 +1068,7 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var waitEntered = new AsyncSignal();
         var releaseWait = new AsyncSignal();
         var paused = new AsyncSignal();
@@ -937,7 +1120,7 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var waitEntered = new AsyncSignal();
         var releaseWait = new AsyncSignal();
         var paused = new AsyncSignal();
@@ -988,10 +1171,7 @@ public class MacroPlayerTests
         // Arrange
         var simulator = new TrackingInputSimulator();
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1006,11 +1186,11 @@ public class MacroPlayerTests
         await player.PlayAsync(macro);
 
         // Assert
-        simulator.InitializedWidth.Should().Be(0);
-        simulator.InitializedHeight.Should().Be(0);
-        simulator.AbsoluteMoves.Should().BeEmpty();
-        simulator.ButtonTransitions.Should().HaveCount(2);
-        simulator.Operations[0].Should().Be("btn:down");
+        _ = simulator.InitializedWidth.Should().Be(0);
+        _ = simulator.InitializedHeight.Should().Be(0);
+        _ = simulator.AbsoluteMoves.Should().BeEmpty();
+        _ = simulator.ButtonTransitions.Should().HaveCount(2);
+        _ = simulator.Operations[0].Should().Be("btn:down");
     }
 
     [Fact]
@@ -1019,10 +1199,7 @@ public class MacroPlayerTests
         // Arrange
         var simulator = new TrackingInputSimulator();
 
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1044,8 +1221,8 @@ public class MacroPlayerTests
         await player.PlayAsync(macro, options);
 
         // Assert
-        simulator.AbsoluteMoves.Should().BeEmpty();
-        simulator.ButtonTransitions.Should().HaveCount(4);
+        _ = simulator.AbsoluteMoves.Should().BeEmpty();
+        _ = simulator.ButtonTransitions.Should().HaveCount(4);
     }
 
     [Fact]
@@ -1053,10 +1230,7 @@ public class MacroPlayerTests
     {
         // Arrange
         var simulator = new TrackingInputSimulator();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1077,17 +1251,14 @@ public class MacroPlayerTests
         await player.PlayAsync(macro);
 
         // Assert
-        simulator.AbsoluteMoves.Should().BeEmpty();
+        _ = simulator.AbsoluteMoves.Should().BeEmpty();
     }
 
     [Fact]
     public async Task PlayAsync_WhenMacroHasMixedCoordinateModes_ExecutesEachEventWithEffectiveMode()
     {
         var simulator = new TrackingInputSimulator();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1113,19 +1284,16 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        simulator.InitializedWidth.Should().Be(1920);
-        simulator.InitializedHeight.Should().Be(1080);
-        simulator.Operations.Should().ContainInOrder("abs:100,200", "rel:10,-5");
+        _ = simulator.InitializedWidth.Should().Be(1920);
+        _ = simulator.InitializedHeight.Should().Be(1080);
+        _ = simulator.Operations.Should().ContainInOrder("abs:100,200", "rel:10,-5");
     }
 
     [Fact]
     public async Task PlayAsync_WhenMacroCombinesCurrentAbsoluteAndRelativeEvents_UsesPerEventMovementSemantics()
     {
         var simulator = new TrackingInputSimulator();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1158,27 +1326,24 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        simulator.InitializedWidth.Should().Be(1920);
-        simulator.InitializedHeight.Should().Be(1080);
-        simulator.Operations.Should().Equal(
+        _ = simulator.InitializedWidth.Should().Be(1920);
+        _ = simulator.InitializedHeight.Should().Be(1080);
+        _ = simulator.Operations.Should().Equal(
             "btn:down",
             "btn:up",
             "abs:100,200",
             "rel:10,-5",
             "btn:down",
             "btn:up");
-        simulator.AbsoluteMoves.Should().Equal([(100, 200)]);
-        simulator.ButtonTransitions.Should().HaveCount(4);
+        _ = simulator.AbsoluteMoves.Should().Equal((100, 200));
+        _ = simulator.ButtonTransitions.Should().HaveCount(4);
     }
 
     [Fact]
     public async Task PlayAsync_WhenLegacyAbsoluteMacroHasExplicitRelativeEvent_UsesRelativeEventMode()
     {
         var simulator = new TrackingInputSimulator();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1197,20 +1362,17 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        simulator.InitializedWidth.Should().Be(0);
-        simulator.InitializedHeight.Should().Be(0);
-        simulator.AbsoluteMoves.Should().BeEmpty();
-        simulator.Operations.Should().Contain("rel:10,-5");
+        _ = simulator.InitializedWidth.Should().Be(0);
+        _ = simulator.InitializedHeight.Should().Be(0);
+        _ = simulator.AbsoluteMoves.Should().BeEmpty();
+        _ = simulator.Operations.Should().Contain("rel:10,-5");
     }
 
     [Fact]
     public async Task PlayAsync_WhenAbsoluteMacroUsesRelativeOnlySimulator_ThrowsBeforeInjectingInput()
     {
         var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1228,25 +1390,23 @@ public class MacroPlayerTests
 
         var act = async () => await player.PlayAsync(macro);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*does not support absolute coordinate playback*");
-        simulator.Operations.Should().BeEmpty();
+        _ = simulator.Operations.Should().BeEmpty();
     }
 
     [Fact]
     public async Task PlayAsync_WhenAbsoluteMacroUsesResolutionOnlyProvider_CachesResolutionAndCreatesAbsoluteDevice()
     {
         var resolutionOnlyProvider = Substitute.For<IMousePositionProvider>();
-        resolutionOnlyProvider.IsSupported.Returns(returnThis: false);
-        resolutionOnlyProvider.ProviderName.Returns("Niri IPC (Resolution Only)");
-        resolutionOnlyProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
+        _ = resolutionOnlyProvider.IsSupported.Returns(returnThis: false);
+        _ = resolutionOnlyProvider.ProviderName.Returns("Niri IPC (Resolution Only)");
+        _ = resolutionOnlyProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((1920, 1080)));
 
         var simulator = new TrackingInputSimulator();
         var player = new MacroPlayer(
-            resolutionOnlyProvider,
             new PlaybackValidator(_keyCodeMapper, resolutionOnlyProvider),
-            inputSimulatorFactory: () => simulator,
-            keyCodeMapper: _keyCodeMapper);
+            CreateDependencies(resolutionOnlyProvider, () => simulator, timingService: null, (_, _) => Task.CompletedTask, playbackElapsedMillisecondsFactory: null, _keyCodeMapper));
 
         var macro = new MacroSequence
         {
@@ -1264,26 +1424,24 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        await resolutionOnlyProvider.Received(1).GetScreenResolutionAsync();
-        simulator.InitializedWidth.Should().Be(1920);
-        simulator.InitializedHeight.Should().Be(1080);
-        simulator.Operations.Should().Contain("abs:100,200");
+        _ = await resolutionOnlyProvider.Received(1).GetScreenResolutionAsync();
+        _ = simulator.InitializedWidth.Should().Be(1920);
+        _ = simulator.InitializedHeight.Should().Be(1080);
+        _ = simulator.Operations.Should().Contain("abs:100,200");
     }
 
     [Fact]
     public async Task PlayAsync_WhenRelativeMacroUsesResolutionOnlyProvider_CachesResolutionAndPlaysRelativeOnly()
     {
         var resolutionOnlyProvider = Substitute.For<IMousePositionProvider>();
-        resolutionOnlyProvider.IsSupported.Returns(returnThis: false);
-        resolutionOnlyProvider.ProviderName.Returns("COSMIC RandR (Resolution Only)");
-        resolutionOnlyProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((2560, 1440)));
+        _ = resolutionOnlyProvider.IsSupported.Returns(returnThis: false);
+        _ = resolutionOnlyProvider.ProviderName.Returns("COSMIC RandR (Resolution Only)");
+        _ = resolutionOnlyProvider.GetScreenResolutionAsync().Returns(Task.FromResult<(int Width, int Height)?>((2560, 1440)));
 
         var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
         var player = new MacroPlayer(
-            resolutionOnlyProvider,
             new PlaybackValidator(_keyCodeMapper, resolutionOnlyProvider),
-            inputSimulatorFactory: () => simulator,
-            keyCodeMapper: _keyCodeMapper);
+            CreateDependencies(resolutionOnlyProvider, () => simulator, timingService: null, (_, _) => Task.CompletedTask, playbackElapsedMillisecondsFactory: null, _keyCodeMapper));
 
         var macro = new MacroSequence
         {
@@ -1302,20 +1460,17 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        await resolutionOnlyProvider.Received(1).GetScreenResolutionAsync();
-        simulator.InitializedWidth.Should().Be(0);
-        simulator.InitializedHeight.Should().Be(0);
-        simulator.Operations.Should().Contain("rel:3,3");
+        _ = await resolutionOnlyProvider.Received(1).GetScreenResolutionAsync();
+        _ = simulator.InitializedWidth.Should().Be(0);
+        _ = simulator.InitializedHeight.Should().Be(0);
+        _ = simulator.Operations.Should().Contain("rel:3,3");
     }
 
     [Fact]
     public async Task PlayAsync_WhenMixedMacroUsesRelativeOnlySimulator_ThrowsBeforeInjectingInput()
     {
         var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1341,19 +1496,16 @@ public class MacroPlayerTests
 
         var act = async () => await player.PlayAsync(macro);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*does not support absolute coordinate playback*");
-        simulator.Operations.Should().BeEmpty();
+        _ = simulator.Operations.Should().BeEmpty();
     }
 
     [Fact]
     public async Task PlayAsync_WhenRelativeMacroUsesRelativeOnlySimulator_PlaysNormally()
     {
         var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1371,17 +1523,14 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        simulator.Operations.Should().Contain("rel:3,3");
+        _ = simulator.Operations.Should().Contain("rel:3,3");
     }
 
     [Fact]
     public async Task PlayAsync_WhenCurrentPositionClickUsesRelativeOnlySimulator_PlaysNormally()
     {
         var simulator = new TrackingInputSimulator(forceRelativeOnly: true);
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1400,17 +1549,14 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        simulator.Operations.Should().Equal("btn:down", "btn:up");
+        _ = simulator.Operations.Should().Equal("btn:down", "btn:up");
     }
 
     [Fact]
     public async Task PlayAsync_WhenAbsoluteThenRelativeMacroPlays_ExecutesExactMovementSequence()
     {
         var simulator = new TrackingInputSimulator();
-        var player = new MacroPlayer(
-            _positionProvider,
-            _validator,
-            inputSimulatorFactory: () => simulator);
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
 
         var macro = new MacroSequence
         {
@@ -1436,7 +1582,7 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        simulator.Operations.Should().Equal("abs:1000,1000", "rel:3,3");
+        _ = simulator.Operations.Should().Equal("abs:1000,1000", "rel:3,3");
     }
 
     [Fact]
@@ -1445,7 +1591,7 @@ public class MacroPlayerTests
         // Regression: guard used strict < so a stall exactly on the boundary was skipped.
         // 10x, 50ms source → adj=5ms, allowedDrift=Max(30,10)=30ms, stall=35ms → remaining=-30 → must reset.
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         var timing = new ControlledTimingService
         {
@@ -1473,7 +1619,7 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 10.0 });
 
-        timing.WaitCalls.Should().OnlyContain(d => d > 0);
+        _ = timing.WaitCalls.Should().OnlyContain(d => d > 0);
     }
 
     [Theory]
@@ -1487,7 +1633,7 @@ public class MacroPlayerTests
         double speed, int sourceDelayMs, int stallMs)
     {
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         var timing = new ControlledTimingService
         {
@@ -1517,7 +1663,7 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed });
 
-        timing.WaitCalls.Skip(1).Should().OnlyContain(d => d > 0,
+        _ = timing.WaitCalls.Skip(1).Should().OnlyContain(d => d > 0,
             $"at {speed}x with {stallMs}ms stall, subsequent events must not burst");
     }
 
@@ -1530,7 +1676,7 @@ public class MacroPlayerTests
         double speed, int sourceDelayMs, int extraDriftMs)
     {
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         var timing = new ControlledTimingService
         {
@@ -1559,14 +1705,14 @@ public class MacroPlayerTests
         macro.ReplaceEvents(events);
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed });
 
-        timing.WaitCalls.Should().NotBeEmpty();
+        _ = timing.WaitCalls.Should().NotBeEmpty();
     }
 
     [Fact]
     public async Task PlayAsync_WhenMultipleStallsOccurWithinOneMacroPlay_ShouldResetTimelineAfterEachExcessiveStall()
     {
         var simulator = Substitute.For<IInputSimulator>();
-        simulator.ProviderName.Returns("MockSimulator");
+        _ = simulator.ProviderName.Returns("MockSimulator");
         var clock = new ManualPlaybackClock();
         var timing = new ControlledTimingService
         {
@@ -1596,7 +1742,7 @@ public class MacroPlayerTests
 
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
 
-        timing.WaitCalls.Should().OnlyContain(d => d > 0);
+        _ = timing.WaitCalls.Should().OnlyContain(d => d > 0);
     }
 
     private sealed class RecordingTimingService : IPlaybackTimingService
@@ -1608,11 +1754,11 @@ public class MacroPlayerTests
         public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
         {
             WaitCalls.Add(delayMs);
-            WaitEntered?.TrySetResult(true);
+            _ = (WaitEntered?.TrySetResult(true));
 
             if (ContinueWait is not null)
             {
-                await ContinueWait.Task.WaitAsync(cancellationToken);
+                _ = await ContinueWait.Task.WaitAsync(cancellationToken);
             }
 
             if (pauseToken.IsPaused)
@@ -1659,18 +1805,11 @@ public class MacroPlayerTests
         }
     }
 
-    private sealed class TrackingInputSimulator : IInputSimulator, IInputSimulatorCapabilities
+    private sealed class TrackingInputSimulator(bool forceRelativeOnly = false) : IInputSimulator, IInputSimulatorCapabilities
     {
-        private readonly bool _forceRelativeOnly;
-
-        public TrackingInputSimulator(bool forceRelativeOnly = false)
-        {
-            _forceRelativeOnly = forceRelativeOnly;
-        }
-
         public string ProviderName => "Tracking";
         public bool IsSupported => true;
-        public bool SupportsAbsoluteCoordinates => !_forceRelativeOnly && InitializedWidth > 0 && InitializedHeight > 0;
+        public bool SupportsAbsoluteCoordinates { get => !field && InitializedWidth > 0 && InitializedHeight > 0; } = forceRelativeOnly;
         public int InitializedWidth { get; private set; }
         public int InitializedHeight { get; private set; }
         public List<(int X, int Y)> AbsoluteMoves { get; } = new();
@@ -1681,6 +1820,13 @@ public class MacroPlayerTests
         {
             InitializedWidth = screenWidth;
             InitializedHeight = screenHeight;
+        }
+
+        public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Initialize(screenWidth, screenHeight);
+            return Task.CompletedTask;
         }
 
         public void MoveAbsolute(int x, int y)

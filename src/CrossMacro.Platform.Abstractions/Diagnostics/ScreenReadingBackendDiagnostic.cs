@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
-public sealed record class ScreenReadingBackendDiagnostic(
+public sealed record ScreenReadingBackendDiagnostic(
     string Backend,
     bool IsAvailable,
     ScreenReadErrorKind? ErrorKind,

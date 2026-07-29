@@ -30,7 +30,7 @@ public sealed class ShellCommandRunner : IShellCommandRunner
             ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
             : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
-        process.Start();
+        _ = process.Start();
         var outputTask = ReadBoundedAsync(process.StandardOutput, request.OutputLimitChars, linkedCts.Token);
         var errorTask = ReadBoundedAsync(process.StandardError, request.OutputLimitChars, linkedCts.Token);
 
@@ -58,7 +58,7 @@ public sealed class ShellCommandRunner : IShellCommandRunner
             await WaitForKilledProcessAsync(process).ConfigureAwait(false);
             throw;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             TryKillProcessTree(process);
             throw;
@@ -142,7 +142,7 @@ public sealed class ShellCommandRunner : IShellCommandRunner
             var remaining = limit - builder.Length;
             if (remaining > 0)
             {
-                builder.Append(buffer, 0, Math.Min(read, remaining));
+                _ = builder.Append(buffer, 0, Math.Min(read, remaining));
             }
         }
     }
@@ -154,7 +154,7 @@ public sealed class ShellCommandRunner : IShellCommandRunner
             using var timeout = new CancellationTokenSource(KillWaitTimeout);
             await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Best-effort cleanup after cancellation or timeout; caller observes the original failure.
         }
@@ -169,7 +169,7 @@ public sealed class ShellCommandRunner : IShellCommandRunner
                 process.Kill(entireProcessTree: true);
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Best-effort cleanup after cancellation or timeout; caller observes the original failure.
         }

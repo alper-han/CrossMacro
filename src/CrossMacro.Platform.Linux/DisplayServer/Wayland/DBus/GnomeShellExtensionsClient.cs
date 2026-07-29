@@ -1,16 +1,11 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-internal sealed class GnomeShellExtensionsClient : LinuxDbusClientBase
+internal sealed class GnomeShellExtensionsClient(DBusConnection connection) : LinuxDbusClientBase(connection, Service, Path, Interface)
 {
     internal const string Service = "org.gnome.Shell";
     internal const string Path = "/org/gnome/Shell";
     internal const string Interface = "org.gnome.Shell.Extensions";
-
-    public GnomeShellExtensionsClient(DBusConnection connection)
-        : base(connection, Service, Path, Interface)
-    {
-    }
 
     public Task<bool> EnableExtensionAsync(string uuid)
         => CallAsync("EnableExtension", ReadEnableExtensionReply, "s", (ref MessageWriter writer) => writer.WriteString(uuid));

@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Native.Evdev;
 public static partial class InputDeviceHelper
 {
     [GeneratedRegex(@"\bmouse\d+\b", RegexOptions.NonBacktracking)]
-    private static partial Regex MouseHandlerRegex();
+    private static partial Regex MouseHandlerRegex { get; }
 
     public class InputDevice
     {
@@ -84,25 +84,151 @@ public static partial class InputDeviceHelper
         var files = Directory.GetFiles(inputDir, "event*");
         Log.Debug("[InputDeviceHelper] Found {Count} event files to analyze.", files.Length);
 
-        string? procDevicesContent = null;
-        try
+        var procDevicesContent = ReadProcDevicesContent();
+        ScanDeviceFiles(files, procDevicesContent, devices, skippedDevices, inaccessibleDevices, ref readErrors);
+
+        LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors);
+
+        return devices;
+    }
+
+    public static async Task<IReadOnlyList<InputDevice>> GetAvailableDevicesAsync(CancellationToken cancellationToken = default)
+    {
+        List<InputDevice> devices = [];
+        List<InputDevice> skippedDevices = [];
+        List<(InputDevice device, int errno)> inaccessibleDevices = [];
+        var readErrors = 0;
+        const string inputDir = "/dev/input";
+
+        Log.Information("[InputDeviceHelper] Scanning input devices in {InputDir}...", inputDir);
+
+        if (!Directory.Exists(inputDir))
         {
-            if (File.Exists("/proc/bus/input/devices"))
-            {
-                procDevicesContent = File.ReadAllText("/proc/bus/input/devices");
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[InputDeviceHelper] Failed to read /proc/bus/input/devices");
+            Log.Warning("[InputDeviceHelper] Directory {InputDir} does not exist.", inputDir);
+            return devices;
         }
 
+        var files = Directory.GetFiles(inputDir, "event*");
+        Log.Debug("[InputDeviceHelper] Found {Count} event files to analyze.", files.Length);
+
+        var procDevicesContent = await ReadProcDevicesContentAsync(cancellationToken).ConfigureAwait(false);
+        ScanDeviceFiles(files, procDevicesContent, devices, skippedDevices, inaccessibleDevices, ref readErrors);
+
+        LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors);
+
+        return devices;
+    }
+
+    private static void LogDeviceSummary(
+        int fileCount,
+        List<InputDevice> devices,
+        List<(InputDevice device, int errno)> inaccessibleDevices,
+        List<InputDevice> skippedDevices,
+        int readErrors)
+    {
+        Log.Information("[InputDeviceHelper] ========== Device Summary ==========");
+        Log.Information("[InputDeviceHelper] Total: {Total} | Usable: {Usable} | Inaccessible: {Inaccessible} | Skipped: {Skipped} | ReadErrors: {ReadErrors}",
+            fileCount, devices.Count, inaccessibleDevices.Count, skippedDevices.Count, readErrors);
+
+        if (devices.Count > 0)
+        {
+            Log.Information("[InputDeviceHelper] --- Active Input Devices ---");
+            foreach (var dev in devices)
+            {
+                Log.Information("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | Bus: {Bus} | VID:0x{VID:X4} PID:0x{PID:X4}",
+                    dev.DeviceType, dev.Name, dev.Path, GetBusTypeName(dev.BusType), dev.VendorId, dev.ProductId);
+            }
+        }
+
+        LogInaccessibleDevices(inaccessibleDevices);
+        LogSkippedDevices(skippedDevices);
+        Log.Information("[InputDeviceHelper] ====================================");
+    }
+
+    private static void LogInaccessibleDevices(List<(InputDevice device, int errno)> inaccessibleDevices)
+    {
+        if (inaccessibleDevices.Count is 0)
+        {
+            return;
+        }
+
+        Log.Warning("[InputDeviceHelper] --- Inaccessible Devices ---");
+        foreach (var (dev, errno) in inaccessibleDevices)
+        {
+            if (errno is 16)
+            {
+                Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) - Device is exclusively grabbed. Run: sudo fuser -v {Path}",
+                    dev.DeviceType, dev.Name, dev.Path, dev.Path);
+            }
+            else
+            {
+                Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4} - Cannot open (errno: {Errno})",
+                    dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId, errno);
+            }
+        }
+    }
+
+    private static void LogSkippedDevices(List<InputDevice> skippedDevices)
+    {
+        if (skippedDevices.Count is 0)
+        {
+            return;
+        }
+
+        Log.Debug("[InputDeviceHelper] --- Skipped Devices (not input devices) ---");
+        foreach (var dev in skippedDevices)
+        {
+            Log.Debug("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4}",
+                dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId);
+        }
+    }
+
+    private static string? ReadProcDevicesContent()
+    {
+        try
+        {
+            return File.Exists("/proc/bus/input/devices")
+                ? File.ReadAllText("/proc/bus/input/devices")
+                : null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[InputDeviceHelper] Failed to read /proc/bus/input/devices");
+            return null;
+        }
+    }
+
+    private static async Task<string?> ReadProcDevicesContentAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!File.Exists("/proc/bus/input/devices"))
+            {
+                return null;
+            }
+
+            return await File.ReadAllTextAsync("/proc/bus/input/devices", cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[InputDeviceHelper] Failed to read /proc/bus/input/devices");
+            return null;
+        }
+    }
+
+    private static void ScanDeviceFiles(
+        string[] files,
+        string? procDevicesContent,
+        List<InputDevice> devices,
+        List<InputDevice> skippedDevices,
+        List<(InputDevice device, int errno)> inaccessibleDevices,
+        ref int readErrors)
+    {
         foreach (var file in files)
         {
             try
             {
                 var device = GetDeviceInfo(file, procDevicesContent);
-
                 if (device.IsMouse || device.IsKeyboard)
                 {
                     var (canOpen, errno) = CanOpenForReading(file);
@@ -128,58 +254,12 @@ public static partial class InputDeviceHelper
             {
                 Log.Debug("[InputDeviceHelper] Device file {File} disappeared before it could be opened (race condition).", file);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 readErrors++;
                 Log.LogError(ex, "[InputDeviceHelper] Error reading {File}", file);
             }
         }
-
-        Log.Information("[InputDeviceHelper] ========== Device Summary ==========");
-        Log.Information("[InputDeviceHelper] Total: {Total} | Usable: {Usable} | Inaccessible: {Inaccessible} | Skipped: {Skipped} | ReadErrors: {ReadErrors}",
-            files.Length, devices.Count, inaccessibleDevices.Count, skippedDevices.Count, readErrors);
-
-        if (devices.Count > 0)
-        {
-            Log.Information("[InputDeviceHelper] --- Active Input Devices ---");
-            foreach (var dev in devices)
-            {
-                Log.Information("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | Bus: {Bus} | VID:0x{VID:X4} PID:0x{PID:X4}",
-                    dev.DeviceType, dev.Name, dev.Path, GetBusTypeName(dev.BusType), dev.VendorId, dev.ProductId);
-            }
-        }
-
-        if (inaccessibleDevices.Count > 0)
-        {
-            Log.Warning("[InputDeviceHelper] --- Inaccessible Devices ---");
-            foreach (var (dev, errno) in inaccessibleDevices)
-            {
-                if (errno is 16)
-                {
-                    Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) - Device is exclusively grabbed. Run: sudo fuser -v {Path}",
-                        dev.DeviceType, dev.Name, dev.Path, dev.Path);
-                }
-                else
-                {
-                    Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4} - Cannot open (errno: {Errno})",
-                        dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId, errno);
-                }
-            }
-        }
-
-        if (skippedDevices.Count > 0)
-        {
-            Log.Debug("[InputDeviceHelper] --- Skipped Devices (not input devices) ---");
-            foreach (var dev in skippedDevices)
-            {
-                Log.Debug("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4}",
-                    dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId);
-            }
-        }
-
-        Log.Information("[InputDeviceHelper] ====================================");
-
-        return devices;
     }
 
     private static InputDevice GetDeviceInfo(string devicePath, string? procDevicesContent)
@@ -194,47 +274,21 @@ public static partial class InputDeviceHelper
         try
         {
             byte[] nameBuf = new byte[256];
-            EvdevNative.ioctl(fd, EvdevNative.EVIOCGNAME_256, nameBuf);
+            _ = EvdevNative.ioctl(fd, EvdevNative.EVIOCGNAME_256, nameBuf);
             string name = System.Text.Encoding.ASCII.GetString(nameBuf).TrimEnd('\0');
 
             var (busType, vendorId, productId, version) = ReadDeviceId(fd);
 
             if (VirtualDeviceConstants.IsCrossMacroVirtualDevice(name, vendorId, productId))
             {
-                Log.Debug("[InputDeviceHelper] CrossMacro virtual output device: {Path} - {Name} (VID:0x{VID:X4} PID:0x{PID:X4})",
-                    devicePath, name, vendorId, productId);
-                return new InputDevice
-                {
-                    Path = devicePath,
-                    Name = name,
-                    IsMouse = false,
-                    IsKeyboard = false,
-                    IsVirtual = true,
-                    BusType = busType,
-                    VendorId = vendorId,
-                    ProductId = productId,
-                    Version = version,
-                };
+                return BuildVirtualInputDevice(devicePath, name, busType, vendorId, productId, version);
             }
 
             bool isVirtual = IsVirtualDevice(devicePath, name);
 
             if (ShouldExcludeDevice(name))
             {
-                Log.Debug("[InputDeviceHelper] Excluded device: {Path} - {Name} (VID:0x{VID:X4} PID:0x{PID:X4})",
-                    devicePath, name, vendorId, productId);
-                return new InputDevice
-                {
-                    Path = devicePath,
-                    Name = name,
-                    IsMouse = false,
-                    IsKeyboard = false,
-                    IsVirtual = isVirtual,
-                    BusType = busType,
-                    VendorId = vendorId,
-                    ProductId = productId,
-                    Version = version,
-                };
+                return BuildExcludedInputDevice(devicePath, name, isVirtual, busType, vendorId, productId, version);
             }
 
             bool isMouse = HasKernelHandler(devicePath, name, procDevicesContent, "mouse") ||
@@ -244,28 +298,69 @@ public static partial class InputDeviceHelper
             bool isKeyboard = CheckIsKeyboard(fd) ||
                               HasKernelHandler(devicePath, name, procDevicesContent, "kbd");
 
-            var device = new InputDevice
-            {
-                Path = devicePath,
-                Name = string.IsNullOrWhiteSpace(name) ? "Unknown Device" : name,
-                IsMouse = isMouse,
-                IsKeyboard = isKeyboard,
-                IsVirtual = isVirtual,
-                BusType = busType,
-                VendorId = vendorId,
-                ProductId = productId,
-                Version = version,
-            };
-
-            Log.Debug("[InputDeviceHelper] Analyzed: {Path} - {Name} | Type: {Type} | Bus: {Bus} | VID:0x{VID:X4} PID:0x{PID:X4}",
-                devicePath, device.Name, device.DeviceType, GetBusTypeName(busType), vendorId, productId);
-
-            return device;
+            return BuildAnalyzedInputDevice(devicePath, name, isVirtual, isMouse, isKeyboard, busType, vendorId, productId, version);
         }
         finally
         {
-            EvdevNative.close(fd);
+            _ = EvdevNative.close(fd);
         }
+    }
+
+    private static InputDevice BuildVirtualInputDevice(string devicePath, string name, ushort busType, ushort vendorId, ushort productId, ushort version)
+    {
+        Log.Debug("[InputDeviceHelper] CrossMacro virtual output device: {Path} - {Name} (VID:0x{VID:X4} PID:0x{PID:X4})",
+            devicePath, name, vendorId, productId);
+        return new InputDevice
+        {
+            Path = devicePath,
+            Name = name,
+            IsMouse = false,
+            IsKeyboard = false,
+            IsVirtual = true,
+            BusType = busType,
+            VendorId = vendorId,
+            ProductId = productId,
+            Version = version,
+        };
+    }
+
+    private static InputDevice BuildExcludedInputDevice(string devicePath, string name, bool isVirtual, ushort busType, ushort vendorId, ushort productId, ushort version)
+    {
+        Log.Debug("[InputDeviceHelper] Excluded device: {Path} - {Name} (VID:0x{VID:X4} PID:0x{PID:X4})",
+            devicePath, name, vendorId, productId);
+        return new InputDevice
+        {
+            Path = devicePath,
+            Name = name,
+            IsMouse = false,
+            IsKeyboard = false,
+            IsVirtual = isVirtual,
+            BusType = busType,
+            VendorId = vendorId,
+            ProductId = productId,
+            Version = version,
+        };
+    }
+
+    private static InputDevice BuildAnalyzedInputDevice(string devicePath, string name, bool isVirtual, bool isMouse, bool isKeyboard, ushort busType, ushort vendorId, ushort productId, ushort version)
+    {
+        var device = new InputDevice
+        {
+            Path = devicePath,
+            Name = string.IsNullOrWhiteSpace(name) ? "Unknown Device" : name,
+            IsMouse = isMouse,
+            IsKeyboard = isKeyboard,
+            IsVirtual = isVirtual,
+            BusType = busType,
+            VendorId = vendorId,
+            ProductId = productId,
+            Version = version,
+        };
+
+        Log.Debug("[InputDeviceHelper] Analyzed: {Path} - {Name} | Type: {Type} | Bus: {Bus} | VID:0x{VID:X4} PID:0x{PID:X4}",
+            devicePath, device.Name, device.DeviceType, GetBusTypeName(busType), vendorId, productId);
+
+        return device;
     }
 
     private static (ushort busType, ushort vendorId, ushort productId, ushort version) ReadDeviceId(int fd)
@@ -370,7 +465,7 @@ public static partial class InputDeviceHelper
                 if (line.StartsWith("H: Handlers=", StringComparison.Ordinal) && line.Contains(eventName, StringComparison.Ordinal))
                 {
                     hasHandler = string.Equals(handlerType, "mouse", StringComparison.Ordinal)
-                        ? MouseHandlerRegex().IsMatch(line)
+                        ? MouseHandlerRegex.IsMatch(line)
                         : line.Contains("kbd", StringComparison.Ordinal);
                 }
             }
@@ -508,7 +603,7 @@ public static partial class InputDeviceHelper
         }
         finally
         {
-            EvdevNative.close(fd);
+            _ = EvdevNative.close(fd);
         }
 
         return result;
@@ -537,7 +632,7 @@ public static partial class InputDeviceHelper
                 }
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Ignore directory check failures; fallback to false.
         }
@@ -573,7 +668,7 @@ public static partial class InputDeviceHelper
             }
             return (true, 0);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return (false, -1);
         }
@@ -581,7 +676,7 @@ public static partial class InputDeviceHelper
         {
             if (fd >= 0)
             {
-                EvdevNative.close(fd);
+                _ = EvdevNative.close(fd);
             }
         }
     }

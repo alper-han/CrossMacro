@@ -1,16 +1,16 @@
 
 namespace CrossMacro.Core.Tests.Models;
 
-public class TriggerTaskTests
+public sealed class TriggerTaskTests
 {
     [Fact]
     public void CanBeEnabled_RequiresValueAndTargetProfileForSwitchProfile()
     {
         var t = new TriggerTask { Value = "firefox", Action = TriggerOperation.SwitchProfile };
-        t.CanBeEnabled.Should().BeFalse();
+        _ = t.CanBeEnabled.Should().BeFalse();
 
         t.TargetProfileId = "gaming";
-        t.CanBeEnabled.Should().BeTrue();
+        _ = t.CanBeEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -18,25 +18,25 @@ public class TriggerTaskTests
     {
         // Unknown action values default to bypassing the profile validation rules.
         var t = new TriggerTask { Value = "firefox", Action = (TriggerOperation)999 };
-        t.CanBeEnabled.Should().BeTrue();
+        _ = t.CanBeEnabled.Should().BeTrue();
     }
 
     [Fact]
     public void CanBeEnabled_RequiresMacroFilePathForRunMacro()
     {
         var t = new TriggerTask { Value = "firefox", Action = TriggerOperation.RunMacro };
-        t.CanBeEnabled.Should().BeFalse("RunMacro requires a macro file path");
+        _ = t.CanBeEnabled.Should().BeFalse("RunMacro requires a macro file path");
 
         t.MacroFilePath = "/tmp/demo.macro";
-        t.CanBeEnabled.Should().BeTrue();
+        _ = t.CanBeEnabled.Should().BeTrue();
     }
 
     [Fact]
     public void IsEnabled_RefusesEnableWhenCanBeEnabledIsFalse()
     {
         var t = new TriggerTask { Value = "", Action = TriggerOperation.SwitchProfile };
-        t.TrySetEnabled(true).Should().BeFalse();
-        t.IsEnabled.Should().BeFalse("gate should block enabling incomplete task");
+        _ = t.TrySetEnabled(enabled: true).Should().BeFalse();
+        _ = t.IsEnabled.Should().BeFalse("gate should block enabling incomplete task");
     }
 
     [Fact]
@@ -48,14 +48,14 @@ public class TriggerTaskTests
             Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
         };
-        t.TrySetEnabled(true).Should().BeTrue();
-        t.IsEnabled.Should().BeTrue();
+        _ = t.TrySetEnabled(enabled: true).Should().BeTrue();
+        _ = t.IsEnabled.Should().BeTrue();
     }
 
     [Fact]
     public void TriggerTask_IsPlainDomainModel()
     {
-        typeof(TriggerTask).GetInterface(nameof(System.ComponentModel.INotifyPropertyChanged))
+        _ = typeof(TriggerTask).GetInterface(nameof(System.ComponentModel.INotifyPropertyChanged))
             .Should().BeNull();
     }
 
@@ -69,19 +69,19 @@ public class TriggerTaskTests
             Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "gaming",
         };
-        t.CanBeEnabled.Should().BeTrue("None field fires regardless of window state, no Value required");
+        _ = t.CanBeEnabled.Should().BeTrue("None field fires regardless of window state, no Value required");
     }
 
     [Fact]
     public void CooldownMs_And_DebounceMs_DefaultToNull()
     {
         var t = new TriggerTask();
-        t.CooldownMs.Should().BeNull();
-        t.DebounceMs.Should().BeNull();
+        _ = t.CooldownMs.Should().BeNull();
+        _ = t.DebounceMs.Should().BeNull();
 
         t.CooldownMs = 500;
         t.DebounceMs = 50;
-        t.CooldownMs.Should().Be(500);
-        t.DebounceMs.Should().Be(50);
+        _ = t.CooldownMs.Should().Be(500);
+        _ = t.DebounceMs.Should().Be(50);
     }
 }

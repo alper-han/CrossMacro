@@ -13,12 +13,11 @@ public class TextBufferState : ITextBufferState
 
     public void Append(char c)
     {
-        _buffer.Append(c);
+        _ = _buffer.Append(c);
         if (_buffer.Length > MaxBufferLength)
         {
-            _buffer.Remove(0, _buffer.Length - MaxBufferLength);
+            _ = _buffer.Remove(0, _buffer.Length - MaxBufferLength);
         }
-        // Log.Debug("[TextBuffer] Content: {Buffer}", _buffer.ToString());
     }
 
     public void Backspace()
@@ -31,7 +30,7 @@ public class TextBufferState : ITextBufferState
 
     public void Clear()
     {
-        _buffer.Clear();
+        _ = _buffer.Clear();
     }
 
     public bool TryGetMatch(IEnumerable<Core.Models.TextExpansionEntry> expansions, out Core.Models.TextExpansionEntry? match)

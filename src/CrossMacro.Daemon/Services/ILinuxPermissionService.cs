@@ -1,6 +1,6 @@
 namespace CrossMacro.Daemon.Services;
 
-public interface ILinuxPermissionService
+internal interface ILinuxPermissionService
 {
     public void ConfigureSocketPermissions(string socketPath);
 }

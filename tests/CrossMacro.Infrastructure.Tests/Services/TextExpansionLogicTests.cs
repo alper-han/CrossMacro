@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class TextExpansionLogicTests
+public sealed class TextExpansionLogicTests : IDisposable
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
 
@@ -20,7 +20,7 @@ public class TextExpansionLogicTests
     public TextExpansionLogicTests()
     {
         _settingsService = Substitute.For<ISettingsService>();
-        _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = true });
+        _ = _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = true });
 
         _storageService = Substitute.For<ITextExpansionStorageService>();
         _layoutService = Substitute.For<IKeyboardLayoutService>();
@@ -40,24 +40,26 @@ public class TextExpansionLogicTests
             _executor);
 
         // Default mock for typing
-        _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
+        _ = _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
             .Returns((char?)null); // Default null unless specified
 
         _service.Start();
     }
+
+    public void Dispose() => _service.Dispose();
 
     [Fact]
     public async Task ExpansionTriggered_WhenBufferMatches()
     {
         // Arrange
         var expansion = new Core.Models.TextExpansionEntry("abc", "expanded");
-        _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansionEntry> { expansion });
+        _ = _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansionEntry> { expansion });
         var expansionTriggered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _executor
-            .ExpandAsync(expansion)
-            .Returns(_ =>
+        _ = _executor
+            .ExpandAsync(expansion, Arg.Any<CancellationToken>())
+            .Returns(unusedCallInfo =>
             {
-                expansionTriggered.TrySetResult(true);
+                _ = expansionTriggered.TrySetResult(true);
                 return Task.CompletedTask;
             });
 
@@ -69,10 +71,10 @@ public class TextExpansionLogicTests
         RaiseKey(30);
         RaiseKey(48);
         RaiseKey(46);
-        await expansionTriggered.Task.WaitAsync(TestTimeout);
+        _ = await expansionTriggered.Task.WaitAsync(TestTimeout);
 
         // Assert
-        await _executor.Received(1).ExpandAsync(expansion);
+        await _executor.Received(1).ExpandAsync(expansion, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -80,25 +82,25 @@ public class TextExpansionLogicTests
     {
         // Arrange
         var expansion = new Core.Models.TextExpansionEntry("abc", "expanded");
-        _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansionEntry> { expansion });
+        _ = _storageService.GetCurrent().Returns(new List<Core.Models.TextExpansionEntry> { expansion });
         var expansionCount = 0;
         var firstExpansionStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var firstExpansionAllowedToFinish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondExpansionTriggered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        _executor
-            .ExpandAsync(expansion)
-            .Returns(async _ =>
+        _ = _executor
+            .ExpandAsync(expansion, Arg.Any<CancellationToken>())
+            .Returns(async unusedCallInfo =>
             {
                 var currentCount = Interlocked.Increment(ref expansionCount);
                 if (currentCount is 1)
                 {
-                    firstExpansionStarted.TrySetResult(true);
-                    await firstExpansionAllowedToFinish.Task;
+                    _ = firstExpansionStarted.TrySetResult(true);
+                    _ = await firstExpansionAllowedToFinish.Task;
                 }
                 else if (currentCount is 2)
                 {
-                    secondExpansionTriggered.TrySetResult(true);
+                    _ = secondExpansionTriggered.TrySetResult(true);
                 }
             });
 
@@ -113,25 +115,25 @@ public class TextExpansionLogicTests
         RaiseKey(46);
 
         // Wait for first expansion to start
-        await firstExpansionStarted.Task.WaitAsync(TestTimeout);
+        _ = await firstExpansionStarted.Task.WaitAsync(TestTimeout);
 
         // Allow it to finish and yield to let background thread execute the finally block (Resume capture)
-        firstExpansionAllowedToFinish.TrySetResult(true);
+        _ = firstExpansionAllowedToFinish.TrySetResult(true);
         await Task.Delay(50);
 
         RaiseKey(32);
         RaiseKey(30);
         RaiseKey(48);
         RaiseKey(46);
-        await secondExpansionTriggered.Task.WaitAsync(TestTimeout);
+        _ = await secondExpansionTriggered.Task.WaitAsync(TestTimeout);
 
         // Assert - Should trigger again
-        await _executor.Received(2).ExpandAsync(expansion);
+        await _executor.Received(2).ExpandAsync(expansion, Arg.Any<CancellationToken>());
     }
 
     private void SetupKey(int code, char c)
     {
-        _layoutService.GetCharFromKeyCode(code, Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
+        _ = _layoutService.GetCharFromKeyCode(code, Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
             .Returns(c);
     }
 

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
-public class WindowsEnvironmentInfoProviderTests
+public sealed class WindowsEnvironmentInfoProviderTests
 {
     [WindowsFact]
     public void CurrentEnvironment_ReturnsWindows()

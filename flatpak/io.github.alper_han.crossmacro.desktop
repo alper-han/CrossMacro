@@ -9,5 +9,5 @@ Type=Application
 Categories=Utility;Accessibility;
 Terminal=false
 StartupNotify=true
-StartupWMClass=CrossMacro
+StartupWMClass=CrossMacro.UI
 X-Flatpak=io.github.alper_han.crossmacro

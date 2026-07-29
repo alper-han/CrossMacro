@@ -2,17 +2,16 @@
 namespace CrossMacro.Platform.Windows.Services;
 
 [SupportedOSPlatform("windows")]
-internal sealed class StaMessageThread : IDisposable
+internal sealed partial class StaMessageThread : IDisposable
 {
     private readonly Thread _thread;
     private readonly ConcurrentQueue<Action<Exception?>> _workQueue = new();
-    private IntPtr _hwnd;
     private uint _threadId;
     private readonly AutoResetEvent _readyEvent = new(initialState: false);
     private Exception? _startupException;
     private int _isClosing;
 
-    public IntPtr MessageWindowHandle => _hwnd;
+    public IntPtr MessageWindowHandle { get; private set; }
 
     public StaMessageThread(string name)
     {
@@ -24,7 +23,7 @@ internal sealed class StaMessageThread : IDisposable
         _thread.SetApartmentState(ApartmentState.STA);
         _thread.Start();
 
-        _readyEvent.WaitOne();
+        _ = _readyEvent.WaitOne();
         if (_startupException is not null)
         {
             _readyEvent.Dispose();
@@ -34,87 +33,125 @@ internal sealed class StaMessageThread : IDisposable
 
     private void Run()
     {
-        OleInitialize(IntPtr.Zero);
+        int hr = OleInitialize(IntPtr.Zero);
+        if (hr is < 0 and not unchecked((int)0x80010106))
+        {
+            Marshal.ThrowExceptionForHR(hr);
+        }
         try
         {
             _threadId = Kernel32.GetCurrentThreadId();
-
-            string className = "CrossMacro_MessageOnlyWindow_" + Guid.NewGuid().ToString("N");
-            var wndClass = new WNDCLASSEX
-            {
-                cbSize = (uint)Marshal.SizeOf<WNDCLASSEX>(),
-                lpfnWndProc = Marshal.GetFunctionPointerForDelegate<WndProcDelegate>(DefWindowProc),
-                lpszClassName = className,
-                hInstance = Kernel32.GetModuleHandle(lpModuleName: null),
-            };
-
-            if (RegisterClassEx(ref wndClass) is 0)
+            if (!TryInitializeWindow(out string className, out var hInstance))
             {
                 ReportStartupFailure();
                 return;
             }
-
-            var hwndMessage = new IntPtr(-3);
-
-            _hwnd = CreateWindowEx(
-                0,
-                className,
-                "CrossMacro_Clipboard_Host",
-                0,
-                0, 0, 0, 0,
-                hwndMessage,
-                IntPtr.Zero,
-                wndClass.hInstance,
-                IntPtr.Zero);
-
-            if (_hwnd == IntPtr.Zero)
-            {
-                UnregisterClass(className, wndClass.hInstance);
-                ReportStartupFailure();
-                return;
-            }
-
-            PeekMessage(out _, IntPtr.Zero, 0, 0, 0);
-
-            _readyEvent.Set();
 
             try
             {
-                int bRet;
-                while ((bRet = GetMessage(out var msg, IntPtr.Zero, 0, 0)) is not 0)
-                {
-                    if (bRet == -1)
-                    {
-                        break;
-                    }
-
-                    if (msg.message == User32.WM_APP)
-                    {
-                        while (_workQueue.TryDequeue(out var action))
-                        {
-                            action(null);
-                        }
-                    }
-                    else
-                    {
-                        User32.TranslateMessage(ref msg);
-                        User32.DispatchMessage(ref msg);
-                    }
-                }
+                _ = PeekMessage(out _, IntPtr.Zero, 0, 0, 0);
+                _ = _readyEvent.Set();
+                RunMessageLoop();
             }
             finally
             {
-                if (_hwnd != IntPtr.Zero)
-                {
-                    User32.DestroyWindow(_hwnd);
-                }
-                UnregisterClass(className, wndClass.hInstance);
+                DestroyMessageWindow(className, hInstance);
             }
         }
         finally
         {
             FailPendingWork();
             OleUninitialize();
+        }
+    }
+
+    // Static root: the native thunk is only valid while the delegate instance is alive.
+    private static readonly WndProcDelegate s_windowProc = DefWindowProc;
+
+    private bool TryInitializeWindow(out string className, out IntPtr hInstance)
+    {
+        className = "CrossMacro_MessageOnlyWindow_" + Guid.NewGuid().ToString("N");
+        hInstance = Kernel32.GetModuleHandle(lpModuleName: null);
+        var classNamePointer = Marshal.StringToCoTaskMemUni(className);
+        var windowProcPointer = Marshal.GetFunctionPointerForDelegate(s_windowProc);
+
+        var wndClass = new WndClassEx
+        {
+            cbSize = (uint)Marshal.SizeOf<WndClassEx>(),
+            lpfnWndProc = windowProcPointer,
+            lpszClassName = classNamePointer,
+            hInstance = hInstance,
+        };
+
+        try
+        {
+            if (RegisterClassEx(ref wndClass) is 0)
+            {
+                return false;
+            }
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(classNamePointer);
+        }
+
+        var hwndMessage = new IntPtr(-3);
+        MessageWindowHandle = CreateWindowEx(
+            0,
+            className,
+            "CrossMacro_Clipboard_Host",
+            0,
+            0, 0, 0, 0,
+            hwndMessage,
+            IntPtr.Zero,
+            hInstance,
+            IntPtr.Zero);
+
+        if (MessageWindowHandle == IntPtr.Zero)
+        {
+            _ = UnregisterClass(className, hInstance);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void DestroyMessageWindow(string className, IntPtr hInstance)
+    {
+        if (MessageWindowHandle != IntPtr.Zero)
+        {
+            _ = User32.DestroyWindow(MessageWindowHandle);
+        }
+        _ = UnregisterClass(className, hInstance);
+    }
+
+    private void RunMessageLoop()
+    {
+        int bRet;
+        while ((bRet = GetMessage(out var msg, IntPtr.Zero, 0, 0)) is not 0)
+        {
+            if (bRet == -1)
+            {
+                break;
+            }
+
+            if (msg.message == User32.WM_APP)
+            {
+                ProcessWorkQueue();
+            }
+            else
+            {
+                _ = User32.TranslateMessage(ref msg);
+                _ = User32.DispatchMessage(ref msg);
+            }
+        }
+    }
+
+    private void ProcessWorkQueue()
+    {
+        while (_workQueue.TryDequeue(out var action))
+        {
+            action(null);
         }
     }
 
@@ -136,23 +173,27 @@ internal sealed class StaMessageThread : IDisposable
 
             if (failure is not null)
             {
-                tcs.TrySetException(failure);
+                _ = tcs.TrySetException(failure);
                 return;
             }
 
             try
             {
-                tcs.TrySetResult(action());
+                _ = tcs.TrySetResult(action());
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                tcs.TrySetException(ex);
+                _ = tcs.TrySetException(ex);
+                if (ex is OutOfMemoryException)
+                {
+                    throw;
+                }
             }
         });
 
         if (Volatile.Read(ref _isClosing) is not 0 || !User32.PostThreadMessage(_threadId, User32.WM_APP, IntPtr.Zero, IntPtr.Zero))
         {
-            tcs.TrySetException(new Win32Exception(Marshal.GetLastWin32Error(), "Failed to queue work on the Windows STA message thread."));
+            _ = tcs.TrySetException(new Win32Exception(Marshal.GetLastWin32Error(), "Failed to queue work on the Windows STA message thread."));
         }
 
         return tcs.Task;
@@ -174,8 +215,8 @@ internal sealed class StaMessageThread : IDisposable
             return;
         }
 
-        User32.PostThreadMessage(_threadId, User32.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
-        _thread.Join(1000);
+        _ = User32.PostThreadMessage(_threadId, User32.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+        _ = _thread.Join(1000);
         FailPendingWork();
         _readyEvent.Dispose();
     }
@@ -183,7 +224,7 @@ internal sealed class StaMessageThread : IDisposable
     private void ReportStartupFailure()
     {
         _startupException = new Win32Exception(Marshal.GetLastWin32Error());
-        _readyEvent.Set();
+        _ = _readyEvent.Set();
     }
 
     private void FailPendingWork()
@@ -197,37 +238,43 @@ internal sealed class StaMessageThread : IDisposable
 
     private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll", SetLastError = true, EntryPoint = "DefWindowProcW")]
-    private static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("user32.dll", SetLastError = true, EntryPoint = "DefWindowProcW")]
+    private static partial IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll", SetLastError = true)]
+    [LibraryImport("user32.dll", SetLastError = true, EntryPoint = "PeekMessageW")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool PeekMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
+    private static partial bool PeekMessage(out Msg lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern int GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+    [LibraryImport("user32.dll", SetLastError = true, EntryPoint = "GetMessageW")]
+    private static partial int GetMessage(out Msg lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
 
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern ushort RegisterClassEx(ref WNDCLASSEX lpwcx);
+    [LibraryImport("user32.dll", SetLastError = true, EntryPoint = "RegisterClassExW")]
+    private static partial ushort RegisterClassEx(ref WndClassEx lpwcx);
 
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr CreateWindowEx(
-        uint dwExStyle, string lpClassName, string lpWindowName, uint dwStyle,
-        int x, int y, int nWidth, int nHeight, IntPtr hWndParent,
-        IntPtr hMenu, IntPtr hInstance, IntPtr lpParam);
+    [LibraryImport("user32.dll", SetLastError = true, EntryPoint = "CreateWindowExW")]
+    private static partial IntPtr CreateWindowEx(
+        uint dwExStyle,
+        [MarshalAs(UnmanagedType.LPWStr)] string lpClassName,
+        [MarshalAs(UnmanagedType.LPWStr)] string lpWindowName,
+        uint dwStyle,
+        int x, int y, int nWidth, int nHeight,
+        IntPtr hWndParent,
+        IntPtr hMenu,
+        IntPtr hInstance,
+        IntPtr lpParam);
 
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [LibraryImport("user32.dll", SetLastError = true, EntryPoint = "UnregisterClassW")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnregisterClass(string lpClassName, IntPtr hInstance);
+    private static partial bool UnregisterClass([MarshalAs(UnmanagedType.LPWStr)] string lpClassName, IntPtr hInstance);
 
-    [DllImport("ole32.dll")]
-    private static extern int OleInitialize(IntPtr pvReserved);
+    [LibraryImport("ole32.dll")]
+    private static partial int OleInitialize(IntPtr pvReserved);
 
-    [DllImport("ole32.dll")]
-    private static extern void OleUninitialize();
+    [LibraryImport("ole32.dll")]
+    private static partial void OleUninitialize();
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct WNDCLASSEX
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WndClassEx
     {
         public uint cbSize;
         public uint style;
@@ -238,8 +285,8 @@ internal sealed class StaMessageThread : IDisposable
         public IntPtr hIcon;
         public IntPtr hCursor;
         public IntPtr hbrBackground;
-        public string lpszMenuName;
-        public string lpszClassName;
+        public IntPtr lpszMenuName;
+        public IntPtr lpszClassName;
         public IntPtr hIconSm;
     }
 }

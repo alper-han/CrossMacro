@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.Theming;
 
-public class ThemeContrastComplianceTests
+public sealed class ThemeContrastComplianceTests
 {
     [Theory]
     [InlineData("PrimaryColor", "TextOnPrimaryColor", 4.5)]
@@ -21,14 +21,14 @@ public class ThemeContrastComplianceTests
     public void ThemeColors_ShouldMeetContrastTargets(string backgroundKey, string foregroundKey, double minRatio)
     {
         var themeFiles = ThemeTestFileHelper.GetThemeFiles();
-        themeFiles.Should().NotBeEmpty();
+        _ = themeFiles.Should().NotBeEmpty();
 
         foreach (var themeFile in themeFiles)
         {
             var background = ThemeTestFileHelper.ReadColorValue(themeFile, backgroundKey);
             var foreground = ThemeTestFileHelper.ReadColorValue(themeFile, foregroundKey);
             var ratio = ContrastRatio(background, foreground);
-            ratio.Should().BeGreaterThanOrEqualTo(
+            _ = ratio.Should().BeGreaterThanOrEqualTo(
                 minRatio,
                 because:
                 $"{Path.GetFileName(themeFile)} must satisfy contrast for {foregroundKey} on {backgroundKey}");

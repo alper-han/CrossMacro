@@ -5,18 +5,11 @@ namespace CrossMacro.Infrastructure.Services;
 /// Compatibility façade combining editor field/projection validation with the
 /// shared Infrastructure script-validation boundary.
 /// </summary>
-public sealed class EditorActionValidator : IEditorActionValidator
+public sealed class EditorActionValidator(IEditorActionConverter validationConverter, IScriptValidationService? scriptValidationService = null) : IEditorActionValidator
 {
-    private readonly EditorActionProjectionValidator _projectionValidator;
-    private readonly EditorActionScriptValidationAdapter _scriptAdapter;
-    private readonly IScriptValidationService? _scriptValidationService;
-
-    public EditorActionValidator(IEditorActionConverter validationConverter, IScriptValidationService? scriptValidationService = null)
-    {
-        _scriptValidationService = scriptValidationService;
-        _projectionValidator = new EditorActionProjectionValidator(validationConverter, scriptValidationService);
-        _scriptAdapter = new EditorActionScriptValidationAdapter(validationConverter, scriptValidationService);
-    }
+    private readonly EditorActionProjectionValidator _projectionValidator = new EditorActionProjectionValidator(validationConverter, scriptValidationService);
+    private readonly EditorActionScriptValidationAdapter _scriptAdapter = new EditorActionScriptValidationAdapter(validationConverter, scriptValidationService);
+    private readonly IScriptValidationService? _scriptValidationService = scriptValidationService;
 
     public (bool IsValid, string? Error) Validate(EditorAction action)
     {

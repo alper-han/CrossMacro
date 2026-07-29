@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Services.ScreenReading;
 
-internal sealed record class MacOSCapturedImage(
+internal sealed record MacOSCapturedImage(
     int Width,
     int Height,
     int BitsPerComponent,
@@ -12,7 +12,5 @@ internal sealed record class MacOSCapturedImage(
 {
     public bool IsEmpty => Width is 0 || Height is 0 || Pixels.Length is 0;
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

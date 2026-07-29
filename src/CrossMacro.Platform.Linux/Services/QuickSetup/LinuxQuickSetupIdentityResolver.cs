@@ -1,24 +1,16 @@
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
-internal sealed class LinuxQuickSetupIdentityResolver
+internal sealed partial class LinuxQuickSetupIdentityResolver(Func<string> getUserName, Func<uint?> getEffectiveUid)
 {
-    [DllImport("libc", SetLastError = true)]
-    private static extern uint geteuid();
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial uint geteuid();
 
-    private readonly Func<string> _getUserName;
-    private readonly Func<uint?> _getEffectiveUid;
+    private readonly Func<string> _getUserName = getUserName ?? throw new ArgumentNullException(nameof(getUserName));
+    private readonly Func<uint?> _getEffectiveUid = getEffectiveUid ?? throw new ArgumentNullException(nameof(getEffectiveUid));
 
     public LinuxQuickSetupIdentityResolver()
-        : this(() => Environment.UserName, TryGetEffectiveUid)
-    {
-    }
-
-    public LinuxQuickSetupIdentityResolver(Func<string> getUserName, Func<uint?> getEffectiveUid)
-    {
-        _getUserName = getUserName ?? throw new ArgumentNullException(nameof(getUserName));
-        _getEffectiveUid = getEffectiveUid ?? throw new ArgumentNullException(nameof(getEffectiveUid));
-    }
+        : this(static () => Environment.UserName, TryGetEffectiveUid) { /* Empty */ }
 
     public LinuxQuickSetupIdentity? Resolve()
     {
@@ -60,7 +52,7 @@ internal sealed class LinuxQuickSetupIdentityResolver
         {
             return geteuid();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[LinuxQuickSetupIdentityResolver] Failed to read effective UID");
             return null;

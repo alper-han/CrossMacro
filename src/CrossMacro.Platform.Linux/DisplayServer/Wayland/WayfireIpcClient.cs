@@ -5,7 +5,6 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
 {
     private const int SocketTimeoutMs = 1000;
     private const int MaxResponseBytes = 4 * 1024 * 1024;
-    private static readonly TimeSpan SocketValidationTimeout = TimeSpan.FromMilliseconds(250);
     private const string WayfireSocketEnvVar = "WAYFIRE_SOCKET";
     private const string RuntimeDirEnvVar = "XDG_RUNTIME_DIR";
     private const string CandidatePattern = "wayfire-wayland-*.socket";
@@ -15,12 +14,10 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
     private readonly Func<string, bool> _directoryExists;
     private readonly Func<string, string, string[]> _getFiles;
     private readonly Func<string, bool> _canConnectSocket;
-
-    private readonly string? _socketPath;
     private bool _disposed;
 
     public bool IsAvailable { get; }
-    public string? SocketPath => _socketPath;
+    public string? SocketPath { get; }
 
     public WayfireIpcClient()
         : this(
@@ -28,8 +25,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
             File.Exists,
             Directory.Exists,
             Directory.GetFiles)
-    {
-    }
+    { /* Empty */ }
 
     public WayfireIpcClient(LinuxEnvironmentSnapshot environment)
         : this(
@@ -42,17 +38,14 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
             File.Exists,
             Directory.Exists,
             Directory.GetFiles)
-    {
-    }
+    { /* Empty */ }
 
     internal WayfireIpcClient(
         Func<string, string?> getEnvironmentVariable,
         Func<string, bool> fileExists,
         Func<string, bool> directoryExists,
         Func<string, string, string[]> getFiles)
-        : this(getEnvironmentVariable, fileExists, directoryExists, getFiles, CanConnectSocket)
-    {
-    }
+        : this(getEnvironmentVariable, fileExists, directoryExists, getFiles, CanConnectSocket) { /* Empty */ }
 
     internal WayfireIpcClient(
         Func<string, string?> getEnvironmentVariable,
@@ -67,12 +60,12 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
         _getFiles = getFiles ?? throw new ArgumentNullException(nameof(getFiles));
         _canConnectSocket = canConnectSocket ?? throw new ArgumentNullException(nameof(canConnectSocket));
 
-        _socketPath = DiscoverSocketPath();
-        IsAvailable = !string.IsNullOrWhiteSpace(_socketPath);
+        SocketPath = DiscoverSocketPath();
+        IsAvailable = !string.IsNullOrWhiteSpace(SocketPath);
 
         if (IsAvailable)
         {
-            Log.Information("[WayfireIpcClient] Socket found: {SocketPath}", _socketPath);
+            Log.Information("[WayfireIpcClient] Socket found: {SocketPath}", SocketPath);
         }
         else
         {
@@ -84,7 +77,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(method);
 
-        if (_disposed || !IsAvailable || _socketPath is null)
+        if (_disposed || !IsAvailable || SocketPath is null)
         {
             return null;
         }
@@ -102,7 +95,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[WayfireIpcClient] Failed to send request: {Method}", method);
             return null;
@@ -115,7 +108,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
         using var timeoutCts = new CancellationTokenSource(SocketTimeoutMs);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
-        var endpoint = new UnixDomainSocketEndPoint(_socketPath!);
+        var endpoint = new UnixDomainSocketEndPoint(SocketPath!);
         await socket.ConnectAsync(endpoint, linkedCts.Token).ConfigureAwait(false);
 
         var requestPayload = BuildRequestPayload(method);
@@ -150,7 +143,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
         }
 
         var candidate = EnumerateCandidateSockets().FirstOrDefault(IsSocketPathUsable);
-        return candidate is null ? null : candidate.Trim();
+        return candidate?.Trim();
     }
 
     private IEnumerable<string> EnumerateCandidateSockets()
@@ -180,7 +173,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
         {
             files = _getFiles(directory, CandidatePattern);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             yield break;
         }
@@ -214,11 +207,10 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
         try
         {
             using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            using var cts = new CancellationTokenSource(SocketValidationTimeout);
-            socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), cts.Token).GetAwaiter().GetResult();
+            socket.Connect(new UnixDomainSocketEndPoint(socketPath));
             return socket.Connected;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }

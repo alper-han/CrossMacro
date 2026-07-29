@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Native;
 
-public class CoreGraphicsPermissionAccessTests
+public sealed class CoreGraphicsPermissionAccessTests
 {
     [Fact]
     public void CGEventTapOptions_ListenOnly_MatchesNativeValue()
@@ -26,22 +26,13 @@ public class CoreGraphicsPermissionAccessTests
     [InlineData(nameof(CoreGraphics.CGRequestPostEventAccess))]
     [InlineData(nameof(CoreGraphics.CGPreflightScreenCaptureAccess))]
     [InlineData(nameof(CoreGraphics.CGRequestScreenCaptureAccess))]
-    public void PermissionAccessWrappers_ReturnManagedBoolean(string methodName)
-    {
-        MethodInfo method = typeof(CoreGraphics).GetMethod(methodName, BindingFlags.Public | BindingFlags.Static)!;
-
-        Assert.Equal(typeof(bool), method.ReturnType);
-        Assert.Empty(method.GetParameters());
-    }
-
-    [Theory]
     [InlineData(nameof(CoreGraphics.IsCGPreflightListenEventAccessAvailable))]
     [InlineData(nameof(CoreGraphics.IsCGRequestListenEventAccessAvailable))]
     [InlineData(nameof(CoreGraphics.IsCGPreflightPostEventAccessAvailable))]
     [InlineData(nameof(CoreGraphics.IsCGRequestPostEventAccessAvailable))]
     [InlineData(nameof(CoreGraphics.IsCGPreflightScreenCaptureAccessAvailable))]
     [InlineData(nameof(CoreGraphics.IsCGRequestScreenCaptureAccessAvailable))]
-    public void PermissionAccessAvailabilityWrappers_ReturnManagedBoolean(string methodName)
+    public void PermissionAccessWrappers_ReturnManagedBoolean(string methodName)
     {
         MethodInfo method = typeof(CoreGraphics).GetMethod(methodName, BindingFlags.Public | BindingFlags.Static)!;
 
@@ -54,8 +45,8 @@ public class CoreGraphicsPermissionAccessTests
     {
         var directPermissionImports = typeof(CoreGraphics)
             .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Where(method => method.Name.Contains("Access", StringComparison.Ordinal))
-            .Where(method => method.GetCustomAttribute<DllImportAttribute>() is not null)
+            .Where(method => method.Name.Contains("Access", StringComparison.Ordinal)
+                && Attribute.IsDefined(method, typeof(DllImportAttribute)))
             .ToArray();
 
         Assert.Empty(directPermissionImports);

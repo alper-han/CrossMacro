@@ -3,24 +3,21 @@ namespace CrossMacro.UI.Services;
 
 public sealed class ExternalUrlOpener : IExternalUrlOpener
 {
-    private readonly Func<ProcessStartInfo, LaunchResult> _tryStart;
+    private readonly Func<ProcessStartInfo, Task<LaunchResult>> _tryStart;
     private readonly Func<string, bool> _commandExists;
     private readonly IRuntimeContext _runtimeContext;
 
-    [Obsolete("Use the constructor accepting IRuntimeContext.")]
     public ExternalUrlOpener()
     {
         throw new InvalidOperationException("IRuntimeContext must be supplied by composition.");
     }
 
     public ExternalUrlOpener(IRuntimeContext runtimeContext)
-        : this(runtimeContext, TryStartProcess, CommandExists)
-    {
-    }
+        : this(runtimeContext, TryStartProcessAsync, CommandExists) { /* Empty */ }
 
     internal ExternalUrlOpener(
         IRuntimeContext runtimeContext,
-        Func<ProcessStartInfo, LaunchResult> tryStart,
+        Func<ProcessStartInfo, Task<LaunchResult>> tryStart,
         Func<string, bool> commandExists)
     {
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
@@ -28,21 +25,37 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
         _commandExists = commandExists ?? throw new ArgumentNullException(nameof(commandExists));
     }
 
-    public void Open(string url)
+    public async Task OpenAsync(string url)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
-            || (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal) && !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal)))
+            || !IsSupportedUrl(uri))
         {
             throw new ArgumentException("Only absolute HTTP and HTTPS URLs can be opened.", nameof(url));
         }
 
+        await OpenCoreAsync(url).ConfigureAwait(false);
+    }
+
+    public async Task OpenAsync(Uri url)
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        if (!url.IsAbsoluteUri || !IsSupportedUrl(url))
+        {
+            throw new ArgumentException("Only absolute HTTP and HTTPS URLs can be opened.", nameof(url));
+        }
+
+        await OpenCoreAsync(url.AbsoluteUri).ConfigureAwait(false);
+    }
+
+    private async Task OpenCoreAsync(string url)
+    {
         List<Exception> failures = [];
         foreach (var startInfo in CreateStartInfos(url, _runtimeContext, _commandExists))
         {
             try
             {
-                var result = _tryStart(startInfo);
+                var result = await _tryStart(startInfo).ConfigureAwait(false);
                 if (result.Success)
                 {
                     return;
@@ -65,6 +78,12 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
         }
 
         throw CreateOpenFailedException(failures);
+    }
+
+    private static bool IsSupportedUrl(Uri uri)
+    {
+        return string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal)
+            || string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal);
     }
 
     private static IEnumerable<ProcessStartInfo> CreateStartInfos(
@@ -116,7 +135,7 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
         return startInfo;
     }
 
-    private static LaunchResult TryStartProcess(ProcessStartInfo startInfo)
+    private static async Task<LaunchResult> TryStartProcessAsync(ProcessStartInfo startInfo)
     {
         using var process = Process.Start(startInfo);
         if (process is null)
@@ -125,15 +144,29 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
         }
 
         var standardErrorTask = startInfo.RedirectStandardError
-            ? process.StandardError.ReadToEndAsync()
+            ? process.StandardError.ReadToEndAsync(default)
             : null;
         var standardOutputTask = startInfo.RedirectStandardOutput
-            ? process.StandardOutput.ReadToEndAsync()
+            ? process.StandardOutput.ReadToEndAsync(default)
             : null;
 
-        if (!process.WaitForExit(2000))
+        var exitTask = process.WaitForExitAsync(CancellationToken.None);
+        if (await Task.WhenAny(exitTask, Task.Delay(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None)).ConfigureAwait(false) != exitTask)
         {
+            ObserveFault(exitTask);
+            ObserveFault(standardErrorTask);
+            ObserveFault(standardOutputTask);
             return LaunchResult.Succeeded;
+        }
+
+        await exitTask.ConfigureAwait(false);
+
+        var errorOutput = standardErrorTask is null
+            ? string.Empty
+            : (await standardErrorTask.ConfigureAwait(false)).Trim();
+        if (standardOutputTask is not null)
+        {
+            _ = await standardOutputTask.ConfigureAwait(false);
         }
 
         if (process.ExitCode is 0)
@@ -141,15 +174,28 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
             return LaunchResult.Succeeded;
         }
 
-        var error = standardErrorTask?.GetAwaiter().GetResult().Trim() ?? string.Empty;
-        _ = standardOutputTask?.GetAwaiter().GetResult();
+        var error = errorOutput;
         var message = string.IsNullOrWhiteSpace(error)
             ? $"Launcher '{startInfo.FileName}' exited with code {process.ExitCode.ToString(CultureInfo.InvariantCulture)}."
             : $"Launcher '{startInfo.FileName}' exited with code {process.ExitCode.ToString(CultureInfo.InvariantCulture)}: {error}";
         return LaunchResult.Failed(new InvalidOperationException(message));
     }
 
-    private static InvalidOperationException CreateOpenFailedException(IReadOnlyCollection<Exception> failures)
+    private static void ObserveFault(Task? task)
+    {
+        if (task is null)
+        {
+            return;
+        }
+
+        _ = task.ContinueWith(
+            static completedTask => _ = completedTask.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private static InvalidOperationException CreateOpenFailedException(List<Exception> failures)
     {
         const string message = "Unable to open the URL with the available desktop launchers.";
         return failures.Count is 0
@@ -164,8 +210,8 @@ public sealed class ExternalUrlOpener : IExternalUrlOpener
             return false;
         }
 
-        if (fileName.Contains(Path.DirectorySeparatorChar)
-            || fileName.Contains(Path.AltDirectorySeparatorChar))
+        if (fileName.Contains(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+            || fileName.Contains(Path.AltDirectorySeparatorChar.ToString(), StringComparison.Ordinal))
         {
             return File.Exists(fileName);
         }

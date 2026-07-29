@@ -1,11 +1,11 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignThemeService : IThemeService
 {
     public DesignThemeService(string initialTheme)
     {
-        ThemeCatalog.TryResolve(initialTheme, out var descriptor);
+        _ = ThemeCatalog.TryResolve(initialTheme, out var descriptor);
         CurrentTheme = descriptor.Name;
     }
 
@@ -15,7 +15,7 @@ internal sealed class DesignThemeService : IThemeService
 
     public bool TryApplyTheme(string themeName, out string themeError)
     {
-        ThemeCatalog.TryResolve(themeName, out var descriptor);
+        _ = ThemeCatalog.TryResolve(themeName, out var descriptor);
         CurrentTheme = descriptor.Name;
         themeError = string.Empty;
         return true;

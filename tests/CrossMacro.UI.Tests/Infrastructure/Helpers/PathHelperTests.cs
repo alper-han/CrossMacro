@@ -2,7 +2,7 @@
 namespace CrossMacro.UI.Tests.Infrastructure.Helpers;
 
 [Collection("EnvironmentVariableSensitive")]
-public class PathHelperTests
+public sealed class PathHelperTests
 {
     [Fact]
     public void GetConfigDirectory_ReturnsPathContainingAppIdentifier()

@@ -1,12 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-public sealed class PlaybackBehaviorPolicy : IPlaybackBehaviorPolicy
+public sealed class PlaybackBehaviorPolicy(bool useHybridAbsoluteDragMovement) : IPlaybackBehaviorPolicy
 {
-    public PlaybackBehaviorPolicy(bool useHybridAbsoluteDragMovement)
-    {
-        UseHybridAbsoluteDragMovement = useHybridAbsoluteDragMovement;
-    }
-
-    public bool UseHybridAbsoluteDragMovement { get; }
+    public bool UseHybridAbsoluteDragMovement { get; } = useHybridAbsoluteDragMovement;
 }

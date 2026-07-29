@@ -1,23 +1,16 @@
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabilities, IBatchedInputSimulator
+public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSupportedProbe = null) : IInputSimulator, IInputSimulatorCapabilities, IBatchedInputSimulator, IAsyncBatchedInputSimulator
 {
-    private readonly IpcClient _client;
-    private readonly Func<bool> _isSupportedProbe;
+    private IpcClient Client { get; } = client;
+    private readonly Func<bool> _isSupportedProbe = isSupportedProbe ?? (static () => true);
     private bool _disposed;
-    private bool _supportsAbsoluteCoordinates;
 
     public string ProviderName => "Secure Daemon (UInput)";
-    public bool IsSupported => !_disposed && (_client.IsConnected || IsProbeSupported());
-    public bool SupportsAbsoluteCoordinates => _supportsAbsoluteCoordinates;
-    public bool SupportsBatchedInput => !_disposed && _client.IsConnected;
-
-    public LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSupportedProbe = null)
-    {
-        _client = client;
-        _isSupportedProbe = isSupportedProbe ?? (() => true);
-    }
+    public bool IsSupported => !_disposed && (Client.IsConnected || IsProbeSupported());
+    public bool SupportsAbsoluteCoordinates { get; private set; }
+    public bool SupportsBatchedInput => !_disposed && Client.IsConnected;
 
     private const ushort EV_KEY = 0x01;
     private const ushort EV_REL = 0x02;
@@ -37,19 +30,32 @@ public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabiliti
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {
+        InitializeAsync(screenWidth, screenHeight).GetAwaiter().GetResult();
+    }
+
+    public async Task InitializeAsync(
+        int screenWidth = 0,
+        int screenHeight = 0,
+        CancellationToken cancellationToken = default)
+    {
         // Daemon initializes UInput lazy-loaded or on start. 
         // Resolution support would require protocol update.
         // For now, ignoring resolution, assuming relative movement mostly or default mapping.
 
-        _supportsAbsoluteCoordinates = false;
+        SupportsAbsoluteCoordinates = false;
 
         // Ensure connection
-        if (!_client.IsConnected)
+        if (!Client.IsConnected)
         {
             try
             {
-                using var timeoutCts = new CancellationTokenSource(ConnectTimeout);
-                _client.ConnectAsync(timeoutCts.Token).GetAwaiter().GetResult();
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(ConnectTimeout);
+                await Client.ConnectAsync(timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (OperationCanceledException)
             {
@@ -63,89 +69,96 @@ public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabiliti
             {
                 Log.Warning(ex, "[LinuxIpcInputSimulator] Failed to connect to daemon ({Reason})", ex.Reason);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "[LinuxIpcInputSimulator] Error during initialization");
             }
         }
 
-        if (_client.IsConnected && screenWidth > 0 && screenHeight > 0)
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (Client.IsConnected && screenWidth > 0 && screenHeight > 0)
         {
-            _client.ConfigureResolution(screenWidth, screenHeight);
-            _supportsAbsoluteCoordinates = true;
+            Client.ConfigureResolution(screenWidth, screenHeight);
+            SupportsAbsoluteCoordinates = true;
         }
     }
 
     public void MoveAbsolute(int x, int y)
     {
-        Span<(ushort, ushort, int)> events = stackalloc (ushort, ushort, int)[]
-        {
+        Span<(ushort, ushort, int)> events =
+        [
             (EV_ABS, ABS_X, x),
             (EV_ABS, ABS_Y, y),
             (EV_SYN, SYN_REPORT, 0),
-        };
-        _client.SimulateEvents(events);
+        ];
+        Client.SimulateEvents(events);
     }
 
     public void MoveRelative(int dx, int dy)
     {
-        Span<(ushort, ushort, int)> events = stackalloc (ushort, ushort, int)[]
-        {
+        Span<(ushort, ushort, int)> events =
+        [
             (EV_REL, REL_X, dx),
             (EV_REL, REL_Y, dy),
             (EV_SYN, SYN_REPORT, 0),
-        };
-        _client.SimulateEvents(events);
+        ];
+        Client.SimulateEvents(events);
     }
 
     public void MouseButton(int button, bool pressed)
     {
-        Span<(ushort, ushort, int)> events = stackalloc (ushort, ushort, int)[]
-        {
+        Span<(ushort, ushort, int)> events =
+        [
             (EV_KEY, (ushort)button, pressed ? 1 : 0),
             (EV_SYN, SYN_REPORT, 0),
-        };
-        _client.SimulateEvents(events);
+        ];
+        Client.SimulateEvents(events);
     }
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
         ushort axis = isHorizontal ? REL_HWHEEL : REL_WHEEL;
-        Span<(ushort, ushort, int)> events = stackalloc (ushort, ushort, int)[]
-       {
+        Span<(ushort, ushort, int)> events =
+        [
             (EV_REL, axis, delta),
             (EV_SYN, SYN_REPORT, 0),
-        };
-        _client.SimulateEvents(events);
+        ];
+        Client.SimulateEvents(events);
     }
 
     public void KeyPress(int keyCode, bool pressed)
     {
-        Span<(ushort, ushort, int)> events = stackalloc (ushort, ushort, int)[]
-        {
+        Span<(ushort, ushort, int)> events =
+        [
             (EV_KEY, (ushort)keyCode, pressed ? 1 : 0),
             (EV_SYN, SYN_REPORT, 0),
-        };
-        _client.SimulateEvents(events);
+        ];
+        Client.SimulateEvents(events);
     }
 
     public void Sync()
     {
-        _client.SimulateEvent(EV_SYN, SYN_REPORT, 0);
+        Client.SimulateEvent(EV_SYN, SYN_REPORT, 0);
     }
 
     public void SimulateBatch(ReadOnlySpan<InputSimulationStep> steps)
     {
-        _client.SimulateEventBatch(steps);
+        Client.SimulateEventBatch(steps);
     }
+
+    public Task SimulateBatchAsync(
+        IReadOnlyList<InputSimulationStep> steps,
+        CancellationToken cancellationToken = default) =>
+        Client.SimulateEventBatchAsync(steps, cancellationToken);
 
     public void Dispose()
     {
         if (!_disposed)
         {
-            // Client lifecycle is likely external or shared
             _disposed = true;
         }
+        GC.SuppressFinalize(this);
     }
 
     private bool IsProbeSupported()
@@ -154,7 +167,7 @@ public class LinuxIpcInputSimulator : IInputSimulator, IInputSimulatorCapabiliti
         {
             return _isSupportedProbe();
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }

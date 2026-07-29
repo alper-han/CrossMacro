@@ -1,5 +1,5 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignSchedulerService : ISchedulerService
 {
@@ -25,21 +25,16 @@ internal sealed class DesignSchedulerService : ISchedulerService
         var task = Tasks.FirstOrDefault(item => item.Id == id);
         if (task is not null)
         {
-            Tasks.Remove(task);
+            _ = Tasks.Remove(task);
         }
     }
 
-    public void UpdateTask(ScheduledTask task)
-    {
-    }
+    public void UpdateTask(ScheduledTask task) { /* Empty */ }
 
     public void SetTaskEnabled(Guid id, bool enabled)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task is not null)
-        {
-            task.IsEnabled = enabled;
-        }
+        _ = task?.IsEnabled = enabled;
     }
 
     public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
@@ -68,7 +63,5 @@ internal sealed class DesignSchedulerService : ISchedulerService
 
     public Task LoadAsync() => Task.CompletedTask;
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

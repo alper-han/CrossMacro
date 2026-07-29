@@ -10,29 +10,23 @@ public sealed class SwayIpcClient : ISwayIpcClient
     private const int SocketTimeoutMs = 2000;
 
     // Magic string "i3-ipc"
-    private static readonly byte[] MagicString = { 0x69, 0x33, 0x2d, 0x69, 0x70, 0x63 };
-
-    private readonly string? _socketPath;
+    private static readonly byte[] MagicString = [0x69, 0x33, 0x2d, 0x69, 0x70, 0x63];
     private bool _disposed;
 
     public SwayIpcClient()
-        : this(Environment.GetEnvironmentVariable(SocketPathEnvironmentVariable))
-    {
-    }
+        : this(Environment.GetEnvironmentVariable(SocketPathEnvironmentVariable)) { /* Empty */ }
 
     public SwayIpcClient(LinuxEnvironmentSnapshot environment)
-        : this(environment.SwaySocket)
-    {
-    }
+        : this(environment.SwaySocket) { /* Empty */ }
 
     internal SwayIpcClient(string? socketPath)
     {
-        _socketPath = socketPath;
-        IsAvailable = !string.IsNullOrWhiteSpace(_socketPath) && File.Exists(_socketPath);
+        SocketPath = socketPath;
+        IsAvailable = !string.IsNullOrWhiteSpace(SocketPath) && File.Exists(SocketPath);
 
         if (IsAvailable)
         {
-            Log.Information("[SwayIpcClient] Socket found: {SocketPath}", _socketPath);
+            Log.Information("[SwayIpcClient] Socket found: {SocketPath}", SocketPath);
         }
         else
         {
@@ -42,11 +36,11 @@ public sealed class SwayIpcClient : ISwayIpcClient
 
     public bool IsAvailable { get; }
 
-    public string? SocketPath => _socketPath;
+    public string? SocketPath { get; }
 
     public async Task<string?> SendRequestAsync(uint type, string payload = "", CancellationToken cancellationToken = default)
     {
-        if (_disposed || !IsAvailable || _socketPath is null)
+        if (_disposed || !IsAvailable || SocketPath is null)
         {
             return null;
         }
@@ -59,7 +53,7 @@ public sealed class SwayIpcClient : ISwayIpcClient
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[SwayIpcClient] Failed to send IPC request");
             return null;
@@ -74,64 +68,12 @@ public sealed class SwayIpcClient : ISwayIpcClient
 
         try
         {
-            var endpoint = new UnixDomainSocketEndPoint(_socketPath!);
+            var endpoint = new UnixDomainSocketEndPoint(SocketPath!);
             await socket.ConnectAsync(endpoint, linkedCts.Token).ConfigureAwait(false);
 
-            var payloadBytes = string.IsNullOrEmpty(payload) ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(payload);
-            var header = new byte[14];
+            await SendRequestPayloadAsync(socket, type, payload, linkedCts.Token).ConfigureAwait(false);
 
-            // 1. Magic string (6 bytes)
-            Buffer.BlockCopy(MagicString, 0, header, 0, 6);
-
-            // 2. Length (4 bytes, native byte order - Sway uses native byte order, assuming little endian for x86/ARM)
-            // BitConverter.GetBytes uses native endianness
-            Buffer.BlockCopy(BitConverter.GetBytes((uint)payloadBytes.Length), 0, header, 6, 4);
-
-            // 3. Type (4 bytes, native byte order)
-            Buffer.BlockCopy(BitConverter.GetBytes(type), 0, header, 10, 4);
-
-            await socket.SendAsync(header, SocketFlags.None, linkedCts.Token).ConfigureAwait(false);
-            if (payloadBytes.Length > 0)
-            {
-                await socket.SendAsync(payloadBytes, SocketFlags.None, linkedCts.Token).ConfigureAwait(false);
-            }
-
-            // Receive response header
-            var resHeader = new byte[14];
-            int receivedHeader = await ReadExactlyAsync(socket, resHeader, 14, linkedCts.Token).ConfigureAwait(false);
-            if (receivedHeader < 14)
-            {
-                Log.Warning("[SwayIpcClient] Incomplete response header received");
-                return null;
-            }
-
-            // Validate magic string
-            for (int i = 0; i < 6; i++)
-            {
-                if (resHeader[i] != MagicString[i])
-                {
-                    Log.Warning("[SwayIpcClient] Invalid magic string in response");
-                    return null;
-                }
-            }
-
-            uint resLength = BitConverter.ToUInt32(resHeader, 6);
-            if (resLength == 0)
-            {
-                return string.Empty;
-            }
-
-            // Receive payload
-            var resPayload = new byte[resLength];
-            int receivedPayload = await ReadExactlyAsync(socket, resPayload, (int)resLength, linkedCts.Token).ConfigureAwait(false);
-
-            if (receivedPayload < resLength)
-            {
-                Log.Warning("[SwayIpcClient] Incomplete response payload received");
-                return null;
-            }
-
-            return Encoding.UTF8.GetString(resPayload);
+            return await ReadRequestResponseAsync(socket, linkedCts.Token).ConfigureAwait(false);
         }
         finally
         {
@@ -141,12 +83,65 @@ public sealed class SwayIpcClient : ISwayIpcClient
                 {
                     socket.Shutdown(SocketShutdown.Both);
                 }
-                catch
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     // Ignore shutdown errors during cleanup
                 }
             }
         }
+    }
+
+    private static async Task SendRequestPayloadAsync(Socket socket, uint type, string payload, CancellationToken ct)
+    {
+        var payloadBytes = string.IsNullOrEmpty(payload) ? [] : Encoding.UTF8.GetBytes(payload);
+        var header = new byte[14];
+
+        Buffer.BlockCopy(MagicString, 0, header, 0, 6);
+        Buffer.BlockCopy(BitConverter.GetBytes((uint)payloadBytes.Length), 0, header, 6, 4);
+        Buffer.BlockCopy(BitConverter.GetBytes(type), 0, header, 10, 4);
+
+        _ = await socket.SendAsync(header, SocketFlags.None, ct).ConfigureAwait(false);
+        if (payloadBytes.Length > 0)
+        {
+            _ = await socket.SendAsync(payloadBytes, SocketFlags.None, ct).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<string?> ReadRequestResponseAsync(Socket socket, CancellationToken ct)
+    {
+        var resHeader = new byte[14];
+        int receivedHeader = await ReadExactlyAsync(socket, resHeader, 14, ct).ConfigureAwait(false);
+        if (receivedHeader < 14)
+        {
+            Log.Warning("[SwayIpcClient] Incomplete response header received");
+            return null;
+        }
+
+        for (int i = 0; i < 6; i++)
+        {
+            if (resHeader[i] != MagicString[i])
+            {
+                Log.Warning("[SwayIpcClient] Invalid magic string in response");
+                return null;
+            }
+        }
+
+        uint resLength = BitConverter.ToUInt32(resHeader, 6);
+        if (resLength == 0)
+        {
+            return string.Empty;
+        }
+
+        var resPayload = new byte[resLength];
+        int receivedPayload = await ReadExactlyAsync(socket, resPayload, (int)resLength, ct).ConfigureAwait(false);
+
+        if (receivedPayload < resLength)
+        {
+            Log.Warning("[SwayIpcClient] Incomplete response payload received");
+            return null;
+        }
+
+        return Encoding.UTF8.GetString(resPayload);
     }
 
     private static async Task<int> ReadExactlyAsync(Socket socket, byte[] buffer, int count, CancellationToken cancellationToken)

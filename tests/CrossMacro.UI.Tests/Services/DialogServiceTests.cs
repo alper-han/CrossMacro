@@ -1,7 +1,7 @@
 namespace CrossMacro.UI.Tests.Services;
 
 
-public class DialogServiceTests
+public sealed class DialogServiceTests
 {
     [Fact(Timeout = 5000)]
     public async Task ShowConfirmationAsync_WhenNoDesktopLifetime_ReturnsFalse()

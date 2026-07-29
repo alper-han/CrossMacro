@@ -8,8 +8,6 @@ public sealed class HyprlandIpcClient : IDisposable
 {
     private const int SocketTimeoutMs = 1000;
     private const int BufferSize = 4096;
-
-    private readonly string? _socketPath;
     private bool _disposed;
 
     /// <summary>
@@ -20,16 +18,16 @@ public sealed class HyprlandIpcClient : IDisposable
     /// <summary>
     /// Gets the socket path used for communication.
     /// </summary>
-    public string? SocketPath => _socketPath;
+    public string? SocketPath { get; }
 
     public HyprlandIpcClient()
     {
-        _socketPath = DiscoverSocketPath();
-        IsAvailable = _socketPath is not null;
+        SocketPath = DiscoverSocketPath();
+        IsAvailable = SocketPath is not null;
 
         if (IsAvailable)
         {
-            Log.Information("[HyprlandIpcClient] Socket found: {SocketPath}", _socketPath);
+            Log.Information("[HyprlandIpcClient] Socket found: {SocketPath}", SocketPath);
         }
         else
         {
@@ -39,12 +37,12 @@ public sealed class HyprlandIpcClient : IDisposable
 
     public HyprlandIpcClient(LinuxEnvironmentSnapshot environment)
     {
-        _socketPath = DiscoverSocketPath(environment.HyprlandInstanceSignature, environment.RuntimeDir);
-        IsAvailable = _socketPath is not null;
+        SocketPath = DiscoverSocketPath(environment.HyprlandInstanceSignature, environment.RuntimeDir);
+        IsAvailable = SocketPath is not null;
 
         if (IsAvailable)
         {
-            Log.Information("[HyprlandIpcClient] Socket found: {SocketPath}", _socketPath);
+            Log.Information("[HyprlandIpcClient] Socket found: {SocketPath}", SocketPath);
         }
         else
         {
@@ -60,7 +58,7 @@ public sealed class HyprlandIpcClient : IDisposable
     /// <returns>The response string, or null if unavailable/failed</returns>
     public async Task<string?> SendCommandAsync(string command, CancellationToken cancellationToken = default)
     {
-        if (_disposed || !IsAvailable || _socketPath is null)
+        if (_disposed || !IsAvailable || SocketPath is null)
         {
             return null;
         }
@@ -73,7 +71,7 @@ public sealed class HyprlandIpcClient : IDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[HyprlandIpcClient] Failed to send command: {Command}", command);
             return null;
@@ -85,7 +83,32 @@ public sealed class HyprlandIpcClient : IDisposable
     /// </summary>
     public async Task<string?> SendCommandAsync(byte[] commandBytes, CancellationToken cancellationToken = default)
     {
-        if (_disposed || !IsAvailable || _socketPath is null)
+        if (_disposed || !IsAvailable || SocketPath is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await SendCommandInternalAsync((ReadOnlyMemory<byte>)commandBytes, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[HyprlandIpcClient] Failed to send command");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Sends a pre-encoded command for performance-critical paths.
+    /// </summary>
+    public async Task<string?> SendCommandAsync(ReadOnlyMemory<byte> commandBytes, CancellationToken cancellationToken = default)
+    {
+        if (_disposed || !IsAvailable || SocketPath is null)
         {
             return null;
         }
@@ -98,14 +121,14 @@ public sealed class HyprlandIpcClient : IDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[HyprlandIpcClient] Failed to send command");
             return null;
         }
     }
 
-    private async Task<string> SendCommandInternalAsync(byte[] commandBytes, CancellationToken cancellationToken)
+    private async Task<string> SendCommandInternalAsync(ReadOnlyMemory<byte> commandBytes, CancellationToken cancellationToken)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         using var timeoutCts = new CancellationTokenSource(SocketTimeoutMs);
@@ -113,13 +136,13 @@ public sealed class HyprlandIpcClient : IDisposable
 
         try
         {
-            var endpoint = new UnixDomainSocketEndPoint(_socketPath!);
+            var endpoint = new UnixDomainSocketEndPoint(SocketPath!);
 
             // Connect
             await socket.ConnectAsync(endpoint, linkedCts.Token).ConfigureAwait(false);
 
             // Send command
-            await socket.SendAsync(commandBytes, SocketFlags.None, linkedCts.Token).ConfigureAwait(false);
+            _ = await socket.SendAsync(commandBytes, SocketFlags.None, linkedCts.Token).ConfigureAwait(false);
 
             // Read response using ArrayPool to reduce allocations
             var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
@@ -156,7 +179,7 @@ public sealed class HyprlandIpcClient : IDisposable
                 {
                     socket.Shutdown(SocketShutdown.Both);
                 }
-                catch
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     // Ignore shutdown errors
                 }
@@ -198,7 +221,7 @@ public sealed class HyprlandIpcClient : IDisposable
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[HyprlandIpcClient] Error searching for socket");
         }

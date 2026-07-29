@@ -4,18 +4,13 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 /// <summary>
 /// Window manager implementation using Sway's binary IPC (i3-ipc) socket protocol.
 /// </summary>
-public sealed class SwayWindowManager : IWindowManager
+public sealed class SwayWindowManager(ISwayIpcClient ipcClient) : IWindowManager
 {
     private const uint IpcCommand = 0;
     private const uint IpcGetWorkspaces = 1;
     private const uint IpcGetTree = 4;
 
-    private readonly ISwayIpcClient _ipcClient;
-
-    public SwayWindowManager(ISwayIpcClient ipcClient)
-    {
-        _ipcClient = ipcClient ?? throw new ArgumentNullException(nameof(ipcClient));
-    }
+    private readonly ISwayIpcClient _ipcClient = ipcClient ?? throw new ArgumentNullException(nameof(ipcClient));
 
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
@@ -36,7 +31,7 @@ public sealed class SwayWindowManager : IWindowManager
             var focusedNode = FindFocusedNode(rootNode);
             return focusedNode is not null ? MapWindow(focusedNode, "") : null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[SwayWindowManager] Failed to parse tree response");
             return null;
@@ -63,7 +58,7 @@ public sealed class SwayWindowManager : IWindowManager
             CollectWindows(rootNode, windows, "");
             return windows;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[SwayWindowManager] Failed to parse tree response for clients");
             return [];
@@ -190,7 +185,7 @@ public sealed class SwayWindowManager : IWindowManager
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[SwayWindowManager] Failed to parse workspaces response");
         }
@@ -272,13 +267,11 @@ public sealed class SwayWindowManager : IWindowManager
             currentWorkspace = node.Name;
         }
 
-        if (string.Equals(node.Type, "con", StringComparison.Ordinal) ||
-            string.Equals(node.Type, "floating_con", StringComparison.Ordinal))
+        if ((string.Equals(node.Type, "con", StringComparison.Ordinal) ||
+            string.Equals(node.Type, "floating_con", StringComparison.Ordinal)) &&
+            (!string.IsNullOrEmpty(node.Name) || !string.IsNullOrEmpty(node.AppId) || node.WindowProperties is not null))
         {
-            if (!string.IsNullOrEmpty(node.Name) || !string.IsNullOrEmpty(node.AppId) || node.WindowProperties is not null)
-            {
-                list.Add(MapWindow(node, currentWorkspace));
-            }
+            list.Add(MapWindow(node, currentWorkspace));
         }
 
         if (node.Nodes is not null)
@@ -339,7 +332,7 @@ public sealed class SwayWindowManager : IWindowManager
                 return results[0].Success;
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Ignore parse errors, fallback to false
         }

@@ -6,36 +6,36 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
     public static void RegisterCliClipboardServices(IServiceCollection services)
     {
-        services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsCliClipboard"));
-        services.AddSingleton<IClipboardService, WindowsCliClipboardService>();
-        services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
+        _ = services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsCliClipboard"));
+        _ = services.AddSingleton<IClipboardService, WindowsCliClipboardService>();
+        _ = services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
     }
 
     public static void RegisterGuiImageClipboardServices(IServiceCollection services)
     {
-        services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsGuiClipboard"));
-        services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
+        _ = services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsGuiClipboard"));
+        _ = services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
     }
 
     public void RegisterPlatformServices(IServiceCollection services)
     {
-        services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();
-        services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
-        services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
-        services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
-        services.AddSingleton<IWindowManager, WindowsWindowManager>();
-        services.AddSingleton<IPlaybackBehaviorPolicy>(
+        _ = services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();
+        _ = services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
+        _ = services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
+        _ = services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
+        _ = services.AddSingleton<IWindowManager, WindowsWindowManager>();
+        _ = services.AddSingleton<IPlaybackBehaviorPolicy>(
             _ => new WindowsPlaybackBehaviorPolicy());
 
 #pragma warning disable CS8634 // Intentionally nullable for optional service
-        services.AddSingleton<IExtensionStatusNotifier?>(sp => null);
+        _ = services.AddSingleton<IExtensionStatusNotifier?>(_ => null);
 #pragma warning restore CS8634
 
-        services.AddTransient<Func<IInputSimulator>>(sp => () => new WindowsInputSimulator());
-        services.AddTransient<Func<IInputCapture>>(sp => () => new WindowsInputCapture());
+        _ = services.AddTransient<Func<IInputSimulator>>(sp => () => new WindowsInputSimulator());
+        _ = services.AddTransient<Func<IInputCapture>>(sp => () => new WindowsInputCapture());
 
-        services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
-        services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+        _ = services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
+        _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
 
     }
 }

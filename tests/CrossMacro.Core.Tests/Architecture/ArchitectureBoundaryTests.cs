@@ -1,26 +1,14 @@
+using System.Globalization;
 
 namespace CrossMacro.Core.Tests.Architecture;
 
-public class ArchitectureBoundaryTests
+public sealed class ArchitectureBoundaryTests
 {
     private static readonly IReadOnlyDictionary<string, string[]> TemporaryPlatformInfrastructureProjectReferences =
         new Dictionary<string, string[]>(StringComparer.Ordinal);
 
     private static readonly string[] TemporaryPlatformInfrastructureSourceFiles =
     [];
-
-    private static readonly string[] MigrationLedgerEntryIds =
-    [
-        "PLATFORM-LINUX-PROJECT-INFRA",
-        "PLATFORM-MACOS-PROJECT-INFRA", "PLATFORM-WINDOWS-PROJECT-INFRA",
-        "PLATFORM-SOURCE-INFRA", "LINUX-CAPTURE-LEGACY-FACTORY", "LINUX-SIMULATOR-LEGACY-FACTORY",
-        "LINUX-POSITION-LEGACY-CONSTRUCTOR", "KWIN-ENVIRONMENT-CONSTRUCTOR",
-        "EDITOR-CONVERTER-DEFAULT-ADAPTER", "MACRO-FILE-MANAGER-FACADE", "MACRO-PERSISTENCE-ROUNDTRIP",
-        "EDITOR-PROJECTION-BRIDGE", "EDITOR-ACTION-COMPATIBILITY-FACADE", "EDITOR-VALIDATOR-COMPATIBILITY-FACADE",
-        "IPC-HANDSHAKE-CODEC-BRIDGE",
-            "TRIGGER-DEFAULT-ADAPTER",
-        "EDITOR-COORDINATE-CAPTURE-PORT",
-    ];
 
     private static readonly string[] CoreForbiddenNamespaces =
     [
@@ -90,7 +78,7 @@ public class ArchitectureBoundaryTests
                 || !string.Equals(dependency.Kind, "ProjectReference", StringComparison.Ordinal)
                 || !string.Equals(GetDependencyName(dependency), "CrossMacro.Core", StringComparison.Ordinal))
             .Select(dependency => $"{dependency.Kind}: {GetDependencyName(dependency)}")
-            .OrderBy(x => x, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         AssertNoViolations(
@@ -144,7 +132,7 @@ public class ArchitectureBoundaryTests
             .Select(NormalizeRepositoryRelativePath)
             .Where(path => !path.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains("bin", StringComparer.Ordinal)
                 && !path.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains("obj", StringComparer.Ordinal))
-            .OrderBy(path => path, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         Assert.Equal(
@@ -167,10 +155,10 @@ public class ArchitectureBoundaryTests
                 "src/CrossMacro.Application/Profiles/ProfileResult.cs",
                 "src/CrossMacro.Application/Runtime/IRunExecutionService.cs",
                 "src/CrossMacro.Application/Runtime/IRuntimeLifecycle.cs",
+                "src/CrossMacro.Application/Runtime/MacroPlayableActionCounter.cs",
                 "src/CrossMacro.Application/Runtime/RunExecutionRequest.cs",
                 "src/CrossMacro.Application/Runtime/RunExecutionResult.cs",
                 "src/CrossMacro.Application/Runtime/RunExecutionStatus.cs",
-                "src/CrossMacro.Application/Runtime/RunScriptExecution.cs",
                 "src/CrossMacro.Application/Runtime/RunScriptInputStep.cs",
                 "src/CrossMacro.Application/Runtime/RuntimeLifecycle.cs",
                 "src/CrossMacro.Application/Runtime/RuntimeLifecycleStep.cs",
@@ -184,7 +172,7 @@ public class ArchitectureBoundaryTests
         var hostProjects = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.csproj", SearchOption.AllDirectories)
             .Where(IsUiOrCliPath)
             .Select(NormalizeRepositoryRelativePath)
-            .OrderBy(path => path, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         var projectViolations = hostProjects
@@ -200,7 +188,7 @@ public class ArchitectureBoundaryTests
         var sourceReferences = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
             .Where(IsUiOrCliPath)
             .SelectMany(ReadInfrastructureSourceReferences)
-            .OrderBy(reference => reference, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         AssertNoViolations(
@@ -266,7 +254,7 @@ public class ArchitectureBoundaryTests
         foreach (var relativePath in roots)
         {
             var source = File.ReadAllText(Path.Combine(GetRepositoryRoot(), relativePath));
-            Assert.Single(Regex.Matches(source, "AddSingleton<IRuntimeContext(?:,|>\\()", RegexOptions.NonBacktracking));
+            _ = Assert.Single(Regex.Matches(source, "AddSingleton<IRuntimeContext(?:,|>\\()", RegexOptions.NonBacktracking));
             Assert.Contains("RuntimeContext", source, StringComparison.Ordinal);
         }
     }
@@ -274,7 +262,7 @@ public class ArchitectureBoundaryTests
     [Fact]
     public void CliScreenshotService_ShouldConsumeHostNeutralScreenshotPort()
     {
-        var servicePath = Path.Combine(GetRepositoryRoot(), "src/CrossMacro.Cli/Cli/Services/ScreenshotCliService.cs");
+        var servicePath = Path.Combine(GetRepositoryRoot(), "src/CrossMacro.Cli/Services/ScreenshotCliService.cs");
         var source = File.ReadAllText(servicePath);
 
         Assert.DoesNotContain("CrossMacro.Infrastructure.Services.ScreenCapture", source, StringComparison.Ordinal);
@@ -339,24 +327,24 @@ public class ArchitectureBoundaryTests
             .SelectMany(projectPath => ReadProjectReferenceNames(projectPath)
                 .Where(projectName => projectName is "CrossMacro.Infrastructure")
                 .Select(projectName => $"{projectPath}: {projectName}"))
-            .OrderBy(value => value, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         var expectedProjectReferences = TemporaryPlatformInfrastructureProjectReferences
             .SelectMany(reference => reference.Value.Select(projectName => $"{reference.Key}: {projectName}"))
-            .OrderBy(value => value, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         Assert.Equal(expectedProjectReferences, projectViolations);
 
         var sourceReferences = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
-            .Where(path => NormalizeRepositoryRelativePath(path).Split('/').Any(segment => segment is "CrossMacro.Platform.Linux" or "CrossMacro.Platform.MacOS" or "CrossMacro.Platform.Windows"))
-            .Where(path => File.ReadLines(path).Any(line => line.Contains("CrossMacro.Infrastructure", StringComparison.Ordinal)))
+            .Where(path => NormalizeRepositoryRelativePath(path).Split('/').Any(segment => segment is "CrossMacro.Platform.Linux" or "CrossMacro.Platform.MacOS" or "CrossMacro.Platform.Windows")
+                && File.ReadLines(path).Any(line => line.Contains("CrossMacro.Infrastructure", StringComparison.Ordinal)))
             .Select(NormalizeRepositoryRelativePath)
-            .OrderBy(path => path, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(TemporaryPlatformInfrastructureSourceFiles.OrderBy(path => path, StringComparer.Ordinal), sourceReferences);
+        Assert.Equal(TemporaryPlatformInfrastructureSourceFiles.Order(StringComparer.Ordinal), sourceReferences);
     }
 
     [Fact]
@@ -394,6 +382,65 @@ public class ArchitectureBoundaryTests
         AssertNoViolations(
             violations,
             "CrossMacro.Platform.Abstractions may expose narrow contracts and value types only; concrete OS, filesystem, runtime, or environment probing belongs in platform/runtime implementations. IPlatformServiceRegistrar(IServiceCollection) remains allowed.");
+    }
+
+    [Fact]
+    public void PlatformServiceRegistrar_ShouldRemainAnAbstractionsOwnedPlatformBoundary()
+    {
+        var registrarType = typeof(IPlatformServiceRegistrar);
+
+        Assert.Equal("CrossMacro.Platform.Abstractions", registrarType.Assembly.GetName().Name);
+        var registrationMethod = Assert.Single(registrarType.GetMethods());
+        Assert.Equal("RegisterPlatformServices", registrationMethod.Name);
+        Assert.Equal(typeof(void), registrationMethod.ReturnType);
+        var parameter = Assert.Single(registrationMethod.GetParameters());
+        Assert.Equal(typeof(Microsoft.Extensions.DependencyInjection.IServiceCollection), parameter.ParameterType);
+
+        var registrarFiles = new[]
+        {
+            ("LinuxPlatformServiceRegistrar", "src/CrossMacro.Platform.Linux/DependencyInjection/LinuxPlatformServiceRegistrar.cs"),
+            ("WindowsPlatformServiceRegistrar", "src/CrossMacro.Platform.Windows/DependencyInjection/WindowsPlatformServiceRegistrar.cs"),
+            ("MacOSPlatformServiceRegistrar", "src/CrossMacro.Platform.MacOS/DependencyInjection/MacOSPlatformServiceRegistrar.cs"),
+        };
+
+        foreach (var (registrarName, relativePath) in registrarFiles)
+        {
+            var fullPath = Path.Combine(GetRepositoryRoot(), relativePath);
+            Assert.True(File.Exists(fullPath), $"{registrarName} must remain in {relativePath}.");
+            Assert.Contains($"class {registrarName} : IPlatformServiceRegistrar", File.ReadAllText(fullPath), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void SharedProductionLayers_ShouldNotReferenceConcretePlatformServiceRegistrars()
+    {
+        var sharedProductionLayers = new[]
+        {
+            "src/CrossMacro.Application",
+            "src/CrossMacro.Cli",
+            "src/CrossMacro.Core",
+            "src/CrossMacro.Daemon.Contracts",
+            "src/CrossMacro.Daemon",
+            "src/CrossMacro.Infrastructure",
+            "src/CrossMacro.Packaging.Abstractions",
+            "src/CrossMacro.Platform.Abstractions",
+            "src/CrossMacro.UI",
+        };
+        var concreteRegistrars = new[]
+        {
+            "LinuxPlatformServiceRegistrar",
+            "WindowsPlatformServiceRegistrar",
+            "MacOSPlatformServiceRegistrar",
+        };
+
+        var violations = sharedProductionLayers
+            .SelectMany(directory => FindTextViolations(directory, concreteRegistrars))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        AssertNoViolations(
+            violations,
+            "Shared production layers must depend on IPlatformServiceRegistrar, not concrete platform registrars. Matching platform libraries and UI platform Program.cs composition roots own concrete registrar references.");
     }
 
     [Fact]
@@ -441,7 +488,7 @@ public class ArchitectureBoundaryTests
 
         var violations = projectReferences
             .Where(reference => !allowedReferences.Contains(reference))
-            .OrderBy(x => x, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         AssertNoViolations(
@@ -464,7 +511,7 @@ public class ArchitectureBoundaryTests
             .SelectMany(project => project.Value
                 .Where(reference => !projects.ContainsKey(reference))
                 .Select(reference => $"{project.Key} -> {reference}"))
-            .OrderBy(value => value, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
         AssertNoViolations(
             missingReferences,
@@ -473,7 +520,7 @@ public class ArchitectureBoundaryTests
         var visited = new HashSet<string>(StringComparer.Ordinal);
         var cycles = new List<string>();
 
-        foreach (var project in projects.Keys.OrderBy(name => name, StringComparer.Ordinal))
+        foreach (var project in projects.Keys.Order(StringComparer.Ordinal))
         {
             Visit(project, new List<string>());
         }
@@ -509,8 +556,8 @@ public class ArchitectureBoundaryTests
             }
 
             path.RemoveAt(path.Count - 1);
-            visiting.Remove(project);
-            visited.Add(project);
+            _ = visiting.Remove(project);
+            _ = visited.Add(project);
         }
     }
 
@@ -530,7 +577,7 @@ public class ArchitectureBoundaryTests
                 SearchOption.AllDirectories)
             .Select(path => Path.GetFileNameWithoutExtension(path))
             .Where(name => forbiddenProjectNames.Contains(name, StringComparer.Ordinal))
-            .OrderBy(name => name, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
         AssertNoViolations(
@@ -558,6 +605,53 @@ public class ArchitectureBoundaryTests
             "Legacy macro readers, Linux native fallbacks, and the daemon handshake codec require an explicit compatibility-policy change before removal.");
     }
 
+    [Fact]
+    public void SourceTree_ShouldNotContainEmptySourceFiles()
+    {
+        var emptyFiles = EnumerateSourceFiles()
+            .Where(path => new FileInfo(path).Length <= 3)
+            .Select(NormalizeRepositoryRelativePath)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        AssertNoViolations(
+            emptyFiles,
+            "Empty .cs files are refactoring leftovers; delete the file instead of leaving an empty shell.");
+    }
+
+    [Fact]
+    public void SourceTree_ShouldNotDuplicateSourceFileNamesAcrossProjects()
+    {
+        var allowedDuplicateNames = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "AssemblyInfo.cs",
+            "GlobalUsings.cs",
+            "Program.cs",
+            "ServiceCollectionExtensions.cs",
+        };
+
+        var duplicates = EnumerateSourceFiles()
+            .GroupBy(Path.GetFileName, StringComparer.Ordinal)
+            .Where(group => group.Skip(1).Any() && !allowedDuplicateNames.Contains(group.Key!))
+            .Select(group => $"{group.Key}: {string.Join(", ", group.Select(NormalizeRepositoryRelativePath).Order(StringComparer.Ordinal))}")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        AssertNoViolations(
+            duplicates,
+            "A type's implementation must live in exactly one project; duplicated file names across src projects indicate copy-paste drift. Extend the allow-list only for per-project conventions.");
+    }
+
+    private static IEnumerable<string> EnumerateSourceFiles()
+    {
+        return Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(path =>
+            {
+                var segments = path.Replace('\\', '/').Split('/');
+                return !segments.Contains("obj", StringComparer.Ordinal) && !segments.Contains("bin", StringComparer.Ordinal);
+            });
+    }
+
     private static void AssertNoViolations(IReadOnlyCollection<string> violations, string message)
     {
         Assert.True(
@@ -570,56 +664,8 @@ public class ArchitectureBoundaryTests
         return ReadProjectDependencies(projectPath)
             .Where(dependency => dependency.Kind is "ProjectReference")
             .Select(dependency => Path.GetFileNameWithoutExtension(dependency.Name.Replace('\\', Path.DirectorySeparatorChar)))
-            .OrderBy(x => x, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
-    }
-
-    private static (string Id, string CurrentConsumers, string TargetOwner, string ReplacementSlice, string DeletionCondition)[] ParseMigrationLedgerRows(string ledger)
-    {
-        var lines = ledger.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
-        var header = new[] { "ID", "Current consumers", "Target owner", "Replacement slice", "Zero-consumer deletion condition" };
-        var headerIndexes = lines
-            .Select((line, index) => (line, index))
-            .Where(item => TryReadTableCells(item.line, out var cells) && cells.SequenceEqual(header, StringComparer.Ordinal))
-            .Select(item => item.index)
-            .ToArray();
-        Assert.Single(headerIndexes);
-
-        var headerIndex = headerIndexes[0];
-        Assert.True(headerIndex + 1 < lines.Length, "Migration ledger header must have a separator row.");
-        Assert.Equal(new[] { "---", "---", "---", "---", "---" }, ReadTableCells(lines[headerIndex + 1]));
-
-        var rows = new List<(string Id, string CurrentConsumers, string TargetOwner, string ReplacementSlice, string DeletionCondition)>();
-        for (var index = headerIndex + 2; index < lines.Length && lines[index].TrimStart().StartsWith('|'); index++)
-        {
-            var cells = ReadTableCells(lines[index]);
-            Assert.Equal(5, cells.Length);
-            Assert.Matches("^[A-Z][A-Z0-9-]*$", cells[0]);
-            Assert.All(cells, cell => Assert.False(string.IsNullOrWhiteSpace(cell)));
-            rows.Add((cells[0], cells[1], cells[2], cells[3], cells[4]));
-        }
-
-        Assert.Equal(rows.Count, rows.Select(row => row.Id).Distinct(StringComparer.Ordinal).Count());
-        return rows.ToArray();
-    }
-
-    private static string[] ReadTableCells(string line)
-    {
-        Assert.True(TryReadTableCells(line, out var cells), $"Invalid markdown table row: {line}");
-        return cells;
-    }
-
-    private static bool TryReadTableCells(string line, out string[] cells)
-    {
-        cells = [];
-        var trimmed = line.Trim();
-        if (!trimmed.StartsWith('|') || !trimmed.EndsWith('|'))
-        {
-            return false;
-        }
-
-        cells = trimmed[1..^1].Split('|').Select(cell => cell.Trim()).ToArray();
-        return cells.Length is 5;
     }
 
     private static string[] ReadProjectReferenceTargets(string projectPath)
@@ -630,7 +676,7 @@ public class ArchitectureBoundaryTests
             .Select(dependency => NormalizeRepositoryRelativePath(Path.GetFullPath(Path.Combine(
                 projectDirectory,
                 dependency.Name.Replace('\\', Path.DirectorySeparatorChar)))))
-            .OrderBy(target => target, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
     }
 
@@ -639,7 +685,7 @@ public class ArchitectureBoundaryTests
         return ReadProjectDependencies(projectPath)
             .Where(dependency => dependency.Kind is "PackageReference" or "FrameworkReference")
             .Select(dependency => $"{dependency.Kind}: {dependency.Name}")
-            .OrderBy(x => x, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
             .ToArray();
     }
 
@@ -659,7 +705,7 @@ public class ArchitectureBoundaryTests
             .Where(element => element.Name.LocalName is "ProjectReference" or "PackageReference" or "FrameworkReference")
             .Select(element => (Kind: element.Name.LocalName, Name: element.Attribute("Include")?.Value))
             .Where(dependency => !string.IsNullOrWhiteSpace(dependency.Name))
-            .Select(dependency => (Kind: dependency.Kind, Name: dependency.Name!))
+            .Select(dependency => (dependency.Kind, Name: dependency.Name!))
             .OrderBy(dependency => dependency.Kind, StringComparer.Ordinal)
             .ThenBy(dependency => dependency.Name, StringComparer.Ordinal)
             .ToArray();
@@ -672,7 +718,7 @@ public class ArchitectureBoundaryTests
             .Select((text, index) => (Number: index + 1, Text: text))
             .SelectMany(line => forbiddenPatterns
                 .Where(pattern => line.Text.Contains(pattern, StringComparison.Ordinal))
-                .Select(pattern => $"{NormalizeRepositoryRelativePath(fullPath)}:{line.Number}: contains '{pattern}'"))
+                .Select(pattern => string.Create(CultureInfo.InvariantCulture, $"{NormalizeRepositoryRelativePath(fullPath)}:{line.Number}: contains '{pattern}'")))
             .ToArray();
     }
 
@@ -684,12 +730,12 @@ public class ArchitectureBoundaryTests
         return Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 .Any(segment => segment is "obj" or "bin"))
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .SelectMany(path => FindTextViolationsInFile(root, path, forbiddenPatterns))
+            .Order(StringComparer.Ordinal)
+            .SelectMany(path => FindTextViolationsInFile(path, forbiddenPatterns))
             .ToArray();
     }
 
-    private static IEnumerable<string> FindTextViolationsInFile(string root, string path, IReadOnlyCollection<string> forbiddenPatterns)
+    private static IEnumerable<string> FindTextViolationsInFile(string path, IReadOnlyCollection<string> forbiddenPatterns)
     {
         var lines = File.ReadLines(path).Select((text, index) => (Number: index + 1, Text: text));
         var relativePath = NormalizeRepositoryRelativePath(path);
@@ -700,7 +746,7 @@ public class ArchitectureBoundaryTests
             {
                 if (line.Text.Contains(pattern, StringComparison.Ordinal))
                 {
-                    yield return $"{relativePath}:{line.Number}: contains '{pattern}'";
+                    yield return string.Create(CultureInfo.InvariantCulture, $"{relativePath}:{line.Number}: contains '{pattern}'");
                 }
             }
         }
@@ -746,7 +792,7 @@ public class ArchitectureBoundaryTests
             foreach (Match match in Regex.Matches(
                 line,
                 @"(?<![A-Za-z0-9_])(?:global::)?(CrossMacro\.Infrastructure(?:\.[A-Za-z_][A-Za-z0-9_]*)*)",
-                RegexOptions.CultureInvariant,
+                RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
                 TimeSpan.FromMilliseconds(100)))
             {
                 var reference = match.Groups[1].Value;

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.Startup;
 
-public class GuiStartupOptionsParserTests
+public sealed class GuiStartupOptionsParserTests
 {
     [Fact]
     public void Parse_WhenNoArgs_ReturnsDefaultOptions()
@@ -25,6 +25,17 @@ public class GuiStartupOptionsParserTests
     public void Parse_WhenUnknownArgsPresent_PreservesOriginalOrder()
     {
         var result = GuiStartupOptionsParser.Parse(["--display=:0", "--start-minimized", "file.txt"]);
+
+        Assert.True(result.Options.StartMinimized);
+        Assert.Equal(["--display=:0", "file.txt"], result.ForwardedArgs);
+    }
+
+    [Fact]
+    public void Parse_WhenReadOnlySpanIsProvided_PreservesStartupArgumentBehavior()
+    {
+        var args = new[] { "--start-minimized", "--display=:0", "file.txt" };
+
+        var result = GuiStartupOptionsParser.Parse(args.AsSpan());
 
         Assert.True(result.Options.StartMinimized);
         Assert.Equal(["--display=:0", "file.txt"], result.ForwardedArgs);

@@ -51,7 +51,7 @@ public sealed class DaemonSocketPathResolverTests
             createDirectory: _ => throw new IOException("denied"));
 
         var ex = Assert.Throws<InvalidOperationException>(() => resolver.ResolveSocketPath());
-        Assert.IsType<IOException>(ex.InnerException);
+        _ = Assert.IsType<IOException>(ex.InnerException);
         Assert.Contains("/run/crossmacro", ex.Message, StringComparison.Ordinal);
     }
 
@@ -63,7 +63,7 @@ public sealed class DaemonSocketPathResolverTests
             createDirectory: _ => throw new UnauthorizedAccessException("denied"));
 
         var ex = Assert.Throws<InvalidOperationException>(() => resolver.ResolveSocketPath());
-        Assert.IsType<UnauthorizedAccessException>(ex.InnerException);
+        _ = Assert.IsType<UnauthorizedAccessException>(ex.InnerException);
         Assert.Contains("/run/crossmacro", ex.Message, StringComparison.Ordinal);
     }
 }

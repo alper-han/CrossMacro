@@ -1,14 +1,9 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
-internal sealed class DesignSettingsService : ISettingsService
+internal sealed class DesignSettingsService(AppSettings settings) : ISettingsService
 {
-    public DesignSettingsService(AppSettings settings)
-    {
-        Current = settings ?? throw new ArgumentNullException(nameof(settings));
-    }
-
-    public AppSettings Current { get; }
+    public AppSettings Current { get; } = settings ?? throw new ArgumentNullException(nameof(settings));
 
     public Task<AppSettings> LoadAsync() => Task.FromResult(Current);
 
@@ -16,7 +11,5 @@ internal sealed class DesignSettingsService : ISettingsService
 
     public Task SaveAsync() => Task.CompletedTask;
 
-    public void Save()
-    {
-    }
+    public void Save() { /* Empty */ }
 }

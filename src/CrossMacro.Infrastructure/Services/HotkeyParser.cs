@@ -4,14 +4,9 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Parses hotkey strings into structured HotkeyMapping objects.
 /// </summary>
-public class HotkeyParser : IHotkeyParser
+public class HotkeyParser(IKeyCodeMapper keyCodeMapper) : IHotkeyParser
 {
-    private readonly IKeyCodeMapper _keyCodeMapper;
-
-    public HotkeyParser(IKeyCodeMapper keyCodeMapper)
-    {
-        _keyCodeMapper = keyCodeMapper;
-    }
+    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper;
 
     public HotkeyMapping Parse(string hotkeyString)
     {
@@ -33,7 +28,7 @@ public class HotkeyParser : IHotkeyParser
 
             if (_keyCodeMapper.IsModifierKeyCode(keyCode))
             {
-                mapping.RequiredModifiers.Add(keyCode);
+                _ = mapping.RequiredModifiers.Add(keyCode);
             }
             else
             {

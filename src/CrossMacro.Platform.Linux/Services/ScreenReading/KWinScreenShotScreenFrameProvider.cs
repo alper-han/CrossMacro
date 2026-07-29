@@ -1,22 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class KWinScreenShotScreenFrameProvider : IScreenFrameProvider
+public sealed class KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture, KWinScreenShotSupportResult support) : IScreenFrameProvider
 {
-    private readonly IKWinScreenShotCapture _capture;
-    private readonly KWinScreenShotSupportResult _support;
+    private readonly IKWinScreenShotCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly KWinScreenShotSupportResult _support = support;
     private bool _disposed;
 
     public KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture, KWinScreenShotSupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "KDE KWin ScreenShot2";
     public bool IsSupported => _support.IsSupported;

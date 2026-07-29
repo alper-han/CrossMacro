@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
-public class InputProcessor : IInputProcessor
+public class InputProcessor(IKeyboardLayoutService layoutService) : IInputProcessor
 {
-    private readonly IKeyboardLayoutService _layoutService;
+    private readonly IKeyboardLayoutService _layoutService = layoutService;
     private readonly Lock _stateLock = new();
 
     // Modifier state
@@ -14,7 +14,6 @@ public class InputProcessor : IInputProcessor
     private bool _isLeftCtrlPressed;
     private bool _isRightCtrlPressed; // Not used for char mapping directly usually, but good to track
     private bool _isCapsLockOn;
-    private bool _isAltGrPressed; // Computed
     private readonly HashSet<int> _pressedKeys = new();
 
     // Debouncing state
@@ -48,11 +47,6 @@ public class InputProcessor : IInputProcessor
         {
             return _pressedKeys.Contains(keyCode);
         }
-    }
-
-    public InputProcessor(IKeyboardLayoutService layoutService)
-    {
-        _layoutService = layoutService;
     }
 
     public void ProcessEvent(CapturedInputEvent e)
@@ -163,7 +157,6 @@ capsLock: false);
                 break;
             case InputEventCode.KEY_RIGHTALT:
                 _isRightAltPressed = isPressed;
-                _isAltGrPressed = _isRightAltPressed; // Treat Right Alt as AltGr
                 break;
             case InputEventCode.KEY_LEFTALT:
                 _isLeftAltPressed = isPressed;
@@ -181,11 +174,11 @@ capsLock: false);
     {
         if (e.Value is 0)
         {
-            _pressedKeys.Remove(e.Code);
+            _ = _pressedKeys.Remove(e.Code);
         }
         else if (e.Value is 1 or 2)
         {
-            _pressedKeys.Add(e.Code);
+            _ = _pressedKeys.Add(e.Code);
         }
     }
 
@@ -199,7 +192,6 @@ capsLock: false);
             _isLeftAltPressed = false;
             _isLeftCtrlPressed = false;
             _isRightCtrlPressed = false;
-            _isAltGrPressed = false;
             _pressedKeys.Clear();
             // _isCapsLockOn ? Usually persistent, don't reset caps lock
             _lastKey = 0;

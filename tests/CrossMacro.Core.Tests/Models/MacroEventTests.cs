@@ -1,7 +1,7 @@
 namespace CrossMacro.Core.Tests.Models;
 
 
-public class MacroEventTests
+public sealed class MacroEventTests
 {
     [Fact]
     public void NewMacroEvent_HasDefaultValues()
@@ -10,17 +10,17 @@ public class MacroEventTests
         var ev = new MacroEvent();
 
         // Assert
-        ev.Type.Should().Be(EventType.None); // Default enum value
-        ev.X.Should().Be(0);
-        ev.Y.Should().Be(0);
-        ev.Button.Should().Be(MacroMouseButton.None);
-        ev.Timestamp.Should().Be(0);
-        ev.DelayMs.Should().Be(0);
-        ev.HasRandomDelay.Should().BeFalse();
-        ev.RandomDelayMinMs.Should().Be(0);
-        ev.RandomDelayMaxMs.Should().Be(0);
-        ev.KeyCode.Should().Be(0);
-        ev.CoordinateMode.Should().BeNull();
+        _ = ev.Type.Should().Be(EventType.None); // Default enum value
+        _ = ev.X.Should().Be(0);
+        _ = ev.Y.Should().Be(0);
+        _ = ev.Button.Should().Be(MacroMouseButton.None);
+        _ = ev.Timestamp.Should().Be(0);
+        _ = ev.DelayMs.Should().Be(0);
+        _ = ev.HasRandomDelay.Should().BeFalse();
+        _ = ev.RandomDelayMinMs.Should().Be(0);
+        _ = ev.RandomDelayMaxMs.Should().Be(0);
+        _ = ev.KeyCode.Should().Be(0);
+        _ = ev.CoordinateMode.Should().BeNull();
     }
 
     [Theory]
@@ -36,7 +36,7 @@ public class MacroEventTests
         var ev = new MacroEvent { Type = eventType };
 
         // Assert
-        ev.Type.Should().Be(eventType);
+        _ = ev.Type.Should().Be(eventType);
     }
 
     [Theory]
@@ -52,7 +52,7 @@ public class MacroEventTests
         var ev = new MacroEvent { Button = button };
 
         // Assert
-        ev.Button.Should().Be(button);
+        _ = ev.Button.Should().Be(button);
     }
 
     [Fact]
@@ -62,8 +62,8 @@ public class MacroEventTests
         var ev = new MacroEvent { X = 1920, Y = 1080 };
 
         // Assert
-        ev.X.Should().Be(1920);
-        ev.Y.Should().Be(1080);
+        _ = ev.X.Should().Be(1920);
+        _ = ev.Y.Should().Be(1080);
     }
 
     [Fact]
@@ -72,8 +72,8 @@ public class MacroEventTests
         // Some scenarios might have negative relative coordinates
         var ev = new MacroEvent { X = -100, Y = -50 };
 
-        ev.X.Should().Be(-100);
-        ev.Y.Should().Be(-50);
+        _ = ev.X.Should().Be(-100);
+        _ = ev.Y.Should().Be(-50);
     }
 
     [Theory]
@@ -87,7 +87,7 @@ public class MacroEventTests
             CoordinateMode = coordinateMode,
         };
 
-        ev.CoordinateMode.Should().Be(coordinateMode);
+        _ = ev.CoordinateMode.Should().Be(coordinateMode);
     }
 
     [Fact]
@@ -97,6 +97,6 @@ public class MacroEventTests
         var ev = new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 };
 
         // Assert
-        ev.KeyCode.Should().Be(30);
+        _ = ev.KeyCode.Should().Be(30);
     }
 }

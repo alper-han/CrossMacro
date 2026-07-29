@@ -11,5 +11,5 @@ public interface ILinuxLayoutDetector
     /// Priority: DE-specific > IBus > X11 > localectl
     /// </summary>
     /// <returns>Layout code or null if detection fails</returns>
-    public string? DetectLayout();
+    public Task<string?> DetectLayoutAsync(CancellationToken cancellationToken = default);
 }

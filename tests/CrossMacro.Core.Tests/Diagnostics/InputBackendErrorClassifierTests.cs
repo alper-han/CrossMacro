@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Diagnostics;
 
-public class InputBackendErrorClassifierTests
+public sealed class InputBackendErrorClassifierTests
 {
     [Theory]
     [InlineData("No usable Linux input capture backend is available.")]
@@ -28,7 +28,7 @@ public class InputBackendErrorClassifierTests
     [Fact]
     public void IsKnownUnavailable_WhenInnerExceptionMatches_ReturnsTrue()
     {
-        var ex = new InvalidOperationException("wrapper", new Exception("No usable Linux input capture backend is available."));
+        var ex = new InvalidOperationException("wrapper", new InvalidOperationException("No usable Linux input capture backend is available."));
         Assert.True(InputBackendErrorClassifier.IsKnownUnavailable(ex));
     }
 }

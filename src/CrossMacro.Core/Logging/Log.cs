@@ -206,21 +206,16 @@ public static class Log
         }
     }
 
-    private sealed class LoggerRestoreScope : IDisposable
+    private sealed class LoggerRestoreScope(ICoreLogger previousLogger) : IDisposable
     {
-        private ICoreLogger? _previousLogger;
-
-        public LoggerRestoreScope(ICoreLogger previousLogger)
-        {
-            _previousLogger = previousLogger;
-        }
+        private ICoreLogger? _previousLogger = previousLogger;
 
         public void Dispose()
         {
-            var previousLogger = Interlocked.Exchange(ref _previousLogger, value: null);
-            if (previousLogger is not null)
+            var prev = Interlocked.Exchange(ref _previousLogger, value: null);
+            if (prev is not null)
             {
-                Configure(previousLogger);
+                Configure(prev);
             }
         }
     }

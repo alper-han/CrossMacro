@@ -1,25 +1,25 @@
 
 namespace CrossMacro.Daemon.Tests.Services;
 
-public class SecurityDependenciesTests
+public sealed class SecurityDependenciesTests
 {
     [Fact]
     public void RateLimiterService_Ctor_WhenInnerNull_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new RateLimiterService(null!));
+        _ = Assert.Throws<ArgumentNullException>(() => new RateLimiterService(null!));
     }
 
     [Fact]
     public void SecurityAuditLogger_Ctor_WhenInnerNull_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new SecurityAuditLogger(null!));
+        _ = Assert.Throws<ArgumentNullException>(() => new SecurityAuditLogger(null!));
     }
 
     [Fact]
-    public void SecurityAuditLogger_LogSimulation_DelegatesToInnerAuditLogger()
+    public async Task SecurityAuditLogger_LogSimulation_DelegatesToInnerAuditLogger()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"crossmacro-audit-adapter-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
+        _ = Directory.CreateDirectory(directory);
 
         try
         {
@@ -27,9 +27,9 @@ public class SecurityDependenciesTests
             var adapter = new SecurityAuditLogger(inner);
 
             adapter.LogSimulation(1000, 123, type: 1, code: 2, value: 3);
-            inner.Dispose();
+            await adapter.DisposeAsync();
 
-            var text = File.ReadAllText(Path.Combine(directory, "audit.log"));
+            var text = await File.ReadAllTextAsync(Path.Combine(directory, "audit.log"));
             Assert.Contains("UID=1000|PID=123|SIMULATE|type=1 code=2 value=3", text, StringComparison.Ordinal);
         }
         finally

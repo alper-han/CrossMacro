@@ -28,7 +28,7 @@ internal static class TextInputControlCharacterFormatter
         for (var index = 0; index < text.Length; index++)
         {
             var ch = text[index];
-            builder.Append(ch switch
+            _ = builder.Append(ch switch
             {
                 '⌫' => '\b',
                 '↵' => '\r',

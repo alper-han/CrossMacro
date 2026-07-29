@@ -12,7 +12,7 @@ internal sealed class RunSequenceExecutionResult
     public bool IsAbsolutePlaybackUnsupported { get; private init; }
     public bool IsInputInjectionPermissionRequired { get; private init; }
     public string? ErrorMessage { get; private init; }
-    public IReadOnlyDictionary<string, string> RuntimeVariables { get; private init; } = new Dictionary<string, string>();
+    public IReadOnlyDictionary<string, string> RuntimeVariables { get; private init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
     public static RunSequenceExecutionResult Succeeded(IReadOnlyDictionary<string, string>? runtimeVariables = null)
     {
@@ -20,7 +20,7 @@ internal sealed class RunSequenceExecutionResult
         {
             Success = true,
             RuntimeVariables = runtimeVariables is null
-                ? new Dictionary<string, string>()
+                ? new Dictionary<string, string>(StringComparer.Ordinal)
                 : new Dictionary<string, string>(runtimeVariables, StringComparer.OrdinalIgnoreCase),
         };
     }

@@ -2,7 +2,7 @@
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
 [SupportedOSPlatform("macos")]
-public class MacOSPermissionCheckerServiceTests
+public sealed class MacOSPermissionCheckerServiceTests
 {
     [Fact]
     public void IsSupported_ShouldAlwaysBeTrue()

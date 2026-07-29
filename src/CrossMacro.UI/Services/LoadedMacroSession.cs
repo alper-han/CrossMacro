@@ -5,8 +5,6 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 {
     private readonly ObservableCollection<LoadedMacroListItem> _loadedMacros = new();
     private readonly ILocalizationService? _localizationService;
-    private LoadedMacroListItem? _selectedMacroItem;
-    private LoadedMacroPlaybackMode _playbackMode;
 
     public LoadedMacroSession(ILocalizationService localizationService)
     {
@@ -18,30 +16,30 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
     public LoadedMacroListItem? SelectedMacroItem
     {
-        get => _selectedMacroItem;
+        get;
         set
         {
-            if (ReferenceEquals(_selectedMacroItem, value))
+            if (ReferenceEquals(field, value))
             {
                 return;
             }
 
-            _selectedMacroItem = value;
+            field = value;
             SelectedMacroChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
     public LoadedMacroPlaybackMode PlaybackMode
     {
-        get => _playbackMode;
+        get;
         set
         {
-            if (_playbackMode == value)
+            if (field == value)
             {
                 return;
             }
 
-            _playbackMode = value;
+            field = value;
             PlaybackModeChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -101,7 +99,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
     {
         if (_loadedMacros.Count is 0)
         {
-            return Array.Empty<LoadedMacroListItem>();
+            return [];
         }
 
         var selectedItem = SelectedMacroItem ?? _loadedMacros[0];

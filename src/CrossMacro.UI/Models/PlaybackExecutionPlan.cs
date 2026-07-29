@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Models;
 
-internal sealed record class PlaybackExecutionPlan(
+internal sealed record PlaybackExecutionPlan(
     LoadedMacroPlaybackMode Mode,
     MacroSequence? ActiveMacro,
     IReadOnlyList<LoadedMacroListItem> SequenceSnapshot,

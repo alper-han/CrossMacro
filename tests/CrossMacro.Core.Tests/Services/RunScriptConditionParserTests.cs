@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services;
 
-public class RunScriptConditionParserTests
+public sealed class RunScriptConditionParserTests
 {
     [Fact]
     public void TryParse_WhenRightOperandContainsComparatorText_ParsesEqualityBoundary()

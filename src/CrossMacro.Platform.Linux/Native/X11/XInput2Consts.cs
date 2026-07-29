@@ -1,9 +1,6 @@
 
 namespace CrossMacro.Platform.Linux.Native.X11;
 
-// ReSharper disable InconsistentNaming
-// ReSharper disable IdentifierTypo
-
 public static class XInput2Consts
 {
 
@@ -43,9 +40,19 @@ public static class XInput2Consts
         mask[eventType >> 3] |= (byte)(1 << (eventType & 7));
     }
 
+    public static void SetMask(Span<byte> mask, int eventType)
+    {
+        mask[eventType >> 3] |= (byte)(1 << (eventType & 7));
+    }
+
     public static bool IsBitSet(byte[] mask, int bit)
     {
         ArgumentNullException.ThrowIfNull(mask);
+        return (mask[bit >> 3] & (1 << (bit & 7))) is not 0;
+    }
+
+    public static bool IsBitSet(Span<byte> mask, int bit)
+    {
         return (mask[bit >> 3] & (1 << (bit & 7))) is not 0;
     }
 

@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Services;
 
-public sealed class LinuxRuntimeContext : IRuntimeContext, IDisplayEnvironmentDiagnostic
+public sealed class LinuxRuntimeContext(LinuxEnvironmentSnapshot environment) : IRuntimeContext, IDisplayEnvironmentDiagnostic
 {
-    private readonly LinuxEnvironmentSnapshot _environment;
-
-    public LinuxRuntimeContext(LinuxEnvironmentSnapshot environment)
-    {
-        _environment = environment;
-    }
+    private readonly LinuxEnvironmentSnapshot _environment = environment;
 
     public bool IsLinux => true;
     public bool IsWindows => false;

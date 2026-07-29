@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.Theming;
 
-public class ThemeCatalogAlignmentTests
+public sealed class ThemeCatalogAlignmentTests
 {
     [Fact]
     public void ThemeCatalog_ShouldMatchAppResourceKeysAndThemeFiles()
@@ -10,13 +10,13 @@ public class ThemeCatalogAlignmentTests
         var appResourceFile = Path.Combine(repoRoot, "src", "CrossMacro.UI", "App.axaml");
         var appResourceKeys = ThemeTestFileHelper.ReadResourceKeys(appResourceFile);
 
-        ThemeCatalog.Themes.Should().NotBeEmpty();
+        _ = ThemeCatalog.Themes.Should().NotBeEmpty();
         foreach (var theme in ThemeCatalog.Themes)
         {
-            appResourceKeys.Should().Contain(theme.ResourceKey);
+            _ = appResourceKeys.Should().Contain(theme.ResourceKey);
 
             var fullThemePath = Path.Combine(repoRoot, "src", "CrossMacro.UI", theme.SourcePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-            File.Exists(fullThemePath).Should().BeTrue($"theme source file should exist for {theme.Name}");
+            _ = File.Exists(fullThemePath).Should().BeTrue($"theme source file should exist for {theme.Name}");
         }
     }
 }

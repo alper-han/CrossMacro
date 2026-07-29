@@ -2,5 +2,7 @@ namespace CrossMacro.UI.Services;
 
 public interface IExternalUrlOpener
 {
-    public void Open(string url);
+    public Task OpenAsync(Uri url);
+
+    public Task OpenAsync(string url);
 }

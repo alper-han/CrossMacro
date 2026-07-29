@@ -2,10 +2,10 @@
 namespace CrossMacro.Platform.Linux.DisplayServer;
 
 /// <summary>
-/// Fallback position provider using "Corner Reset" hack
-/// TODO: Implement position tracking via corner reset.
+/// Fallback position provider. Absolute tracking is not available; only relative
+/// motion is supported when this provider is selected.
 /// </summary>
-public class FallbackPositionProvider : IMousePositionProvider
+public sealed class FallbackPositionProvider : IMousePositionProvider
 {
     public string ProviderName => "None (Relative Only)";
     public bool IsSupported => false;
@@ -20,5 +20,8 @@ public class FallbackPositionProvider : IMousePositionProvider
         return Task.FromResult<(int Width, int Height)?>(null);
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
 }

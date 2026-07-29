@@ -1,22 +1,16 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class PortalScreenCastException : Exception
+public sealed class PortalScreenCastException : Exception
 {
     public PortalScreenCastException()
-        : this(ScreenReadErrorKind.CaptureFailed, "Portal screen cast error occurred.")
-    {
-    }
+        : this(ScreenReadErrorKind.CaptureFailed, "Portal screen cast error occurred.") { /* Empty */ }
 
     public PortalScreenCastException(string message)
-        : this(ScreenReadErrorKind.CaptureFailed, message)
-    {
-    }
+        : this(ScreenReadErrorKind.CaptureFailed, message) { /* Empty */ }
 
     public PortalScreenCastException(string message, Exception innerException)
-        : this(ScreenReadErrorKind.CaptureFailed, message, innerException)
-    {
-    }
+        : this(ScreenReadErrorKind.CaptureFailed, message, innerException) { /* Empty */ }
 
     public PortalScreenCastException(ScreenReadErrorKind errorKind, string message)
         : base(message)

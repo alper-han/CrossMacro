@@ -1,7 +1,7 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 
-public class GnomePositionProviderTests
+public sealed class GnomePositionProviderTests
 {
     [Fact]
     public void TryReadEnabledState_ReturnsTrue_ForActiveExtensionInfo()
@@ -92,7 +92,7 @@ public class GnomePositionProviderTests
         var result = await GnomePositionProvider.TryGetScreenResolutionAsync(
             () =>
             {
-                Interlocked.Increment(ref calls);
+                _ = Interlocked.Increment(ref calls);
                 return Task.FromResult((width: 3840, height: 2160));
             },
             cached,
@@ -165,7 +165,7 @@ public class GnomePositionProviderTests
 
         public TempDirectory()
         {
-            Directory.CreateDirectory(Path);
+            _ = Directory.CreateDirectory(Path);
         }
 
         public void Dispose()

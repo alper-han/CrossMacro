@@ -13,9 +13,7 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
     private bool _disposed;
 
     public X11ScreenCapture()
-        : this(X11ScreenCaptureSupportProbe.Instance, X11NativeApi.Instance)
-    {
-    }
+        : this(X11ScreenCaptureSupportProbe.Instance, X11NativeApi.Instance) { /* Empty */ }
 
     internal X11ScreenCapture(IX11ScreenCaptureSupportProbe supportProbe, IX11NativeApi native)
     {
@@ -116,12 +114,12 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
                 }
                 finally
                 {
-                    _native.DestroyImage(image);
+                    _ = _native.DestroyImage(image);
                 }
             }
             finally
             {
-                _native.CloseDisplay(display);
+                _ = _native.CloseDisplay(display);
             }
         }
     }

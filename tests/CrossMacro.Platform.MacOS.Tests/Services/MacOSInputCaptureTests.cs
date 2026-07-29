@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-public class MacOSInputCaptureTests
+public sealed class MacOSInputCaptureTests
 {
     [Fact]
     public void SystemDefinedConstants_MatchNativeGoldenValues()
@@ -142,9 +142,10 @@ public class MacOSInputCaptureTests
             subtype: 8,
             data1: CreateSystemDefinedData1(keyType, 0x0A),
             timestamp: 123,
-            out _);
+            out var inputEvent);
 
         Assert.False(created);
+        Assert.Equal(default, inputEvent);
     }
 
     [Fact]
@@ -282,7 +283,7 @@ public class MacOSInputCaptureTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => capture.StartAsync(cts.Token));
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => capture.StartAsync(cts.Token));
     }
 
     [NonMacOSFact]

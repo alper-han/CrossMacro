@@ -9,11 +9,14 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
 {
     private readonly Lazy<CompositorType> _compositor;
 
-    [Obsolete("Use the snapshot-backed constructor in production composition.", error: false)]
+    /// <summary>
+    /// Captures the live environment at call time. Prefer the snapshot-backed
+    /// constructor in production composition so the environment is captured
+    /// once at the boundary and passed through.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
     internal LinuxEnvironmentDetector()
-        : this(new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
-    {
-    }
+        : this(new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot())) { /* Empty */ }
 
     public LinuxEnvironmentDetector(ILinuxEnvironmentVariables environmentVariables)
     {
@@ -36,6 +39,8 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
         CompositorType.GNOME => true,
         CompositorType.KDE => true,
         CompositorType.Other => true,
+        CompositorType.Unknown => false,
+        CompositorType.X11 => false,
         _ => false,
     };
 

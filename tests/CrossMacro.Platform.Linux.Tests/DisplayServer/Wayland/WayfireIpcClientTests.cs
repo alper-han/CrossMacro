@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 
 [Collection("EnvironmentVariableSensitive")]
-public class WayfireIpcClientTests
+public sealed class WayfireIpcClientTests
 {
     private static readonly TimeSpan SocketOperationTimeout = TimeSpan.FromSeconds(2);
 
@@ -44,12 +44,12 @@ public class WayfireIpcClientTests
             {
                 if (string.Equals(directory, runtimeDir, StringComparison.Ordinal))
                 {
-                    return new[] { runtimeStaleSocket };
+                    return [runtimeStaleSocket];
                 }
 
                 if (string.Equals(directory, tempDir, StringComparison.Ordinal))
                 {
-                    return new[] { tmpSocket };
+                    return [tmpSocket];
                 }
 
                 return [];
@@ -90,7 +90,7 @@ public class WayfireIpcClientTests
             (string directory, string _) =>
             {
                 checkedDirectories.Add(directory);
-                return string.Equals(directory, tempDir, StringComparison.Ordinal) ? new[] { tmpSocket } : [];
+                return string.Equals(directory, tempDir, StringComparison.Ordinal) ? [tmpSocket] : [];
             },
             (string path) => string.Equals(path, tmpSocket, StringComparison.Ordinal));
 

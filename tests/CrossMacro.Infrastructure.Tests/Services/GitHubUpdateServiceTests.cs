@@ -1,18 +1,13 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class GitHubUpdateServiceTests
+public sealed class GitHubUpdateServiceTests : IDisposable
 {
-    private class TestableGitHubUpdateService : GitHubUpdateService
+    private sealed class TestableGitHubUpdateService(IRuntimeContext runtimeContext) : GitHubUpdateService(runtimeContext)
     {
         public required HttpMessageHandler Handler { get; set; }
         public Version CurrentVersion { get; set; } = new(1, 0, 0);
         public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(8);
-
-        public TestableGitHubUpdateService(IRuntimeContext runtimeContext)
-            : base(runtimeContext)
-        {
-        }
 
         protected override HttpClient CreateClient()
         {
@@ -27,7 +22,7 @@ public class GitHubUpdateServiceTests
         protected override TimeSpan RequestTimeout => Timeout;
     }
 
-    private class MockHttpMessageHandler : HttpMessageHandler
+    private sealed class MockHttpMessageHandler : HttpMessageHandler
     {
         public required Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> OnSendAsync { get; set; }
 
@@ -60,6 +55,8 @@ public class GitHubUpdateServiceTests
         _service = new TestableGitHubUpdateService(_runtimeContext) { Handler = _handler };
     }
 
+    public void Dispose() => _handler.Dispose();
+
     [Fact]
     public async Task CheckForUpdatesAsync_WhenRunningInFlatpak_ShouldSkipHttpCall()
     {
@@ -73,8 +70,8 @@ public class GitHubUpdateServiceTests
 
         var result = await _service.CheckForUpdatesAsync();
 
-        result.HasUpdate.Should().BeFalse();
-        httpCalled.Should().BeFalse();
+        _ = result.HasUpdate.Should().BeFalse();
+        _ = httpCalled.Should().BeFalse();
     }
 
     [Fact]
@@ -90,9 +87,9 @@ public class GitHubUpdateServiceTests
 
         var result = await _service.CheckForUpdatesAsync();
 
-        result.HasUpdate.Should().BeTrue();
-        result.LatestVersion.Should().Be("99.99.99");
-        result.ReleaseUrl.Should().Be(new Uri("http://example.com"));
+        _ = result.HasUpdate.Should().BeTrue();
+        _ = result.LatestVersion.Should().Be("99.99.99");
+        _ = result.ReleaseUrl.Should().Be(new Uri("http://example.com"));
     }
 
     [Fact]
@@ -108,7 +105,7 @@ public class GitHubUpdateServiceTests
 
         var result = await _service.CheckForUpdatesAsync();
 
-        result.HasUpdate.Should().BeFalse();
+        _ = result.HasUpdate.Should().BeFalse();
     }
 
     [Fact]
@@ -124,7 +121,7 @@ public class GitHubUpdateServiceTests
 
         _ = await _service.CheckForUpdatesAsync();
 
-        httpCalled.Should().BeTrue();
+        _ = httpCalled.Should().BeTrue();
     }
 
     [Fact]
@@ -138,7 +135,7 @@ public class GitHubUpdateServiceTests
 
         var result = await _service.CheckForUpdatesAsync();
 
-        result.HasUpdate.Should().BeFalse();
+        _ = result.HasUpdate.Should().BeFalse();
     }
 
     [Fact]
@@ -157,7 +154,7 @@ public class GitHubUpdateServiceTests
 
         var result = await _service.CheckForUpdatesAsync();
 
-        result.HasUpdate.Should().BeFalse();
+        _ = result.HasUpdate.Should().BeFalse();
     }
 
     [Fact]
@@ -168,7 +165,7 @@ public class GitHubUpdateServiceTests
 
         var result = await _service.CheckForUpdatesAsync();
 
-        result.HasUpdate.Should().BeFalse();
+        _ = result.HasUpdate.Should().BeFalse();
     }
 
     [Fact]
@@ -179,6 +176,6 @@ public class GitHubUpdateServiceTests
 
         var result = await _service.CheckForUpdatesAsync();
 
-        result.HasUpdate.Should().BeFalse();
+        _ = result.HasUpdate.Should().BeFalse();
     }
 }

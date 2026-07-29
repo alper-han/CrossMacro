@@ -216,7 +216,7 @@ public sealed class AuditLoggerTests
     private static string CreateTempDirectory()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"crossmacro-audit-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
+        _ = Directory.CreateDirectory(directory);
         return directory;
     }
 

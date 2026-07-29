@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public class SessionHandler : ISessionHandler
+internal sealed class SessionHandler : ISessionHandler
 {
     private const int DefaultMaxBufferedCaptureEvents = 1024;
     private readonly ISecurityService _security;
@@ -46,7 +46,7 @@ public class SessionHandler : ISessionHandler
             {
                 socket.Dispose();
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 // Best effort to unblock any pending stream reads on shutdown.
             }
@@ -58,8 +58,7 @@ public class SessionHandler : ISessionHandler
                 reader,
                 writer,
                 stream,
-                _maxBufferedCaptureEvents,
-                new DaemonInputEventEncoder());
+                _maxBufferedCaptureEvents);
             var lifecycle = new SessionLifecycle(session, _security, _virtualDevice, _inputCapture);
 
             if (!await lifecycle.TryInitializeAsync(clientCts.Token).ConfigureAwait(false))
@@ -67,41 +66,33 @@ public class SessionHandler : ISessionHandler
                 return;
             }
 
-            await Task.Run(
-                () => lifecycle.RunAsync(uid, pid, client, clientCts.Token)).ConfigureAwait(false);
+            await lifecycle.RunAsync(uid, pid, client, clientCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             Log.Debug("[SessionHandler] Session canceled");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Session error");
         }
     }
 
-    private sealed class SessionLifecycle
+    private sealed class SessionLifecycle(
+        DaemonProtocolSession session,
+        ISecurityService security,
+        IVirtualDeviceManager virtualDevice,
+        IInputCaptureManager inputCapture)
     {
-        private readonly DaemonProtocolSession _session;
-        private readonly ISecurityService _security;
-        private readonly IVirtualDeviceManager _virtualDevice;
-        private readonly IInputCaptureManager _inputCapture;
-
-        public SessionLifecycle(
-            DaemonProtocolSession session,
-            ISecurityService security,
-            IVirtualDeviceManager virtualDevice,
-            IInputCaptureManager inputCapture)
-        {
-            _session = session;
-            _security = security;
-            _virtualDevice = virtualDevice;
-            _inputCapture = inputCapture;
-        }
+        private readonly DaemonProtocolSession _session = session;
+        private readonly ISecurityService _security = security;
+        private readonly IVirtualDeviceManager _virtualDevice = virtualDevice;
+        private readonly IInputCaptureManager _inputCapture = inputCapture;
 
         public async Task<bool> TryInitializeAsync(CancellationToken token)
         {
-            return TryCompleteHandshake() && await TryInitializeVirtualDeviceAsync(token).ConfigureAwait(false);
+            return await TryCompleteHandshakeAsync(token).ConfigureAwait(false) &&
+                   await TryInitializeVirtualDeviceAsync(token).ConfigureAwait(false);
         }
 
         public async Task RunAsync(uint uid, int pid, Socket client, CancellationToken token)
@@ -126,13 +117,13 @@ public class SessionHandler : ISessionHandler
             {
                 Log.Debug("[SessionHandler] Session canceled");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "Error in ReadLoop");
             }
             finally
             {
-                FinalizeSession(client);
+                await FinalizeSessionAsync(client).ConfigureAwait(false);
             }
         }
 
@@ -147,6 +138,10 @@ public class SessionHandler : ISessionHandler
             {
                 await DispatchCommandAsync(opcode, uid, pid, token).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (EndOfStreamException)
             {
                 throw;
@@ -155,14 +150,14 @@ public class SessionHandler : ISessionHandler
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[SessionHandler] Command processing failed for opcode {Op}", opcode);
                 throw;
             }
         }
 
-        private void FinalizeSession(Socket client)
+        private async Task FinalizeSessionAsync(Socket client)
         {
             _session.MarkDisconnected();
 
@@ -173,10 +168,11 @@ public class SessionHandler : ISessionHandler
             finally
             {
                 DisposeClientSocket(client);
+                await _session.CaptureForwarding.DisposeAsync().ConfigureAwait(false);
             }
         }
 
-        private bool TryCompleteHandshake()
+        private async Task<bool> TryCompleteHandshakeAsync(CancellationToken token)
         {
             var opcode = (IpcOpCode)_session.Reader.ReadByte();
             if (opcode is not IpcOpCode.Handshake)
@@ -191,12 +187,13 @@ public class SessionHandler : ISessionHandler
                 Log.Warning("Protocol mismatch. Client: {C}, Server: {S}", version, IpcProtocol.ProtocolVersion);
                 _session.Writer.Write((byte)IpcOpCode.Error);
                 _session.Writer.Write("Protocol version mismatch");
+                await _session.Stream.FlushAsync(token).ConfigureAwait(false);
                 return false;
             }
 
             _session.Writer.Write((byte)IpcOpCode.Handshake);
             _session.Writer.Write(IpcProtocol.ProtocolVersion);
-            _session.Stream.Flush();
+            await _session.Stream.FlushAsync(token).ConfigureAwait(false);
             return true;
         }
 
@@ -211,11 +208,12 @@ public class SessionHandler : ISessionHandler
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "Failed to create UInput device");
                 _session.Writer.Write((byte)IpcOpCode.Error);
                 _session.Writer.Write($"Failed to init UInput: {ex.Message}");
+                await _session.Stream.FlushAsync(token).ConfigureAwait(false);
                 return false;
             }
         }
@@ -225,10 +223,10 @@ public class SessionHandler : ISessionHandler
             switch (opcode)
             {
                 case IpcOpCode.StartCapture:
-                    HandleStartCaptureCommand(uid, pid);
+                    await HandleStartCaptureCommandAsync(uid, pid, token).ConfigureAwait(false);
                     break;
                 case IpcOpCode.StopCapture:
-                    HandleStopCaptureCommand(uid, pid);
+                    await HandleStopCaptureCommandAsync(uid, pid, token).ConfigureAwait(false);
                     break;
                 case IpcOpCode.ConfigureResolution:
                     await HandleConfigureResolutionCommandAsync(token).ConfigureAwait(false);
@@ -240,12 +238,11 @@ public class SessionHandler : ISessionHandler
                     await HandleSimulateEventBatchCommandAsync(uid, pid, token).ConfigureAwait(false);
                     break;
                 default:
-                    Log.Warning("Unknown OpCode: {Op}", opcode);
-                    break;
+                    throw new InvalidDataException($"Unknown OpCode: {opcode}");
             }
         }
 
-        private void HandleStartCaptureCommand(uint uid, int pid)
+        private async Task HandleStartCaptureCommandAsync(uint uid, int pid, CancellationToken token)
         {
             var requestId = _session.Reader.ReadInt32();
             var captureMouse = _session.Reader.ReadBoolean();
@@ -262,14 +259,16 @@ public class SessionHandler : ISessionHandler
                     captureKb,
                     _session.CaptureForwarding.CreateEventForwarder(requestGeneration, _session));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[SessionHandler] Capture manager threw during StartCapture");
                 result = CaptureStartResult.Failed(
                     "Failed to start capture due to internal error: " + ex.Message);
             }
 
-            using (_session.WriterGate.Enter())
+            await _session.CaptureForwarding.DrainAsync(token).ConfigureAwait(false);
+
+            using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
             {
                 if (result.Success)
                 {
@@ -288,9 +287,9 @@ public class SessionHandler : ISessionHandler
 
                     if (activation.HasBufferedEvents)
                     {
-                        while (activation.BufferedEvents!.Count > 0)
+                        while (activation.BufferedEvents is { Count: > 0 } bufferedEvents)
                         {
-                            var bufferedEvent = activation.BufferedEvents.Dequeue();
+                            var bufferedEvent = bufferedEvents.Dequeue();
                             _session.WriteInputEvent(bufferedEvent);
                         }
                     }
@@ -302,15 +301,15 @@ public class SessionHandler : ISessionHandler
                     _session.Writer.Write(result.ErrorMessage ?? "Failed to start capture.");
                     _session.CaptureForwarding.ResetAfterFailedStart(requestGeneration);
                 }
-
-                _session.Stream.Flush();
             }
+
+            await _session.Stream.FlushAsync(token).ConfigureAwait(false);
         }
 
-        private void HandleStopCaptureCommand(uint uid, int pid)
+        private async Task HandleStopCaptureCommandAsync(uint uid, int pid, CancellationToken token)
         {
             _security.LogCaptureStop(uid, pid);
-            using (_session.WriterGate.Enter())
+            using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
             {
                 _session.CaptureForwarding.Stop();
             }
@@ -342,12 +341,13 @@ public class SessionHandler : ISessionHandler
                 var events = ReadSimulationBatchEvents();
                 await _virtualDevice.SendEventsAsync(events, token).ConfigureAwait(false);
 
-                using (_session.WriterGate.Enter())
+                using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
                 {
                     _session.Writer.Write((byte)IpcOpCode.SimulationBatchCompleted);
                     _session.Writer.Write(requestId);
-                    _session.Stream.Flush();
                 }
+
+                await _session.Stream.FlushAsync(token).ConfigureAwait(false);
 
                 foreach (var inputEvent in events)
                 {
@@ -358,16 +358,17 @@ public class SessionHandler : ISessionHandler
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[SessionHandler] Simulation batch failed");
-                using (_session.WriterGate.Enter())
+                using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
                 {
                     _session.Writer.Write((byte)IpcOpCode.SimulationBatchFailed);
                     _session.Writer.Write(requestId);
                     _session.Writer.Write(ex.Message);
-                    _session.Stream.Flush();
                 }
+
+                await _session.Stream.FlushAsync(token).ConfigureAwait(false);
             }
         }
 
@@ -377,7 +378,8 @@ public class SessionHandler : ISessionHandler
             if (eventCount is <= 0 or > IpcProtocol.MaxSimulationBatchEvents)
             {
                 throw new InvalidDataException(
-                    $"Simulation batch event count {eventCount} is outside the allowed range 1-{IpcProtocol.MaxSimulationBatchEvents}.");
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"Simulation batch event count {eventCount} is outside the allowed range 1-{IpcProtocol.MaxSimulationBatchEvents}."));
             }
 
             var events = new IpcSimulationRequest[eventCount];
@@ -395,14 +397,16 @@ public class SessionHandler : ISessionHandler
                 if (inputEvent.DelayAfterMs is < 0 or > IpcProtocol.MaxSimulationBatchDelayMs)
                 {
                     throw new InvalidDataException(
-                        $"Simulation batch delay {inputEvent.DelayAfterMs}ms is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMs}ms.");
+                        string.Create(CultureInfo.InvariantCulture,
+                            $"Simulation batch delay {inputEvent.DelayAfterMs}ms is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMs}ms."));
                 }
 
                 totalDelayMs += inputEvent.DelayAfterMs;
                 if (totalDelayMs > IpcProtocol.MaxSimulationBatchTotalDelayMs)
                 {
                     throw new InvalidDataException(
-                        $"Simulation batch total delay {totalDelayMs}ms exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMs}ms.");
+                        string.Create(CultureInfo.InvariantCulture,
+                            $"Simulation batch total delay {totalDelayMs}ms exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMs}ms."));
                 }
 
                 events[i] = inputEvent;
@@ -417,7 +421,7 @@ public class SessionHandler : ISessionHandler
             {
                 client.Dispose();
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 // Best effort teardown; session is already fail-closed.
             }

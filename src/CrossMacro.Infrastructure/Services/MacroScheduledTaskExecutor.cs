@@ -1,29 +1,22 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
+public class MacroScheduledTaskExecutor(
+    IMacroFileManager fileManager,
+    Func<IMacroPlayer> playerFactory,
+    TimeProvider timeProvider) : IScheduledTaskExecutor
 {
-    private readonly IMacroFileManager _fileManager;
-    private readonly Func<IMacroPlayer> _playerFactory;
-    private readonly TimeProvider _timeProvider;
-    private readonly SynchronizationContext? _syncContext;
+    private readonly IMacroFileManager _fileManager = fileManager;
+    private readonly Func<IMacroPlayer> _playerFactory = playerFactory;
+    private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly SynchronizationContext? _syncContext = SynchronizationContext.Current;
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
     public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
 
-    public MacroScheduledTaskExecutor(
-        IMacroFileManager fileManager,
-        Func<IMacroPlayer> playerFactory,
-        TimeProvider timeProvider)
-    {
-        _fileManager = fileManager;
-        _playerFactory = playerFactory;
-        _timeProvider = timeProvider;
-        _syncContext = SynchronizationContext.Current;
-    }
-
     public async Task ExecuteAsync(ScheduledTask task, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(task);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -103,7 +96,7 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             }).ConfigureAwait(false);
             RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: false, "Cancelled"));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             await SafeUpdateAsync(() =>
             {
@@ -144,11 +137,17 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
             try
             {
                 action();
-                completion.TrySetResult(null);
+                if (!completion.TrySetResult(null))
+                {
+                    return;
+                }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                completion.TrySetException(ex);
+                if (!completion.TrySetException(ex))
+                {
+                    return;
+                }
             }
         }, state: null);
         return completion.Task;
@@ -157,12 +156,12 @@ public class MacroScheduledTaskExecutor : IScheduledTaskExecutor
     private void RaiseTaskStarting(ScheduledTask task)
     {
         try { TaskStarting?.Invoke(this, new ScheduledTaskStartingEventArgs(task)); }
-        catch (Exception ex) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskStarting subscriber threw"); }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskStarting subscriber threw"); }
     }
 
     private void RaiseTaskExecuted(TaskExecutedEventArgs args)
     {
         try { TaskExecuted?.Invoke(this, args); }
-        catch (Exception ex) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskExecuted subscriber threw"); }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskExecuted subscriber threw"); }
     }
 }

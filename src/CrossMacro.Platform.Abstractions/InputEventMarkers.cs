@@ -11,8 +11,6 @@ public static class InputEventMarkers
     public static IntPtr ToIntPtr(long marker)
     {
         // Preserve the native-width marker conversion, including its unchecked 32-bit truncation semantics.
-#pragma warning disable MA0181
         return new IntPtr(unchecked((nint)marker));
-#pragma warning restore MA0181
     }
 }

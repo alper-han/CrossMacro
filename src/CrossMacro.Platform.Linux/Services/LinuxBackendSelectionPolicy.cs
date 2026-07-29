@@ -22,6 +22,7 @@ public static class LinuxBackendSelectionPolicy
             {
                 InputProviderMode.Daemon => "daemon",
                 InputProviderMode.Legacy => "direct-device",
+                InputProviderMode.None => "no-backend",
                 _ => "no-backend",
             });
         }
@@ -49,6 +50,7 @@ public static class LinuxBackendSelectionPolicy
         {
             InputProviderMode.Daemon => "daemon",
             InputProviderMode.Legacy => "direct-device",
+            InputProviderMode.None => "no-backend",
             _ => "no-backend",
         });
     }

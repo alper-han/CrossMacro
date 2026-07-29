@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Core.Tests.Services.Playback;
 
-public class ButtonStateTrackerTests
+public sealed class ButtonStateTrackerTests
 {
     private readonly ButtonStateTracker _tracker;
 
@@ -20,8 +20,8 @@ public class ButtonStateTrackerTests
         _tracker.Press(button);
 
         // Assert
-        _tracker.PressedButtons.Should().Contain(button);
-        _tracker.IsAnyPressed.Should().BeTrue();
+        _ = _tracker.PressedButtons.Should().Contain(button);
+        _ = _tracker.IsAnyPressed.Should().BeTrue();
     }
 
     [Fact]
@@ -35,13 +35,13 @@ public class ButtonStateTrackerTests
         _tracker.Release(button);
 
         // Assert
-        _tracker.PressedButtons.Should().NotContain(button);
+        _ = _tracker.PressedButtons.Should().NotContain(button);
     }
 
     [Fact]
     public void IsAnyPressed_ShouldReturnFalse_WhenNoButtonsPressed()
     {
-        _tracker.IsAnyPressed.Should().BeFalse();
+        _ = _tracker.IsAnyPressed.Should().BeFalse();
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class ButtonStateTrackerTests
         _tracker.Press(272);
 
         // Assert
-        _tracker.IsAnyPressed.Should().BeTrue();
+        _ = _tracker.IsAnyPressed.Should().BeTrue();
     }
 
     [Fact]
@@ -66,8 +66,8 @@ public class ButtonStateTrackerTests
         _tracker.Clear();
 
         // Assert
-        _tracker.PressedButtons.Should().BeEmpty();
-        _tracker.IsAnyPressed.Should().BeFalse();
+        _ = _tracker.PressedButtons.Should().BeEmpty();
+        _ = _tracker.IsAnyPressed.Should().BeFalse();
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class ButtonStateTrackerTests
         // Assert
         simulator.Received().MouseButton(272, pressed: false);
         simulator.Received().MouseButton(273, pressed: false);
-        _tracker.IsAnyPressed.Should().BeFalse();
+        _ = _tracker.IsAnyPressed.Should().BeFalse();
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class ButtonStateTrackerTests
         _tracker.ReleaseAll(simulator);
 
         // Assert - only failsafe releases should happen, no tracked buttons
-        _tracker.IsAnyPressed.Should().BeFalse();
+        _ = _tracker.IsAnyPressed.Should().BeFalse();
     }
 
     [Fact]
@@ -113,8 +113,8 @@ public class ButtonStateTrackerTests
         // Assert
         simulator.Received().MouseButton(272, pressed: true);
         simulator.Received().MouseButton(273, pressed: true);
-        _tracker.PressedButtons.Should().Contain(272);
-        _tracker.PressedButtons.Should().Contain(273);
+        _ = _tracker.PressedButtons.Should().Contain(272);
+        _ = _tracker.PressedButtons.Should().Contain(273);
     }
 
     [Fact]
@@ -128,6 +128,20 @@ public class ButtonStateTrackerTests
         _tracker.Press(button);
 
         // Assert
-        _tracker.PressedButtons.Should().HaveCount(1);
+        _ = _tracker.PressedButtons.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void PressedButtons_ShouldReturnSnapshot_NotLiveReference()
+    {
+        // Arrange
+        _tracker.Press(272);
+        var snapshot = _tracker.PressedButtons;
+
+        // Act
+        _tracker.Press(273);
+
+        // Assert - snapshot should not include 273
+        _ = snapshot.Should().NotContain(273);
     }
 }

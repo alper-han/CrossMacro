@@ -16,7 +16,7 @@ public static partial class SystemdNotify
     {
         try
         {
-            SdNotify(0, "READY=1");
+            _ = SdNotify(0, "READY=1");
         }
         catch (DllNotFoundException)
         {
@@ -28,7 +28,7 @@ public static partial class SystemdNotify
     {
         try
         {
-            SdNotify(0, "STOPPING=1");
+            _ = SdNotify(0, "STOPPING=1");
         }
         catch (DllNotFoundException)
         {
@@ -40,7 +40,7 @@ public static partial class SystemdNotify
     {
         try
         {
-            SdNotify(0, "WATCHDOG=1");
+            _ = SdNotify(0, "WATCHDOG=1");
         }
         catch (DllNotFoundException)
         {
@@ -52,7 +52,7 @@ public static partial class SystemdNotify
     {
         try
         {
-            SdNotify(0, $"STATUS={status}");
+            _ = SdNotify(0, $"STATUS={status}");
         }
         catch (DllNotFoundException)
         {

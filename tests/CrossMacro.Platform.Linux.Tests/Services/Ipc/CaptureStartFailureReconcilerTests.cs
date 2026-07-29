@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-public class CaptureStartFailureReconcilerTests
+public sealed class CaptureStartFailureReconcilerTests
 {
     [LinuxFact]
     public void ShouldReconcile_WhenRollbackChangedSubscriptionsAndMaskIsSame_ReturnsTrue()

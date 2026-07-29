@@ -1,7 +1,7 @@
 namespace CrossMacro.Platform.Linux.Tests.Services.Playback;
 
 
-public class UInputEventExecutorTests
+public sealed class UInputEventExecutorTests
 {
     [Fact]
     public void Methods_WhenNotInitialized_ShouldNotThrow()

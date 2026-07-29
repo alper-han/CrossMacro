@@ -1,18 +1,11 @@
 
 namespace CrossMacro.UI.Icons;
 
-internal sealed class StaticSkPictureImage : IImage
+internal sealed class StaticSkPictureImage(SKPicture picture) : IImage
 {
-    private readonly SKPicture _picture;
-    private readonly Size _size;
+    private readonly SKPicture _picture = picture;
 
-    public StaticSkPictureImage(SKPicture picture)
-    {
-        _picture = picture;
-        _size = new Size(picture.CullRect.Width, picture.CullRect.Height);
-    }
-
-    public Size Size => _size;
+    public Size Size { get; } = new Size(picture.CullRect.Width, picture.CullRect.Height);
 
     public void Draw(DrawingContext context, Rect sourceRect, Rect destRect)
     {
@@ -24,23 +17,16 @@ internal sealed class StaticSkPictureImage : IImage
         context.Custom(new DrawPictureOperation(_picture, sourceRect, destRect));
     }
 
-    private sealed class DrawPictureOperation : ICustomDrawOperation
+    private sealed class DrawPictureOperation(SKPicture picture, Rect sourceRect, Rect destRect) : ICustomDrawOperation
     {
-        private readonly SKPicture _picture;
-        private readonly Rect _sourceRect;
+        private readonly SKPicture _picture = picture;
+        private readonly Rect _sourceRect = sourceRect;
 
-        public DrawPictureOperation(SKPicture picture, Rect sourceRect, Rect destRect)
-        {
-            _picture = picture;
-            _sourceRect = sourceRect;
-            Bounds = destRect;
-        }
+        public Rect Bounds { get; } = destRect;
 
-        public Rect Bounds { get; }
+        public bool HitTest(Point p) => Bounds.Contains(p);
 
-        public bool HitTest(Point point) => Bounds.Contains(point);
-
-        public bool Equals(ICustomDrawOperation? other) => false;
+        public bool Equals([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] ICustomDrawOperation? other) => false;
 
         public void Render(ImmediateDrawingContext context)
         {
@@ -52,7 +38,7 @@ internal sealed class StaticSkPictureImage : IImage
 
             using var lease = feature.Lease();
             var canvas = lease.SkCanvas;
-            canvas.Save();
+            _ = canvas.Save();
             try
             {
                 canvas.ClipRect(new SKRect((float)Bounds.X, (float)Bounds.Y, (float)Bounds.Right, (float)Bounds.Bottom));
@@ -67,8 +53,6 @@ internal sealed class StaticSkPictureImage : IImage
             }
         }
 
-        public void Dispose()
-        {
-        }
+        public void Dispose() { /* Empty */ }
     }
 }

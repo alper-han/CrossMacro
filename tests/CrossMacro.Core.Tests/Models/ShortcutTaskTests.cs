@@ -1,11 +1,11 @@
 namespace CrossMacro.Core.Tests.Models;
 
-public class ShortcutTaskTests
+public sealed class ShortcutTaskTests
 {
     [Fact]
     public void ShortcutTask_IsPlainDomainModel()
     {
-        typeof(ShortcutTask).GetInterface(nameof(INotifyPropertyChanged)).Should().BeNull();
+        _ = typeof(ShortcutTask).GetInterface(nameof(INotifyPropertyChanged)).Should().BeNull();
     }
 
     [Fact]
@@ -13,8 +13,8 @@ public class ShortcutTaskTests
     {
         var task = new ShortcutTask();
 
-        task.TrySetEnabled(true).Should().BeFalse();
-        task.IsEnabled.Should().BeFalse();
+        _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
+        _ = task.IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -30,10 +30,10 @@ public class ShortcutTaskTests
 
         task.Normalize();
 
-        task.LoopEnabled.Should().BeTrue();
-        task.RunWhileHeld.Should().BeFalse();
-        task.RepeatDelayMinMs.Should().Be(500);
-        task.RepeatDelayMaxMs.Should().Be(500);
+        _ = task.LoopEnabled.Should().BeTrue();
+        _ = task.RunWhileHeld.Should().BeFalse();
+        _ = task.RepeatDelayMinMs.Should().Be(500);
+        _ = task.RepeatDelayMaxMs.Should().Be(500);
     }
 
     [Fact]
@@ -55,13 +55,13 @@ public class ShortcutTaskTests
             LastTriggeredTime = DateTime.UtcNow,
         };
 
-        var roundTrip = System.Text.Json.JsonSerializer.Deserialize<ShortcutTask>(
-            System.Text.Json.JsonSerializer.Serialize(task));
+        var json = System.Text.Json.JsonSerializer.Serialize(task, CrossMacro.Infrastructure.Serialization.CrossMacroJsonContext.Default.ShortcutTask);
+        var roundTrip = System.Text.Json.JsonSerializer.Deserialize(json, CrossMacro.Infrastructure.Serialization.CrossMacroJsonContext.Default.ShortcutTask);
 
-        roundTrip.Should().NotBeNull();
-        roundTrip!.Name.Should().Be(task.Name);
-        roundTrip.HotkeyString.Should().Be(task.HotkeyString);
-        roundTrip.RepeatDelayMaxMs.Should().Be(task.RepeatDelayMaxMs);
-        roundTrip.LastStatus.Should().Be(task.LastStatus);
+        _ = roundTrip.Should().NotBeNull();
+        _ = roundTrip!.Name.Should().Be(task.Name);
+        _ = roundTrip.HotkeyString.Should().Be(task.HotkeyString);
+        _ = roundTrip.RepeatDelayMaxMs.Should().Be(task.RepeatDelayMaxMs);
+        _ = roundTrip.LastStatus.Should().Be(task.LastStatus);
     }
 }

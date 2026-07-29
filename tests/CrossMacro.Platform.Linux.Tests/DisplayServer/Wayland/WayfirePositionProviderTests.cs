@@ -1,19 +1,34 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 
-public class WayfirePositionProviderTests
+public sealed class WayfirePositionProviderTests
 {
     private const string CursorMethod = "window-rules/get_cursor_position";
     private const string OutputsMethod = "window-rules/list-outputs";
 
     [Fact]
-    public void Constructor_ShouldSetUnsupported_WhenRequiredMethodsAreUnavailable()
+    public async Task Constructor_ShouldSetUnsupported_WhenRequiredMethodsAreUnavailable()
     {
         var ipcClient = new FakeWayfireIpcClient { IsAvailable = true };
         ipcClient.Enqueue(CursorMethod, "{\"error\":\"No such method found!\"}");
 
         using var provider = new WayfirePositionProvider(ipcClient);
+        var position = await provider.GetAbsolutePositionAsync();
 
+        Assert.Null(position);
+        Assert.False(provider.IsSupported);
+    }
+
+    [Fact]
+    public async Task Constructor_ShouldRemainUnsupported_WhenOutputProbeFails()
+    {
+        var ipcClient = new FakeWayfireIpcClient { IsAvailable = true };
+        ipcClient.Enqueue(CursorMethod, "{\"pos\":{\"x\":0,\"y\":0}}");
+        ipcClient.Enqueue(OutputsMethod, response: null);
+
+        await using var provider = new WayfirePositionProvider(ipcClient);
+
+        Assert.Null(await provider.GetScreenResolutionAsync());
         Assert.False(provider.IsSupported);
     }
 
@@ -78,18 +93,16 @@ public class WayfirePositionProviderTests
 
     private static string OutputsWithNegativeOrigin()
     {
-        return """
-               [
-                 {
-                   "id": 1,
-                   "geometry": { "x": -1920, "y": 0, "width": 1920, "height": 1080 }
-                 },
-                 {
-                   "id": 2,
-                   "geometry": { "x": 0, "y": 0, "width": 2560, "height": 1440 }
-                 }
-               ]
-               """;
+        return "[\n"
+             + "  {\n"
+             + "    \"id\": 1,\n"
+             + "    \"geometry\": { \"x\": -1920, \"y\": 0, \"width\": 1920, \"height\": 1080 }\n"
+             + "  },\n"
+             + "  {\n"
+             + "    \"id\": 2,\n"
+             + "    \"geometry\": { \"x\": 0, \"y\": 0, \"width\": 2560, \"height\": 1440 }\n"
+             + "  }\n"
+             + "]" + '\n';
     }
 
     private sealed class FakeWayfireIpcClient : IWayfireIpcClient

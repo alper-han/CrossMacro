@@ -1,22 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
+public sealed class ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture, ExtImageCopySupportResult support) : IScreenFrameProvider
 {
-    private readonly IExtImageCopyCapture _capture;
-    private readonly ExtImageCopySupportResult _support;
+    private readonly IExtImageCopyCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly ExtImageCopySupportResult _support = support;
     private bool _disposed;
 
     public ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture, ExtImageCopySupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "Wayland ext-image-copy-capture-v1";
 
@@ -71,25 +63,30 @@ public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
 
         try
         {
-            if (!frame.LogicalBounds.Contains(region.Value))
-            {
-                return ScreenReadResultFactory.Failure<ScreenFrame>(
-                    ScreenReadErrorKind.OutOfBounds,
-                    $"Requested region {region.Value} is outside ext-image-copy frame bounds {frame.LogicalBounds}.");
-            }
-
-            return ScreenReadResultFactory.Success<ScreenFrame>(LinuxScreenFrameProviderResults.CopyRegion(
-                frame.LogicalBounds,
-                frame.Stride,
-                frame.PixelFormat,
-                frame.Pixels,
-                region.Value,
-                frame.ValidPixelMask));
+            return CopyRegionForResult(region.Value, frame);
         }
         finally
         {
             frame.Dispose();
         }
+    }
+
+    private static ScreenReadResult<ScreenFrame> CopyRegionForResult(ScreenRect region, ExtImageCopyFrame frame)
+    {
+        if (!frame.LogicalBounds.Contains(region))
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
+                ScreenReadErrorKind.OutOfBounds,
+                $"Requested region {region} is outside ext-image-copy frame bounds {frame.LogicalBounds}.");
+        }
+
+        return ScreenReadResultFactory.Success<ScreenFrame>(LinuxScreenFrameProviderResults.CopyRegion(
+            frame.LogicalBounds,
+            frame.Stride,
+            frame.PixelFormat,
+            frame.Pixels,
+            region,
+            frame.ValidPixelMask));
     }
 
     public void Dispose()

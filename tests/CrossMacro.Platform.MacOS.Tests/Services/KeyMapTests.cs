@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-public class KeyMapTests
+public sealed class KeyMapTests
 {
     [Theory]
     [InlineData(InputEventCode.KEY_F1, 0x7A)]
@@ -26,13 +26,7 @@ public class KeyMapTests
     [InlineData(InputEventCode.KEY_F20, 0x5A)]
     public void FunctionKeysF1ThroughF20_WhenMapped_RoundTripAuditedMacVirtualKeys(int inputEventCode, int macKeyCode)
     {
-        Assert.Equal((ushort)macKeyCode, KeyMap.ToMacKey(inputEventCode));
-
-        bool mapped = KeyMap.TryFromMacKey((ushort)macKeyCode, out var reversedInputEventCode);
-
-        Assert.True(mapped);
-        Assert.Equal(inputEventCode, reversedInputEventCode);
-        Assert.Equal(inputEventCode, KeyMap.FromMacKey((ushort)macKeyCode));
+        AssertRoundTripMapping(inputEventCode, macKeyCode);
     }
 
     [Theory]
@@ -56,13 +50,7 @@ public class KeyMapTests
     [InlineData(InputEventCode.KEY_NUMLOCK, 0x47)]
     public void NumpadKeys_WhenMapped_RoundTripAuditedMacVirtualKeys(int inputEventCode, int macKeyCode)
     {
-        Assert.Equal((ushort)macKeyCode, KeyMap.ToMacKey(inputEventCode));
-
-        bool mapped = KeyMap.TryFromMacKey((ushort)macKeyCode, out var reversedInputEventCode);
-
-        Assert.True(mapped);
-        Assert.Equal(inputEventCode, reversedInputEventCode);
-        Assert.Equal(inputEventCode, KeyMap.FromMacKey((ushort)macKeyCode));
+        AssertRoundTripMapping(inputEventCode, macKeyCode);
     }
 
     [Theory]
@@ -77,13 +65,7 @@ public class KeyMapTests
     [InlineData(InputEventCode.KEY_UP, 0x7E)]
     public void NavigationAndEditingKeys_WhenMapped_RoundTripAuditedMacVirtualKeys(int inputEventCode, int macKeyCode)
     {
-        Assert.Equal((ushort)macKeyCode, KeyMap.ToMacKey(inputEventCode));
-
-        bool mapped = KeyMap.TryFromMacKey((ushort)macKeyCode, out var reversedInputEventCode);
-
-        Assert.True(mapped);
-        Assert.Equal(inputEventCode, reversedInputEventCode);
-        Assert.Equal(inputEventCode, KeyMap.FromMacKey((ushort)macKeyCode));
+        AssertRoundTripMapping(inputEventCode, macKeyCode);
     }
 
     [Theory]
@@ -91,6 +73,11 @@ public class KeyMapTests
     [InlineData(InputEventCode.KEY_YEN, 0x5D)]
     [InlineData(InputEventCode.KEY_KPJPCOMMA, 0x5F)]
     public void InternationalAndIsoKeys_WhenMapped_RoundTripAuditedMacVirtualKeys(int inputEventCode, int macKeyCode)
+    {
+        AssertRoundTripMapping(inputEventCode, macKeyCode);
+    }
+
+    private static void AssertRoundTripMapping(int inputEventCode, int macKeyCode)
     {
         Assert.Equal((ushort)macKeyCode, KeyMap.ToMacKey(inputEventCode));
 
@@ -125,7 +112,7 @@ public class KeyMapTests
 
         Assert.False(mapped);
         Assert.Equal(default, inputEventCode);
-        Assert.Throws<KeyNotFoundException>(() => KeyMap.FromMacKey((ushort)macKeyCode));
+        _ = Assert.Throws<KeyNotFoundException>(() => KeyMap.FromMacKey((ushort)macKeyCode));
     }
 
     [Fact]

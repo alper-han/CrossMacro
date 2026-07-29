@@ -42,14 +42,9 @@ public sealed class ScreenReadingWarmupServiceTests
         Assert.Equal(1, frameProvider.CaptureCalls);
     }
 
-    private sealed class StaticScreenReadingDiagnosticProvider : IScreenReadingDiagnosticProvider
+    private sealed class StaticScreenReadingDiagnosticProvider(string? selectedBackend) : IScreenReadingDiagnosticProvider
     {
-        private readonly string? _selectedBackend;
-
-        public StaticScreenReadingDiagnosticProvider(string? selectedBackend)
-        {
-            _selectedBackend = selectedBackend;
-        }
+        private readonly string? _selectedBackend = selectedBackend;
 
         public ScreenReadingDiagnosticSnapshot GetSnapshot()
         {

@@ -1,24 +1,16 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-public sealed class RunScriptRuntimeService : IRunExecutionService
+public sealed class RunScriptRuntimeService(
+    Func<IMacroPlayer> macroPlayerFactory,
+    IKeyCodeMapper keyCodeMapper,
+    IMousePositionProvider? mousePositionProvider = null,
+    Func<TimeSpan, CancellationToken, Task>? delayAsync = null) : IRunExecutionService
 {
-    private readonly Func<IMacroPlayer> _macroPlayerFactory;
-    private readonly IKeyCodeMapper _keyCodeMapper;
-    private readonly IMousePositionProvider? _mousePositionProvider;
-    private readonly Func<TimeSpan, CancellationToken, Task>? _delayAsync;
-
-    public RunScriptRuntimeService(
-        Func<IMacroPlayer> macroPlayerFactory,
-        IKeyCodeMapper keyCodeMapper,
-        IMousePositionProvider? mousePositionProvider = null,
-        Func<TimeSpan, CancellationToken, Task>? delayAsync = null)
-    {
-        _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
-        _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
-        _mousePositionProvider = mousePositionProvider;
-        _delayAsync = delayAsync;
-    }
+    private readonly Func<IMacroPlayer> _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
+    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+    private readonly IMousePositionProvider? _mousePositionProvider = mousePositionProvider;
+    private readonly Func<TimeSpan, CancellationToken, Task>? _delayAsync = delayAsync;
 
     public async Task<RunExecutionResult> ExecuteAsync(
         RunExecutionRequest request,
@@ -74,15 +66,27 @@ public sealed class RunScriptRuntimeService : IRunExecutionService
             compileResult.InitialRandomDelayMaxMs,
             cancellationToken).ConfigureAwait(false);
 
-        var status = executionResult.Success
-            ? RunExecutionStatus.Succeeded
-            : executionResult.IsCancelled
-                ? RunExecutionStatus.Cancelled
-                : executionResult.IsAbsolutePlaybackUnsupported
-                    ? RunExecutionStatus.AbsolutePlaybackUnsupported
-                    : executionResult.IsInputInjectionPermissionRequired
-                        ? RunExecutionStatus.InputInjectionPermissionRequired
-                        : RunExecutionStatus.Failed;
+        RunExecutionStatus status;
+        if (executionResult.Success)
+        {
+            status = RunExecutionStatus.Succeeded;
+        }
+        else if (executionResult.IsCancelled)
+        {
+            status = RunExecutionStatus.Cancelled;
+        }
+        else if (executionResult.IsAbsolutePlaybackUnsupported)
+        {
+            status = RunExecutionStatus.AbsolutePlaybackUnsupported;
+        }
+        else if (executionResult.IsInputInjectionPermissionRequired)
+        {
+            status = RunExecutionStatus.InputInjectionPermissionRequired;
+        }
+        else
+        {
+            status = RunExecutionStatus.Failed;
+        }
 
         return CreateResult(
             status,
@@ -115,7 +119,7 @@ public sealed class RunScriptRuntimeService : IRunExecutionService
             InitialRandomDelayMaxMs = compileResult.InitialRandomDelayMaxMs,
             Errors = errors ?? [],
             Warnings = warnings ?? [],
-            RuntimeVariables = runtimeVariables ?? new Dictionary<string, string>(),
+            RuntimeVariables = runtimeVariables ?? new Dictionary<string, string>(StringComparer.Ordinal),
             ErrorMessage = errorMessage,
         };
     }

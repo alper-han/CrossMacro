@@ -1,21 +1,22 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandOutputInfo
+internal sealed class WaylandOutputInfo : IDisposable
 {
-#pragma warning disable S1450
-    private readonly OutputDispatcher _dispatcher;
-    private readonly OutputDispatcher _xdgOutputDispatcher;
-#pragma warning restore S1450
+    private GCHandle _dispatcherHandle;
+    private GCHandle _xdgOutputDispatcherHandle;
+    private bool _disposed;
 
     public WaylandOutputInfo(uint globalName, IntPtr proxy)
     {
         GlobalName = globalName;
         Proxy = proxy;
-        _dispatcher = Dispatch;
-        _xdgOutputDispatcher = DispatchXdgOutput;
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
-        XdgOutputDispatcherPtr = Marshal.GetFunctionPointerForDelegate(_xdgOutputDispatcher);
+        var dispatcher = (OutputDispatcher)Dispatch;
+        var xdgOutputDispatcher = (OutputDispatcher)DispatchXdgOutput;
+        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
+        _xdgOutputDispatcherHandle = GCHandle.Alloc(xdgOutputDispatcher, GCHandleType.Normal);
+        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
+        XdgOutputDispatcherPtr = Marshal.GetFunctionPointerForDelegate(xdgOutputDispatcher);
     }
 
     private delegate int OutputDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
@@ -33,15 +34,34 @@ internal sealed class WaylandOutputInfo
     public void AttachXdgOutput(WaylandLibrary library, IntPtr proxy)
     {
         XdgOutputProxy = proxy;
-        library.AddDispatcher(proxy, XdgOutputDispatcherPtr);
+        _ = library.AddDispatcher(proxy, XdgOutputDispatcherPtr);
     }
 
-    public void Dispose(WaylandLibrary library)
+    public void Destroy(WaylandLibrary library)
     {
         if (XdgOutputProxy != IntPtr.Zero)
         {
             library.DestroyXdgOutput(XdgOutputProxy);
             XdgOutputProxy = IntPtr.Zero;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (_dispatcherHandle.IsAllocated)
+        {
+            _dispatcherHandle.Free();
+        }
+
+        if (_xdgOutputDispatcherHandle.IsAllocated)
+        {
+            _xdgOutputDispatcherHandle.Free();
         }
     }
 

@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Abstractions;
 
-public sealed record class PlatformStartupNotification(
+public sealed record PlatformStartupNotification(
     string Title,
     string Message,
     PlatformStartupNotificationSeverity Severity);

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Keyboard;
 
-public sealed class LinuxKeyboardLayoutServiceExtendedTests
+public sealed class LinuxKeyboardLayoutServiceExtendedTests : IDisposable
 {
     private readonly LinuxKeyboardLayoutService _service;
 
@@ -11,19 +11,6 @@ public sealed class LinuxKeyboardLayoutServiceExtendedTests
         var xkbState = new XkbStateManager();
         var keyMapper = new LinuxKeyCodeMapper(xkbState);
         _service = new LinuxKeyboardLayoutService(layoutDetector, keyMapper, xkbState);
-    }
-
-    [Theory]
-    [InlineData(59, "F1")]
-    [InlineData(68, "F10")]
-    [InlineData(87, "F11")]
-    [InlineData(88, "F12")]
-    [InlineData(183, "F13")]
-    [InlineData(194, "F24")]
-    public void GetKeyName_ShouldReturnCorrectFKeys(int keyCode, string expectedName)
-    {
-        Assert.Equal(expectedName, _service.GetKeyName(keyCode));
-        Assert.Equal(keyCode, _service.GetKeyCode(expectedName));
     }
 
     [Theory]
@@ -43,6 +30,12 @@ public sealed class LinuxKeyboardLayoutServiceExtendedTests
     }
 
     [Theory]
+    [InlineData(59, "F1")]
+    [InlineData(68, "F10")]
+    [InlineData(87, "F11")]
+    [InlineData(88, "F12")]
+    [InlineData(183, "F13")]
+    [InlineData(194, "F24")]
     [InlineData(82, "Numpad0")]
     [InlineData(79, "Numpad1")]
     [InlineData(80, "Numpad2")]
@@ -60,21 +53,16 @@ public sealed class LinuxKeyboardLayoutServiceExtendedTests
     [InlineData(96, "NumpadEnter")]
     [InlineData(83, "Numpad.")]
     [InlineData(117, "Numpad=")]
-    public void GetKeyName_ShouldReturnCorrectNumpadKeys(int keyCode, string expectedName)
-    {
-        Assert.Equal(expectedName, _service.GetKeyName(keyCode));
-        Assert.Equal(keyCode, _service.GetKeyCode(expectedName));
-    }
-
-    [Theory]
     [InlineData(69, "NumLock")]
     [InlineData(70, "ScrollLock")]
     [InlineData(58, "CapsLock")]
     [InlineData(99, "PrintScreen")]
     [InlineData(119, "Pause")]
-    public void GetKeyName_ShouldReturnCorrectSpecialKeys(int keyCode, string expectedName)
+    public void GetKeyName_ShouldRoundTripNamedKeys(int keyCode, string expectedName)
     {
         Assert.Equal(expectedName, _service.GetKeyName(keyCode));
         Assert.Equal(keyCode, _service.GetKeyCode(expectedName));
     }
+
+    public void Dispose() => _service.Dispose();
 }

@@ -1,7 +1,7 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
 
-public class LinuxPermissionServiceTests
+public sealed class LinuxPermissionServiceTests
 {
     private const string SocketPath = "/run/crossmacro/crossmacro.sock";
 

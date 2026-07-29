@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class SchedulerServiceTests
+public sealed class SchedulerServiceTests
 {
     private readonly IScheduledTaskRepository _repository;
     private readonly IScheduledTaskExecutor _executor;
@@ -15,7 +15,7 @@ public class SchedulerServiceTests
         _timeProvider = Substitute.For<TimeProvider>();
 
         // Default time
-        _timeProvider.GetUtcNow().Returns(new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        _ = _timeProvider.GetUtcNow().Returns(new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         _service = new SchedulerService(_repository, _executor, _timeProvider);
     }
@@ -24,7 +24,7 @@ public class SchedulerServiceTests
     public void Start_SetsIsRunningToTrue()
     {
         _service.Start();
-        _service.IsRunning.Should().BeTrue();
+        _ = _service.IsRunning.Should().BeTrue();
         _service.StopScheduler();
     }
 
@@ -33,7 +33,7 @@ public class SchedulerServiceTests
     {
         _service.Start();
         _service.StopScheduler();
-        _service.IsRunning.Should().BeFalse();
+        _ = _service.IsRunning.Should().BeFalse();
     }
 
     [Fact]
@@ -42,9 +42,194 @@ public class SchedulerServiceTests
         _service.Start();
         _service.StopScheduler();
 
-        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
 
-        _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
+        _ = _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task StopAsync_CompletesAfterNormalTimerShutdown()
+    {
+        _service.Start();
+
+        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+
+        _ = _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Start_AfterNormalStopCanRestartImmediately()
+    {
+        _service.Start();
+        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+
+        _service.Start();
+
+        _ = _service.IsRunning.Should().BeTrue();
+        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+    }
+
+    [Fact]
+    public async Task StopScheduler_ReturnsWithoutWaitingAndExposesCompletion()
+    {
+        var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowExecutionToFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _executor.ExecuteAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>())
+            .Returns(unusedCallInfo =>
+            {
+                _ = executionStarted.TrySetResult();
+                return allowExecutionToFinish.Task;
+            });
+
+        var task = new ScheduledTask
+        {
+            Name = "Run now",
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Seconds,
+            IntervalValue = 30,
+            IsEnabled = false,
+        };
+        _service.AddTask(task);
+        task.IsEnabled = true;
+        task.NextRunTime = _timeProvider.GetUtcNow().UtcDateTime;
+        _service.Start();
+
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider);
+
+        _service.StopScheduler();
+        var secondStop = _service.StopAsync();
+
+        _ = _service.IsRunning.Should().BeFalse();
+        _ = _service.Completion.IsCompleted.Should().BeFalse();
+        _ = secondStop.IsCompleted.Should().BeFalse();
+
+        _ = allowExecutionToFinish.TrySetResult();
+        await secondStop.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+    }
+
+    [Fact]
+    public async Task StopAsync_CallerCancellationDoesNotCancelTimerShutdown()
+    {
+        var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowExecutionToFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var executionCancellationToken = CancellationToken.None;
+        _ = _executor.ExecuteAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                _ = executionStarted.TrySetResult();
+                executionCancellationToken = callInfo.Arg<CancellationToken>();
+                return allowExecutionToFinish.Task;
+            });
+
+        var task = new ScheduledTask
+        {
+            Name = "Run now",
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Seconds,
+            IntervalValue = 30,
+            IsEnabled = false,
+        };
+        _service.AddTask(task);
+        task.IsEnabled = true;
+        task.NextRunTime = _timeProvider.GetUtcNow().UtcDateTime;
+        _service.Start();
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider);
+
+        using var callerCancellation = new CancellationTokenSource();
+        callerCancellation.Cancel();
+
+        var stopTask = _service.StopAsync(callerCancellation.Token);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await stopTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider));
+
+        _ = _service.Completion.IsCompleted.Should().BeFalse();
+        using var registration = executionCancellationToken.Register(static () => { });
+        _ = allowExecutionToFinish.TrySetResult();
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+    }
+
+    [Fact]
+    public async Task StopAsync_TimeoutLeavesCtsOwnedUntilTimerCompletes()
+    {
+        var service = new SchedulerService(_repository, _executor, TimeProvider.System);
+        var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowExecutionToFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var executionCancellationToken = CancellationToken.None;
+        _ = _executor.ExecuteAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                _ = executionStarted.TrySetResult();
+                executionCancellationToken = callInfo.Arg<CancellationToken>();
+                return allowExecutionToFinish.Task;
+            });
+
+        var task = new ScheduledTask
+        {
+            Name = "Run now",
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Seconds,
+            IntervalValue = 30,
+            IsEnabled = false,
+        };
+        service.AddTask(task);
+        task.IsEnabled = true;
+        task.NextRunTime = DateTime.UtcNow;
+        service.Start();
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        await service.StopAsync().WaitAsync(TimeSpan.FromSeconds(3));
+
+        _ = service.Completion.IsCompleted.Should().BeFalse();
+        service.Start();
+        _ = service.IsRunning.Should().BeFalse();
+        using var registration = executionCancellationToken.Register(static () => { });
+        _ = allowExecutionToFinish.TrySetResult();
+        await service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Delay(TimeSpan.FromMilliseconds(50));
+        service.Start();
+        _ = service.IsRunning.Should().BeTrue();
+        await service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task StopAndDispose_AreIdempotent()
+    {
+        _service.Start();
+
+        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+
+        _service.Dispose();
+        _service.Dispose();
+
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        _ = _service.IsRunning.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StopAsync_DoesNotExecuteTasksAfterShutdown()
+    {
+        var task = new ScheduledTask
+        {
+            Name = "Future task",
+            MacroFilePath = "test.macro",
+            Type = ScheduleType.Interval,
+            IntervalUnit = IntervalUnit.Seconds,
+            IntervalValue = 30,
+            IsEnabled = true,
+            NextRunTime = _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(1),
+        };
+        _service.AddTask(task);
+        _service.Start();
+
+        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Delay(TimeSpan.FromMilliseconds(1200));
+
+        _ = _executor.DidNotReceive().ExecuteAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -52,7 +237,7 @@ public class SchedulerServiceTests
     {
         var task = new ScheduledTask();
         _service.AddTask(task);
-        _service.Tasks.Should().Contain(task);
+        _ = _service.Tasks.Should().Contain(task);
     }
 
     [Fact]
@@ -61,7 +246,7 @@ public class SchedulerServiceTests
         var task = new ScheduledTask();
         _service.AddTask(task);
         _service.RemoveTask(task.Id);
-        _service.Tasks.Should().NotContain(task);
+        _ = _service.Tasks.Should().NotContain(task);
     }
 
     [Fact]
@@ -76,8 +261,8 @@ public class SchedulerServiceTests
 
         // Assert
         var t = _service.Tasks.First(x => x.Id == task.Id);
-        t.IsEnabled.Should().BeTrue();
-        t.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(60));
+        _ = t.IsEnabled.Should().BeTrue();
+        _ = t.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(60));
     }
 
     [Fact]
@@ -92,8 +277,8 @@ public class SchedulerServiceTests
 
         // Assert
         var t = _service.Tasks.First(x => x.Id == task.Id);
-        t.IsEnabled.Should().BeFalse();
-        t.NextRunTime.Should().BeNull();
+        _ = t.IsEnabled.Should().BeFalse();
+        _ = t.NextRunTime.Should().BeNull();
     }
 
     [Fact]
@@ -115,8 +300,8 @@ public class SchedulerServiceTests
 
         // Assert
         var t = _service.Tasks.First(x => x.Id == original.Id);
-        t.Name.Should().Be("New Name");
-        t.MacroFilePath.Should().Be("new.macro");
+        _ = t.Name.Should().Be("New Name");
+        _ = t.MacroFilePath.Should().Be("new.macro");
     }
 
     [Fact]
@@ -131,19 +316,19 @@ public class SchedulerServiceTests
             MacroFilePath = "task.macro",
             Type = ScheduleType.SpecificTime,
             ScheduledDateTime = scheduledUtc,
+            IsEnabled = true,
+            NextRunTime = now.AddMinutes(5), // stale persisted value
         };
-        task.IsEnabled = true;
-        task.NextRunTime = now.AddMinutes(5); // stale persisted value
 
-        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
+        _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         // Act
         await _service.LoadAsync();
 
         // Assert
         var loaded = _service.Tasks.Should().ContainSingle().Subject;
-        loaded.IsEnabled.Should().BeTrue();
-        loaded.NextRunTime.Should().Be(scheduledUtc);
+        _ = loaded.IsEnabled.Should().BeTrue();
+        _ = loaded.NextRunTime.Should().Be(scheduledUtc);
     }
 
     [Fact]
@@ -157,19 +342,19 @@ public class SchedulerServiceTests
             MacroFilePath = "task.macro",
             Type = ScheduleType.SpecificTime,
             ScheduledDateTime = now.AddMinutes(-10),
+            IsEnabled = true,
+            NextRunTime = now.AddHours(10), // stale persisted value
         };
-        task.IsEnabled = true;
-        task.NextRunTime = now.AddHours(10); // stale persisted value
 
-        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
+        _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         // Act
         await _service.LoadAsync();
 
         // Assert
         var loaded = _service.Tasks.Should().ContainSingle().Subject;
-        loaded.IsEnabled.Should().BeFalse();
-        loaded.NextRunTime.Should().BeNull();
+        _ = loaded.IsEnabled.Should().BeFalse();
+        _ = loaded.NextRunTime.Should().BeNull();
     }
 
     [Fact]
@@ -183,20 +368,20 @@ public class SchedulerServiceTests
             Type = ScheduleType.Interval,
             IntervalUnit = IntervalUnit.Hours,
             IntervalValue = int.MaxValue,
+            IsEnabled = true,
         };
-        task.IsEnabled = true;
 
-        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
+        _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         // Act
         Func<Task> act = async () => await _service.LoadAsync();
 
         // Assert
-        await act.Should().NotThrowAsync();
+        _ = await act.Should().NotThrowAsync();
         var loaded = _service.Tasks.Should().ContainSingle().Subject;
-        loaded.IsEnabled.Should().BeTrue();
-        loaded.NextRunTime.Should().NotBeNull();
-        loaded.NextRunTime!.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
+        _ = loaded.IsEnabled.Should().BeTrue();
+        _ = loaded.NextRunTime.Should().NotBeNull();
+        _ = loaded.NextRunTime!.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
     }
 
     [Fact]
@@ -210,19 +395,19 @@ public class SchedulerServiceTests
             MacroFilePath = "task.macro",
             Type = ScheduleType.SpecificTime,
             ScheduledDateTime = null,
+            IsEnabled = true,
+            NextRunTime = now.AddHours(5), // stale persisted value
         };
-        task.IsEnabled = true;
-        task.NextRunTime = now.AddHours(5); // stale persisted value
 
-        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
+        _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         // Act
         await _service.LoadAsync();
 
         // Assert
         var loaded = _service.Tasks.Should().ContainSingle().Subject;
-        loaded.IsEnabled.Should().BeFalse();
-        loaded.NextRunTime.Should().BeNull();
+        _ = loaded.IsEnabled.Should().BeFalse();
+        _ = loaded.NextRunTime.Should().BeNull();
     }
 
     [Fact]
@@ -236,19 +421,19 @@ public class SchedulerServiceTests
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.EveryDay,
             WeeklyTime = now.ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30)),
+            IsEnabled = true,
+            NextRunTime = now.AddDays(3),
         };
-        task.IsEnabled = true;
-        task.NextRunTime = now.AddDays(3);
 
-        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
+        _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         await _service.LoadAsync();
 
         var loaded = _service.Tasks.Should().ContainSingle().Subject;
-        loaded.IsEnabled.Should().BeTrue();
-        loaded.NextRunTime.Should().NotBeNull();
-        loaded.NextRunTime!.Value.Should().BeOnOrAfter(now);
-        loaded.NextRunTime.Value.Should().BeBefore(now.AddDays(1));
+        _ = loaded.IsEnabled.Should().BeTrue();
+        _ = loaded.NextRunTime.Should().NotBeNull();
+        _ = loaded.NextRunTime!.Value.Should().BeOnOrAfter(now);
+        _ = loaded.NextRunTime.Value.Should().BeBefore(now.AddDays(1));
     }
 
     [Fact]
@@ -261,17 +446,17 @@ public class SchedulerServiceTests
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.None,
             WeeklyTime = new TimeSpan(9, 0, 0),
+            IsEnabled = true,
+            NextRunTime = _timeProvider.GetUtcNow().UtcDateTime.AddHours(1),
         };
-        task.IsEnabled = true;
-        task.NextRunTime = _timeProvider.GetUtcNow().UtcDateTime.AddHours(1);
 
-        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
+        _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
 
         await _service.LoadAsync();
 
         var loaded = _service.Tasks.Should().ContainSingle().Subject;
-        loaded.IsEnabled.Should().BeFalse();
-        loaded.NextRunTime.Should().BeNull();
+        _ = loaded.IsEnabled.Should().BeFalse();
+        _ = loaded.NextRunTime.Should().BeNull();
     }
 
     [Fact]
@@ -285,17 +470,17 @@ public class SchedulerServiceTests
             Type = ScheduleType.Interval,
             IntervalUnit = IntervalUnit.Seconds,
             IntervalValue = 30,
+            IsEnabled = true,
         };
-        validTask.IsEnabled = true;
 
-        _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { null!, validTask }));
+        _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { null!, validTask }));
 
         // Act
         await _service.LoadAsync();
 
         // Assert
-        _service.Tasks.Should().ContainSingle();
-        _service.Tasks[0].Id.Should().Be(validTask.Id);
+        _ = _service.Tasks.Should().ContainSingle();
+        _ = _service.Tasks[0].Id.Should().Be(validTask.Id);
     }
 
     [Fact]
@@ -317,7 +502,7 @@ public class SchedulerServiceTests
                 IsEnabled = true,
             };
 
-            _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
+            _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
             var service = new SchedulerService(_repository, _executor, _timeProvider);
 
             var loadTask = service.LoadAsync();
@@ -325,9 +510,9 @@ public class SchedulerServiceTests
 
             await loadTask;
 
-            loadTask.IsCompletedSuccessfully.Should().BeTrue();
-            service.Tasks.Should().ContainSingle();
-            synchronizationContext.PendingCallbacks.Should().Be(0);
+            _ = loadTask.IsCompletedSuccessfully.Should().BeTrue();
+            _ = service.Tasks.Should().ContainSingle();
+            _ = synchronizationContext.PendingCallbacks.Should().Be(0);
         }
         finally
         {
@@ -354,7 +539,7 @@ public class SchedulerServiceTests
                 IsEnabled = true,
             };
 
-            _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
+            _ = _repository.LoadAsync().Returns(Task.FromResult<IReadOnlyList<ScheduledTask>>(new List<ScheduledTask> { task }));
             var service = new SchedulerService(_repository, _executor, _timeProvider);
             SynchronizationContext.SetSynchronizationContext(previousContext);
 
@@ -367,19 +552,19 @@ public class SchedulerServiceTests
                 await service.LoadAsync();
             });
 
-            await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
             workerMayLoad.SetResult();
-            await synchronizationContext.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await synchronizationContext.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
 
-            loadTask.IsCompleted.Should().BeFalse();
-            synchronizationContext.PendingCallbacks.Should().Be(1);
-            service.Tasks.Should().BeEmpty();
+            _ = loadTask.IsCompleted.Should().BeFalse();
+            _ = synchronizationContext.PendingCallbacks.Should().Be(1);
+            _ = service.Tasks.Should().BeEmpty();
 
             synchronizationContext.RunAll();
-            await loadTask.WaitAsync(TimeSpan.FromSeconds(2));
+            await loadTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
 
-            service.Tasks.Should().ContainSingle();
-            synchronizationContext.PendingCallbacks.Should().Be(0);
+            _ = service.Tasks.Should().ContainSingle();
+            _ = synchronizationContext.PendingCallbacks.Should().Be(0);
         }
         finally
         {
@@ -402,11 +587,12 @@ public class SchedulerServiceTests
         };
 
         var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _executor.ExecuteAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
+        var allowExecutionToFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _executor.ExecuteAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>())
+            .Returns(unusedCallInfo =>
             {
-                executionStarted.TrySetResult();
-                return Task.Delay(Timeout.Infinite, CancellationToken.None);
+                _ = executionStarted.TrySetResult();
+                return allowExecutionToFinish.Task;
             });
 
         _service.AddTask(task);
@@ -414,12 +600,14 @@ public class SchedulerServiceTests
         task.NextRunTime = now;
         _service.Start();
 
-        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider);
 
         var stopTask = Task.Run(_service.StopScheduler);
-        await stopTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await stopTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
 
-        _service.IsRunning.Should().BeFalse();
+        _ = _service.IsRunning.Should().BeFalse();
+        _ = allowExecutionToFinish.TrySetResult();
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
     }
 
     private sealed class DeferredSynchronizationContext : SynchronizationContext
@@ -446,7 +634,7 @@ public class SchedulerServiceTests
                 _pendingCallbacks.Enqueue((d, state));
             }
 
-            PostObserved.TrySetResult();
+            _ = PostObserved.TrySetResult();
         }
 
         public void RunAll()

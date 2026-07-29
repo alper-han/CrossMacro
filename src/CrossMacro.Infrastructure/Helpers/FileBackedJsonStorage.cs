@@ -11,7 +11,7 @@ internal static class FileBackedJsonStorage
 
     public static async Task<T?> ReadAsync<T>(string filePath, JsonTypeInfo<T> typeInfo)
     {
-        var json = await File.ReadAllTextAsync(filePath).ConfigureAwait(false);
+        var json = await File.ReadAllTextAsync(filePath, CancellationToken.None).ConfigureAwait(false);
         return JsonSerializer.Deserialize(json, typeInfo);
     }
 
@@ -38,19 +38,23 @@ internal static class FileBackedJsonStorage
         }
     }
 
-    public static async Task WriteAsync<T>(string filePath, T value, JsonTypeInfo<T> typeInfo)
+    public static async Task WriteAsync<T>(string filePath, T value, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
     {
         EnsureParentDirectory(filePath);
         var json = JsonSerializer.Serialize(value, typeInfo);
         var temporaryPath = GetTemporaryPath(filePath);
         try
         {
-            await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous | FileOptions.WriteThrough))
-            await using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true))
+            var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous | FileOptions.WriteThrough);
+            await using (stream.ConfigureAwait(false))
             {
-                await writer.WriteAsync(json).ConfigureAwait(false);
-                await writer.FlushAsync().ConfigureAwait(false);
-                stream.Flush(flushToDisk: true);
+                var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true);
+                await using (writer.ConfigureAwait(false))
+                {
+                    await writer.WriteAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
 
             Replace(filePath, temporaryPath);
@@ -66,7 +70,7 @@ internal static class FileBackedJsonStorage
         var directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory))
         {
-            Directory.CreateDirectory(directory);
+            _ = Directory.CreateDirectory(directory);
         }
     }
 

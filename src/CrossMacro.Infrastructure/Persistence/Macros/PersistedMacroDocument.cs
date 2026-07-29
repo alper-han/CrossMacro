@@ -14,10 +14,10 @@ public class PersistedMacroDocument
     public string Format => $"CrossMacroFormatV{SchemaVersion.ToString(CultureInfo.InvariantCulture)}";
     public Guid Id { get; init; }
     public string Name { get; init; } = MacroNameDefaults.UnnamedMacroName;
-    public List<PersistedMacroEvent> Events { get; init; } = new();
-    public List<string> ScriptSteps { get; init; } = new();
-    public List<TextInputBoundary> TextInputBoundaries { get; init; } = new();
-    public Dictionary<string, string> Images { get; init; } = new(StringComparer.Ordinal);
+    public IReadOnlyList<PersistedMacroEvent> Events { get; init; } = [];
+    public IReadOnlyList<string> ScriptSteps { get; init; } = [];
+    public IReadOnlyList<TextInputBoundary> TextInputBoundaries { get; init; } = [];
+    public IReadOnlyDictionary<string, string> Images { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
     public DateTime CreatedAt { get; init; }
     public long TotalDurationMs { get; init; }
     public DateTime RecordedAt { get; init; }
@@ -84,7 +84,7 @@ public class PersistedMacroDocument
             TrailingDelayMaxMs = TrailingDelayMaxMs,
         };
 
-        sequence.ReplaceEvents(Events.ConvertAll(static ev => ev.ToRuntime()));
+        sequence.ReplaceEvents(Events.Select(static ev => ev.ToRuntime()).ToList());
         sequence.ReplaceScriptSteps(ScriptSteps);
         sequence.ReplaceTextInputBoundaries(TextInputBoundaries);
         sequence.ReplaceImages(Images);

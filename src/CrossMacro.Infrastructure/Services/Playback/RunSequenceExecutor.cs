@@ -68,8 +68,9 @@ internal sealed class RunSequenceExecutor
                 {
                     player.StopPlayback();
                 }
-                catch
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
+                    Log.Debug(ex, "[RunSequenceExecutor] StopPlayback callback failed during cancellation.");
                 }
             });
 
@@ -91,7 +92,7 @@ internal sealed class RunSequenceExecutor
         {
             return RunSequenceExecutionResult.InputInjectionPermissionRequired(ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return RunSequenceExecutionResult.Failed(ex.Message);
         }

@@ -3,7 +3,7 @@ namespace CrossMacro.UI.Icons;
 
 public static class AppIcons
 {
-    private static readonly IReadOnlyDictionary<AppIcon, Lazy<Geometry>> Geometries = Enum.GetValues<AppIcon>()
+    private static readonly Dictionary<AppIcon, Lazy<Geometry>> Geometries = Enum.GetValues<AppIcon>()
         .ToDictionary(icon => icon, icon => new Lazy<Geometry>(() => StreamGeometry.Parse(GetPath(icon))));
 
     public static Geometry Get(AppIcon icon)

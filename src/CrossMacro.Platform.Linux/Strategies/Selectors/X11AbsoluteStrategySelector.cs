@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Strategies.Selectors;
 
-public class X11AbsoluteStrategySelector : ICoordinateStrategySelector
+public class X11AbsoluteStrategySelector(IMousePositionProvider positionProvider) : ICoordinateStrategySelector
 {
-    private readonly IMousePositionProvider _positionProvider;
-
-    public X11AbsoluteStrategySelector(IMousePositionProvider positionProvider)
-    {
-        _positionProvider = positionProvider;
-    }
+    private readonly IMousePositionProvider _positionProvider = positionProvider;
 
     public int Priority => 10;
 

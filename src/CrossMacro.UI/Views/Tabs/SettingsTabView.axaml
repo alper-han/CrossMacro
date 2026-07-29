@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -11,7 +12,7 @@
              x:DataType="vm:SettingsViewModel">
 
     <Design.DataContext>
-        <vm:DesignSettingsViewModel/>
+        <designVm:DesignSettingsViewModel/>
     </Design.DataContext>
 
     <Panel>
@@ -213,7 +214,7 @@
                             </ComboBox>
 
                             <Button Grid.Column="1"
-                                    Command="{Binding SwitchProfile}"
+                                    Command="{Binding SwitchProfileAsync}"
                                     Classes="secondary"
                                     MinWidth="96"
                                     HorizontalAlignment="Stretch"
@@ -223,7 +224,7 @@
                             </Button>
 
                             <Button Grid.Column="2"
-                                    Command="{Binding DeleteSelectedProfile}"
+                                    Command="{Binding DeleteSelectedProfileAsync}"
                                     Classes="secondary"
                                     MinWidth="96"
                                     HorizontalAlignment="Stretch"
@@ -240,7 +241,7 @@
                                      VerticalAlignment="Center"/>
 
                             <Button Grid.Column="1"
-                                    Command="{Binding CreateProfile}"
+                                    Command="{Binding CreateProfileAsync}"
                                     Classes="secondary"
                                     MinWidth="96"
                                     HorizontalAlignment="Stretch"
@@ -250,7 +251,7 @@
                             </Button>
 
                             <Button Grid.Column="2"
-                                    Command="{Binding RenameSelectedProfile}"
+                                    Command="{Binding RenameSelectedProfileAsync}"
                                     Classes="secondary"
                                     MinWidth="96"
                                     HorizontalAlignment="Stretch"

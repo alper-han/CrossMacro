@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandLibrary : IDisposable
+internal sealed partial class WaylandLibrary : IDisposable
 {
     private static readonly string[] LibraryNames = ["libwayland-client.so.0", "libwayland-client.so"];
     private readonly IntPtr _handle;
@@ -57,8 +57,9 @@ internal sealed class WaylandLibrary : IDisposable
         public short Revents;
     }
 
-    [DllImport("libc.so.6", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
-    private static extern int poll(ref PollFd fds, IntPtr count, int timeout);
+    [LibraryImport("libc.so.6", SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial int poll(ref PollFd fds, IntPtr count, int timeout);
 
     private const short PollIn = 0x001;
     private const short PollOut = 0x004;
@@ -74,7 +75,7 @@ internal sealed class WaylandLibrary : IDisposable
         {
             return new WaylandLibrary(handle);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             NativeLibrary.Free(handle);
             throw;
@@ -128,10 +129,10 @@ internal sealed class WaylandLibrary : IDisposable
                 throw new InvalidOperationException("wl_display.sync returned NULL.");
             }
 
-            AddDispatcher(callback.Proxy, callback.DispatcherPtr);
+            _ = AddDispatcher(callback.Proxy, callback.DispatcherPtr);
             return callback;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (callback.Proxy != IntPtr.Zero)
             {
@@ -157,94 +158,110 @@ internal sealed class WaylandLibrary : IDisposable
             cancellation.ThrowIfCancellationRequested();
             if (_displayPrepareRead(display) is 0)
             {
-                var readEvents = false;
-                try
+                if (TryReadEvents(display, cancellation))
                 {
-                    var flushResult = _displayFlush(display);
-                    if (flushResult < 0 && Marshal.GetLastPInvokeError() != ErrnoWouldBlock)
-                    {
-                        throw new IOException($"wl_display_flush failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
-                    }
-
-                    var pollFd = new PollFd
-                    {
-                        FileDescriptor = _displayGetFd(display),
-                        Events = (short)(PollIn | (flushResult < 0 ? PollOut : 0)),
-                    };
-                    if (pollFd.FileDescriptor < 0)
-                    {
-                        throw new IOException($"wl_display_get_fd failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
-                    }
-
-                    var result = poll(ref pollFd, new IntPtr(1), cancellation.GetPollTimeoutMilliseconds());
-                    if (result < 0)
-                    {
-                        if (Marshal.GetLastPInvokeError() == ErrnoInterrupted)
-                        {
-                            continue;
-                        }
-
-                        throw new IOException($"poll on Wayland display failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
-                    }
-
-                    if (result is 0)
-                    {
-                        continue;
-                    }
-
-                    if ((pollFd.Revents & (PollError | PollHangup)) is not 0)
-                    {
-                        throw new IOException("Wayland display connection closed while waiting for events.");
-                    }
-
-                    if ((pollFd.Revents & PollIn) is 0)
-                    {
-                        continue;
-                    }
-
-                    if (_displayReadEvents(display) < 0)
-                    {
-                        throw new IOException($"wl_display_read_events failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
-                    }
-
-                    readEvents = true;
-                }
-                finally
-                {
-                    if (!readEvents)
-                    {
-                        _displayCancelRead(display);
-                    }
+                    DispatchPending(display);
+                    return;
                 }
 
-                if (_displayDispatchPending(display) < 0)
-                {
-                    throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
-                }
-
-                return;
+                continue;
             }
 
-            if (_displayDispatchPending(display) < 0)
+            DispatchPending(display);
+        }
+    }
+
+    private bool TryReadEvents(IntPtr display, WaylandCaptureCancellation cancellation)
+    {
+        var readEvents = false;
+        try
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (!WaitForDisplayEvents(display, cancellation))
             {
-                throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
+                return false;
             }
+
+            if (_displayReadEvents(display) < 0)
+            {
+                throw new IOException($"wl_display_read_events failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
+            }
+
+            readEvents = true;
+            return true;
+        }
+        finally
+        {
+            if (!readEvents)
+            {
+                _displayCancelRead(display);
+            }
+        }
+    }
+
+    private bool WaitForDisplayEvents(IntPtr display, WaylandCaptureCancellation cancellation)
+    {
+        var flushResult = _displayFlush(display);
+        if (flushResult < 0 && Marshal.GetLastPInvokeError() != ErrnoWouldBlock)
+        {
+            throw new IOException($"wl_display_flush failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
+        }
+
+        var pollFd = new PollFd
+        {
+            FileDescriptor = _displayGetFd(display),
+            Events = (short)(PollIn | (flushResult < 0 ? PollOut : 0)),
+        };
+        if (pollFd.FileDescriptor < 0)
+        {
+            throw new IOException($"wl_display_get_fd failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
+        }
+
+        var result = poll(ref pollFd, new IntPtr(1), cancellation.GetPollTimeoutMilliseconds());
+        if (result < 0)
+        {
+            if (Marshal.GetLastPInvokeError() == ErrnoInterrupted)
+            {
+                return false;
+            }
+
+            throw new IOException($"poll on Wayland display failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
+        }
+
+        if (result is 0)
+        {
+            return false;
+        }
+
+        if ((pollFd.Revents & (PollError | PollHangup)) is not 0)
+        {
+            throw new IOException("Wayland display connection closed while waiting for events.");
+        }
+
+        return (pollFd.Revents & PollIn) is not 0;
+    }
+
+    private void DispatchPending(IntPtr display)
+    {
+        if (_displayDispatchPending(display) < 0)
+        {
+            throw new IOException($"wl_display_dispatch_pending failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
     }
 
     private sealed class SyncCallback : IDisposable
     {
-#pragma warning disable S1450
-        private readonly CallbackDispatcher _dispatcher;
-#pragma warning restore S1450
+        private GCHandle _dispatcherHandle;
         private readonly WaylandInterfaceHandle _interface;
+        private bool _disposed;
 
         public SyncCallback()
         {
-            _dispatcher = Dispatch;
+            var dispatcher = (CallbackDispatcher)Dispatch;
+            _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
             var destructorDoneEvent = ("done", "u", true);
             _interface = new("wl_callback", 1, [], [(destructorDoneEvent.Item1, destructorDoneEvent.Item2)]);
-            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
+            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
         }
 
         public IntPtr Proxy { get; set; }
@@ -265,7 +282,20 @@ internal sealed class WaylandLibrary : IDisposable
             return 0;
         }
 
-        public void Dispose() => _interface.Dispose();
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _interface.Dispose();
+            if (_dispatcherHandle.IsAllocated)
+            {
+                _dispatcherHandle.Free();
+            }
+        }
     }
 
     public IntPtr Bind(IntPtr registry, uint name, string iface, uint version, WaylandInterfaceHandle targetInterface)
@@ -324,35 +354,36 @@ internal sealed class WaylandLibrary : IDisposable
         return _marshalConstructor(copyManager, 0, args.Address, sessionInterface.Address, 1);
     }
 
-    public unsafe IntPtr CreateExtImageFrame(IntPtr session, WaylandInterfaceHandle frameInterface)
+    public IntPtr CreateExtImageFrame(IntPtr session, WaylandInterfaceHandle frameInterface)
     {
-        var args = stackalloc WlArgument[1];
+        using var args = new WlArgumentPack(1);
         args[0] = new WlArgument { o = IntPtr.Zero };
-        return _marshalConstructor(session, 0, (IntPtr)args, frameInterface.Address, 1);
+        args[0] = new WlArgument { o = IntPtr.Zero };
+        return _marshalConstructor(session, 0, args.Address, frameInterface.Address, 1);
     }
 
-    public unsafe void AttachExtImageFrameBuffer(IntPtr frame, IntPtr buffer)
+    public void AttachExtImageFrameBuffer(IntPtr frame, IntPtr buffer)
     {
-        var args = stackalloc WlArgument[1];
+        using var args = new WlArgumentPack(1);
         args[0] = new WlArgument { o = buffer };
-        _marshalFlags(frame, 1, IntPtr.Zero, 1, 0, (IntPtr)args);
+        _ = _marshalFlags(frame, 1, IntPtr.Zero, 1, 0, args.Address);
     }
 
-    public unsafe void DamageExtImageFrameBuffer(IntPtr frame, int x, int y, int width, int height)
+    public void DamageExtImageFrameBuffer(IntPtr frame, int x, int y, int width, int height)
     {
-        var args = stackalloc WlArgument[4];
+        using var args = new WlArgumentPack(4);
         args[0] = new WlArgument { i = x };
         args[1] = new WlArgument { i = y };
         args[2] = new WlArgument { i = width };
         args[3] = new WlArgument { i = height };
-        _marshalFlags(frame, 2, IntPtr.Zero, 1, 0, (IntPtr)args);
+        _ = _marshalFlags(frame, 2, IntPtr.Zero, 1, 0, args.Address);
     }
 
     public void CaptureExtImageFrame(IntPtr frame) => _marshalFlags(frame, 3, IntPtr.Zero, 1, 0, IntPtr.Zero);
 
-    public unsafe IntPtr WlrCaptureOutputRegion(IntPtr manager, IntPtr output, ScreenRect region, WaylandInterfaceHandle frameInterface)
+    public IntPtr WlrCaptureOutputRegion(IntPtr manager, IntPtr output, ScreenRect region, WaylandInterfaceHandle frameInterface)
     {
-        var args = stackalloc WlArgument[7];
+        using var args = new WlArgumentPack(7);
         args[0] = new WlArgument { o = IntPtr.Zero };
         args[1] = new WlArgument { i = 0 };
         args[2] = new WlArgument { o = output };
@@ -360,14 +391,14 @@ internal sealed class WaylandLibrary : IDisposable
         args[4] = new WlArgument { i = region.Y };
         args[5] = new WlArgument { i = region.Width };
         args[6] = new WlArgument { i = region.Height };
-        return _marshalConstructor(manager, 1, (IntPtr)args, frameInterface.Address, 3);
+        return _marshalConstructor(manager, 1, args.Address, frameInterface.Address, 3);
     }
 
-    public unsafe void WlrFrameCopy(IntPtr frame, IntPtr buffer)
+    public void WlrFrameCopy(IntPtr frame, IntPtr buffer)
     {
-        var args = stackalloc WlArgument[1];
+        using var args = new WlArgumentPack(1);
         args[0] = new WlArgument { o = buffer };
-        _marshalFlags(frame, 0, IntPtr.Zero, 1, 0, (IntPtr)args);
+        _ = _marshalFlags(frame, 0, IntPtr.Zero, 1, 0, args.Address);
     }
 
     public void DestroyBuffer(IntPtr buffer) => _marshalFlags(buffer, 0, IntPtr.Zero, 1, 1, IntPtr.Zero);

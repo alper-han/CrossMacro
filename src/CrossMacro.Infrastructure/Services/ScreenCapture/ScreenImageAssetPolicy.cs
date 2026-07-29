@@ -39,6 +39,29 @@ public static class ScreenImageAssetPolicy
         }
     }
 
+    public static async Task<byte[]> DecodeValidatedBase64PngAsync(string encoded, string? assetName = null, CancellationToken cancellationToken = default)
+    {
+        ValidateBase64Length(encoded, assetName);
+        var normalized = encoded.Trim();
+        byte[] pngBytes;
+        try
+        {
+            pngBytes = Convert.FromBase64String(normalized);
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidDataException(FormatMessage("Image asset is not valid Base64.", assetName), ex);
+        }
+
+        var validation = await TryValidateEncodedPngAsync(pngBytes, assetName, cancellationToken).ConfigureAwait(false);
+        if (!validation.IsValid)
+        {
+            throw new InvalidDataException(validation.Error ?? FormatMessage("Image asset is not a supported PNG.", assetName));
+        }
+
+        return pngBytes;
+    }
+
     public static byte[] DecodeValidatedBase64Png(string encoded, string? assetName = null)
     {
         ValidateBase64Length(encoded, assetName);
@@ -66,6 +89,41 @@ public static class ScreenImageAssetPolicy
         if (!TryValidateEncodedPng(pngBytes, out var error, assetName))
         {
             throw new InvalidDataException(error ?? FormatMessage("Image asset is not a supported PNG.", assetName));
+        }
+    }
+
+    public static bool TryValidateEncodedPng(ReadOnlySpan<byte> pngBytes, out string? error, string? assetName = null)
+    {
+        error = null;
+        try
+        {
+            ValidateEncodedSize(pngBytes.Length, assetName);
+            if (!ScreenFramePngDecoder.TryValidatePng(pngBytes, out var width, out var height, out var dimensionError))
+            {
+                error = FormatMessage(dimensionError ?? "Image asset is not a supported PNG.", assetName);
+                return false;
+            }
+
+            ValidateDimensions(width, height, assetName);
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException)
+        {
+            error = FormatMessage(ex.Message, assetName);
+            return false;
+        }
+    }
+
+    public static async Task<ScreenFrame> DecodePngAsync(ReadOnlyMemory<byte> pngBytes, string? assetName = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ValidateEncodedSize(pngBytes.Length, assetName);
+            return await ScreenFramePngDecoder.DecodeAsync(pngBytes, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException)
+        {
+            throw new InvalidDataException(FormatMessage(ex.Message, assetName), ex);
         }
     }
 
@@ -129,25 +187,26 @@ public static class ScreenImageAssetPolicy
         }
     }
 
-    public static bool TryValidateEncodedPng(ReadOnlySpan<byte> pngBytes, out string? error, string? assetName = null)
+    public static async Task<(bool IsValid, string? Error)> TryValidateEncodedPngAsync(
+        ReadOnlyMemory<byte> pngBytes,
+        string? assetName = null,
+        CancellationToken cancellationToken = default)
     {
-        error = null;
         try
         {
             ValidateEncodedSize(pngBytes.Length, assetName);
-            if (!ScreenFramePngDecoder.TryValidatePng(pngBytes, out var width, out var height, out var dimensionError))
+            var validation = await ScreenFramePngDecoder.TryValidatePngAsync(pngBytes, cancellationToken).ConfigureAwait(false);
+            if (!validation.IsValid)
             {
-                error = FormatMessage(dimensionError ?? "Image asset is not a supported PNG.", assetName);
-                return false;
+                return (false, FormatMessage(validation.Error ?? "Image asset is not a supported PNG.", assetName));
             }
 
-            ValidateDimensions(width, height, assetName);
-            return true;
+            ValidateDimensions(validation.Width, validation.Height, assetName);
+            return (true, null);
         }
         catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException)
         {
-            error = FormatMessage(ex.Message, assetName);
-            return false;
+            return (false, FormatMessage(ex.Message, assetName));
         }
     }
 

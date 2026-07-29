@@ -19,21 +19,52 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private readonly ISettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
     private readonly IRuntimeContext _runtimeContext;
+    private readonly Action<Action> _postCallback;
 
     private bool _disposed;
-    private bool _isRecording;
     private bool _isStartingRecording;
-    private int _eventCount;
-    private int _mouseEventCount;
-    private int _keyboardEventCount;
-    private string _recordingStatus;
-    private bool _isMouseRecordingEnabled = true;
-    private bool _isKeyboardRecordingEnabled = true;
     private bool _forceRelativeCoordinates;
-    private bool _skipInitialZeroZero;
     private RecordingStatusKind _recordingStatusKind = RecordingStatusKind.Ready;
-    private long _activeCounterUpdateSessionId;
+    private LiveCounterUpdateState? _activeCounterUpdateState;
     private long _nextCounterUpdateSessionId;
+    private int _settingsChangeVersion;
+
+    private sealed class LiveCounterUpdateState(long sessionId)
+    {
+        public long SessionId { get; } = sessionId;
+
+        public long PendingEventCount;
+        public long PendingMouseEventCount;
+        public long PendingKeyboardEventCount;
+        public int IsDrainScheduled;
+    }
+
+    [ObservableProperty]
+    private string _recordingStatus;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanStartRecording))]
+    [NotifyPropertyChangedFor(nameof(CanToggleRecording))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleRecordingCommand))]
+    private bool _isMouseRecordingEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanStartRecording))]
+    [NotifyPropertyChangedFor(nameof(CanToggleRecording))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleRecordingCommand))]
+    private bool _isKeyboardRecordingEnabled;
+
+    [ObservableProperty]
+    private bool _skipInitialZeroZero;
+
+    /// <summary>
+    /// Used by MainWindowViewModel to control if recording can start (considering playback state)
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanStartRecording))]
+    [NotifyPropertyChangedFor(nameof(CanToggleRecording))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleRecordingCommand))]
+    private bool _canStartRecordingExternal = true;
 
     /// <summary>
     /// Event fired when recording is completed with the recorded macro
@@ -51,12 +82,32 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         ISettingsService settingsService,
         ILocalizationService localizationService,
         IRuntimeContext runtimeContext)
+        : this(
+            recorder,
+            hotkeyService,
+            settingsService,
+            localizationService,
+            runtimeContext,
+            action => Dispatcher.UIThread.Post(action))
     {
+    }
+
+    internal RecordingViewModel(
+        IMacroRecorder recorder,
+        IGlobalHotkeyService hotkeyService,
+        ISettingsService settingsService,
+        ILocalizationService localizationService,
+        IRuntimeContext runtimeContext,
+        Action<Action> postCallback)
+    {
+        ArgumentNullException.ThrowIfNull(postCallback);
+
         _recorder = recorder;
         _hotkeyService = hotkeyService;
         _settingsService = settingsService;
         _localizationService = localizationService;
         _runtimeContext = runtimeContext;
+        _postCallback = postCallback;
         _localizationService.CultureChanged += OnCultureChanged;
         _recordingStatus = BuildRecordingStatus(RecordingStatusKind.Ready);
         _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
@@ -76,10 +127,13 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        // Direct field writes: refreshing from settings must not re-persist via setter hooks.
+#pragma warning disable MVVMTK0034
         _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
         _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
         _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
         _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
+#pragma warning restore MVVMTK0034
 
         OnPropertyChanged(nameof(IsMouseRecordingEnabled));
         OnPropertyChanged(nameof(IsKeyboardRecordingEnabled));
@@ -92,12 +146,12 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     public bool IsRecording
     {
-        get => _isRecording;
+        get;
         private set
         {
-            if (_isRecording != value)
+            if (field != value)
             {
-                _isRecording = value;
+                field = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartRecording));
                 OnCanToggleRecordingChanged();
@@ -107,108 +161,41 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public int EventCount
+    [ObservableProperty]
+    public partial int EventCount { get; private set; }
+
+    [ObservableProperty]
+    public partial int MouseEventCount { get; private set; }
+
+    [ObservableProperty]
+    public partial int KeyboardEventCount { get; private set; }
+
+    partial void OnIsMouseRecordingEnabledChanged(bool oldValue, bool newValue)
     {
-        get => _eventCount;
-        private set
-        {
-            if (_eventCount != value)
+        _settingsService.Current.IsMouseRecordingEnabled = newValue;
+        _ = TryPersistSettingChange(
+            () =>
             {
-                _eventCount = value;
-                OnPropertyChanged();
-            }
-        }
+                _isMouseRecordingEnabled = oldValue;
+                _settingsService.Current.IsMouseRecordingEnabled = oldValue;
+            },
+            nameof(IsMouseRecordingEnabled),
+            nameof(CanStartRecording),
+            nameof(CanToggleRecording));
     }
 
-    public int MouseEventCount
+    partial void OnIsKeyboardRecordingEnabledChanged(bool oldValue, bool newValue)
     {
-        get => _mouseEventCount;
-        private set
-        {
-            if (_mouseEventCount != value)
+        _settingsService.Current.IsKeyboardRecordingEnabled = newValue;
+        _ = TryPersistSettingChange(
+            () =>
             {
-                _mouseEventCount = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public int KeyboardEventCount
-    {
-        get => _keyboardEventCount;
-        private set
-        {
-            if (_keyboardEventCount != value)
-            {
-                _keyboardEventCount = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public string RecordingStatus
-    {
-        get => _recordingStatus;
-        set
-        {
-            if (!string.Equals(_recordingStatus, value, StringComparison.Ordinal))
-            {
-                _recordingStatus = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public bool IsMouseRecordingEnabled
-    {
-        get => _isMouseRecordingEnabled;
-        set
-        {
-            if (_isMouseRecordingEnabled != value)
-            {
-                var previousValue = _isMouseRecordingEnabled;
-                _isMouseRecordingEnabled = value;
-                _settingsService.Current.IsMouseRecordingEnabled = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanStartRecording));
-                OnCanToggleRecordingChanged();
-                TryPersistSettingChange(
-                    () =>
-                    {
-                        _isMouseRecordingEnabled = previousValue;
-                        _settingsService.Current.IsMouseRecordingEnabled = previousValue;
-                    },
-                    nameof(IsMouseRecordingEnabled),
-                    nameof(CanStartRecording),
-                    nameof(CanToggleRecording));
-            }
-        }
-    }
-
-    public bool IsKeyboardRecordingEnabled
-    {
-        get => _isKeyboardRecordingEnabled;
-        set
-        {
-            if (_isKeyboardRecordingEnabled != value)
-            {
-                var previousValue = _isKeyboardRecordingEnabled;
-                _isKeyboardRecordingEnabled = value;
-                _settingsService.Current.IsKeyboardRecordingEnabled = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanStartRecording));
-                OnCanToggleRecordingChanged();
-                TryPersistSettingChange(
-                    () =>
-                    {
-                        _isKeyboardRecordingEnabled = previousValue;
-                        _settingsService.Current.IsKeyboardRecordingEnabled = previousValue;
-                    },
-                    nameof(IsKeyboardRecordingEnabled),
-                    nameof(CanStartRecording),
-                    nameof(CanToggleRecording));
-            }
-        }
+                _isKeyboardRecordingEnabled = oldValue;
+                _settingsService.Current.IsKeyboardRecordingEnabled = oldValue;
+            },
+            nameof(IsKeyboardRecordingEnabled),
+            nameof(CanStartRecording),
+            nameof(CanToggleRecording));
     }
 
     public bool ForceRelativeCoordinates
@@ -228,7 +215,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 _settingsService.Current.ForceRelativeCoordinates = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ShowSkipZeroZeroOption));
-                TryPersistSettingChange(
+                _ = TryPersistSettingChange(
                     () =>
                     {
                         _forceRelativeCoordinates = previousValue;
@@ -242,26 +229,16 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     public bool IsForceRelativeSupported => _runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS;
 
-    public bool SkipInitialZeroZero
+    partial void OnSkipInitialZeroZeroChanged(bool oldValue, bool newValue)
     {
-        get => _skipInitialZeroZero;
-        set
-        {
-            if (_skipInitialZeroZero != value)
+        _settingsService.Current.SkipInitialZeroZero = newValue;
+        _ = TryPersistSettingChange(
+            () =>
             {
-                var previousValue = _skipInitialZeroZero;
-                _skipInitialZeroZero = value;
-                _settingsService.Current.SkipInitialZeroZero = value;
-                OnPropertyChanged();
-                TryPersistSettingChange(
-                    () =>
-                    {
-                        _skipInitialZeroZero = previousValue;
-                        _settingsService.Current.SkipInitialZeroZero = previousValue;
-                    },
-                    nameof(SkipInitialZeroZero));
-            }
-        }
+                _skipInitialZeroZero = oldValue;
+                _settingsService.Current.SkipInitialZeroZero = oldValue;
+            },
+            nameof(SkipInitialZeroZero));
     }
 
     public bool ShowSkipZeroZeroOption => ForceRelativeCoordinates;
@@ -273,39 +250,16 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     /// </summary>
     public bool CanToggleRecording => IsRecording || CanStartRecording;
 
-    private bool _canStartRecordingExternal = true;
-    private int _settingsChangeVersion;
-
-    /// <summary>
-    /// Used by MainWindowViewModel to control if recording can start (considering playback state)
-    /// </summary>
-    public bool CanStartRecordingExternal
-    {
-        get => _canStartRecordingExternal;
-        set
-        {
-            if (_canStartRecordingExternal != value)
-            {
-                _canStartRecordingExternal = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanStartRecording));
-                OnCanToggleRecordingChanged();
-            }
-        }
-    }
-
     private void OnEventRecorded(object? sender, MacroEventRecordedEventArgs e)
     {
-        var sessionId = Volatile.Read(ref _activeCounterUpdateSessionId);
-        if (sessionId == 0)
+        var state = Volatile.Read(ref _activeCounterUpdateState);
+        if (state is null || !IsLiveCounterUpdateStateActive(state))
         {
             return;
         }
 
-        Dispatcher.UIThread.Post(() =>
-        {
-            ApplyLiveCounterUpdate(sessionId, e.MacroEvent);
-        });
+        AddLiveCounterDelta(state, e.MacroEvent);
+        ScheduleLiveCounterDrain(state);
     }
 
     public async Task StartRecordingAsync()
@@ -317,7 +271,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
         try
         {
-            SetRecordingStartupInProgress(value: true);
+            await RunOnUiThreadAsync(() => SetRecordingStartupInProgress(value: true)).ConfigureAwait(false);
 
             // Disable playback and pause hotkeys during recording so they can be recorded
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: false);
@@ -334,24 +288,36 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 IsKeyboardRecordingEnabled,
                 ignoredKeys,
                 forceRelative: ForceRelativeCoordinates,
-                skipInitialZero: SkipInitialZeroZero).ConfigureAwait(false);
+                skipInitialZero: SkipInitialZeroZero,
+                cancellationToken: default).ConfigureAwait(false);
 
-            IsRecording = true;
-            ClearEventCounters();
-            ActivateLiveCounterUpdates();
+            await RunOnUiThreadAsync(() =>
+            {
+                IsRecording = true;
+                ClearEventCounters();
+                ActivateLiveCounterUpdates();
+            }).ConfigureAwait(false);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            DeactivateLiveCounterUpdates();
-            SetRecordingStatusKind(RecordingStatusKind.Ready);
-            IsRecording = false;
+            Log.LogError(ex, "[RecordingViewModel] StartRecording failed");
+            await RunOnUiThreadAsync(() =>
+            {
+                DeactivateLiveCounterUpdates();
+                ClearEventCounters();
+                IsRecording = false;
+                RecordingStatus = string.Format(
+                    _localizationService.CurrentCulture,
+                    _localizationService["Recording_StatusError"],
+                    ex.Message);
+            }).ConfigureAwait(false);
 
             // Re-enable hotkeys on error
             _hotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: true);
         }
         finally
         {
-            SetRecordingStartupInProgress(value: false);
+            await RunOnUiThreadAsync(() => SetRecordingStartupInProgress(value: false)).ConfigureAwait(false);
         }
     }
 
@@ -368,7 +334,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             DeactivateLiveCounterUpdates();
             macro = _recorder.StopRecording();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[RecordingViewModel] StopRecording failed");
             RecordingStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Recording_StatusError"], ex.Message);
@@ -382,7 +348,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             {
                 _hotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: true);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[RecordingViewModel] Failed to re-enable playback/pause hotkeys");
             }
@@ -408,7 +374,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         {
             RecordingCompleted?.Invoke(this, macro);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Keep recording result intact; only downstream synchronization failed.
             Log.LogError(ex, "[RecordingViewModel] RecordingCompleted handler failed");
@@ -426,7 +392,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        RecordingStatus = BuildRecordingStatus(_recordingStatusKind);
+        PostToUiThread(() => RecordingStatus = BuildRecordingStatus(_recordingStatusKind));
     }
 
     private void ApplyEventCounters(IEnumerable<MacroEvent> events)
@@ -494,7 +460,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     {
         if (IsRecording)
         {
-            StopRecording();
+            _ = StopRecording();
         }
         else if (CanStartRecording && CanStartRecordingExternal)
         {
@@ -510,12 +476,19 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
         _disposed = true;
+        DeactivateLiveCounterUpdates();
 
         // Unsubscribe from events to prevent memory leaks
         _recorder.EventRecorded -= OnEventRecorded;
@@ -543,37 +516,139 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private void ActivateLiveCounterUpdates()
     {
         var sessionId = Interlocked.Increment(ref _nextCounterUpdateSessionId);
-        Volatile.Write(ref _activeCounterUpdateSessionId, sessionId);
+        Volatile.Write(ref _activeCounterUpdateState, new LiveCounterUpdateState(sessionId: sessionId));
     }
 
     private void DeactivateLiveCounterUpdates()
     {
-        Volatile.Write(ref _activeCounterUpdateSessionId, 0);
-    }
-
-    private void ApplyLiveCounterUpdate(long sessionId, MacroEvent macroEvent)
-    {
-        if (sessionId == 0 || sessionId != Volatile.Read(ref _activeCounterUpdateSessionId))
+        var state = Volatile.Read(ref _activeCounterUpdateState);
+        if (state is null)
         {
             return;
         }
 
-        EventCount++;
+        _ = Interlocked.CompareExchange(ref _activeCounterUpdateState, value: null, comparand: state);
+    }
 
-        // Track mouse and keyboard events separately
+    private bool IsLiveCounterUpdateStateActive(LiveCounterUpdateState state)
+    {
+        return !_disposed &&
+            state.SessionId != 0 &&
+            ReferenceEquals(state, Volatile.Read(ref _activeCounterUpdateState));
+    }
+
+    private static void AddLiveCounterDelta(LiveCounterUpdateState state, MacroEvent macroEvent)
+    {
+        SaturatingIncrement(ref state.PendingEventCount);
+
         switch (macroEvent.Type)
         {
             case EventType.ButtonPress:
             case EventType.ButtonRelease:
             case EventType.MouseMove:
             case EventType.Click:
-                MouseEventCount++;
+                SaturatingIncrement(ref state.PendingMouseEventCount);
                 break;
             case EventType.KeyPress:
             case EventType.KeyRelease:
-                KeyboardEventCount++;
+                SaturatingIncrement(ref state.PendingKeyboardEventCount);
                 break;
         }
+    }
+
+    private void ScheduleLiveCounterDrain(LiveCounterUpdateState state)
+    {
+        if (!IsLiveCounterUpdateStateActive(state) ||
+            Interlocked.CompareExchange(ref state.IsDrainScheduled, value: 1, comparand: 0) is not 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _postCallback(() => DrainLiveCounterUpdates(state));
+        }
+        catch
+        {
+            Volatile.Write(ref state.IsDrainScheduled, 0);
+            throw;
+        }
+    }
+
+    private void DrainLiveCounterUpdates(LiveCounterUpdateState state)
+    {
+        if (!IsLiveCounterUpdateStateActive(state))
+        {
+            return;
+        }
+
+        var eventCount = Interlocked.Exchange(ref state.PendingEventCount, 0);
+        var mouseEventCount = Interlocked.Exchange(ref state.PendingMouseEventCount, 0);
+        var keyboardEventCount = Interlocked.Exchange(ref state.PendingKeyboardEventCount, 0);
+
+        if (!IsLiveCounterUpdateStateActive(state))
+        {
+            return;
+        }
+
+        try
+        {
+            ApplyLiveCounterUpdate(
+                nameof(EventCount),
+                () => EventCount = SaturatingAdd(EventCount, eventCount));
+            ApplyLiveCounterUpdate(
+                nameof(MouseEventCount),
+                () => MouseEventCount = SaturatingAdd(MouseEventCount, mouseEventCount));
+            ApplyLiveCounterUpdate(
+                nameof(KeyboardEventCount),
+                () => KeyboardEventCount = SaturatingAdd(KeyboardEventCount, keyboardEventCount));
+        }
+        finally
+        {
+            Volatile.Write(ref state.IsDrainScheduled, 0);
+
+            if (Volatile.Read(ref state.PendingEventCount) is not 0 ||
+                Volatile.Read(ref state.PendingMouseEventCount) is not 0 ||
+                Volatile.Read(ref state.PendingKeyboardEventCount) is not 0)
+            {
+                ScheduleLiveCounterDrain(state);
+            }
+        }
+    }
+
+    private static void ApplyLiveCounterUpdate(string propertyName, Action update)
+    {
+        try
+        {
+            update();
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Log.Warning(
+                exception,
+                "PropertyChanged subscriber failed while updating live counter {PropertyName}",
+                propertyName);
+        }
+    }
+
+    private static void SaturatingIncrement(ref long value)
+    {
+        while (true)
+        {
+            var currentValue = Volatile.Read(ref value);
+            if (currentValue == long.MaxValue ||
+                Interlocked.CompareExchange(ref value, currentValue + 1, currentValue) == currentValue)
+            {
+                return;
+            }
+        }
+    }
+
+    private static int SaturatingAdd(int value, long delta)
+    {
+        return delta >= int.MaxValue - (long)value
+            ? int.MaxValue
+            : value + (int)delta;
     }
 
     private string BuildRecordingStatus(RecordingStatusKind statusKind)
@@ -607,20 +682,23 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         {
             await _settingsService.SaveAsync().ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
             {
-                rollback();
-                foreach (var propertyName in propertyNames)
+                await RunOnUiThreadAsync(() =>
                 {
-                    OnPropertyChanged(propertyName);
-                }
+                    rollback();
+                    foreach (var propertyName in propertyNames)
+                    {
+                        OnPropertyChanged(propertyName);
+                    }
 
-                if (Array.IndexOf(propertyNames, nameof(CanToggleRecording)) >= 0)
-                {
-                    ToggleRecordingCommand.NotifyCanExecuteChanged();
-                }
+                    if (Array.IndexOf(propertyNames, nameof(CanToggleRecording)) >= 0)
+                    {
+                        ToggleRecordingCommand.NotifyCanExecuteChanged();
+                    }
+                }).ConfigureAwait(false);
             }
 
             Log.LogError(ex, "[RecordingViewModel] Failed to persist recording settings");

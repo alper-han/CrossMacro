@@ -191,7 +191,7 @@ public class MacroSequence
 
     private bool HasScriptSteps()
     {
-        return ScriptSteps is not null && ScriptSteps.Any(step => !string.IsNullOrWhiteSpace(step));
+        return ScriptSteps is not null && ScriptSteps.Any(static step => !string.IsNullOrWhiteSpace(step));
     }
 
     /// <summary>

@@ -32,7 +32,7 @@ internal static class RunScriptScreenReadingStepParser
         parts = SplitStep(step);
         if (parts.Length is 0)
         {
-            parts = Array.Empty<string>();
+            parts = [];
             return false;
         }
 
@@ -80,14 +80,14 @@ internal static class RunScriptScreenReadingStepParser
         return step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    public static PixelSearchVariableLayout GetPixelSearchVariableLayout(IReadOnlyList<string> parts)
+    public static PixelSearchVariableLayout GetPixelSearchVariableLayout(string[] parts)
     {
-        if (parts.Count >= 9 && !IsPixelSearchOptionKeyword(parts[6]) && !IsPixelSearchOptionKeyword(parts[8]))
+        if (parts.Length >= 9 && !IsPixelSearchOptionKeyword(parts[6]) && !IsPixelSearchOptionKeyword(parts[8]))
         {
             return new PixelSearchVariableLayout(parts[6], parts[7], parts[8]);
         }
 
-        if (parts.Count >= 8 && !IsPixelSearchOptionKeyword(parts[6]))
+        if (parts.Length >= 8 && !IsPixelSearchOptionKeyword(parts[6]))
         {
             return new PixelSearchVariableLayout(FoundVariableName: null, parts[6], parts[7]);
         }
@@ -117,13 +117,13 @@ internal static class RunScriptScreenReadingStepParser
         || RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(value)
         || RunScriptSyntax.IsImageSearchScaleAwareKeyword(value);
 
-    private static bool TryValidatePixelColorStep(IReadOnlyList<string> parts, out string? error)
+    private static bool TryValidatePixelColorStep(string[] parts, out string? error)
     {
         error = null;
-        var isRelative = parts.Count > 1 && string.Equals(parts[1], "rel", StringComparison.OrdinalIgnoreCase);
+        var isRelative = parts.Length > 1 && string.Equals(parts[1], "rel", StringComparison.OrdinalIgnoreCase);
         var coordinateIndex = isRelative ? 2 : 1;
         var optionStartIndex = isRelative ? 4 : 3;
-        if (parts.Count < optionStartIndex)
+        if (parts.Length < optionStartIndex)
         {
             error = isRelative
                 ? "Invalid pixelcolor syntax. Expected: pixelcolor rel <dx> <dy> [var] [timeout <milliseconds>=0+]."
@@ -139,7 +139,7 @@ internal static class RunScriptScreenReadingStepParser
             return true;
         }
 
-        if (parts.Count > optionStartIndex && !IsScreenReadTimeoutKeyword(parts[optionStartIndex]))
+        if (parts.Length > optionStartIndex && !IsScreenReadTimeoutKeyword(parts[optionStartIndex]))
         {
             if (!EditorActionScriptTokens.IsValidVariableName(parts[optionStartIndex]))
             {
@@ -151,11 +151,11 @@ internal static class RunScriptScreenReadingStepParser
         }
 
         var hasTimeout = false;
-        while (optionStartIndex < parts.Count)
+        while (optionStartIndex < parts.Length)
         {
             if (!IsScreenReadTimeoutKeyword(parts[optionStartIndex])
                 || hasTimeout
-                || optionStartIndex + 1 >= parts.Count
+                || optionStartIndex + 1 >= parts.Length
                 || !int.TryParse(parts[optionStartIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs)
                 || timeoutMs < 0)
             {
@@ -170,10 +170,10 @@ internal static class RunScriptScreenReadingStepParser
         return true;
     }
 
-    private static bool TryValidateWaitColorStep(IReadOnlyList<string> parts, out string? error)
+    private static bool TryValidateWaitColorStep(string[] parts, out string? error)
     {
         error = null;
-        if (parts.Count is < 4 or > 6)
+        if (parts.Length is < 4 or > 6)
         {
             error = "Invalid waitcolor syntax. Expected: waitcolor <x> <y> <color> [timeout_ms] [result_var].";
             return true;
@@ -190,14 +190,14 @@ internal static class RunScriptScreenReadingStepParser
             return true;
         }
 
-        if (parts.Count >= 5
+        if (parts.Length >= 5
             && (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs) || timeoutMs < 0))
         {
             error = "Invalid waitcolor timeout. Expected integer >= 0.";
             return true;
         }
 
-        if (parts.Count is 6 && !EditorActionScriptTokens.IsValidVariableName(parts[5]))
+        if (parts.Length is 6 && !EditorActionScriptTokens.IsValidVariableName(parts[5]))
         {
             error = $"Invalid variable name '{parts[5]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
         }
@@ -205,10 +205,10 @@ internal static class RunScriptScreenReadingStepParser
         return true;
     }
 
-    private static bool TryValidatePixelSearchStep(IReadOnlyList<string> parts, out string? error)
+    private static bool TryValidatePixelSearchStep(string[] parts, out string? error)
     {
         error = null;
-        if (parts.Count < 6)
+        if (parts.Length < 6)
         {
             error = "Invalid pixelsearch syntax. Expected: pixelsearch <x1> <y1> <x2> <y2> <color> [found_var var_x var_y|var_x var_y] [timeout <milliseconds>=0+] [tolerance <0..255>].";
             return true;
@@ -238,7 +238,7 @@ internal static class RunScriptScreenReadingStepParser
 
         var index = 6;
         var variableCount = 0;
-        while (index < parts.Count && !IsPixelSearchOptionKeyword(parts[index]))
+        while (index < parts.Length && !IsPixelSearchOptionKeyword(parts[index]))
         {
             variableCount++;
             if (variableCount > 3)
@@ -264,11 +264,11 @@ internal static class RunScriptScreenReadingStepParser
 
         var hasTolerance = false;
         var hasTimeout = false;
-        while (index < parts.Count)
+        while (index < parts.Length)
         {
             if (IsScreenReadTimeoutKeyword(parts[index]))
             {
-                if (hasTimeout || index + 1 >= parts.Count || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs) || timeoutMs < 0)
+                if (hasTimeout || index + 1 >= parts.Length || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs) || timeoutMs < 0)
                 {
                     error = "Invalid pixelsearch timeout. Expected timeout <milliseconds>=0+.";
                     return true;
@@ -281,7 +281,7 @@ internal static class RunScriptScreenReadingStepParser
 
             if (IsPixelSearchToleranceKeyword(parts[index]))
             {
-                if (hasTolerance || index + 1 >= parts.Count || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var tolerance) || tolerance is < 0 or > byte.MaxValue)
+                if (hasTolerance || index + 1 >= parts.Length || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var tolerance) || tolerance is < 0 or > byte.MaxValue)
                 {
                     error = "Invalid pixelsearch tolerance. Expected tolerance <0..255>.";
                     return true;
@@ -299,17 +299,17 @@ internal static class RunScriptScreenReadingStepParser
         return true;
     }
 
-    private static bool TryValidateImageSearchStep(IReadOnlyList<string> parts, out string? error)
+    private static bool TryValidateImageSearchStep(string[] parts, out string? error)
     {
         error = null;
-        if (parts.Count < 2)
+        if (parts.Length < 2)
         {
             error = "Invalid imagesearch syntax. Expected: imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [downsample <integer>=1+].";
             return true;
         }
 
         var imageNameIndex = 1;
-        if (parts.Count >= 6 && AreIntegerTokens(parts[1], parts[2], parts[3], parts[4]))
+        if (parts.Length >= 6 && AreIntegerTokens(parts[1], parts[2], parts[3], parts[4]))
         {
             if (!TryValidatePositiveRegion(parts, out error))
             {
@@ -318,7 +318,7 @@ internal static class RunScriptScreenReadingStepParser
 
             imageNameIndex = 5;
         }
-        else if (parts.Count >= 5 && LooksLikeImageSearchRegion(parts))
+        else if (parts.Length >= 5 && LooksLikeImageSearchRegion(parts))
         {
             error = "Invalid imagesearch bounds. Expected integer x1 y1 x2 y2.";
             return true;
@@ -332,7 +332,7 @@ internal static class RunScriptScreenReadingStepParser
 
         var index = imageNameIndex + 1;
         var variableCount = 0;
-        while (index < parts.Count && !IsImageSearchOptionKeyword(parts[index]))
+        while (index < parts.Length && !IsImageSearchOptionKeyword(parts[index]))
         {
             variableCount++;
             if (variableCount > 3)
@@ -359,7 +359,7 @@ internal static class RunScriptScreenReadingStepParser
         var hasSimilarity = false;
         var hasDownsample = false;
         var hasTimeout = false;
-        while (index < parts.Count)
+        while (index < parts.Length)
         {
             if (RunScriptSyntax.IsImageSearchSimilarityKeyword(parts[index]))
             {
@@ -369,7 +369,7 @@ internal static class RunScriptScreenReadingStepParser
                     return true;
                 }
 
-                if (index + 1 >= parts.Count)
+                if (index + 1 >= parts.Length)
                 {
                     error = "Invalid imagesearch similarity. Expected similarity <0..1>.";
                     return true;
@@ -396,7 +396,7 @@ internal static class RunScriptScreenReadingStepParser
                     return true;
                 }
 
-                if (index + 1 >= parts.Count)
+                if (index + 1 >= parts.Length)
                 {
                     error = "Invalid imagesearch downsample. Expected downsample <integer>=1+.";
                     return true;
@@ -416,7 +416,7 @@ internal static class RunScriptScreenReadingStepParser
 
             if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
             {
-                if (index + 1 >= parts.Count || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out _))
+                if (index + 1 >= parts.Length || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out _))
                 {
                     error = "Invalid imagesearch matchmode. Expected matchmode <first|best>.";
                     return true;
@@ -434,7 +434,7 @@ internal static class RunScriptScreenReadingStepParser
 
             if (RunScriptSyntax.IsImageSearchTimeoutKeyword(parts[index]))
             {
-                if (hasTimeout || index + 1 >= parts.Count)
+                if (hasTimeout || index + 1 >= parts.Length)
                 {
                     error = "Invalid imagesearch timeout. Expected timeout <milliseconds>=0+.";
                     return true;
@@ -458,7 +458,7 @@ internal static class RunScriptScreenReadingStepParser
         return true;
     }
 
-    private static bool TryValidateImageClickStep(IReadOnlyList<string> parts, out string? error)
+    private static bool TryValidateImageClickStep(string[] parts, out string? error)
     {
         error = null;
         if (!TryValidateImageCommandPrefix(parts, RunScriptSyntax.ImageClickCommand, out var imageNameIndex, out error))
@@ -468,7 +468,7 @@ internal static class RunScriptScreenReadingStepParser
 
         var index = imageNameIndex + 1;
         var variableCount = 0;
-        while (index < parts.Count && !IsImageClickOptionKeyword(parts[index]))
+        while (index < parts.Length && !IsImageClickOptionKeyword(parts[index]))
         {
             variableCount++;
             if (variableCount > 3)
@@ -493,11 +493,11 @@ internal static class RunScriptScreenReadingStepParser
         }
 
         var hasButton = false;
-        while (index < parts.Count)
+        while (index < parts.Length)
         {
             if (string.Equals(parts[index], "button", StringComparison.OrdinalIgnoreCase))
             {
-                if (hasButton || index + 1 >= parts.Count || !IsValidMouseButton(parts[index + 1]))
+                if (hasButton || index + 1 >= parts.Length || !IsValidMouseButton(parts[index + 1]))
                 {
                     error = "Invalid imageclick button. Expected button <left|right|middle>.";
                     return true;
@@ -523,7 +523,7 @@ internal static class RunScriptScreenReadingStepParser
             || string.Equals(value, "button", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool TryValidateWaitImageStep(IReadOnlyList<string> parts, out string? error)
+    private static bool TryValidateWaitImageStep(string[] parts, out string? error)
     {
         error = null;
         if (!TryValidateImageCommandPrefix(parts, RunScriptSyntax.WaitImageCommand, out var imageNameIndex, out error))
@@ -533,7 +533,7 @@ internal static class RunScriptScreenReadingStepParser
 
         var index = imageNameIndex + 1;
         var variableCount = 0;
-        while (index < parts.Count && !IsImageSearchOptionKeyword(parts[index]))
+        while (index < parts.Length && !IsImageSearchOptionKeyword(parts[index]))
         {
             variableCount++;
             if (variableCount > 3)
@@ -558,11 +558,11 @@ internal static class RunScriptScreenReadingStepParser
         }
 
         var hasTimeout = false;
-        while (index < parts.Count)
+        while (index < parts.Length)
         {
             if (RunScriptSyntax.IsImageSearchTimeoutKeyword(parts[index]))
             {
-                if (hasTimeout || index + 1 >= parts.Count)
+                if (hasTimeout || index + 1 >= parts.Length)
                 {
                     error = "Invalid waitimage timeout. Expected timeout <milliseconds>=0+.";
                     return true;
@@ -589,20 +589,20 @@ internal static class RunScriptScreenReadingStepParser
     }
 
     private static bool TryValidateImageCommandPrefix(
-        IReadOnlyList<string> parts,
+        string[] parts,
         string commandName,
         out int imageNameIndex,
         out string? error)
     {
         error = null;
         imageNameIndex = 1;
-        if (parts.Count < 2)
+        if (parts.Length < 2)
         {
             error = $"Invalid {commandName} syntax. Expected: {commandName} [<x1> <y1> <x2> <y2>] <ImageName> [options].";
             return false;
         }
 
-        if (parts.Count >= 6 && AreIntegerTokens(parts[1], parts[2], parts[3], parts[4]))
+        if (parts.Length >= 6 && AreIntegerTokens(parts[1], parts[2], parts[3], parts[4]))
         {
             if (!TryValidatePositiveRegion(parts, out error))
             {
@@ -611,7 +611,7 @@ internal static class RunScriptScreenReadingStepParser
 
             imageNameIndex = 5;
         }
-        else if (parts.Count >= 5 && LooksLikeImageSearchRegion(parts))
+        else if (parts.Length >= 5 && LooksLikeImageSearchRegion(parts))
         {
             error = $"Invalid {commandName} bounds. Expected integer x1 y1 x2 y2.";
             return false;
@@ -626,12 +626,12 @@ internal static class RunScriptScreenReadingStepParser
         return true;
     }
 
-    private static bool TryValidateImageMatchOption(IReadOnlyList<string> parts, ref int index, out string? error)
+    private static bool TryValidateImageMatchOption(string[] parts, ref int index, out string? error)
     {
         error = null;
         if (RunScriptSyntax.IsImageSearchSimilarityKeyword(parts[index]))
         {
-            if (index + 1 >= parts.Count
+            if (index + 1 >= parts.Length
                 || !double.TryParse(parts[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out var similarity)
                 || !double.IsFinite(similarity)
                 || similarity is < 0.0 or > 1.0)
@@ -646,7 +646,7 @@ internal static class RunScriptScreenReadingStepParser
 
         if (RunScriptSyntax.IsImageSearchDownsampleKeyword(parts[index]))
         {
-            if (index + 1 >= parts.Count
+            if (index + 1 >= parts.Length
                 || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var downsample)
                 || downsample < 1)
             {
@@ -660,7 +660,7 @@ internal static class RunScriptScreenReadingStepParser
 
         if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
         {
-            if (index + 1 >= parts.Count || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out _))
+            if (index + 1 >= parts.Length || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out _))
             {
                 error = "Invalid image matchmode. Expected matchmode <first|best>.";
                 return false;
@@ -672,7 +672,7 @@ internal static class RunScriptScreenReadingStepParser
 
         if (RunScriptSyntax.IsImageSearchTimeoutKeyword(parts[index]))
         {
-            if (index + 1 >= parts.Count
+            if (index + 1 >= parts.Length
                 || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs)
                 || timeoutMs < 0)
             {
@@ -701,7 +701,7 @@ internal static class RunScriptScreenReadingStepParser
             || string.Equals(value, "middle", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool TryValidatePositiveRegion(IReadOnlyList<string> parts, out string? error)
+    private static bool TryValidatePositiveRegion(string[] parts, out string? error)
     {
         error = null;
         var x1 = int.Parse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture);
@@ -725,9 +725,9 @@ internal static class RunScriptScreenReadingStepParser
         return true;
     }
 
-    private static bool LooksLikeImageSearchRegion(IReadOnlyList<string> parts)
+    private static bool LooksLikeImageSearchRegion(string[] parts)
     {
-        return parts.Count >= 6
+        return parts.Length >= 6
             && (IsIntegerToken(parts[1])
                 || IsIntegerToken(parts[2])
                 || IsIntegerToken(parts[3])

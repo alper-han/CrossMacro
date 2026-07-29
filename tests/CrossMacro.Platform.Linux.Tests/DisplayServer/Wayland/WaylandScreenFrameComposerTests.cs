@@ -39,17 +39,16 @@ public sealed class WaylandScreenFrameComposerTests
     }
 
     [Theory]
-    [MemberData(nameof(PixelFormatCases))]
+    [MemberData(nameof(ShortPhysicalBufferOrStrideCases))]
     public void CopySource_RejectsShortPhysicalBufferOrStride(
         ScreenPixelFormat sourceFormat,
-        byte[] sourceBytes,
-        byte[] _)
+        byte[] sourceBytes)
     {
         var bytesPerPixel = ScreenFrame.GetBytesPerPixel(sourceFormat);
         var bounds = new ScreenRect(0, 0, 1, 1);
         using var composer = WaylandScreenFrameComposer.Create(bounds);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => composer.CopySource(
+        TestAssertions.Throws<ArgumentOutOfRangeException>(() => composer.CopySource(
             sourceBytes,
             (bytesPerPixel * 2) - 1,
             sourceFormat,
@@ -58,7 +57,7 @@ public sealed class WaylandScreenFrameComposerTests
             bounds,
             bounds));
 
-        Assert.Throws<ArgumentException>(() => composer.CopySource(
+        TestAssertions.Throws<ArgumentException>(() => composer.CopySource(
             new byte[(bytesPerPixel * 2) - 1],
             bytesPerPixel * 2,
             sourceFormat,
@@ -228,7 +227,7 @@ public sealed class WaylandScreenFrameComposerTests
 
         Assert.Null(WaylandScreenFrameComposer.Intersect(left, new ScreenRect(-1, 0, 2, 3)));
         Assert.Null(WaylandScreenFrameComposer.Intersect(left, new ScreenRect(10, 0, 2, 3)));
-        Assert.NotNull(WaylandScreenFrameComposer.Intersect(right, new ScreenRect(2, 0, 3, 3)));
+        _ = Assert.NotNull(WaylandScreenFrameComposer.Intersect(right, new ScreenRect(2, 0, 3, 3)));
     }
 
     [Fact]
@@ -265,6 +264,16 @@ public sealed class WaylandScreenFrameComposerTests
         { ScreenPixelFormat.Bgra8888, [0x56, 0x34, 0x12, 0x78], [0x56, 0x34, 0x12, 0x78] },
         { ScreenPixelFormat.Abgr8888, [0x12, 0x34, 0x56, 0x78], [0x56, 0x34, 0x12, 0x78] },
         { ScreenPixelFormat.Xbgr8888, [0x12, 0x34, 0x56, 0x00], [0x56, 0x34, 0x12, 0xFF] },
+    };
+
+    public static TheoryData<ScreenPixelFormat, byte[]> ShortPhysicalBufferOrStrideCases => new()
+    {
+        { ScreenPixelFormat.Rgb24, [0x12, 0x34, 0x56] },
+        { ScreenPixelFormat.Bgr24, [0x56, 0x34, 0x12] },
+        { ScreenPixelFormat.Xrgb8888, [0x56, 0x34, 0x12, 0x00] },
+        { ScreenPixelFormat.Bgra8888, [0x56, 0x34, 0x12, 0x78] },
+        { ScreenPixelFormat.Abgr8888, [0x12, 0x34, 0x56, 0x78] },
+        { ScreenPixelFormat.Xbgr8888, [0x12, 0x34, 0x56, 0x00] },
     };
 
     private static readonly ScreenPixelColor Black = new(0x00, 0x00, 0x00);

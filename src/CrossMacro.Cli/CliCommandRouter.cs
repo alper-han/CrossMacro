@@ -1,0 +1,794 @@
+
+namespace CrossMacro.Cli;
+
+public sealed class CliCommandRouter
+{
+    private delegate CliParseResult ParseCommandDelegate(string[] args);
+
+    private sealed record RootCommandDescriptor(
+        string CommandToken,
+        ParseCommandDelegate ParseCommand,
+        params string[] Aliases);
+
+    private static readonly HashSet<string> StandaloneCliOptionTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "--json",
+        "--log-level",
+        "--speed",
+        "--loop",
+        "--repeat",
+        "--repeat-delay-ms",
+        "--countdown",
+        "--timeout",
+        "--dry-run",
+        "--verbose",
+        "--output",
+        "-o",
+        "--mouse",
+        "--keyboard",
+        "--mode",
+        "--skip-initial-zero",
+        "--duration",
+        "--step",
+        "--file",
+        "--active",
+        "--address",
+        "--title",
+        "--class",
+        "--timeout-ms",
+        "--relative",
+        "--tolerance",
+        "--similarity",
+        "--downsample",
+        "--button",
+        "--region",
+        "--clipboard",
+        "--all",
+        "--force",
+        "--profile",
+        "--method",
+        "--insertion-mode",
+        "--direct-typing-method",
+        "--name",
+        "--macro",
+        "--interval",
+        "--at",
+        "--weekly",
+        "--time",
+        "--enabled",
+        "--hotkey",
+        "--random-repeat-delay",
+        "--run-while-held",
+        "--match-mode",
+        "--cooldown-ms",
+        "--debounce-ms",
+        "--fire-mode",
+    };
+
+    private static readonly RootCommandDescriptor[] RootCommands =
+    [
+        new("macro", MacroCommandParser.Parse),
+        new("play", PlayCommandParser.Parse),
+        new("doctor", DoctorCommandParser.Parse),
+        new("settings", SettingsCommandParser.Parse),
+        new("profile", ProfileCommandParser.Parse),
+        new("text-expansion", TextExpansionCommandParser.Parse, "text"),
+        new("schedule", ScheduleCommandParser.Parse),
+        new("shortcut", ShortcutCommandParser.Parse),
+        new("trigger", TriggerCommandParser.Parse),
+        new("record", RecordCommandParser.Parse),
+        new("run", RunCommandParser.Parse),
+        new("clipboard", ClipboardCommandParser.Parse),
+        new("window", WindowCommandParser.Parse),
+        new("screen", ScreenCommandParser.Parse),
+        new("screenshot", ScreenshotCommandParser.Parse),
+        new("headless", HeadlessCommandParser.Parse, "--headless"),
+    ];
+
+    private static readonly Dictionary<string, RootCommandDescriptor> RootCommandLookup = BuildRootCommandLookup();
+
+    private static readonly string[] TopLevelUsageSections =
+    [
+        "  crossmacro [--start-minimized]",
+        "  crossmacro macro validate <macro-file> [--json] [--log-level <level>]",
+        "  crossmacro macro info <macro-file> [--json] [--log-level <level>]",
+        "  crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+        "  crossmacro doctor [--verbose] [--json] [--log-level <level>]",
+        string.Empty,
+        "  crossmacro settings get [<key>] [--json] [--log-level <level>]",
+        "  crossmacro settings get --all [--json] [--log-level <level>]",
+        "  crossmacro settings set <key> <value> [--json] [--log-level <level>]",
+        "  crossmacro settings list-keys [--json] [--log-level <level>]",
+        "  crossmacro settings reset <key> [--json] [--log-level <level>]",
+        "  crossmacro profile list|current|create|switch|rename|delete ... [--json] [--log-level <level>]",
+        "  crossmacro text-expansion list|add|remove|enable|disable|test ... [--json] [--log-level <level>]",
+        "  crossmacro schedule list|run|add|edit|remove|enable|disable|next ... [--json] [--log-level <level>]",
+        "  crossmacro shortcut list|run|add|edit|remove|enable|disable|bind ... [--json] [--log-level <level>]",
+        "  crossmacro trigger list|add|edit|remove|enable|disable ... [--json] [--log-level <level>]",
+        "  crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]",
+        string.Empty,
+        "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+        "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+        string.Empty,
+        "  crossmacro clipboard get [--json] [--log-level <level>]",
+        "  crossmacro clipboard set <text> [--json] [--log-level <level>]",
+        "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]",
+        "  crossmacro clipboard clear [--json] [--log-level <level>]",
+        "  crossmacro window active|list|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|workspace ... [--json] [--log-level <level>]",
+        "  crossmacro screen pixel|wait-color|search-color|search-image|wait-image|image-click ... [--json] [--log-level <level>]",
+        "  crossmacro screenshot ((--output|-o) <path>|--clipboard) [--region <x> <y> <width> <height>] [--json] [--log-level <level>]",
+        string.Empty,
+        "  crossmacro headless [--json] [--log-level <level>]",
+        "  crossmacro --headless [--json] [--log-level <level>]",
+    ];
+
+    private static readonly string TopLevelUsageText = BuildTopLevelUsageText();
+
+    private static readonly HashSet<string> KnownGuiStartupOptionTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "--start-minimized",
+    };
+
+    private static readonly string[] KnownGuiStartupOptionPrefixes =
+    [
+        "--drm",
+        "--fbdev",
+        "--tty",
+        "--display",
+        "--x11",
+        "--wayland",
+    ];
+
+    public static CliParseResult Parse(string[] args)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        return Parse(args.AsMemory());
+    }
+
+    public static CliParseResult Parse(ReadOnlyMemory<string> args)
+    {
+        if (args.Length is 0)
+        {
+            return CliParseResult.Gui();
+        }
+
+        var arguments = args.ToArray();
+        var first = arguments[0];
+
+        if (IsHelpToken(first))
+        {
+            return CliParseResult.Help();
+        }
+
+        if (IsVersionToken(first))
+        {
+            return CliParseResult.Version();
+        }
+
+        if (!IsCliCommandToken(first))
+        {
+            if (IsStandaloneCliOptionToken(first))
+            {
+                return CliParseResult.Error(
+                    $"Option {first} requires a command.",
+                    ["See crossmacro --help for usage information."],
+                    prefersJsonOutput: string.Equals(first, "--json", StringComparison.OrdinalIgnoreCase),
+                    showTopLevelUsageInTextMode: true);
+            }
+
+            if (ShouldTreatAsGuiStartup(first))
+            {
+                return CliParseResult.Gui();
+            }
+
+            if (LooksLikeOptionToken(first))
+            {
+                return CliParseResult.Error(
+                    $"Unknown option: {first}",
+                    ["See crossmacro --help for usage information."],
+                    prefersJsonOutput: string.Equals(first, "--json", StringComparison.OrdinalIgnoreCase)
+                        || CliParseHelpers.HasJsonOption(arguments, 1),
+                    showTopLevelUsageInTextMode: true);
+            }
+
+            return CliParseResult.Error(
+                $"Unknown command: {first}",
+                ["See crossmacro --help for usage information."],
+                prefersJsonOutput: CliParseHelpers.HasJsonOption(arguments, 1),
+                showTopLevelUsageInTextMode: true);
+        }
+
+        if (TryGetRootCommand(first, out var command) && command is not null)
+        {
+            return command.ParseCommand(arguments);
+        }
+
+        return CliParseResult.Error(
+            $"Unknown command: {first}",
+            ["See crossmacro --help for usage information."],
+            prefersJsonOutput: CliParseHelpers.HasJsonOption(arguments, 1),
+            showTopLevelUsageInTextMode: true);
+    }
+
+    public static string GetUsage(string? topic = null)
+    {
+        if (!string.IsNullOrWhiteSpace(topic))
+        {
+            return GetTopicUsage(topic);
+        }
+
+        return TopLevelUsageText;
+    }
+
+    private static string GetTopicUsage(string topic)
+    {
+        if (string.Equals(topic, "macro", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro macro validate <macro-file> [--json] [--log-level <level>]\n" +
+                "  crossmacro macro info <macro-file> [--json] [--log-level <level>]\n\n" +
+                "Subcommands:\n" +
+                "  validate  Validate macro syntax and playback compatibility.\n" +
+                "  info      Show macro metadata and event breakdown.\n\n" +
+                "Try:\n" +
+                "  crossmacro macro validate --help\n" +
+                "  crossmacro macro info --help\n";
+        }
+
+        if (string.Equals(topic, "macro.validate", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro macro validate <macro-file> [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Loads the macro file and runs validation checks without playback.\n\n" +
+                "Examples:\n" +
+                "  crossmacro macro validate ./demo.macro\n" +
+                "  crossmacro macro validate ./demo.macro --json\n";
+        }
+
+        if (string.Equals(topic, "macro.info", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro macro info <macro-file> [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Loads the macro file and prints metadata (event count, duration, breakdown).\n\n" +
+                "Examples:\n" +
+                "  crossmacro macro info ./demo.macro\n" +
+                "  crossmacro macro info ./demo.macro --json\n";
+        }
+
+        if (string.Equals(topic, "play", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n\n" +
+                "Options:\n" +
+                "  --speed <value>         Playback speed (0.1..10.0)\n" +
+                "  --loop                  Enable loop mode (infinite if --repeat is omitted)\n" +
+                "  --repeat <n>            Repeat count (> 0 implies loop mode; 0 requires --loop)\n" +
+                "  --repeat-delay-ms <ms>  Delay between repeats in milliseconds (>= 0)\n" +
+                "  --countdown <sec>       Countdown before start (>= 0)\n" +
+                "  --timeout <sec>         Command timeout (>= 0)\n" +
+                "  --dry-run               Validate only; do not send input events\n\n" +
+                "Examples:\n" +
+                "  crossmacro play ./demo.macro\n" +
+                "  crossmacro play ./demo.macro --repeat 3 --speed 1.25\n" +
+                "  crossmacro play ./demo.macro --dry-run --json\n";
+        }
+
+        if (string.Equals(topic, "doctor", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro doctor [--verbose] [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Runs environment and backend readiness checks (session, daemon, uinput, providers).\n\n" +
+                "Options:\n" +
+                "  --verbose  Include diagnostic details in output data.\n\n" +
+                "Examples:\n" +
+                "  crossmacro doctor\n" +
+                "  crossmacro doctor --verbose --json\n";
+        }
+
+        if (string.Equals(topic, "settings", StringComparison.OrdinalIgnoreCase))
+        {
+            var keys = string.Join('\n', SettingsCliService.SupportedKeys.Select(k => $"  - {k}"));
+
+            return
+                "Usage:\n" +
+                "  crossmacro settings get [<key>|--all] [--json] [--log-level <level>]\n" +
+                "  crossmacro settings set <key> <value> [--json] [--log-level <level>]\n" +
+                "  crossmacro settings list-keys [--json] [--log-level <level>]\n" +
+                "  crossmacro settings reset <key> [--json] [--log-level <level>]\n\n" +
+                "Subcommands:\n" +
+                "  get        Read one key or all supported keys.\n" +
+                "  set        Update a single key.\n" +
+                "  list-keys  List supported public keys.\n" +
+                "  reset      Reset one key to its default value.\n\n" +
+                "Supported Keys:\n" +
+                $"{keys}\n\n" +
+                "Try:\n" +
+                "  crossmacro settings get --help\n" +
+                "  crossmacro settings set --help\n";
+        }
+
+        if (string.Equals(topic, "settings.get", StringComparison.OrdinalIgnoreCase))
+        {
+            var keys = string.Join('\n', SettingsCliService.SupportedKeys.Select(k => $"  - {k}"));
+
+            return
+                "Usage:\n" +
+                "  crossmacro settings get [<key>|--all] [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Without <key>, prints all supported key/value pairs.\n" +
+                "  With --all, explicitly prints all supported key/value pairs.\n" +
+                "  With <key>, prints only that key.\n\n" +
+                "Supported Keys:\n" +
+                $"{keys}\n\n" +
+                "Examples:\n" +
+                "  crossmacro settings get\n" +
+                "  crossmacro settings get --all --json\n" +
+                "  crossmacro settings get playback.speed\n" +
+                "  crossmacro settings get logging.level --json\n";
+        }
+
+        if (string.Equals(topic, "settings.set", StringComparison.OrdinalIgnoreCase))
+        {
+            var keys = string.Join('\n', SettingsCliService.SupportedKeys.Select(k => $"  - {k}"));
+
+            return
+                "Usage:\n" +
+                "  crossmacro settings set <key> <value> [--json] [--log-level <level>]\n\n" +
+                "Supported Keys:\n" +
+                $"{keys}\n\n" +
+                "Value Notes:\n" +
+                "  playback.speed             double\n" +
+                "  playback.loop              bool (true/false/1/0/yes/no/on/off)\n" +
+                "  playback.loopCount         integer >= 0\n" +
+                "  playback.loopDelayMs       integer >= 0\n" +
+                "  playback.countdownSeconds  integer >= 0\n" +
+                "  logging.level              Debug|Information|Warning|Error\n" +
+                "  recording.mouse            bool\n" +
+                "  recording.keyboard         bool\n" +
+                "  recording.forceRelative    bool\n" +
+                "  recording.skipInitialZeroZero bool\n" +
+                "  textExpansion.enabled      bool\n\n" +
+                "  ui.theme                  string\n" +
+                "  ui.language               string\n" +
+                "  ui.trayIcon               bool\n" +
+                "  ui.startMinimized         bool\n" +
+                "  updates.checkForUpdates   bool\n\n" +
+                "Examples:\n" +
+                "  crossmacro settings set playback.speed 1.25\n" +
+                "  crossmacro settings set playback.loop true\n" +
+                "  crossmacro settings set logging.level Warning\n";
+        }
+
+        if (string.Equals(topic, "settings.list-keys", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Usage:\n  crossmacro settings list-keys [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "settings.reset", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Usage:\n  crossmacro settings reset <key> [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "profile", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro profile list [--json] [--log-level <level>]\n" +
+                "  crossmacro profile current [--json] [--log-level <level>]\n" +
+                "  crossmacro profile create <name> [--json] [--log-level <level>]\n" +
+                "  crossmacro profile switch <name-or-id> [--json] [--log-level <level>]\n" +
+                "  crossmacro profile rename <name-or-id> <new-name> [--json] [--log-level <level>]\n" +
+                "  crossmacro profile delete <name-or-id> --force [--json] [--log-level <level>]\n\n" +
+                "Profile export/import is intentionally deferred until archive restore semantics are specified.\n";
+        }
+
+        if (topic.StartsWith("profile.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("profile");
+        }
+
+        if (string.Equals(topic, "text-expansion", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "text", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro text-expansion list [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
+                "  crossmacro text-expansion add <trigger> <replacement> [--method CtrlV|CtrlShiftV|ShiftInsert] [--insertion-mode Paste|DirectTyping] [--direct-typing-method FastBatch|CompatibleKeyByKey] [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
+                "  crossmacro text-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>] [--json] [--log-level <level>]\n\n" +
+                "The --profile option edits that profile's storage without switching the active profile. test only resolves an expansion; it does not type or paste.\n";
+        }
+
+        if (topic.StartsWith("text-expansion.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("text-expansion");
+        }
+
+        if (string.Equals(topic, "schedule", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro schedule list [--json] [--log-level <level>]\n" +
+                "  crossmacro schedule run <task-id> [--json] [--log-level <level>]\n" +
+                "  crossmacro schedule add --name <name> --macro <path> [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro schedule edit <task-id> [--name <name>] [--macro <path>] [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro schedule remove|enable|disable|next <task-id> [--json] [--log-level <level>]\n\n" +
+                "Subcommands:\n" +
+                "  list     List known schedule tasks.\n" +
+                "  run      Trigger a schedule task by task id.\n" +
+                "  add      Create an interval, one-time, or weekly schedule task.\n" +
+                "  edit     Update schedule task fields.\n" +
+                "  remove   Delete a schedule task.\n" +
+                "  enable   Enable a schedule task.\n" +
+                "  disable  Disable a schedule task.\n" +
+                "  next     Show the next run time for a schedule task.\n";
+        }
+
+        if (string.Equals(topic, "schedule.list", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro schedule list [--json] [--log-level <level>]\n\n" +
+                "Examples:\n" +
+                "  crossmacro schedule list\n" +
+                "  crossmacro schedule list --json\n";
+        }
+
+        if (string.Equals(topic, "schedule.run", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro schedule run <task-id> [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Executes one schedule task immediately using its id from schedule list output.\n\n" +
+                "Examples:\n" +
+                "  crossmacro schedule run 11111111-1111-1111-1111-111111111111\n" +
+                "  crossmacro schedule run 11111111-1111-1111-1111-111111111111 --json\n";
+        }
+
+        if (topic.StartsWith("schedule.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("schedule");
+        }
+
+        if (string.Equals(topic, "shortcut", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro shortcut list [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut remove|enable|disable <task-id> [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut bind <task-id> <hotkey> [--json] [--log-level <level>]\n\n" +
+                "Subcommands:\n" +
+                "  list     List known shortcut tasks.\n" +
+                "  run      Trigger a shortcut task by task id.\n" +
+                "  add      Create a shortcut-bound macro task.\n" +
+                "  edit     Update shortcut task fields.\n" +
+                "  remove   Delete a shortcut task.\n" +
+                "  enable   Enable a shortcut task.\n" +
+                "  disable  Disable a shortcut task.\n" +
+                "  bind     Replace a shortcut task's hotkey.\n";
+        }
+
+        if (string.Equals(topic, "shortcut.list", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro shortcut list [--json] [--log-level <level>]\n\n" +
+                "Examples:\n" +
+                "  crossmacro shortcut list\n" +
+                "  crossmacro shortcut list --json\n";
+        }
+
+        if (string.Equals(topic, "shortcut.run", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Executes one shortcut task immediately using its id from shortcut list output.\n\n" +
+                "Examples:\n" +
+                "  crossmacro shortcut run 22222222-2222-2222-2222-222222222222\n" +
+                "  crossmacro shortcut run 22222222-2222-2222-2222-222222222222 --json\n";
+        }
+
+        if (topic.StartsWith("shortcut.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("shortcut");
+        }
+
+        if (string.Equals(topic, "trigger", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro trigger list [--json] [--log-level <level>]\n" +
+                "  crossmacro trigger add --name <name> --field <field> --match-mode <mode> --value <value> --action <action> [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro trigger edit <task-id> [--name <name>] [--field <field>] [--match-mode <mode>] [--value <value>] [--action <action>] [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro trigger remove|enable|disable <task-id> [--json] [--log-level <level>]\n\n" +
+                "Subcommands:\n" +
+                "  list     List known trigger tasks.\n" +
+                "  add      Create a window-match trigger task.\n" +
+                "  edit     Update trigger task fields.\n" +
+                "  remove   Delete a trigger task.\n" +
+                "  enable   Enable a trigger task.\n" +
+                "  disable  Disable a trigger task.\n";
+        }
+
+        if (topic.StartsWith("trigger.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("trigger");
+        }
+
+        if (string.Equals(topic, "record", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]\n\n" +
+                "Options:\n" +
+                "  --output, -o <macro-file>  Output file path (required)\n" +
+                "  --mouse <bool>             Capture mouse events\n" +
+                "  --keyboard <bool>          Capture keyboard events\n" +
+                "  --mode <auto|absolute|relative>\n" +
+                "                             Coordinate recording mode\n" +
+                "  --skip-initial-zero        Do not insert initial 0,0 move for relative mode\n" +
+                "  --duration <sec>           Auto-stop duration in seconds (>= 0)\n\n" +
+                "Examples:\n" +
+                "  crossmacro record -o ./new.macro\n" +
+                "  crossmacro record -o ./new.macro --mode relative --duration 10\n";
+        }
+
+        if (string.Equals(topic, "run", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n" +
+                "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n\n" +
+                "Run Steps:\n" +
+                "  move abs <x> <y>\n" +
+                "  move rel <dx> <dy>\n" +
+                "  down <button> | up <button> | click <button>\n" +
+                "  down current <button> | up current <button> | click current <button>\n" +
+                "  scroll <up|down|left|right> [count]\n" +
+                "  key down <key> | key up <key>\n" +
+                "  tap <combo>\n" +
+                "  delay <ms>\n" +
+                "  delay random <min> <max> | delay random <min>..<max>\n" +
+                "  shell \"<command>\" [retries] [backoff_ms] [timeout_ms]\n" +
+                "  shell capture \"<command>\" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\n" +
+                "  shell input \"<stdin text>\" \"<command>\" [retries] [backoff_ms] [timeout_ms]\n" +
+                "  shell capture-input \"<stdin text>\" \"<command>\" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\n" +
+                "  set <name> <value> | set <name>=<value>\n" +
+                "  inc <name> [amount] | dec <name> [amount]\n" +
+                "  repeat <count> { ... }\n" +
+                "  if <left> <op> <right> { ... } else { ... }\n" +
+                "  while <left> <op> <right> { ... }\n" +
+                "  for <var> from <start> to <end> [step <n>] { ... }\n" +
+                "  break | continue\n" +
+                "  type <text>\n" +
+                "  pixelcolor <x> <y> [var]\n" +
+                "  pixelcolor rel <dx> <dy> [var]\n" +
+                "  waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]\n" +
+                "  pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]\n\n" +
+                "Shell capture modes store exit/stdout/stderr variables; use _ to ignore a value. Capture modes do not fail on non-zero exits.\n" +
+                "Shell output captured into variables is capped at 65536 characters per stream.\n" +
+                "Shell steps execute arbitrary commands as the current OS user; only run trusted macros. Flatpak builds disable shell steps. Use $$NAME to pass $NAME to the shell.\n\n" +
+                "Examples:\n" +
+                "  crossmacro run --step \"move abs 500 300\" --step \"click left\" --dry-run\n" +
+                "  crossmacro run move rel 100 0 delay 40 click left\n" +
+                "  crossmacro run --step \"set x=640\" --step \"set y=360\" --step \"move abs $x $y\"\n" +
+                "  crossmacro run --step \"repeat 3 {\" --step \"click left\" --step \"delay random 40 90\" --step \"}\"\n" +
+                "  crossmacro run --step \"set i=0\" --step \"while $i < 3 {\" --step \"click left\" --step \"inc i\" --step \"}\"\n" +
+                "  crossmacro run --step \"delay random 40..90\" --step \"click left\"\n" +
+                "  crossmacro run --step 'shell \"notify-send done\" 1 250 5000'\n" +
+                "  crossmacro run --step 'shell capture \"printf ok\" code out err'\n" +
+                "  crossmacro run --step 'shell capture-input \"hello\" \"cat\" code out err'\n" +
+                "  crossmacro run --step \"pixelcolor 500 300 sampled\"\n" +
+                "  crossmacro run --step \"waitcolor 500 300 00FF00 5000\"\n" +
+                "  crossmacro run --step 'pixelcolor 500 300 sampled' --step 'waitcolor 500 300 $sampled 5000'\n" +
+                "  crossmacro run --step \"pixelsearch 0 0 1920 1080 FF0000 found_x found_y tolerance 26\"\n" +
+                "  crossmacro run --file ./steps.txt --json\n";
+        }
+
+        if (string.Equals(topic, "headless", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro headless [--json] [--log-level <level>]\n" +
+                "  crossmacro --headless [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Starts background runtime services without opening GUI.\n" +
+                "  Active services: global hotkeys, scheduler, shortcuts, text expansion.\n\n" +
+                "Hotkey Behavior:\n" +
+                "  Recording hotkey: start/stop recording in current headless session.\n" +
+                "  Playback hotkey: play/stop the last macro recorded in current headless session.\n" +
+                "  Pause hotkey: pause/resume active playback.\n\n" +
+                "Notes:\n" +
+                "  Playback hotkey requires a macro recorded in the same headless session.\n" +
+                "  Stops on Ctrl+C (exit code 130).\n";
+        }
+
+        if (string.Equals(topic, "clipboard", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro clipboard get [--json] [--log-level <level>]\n" +
+                "  crossmacro clipboard set <text> [--json] [--log-level <level>]\n" +
+                "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]\n" +
+                "  crossmacro clipboard clear [--json] [--log-level <level>]\n\n" +
+                "Subcommands:\n" +
+                "  get   Print current clipboard text.\n" +
+                "  set   Replace clipboard text from an argument or file.\n" +
+                "  clear Clear clipboard text.\n";
+        }
+
+        if (string.Equals(topic, "clipboard.get", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Usage:\n  crossmacro clipboard get [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "clipboard.set", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro clipboard set <text> [--json] [--log-level <level>]\n" +
+                "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "clipboard.clear", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Usage:\n  crossmacro clipboard clear [--json] [--log-level <level>]\n";
+        }
+
+        if (string.Equals(topic, "window", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro window active [--json] [--log-level <level>]\n" +
+                "  crossmacro window list [--json] [--log-level <level>]\n" +
+                "  crossmacro window search (--title <text>|--class <text>) [--json] [--log-level <level>]\n" +
+                "  crossmacro window wait (--title <text>|--class <text>) [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
+                "  crossmacro window focus (--address <id>|--title <text>|--class <text>) [--json] [--log-level <level>]\n" +
+                "  crossmacro window close (--address <id>|--title <text>) [--json] [--log-level <level>]\n" +
+                "  crossmacro window move --active <x> <y> [--json] [--log-level <level>]\n" +
+                "  crossmacro window resize --active <width> <height> [--json] [--log-level <level>]\n" +
+                "  crossmacro window center|maximize|fullscreen|float --active [--json] [--log-level <level>]\n" +
+                "  crossmacro window workspace get|switch|move-active|move-window ... [--json] [--log-level <level>]\n\n" +
+                "Matches for --title and --class use case-insensitive substring matching.\n";
+        }
+
+        if (topic.StartsWith("window.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("window");
+        }
+
+        if (string.Equals(topic, "screen", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro screen pixel <x> <y> [--relative] [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen search-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n\n" +
+                "Colors are 6-character RGB hex values. search-color bounds are end-exclusive. image commands read 8-bit PNG templates.\n";
+        }
+
+        if (topic.StartsWith("screen.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetTopicUsage("screen");
+        }
+
+        if (string.Equals(topic, "screenshot", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro screenshot --output <path> [--json] [--log-level <level>]\n" +
+                "  crossmacro screenshot --clipboard [--json] [--log-level <level>]\n" +
+                "  crossmacro screenshot -o <path> --clipboard --region <x> <y> <width> <height> [--json] [--log-level <level>]\n\n" +
+                "Captures a PNG image using the active screen frame provider.\n";
+        }
+
+        return "Usage:\n  crossmacro --help\n";
+    }
+
+    private static bool IsCliCommandToken(string firstToken)
+    {
+        return TryGetRootCommand(firstToken, out _);
+    }
+
+    private static bool TryGetRootCommand(string token, out RootCommandDescriptor? command)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            command = null;
+            return false;
+        }
+
+        return RootCommandLookup.TryGetValue(token, out command);
+    }
+
+    private static bool ShouldTreatAsGuiStartup(string firstToken)
+    {
+        if (string.IsNullOrWhiteSpace(firstToken))
+        {
+            return true;
+        }
+
+        if (KnownGuiStartupOptionTokens.Contains(firstToken))
+        {
+            return true;
+        }
+
+        if (firstToken.StartsWith("-psn_", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return KnownGuiStartupOptionPrefixes.Any(prefix =>
+            string.Equals(firstToken, prefix, StringComparison.OrdinalIgnoreCase)
+            || firstToken.StartsWith($"{prefix}=", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool LooksLikeOptionToken(string token)
+    {
+        return token.StartsWith('-');
+    }
+
+    private static bool IsStandaloneCliOptionToken(string token)
+    {
+        return StandaloneCliOptionTokens.Contains(token);
+    }
+
+    private static string BuildTopLevelUsageText()
+    {
+        return
+            "Usage:\n" +
+            string.Join('\n', TopLevelUsageSections) +
+            "\n\nDetailed Help:\n" +
+            "  crossmacro <command> --help\n" +
+            "  Example: crossmacro settings --help\n\n" +
+            "Options:\n" +
+            "  -h, --help       Show help\n" +
+            "  -v, --version    Show version\n" +
+            "  --start-minimized  Start GUI minimized and hide to tray when available\n" +
+            "  --json           Print result in JSON format\n" +
+            "  --log-level      Override logger level (Verbose, Debug, Information, Warning, Error, Fatal)\n";
+    }
+
+    private static Dictionary<string, RootCommandDescriptor> BuildRootCommandLookup()
+    {
+        var lookup = new Dictionary<string, RootCommandDescriptor>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var command in RootCommands)
+        {
+            lookup[command.CommandToken] = command;
+
+            foreach (var alias in command.Aliases)
+            {
+                lookup[alias] = command;
+            }
+        }
+
+        return lookup;
+    }
+
+    private static bool IsHelpToken(string token)
+    {
+        return CliParseHelpers.IsHelpToken(token);
+    }
+
+    private static bool IsVersionToken(string token)
+    {
+        return CliParseHelpers.IsVersionToken(token);
+    }
+}

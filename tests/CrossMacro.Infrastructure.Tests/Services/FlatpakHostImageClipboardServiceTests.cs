@@ -1,6 +1,7 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
+[System.Runtime.Versioning.SupportedOSPlatform("linux")]
 public sealed class FlatpakHostImageClipboardServiceTests
 {
     [Fact]
@@ -14,9 +15,9 @@ public sealed class FlatpakHostImageClipboardServiceTests
         var service = new FlatpakHostImageClipboardService(runner, new TestRuntimeContext("wayland"));
         byte[] png = [1, 2, 3];
 
-        await service.SetPngAsync(png);
+        await service.SetPngAsync(png, CancellationToken.None);
 
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal("flatpak-spawn", runner.WriteCalls[0].Command);
         Assert.Equal("--host wl-copy --type image/png", runner.WriteCalls[0].Args);
         Assert.Equal("010203", runner.WriteCalls[0].InputHex);
@@ -33,9 +34,9 @@ public sealed class FlatpakHostImageClipboardServiceTests
         var service = new FlatpakHostImageClipboardService(runner, new TestRuntimeContext("x11"));
         byte[] png = [1, 2, 3];
 
-        await service.SetPngAsync(png);
+        await service.SetPngAsync(png, CancellationToken.None);
 
-        Assert.Single(runner.WriteCalls);
+        _ = Assert.Single(runner.WriteCalls);
         Assert.Equal("flatpak-spawn", runner.WriteCalls[0].Command);
         Assert.Equal("--host xclip -selection clipboard -t image/png -i", runner.WriteCalls[0].Args);
     }
@@ -47,7 +48,7 @@ public sealed class FlatpakHostImageClipboardServiceTests
         var service = new FlatpakHostImageClipboardService(runner, new TestRuntimeContext("wayland"));
         byte[] png = [1, 2, 3];
 
-        await Assert.ThrowsAsync<ImageClipboardUnavailableException>(() => service.SetPngAsync(png));
+        _ = await Assert.ThrowsAsync<ImageClipboardUnavailableException>(() => service.SetPngAsync(png, CancellationToken.None));
         Assert.False(service.IsSupported);
     }
 
@@ -61,11 +62,11 @@ public sealed class FlatpakHostImageClipboardServiceTests
         var service = new FlatpakHostImageClipboardService(runner, new TestRuntimeContext("wayland"));
         byte[] png = [1, 2, 3];
 
-        await Assert.ThrowsAsync<ImageClipboardUnavailableException>(() => service.SetPngAsync(png));
+        _ = await Assert.ThrowsAsync<ImageClipboardUnavailableException>(() => service.SetPngAsync(png, CancellationToken.None));
         Assert.False(service.IsSupported);
     }
 
-    private sealed class FakeProcessRunner : CrossMacro.Infrastructure.Services.IProcessRunner
+    private sealed class FakeProcessRunner : CrossMacro.Platform.Abstractions.IProcessRunner
     {
         public Dictionary<string, bool> CheckResults { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, bool> HostCommandResults { get; } = new(StringComparer.Ordinal);
@@ -136,17 +137,12 @@ public sealed class FlatpakHostImageClipboardServiceTests
         }
     }
 
-    private sealed class TestRuntimeContext : IRuntimeContext
+    private sealed class TestRuntimeContext(string? sessionType) : IRuntimeContext
     {
-        public TestRuntimeContext(string? sessionType)
-        {
-            SessionType = sessionType;
-        }
-
         public bool IsLinux => true;
         public bool IsWindows => false;
         public bool IsMacOS => false;
         public bool IsFlatpak => true;
-        public string? SessionType { get; }
+        public string? SessionType { get; } = sessionType;
     }
 }

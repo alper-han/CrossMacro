@@ -11,9 +11,7 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
     private bool _disposed;
 
     public MacOSScreenFrameProvider()
-        : this(new CoreGraphicsMacOSScreenCaptureBackend(), new CoreGraphicsScreenCapturePermission(), () => OperatingSystem.IsMacOSVersionAtLeast(10, 15))
-    {
-    }
+        : this(new CoreGraphicsMacOSScreenCaptureBackend(), new CoreGraphicsScreenCapturePermission(), () => OperatingSystem.IsMacOSVersionAtLeast(10, 15)) { /* Empty */ }
 
     internal MacOSScreenFrameProvider(
         IMacOSScreenCaptureBackend captureBackend,
@@ -29,61 +27,87 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
 
     public bool IsSupported => _isSupportedProbe();
 
-    public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        try
+        {
+            // Must stay inside try: GetVirtualScreenBounds/EnsurePermission can throw
+            // BackendUnavailableException, which maps to a Failure result below.
+            var earlyFailure = GetEarlyFailure(region, options, out var captureRegion);
+            if (earlyFailure is not null)
+            {
+                return earlyFailure.Value;
+            }
+
+            var captured = _captureBackend.Capture(captureRegion, options.CancellationToken);
+            ScreenFrame? frame = null;
+            try
+            {
+                frame = new ScreenFrame(
+                    captured.LogicalBounds,
+                    captured.Stride,
+                    captured.PixelFormat,
+                    captured.Pixels);
+                var result = ScreenReadResultFactory.Success(frame);
+                frame = null; // ownership transferred to result
+                return result;
+            }
+            finally
+            {
+                frame?.Dispose();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
+                ScreenReadErrorKind.Canceled,
+                "macOS CoreGraphics screen capture was canceled.");
+        }
+        catch (BackendUnavailableException ex)
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+        }
+        catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or Win32Exception or InvalidOperationException)
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, ex.Message);
+        }
+    }
+
+    private ScreenReadResult<ScreenFrame>? GetEarlyFailure(ScreenRect? region, ScreenReadOptions options, out ScreenRect captureRegion)
+    {
+        captureRegion = default;
+
         if (!IsSupported)
         {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Unsupported,
-                "macOS CoreGraphics screen reading requires macOS 10.15 or newer."));
+                "macOS CoreGraphics screen reading requires macOS 10.15 or newer.");
         }
 
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.Canceled,
-                "macOS CoreGraphics screen capture was canceled before it started."));
+                "macOS CoreGraphics screen capture was canceled before it started.");
         }
 
-        try
+        var virtualScreen = _captureBackend.GetVirtualScreenBounds();
+        captureRegion = region ?? virtualScreen;
+        if (!virtualScreen.Contains(captureRegion))
         {
-            var virtualScreen = _captureBackend.GetVirtualScreenBounds();
-            var captureRegion = region ?? virtualScreen;
-            if (!virtualScreen.Contains(captureRegion))
-            {
-                return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
-                    ScreenReadErrorKind.OutOfBounds,
-                    $"Requested region {captureRegion} is outside macOS virtual screen bounds {virtualScreen}."));
-            }
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
+                ScreenReadErrorKind.OutOfBounds,
+                $"Requested region {captureRegion} is outside macOS virtual screen bounds {virtualScreen}.");
+        }
 
-            if (!EnsurePermission())
-            {
-                return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, PermissionMessage));
-            }
+        if (!EnsurePermission())
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, PermissionMessage);
+        }
 
-            var captured = _captureBackend.Capture(captureRegion, options.CancellationToken);
-            return Task.FromResult(ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(
-                captured.LogicalBounds,
-                captured.Stride,
-                captured.PixelFormat,
-                captured.Pixels)));
-        }
-        catch (OperationCanceledException)
-        {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
-                ScreenReadErrorKind.Canceled,
-                "macOS CoreGraphics screen capture was canceled."));
-        }
-        catch (BackendUnavailableException ex)
-        {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.BackendUnavailable, ex.Message));
-        }
-        catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or Win32Exception or InvalidOperationException)
-        {
-            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, ex.Message));
-        }
+        return null;
     }
 
     public void Dispose()
@@ -105,7 +129,7 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
 
         if (_permission.IsRequestAvailable)
         {
-            _permission.Request();
+            _ = _permission.Request();
         }
 
         return _permission.Preflight();

@@ -1,23 +1,16 @@
 
 namespace CrossMacro.UI.Services;
 
-internal sealed class PortalScreenReadingGuidanceService : IPortalScreenReadingGuidanceService
+internal sealed class PortalScreenReadingGuidanceService(
+    IDialogService dialogService,
+    ISettingsService settingsService,
+    IScreenReadingDiagnosticProvider? diagnosticProvider = null) : IPortalScreenReadingGuidanceService
 {
-    private readonly IDialogService _dialogService;
-    private readonly ISettingsService _settingsService;
-    private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider;
+    private readonly IDialogService _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+    private readonly ISettingsService _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+    private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider = diagnosticProvider;
     private readonly Lock _lock = new();
     private bool _hasShown;
-
-    public PortalScreenReadingGuidanceService(
-        IDialogService dialogService,
-        ISettingsService settingsService,
-        IScreenReadingDiagnosticProvider? diagnosticProvider = null)
-    {
-        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
-        _diagnosticProvider = diagnosticProvider;
-    }
 
     public async Task ShowBeforePortalWarmupAsync()
     {
@@ -68,7 +61,7 @@ internal sealed class PortalScreenReadingGuidanceService : IPortalScreenReadingG
         {
             return _diagnosticProvider?.GetSnapshot().SelectedBackend;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[PortalScreenReadingGuidanceService] Screen-reading diagnostics failed; skipping Portal guidance");
             return null;

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
-public class LinuxDaemonHandshakeProbeTests
+public sealed class LinuxDaemonHandshakeProbeTests
 {
     [LinuxFact]
     public void ProbeStructured_WhenTransportReportsPermissionDenied_PreservesPermissionDeniedStatus()
@@ -13,7 +13,7 @@ public class LinuxDaemonHandshakeProbeTests
 
         Assert.False(result.Succeeded);
         Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, result.Status);
-        Assert.IsType<UnauthorizedAccessException>(result.Exception);
+        TestAssertions.IsType<UnauthorizedAccessException>(result.Exception);
     }
 
     [LinuxFact]
@@ -26,5 +26,14 @@ public class LinuxDaemonHandshakeProbeTests
 
         Assert.False(result.Succeeded);
         Assert.Equal(LinuxDaemonHandshakeStatus.ProtocolMismatch, result.Status);
+    }
+
+    [LinuxFact]
+    public async Task ProbeWithinBudgetAsync_PropagatesCallerCancellation()
+    {
+        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => LinuxDaemonHandshakeTransport.ProbeWithinBudgetAsync(
+            "/run/crossmacro/crossmacro.sock",
+            TimeSpan.FromSeconds(2),
+            new CancellationToken(canceled: true)));
     }
 }

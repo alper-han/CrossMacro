@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../CrossMacro.Platform.Linux/Native/Evdev/**/*.cs" Link="Native/Evdev/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../CrossMacro.Platform.Linux/Native/Systemd/**/*.cs" Link="Native/Systemd/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../CrossMacro.Platform.Linux/Native/UInput/**/*.cs" Link="Native/UInput/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../CrossMacro.Platform.Linux/Native/LinuxSystemPaths.cs" Link="Native/LinuxSystemPaths.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Platform.Linux.Tests" />
+    <InternalsVisibleTo Include="CrossMacro.Daemon.Tests" />
+  </ItemGroup>
+
+</Project>

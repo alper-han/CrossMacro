@@ -19,7 +19,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
 
         if (!Directory.Exists(configRootPath))
         {
-            Directory.CreateDirectory(configRootPath);
+            _ = Directory.CreateDirectory(configRootPath);
         }
 
         _configPath = Path.Combine(configRootPath, ConfigFileNames.Hotkeys);
@@ -45,7 +45,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to load hotkey configuration from {Path}", configPath);
         }
@@ -78,7 +78,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
                 return settings;
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to load hotkey configuration from {Path}", configPath);
         }
@@ -116,11 +116,12 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
 
     public void Save(HotkeySettings settings)
     {
-        TrySave(CaptureSaveRequest(settings));
+        _ = TrySave(CaptureSaveRequest(settings));
     }
 
     public bool TrySave(HotkeyConfigurationSaveRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
         try
         {
             FileBackedJsonStorage.Write(request.ConfigPath, new HotkeySettings
@@ -132,7 +133,28 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
             Log.Information("Saved hotkey configuration to {Path}", request.ConfigPath);
             return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "Failed to save hotkey configuration to {Path}", request.ConfigPath);
+            return false;
+        }
+    }
+
+    public async Task<bool> TrySaveAsync(HotkeyConfigurationSaveRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            await FileBackedJsonStorage.WriteAsync(request.ConfigPath, new HotkeySettings
+            {
+                RecordingHotkey = request.RecordingHotkey,
+                PlaybackHotkey = request.PlaybackHotkey,
+                PauseHotkey = request.PauseHotkey,
+            }, CrossMacroJsonContext.Default.HotkeySettings).ConfigureAwait(false);
+            Log.Information("Saved hotkey configuration to {Path}", request.ConfigPath);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to save hotkey configuration to {Path}", request.ConfigPath);
             return false;

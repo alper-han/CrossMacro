@@ -82,6 +82,6 @@ public static class ScriptBlockStructureValidator
 
     private static bool HasEnclosingLoop(IEnumerable<(EditorActionType Type, int Index)> blockStack)
     {
-        return blockStack.Any(entry => EditorActionScriptClassifier.IsLoopBlockStartAction(entry.Type));
+        return blockStack.Any(static entry => EditorActionScriptClassifier.IsLoopBlockStartAction(entry.Type));
     }
 }

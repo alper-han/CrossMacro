@@ -1,17 +1,17 @@
 
 namespace CrossMacro.Platform.MacOS.Native;
 
-internal static class Accessibility
+internal static partial class Accessibility
 {
     private const string ApplicationServicesLib = "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices";
 
-    [DllImport(ApplicationServicesLib)]
+    [LibraryImport(ApplicationServicesLib)]
     [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool AXIsProcessTrusted();
+    public static partial bool AXIsProcessTrusted();
 
-    [DllImport(ApplicationServicesLib)]
+    [LibraryImport(ApplicationServicesLib)]
     [return: MarshalAs(UnmanagedType.I1)]
-    public static extern bool AXIsProcessTrustedWithOptions(IntPtr options);
+    public static partial bool AXIsProcessTrustedWithOptions(IntPtr options);
 
     public static bool AXIsProcessTrustedWithPrompt()
     {

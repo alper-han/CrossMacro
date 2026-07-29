@@ -18,8 +18,7 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
             PortalScreenCastSupportProbe.Instance,
             new KWinScreenShotCapture(),
             gnomePositionProvider)
-    {
-    }
+    { /* Empty */ }
 
     internal LinuxScreenReaderCapabilityDetector(
         IExtImageCopySupportProbe extImageCopyProbe,
@@ -30,17 +29,14 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
             PortalScreenCastSupportProbe.Instance,
             new KWinScreenShotCapture(),
             gnomePositionProvider)
-    {
-    }
+    { /* Empty */ }
 
     internal LinuxScreenReaderCapabilityDetector(
         IExtImageCopySupportProbe extImageCopyProbe,
         IWlrScreencopySupportProbe wlrScreencopyProbe,
         IPortalScreenCastSupportProbe portalScreenCastProbe,
         IKWinScreenShotSupportProbe kWinScreenShotProbe)
-        : this(extImageCopyProbe, wlrScreencopyProbe, portalScreenCastProbe, kWinScreenShotProbe, new GnomePositionProvider())
-    {
-    }
+        : this(extImageCopyProbe, wlrScreencopyProbe, portalScreenCastProbe, kWinScreenShotProbe, new GnomePositionProvider()) { /* Empty */ }
 
     public LinuxScreenReaderCapabilityDetector(
         IExtImageCopySupportProbe extImageCopyProbe,

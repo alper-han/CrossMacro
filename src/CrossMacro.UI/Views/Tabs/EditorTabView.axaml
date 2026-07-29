@@ -1,7 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
+             xmlns:beh="using:CrossMacro.UI.Behaviors"
+             xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -11,15 +14,15 @@
              x:DataType="vm:EditorViewModel">
 
     <Design.DataContext>
-        <vm:DesignEditorViewModel/>
+        <designVm:DesignEditorViewModel/>
     </Design.DataContext>
 
     <UserControl.Resources>
-        <local:NullableIntConverter x:Key="NullableIntConverter"/>
-        <local:HexColorBrushConverter x:Key="HexColorBrushConverter"/>
-        <local:IndentLevelToMarginConverter x:Key="IndentLevelToMarginConverter"/>
-        <local:ScriptOperandTypeDisplayConverter x:Key="ScriptOperandTypeDisplayConverter"/>
-        <local:ScriptConditionOperatorDisplayConverter x:Key="ScriptConditionOperatorDisplayConverter"/>
+        <conv:NullableIntConverter x:Key="NullableIntConverter"/>
+        <conv:HexColorBrushConverter x:Key="HexColorBrushConverter"/>
+        <conv:IndentLevelToMarginConverter x:Key="IndentLevelToMarginConverter"/>
+        <conv:ScriptOperandTypeDisplayConverter x:Key="ScriptOperandTypeDisplayConverter"/>
+        <conv:ScriptConditionOperatorDisplayConverter x:Key="ScriptConditionOperatorDisplayConverter"/>
     </UserControl.Resources>
 
     <Grid RowDefinitions="*,Auto">
@@ -61,7 +64,7 @@
 
                         <ListBox Grid.Row="1"
                               ItemsSource="{Binding ActionListItems}"
-                              local:ListBoxSelectedActionIndices.SelectedUnderlyingIndices="{Binding SelectedActionUnderlyingIndices}"
+                              beh:ListBoxSelectedActionIndices.SelectedUnderlyingIndices="{Binding SelectedActionUnderlyingIndices}"
                               Classes="editor-action-list"
                               Background="Transparent"
                                SelectionMode="Multiple">
@@ -197,7 +200,7 @@
                             <StackPanel Spacing="4">
                                 <TextBlock Text="{localization:Loc Editor_Type}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="4" Padding="8,6">
-                                    <TextBlock Text="{Binding SelectedAction.Type, Converter={x:Static local:ActionTypeConverters.DisplayText}}"
+                                    <TextBlock Text="{Binding SelectedAction.Type, Converter={x:Static conv:ActionTypeConverters.DisplayText}}"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontWeight="SemiBold"/>
                                 </Border>

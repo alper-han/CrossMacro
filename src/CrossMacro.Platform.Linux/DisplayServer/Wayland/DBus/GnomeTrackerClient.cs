@@ -1,14 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-internal sealed class GnomeTrackerClient : LinuxDbusClientBase
+internal sealed class GnomeTrackerClient(DBusConnection connection) : LinuxDbusClientBase(connection, LinuxDbusTransportBoundary.TrackerServiceName, LinuxDbusTransportBoundary.TrackerObjectPath, Interface)
 {
     internal const string Interface = "io.github.alper_han.crossmacro.Tracker";
-
-    public GnomeTrackerClient(DBusConnection connection)
-        : base(connection, LinuxDbusTransportBoundary.TrackerServiceName, LinuxDbusTransportBoundary.TrackerObjectPath, Interface)
-    {
-    }
 
     public Task<(int x, int y)> GetPositionAsync() => CallAsync("GetPosition", ReadGetPositionReply);
     public Task<(int width, int height)> GetResolutionAsync() => CallAsync("GetResolution", ReadGetResolutionReply);
@@ -30,8 +25,15 @@ internal sealed class GnomeTrackerClient : LinuxDbusClientBase
     public Task<bool> MoveActiveWindowToWorkspaceAsync(string name) => CallAsync("MoveActiveWindowToWorkspace", ReadBoolReply, "s", (ref MessageWriter w) => w.WriteString(name));
     public Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string name) => CallAsync("MoveWindowToWorkspaceByAddress", ReadBoolReply, "ss", (ref MessageWriter w) => { w.WriteString(address); w.WriteString(name); });
 
-    internal static (int x, int y) ReadGetPositionReply(Message message, object? _) { var r = message.GetBodyReader(); return (r.ReadInt32(), r.ReadInt32()); }
-    internal static (int width, int height) ReadGetResolutionReply(Message message, object? _) { var r = message.GetBodyReader(); return (r.ReadInt32(), r.ReadInt32()); }
+    private static (int First, int Second) ReadInt32PairReply(Message message, object? state)
+    {
+        _ = state;
+        var reader = message.GetBodyReader();
+        return (reader.ReadInt32(), reader.ReadInt32());
+    }
+
+    internal static (int x, int y) ReadGetPositionReply(Message message, object? state) => ReadInt32PairReply(message, state);
+    internal static (int width, int height) ReadGetResolutionReply(Message message, object? state) => ReadInt32PairReply(message, state);
     internal static (string base64Data, int stride, bool hasAlpha) ReadCaptureAreaReply(Message message, object? _) { var r = message.GetBodyReader(); return (r.ReadString(), r.ReadInt32(), r.ReadBool()); }
     internal static string ReadStringReply(Message message, object? _) => message.GetBodyReader().ReadString();
     internal static bool ReadBoolReply(Message message, object? _) => message.GetBodyReader().ReadBool();

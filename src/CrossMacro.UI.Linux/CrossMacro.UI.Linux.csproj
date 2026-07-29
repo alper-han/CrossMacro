@@ -48,4 +48,8 @@
     <InternalsVisibleTo Include="CrossMacro.UI.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../Shared/GuiHostBootstrap.cs" Link="GuiHostBootstrap.cs" />
+  </ItemGroup>
+
 </Project>

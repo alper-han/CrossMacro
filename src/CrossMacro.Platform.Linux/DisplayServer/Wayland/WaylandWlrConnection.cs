@@ -37,12 +37,13 @@ internal sealed class WaylandWlrConnection : IDisposable
         }
 
         WaylandProtocolTables? protocol = null;
+        WaylandRegistryState? registry = null;
         try
         {
             protocol = new WaylandProtocolTables();
             var registryProxy = library.GetRegistry(display, protocol.WlRegistry);
-            var registry = new WaylandRegistryState(library, protocol);
-            library.AddDispatcher(registryProxy, registry.DispatcherPtr);
+            registry = new WaylandRegistryState(library, protocol);
+            _ = library.AddDispatcher(registryProxy, registry.DispatcherPtr);
             for (var i = 0; i < RegistryRoundtripCount; i++)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -58,10 +59,11 @@ internal sealed class WaylandWlrConnection : IDisposable
 
             return new WaylandWlrConnection(library, protocol, display, registry);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             protocol?.Dispose();
             library.DisplayDisconnect(display);
+            registry?.Dispose();
             library.Dispose();
             throw;
         }
@@ -93,7 +95,7 @@ internal sealed class WaylandWlrConnection : IDisposable
                 composedFrame.LogicalBounds.Height,
                 composedFrame.ValidityIndex);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             composedFrame.Dispose();
             throw;
@@ -125,7 +127,7 @@ internal sealed class WaylandWlrConnection : IDisposable
                 composedFrame.LogicalBounds.Height,
                 composedFrame.ValidityIndex);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             composedFrame.Dispose();
             throw;
@@ -148,10 +150,15 @@ internal sealed class WaylandWlrConnection : IDisposable
         _extImageCopyCaptures.Clear();
         foreach (var output in Registry.Outputs)
         {
-            output.Dispose(_library);
+            output.Destroy(_library);
         }
 
         _library.DisplayDisconnect(_display);
+        Registry.Dispose();
+        foreach (var output in Registry.Outputs)
+        {
+            output.Dispose();
+        }
         _protocol.Dispose();
         _library.Dispose();
     }

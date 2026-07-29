@@ -1,27 +1,19 @@
 
 namespace CrossMacro.UI.Services;
 
-public class CompositeClipboardService : IClipboardService
+public class CompositeClipboardService(
+    IHostClipboardService flatpakHostService,
+    ILinuxClipboardService linuxService,
+    AvaloniaClipboardService avaloniaService,
+    IRuntimeContext runtimeContext) : IClipboardService
 {
-    private readonly IHostClipboardService _flatpakHostService;
-    private readonly ILinuxClipboardService _linuxService;
-    private readonly AvaloniaClipboardService _avaloniaService;
-    private readonly IRuntimeContext _runtimeContext;
+    private readonly IHostClipboardService _flatpakHostService = flatpakHostService;
+    private readonly ILinuxClipboardService _linuxService = linuxService;
+    private readonly AvaloniaClipboardService _avaloniaService = avaloniaService;
+    private readonly IRuntimeContext _runtimeContext = runtimeContext;
     private bool _linuxInitialized;
     private bool _flatpakHostInitialized;
     private bool _preferAvaloniaOnNativeX11;
-
-    public CompositeClipboardService(
-        IHostClipboardService flatpakHostService,
-        ILinuxClipboardService linuxService,
-        AvaloniaClipboardService avaloniaService,
-        IRuntimeContext runtimeContext)
-    {
-        _flatpakHostService = flatpakHostService;
-        _linuxService = linuxService;
-        _avaloniaService = avaloniaService;
-        _runtimeContext = runtimeContext;
-    }
 
     public bool IsSupported =>
         (_runtimeContext.IsFlatpak && (!_flatpakHostInitialized || _flatpakHostService.IsSupported)) ||
@@ -133,7 +125,7 @@ public class CompositeClipboardService : IClipboardService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             _preferAvaloniaOnNativeX11 = false;
             Log.Warning(ex, "[CompositeClipboard] Avalonia clipboard failed on native X11; falling back to shell clipboard");
@@ -160,7 +152,7 @@ public class CompositeClipboardService : IClipboardService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             _preferAvaloniaOnNativeX11 = false;
             Log.Warning(ex, "[CompositeClipboard] Avalonia clipboard read failed on native X11; falling back to shell clipboard");
@@ -200,7 +192,7 @@ public class CompositeClipboardService : IClipboardService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[CompositeClipboard] Flatpak host clipboard failed; falling back to sandbox clipboard");
             return false;
@@ -226,7 +218,7 @@ public class CompositeClipboardService : IClipboardService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[CompositeClipboard] Flatpak host clipboard read failed; falling back to sandbox clipboard");
             return (false, null);

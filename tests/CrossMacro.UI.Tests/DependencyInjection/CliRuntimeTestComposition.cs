@@ -9,8 +9,8 @@ internal static class CliRuntimeTestComposition
         CliRuntimeProfile runtimeProfile = CliRuntimeProfile.OneShot)
     {
         registrar.RegisterPlatformServices(services);
-        services.AddCrossMacroCommonRuntimeServices();
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(
+        _ = services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);

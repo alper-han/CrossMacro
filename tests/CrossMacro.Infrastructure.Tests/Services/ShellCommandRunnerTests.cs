@@ -49,7 +49,7 @@ public sealed class ShellCommandRunnerTests
         await using var cleanup = new TempFileCleanup(marker);
         var runner = new ShellCommandRunner();
 
-        await Assert.ThrowsAsync<ShellCommandTimeoutException>(() =>
+        _ = await Assert.ThrowsAsync<ShellCommandTimeoutException>(() =>
             runner.RunAsync(new ShellCommandRequest($"sleep 1; touch {marker}"), TimeSpan.FromMilliseconds(100)));
 
         await Task.Delay(TimeSpan.FromMilliseconds(1500));
@@ -69,7 +69,7 @@ public sealed class ShellCommandRunnerTests
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
         var runner = new ShellCommandRunner();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             runner.RunAsync(new ShellCommandRequest($"sleep 1; touch {marker}"), timeout: null, cancellation.Token));
 
         await Task.Delay(TimeSpan.FromMilliseconds(1500));
@@ -167,14 +167,9 @@ public sealed class ShellCommandRunnerTests
         Assert.Equal("stderr", result.StandardError);
     }
 
-    private sealed class TempFileCleanup : IAsyncDisposable
+    private sealed class TempFileCleanup(string path) : IAsyncDisposable
     {
-        private readonly string _path;
-
-        public TempFileCleanup(string path)
-        {
-            _path = path;
-        }
+        private readonly string _path = path;
 
         public ValueTask DisposeAsync()
         {

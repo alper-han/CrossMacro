@@ -3,6 +3,7 @@ namespace CrossMacro.Infrastructure.Services;
 
 public class PlaybackValidator : IPlaybackValidator
 {
+    private const bool IsSpecialControlEvent = false;
     private readonly IMousePositionProvider? _provider;
     private readonly PlaybackScriptValidator _scriptValidator;
 
@@ -27,12 +28,12 @@ public class PlaybackValidator : IPlaybackValidator
             return result;
         }
 
-        if (macro.Events.Any(e => e.Type is EventType.None && !IsSpecialControlEvent(e)))
+        if (macro.Events.Any(e => e.Type is EventType.None && !IsSpecialControlEvent))
         {
             result.AddWarning("Macro contains events with Type 'None'");
         }
 
-        if (macro.Events.Any(e => !Enum.IsDefined(typeof(EventType), e.Type)))
+        if (macro.Events.Any(e => !Enum.IsDefined(e.Type)))
         {
             result.AddError("Macro contains invalid/undefined EventType values");
         }
@@ -53,7 +54,7 @@ public class PlaybackValidator : IPlaybackValidator
             .Where(e => e.DelayMs > 10000)
             .ToList();
 
-        if (longDelays.Any())
+        if (longDelays.Count > 0)
         {
             var maxDelay = longDelays.Max(e => e.DelayMs);
             result.AddWarning($"Macro contains {longDelays.Count.ToString(CultureInfo.InvariantCulture)} delay(s) > 10 seconds (max: {(maxDelay / 1000f).ToString("F1", CultureInfo.InvariantCulture)}s)");
@@ -76,11 +77,6 @@ public class PlaybackValidator : IPlaybackValidator
 
 
 
-    private static bool IsSpecialControlEvent(MacroEvent e)
-    {
-        return false;
-    }
-
     private static void AddSuspiciousAbsoluteButtonCoordinateWarning(MacroSequence macro, PlaybackValidationResult result)
     {
         var buttonEvents = macro.Events
@@ -92,13 +88,13 @@ public class PlaybackValidator : IPlaybackValidator
             return;
         }
 
-        bool hasZeroZeroButtonEvent = buttonEvents.Any(e => e.X is 0 && e.Y is 0);
+        bool hasZeroZeroButtonEvent = buttonEvents.Exists(e => e.X is 0 && e.Y is 0);
         if (!hasZeroZeroButtonEvent)
         {
             return;
         }
 
-        bool hasNonZeroButtonEvent = buttonEvents.Any(e => e.X is not 0 || e.Y is not 0);
+        bool hasNonZeroButtonEvent = buttonEvents.Exists(e => e.X is not 0 || e.Y is not 0);
         bool hasNonZeroMouseMove = macro.Events.Any(e =>
             e.Type is EventType.MouseMove
 && (e.X is not 0 || e.Y is not 0));

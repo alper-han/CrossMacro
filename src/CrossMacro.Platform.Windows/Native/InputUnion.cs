@@ -5,9 +5,9 @@ namespace CrossMacro.Platform.Windows.Native;
 internal struct InputUnion
 {
     [FieldOffset(0)]
-    public MOUSEINPUT mi;
+    public MouseInput mi;
     [FieldOffset(0)]
-    public KEYBDINPUT ki;
+    public KeybdInput ki;
     [FieldOffset(0)]
-    public HARDWAREINPUT hi;
+    public HardwareInput hi;
 }

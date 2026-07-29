@@ -1,19 +1,22 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-public class MacroRecorder : IMacroRecorder, IDisposable
+public sealed class MacroRecorder(
+    Func<IInputCapture>? inputCaptureFactory,
+    ICoordinateStrategyFactory coordinateStrategyFactory,
+    Func<ICoordinateStrategy, IInputEventProcessor> processorFactory,
+    Func<IInputSimulator>? inputSimulatorFactory = null) : IMacroRecorder
 {
-    private bool _isRecording;
     private MacroSequence? _currentSequence;
     private Stopwatch? _stopwatch;
     private IInputCapture? _inputCapture;
     private readonly Lock _eventLock = new();
 
-    private readonly Func<IInputCapture>? _inputCaptureFactory;
-    private readonly ICoordinateStrategyFactory _coordinateStrategyFactory;
-    private readonly Func<ICoordinateStrategy, IInputEventProcessor> _processorFactory;
+    private readonly Func<IInputCapture>? _inputCaptureFactory = inputCaptureFactory;
+    private readonly ICoordinateStrategyFactory _coordinateStrategyFactory = coordinateStrategyFactory;
+    private readonly Func<ICoordinateStrategy, IInputEventProcessor> _processorFactory = processorFactory;
 
-    private readonly Func<IInputSimulator>? _inputSimulatorFactory;
+    private readonly Func<IInputSimulator>? _inputSimulatorFactory = inputSimulatorFactory;
 
     // Active components
     private ICoordinateStrategy? _currentStrategy;
@@ -21,33 +24,21 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     public event EventHandler<MacroEventRecordedEventArgs>? EventRecorded;
 
-    public bool IsRecording => _isRecording;
-
-    public MacroRecorder(
-        Func<IInputCapture>? inputCaptureFactory,
-        ICoordinateStrategyFactory coordinateStrategyFactory,
-        Func<ICoordinateStrategy, IInputEventProcessor> processorFactory,
-        Func<IInputSimulator>? inputSimulatorFactory = null)
-    {
-        _inputCaptureFactory = inputCaptureFactory;
-        _coordinateStrategyFactory = coordinateStrategyFactory;
-        _processorFactory = processorFactory;
-        _inputSimulatorFactory = inputSimulatorFactory;
-    }
+    public bool IsRecording { get; private set; }
 
     public async Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
     {
-        if (_isRecording)
+        if (IsRecording)
         {
             return;
         }
 
         if (!recordMouse && !recordKeyboard)
         {
-            throw new ArgumentException("At least one recording type (mouse or keyboard) must be enabled");
+            throw new ArgumentException("At least one recording type (mouse or keyboard) must be enabled", nameof(recordMouse));
         }
 
-        _isRecording = true;
+        IsRecording = true;
 
         bool requestedAbsoluteCoordinates = !forceRelative; // Strategy factory may adjust this based on platform capability.
         bool useAbsoluteCoordinates = requestedAbsoluteCoordinates;
@@ -92,7 +83,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             // 2. Perform Corner Reset for relative recordings when requested.
             if (!useAbsoluteCoordinates && !skipInitialZero)
             {
-                PerformCornerReset();
+                await PerformCornerResetAsync(cancellationToken).ConfigureAwait(false);
             }
 
             await _currentStrategy.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -113,9 +104,9 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             Log.Information("[MacroRecorder] Recording started via {ProviderName}", providerName);
             await inputCapture.StartAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            _isRecording = false;
+            IsRecording = false;
             CleanupComponents();
             throw;
         }
@@ -139,7 +130,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         MacroEvent? recordedEvent = null;
         using (_eventLock.EnterScope())
         {
-            if (!_isRecording || _currentSequence is null || _stopwatch is null || _currentProcessor is null)
+            if (!IsRecording || _currentSequence is null || _stopwatch is null || _currentProcessor is null)
             {
                 return;
             }
@@ -154,7 +145,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                     recordedEvent = macroEvent.Value;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[MacroRecorder] Error processing input event");
             }
@@ -195,7 +186,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         {
             EventRecorded?.Invoke(this, new MacroEventRecordedEventArgs(macroEvent));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[MacroRecorder] EventRecorded subscriber threw");
         }
@@ -203,14 +194,14 @@ public class MacroRecorder : IMacroRecorder, IDisposable
 
     public MacroSequence StopRecording()
     {
-        if (!_isRecording)
+        if (!IsRecording)
         {
             throw new InvalidOperationException("Not currently recording");
         }
 
         Log.Information("[MacroRecorder] Stopping recording...");
 
-        _isRecording = false;
+        IsRecording = false;
         _stopwatch?.Stop();
 
         CleanupComponents();
@@ -270,7 +261,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
                 _inputCapture.StopCapture();
                 _inputCapture.Dispose();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[MacroRecorder] Error cleaning up input capture");
             }
@@ -283,7 +274,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
             {
                 _currentStrategy.Dispose();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[MacroRecorder] Error disposing strategy");
             }
@@ -307,7 +298,7 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         return strategy is not IRelativeCoordinateStrategy;
     }
 
-    private void PerformCornerReset()
+    private async Task PerformCornerResetAsync(CancellationToken cancellationToken)
     {
         if (_inputSimulatorFactory is null)
         {
@@ -319,11 +310,11 @@ public class MacroRecorder : IMacroRecorder, IDisposable
         {
             Log.Information("[MacroRecorder] Performing Corner Reset (Force 0,0)...");
             using var simulator = _inputSimulatorFactory();
-            simulator.Initialize();
+            await simulator.InitializeAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             simulator.MoveRelative(-20000, -20000);
             Log.Information("[MacroRecorder] Corner Reset complete.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[MacroRecorder] Failed to perform Corner Reset");
         }

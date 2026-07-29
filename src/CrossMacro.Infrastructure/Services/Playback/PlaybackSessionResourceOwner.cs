@@ -4,37 +4,28 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// <summary>
 /// Owns resources whose lifetime is exactly one playback session.
 /// </summary>
-internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPauseToken, IRunScriptRuntimeVariableSource
+internal sealed class PlaybackSessionResourceOwner(
+    Func<TimeSpan, CancellationToken, Task> waitAsync,
+    Func<IInputSimulator>? simulatorFactory,
+    IInputSimulatorPool? simulatorPool) : IDisposable, IAsyncDisposable, IPlaybackPauseToken, IRunScriptRuntimeVariableSource
 {
-    private readonly Func<TimeSpan, CancellationToken, Task> _waitAsync;
-    private readonly Func<IInputSimulator>? _simulatorFactory;
-    private readonly IInputSimulatorPool? _simulatorPool;
-    private readonly ManualResetEventSlim _pauseEvent = new(initialState: true);
+    private readonly Func<TimeSpan, CancellationToken, Task> _waitAsync = waitAsync ?? throw new ArgumentNullException(nameof(waitAsync));
+    private readonly Func<IInputSimulator>? _simulatorFactory = simulatorFactory;
+    private readonly IInputSimulatorPool? _simulatorPool = simulatorPool;
+    private TaskCompletionSource<object?> _pauseCompletion = CreateCompletedPauseCompletion();
     private readonly Dictionary<string, string> _variables = new(StringComparer.OrdinalIgnoreCase);
-    private IInputSimulator? _simulator;
     private int _released;
     private int _pauseVersion;
-    private bool _isPaused;
-    private ushort[] _pausedButtons = Array.Empty<ushort>();
-    private int[] _pausedKeys = Array.Empty<int>();
+    private ushort[] _pausedButtons = [];
+    private int[] _pausedKeys = [];
     private CancellationTokenSource? _cancellation;
     private int _width;
     private int _height;
 
-    public PlaybackSessionResourceOwner(
-        Func<TimeSpan, CancellationToken, Task> waitAsync,
-        Func<IInputSimulator>? simulatorFactory,
-        IInputSimulatorPool? simulatorPool)
-    {
-        _waitAsync = waitAsync ?? throw new ArgumentNullException(nameof(waitAsync));
-        _simulatorFactory = simulatorFactory;
-        _simulatorPool = simulatorPool;
-    }
-
     public bool IsPlaying { get; private set; }
-    public bool IsPaused => _isPaused;
+    public bool IsPaused { get; private set; }
     public int PauseResumeVersion => Volatile.Read(ref _pauseVersion);
-    public IInputSimulator? Simulator => _simulator;
+    public IInputSimulator? Simulator { get; private set; }
     public CancellationToken Token => _cancellation?.Token ?? CancellationToken.None;
     public IReadOnlyDictionary<string, string> RuntimeVariables => _variables;
     public IDictionary<string, string> Variables => _variables;
@@ -48,9 +39,9 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
 
         _cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _variables.Clear();
-        _isPaused = false;
+        IsPaused = false;
         Volatile.Write(ref _pauseVersion, 0);
-        _pauseEvent.Set();
+        _pauseCompletion = CreateCompletedPauseCompletion();
         IsPlaying = true;
     }
 
@@ -60,13 +51,13 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
         _height = height;
         if (_simulatorPool is not null)
         {
-            _simulator = _simulatorPool.Acquire(width, height);
+            Simulator = await _simulatorPool.AcquireAsync(width, height, cancellationToken).ConfigureAwait(false);
             await _waitAsync(TimeSpan.FromMilliseconds(20), cancellationToken).ConfigureAwait(false);
         }
         else if (_simulatorFactory is not null)
         {
-            _simulator = _simulatorFactory();
-            _simulator.Initialize(width, height);
+            Simulator = _simulatorFactory();
+            await Simulator.InitializeAsync(width, height, cancellationToken).ConfigureAwait(false);
             await _waitAsync(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
         }
         else
@@ -90,28 +81,28 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
 
     public void Pause()
     {
-        if (!IsPlaying || _isPaused)
+        if (!IsPlaying || IsPaused)
         {
             return;
         }
 
-        _isPaused = true;
-        _pausedButtons = _buttons?.PressedButtons is { } buttons ? new List<ushort>(buttons).ToArray() : Array.Empty<ushort>();
-        _pausedKeys = _keys?.PressedKeys is { } keys ? new List<int>(keys).ToArray() : Array.Empty<int>();
+        IsPaused = true;
+        _pausedButtons = _buttons?.PressedButtons is { } buttons ? new List<ushort>(buttons).ToArray() : [];
+        _pausedKeys = _keys?.PressedKeys is { } keys ? new List<int>(keys).ToArray() : [];
         _executor?.ReleaseAll();
-        _pauseEvent.Reset();
+        _pauseCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     public void ResumePlayback()
     {
-        if (!IsPlaying || !_isPaused)
+        if (!IsPlaying || !IsPaused)
         {
             return;
         }
 
-        if (_simulator is not null)
+        if (Simulator is not null)
         {
-            _buttons?.RestoreAll(_simulator, _pausedButtons);
+            _buttons?.RestoreAll(Simulator, _pausedButtons);
             if (_keys is not null)
             {
                 var modifiers = _pausedKeys
@@ -121,29 +112,39 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
                         or InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA)
                     .ToList();
 
-                _keys.RestoreAll(_simulator, modifiers);
+                _keys.RestoreAll(Simulator, modifiers);
             }
         }
 
-        _pausedButtons = Array.Empty<ushort>();
-        _pausedKeys = Array.Empty<int>();
-        _isPaused = false;
-        Interlocked.Increment(ref _pauseVersion);
-        _pauseEvent.Set();
+        _pausedButtons = [];
+        _pausedKeys = [];
+        IsPaused = false;
+        _ = Interlocked.Increment(ref _pauseVersion);
+        _ = _pauseCompletion.TrySetResult(null);
     }
 
     public void StopPlayback()
     {
         _executor?.ReleaseAll();
-        _pauseEvent.Set();
+        _ = _pauseCompletion.TrySetResult(null);
         _cancellation?.Cancel();
+    }
+
+    public async ValueTask StopPlaybackAsync()
+    {
+        _executor?.ReleaseAll();
+        _ = _pauseCompletion.TrySetResult(null);
+        if (_cancellation is not null)
+        {
+            await _cancellation.CancelAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task WaitIfPausedAsync(CancellationToken cancellationToken)
     {
-        if (_isPaused)
+        if (IsPaused)
         {
-            await Task.Run(() => _pauseEvent.Wait(cancellationToken), cancellationToken).ConfigureAwait(false);
+            _ = await _pauseCompletion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -155,18 +156,18 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
         _cancellation?.Dispose();
         _cancellation = null;
         IsPlaying = false;
-        _isPaused = false;
+        IsPaused = false;
     }
 
     private void ReleaseSimulator()
     {
-        var simulator = _simulator;
+        var simulator = Simulator;
         if (simulator is null || Interlocked.Exchange(ref _released, 1) is not 0)
         {
             return;
         }
 
-        _simulator = null;
+        Simulator = null;
         if (_simulatorPool is not null)
         {
             _simulatorPool.Release(simulator, _width, _height);
@@ -184,7 +185,20 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
     {
         StopPlayback();
         End();
-        _pauseEvent.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopPlaybackAsync().ConfigureAwait(false);
+        End();
+        GC.SuppressFinalize(this);
+    }
+
+    private static TaskCompletionSource<object?> CreateCompletedPauseCompletion()
+    {
+        var completion = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = completion.TrySetResult(null);
+        return completion;
     }
 }

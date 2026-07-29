@@ -1,13 +1,14 @@
 
 namespace CrossMacro.Daemon.Services;
 
-public class SecurityService : ISecurityService, IDisposable
+internal sealed class SecurityService : ISecurityService, IDisposable, IAsyncDisposable
 {
     private static readonly TimeSpan AuthorizationCacheTtl = TimeSpan.FromMinutes(2);
     private readonly IRateLimiterService _rateLimiter;
     private readonly ISecurityAuditLogger _auditLogger;
     private readonly IPeerCredentialsProvider _peerCredentials;
     private readonly IPolkitAuthorizationService _polkitAuthorization;
+    private readonly TimeProvider _timeProvider;
     private readonly Dictionary<uint, DateTime> _authorizedUidCache = [];
     private readonly Lock _authorizationCacheLock = new();
 
@@ -18,23 +19,26 @@ public class SecurityService : ISecurityService, IDisposable
         _auditLogger = new SecurityAuditLogger(new AuditLogger());
         _peerCredentials = new PeerCredentialsProvider();
         _polkitAuthorization = new PolkitAuthorizationService();
+        _timeProvider = TimeProvider.System;
     }
 
     public SecurityService(
         IRateLimiterService rateLimiter,
         ISecurityAuditLogger auditLogger,
         IPeerCredentialsProvider peerCredentials,
-        IPolkitAuthorizationService polkitAuthorization)
+        IPolkitAuthorizationService polkitAuthorization,
+        TimeProvider? timeProvider = null)
     {
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
         _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
         _peerCredentials = peerCredentials ?? throw new ArgumentNullException(nameof(peerCredentials));
         _polkitAuthorization = polkitAuthorization ?? throw new ArgumentNullException(nameof(polkitAuthorization));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
-    public async Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client)
+    public async Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client, CancellationToken cancellationToken = default)
     {
-        var decision = await AuthorizeConnectionAsync(client).ConfigureAwait(false);
+        var decision = await AuthorizeConnectionAsync(client, cancellationToken).ConfigureAwait(false);
         if (!decision.IsAuthorized)
         {
             RejectConnection(client, decision);
@@ -74,17 +78,19 @@ public class SecurityService : ISecurityService, IDisposable
 
     public void Dispose()
     {
-        if (_auditLogger is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
+        _auditLogger.Dispose();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return _auditLogger.DisposeAsync();
     }
 
     private bool IsUidAuthorizationCached(uint uid)
     {
         lock (_authorizationCacheLock)
         {
-            PruneExpiredAuthorizations(DateTime.UtcNow);
+            PruneExpiredAuthorizations(_timeProvider.GetUtcNow().UtcDateTime);
             return _authorizedUidCache.ContainsKey(uid);
         }
     }
@@ -93,8 +99,8 @@ public class SecurityService : ISecurityService, IDisposable
     {
         lock (_authorizationCacheLock)
         {
-            _authorizedUidCache[uid] = DateTime.UtcNow + AuthorizationCacheTtl;
-            PruneExpiredAuthorizations(DateTime.UtcNow);
+            _authorizedUidCache[uid] = _timeProvider.GetUtcNow().UtcDateTime + AuthorizationCacheTtl;
+            PruneExpiredAuthorizations(_timeProvider.GetUtcNow().UtcDateTime);
         }
     }
 
@@ -102,8 +108,8 @@ public class SecurityService : ISecurityService, IDisposable
     {
         lock (_authorizationCacheLock)
         {
-            _authorizedUidCache.Remove(uid);
-            PruneExpiredAuthorizations(DateTime.UtcNow);
+            _ = _authorizedUidCache.Remove(uid);
+            PruneExpiredAuthorizations(_timeProvider.GetUtcNow().UtcDateTime);
         }
     }
 
@@ -131,12 +137,13 @@ public class SecurityService : ISecurityService, IDisposable
 
         foreach (var uid in expired)
         {
-            _authorizedUidCache.Remove(uid);
+            _ = _authorizedUidCache.Remove(uid);
         }
     }
 
-    private async Task<ConnectionAuthorizationDecision> AuthorizeConnectionAsync(Socket client)
+    private async Task<ConnectionAuthorizationDecision> AuthorizeConnectionAsync(Socket client, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var creds = _peerCredentials.GetCredentials(client);
         if (creds is null)
         {
@@ -176,7 +183,7 @@ public class SecurityService : ISecurityService, IDisposable
             return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "NOT_IN_GROUP");
         }
 
-        var polkitDecision = await AuthorizeWithPolkitAsync(uid, pid, executable).ConfigureAwait(false);
+        var polkitDecision = await AuthorizeWithPolkitAsync(uid, pid, executable, cancellationToken).ConfigureAwait(false);
         if (!polkitDecision.IsAuthorized)
         {
             return polkitDecision;
@@ -186,8 +193,13 @@ public class SecurityService : ISecurityService, IDisposable
         return ConnectionAuthorizationDecision.Allow(uid, pid, executable);
     }
 
-    private async Task<ConnectionAuthorizationDecision> AuthorizeWithPolkitAsync(uint uid, int pid, string? executable)
+    private async Task<ConnectionAuthorizationDecision> AuthorizeWithPolkitAsync(
+        uint uid,
+        int pid,
+        string? executable,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (IsUidAuthorizationCached(uid))
         {
             Log.Debug("[Security] Reusing cached polkit authorization for UID {Uid}", uid);
@@ -197,9 +209,14 @@ public class SecurityService : ISecurityService, IDisposable
         bool polkitAuthorized;
         try
         {
-            polkitAuthorized = await _polkitAuthorization.IsInputCaptureAuthorizedAsync(uid, pid).ConfigureAwait(false);
+            polkitAuthorized = await _polkitAuthorization.IsInputCaptureAuthorizedAsync(uid, pid, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[Security] Polkit authorization check failed for UID {Uid}", uid);
             RemoveCachedAuthorization(uid);
@@ -224,7 +241,7 @@ public class SecurityService : ISecurityService, IDisposable
         {
             client.Dispose();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[Security] Failed to dispose rejected client socket for reason {Reason}", decision.Reason);
         }

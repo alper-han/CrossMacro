@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Daemon.Services;
 
-internal sealed class DaemonInputEventEncoder
+internal static class DaemonInputEventEncoder
 {
-    public void Write(BinaryWriter writer, UInputNative.input_event inputEvent)
+    public static void Write(BinaryWriter writer, UInputNative.input_event inputEvent)
     {
         writer.Write((byte)IpcOpCode.InputEvent);
         writer.Write(GetEventType(inputEvent.type, inputEvent.code));
@@ -26,7 +26,10 @@ internal sealed class DaemonInputEventEncoder
 
         if (type == UInputNative.EV_REL)
         {
-            if (code is UInputNative.REL_WHEEL or UInputNative.REL_HWHEEL)
+            if (code is UInputNative.REL_WHEEL
+                or UInputNative.REL_HWHEEL
+                or UInputNative.REL_WHEEL_HI_RES
+                or UInputNative.REL_HWHEEL_HI_RES)
             {
                 return (byte)InputEventType.MouseScroll;
             }
@@ -34,12 +37,9 @@ internal sealed class DaemonInputEventEncoder
             return (byte)InputEventType.MouseMove;
         }
 
-        if (type == UInputNative.EV_ABS)
+        if (type == UInputNative.EV_ABS && code is UInputNative.ABS_X or UInputNative.ABS_Y)
         {
-            if (code is UInputNative.ABS_X or UInputNative.ABS_Y)
-            {
-                return (byte)InputEventType.MouseMove;
-            }
+            return (byte)InputEventType.MouseMove;
         }
 
         if (type == UInputNative.EV_SYN)

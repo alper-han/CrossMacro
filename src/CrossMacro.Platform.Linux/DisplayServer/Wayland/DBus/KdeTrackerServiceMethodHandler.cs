@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
+internal sealed class KdeTrackerServiceMethodHandler(KdeTrackerService service) : IPathMethodHandler
 {
     internal enum DispatchResult
     {
@@ -11,51 +11,38 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
     }
 
     private static readonly ReadOnlyMemory<byte> InterfaceXml =
-        """
-        <interface name="io.github.alper_han.crossmacro.Tracker">
-          <method name="UpdatePosition">
-            <arg direction="in" type="i"/>
-            <arg direction="in" type="i"/>
-          </method>
-          <method name="UpdateResolution">
-            <arg direction="in" type="i"/>
-            <arg direction="in" type="i"/>
-          </method>
-          <method name="ReportWindowData">
-            <arg direction="in" type="s"/>
-            <arg direction="in" type="s"/>
-          </method>
-        </interface>
+        "<interface name=\"io.github.alper_han.crossmacro.Tracker\"><method name=\"UpdatePosition\"><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/></method><method name=\"UpdateResolution\"><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/></method><method name=\"ReportWindowData\"><arg direction=\"in\" type=\"s\"/><arg direction=\"in\" type=\"s\"/></method></interface>"u8.ToArray();
 
-        """u8.ToArray();
-
-    private readonly KdeTrackerService _service;
-
-    public KdeTrackerServiceMethodHandler(KdeTrackerService service)
-    {
-        _service = service;
-    }
+    private readonly KdeTrackerService _service = service;
 
     public string Path => _service.ObjectPath.ToString();
 
     public bool HandlesChildPaths => false;
 
-    internal DispatchResult TryDispatchMethod(Message request)
-        => TryDispatchMethod(
+    internal ValueTask<DispatchResult> TryDispatchMethodAsync(Message request, CancellationToken cancellationToken = default)
+        => TryDispatchMethodAsync(
             request.InterfaceIsSet ? request.InterfaceAsString : null,
             request.MemberAsString ?? string.Empty,
             request.SignatureIsSet ? request.SignatureAsString : null,
-            request);
+            request,
+            cancellationToken);
 
-    internal DispatchResult TryDispatchMethod(string? interfaceName, string member, string? signature, Message request)
+    internal async ValueTask<DispatchResult> TryDispatchMethodAsync(
+        string? interfaceName,
+        string member,
+        string? signature,
+        Message request,
+        CancellationToken cancellationToken = default)
     {
         if (!HasExpectedInterface(interfaceName))
         {
+            Log.Warning("[KdeTrackerServiceMethodHandler] Unknown interface: '{Interface}' for member '{Member}'", interfaceName, member);
             return DispatchResult.UnknownMethod;
         }
 
         if (!HasExpectedSignature(member, signature))
         {
+            Log.Warning("[KdeTrackerServiceMethodHandler] Invalid signature: '{Signature}' for member '{Member}'", signature, member);
             return IsTrackedMember(member) ? DispatchResult.InvalidArguments : DispatchResult.UnknownMethod;
         }
 
@@ -65,65 +52,82 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
         {
             case KdeTrackerService.UpdatePositionMethod:
                 {
-                    int x = reader.ReadInt32();
-                    int y = reader.ReadInt32();
-                    _service.UpdatePositionAsync(x, y).GetAwaiter().GetResult();
+                    var (x, y) = ReadTwoNumbers(ref reader, signature);
+                    await _service.UpdatePositionAsync(x, y).WaitAsync(cancellationToken).ConfigureAwait(false);
                     return DispatchResult.Handled;
                 }
             case KdeTrackerService.UpdateResolutionMethod:
                 {
-                    int width = reader.ReadInt32();
-                    int height = reader.ReadInt32();
-                    _service.UpdateResolutionAsync(width, height).GetAwaiter().GetResult();
+                    var (width, height) = ReadTwoNumbers(ref reader, signature);
+                    Log.Information("[KdeTrackerServiceMethodHandler] Received UpdateResolution DBus call: {Width}x{Height} (sig: {Signature})", width, height, signature);
+                    await _service.UpdateResolutionAsync(width, height).WaitAsync(cancellationToken).ConfigureAwait(false);
                     return DispatchResult.Handled;
                 }
             case KdeTrackerService.ReportWindowDataMethod:
                 {
                     string correlationId = reader.ReadString();
                     string json = reader.ReadString();
-                    _service.ReportWindowDataAsync(correlationId, json).GetAwaiter().GetResult();
+                    await _service.ReportWindowDataAsync(correlationId, json).WaitAsync(cancellationToken).ConfigureAwait(false);
                     return DispatchResult.Handled;
                 }
             default:
+                Log.Warning("[KdeTrackerServiceMethodHandler] Unknown member: '{Member}'", member);
                 return DispatchResult.UnknownMethod;
         }
     }
 
-    public ValueTask HandleMethodAsync(MethodContext context)
+    private static (int First, int Second) ReadTwoNumbers(ref Reader reader, string? signature)
+    {
+        if (string.Equals(signature, "dd", StringComparison.Ordinal))
+        {
+            return ((int)reader.ReadDouble(), (int)reader.ReadDouble());
+        }
+        if (string.Equals(signature, "id", StringComparison.Ordinal))
+        {
+            return (reader.ReadInt32(), (int)reader.ReadDouble());
+        }
+        if (string.Equals(signature, "di", StringComparison.Ordinal))
+        {
+            return ((int)reader.ReadDouble(), reader.ReadInt32());
+        }
+
+        return (reader.ReadInt32(), reader.ReadInt32());
+    }
+
+    public async ValueTask HandleMethodAsync(MethodContext context)
     {
         try
         {
             if (context.IsDBusIntrospectRequest)
             {
                 context.ReplyIntrospectXml([InterfaceXml]);
-                return default;
+                return;
             }
 
             var request = context.Request;
 
-            var dispatchResult = TryDispatchMethod(request);
+            var dispatchResult = await TryDispatchMethodAsync(request, CancellationToken.None).ConfigureAwait(false);
             if (dispatchResult is DispatchResult.UnknownMethod)
             {
                 context.ReplyUnknownMethodError();
-                return default;
+                return;
             }
 
             if (dispatchResult is DispatchResult.InvalidArguments)
             {
                 context.ReplyError("org.freedesktop.DBus.Error.InvalidArgs", "Tracker request arguments were invalid.");
-                return default;
+                return;
             }
 
             using var writer = context.CreateReplyWriter(signature: null);
             context.Reply(writer.CreateMessage());
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[KdeTrackerServiceMethodHandler] DBus handling failed for {Member}", context.Request.MemberAsString);
             context.ReplyError("org.freedesktop.DBus.Error.Failed", "Tracker request failed.");
         }
 
-        return default;
     }
 
     private static bool HasExpectedInterface(string? interfaceName)
@@ -134,20 +138,22 @@ internal sealed class KdeTrackerServiceMethodHandler : IPathMethodHandler
 
     private static bool HasExpectedSignature(string member, string? signature)
     {
-        string? expectedSignature = member switch
+        if (string.Equals(member, KdeTrackerService.ReportWindowDataMethod, StringComparison.Ordinal))
         {
-            KdeTrackerService.UpdatePositionMethod => "ii",
-            KdeTrackerService.UpdateResolutionMethod => "ii",
-            KdeTrackerService.ReportWindowDataMethod => "ss",
-            _ => null,
-        };
-
-        if (expectedSignature is null)
-        {
-            return false;
+            return string.IsNullOrEmpty(signature) || string.Equals(signature, "ss", StringComparison.Ordinal);
         }
 
-        return string.Equals(signature, expectedSignature, StringComparison.Ordinal);
+        if (string.Equals(member, KdeTrackerService.UpdatePositionMethod, StringComparison.Ordinal) ||
+            string.Equals(member, KdeTrackerService.UpdateResolutionMethod, StringComparison.Ordinal))
+        {
+            return string.IsNullOrEmpty(signature) ||
+                   string.Equals(signature, "ii", StringComparison.Ordinal) ||
+                   string.Equals(signature, "dd", StringComparison.Ordinal) ||
+                   string.Equals(signature, "id", StringComparison.Ordinal) ||
+                   string.Equals(signature, "di", StringComparison.Ordinal);
+        }
+
+        return false;
     }
 
     private static bool IsTrackedMember(string member)

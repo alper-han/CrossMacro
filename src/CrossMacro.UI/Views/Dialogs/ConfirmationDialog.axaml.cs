@@ -42,9 +42,9 @@ public partial class ConfirmationDialog : Window
 
     private static void SetButtonStyle(Button button, string styleClass)
     {
-        button.Classes.Remove("primary");
-        button.Classes.Remove("secondary");
-        button.Classes.Remove("danger");
+        _ = button.Classes.Remove("primary");
+        _ = button.Classes.Remove("secondary");
+        _ = button.Classes.Remove("danger");
         button.Classes.Add(styleClass);
     }
 }

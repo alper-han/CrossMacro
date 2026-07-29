@@ -1,16 +1,14 @@
 
 namespace CrossMacro.Platform.Linux;
 
-public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities, IBatchedInputSimulator
+public sealed class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities, IBatchedInputSimulator
 {
     private readonly Func<int, int, IUInputDevice> _deviceFactory;
     private IUInputDevice? _device;
     private bool _disposed;
 
     public LinuxInputSimulator()
-        : this(static (width, height) => new UInputDevice(width, height))
-    {
-    }
+        : this(static (width, height) => new UInputDevice(width, height)) { /* Empty */ }
 
     internal LinuxInputSimulator(Func<int, int, IUInputDevice> deviceFactory)
     {
@@ -27,7 +25,7 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities,
             {
                 return File.Exists(LinuxConstants.UInputDevicePath) || File.Exists(LinuxConstants.UInputAlternatePath);
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 return false;
             }
@@ -49,6 +47,13 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities,
         _device = _deviceFactory(screenWidth, screenHeight);
         _device.CreateVirtualInputDevice();
         Log.Information("[LinuxInputSimulator] Initialized with resolution {Width}x{Height}", screenWidth, screenHeight);
+    }
+
+    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Initialize(screenWidth, screenHeight);
+        return Task.CompletedTask;
     }
 
     public void MoveAbsolute(int x, int y)
@@ -140,6 +145,7 @@ public class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities,
             _device = null;
             _disposed = true;
         }
+        GC.SuppressFinalize(this);
     }
 
     private void ThrowIfDisposed()

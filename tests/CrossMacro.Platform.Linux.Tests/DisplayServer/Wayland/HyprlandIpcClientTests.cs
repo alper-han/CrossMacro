@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 
 [Collection("EnvironmentVariableSensitive")]
-public class HyprlandIpcClientTests
+public sealed class HyprlandIpcClientTests
 {
     [Fact]
     public async Task WhenHyprlandEnvironmentMissing_ClientShouldBeUnavailableAndReturnNullResponses()
@@ -15,7 +15,7 @@ public class HyprlandIpcClientTests
         Assert.False(client.IsAvailable);
         Assert.Null(client.SocketPath);
         Assert.Null(await client.SendCommandAsync("cursorpos"));
-        Assert.Null(await client.SendCommandAsync(Array.Empty<byte>()));
+        Assert.Null(await client.SendCommandAsync([]));
     }
 
     private sealed class EnvironmentVariableScope : IDisposable

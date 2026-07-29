@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
-public sealed class KWinScreenShotRuntimeFactAttribute : FactAttribute
+internal sealed class KWinScreenShotRuntimeFactAttribute : FactAttribute
 {
     public KWinScreenShotRuntimeFactAttribute()
     {

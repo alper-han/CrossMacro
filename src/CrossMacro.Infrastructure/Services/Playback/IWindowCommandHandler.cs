@@ -5,5 +5,5 @@ internal interface IWindowCommandHandler
 {
     public string SubCommand { get; }
     public string? Validate(string[] parts);
-    public Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService queryService, IWindowMutationService mutationService, IWorkspaceManagementService workspaceService, CancellationToken cancellationToken);
+    public Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken);
 }

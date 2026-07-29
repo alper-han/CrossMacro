@@ -7,9 +7,7 @@ internal sealed class GsrCompatibilityService : IPlatformStartupNotificationProv
     private readonly Func<string, string> _readAllText;
 
     public GsrCompatibilityService()
-        : this(File.Exists, File.ReadAllText)
-    {
-    }
+        : this(File.Exists, File.ReadAllText) { /* Empty */ }
 
     internal GsrCompatibilityService(Func<string, bool> fileExists, Func<string, string> readAllText)
     {
@@ -39,7 +37,7 @@ internal sealed class GsrCompatibilityService : IPlatformStartupNotificationProv
             var inputDevices = _readAllText(LinuxGsrCompatibility.InputDevicesPath);
             return LinuxGsrCompatibility.ContainsGsrVirtualKeyboard(inputDevices);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }

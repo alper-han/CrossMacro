@@ -1,10 +1,10 @@
 
 namespace CrossMacro.Platform.Linux.Clipboard;
 
-public sealed class LinuxShellImageClipboardService : IImageClipboardService
+public sealed class LinuxShellImageClipboardService(IProcessRunner processRunner, LinuxEnvironmentSnapshot environment) : IImageClipboardService
 {
-    private readonly IProcessRunner _processRunner;
-    private readonly LinuxEnvironmentSnapshot _environment;
+    private readonly IProcessRunner _processRunner = processRunner;
+    private readonly LinuxEnvironmentSnapshot _environment = environment;
     private ClipboardTool _tool = ClipboardTool.Unknown;
     private bool _initialized;
 
@@ -16,15 +16,7 @@ public sealed class LinuxShellImageClipboardService : IImageClipboardService
     }
 
     public LinuxShellImageClipboardService(IProcessRunner processRunner)
-        : this(processRunner, LinuxEnvironmentVariables.CaptureCurrentSnapshot())
-    {
-    }
-
-    public LinuxShellImageClipboardService(IProcessRunner processRunner, LinuxEnvironmentSnapshot environment)
-    {
-        _processRunner = processRunner;
-        _environment = environment;
-    }
+        : this(processRunner, LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
 
     public bool IsSupported => _tool is not ClipboardTool.Unknown || !_initialized;
 
@@ -86,7 +78,7 @@ public sealed class LinuxShellImageClipboardService : IImageClipboardService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to set image clipboard via shell");
             throw;

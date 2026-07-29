@@ -5,43 +5,28 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// Executes macro events using composed components.
 /// Follows SRP by delegating to specialized trackers and mappers.
 /// </summary>
-public class MacroEventExecutor : IEventExecutor
+public sealed class MacroEventExecutor(
+    IInputSimulator simulator,
+    IButtonStateTracker buttonTracker,
+    IKeyStateTracker keyTracker,
+    IPlaybackMouseButtonMapper buttonMapper,
+    IPlaybackCoordinator coordinator,
+    bool useHybridAbsoluteDragMovement = true) : IEventExecutor
 {
-    private readonly IInputSimulator _simulator;
-    private readonly IButtonStateTracker _buttonTracker;
-    private readonly IKeyStateTracker _keyTracker;
-    private readonly IPlaybackMouseButtonMapper _buttonMapper;
-    private readonly IPlaybackCoordinator _coordinator;
-    private readonly bool _useHybridAbsoluteDragMovement;
+    private readonly IInputSimulator _simulator = simulator ?? throw new ArgumentNullException(nameof(simulator));
+    private readonly IButtonStateTracker _buttonTracker = buttonTracker ?? throw new ArgumentNullException(nameof(buttonTracker));
+    private readonly IKeyStateTracker _keyTracker = keyTracker ?? throw new ArgumentNullException(nameof(keyTracker));
+    private readonly IPlaybackMouseButtonMapper _buttonMapper = buttonMapper ?? throw new ArgumentNullException(nameof(buttonMapper));
+    private readonly IPlaybackCoordinator _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+    private readonly bool _useHybridAbsoluteDragMovement = useHybridAbsoluteDragMovement;
 
-    private int _screenWidth;
-    private int _screenHeight;
     private bool _disposed;
-    private readonly bool _supportsAbsoluteCoordinates;
-
-    public MacroEventExecutor(
-        IInputSimulator simulator,
-        IButtonStateTracker buttonTracker,
-        IKeyStateTracker keyTracker,
-        IPlaybackMouseButtonMapper buttonMapper,
-        IPlaybackCoordinator coordinator,
-        bool useHybridAbsoluteDragMovement = true)
-    {
-        _simulator = simulator ?? throw new ArgumentNullException(nameof(simulator));
-        _buttonTracker = buttonTracker ?? throw new ArgumentNullException(nameof(buttonTracker));
-        _keyTracker = keyTracker ?? throw new ArgumentNullException(nameof(keyTracker));
-        _buttonMapper = buttonMapper ?? throw new ArgumentNullException(nameof(buttonMapper));
-        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-        _useHybridAbsoluteDragMovement = useHybridAbsoluteDragMovement;
-        _supportsAbsoluteCoordinates = simulator is not IInputSimulatorCapabilities capabilities || capabilities.SupportsAbsoluteCoordinates;
-    }
+    private readonly bool _supportsAbsoluteCoordinates = simulator is not IInputSimulatorCapabilities capabilities || capabilities.SupportsAbsoluteCoordinates;
 
     public bool IsMouseButtonPressed => _buttonTracker.IsAnyPressed;
 
     public void Initialize(int screenWidth, int screenHeight)
     {
-        _screenWidth = screenWidth;
-        _screenHeight = screenHeight;
         // Note: Simulator is already initialized by MacroPlayer.AcquireSimulatorAsync
     }
 
@@ -76,17 +61,17 @@ public class MacroEventExecutor : IEventExecutor
         _simulator.Scroll(value);
     }
 
-    public void EmitKey(int keyCode, bool pressed)
+    public void EmitKey(int code, bool pressed)
     {
-        _simulator.KeyPress(keyCode, pressed);
+        _simulator.KeyPress(code, pressed);
 
         if (pressed)
         {
-            _keyTracker.Press(keyCode);
+            _keyTracker.Press(code);
         }
         else
         {
-            _keyTracker.Release(keyCode);
+            _keyTracker.Release(code);
         }
     }
 

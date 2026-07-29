@@ -11,4 +11,12 @@ public interface IDisplaySessionService
     /// <param name="reason">The reason why the session is not supported, if applicable.</param>
     /// <returns>True if the session is supported; otherwise, false.</returns>
     public bool IsSessionSupported(out string reason);
+
+    public ValueTask<(bool Supported, string Reason)> IsSessionSupportedAsync(CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+
+        var supported = IsSessionSupported(out var reason);
+        return ValueTask.FromResult((supported, reason));
+    }
 }

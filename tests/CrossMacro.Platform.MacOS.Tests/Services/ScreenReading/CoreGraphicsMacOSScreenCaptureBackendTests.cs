@@ -90,7 +90,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
             .AddDisplay(1, Rect(0, 0, 1, 1), SolidImage(1, 1, Pixel(1, 1, 1)));
         var backend = new CoreGraphicsMacOSScreenCaptureBackend(native);
 
-        Assert.Throws<InvalidOperationException>(() => backend.Capture(new ScreenRect(2, 2, 1, 1), CancellationToken.None));
+        _ = Assert.Throws<InvalidOperationException>(() => backend.Capture(new ScreenRect(2, 2, 1, 1), CancellationToken.None));
     }
 
     [Fact]

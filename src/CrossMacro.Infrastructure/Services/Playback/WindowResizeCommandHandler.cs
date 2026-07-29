@@ -28,6 +28,6 @@ internal sealed class WindowResizeCommandHandler : IWindowCommandHandler
         var w = int.Parse(parts[2], CultureInfo.InvariantCulture);
         var h = int.Parse(parts[3], CultureInfo.InvariantCulture);
         await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
-        await mutator.ResizeActiveWindowAsync(w, h, cancellationToken).ConfigureAwait(false);
+        _ = await mutator.ResizeActiveWindowAsync(w, h, cancellationToken).ConfigureAwait(false);
     }
 }

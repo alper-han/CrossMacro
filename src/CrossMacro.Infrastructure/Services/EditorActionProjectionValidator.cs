@@ -4,16 +4,10 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Validates EditorAction instances with comprehensive rule checking.
 /// </summary>
-internal sealed class EditorActionProjectionValidator : IEditorActionValidator
+internal sealed class EditorActionProjectionValidator(IEditorActionConverter validationConverter, IScriptValidationService? scriptValidationService = null) : IEditorActionValidator
 {
-    private readonly IEditorActionConverter _validationConverter;
-    private readonly IScriptValidationService? _scriptValidationService;
-
-    public EditorActionProjectionValidator(IEditorActionConverter validationConverter, IScriptValidationService? scriptValidationService = null)
-    {
-        _validationConverter = validationConverter ?? throw new ArgumentNullException(nameof(validationConverter));
-        _scriptValidationService = scriptValidationService;
-    }
+    private readonly IEditorActionConverter _validationConverter = validationConverter ?? throw new ArgumentNullException(nameof(validationConverter));
+    private readonly IScriptValidationService? _scriptValidationService = scriptValidationService;
 
     /// <inheritdoc/>
     public (bool IsValid, string? Error) Validate(EditorAction action)
@@ -193,7 +187,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
     private static (bool IsValid, string? Error) ValidateMouseButton(EditorAction action)
     {
-        if (!Enum.IsDefined(typeof(MacroMouseButton), action.Button))
+        if (!Enum.IsDefined(action.Button))
         {
             return (false, ValidationMessages.InvalidMouseButton);
         }
@@ -302,14 +296,14 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
         try
         {
-            _validationConverter.ToMacroSequence(new[] { action }, "Validation", isAbsolute: false);
+            _ = _validationConverter.ToMacroSequence([action], "Validation", isAbsolute: false);
             return (true, null);
         }
         catch (InvalidOperationException ex)
         {
             return (false, ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return (false, ex.Message);
         }
@@ -322,19 +316,17 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             return (false, "Shell command cannot be empty.");
         }
 
-        if (!Enum.IsDefined(typeof(ShellCommandMode), action.ShellCommandMode))
+        if (!Enum.IsDefined(action.ShellCommandMode))
         {
             return (false, "Shell command mode is invalid.");
         }
 
-        if (action.ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput)
-        {
-            if (!IsValidShellCaptureTarget(action.ShellExitCodeVariableName)
+        if ((action.ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput)
+            && (!IsValidShellCaptureTarget(action.ShellExitCodeVariableName)
                 || !IsValidShellCaptureTarget(action.ShellStandardOutputVariableName)
-                || !IsValidShellCaptureTarget(action.ShellStandardErrorVariableName))
-            {
-                return (false, "Shell capture targets must be valid variable names, or '_' to ignore a stream.");
-            }
+                || !IsValidShellCaptureTarget(action.ShellStandardErrorVariableName)))
+        {
+            return (false, "Shell capture targets must be valid variable names, or '_' to ignore a stream.");
         }
 
         if (action.ShellRetries is < 0 or > 10_000)
@@ -391,7 +383,7 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
 
     private static (bool IsValid, string? Error) ValidateWindowCommand(EditorAction action)
     {
-        if (!Enum.IsDefined(typeof(WindowCommandMode), action.WindowCommandMode))
+        if (!Enum.IsDefined(action.WindowCommandMode))
         {
             return (false, "Window command mode is invalid.");
         }
@@ -446,6 +438,33 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             EditorActionType.RepeatBlockStart => ValidateRepeat(action),
             EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart => ValidateCondition(action),
             EditorActionType.ForBlockStart => ValidateFor(action),
+            EditorActionType.MouseMove => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.MouseClick => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.MouseDown => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.MouseUp => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.KeyPress => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.KeyDown => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.KeyUp => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.Delay => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.ScrollVertical => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.ScrollHorizontal => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.TextInput => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.ElseBlockStart => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.BlockEnd => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.Break => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.Continue => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.PixelColor => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.WaitColor => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.PixelSearch => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.ImageSearch => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.ImageClick => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.WaitImage => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.ClipboardGet => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.ClipboardSet => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.ShellCommand => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.Screenshot => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.WindowCommand => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.RawScriptStep => (false, ValidationMessages.ActionPayloadRequired),
             _ => (false, ValidationMessages.ActionPayloadRequired),
         };
     }
@@ -756,13 +775,13 @@ internal sealed class EditorActionProjectionValidator : IEditorActionValidator
             var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
             var skipInitialZeroZero = actions.Any(IsCurrentPositionMouseButtonAction);
 
-            _validationConverter.ToMacroSequence(actions, "Validation", isAbsolute, skipInitialZeroZero);
+            _ = _validationConverter.ToMacroSequence(actions, "Validation", isAbsolute, skipInitialZeroZero);
         }
         catch (InvalidOperationException ex)
         {
             errors.Add($"Script: {ex.Message}");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             errors.Add($"Script: {ex.Message}");
         }

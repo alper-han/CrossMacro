@@ -1,22 +1,14 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class X11ScreenFrameProvider : IScreenFrameProvider
+public sealed class X11ScreenFrameProvider(IX11ScreenCapture capture, X11ScreenCaptureSupportResult support) : IScreenFrameProvider
 {
-    private readonly IX11ScreenCapture _capture;
-    private readonly X11ScreenCaptureSupportResult _support;
+    private readonly IX11ScreenCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly X11ScreenCaptureSupportResult _support = support;
     private bool _disposed;
 
     public X11ScreenFrameProvider(IX11ScreenCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public X11ScreenFrameProvider(IX11ScreenCapture capture, X11ScreenCaptureSupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "X11 XGetImage";
 

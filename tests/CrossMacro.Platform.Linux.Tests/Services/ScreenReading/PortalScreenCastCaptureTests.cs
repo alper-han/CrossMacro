@@ -278,7 +278,7 @@ public sealed class PortalScreenCastCaptureTests
 
     private static PortalStreamDescriptor Stream(uint nodeId, string id, int x, int y, int width, int height)
     {
-        return new PortalStreamDescriptor(nodeId, new Dictionary<string, object>
+        return new PortalStreamDescriptor(nodeId, new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["source_type"] = 1U,
             ["id"] = id,

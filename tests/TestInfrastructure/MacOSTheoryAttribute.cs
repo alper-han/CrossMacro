@@ -1,9 +1,13 @@
 
 namespace CrossMacro.TestInfrastructure;
 
-public sealed class MacOSTheoryAttribute : ConditionalTheoryAttribute
+internal sealed class MacOSTheoryAttribute : TheoryAttribute
 {
-    public MacOSTheoryAttribute() : base(OperatingSystem.IsMacOS, "macOS")
+    public MacOSTheoryAttribute()
     {
+        if (!OperatingSystem.IsMacOS())
+        {
+            Skip = ConditionalSkipMessage.For("macOS");
+        }
     }
 }

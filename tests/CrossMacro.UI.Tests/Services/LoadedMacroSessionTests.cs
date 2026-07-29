@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.Services;
 
-public class LoadedMacroSessionTests
+public sealed class LoadedMacroSessionTests
 {
     [Fact]
     public void RenameSelected_WhenOnlyNameChanges_DoesNotRaiseSelectedMacroChanged()
@@ -13,15 +13,15 @@ public class LoadedMacroSessionTests
 
         session.RenameSelected("After");
 
-        item.Name.Should().Be("After");
-        eventRaised.Should().BeFalse();
+        _ = item.Name.Should().Be("After");
+        _ = eventRaised.Should().BeFalse();
     }
 
     [Fact]
     public void CreateSequentialCycleSnapshot_ReturnsStableCopiesInSelectedOrder()
     {
         var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
-        var first = session.AddMacro(CreateMacro("First"));
+        _ = session.AddMacro(CreateMacro("First"));
         var second = session.AddMacro(CreateMacro("Second"));
         second.SequenceRepeatCount = 3;
         session.SelectedMacroItem = second;
@@ -29,18 +29,18 @@ public class LoadedMacroSessionTests
 
         var snapshot = session.CreateSequentialCycleSnapshot();
         var updatedMacro = CreateMacro("Second Updated");
-        session.UpdateSelectedMacro(updatedMacro);
+        _ = session.UpdateSelectedMacro(updatedMacro);
 
-        snapshot.Should().HaveCount(2);
-        snapshot.Select(item => item.Name).Should().ContainInOrder("Second", "First");
-        snapshot.Select(item => item.SequenceRepeatCount).Should().ContainInOrder(3, 1);
-        snapshot[0].Should().NotBeSameAs(second);
-        snapshot[0].SessionId.Should().Be(second.SessionId);
-        snapshot[0].Macro.Should().NotBeSameAs(second.Macro);
-        snapshot[0].Macro.Id.Should().Be(originalSecondMacroId);
-        snapshot[0].Name.Should().Be("Second");
-        snapshot[0].Macro.Name.Should().Be("Second");
-        second.Name.Should().Be("Second Updated");
+        _ = snapshot.Should().HaveCount(2);
+        _ = snapshot.Select(item => item.Name).Should().ContainInOrder("Second", "First");
+        _ = snapshot.Select(item => item.SequenceRepeatCount).Should().ContainInOrder(3, 1);
+        _ = snapshot[0].Should().NotBeSameAs(second);
+        _ = snapshot[0].SessionId.Should().Be(second.SessionId);
+        _ = snapshot[0].Macro.Should().NotBeSameAs(second.Macro);
+        _ = snapshot[0].Macro.Id.Should().Be(originalSecondMacroId);
+        _ = snapshot[0].Name.Should().Be("Second");
+        _ = snapshot[0].Macro.Name.Should().Be("Second");
+        _ = second.Name.Should().Be("Second Updated");
     }
 
 
@@ -48,17 +48,17 @@ public class LoadedMacroSessionTests
     public void UpdateSelectedMacro_WhenPayloadChanges_RaisesSelectedMacroUpdatedOnly()
     {
         var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
-        session.AddMacro(CreateMacro("Original"));
+        _ = session.AddMacro(CreateMacro("Original"));
         var selectionChanged = false;
         var selectedMacroUpdated = false;
 
         session.SelectedMacroChanged += (_, _) => selectionChanged = true;
         session.SelectedMacroUpdated += (_, _) => selectedMacroUpdated = true;
 
-        session.UpdateSelectedMacro(CreateMacro("Updated"));
+        _ = session.UpdateSelectedMacro(CreateMacro("Updated"));
 
-        selectionChanged.Should().BeFalse();
-        selectedMacroUpdated.Should().BeTrue();
+        _ = selectionChanged.Should().BeFalse();
+        _ = selectedMacroUpdated.Should().BeTrue();
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class LoadedMacroSessionTests
     {
         var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
         var first = session.AddMacro(CreateMacro("First"));
-        session.AddMacro(CreateMacro("Second"));
+        _ = session.AddMacro(CreateMacro("Second"));
         var selectionChangedCount = 0;
         var selectedMacroUpdated = false;
 
@@ -75,8 +75,8 @@ public class LoadedMacroSessionTests
 
         session.SelectedMacroItem = first;
 
-        selectionChangedCount.Should().Be(1);
-        selectedMacroUpdated.Should().BeFalse();
+        _ = selectionChangedCount.Should().Be(1);
+        _ = selectedMacroUpdated.Should().BeFalse();
     }
 
     private static MacroSequence CreateMacro(string name)

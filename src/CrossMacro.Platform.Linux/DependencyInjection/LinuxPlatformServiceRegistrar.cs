@@ -14,7 +14,7 @@ public sealed class LinuxPlatformServiceRegistrar : IPlatformServiceRegistrar
 
     public static void RegisterPlatformServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
     {
-        services.AddSingleton(typeof(LinuxEnvironmentSnapshot), environment);
+        _ = services.AddSingleton(typeof(LinuxEnvironmentSnapshot), environment);
         services.AddLinuxCoreServices(environment);
         services.AddLinuxLegacyImplementations();
         services.AddLinuxIpcImplementations();

@@ -9,9 +9,7 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
     private readonly IPortalScreenCastSessionClientFactory _clientFactory;
 
     public PortalScreenCastDbusSessionFactory(IPortalScreenCastRestoreTokenStore? restoreTokenStore)
-        : this(restoreTokenStore, PortalScreenCastSessionClientFactory.Instance)
-    {
-    }
+        : this(restoreTokenStore, PortalScreenCastSessionClientFactory.Instance) { /* Empty */ }
 
     internal PortalScreenCastDbusSessionFactory(
         IPortalScreenCastRestoreTokenStore? restoreTokenStore,
@@ -26,7 +24,9 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
 
     public async Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenRect? requestedRegion, ScreenReadOptions options)
     {
-        var restoreToken = _restoreTokenStore?.LoadRestoreToken();
+        var restoreToken = _restoreTokenStore is null
+            ? null
+            : await _restoreTokenStore.LoadRestoreTokenAsync(options.CancellationToken).ConfigureAwait(false);
         var firstAttempt = await StartSessionAttemptAsync(requestedRegion, options, restoreToken).ConfigureAwait(false);
         if (firstAttempt.Result.IsSuccess || !firstAttempt.CanRetryWithoutRestoreToken)
         {
@@ -41,14 +41,15 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
     private async Task<StartSessionAttempt> StartSessionAttemptAsync(ScreenRect? requestedRegion, ScreenReadOptions options, string? restoreToken)
     {
         IPortalScreenCastSessionClient? client = null;
+        PortalScreenCastSession? session = null;
+        var sessionTransferred = false;
         try
         {
             client = await _clientFactory.ConnectAsync().ConfigureAwait(false);
-            var session = await client.StartAsync(options, restoreToken).ConfigureAwait(false);
+            session = await client.StartAsync(options, restoreToken).ConfigureAwait(false);
             var validation = PortalStreamGeometry.ValidateMonitorStreams(session.Streams, requestedRegion);
             if (!validation.IsSuccess)
             {
-                session.Dispose();
                 return new StartSessionAttempt(
                     PortalScreenCastSessionResult.Failure(
                         validation.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
@@ -61,6 +62,7 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
                 await SaveRestoreTokenAsync(session.RestoreToken).ConfigureAwait(false);
             }
 
+            sessionTransferred = true;
             return new StartSessionAttempt(PortalScreenCastSessionResult.Success(session), CanRetryWithoutRestoreToken: false);
         }
         catch (PortalScreenCastException ex)
@@ -85,7 +87,11 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
         }
         finally
         {
-            client?.DisposeIfNotOwnedBySession();
+            if (!sessionTransferred)
+            {
+                session?.Dispose();
+                client?.DisposeIfNotOwnedBySession();
+            }
         }
     }
 

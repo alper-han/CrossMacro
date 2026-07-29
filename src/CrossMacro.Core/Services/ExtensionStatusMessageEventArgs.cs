@@ -1,11 +1,6 @@
 namespace CrossMacro.Core.Services;
 
-public sealed class ExtensionStatusMessageEventArgs : EventArgs
+public sealed class ExtensionStatusMessageEventArgs(string message) : EventArgs
 {
-    public ExtensionStatusMessageEventArgs(string message)
-    {
-        Message = message ?? throw new ArgumentNullException(nameof(message));
-    }
-
-    public string Message { get; }
+    public string Message { get; } = message ?? throw new ArgumentNullException(nameof(message));
 }

@@ -4,9 +4,9 @@ namespace CrossMacro.Platform.MacOS.Strategies;
 /// <summary>
 /// Converts macOS CoreGraphics absolute mouse samples into relative deltas.
 /// </summary>
-public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
+public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? currentPositionProvider = null) : IRelativeCoordinateStrategy
 {
-    private readonly Func<(int X, int Y)?>? _currentPositionProvider;
+    private readonly Func<(int X, int Y)?>? _currentPositionProvider = currentPositionProvider;
     private int _lastX;
     private int _lastY;
     private int _pendingX;
@@ -14,11 +14,6 @@ public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrateg
     private bool _hasPendingPosition;
     private bool _hasPendingX;
     private bool _hasPendingY;
-
-    public MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? currentPositionProvider = null)
-    {
-        _currentPositionProvider = currentPositionProvider;
-    }
 
     public Task InitializeAsync(CancellationToken ct)
     {
@@ -76,9 +71,7 @@ public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrateg
         return (0, 0);
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 
     private (int X, int Y) FlushPendingDelta()
     {

@@ -27,15 +27,15 @@ public class ProcessRunner : IProcessRunner
             var outputTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
             await WaitForExitOrKillAsync(proc, cancellationToken).ConfigureAwait(false);
-            await outputTask.ConfigureAwait(false);
-            await errorTask.ConfigureAwait(false);
+            _ = await outputTask.ConfigureAwait(false);
+            _ = await errorTask.ConfigureAwait(false);
             return proc.ExitCode is 0;
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return false;
         }
@@ -50,6 +50,7 @@ public class ProcessRunner : IProcessRunner
 
     public async Task RunCommandAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(args);
         using var proc = CreateProcess(command, redirectStandardInput: true);
         foreach (var arg in args)
         {
@@ -68,6 +69,7 @@ public class ProcessRunner : IProcessRunner
 
     public async Task WriteClipboardInputAndCloseAsync(string command, string[] args, string input, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(args);
         var proc = CreateProcess(command, redirectStandardInput: true);
         foreach (var arg in args)
         {
@@ -79,6 +81,7 @@ public class ProcessRunner : IProcessRunner
 
     public async Task WriteClipboardInputAndCloseAsync(string command, string[] args, ReadOnlyMemory<byte> input, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(args);
         var proc = CreateProcess(command, redirectStandardInput: true);
         foreach (var arg in args)
         {
@@ -90,14 +93,14 @@ public class ProcessRunner : IProcessRunner
 
     private static async Task RunCommandProcessAsync(Process proc, string input, CancellationToken cancellationToken)
     {
-        proc.Start();
+        _ = proc.Start();
         var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
         try
         {
             await proc.StandardInput.WriteAsync(input.AsMemory(), cancellationToken).ConfigureAwait(false);
             await proc.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             TryKillProcess(proc);
             throw;
@@ -119,9 +122,10 @@ public class ProcessRunner : IProcessRunner
     {
         using var streamReadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         Task<string>? errorTask = null;
+        Task? stderrTimeoutTask = null;
         try
         {
-            proc.Start();
+            _ = proc.Start();
             errorTask = proc.StandardError.ReadToEndAsync(streamReadCts.Token);
             await proc.StandardInput.BaseStream.WriteAsync(input, cancellationToken).ConfigureAwait(false);
             await proc.StandardInput.BaseStream.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -137,9 +141,8 @@ public class ProcessRunner : IProcessRunner
             }
             catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
-                // Clipboard owner staying alive; abandon stderr read.
-                streamReadCts.Cancel();
-                _ = ObserveCanceledReadAsync(errorTask);
+                // Clipboard owner staying alive; stop the stderr read before releasing its process.
+                await CancelAndAwaitTasksAsync(streamReadCts, errorTask, stderrTimeoutTask).ConfigureAwait(false);
                 return;
             }
 
@@ -149,21 +152,21 @@ public class ProcessRunner : IProcessRunner
                 string error = string.Empty;
                 if (proc.ExitCode is not 0)
                 {
-                    var completed = await Task.WhenAny(errorTask, Task.Delay(TimeSpan.FromMilliseconds(500))).ConfigureAwait(false);
+                    stderrTimeoutTask = Task.Delay(TimeSpan.FromMilliseconds(500), TimeProvider.System, streamReadCts.Token);
+                    var completed = await Task.WhenAny(errorTask, stderrTimeoutTask).ConfigureAwait(false);
                     if (completed == errorTask)
                     {
                         error = await errorTask.ConfigureAwait(false);
+                        await CancelAndAwaitTasksAsync(streamReadCts, errorTask, stderrTimeoutTask).ConfigureAwait(false);
                     }
                     else
                     {
-                        streamReadCts.Cancel();
-                        _ = ObserveCanceledReadAsync(errorTask);
+                        await CancelAndAwaitTasksAsync(streamReadCts, errorTask, stderrTimeoutTask).ConfigureAwait(false);
                     }
                 }
                 else
                 {
-                    streamReadCts.Cancel();
-                    _ = ObserveCanceledReadAsync(errorTask);
+                    await CancelAndAwaitTasksAsync(streamReadCts, errorTask, stderrTimeoutTask).ConfigureAwait(false);
                 }
 
                 EnsureSuccessfulExit(proc, error);
@@ -171,13 +174,13 @@ public class ProcessRunner : IProcessRunner
         }
         catch (OperationCanceledException)
         {
-            streamReadCts.Cancel();
+            await CancelAndAwaitTasksAsync(streamReadCts, errorTask, stderrTimeoutTask).ConfigureAwait(false);
             TryKillProcess(proc);
             throw;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            streamReadCts.Cancel();
+            await CancelAndAwaitTasksAsync(streamReadCts, errorTask, stderrTimeoutTask).ConfigureAwait(false);
             TryKillProcess(proc);
             throw;
         }
@@ -187,20 +190,36 @@ public class ProcessRunner : IProcessRunner
         }
     }
 
-    private static async Task ObserveCanceledReadAsync(Task readTask)
+    private static async Task CancelAndAwaitTasksAsync(
+        CancellationTokenSource streamReadCts,
+        Task? readTask,
+        Task? timeoutTask)
     {
-        try
-        {
-            await readTask.ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
+        await streamReadCts.CancelAsync().ConfigureAwait(false);
+        await ObserveTaskAsync(readTask).ConfigureAwait(false);
+        await ObserveTaskAsync(timeoutTask).ConfigureAwait(false);
+    }
+
+    private static async Task ObserveTaskAsync(Task? task)
+    {
+        if (task is null)
         {
             return;
+        }
+
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Preserve the operation's original exception while settling owned tasks.
         }
     }
 
     public async Task ExecuteCommandAsync(string command, string[] args, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(args);
         using var proc = CreateProcess(command, redirectStandardInput: false, redirectStandardOutput: true);
 
         foreach (var arg in args)
@@ -208,11 +227,11 @@ public class ProcessRunner : IProcessRunner
             proc.StartInfo.ArgumentList.Add(arg);
         }
 
-        proc.Start();
+        _ = proc.Start();
         var outputTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
         await WaitForExitOrKillAsync(proc, cancellationToken).ConfigureAwait(false);
-        await outputTask.ConfigureAwait(false);
+        _ = await outputTask.ConfigureAwait(false);
         var error = await errorTask.ConfigureAwait(false);
         EnsureSuccessfulExit(proc, error);
     }
@@ -226,6 +245,7 @@ public class ProcessRunner : IProcessRunner
 
     public async Task<string> ReadCommandAsync(string command, string[] args, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(args);
         using var proc = CreateProcess(command, redirectStandardInput: false, redirectStandardOutput: true);
         foreach (var arg in args)
         {
@@ -237,7 +257,7 @@ public class ProcessRunner : IProcessRunner
 
     private static async Task<string> ReadCommandProcessAsync(Process proc, CancellationToken cancellationToken)
     {
-        proc.Start();
+        _ = proc.Start();
         var resultTask = proc.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = proc.StandardError.ReadToEndAsync(cancellationToken);
         await WaitForExitOrKillAsync(proc, cancellationToken).ConfigureAwait(false);
@@ -289,7 +309,7 @@ public class ProcessRunner : IProcessRunner
                 process.Kill(entireProcessTree: true);
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Cancellation is best-effort; callers still observe the original failure/cancellation.
         }

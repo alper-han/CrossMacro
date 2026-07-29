@@ -1,13 +1,13 @@
 
 namespace CrossMacro.Infrastructure.Services;
 
-public class GitHubUpdateService : IUpdateService
+public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? httpClient) : IUpdateService
 {
-    private const string GitHubApiUrl = "https://api.github.com/repos/alper-han/CrossMacro/releases/latest";
+    private static readonly Uri GitHubApiUri = new("https://api.github.com/repos/alper-han/CrossMacro/releases/latest");
     private const string UserAgent = "CrossMacro-App";
     private static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(8);
-    private readonly IRuntimeContext _runtimeContext;
-    private readonly HttpClient? _httpClient;
+    private readonly IRuntimeContext _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+    private readonly HttpClient? _httpClient = httpClient;
 
     public GitHubUpdateService()
         : this(new RuntimeContext(), httpClient: null)
@@ -17,12 +17,6 @@ public class GitHubUpdateService : IUpdateService
     public GitHubUpdateService(IRuntimeContext runtimeContext)
         : this(runtimeContext, httpClient: null)
     {
-    }
-
-    public GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? httpClient)
-    {
-        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
-        _httpClient = httpClient;
     }
 
     public async Task<UpdateCheckResult> CheckForUpdatesAsync()
@@ -44,7 +38,7 @@ public class GitHubUpdateService : IUpdateService
 
                 using var timeoutCts = new CancellationTokenSource(RequestTimeout);
                 using var response = await client.GetAsync(
-                    GitHubApiUrl,
+                    GitHubApiUri,
                     HttpCompletionOption.ResponseHeadersRead,
                     timeoutCts.Token).ConfigureAwait(false);
 
@@ -115,7 +109,7 @@ public class GitHubUpdateService : IUpdateService
         {
             Log.Warning(ex, "Failed to deserialize update payload from GitHub");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Error checking for updates");
         }

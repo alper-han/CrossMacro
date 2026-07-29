@@ -1,8 +1,9 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class EditorActionConverterTests
+public sealed class EditorActionConverterTests
 {
+    private static readonly CancellationToken NonCancelableToken = new(canceled: false);
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly EditorActionConverter _converter;
 
@@ -27,13 +28,13 @@ public class EditorActionConverterTests
         var events = _converter.ToMacroEvents(action);
 
         // Assert
-        events.Should().HaveCount(2);
-        events[0].Type.Should().Be(EventType.KeyPress);
-        events[0].KeyCode.Should().Be(30);
-        events[0].DelayMs.Should().Be(55);
-        events[1].Type.Should().Be(EventType.KeyRelease);
-        events[1].KeyCode.Should().Be(30);
-        events[1].DelayMs.Should().Be(10);
+        _ = events.Should().HaveCount(2);
+        _ = events[0].Type.Should().Be(EventType.KeyPress);
+        _ = events[0].KeyCode.Should().Be(30);
+        _ = events[0].DelayMs.Should().Be(55);
+        _ = events[1].Type.Should().Be(EventType.KeyRelease);
+        _ = events[1].KeyCode.Should().Be(30);
+        _ = events[1].DelayMs.Should().Be(10);
     }
 
     [Fact]
@@ -48,16 +49,16 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(projection);
         var restored = _converter.FromMacroSequenceProjection(sequence);
 
-        sequence.Name.Should().Be("Projection");
-        sequence.IsAbsoluteCoordinates.Should().BeFalse();
-        sequence.SkipInitialZeroZero.Should().BeTrue();
-        restored.Actions.Should().ContainSingle();
-        restored.Actions[0].Type.Should().Be(EditorActionType.MouseMove);
-        restored.Actions[0].X.Should().Be(12);
-        restored.Actions[0].Y.Should().Be(34);
-        restored.Name.Should().Be("Projection");
-        restored.IsAbsoluteCoordinates.Should().BeFalse();
-        restored.SkipInitialZeroZero.Should().BeTrue();
+        _ = sequence.Name.Should().Be("Projection");
+        _ = sequence.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = sequence.SkipInitialZeroZero.Should().BeTrue();
+        _ = restored.Actions.Should().ContainSingle();
+        _ = restored.Actions[0].Type.Should().Be(EditorActionType.MouseMove);
+        _ = restored.Actions[0].X.Should().Be(12);
+        _ = restored.Actions[0].Y.Should().Be(34);
+        _ = restored.Name.Should().Be("Projection");
+        _ = restored.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = restored.SkipInitialZeroZero.Should().BeTrue();
     }
 
     [Fact]
@@ -78,11 +79,11 @@ public class EditorActionConverterTests
         var events = _converter.ToMacroEvents(action);
 
         // Assert
-        events.Should().HaveCount(1);
-        events[0].Type.Should().Be(EventType.Click);
-        events[0].X.Should().Be(0);
-        events[0].Y.Should().Be(0);
-        events[0].UseCurrentPosition.Should().BeTrue();
+        _ = events.Should().HaveCount(1);
+        _ = events[0].Type.Should().Be(EventType.Click);
+        _ = events[0].X.Should().Be(0);
+        _ = events[0].Y.Should().Be(0);
+        _ = events[0].UseCurrentPosition.Should().BeTrue();
     }
 
     [Fact]
@@ -103,11 +104,11 @@ public class EditorActionConverterTests
         var events = _converter.ToMacroEvents(action);
 
         // Assert
-        events.Should().HaveCount(1);
-        events[0].Type.Should().Be(EventType.ButtonPress);
-        events[0].X.Should().Be(0);
-        events[0].Y.Should().Be(0);
-        events[0].UseCurrentPosition.Should().BeTrue();
+        _ = events.Should().HaveCount(1);
+        _ = events[0].Type.Should().Be(EventType.ButtonPress);
+        _ = events[0].X.Should().Be(0);
+        _ = events[0].Y.Should().Be(0);
+        _ = events[0].UseCurrentPosition.Should().BeTrue();
     }
 
     [Fact]
@@ -128,13 +129,13 @@ public class EditorActionConverterTests
         var events = _converter.ToMacroEvents(action);
 
         // Assert
-        events.Should().ContainSingle();
-        events[0].Type.Should().Be(EventType.Click);
-        events[0].X.Should().Be(120);
-        events[0].Y.Should().Be(240);
-        events[0].Button.Should().Be(MacroMouseButton.Left);
-        events[0].UseCurrentPosition.Should().BeFalse();
-        events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = events.Should().ContainSingle();
+        _ = events[0].Type.Should().Be(EventType.Click);
+        _ = events[0].X.Should().Be(120);
+        _ = events[0].Y.Should().Be(240);
+        _ = events[0].Button.Should().Be(MacroMouseButton.Left);
+        _ = events[0].UseCurrentPosition.Should().BeFalse();
+        _ = events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
     }
 
     [Fact]
@@ -153,12 +154,12 @@ public class EditorActionConverterTests
         var events = _converter.ToMacroEvents(action);
 
         // Assert
-        events.Should().HaveCount(1);
-        events[0].Type.Should().Be(EventType.None);
-        events[0].DelayMs.Should().Be(0);
-        events[0].HasRandomDelay.Should().BeTrue();
-        events[0].RandomDelayMinMs.Should().Be(100);
-        events[0].RandomDelayMaxMs.Should().Be(200);
+        _ = events.Should().HaveCount(1);
+        _ = events[0].Type.Should().Be(EventType.None);
+        _ = events[0].DelayMs.Should().Be(0);
+        _ = events[0].HasRandomDelay.Should().BeTrue();
+        _ = events[0].RandomDelayMinMs.Should().Be(100);
+        _ = events[0].RandomDelayMaxMs.Should().Be(200);
     }
 
     [Fact]
@@ -175,9 +176,9 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Test", isAbsolute: true);
 
         // Assert
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].Type.Should().Be(EventType.MouseMove);
-        sequence.TrailingDelayMs.Should().Be(250);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = sequence.TrailingDelayMs.Should().Be(250);
     }
 
     [Fact]
@@ -200,11 +201,11 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Test", isAbsolute: true);
 
         // Assert
-        sequence.Events.Should().HaveCount(1);
-        sequence.TrailingDelayMs.Should().Be(0);
-        sequence.HasTrailingRandomDelay.Should().BeTrue();
-        sequence.TrailingDelayMinMs.Should().Be(50);
-        sequence.TrailingDelayMaxMs.Should().Be(120);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.TrailingDelayMs.Should().Be(0);
+        _ = sequence.HasTrailingRandomDelay.Should().BeTrue();
+        _ = sequence.TrailingDelayMinMs.Should().Be(50);
+        _ = sequence.TrailingDelayMaxMs.Should().Be(120);
     }
 
     [Fact]
@@ -228,18 +229,18 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Test", isAbsolute: true);
 
         // Assert
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].DelayMs.Should().Be(30);
-        sequence.Events[0].HasRandomDelay.Should().BeTrue();
-        sequence.Events[0].RandomDelayMinMs.Should().Be(10);
-        sequence.Events[0].RandomDelayMaxMs.Should().Be(20);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].DelayMs.Should().Be(30);
+        _ = sequence.Events[0].HasRandomDelay.Should().BeTrue();
+        _ = sequence.Events[0].RandomDelayMinMs.Should().Be(10);
+        _ = sequence.Events[0].RandomDelayMaxMs.Should().Be(20);
     }
 
     [Fact]
     public void FromMacroEvent_WhenPressFollowedByRelease_MergesToKeyPressAction()
     {
         // Arrange
-        _keyCodeMapper.GetKeyName(30).Returns("A");
+        _ = _keyCodeMapper.GetKeyName(30).Returns("A");
         var keyPress = new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, DelayMs = 15 };
         var keyRelease = new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30 };
 
@@ -247,10 +248,10 @@ public class EditorActionConverterTests
         var action = _converter.FromMacroEvent(keyPress, keyRelease);
 
         // Assert
-        action.Type.Should().Be(EditorActionType.KeyPress);
-        action.KeyCode.Should().Be(30);
-        action.KeyName.Should().Be("A");
-        action.DelayMs.Should().Be(15);
+        _ = action.Type.Should().Be(EditorActionType.KeyPress);
+        _ = action.KeyCode.Should().Be(30);
+        _ = action.KeyName.Should().Be("A");
+        _ = action.DelayMs.Should().Be(15);
     }
 
     [Theory]
@@ -259,16 +260,16 @@ public class EditorActionConverterTests
     public void FromMacroEvent_WhenKeyboardEvent_RestoresKeyName(EventType eventType, EditorActionType expectedActionType)
     {
         // Arrange
-        _keyCodeMapper.GetKeyName(18).Returns("E");
+        _ = _keyCodeMapper.GetKeyName(18).Returns("E");
         var macroEvent = new MacroEvent { Type = eventType, KeyCode = 18 };
 
         // Act
         var action = _converter.FromMacroEvent(macroEvent);
 
         // Assert
-        action.Type.Should().Be(expectedActionType);
-        action.KeyCode.Should().Be(18);
-        action.KeyName.Should().Be("E");
+        _ = action.Type.Should().Be(expectedActionType);
+        _ = action.KeyCode.Should().Be(18);
+        _ = action.KeyName.Should().Be("E");
     }
 
     [Fact]
@@ -287,11 +288,11 @@ public class EditorActionConverterTests
         var events = actions.Select(action => _converter.ToMacroEvents(action).Single()).ToList();
 
         // Assert
-        events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
-        events[1].Type.Should().Be(EventType.Click);
-        events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        events[3].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = events[1].Type.Should().Be(EventType.Click);
+        _ = events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = events[3].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
     }
 
     [Fact]
@@ -311,18 +312,18 @@ public class EditorActionConverterTests
         var events = actions.SelectMany(action => _converter.ToMacroEvents(action)).ToList();
 
         // Assert
-        events.Should().OnlyContain(ev => ev.CoordinateMode == null);
-        events[0].UseCurrentPosition.Should().BeTrue();
-        events[0].X.Should().Be(0);
-        events[0].Y.Should().Be(0);
-        events[1].UseCurrentPosition.Should().BeTrue();
-        events[1].X.Should().Be(0);
-        events[1].Y.Should().Be(0);
-        events[2].UseCurrentPosition.Should().BeTrue();
-        events[2].X.Should().Be(0);
-        events[2].Y.Should().Be(0);
-        events[3].Button.Should().Be(MacroMouseButton.ScrollUp);
-        events[4].Button.Should().Be(MacroMouseButton.ScrollLeft);
+        _ = events.Should().OnlyContain(ev => ev.CoordinateMode == null);
+        _ = events[0].UseCurrentPosition.Should().BeTrue();
+        _ = events[0].X.Should().Be(0);
+        _ = events[0].Y.Should().Be(0);
+        _ = events[1].UseCurrentPosition.Should().BeTrue();
+        _ = events[1].X.Should().Be(0);
+        _ = events[1].Y.Should().Be(0);
+        _ = events[2].UseCurrentPosition.Should().BeTrue();
+        _ = events[2].X.Should().Be(0);
+        _ = events[2].Y.Should().Be(0);
+        _ = events[3].Button.Should().Be(MacroMouseButton.ScrollUp);
+        _ = events[4].Button.Should().Be(MacroMouseButton.ScrollLeft);
     }
 
     [Fact]
@@ -350,17 +351,17 @@ public class EditorActionConverterTests
         var clickAction = _converter.FromMacroEvent(clickEvent);
 
         // Assert
-        moveAction.IsAbsolute.Should().BeTrue();
-        clickAction.IsAbsolute.Should().BeFalse();
-        clickAction.UseCurrentPosition.Should().BeFalse();
+        _ = moveAction.IsAbsolute.Should().BeTrue();
+        _ = clickAction.IsAbsolute.Should().BeFalse();
+        _ = clickAction.UseCurrentPosition.Should().BeFalse();
     }
 
     [Fact]
     public void FromMacroSequence_WhenRecordedPrintableKeysHaveNoBoundary_PreservesRawTimingActions()
     {
         // Arrange
-        _keyCodeMapper.GetCharacterForKeyCode(30, withShift: false).Returns('a');
-        _keyCodeMapper.GetCharacterForKeyCode(48, withShift: false).Returns('b');
+        _ = _keyCodeMapper.GetCharacterForKeyCode(30, withShift: false).Returns('a');
+        _ = _keyCodeMapper.GetCharacterForKeyCode(48, withShift: false).Returns('b');
 
         var sequence = new MacroSequence
         {
@@ -377,17 +378,17 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(4);
-        actions[0].Type.Should().Be(EditorActionType.Delay);
-        actions[0].DelayMs.Should().Be(12);
-        actions[1].Type.Should().Be(EditorActionType.KeyPress);
-        actions[1].KeyCode.Should().Be(30);
-        actions[1].DelayMs.Should().Be(0);
-        actions[2].Type.Should().Be(EditorActionType.Delay);
-        actions[2].DelayMs.Should().Be(10);
-        actions[3].Type.Should().Be(EditorActionType.KeyPress);
-        actions[3].KeyCode.Should().Be(48);
-        actions[3].DelayMs.Should().Be(0);
+        _ = actions.Should().HaveCount(4);
+        _ = actions[0].Type.Should().Be(EditorActionType.Delay);
+        _ = actions[0].DelayMs.Should().Be(12);
+        _ = actions[1].Type.Should().Be(EditorActionType.KeyPress);
+        _ = actions[1].KeyCode.Should().Be(30);
+        _ = actions[1].DelayMs.Should().Be(0);
+        _ = actions[2].Type.Should().Be(EditorActionType.Delay);
+        _ = actions[2].DelayMs.Should().Be(10);
+        _ = actions[3].Type.Should().Be(EditorActionType.KeyPress);
+        _ = actions[3].KeyCode.Should().Be(48);
+        _ = actions[3].DelayMs.Should().Be(0);
     }
 
     [Fact]
@@ -404,10 +405,10 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Text boundary round trip", isAbsolute: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        sequence.TextInputBoundaries.Should().HaveCount(2);
-        restored.Should().HaveCount(2);
-        restored.Select(action => action.Type).Should().Equal(EditorActionType.TextInput, EditorActionType.TextInput);
-        restored.Select(action => action.Text).Should().Equal("hello", "world");
+        _ = sequence.TextInputBoundaries.Should().HaveCount(2);
+        _ = restored.Should().HaveCount(2);
+        _ = restored.Select(action => action.Type).Should().Equal(EditorActionType.TextInput, EditorActionType.TextInput);
+        _ = restored.Select(action => action.Text).Should().Equal("hello", "world");
     }
 
     [Fact]
@@ -423,10 +424,10 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Single text boundary", isAbsolute: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        sequence.TextInputBoundaries.Should().ContainSingle();
-        restored.Should().ContainSingle();
-        restored[0].Type.Should().Be(EditorActionType.TextInput);
-        restored[0].Text.Should().Be("x");
+        _ = sequence.TextInputBoundaries.Should().ContainSingle();
+        _ = restored.Should().ContainSingle();
+        _ = restored[0].Type.Should().Be(EditorActionType.TextInput);
+        _ = restored[0].Text.Should().Be("x");
     }
 
     [Fact]
@@ -442,8 +443,8 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Multiline text boundary", isAbsolute: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        sequence.Events.Should().HaveCount(10);
-        sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
+        _ = sequence.Events.Should().HaveCount(10);
+        _ = sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
             1_000 + 'a',
             1_000 + 'a',
             InputEventCode.KEY_ENTER,
@@ -454,20 +455,20 @@ public class EditorActionConverterTests
             InputEventCode.KEY_TAB,
             InputEventCode.KEY_BACKSPACE,
             InputEventCode.KEY_BACKSPACE);
-        sequence.TextInputBoundaries.Should().ContainSingle()
+        _ = sequence.TextInputBoundaries.Should().ContainSingle()
             .Which.Should().Be(new TextInputBoundary(0, 10, "a\r\nb\t\b"));
-        restored.Should().ContainSingle();
-        restored[0].Type.Should().Be(EditorActionType.TextInput);
-        restored[0].Text.Should().Be("a\r\nb\t\b");
+        _ = restored.Should().ContainSingle();
+        _ = restored[0].Type.Should().Be(EditorActionType.TextInput);
+        _ = restored[0].Text.Should().Be("a\r\nb\t\b");
     }
 
     [Fact]
     public void ToMacroSequence_WhenScriptBackedTextInputContainsControlCharacters_CompilesAndRestoresMultilineTextInputAction()
     {
         ConfigureTextInputTyping();
-        _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
-        _keyCodeMapper.GetKeyCode("Tab").Returns(InputEventCode.KEY_TAB);
-        _keyCodeMapper.GetKeyCode("Backspace").Returns(InputEventCode.KEY_BACKSPACE);
+        _ = _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
+        _ = _keyCodeMapper.GetKeyCode("Tab").Returns(InputEventCode.KEY_TAB);
+        _ = _keyCodeMapper.GetKeyCode("Backspace").Returns(InputEventCode.KEY_BACKSPACE);
 
         var actions = new[]
         {
@@ -479,12 +480,12 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Script multiline text", isAbsolute: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "repeat 1 {",
             "type a\r\nb\t\b",
             "}");
-        sequence.Events.Should().HaveCount(10);
-        sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
+        _ = sequence.Events.Should().HaveCount(10);
+        _ = sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
             1_000 + 'a',
             1_000 + 'a',
             InputEventCode.KEY_ENTER,
@@ -495,11 +496,11 @@ public class EditorActionConverterTests
             InputEventCode.KEY_TAB,
             InputEventCode.KEY_BACKSPACE,
             InputEventCode.KEY_BACKSPACE);
-        restored.Should().HaveCount(3);
-        restored[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
-        restored[1].Type.Should().Be(EditorActionType.TextInput);
-        restored[1].Text.Should().Be("a\r\nb\t\b");
-        restored[2].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = restored.Should().HaveCount(3);
+        _ = restored[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
+        _ = restored[1].Type.Should().Be(EditorActionType.TextInput);
+        _ = restored[1].Text.Should().Be("a\r\nb\t\b");
+        _ = restored[2].Type.Should().Be(EditorActionType.BlockEnd);
     }
 
     [Fact]
@@ -518,21 +519,21 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Script dollar text", isAbsolute: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "set myVar=1",
             "repeat 1 {",
             "type price $$10 and $myVar",
             "}");
-        restored.Should().HaveCount(4);
-        restored[2].Type.Should().Be(EditorActionType.TextInput);
-        restored[2].Text.Should().Be("price $$10 and $myVar");
+        _ = restored.Should().HaveCount(4);
+        _ = restored[2].Type.Should().Be(EditorActionType.TextInput);
+        _ = restored[2].Text.Should().Be("price $$10 and $myVar");
     }
 
     [Fact]
     public async Task SaveAndLoad_WhenScriptBackedTextInputContainsMultilineDollarText_PreservesRestoredTextInputAction()
     {
         ConfigureTextInputTyping();
-        _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
+        _ = _keyCodeMapper.GetKeyCode("Enter").Returns(InputEventCode.KEY_ENTER);
         var fileManager = new MacroFileManager(() => _keyCodeMapper);
         var filePath = Path.Combine(Path.GetTempPath(), $"crossmacro_converter_{Guid.NewGuid():N}.macro");
         const string text = "first line\nprice $$10";
@@ -552,14 +553,14 @@ public class EditorActionConverterTests
             var loaded = await fileManager.LoadAsync(filePath);
             var restored = _converter.FromMacroSequence(loaded!);
 
-            loaded.Should().NotBeNull();
-            loaded!.ScriptSteps.Should().Equal(
+            _ = loaded.Should().NotBeNull();
+            _ = loaded!.ScriptSteps.Should().Equal(
                 "repeat 1 {",
                 "type first line\nprice $$10",
                 "}");
-            restored.Should().HaveCount(3);
-            restored[1].Type.Should().Be(EditorActionType.TextInput);
-            restored[1].Text.Should().Be(text);
+            _ = restored.Should().HaveCount(3);
+            _ = restored[1].Type.Should().Be(EditorActionType.TextInput);
+            _ = restored[1].Text.Should().Be(text);
         }
         finally
         {
@@ -574,8 +575,8 @@ public class EditorActionConverterTests
     public void ToAndFromMacroSequence_WhenTextInputRequiresAltGr_PreservesTextInputAction()
     {
         ConfigureTextInputTyping();
-        _keyCodeMapper.GetKeyCodeForCharacter('@').Returns(2_000);
-        _keyCodeMapper.RequiresAltGr('@').Returns(returnThis: true);
+        _ = _keyCodeMapper.GetKeyCodeForCharacter('@').Returns(2_000);
+        _ = _keyCodeMapper.RequiresAltGr('@').Returns(returnThis: true);
 
         var actions = new[]
         {
@@ -585,15 +586,15 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "AltGr text boundary", isAbsolute: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        sequence.TextInputBoundaries.Should().ContainSingle();
-        sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
+        _ = sequence.TextInputBoundaries.Should().ContainSingle();
+        _ = sequence.Events.Select(ev => ev.KeyCode).Should().Equal(
             InputEventCode.KEY_RIGHTALT,
             2_000,
             2_000,
             InputEventCode.KEY_RIGHTALT);
-        restored.Should().ContainSingle();
-        restored[0].Type.Should().Be(EditorActionType.TextInput);
-        restored[0].Text.Should().Be("@");
+        _ = restored.Should().ContainSingle();
+        _ = restored[0].Type.Should().Be(EditorActionType.TextInput);
+        _ = restored[0].Text.Should().Be("@");
     }
 
     [Fact]
@@ -611,13 +612,13 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Text delay boundary", isAbsolute: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        restored.Select(action => action.Type).Should().Equal(
+        _ = restored.Select(action => action.Type).Should().Equal(
             EditorActionType.TextInput,
             EditorActionType.Delay,
             EditorActionType.TextInput);
-        restored[0].Text.Should().Be("one");
-        restored[1].DelayMs.Should().Be(250);
-        restored[2].Text.Should().Be("two");
+        _ = restored[0].Text.Should().Be("one");
+        _ = restored[1].DelayMs.Should().Be(250);
+        _ = restored[2].Text.Should().Be("two");
     }
 
     [Fact]
@@ -635,14 +636,14 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Text mouse boundary", isAbsolute: false, skipInitialZeroZero: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        restored.Select(action => action.Type).Should().Equal(
+        _ = restored.Select(action => action.Type).Should().Equal(
             EditorActionType.TextInput,
             EditorActionType.MouseClick,
             EditorActionType.TextInput);
-        restored[0].Text.Should().Be("one");
-        restored[1].UseCurrentPosition.Should().BeTrue();
-        restored[1].Button.Should().Be(MacroMouseButton.Left);
-        restored[2].Text.Should().Be("two");
+        _ = restored[0].Text.Should().Be("one");
+        _ = restored[1].UseCurrentPosition.Should().BeTrue();
+        _ = restored[1].Button.Should().Be(MacroMouseButton.Left);
+        _ = restored[2].Text.Should().Be("two");
     }
 
     [Fact]
@@ -659,15 +660,15 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Text literal dollars", isAbsolute: true);
         var restored = _converter.FromMacroSequence(sequence);
 
-        sequence.ScriptSteps.Should().BeEmpty();
-        restored.Select(action => action.Text).Should().Equal("cost $5", "$HOME");
+        _ = sequence.ScriptSteps.Should().BeEmpty();
+        _ = restored.Select(action => action.Text).Should().Equal("cost $5", "$HOME");
     }
 
     [Fact]
     public void FromMacroSequence_WhenTextInputBoundaryIsInvalid_FallsBackToRawKeyActions()
     {
-        _keyCodeMapper.GetCharacterForKeyCode(30, withShift: false).Returns('a');
-        _keyCodeMapper.GetCharacterForKeyCode(48, withShift: false).Returns('b');
+        _ = _keyCodeMapper.GetCharacterForKeyCode(30, withShift: false).Returns('a');
+        _ = _keyCodeMapper.GetCharacterForKeyCode(48, withShift: false).Returns('b');
         var sequence = new MacroSequence
         {
             Events =
@@ -677,22 +678,22 @@ public class EditorActionConverterTests
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 48 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48 },
             },
-            TextInputBoundaries = {new TextInputBoundary(0, 99, "invalid")},
+            TextInputBoundaries = { new TextInputBoundary(0, 99, "invalid") },
         };
 
         var restored = _converter.FromMacroSequence(sequence);
 
-        restored.Select(action => action.Type).Should().Equal(
+        _ = restored.Select(action => action.Type).Should().Equal(
             EditorActionType.KeyPress,
             EditorActionType.KeyPress);
-        restored.Select(action => action.KeyCode).Should().Equal(30, 48);
+        _ = restored.Select(action => action.KeyCode).Should().Equal(30, 48);
     }
 
     [Fact]
     public void FromMacroSequence_WhenTextInputBoundaryTextDoesNotMatchEvents_FallsBackToRawKeyActions()
     {
-        _keyCodeMapper.GetCharacterForKeyCode(30, withShift: false).Returns('a');
-        _keyCodeMapper.GetCharacterForKeyCode(48, withShift: false).Returns('b');
+        _ = _keyCodeMapper.GetCharacterForKeyCode(30, withShift: false).Returns('a');
+        _ = _keyCodeMapper.GetCharacterForKeyCode(48, withShift: false).Returns('b');
         var sequence = new MacroSequence
         {
             Events =
@@ -702,15 +703,15 @@ public class EditorActionConverterTests
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 48 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 48 },
             },
-            TextInputBoundaries = {new TextInputBoundary(0, 4, "stale")},
+            TextInputBoundaries = { new TextInputBoundary(0, 4, "stale") },
         };
 
         var restored = _converter.FromMacroSequence(sequence);
 
-        restored.Select(action => action.Type).Should().Equal(
+        _ = restored.Select(action => action.Type).Should().Equal(
             EditorActionType.KeyPress,
             EditorActionType.KeyPress);
-        restored.Select(action => action.KeyCode).Should().Equal(30, 48);
+        _ = restored.Select(action => action.KeyCode).Should().Equal(30, 48);
     }
 
     [Fact]
@@ -727,23 +728,23 @@ public class EditorActionConverterTests
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'b', DelayMs = 93 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'b', DelayMs = 11 },
             },
-            TextInputBoundaries = {new TextInputBoundary(0, 4, "ab")},
+            TextInputBoundaries = { new TextInputBoundary(0, 4, "ab") },
         };
 
         var restored = _converter.FromMacroSequence(sequence);
         var roundTripped = _converter.ToMacroSequence(restored, "Preserve timed text", isAbsolute: true);
 
-        restored.Select(action => action.Type).Should().Equal(EditorActionType.Delay, EditorActionType.TextInput);
-        restored[0].DelayMs.Should().Be(25);
-        restored[1].Text.Should().Be("ab");
-        roundTripped.Events.Should().HaveCount(4);
-        roundTripped.Events.Select(ev => ev.DelayMs).Should().Equal(25, 7, 93, 11);
-        roundTripped.Events.Select(ev => ev.Type).Should().Equal(
+        _ = restored.Select(action => action.Type).Should().Equal(EditorActionType.Delay, EditorActionType.TextInput);
+        _ = restored[0].DelayMs.Should().Be(25);
+        _ = restored[1].Text.Should().Be("ab");
+        _ = roundTripped.Events.Should().HaveCount(4);
+        _ = roundTripped.Events.Select(ev => ev.DelayMs).Should().Equal(25, 7, 93, 11);
+        _ = roundTripped.Events.Select(ev => ev.Type).Should().Equal(
             EventType.KeyPress,
             EventType.KeyRelease,
             EventType.KeyPress,
             EventType.KeyRelease);
-        roundTripped.TextInputBoundaries.Should().ContainSingle()
+        _ = roundTripped.TextInputBoundaries.Should().ContainSingle()
             .Which.Should().Be(new TextInputBoundary(0, 4, "ab"));
     }
 
@@ -761,18 +762,18 @@ public class EditorActionConverterTests
                 new MacroEvent { Type = EventType.KeyPress, KeyCode = 1_000 + 'b', DelayMs = 93 },
                 new MacroEvent { Type = EventType.KeyRelease, KeyCode = 1_000 + 'b', DelayMs = 11 },
             },
-            TextInputBoundaries = {new TextInputBoundary(0, 4, "ab")},
+            TextInputBoundaries = { new TextInputBoundary(0, 4, "ab") },
         };
 
         var restored = _converter.FromMacroSequence(sequence);
-        restored.Select(action => action.Type).Should().Equal(EditorActionType.Delay, EditorActionType.TextInput);
+        _ = restored.Select(action => action.Type).Should().Equal(EditorActionType.Delay, EditorActionType.TextInput);
         restored[1].Text = "ac";
 
         var roundTripped = _converter.ToMacroSequence(restored, "Regenerate edited text", isAbsolute: true);
 
-        roundTripped.Events.Should().HaveCount(4);
-        roundTripped.Events.Select(ev => ev.DelayMs).Should().Equal(25, 0, 10, 0);
-        roundTripped.TextInputBoundaries.Should().ContainSingle()
+        _ = roundTripped.Events.Should().HaveCount(4);
+        _ = roundTripped.Events.Select(ev => ev.DelayMs).Should().Equal(25, 0, 10, 0);
+        _ = roundTripped.TextInputBoundaries.Should().ContainSingle()
             .Which.Should().Be(new TextInputBoundary(0, 4, "ac"));
     }
 
@@ -801,12 +802,12 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions[0].Type.Should().Be(EditorActionType.Delay);
-        actions[0].UseRandomDelay.Should().BeTrue();
-        actions[0].RandomDelayMinMs.Should().Be(70);
-        actions[0].RandomDelayMaxMs.Should().Be(130);
-        actions[1].Type.Should().Be(EditorActionType.MouseMove);
+        _ = actions.Should().HaveCount(2);
+        _ = actions[0].Type.Should().Be(EditorActionType.Delay);
+        _ = actions[0].UseRandomDelay.Should().BeTrue();
+        _ = actions[0].RandomDelayMinMs.Should().Be(70);
+        _ = actions[0].RandomDelayMaxMs.Should().Be(130);
+        _ = actions[1].Type.Should().Be(EditorActionType.MouseMove);
     }
 
     [Fact]
@@ -828,8 +829,8 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(3);
-        actions.Should().OnlyContain(a => a.IsAbsolute);
+        _ = actions.Should().HaveCount(3);
+        _ = actions.Should().OnlyContain(a => a.IsAbsolute);
     }
 
     [Fact]
@@ -850,8 +851,8 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions.Should().OnlyContain(a => !a.IsAbsolute);
+        _ = actions.Should().HaveCount(2);
+        _ = actions.Should().OnlyContain(a => !a.IsAbsolute);
     }
 
     [Fact]
@@ -872,10 +873,10 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(1);
-        actions[0].Type.Should().Be(EditorActionType.MouseClick);
-        actions[0].UseCurrentPosition.Should().BeTrue();
-        actions[0].IsAbsolute.Should().BeFalse();
+        _ = actions.Should().HaveCount(1);
+        _ = actions[0].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[0].UseCurrentPosition.Should().BeTrue();
+        _ = actions[0].IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -902,9 +903,9 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(1);
-        actions[0].UseCurrentPosition.Should().BeTrue();
-        actions[0].IsAbsolute.Should().BeFalse();
+        _ = actions.Should().HaveCount(1);
+        _ = actions[0].UseCurrentPosition.Should().BeTrue();
+        _ = actions[0].IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -937,12 +938,12 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions[0].Type.Should().Be(EditorActionType.MouseClick);
-        actions[0].UseCurrentPosition.Should().BeTrue();
-        actions[0].IsAbsolute.Should().BeFalse();
-        actions[1].Type.Should().Be(EditorActionType.MouseMove);
-        actions[1].IsAbsolute.Should().BeTrue();
+        _ = actions.Should().HaveCount(2);
+        _ = actions[0].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[0].UseCurrentPosition.Should().BeTrue();
+        _ = actions[0].IsAbsolute.Should().BeFalse();
+        _ = actions[1].Type.Should().Be(EditorActionType.MouseMove);
+        _ = actions[1].IsAbsolute.Should().BeTrue();
     }
 
     [Fact]
@@ -999,19 +1000,19 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(5);
-        actions[0].Type.Should().Be(EditorActionType.MouseMove);
-        actions[0].IsAbsolute.Should().BeTrue();
-        actions[1].Type.Should().Be(EditorActionType.MouseClick);
-        actions[1].IsAbsolute.Should().BeFalse();
-        actions[1].UseCurrentPosition.Should().BeFalse();
-        actions[2].Type.Should().Be(EditorActionType.MouseDown);
-        actions[2].IsAbsolute.Should().BeTrue();
-        actions[3].Type.Should().Be(EditorActionType.MouseUp);
-        actions[3].IsAbsolute.Should().BeFalse();
-        actions[4].Type.Should().Be(EditorActionType.MouseClick);
-        actions[4].UseCurrentPosition.Should().BeTrue();
-        actions[4].IsAbsolute.Should().BeFalse();
+        _ = actions.Should().HaveCount(5);
+        _ = actions[0].Type.Should().Be(EditorActionType.MouseMove);
+        _ = actions[0].IsAbsolute.Should().BeTrue();
+        _ = actions[1].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[1].IsAbsolute.Should().BeFalse();
+        _ = actions[1].UseCurrentPosition.Should().BeFalse();
+        _ = actions[2].Type.Should().Be(EditorActionType.MouseDown);
+        _ = actions[2].IsAbsolute.Should().BeTrue();
+        _ = actions[3].Type.Should().Be(EditorActionType.MouseUp);
+        _ = actions[3].IsAbsolute.Should().BeFalse();
+        _ = actions[4].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[4].UseCurrentPosition.Should().BeTrue();
+        _ = actions[4].IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -1032,8 +1033,8 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions.Should().OnlyContain(action => action.IsAbsolute);
+        _ = actions.Should().HaveCount(2);
+        _ = actions.Should().OnlyContain(action => action.IsAbsolute);
     }
 
     [Fact]
@@ -1054,23 +1055,23 @@ public class EditorActionConverterTests
         var restored = _converter.FromMacroSequence(sequence);
 
         // Assert
-        sequence.Events.Should().HaveCount(5);
-        sequence.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        sequence.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
-        sequence.Events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        sequence.Events[2].Type.Should().Be(EventType.Click);
-        sequence.Events[3].UseCurrentPosition.Should().BeTrue();
-        sequence.Events[3].CoordinateMode.Should().BeNull();
-        sequence.Events[4].Button.Should().Be(MacroMouseButton.ScrollDown);
-        sequence.Events[4].CoordinateMode.Should().BeNull();
+        _ = sequence.Events.Should().HaveCount(5);
+        _ = sequence.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = sequence.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = sequence.Events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = sequence.Events[2].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[3].UseCurrentPosition.Should().BeTrue();
+        _ = sequence.Events[3].CoordinateMode.Should().BeNull();
+        _ = sequence.Events[4].Button.Should().Be(MacroMouseButton.ScrollDown);
+        _ = sequence.Events[4].CoordinateMode.Should().BeNull();
 
-        restored.Should().HaveCount(5);
-        restored[0].IsAbsolute.Should().BeTrue();
-        restored[1].IsAbsolute.Should().BeFalse();
-        restored[2].IsAbsolute.Should().BeTrue();
-        restored[3].UseCurrentPosition.Should().BeTrue();
-        restored[3].IsAbsolute.Should().BeFalse();
-        restored[4].Type.Should().Be(EditorActionType.ScrollVertical);
+        _ = restored.Should().HaveCount(5);
+        _ = restored[0].IsAbsolute.Should().BeTrue();
+        _ = restored[1].IsAbsolute.Should().BeFalse();
+        _ = restored[2].IsAbsolute.Should().BeTrue();
+        _ = restored[3].UseCurrentPosition.Should().BeTrue();
+        _ = restored[3].IsAbsolute.Should().BeFalse();
+        _ = restored[4].Type.Should().Be(EditorActionType.ScrollVertical);
     }
 
     [Fact]
@@ -1091,31 +1092,31 @@ public class EditorActionConverterTests
             // Act
             var sequence = _converter.ToMacroSequence(actions, "Mixed Editor Round Trip", isAbsolute: true);
             await fileManager.SaveAsync(sequence, filePath);
-            var saved = await File.ReadAllTextAsync(filePath);
+            var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
             var loaded = await fileManager.LoadAsync(filePath);
             var restored = _converter.FromMacroSequence(loaded!);
 
             // Assert
-            sequence.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+            _ = sequence.Events.Select(ev => ev.CoordinateMode).Should().Equal(
                 MouseCoordinateMode.Absolute,
                 MouseCoordinateMode.Relative,
                 null);
-            saved.Should().Contain("M,abs,100,200");
-            saved.Should().Contain("M,rel,5,-3");
-            saved.Should().Contain("C,0,0,Left,CurrentPosition");
-            saved.Should().NotContain("C,abs,0,0,Left");
-            saved.Should().NotContain("C,rel,0,0,Left");
+            _ = saved.Should().Contain("M,abs,100,200");
+            _ = saved.Should().Contain("M,rel,5,-3");
+            _ = saved.Should().Contain("C,0,0,Left,CurrentPosition");
+            _ = saved.Should().NotContain("C,abs,0,0,Left");
+            _ = saved.Should().NotContain("C,rel,0,0,Left");
 
-            loaded.Should().NotBeNull();
-            loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+            _ = loaded.Should().NotBeNull();
+            _ = loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
                 MouseCoordinateMode.Absolute,
                 MouseCoordinateMode.Relative,
                 null);
-            restored.Should().HaveCount(3);
-            restored[0].IsAbsolute.Should().BeTrue();
-            restored[1].IsAbsolute.Should().BeFalse();
-            restored[2].UseCurrentPosition.Should().BeTrue();
-            restored[2].IsAbsolute.Should().BeFalse();
+            _ = restored.Should().HaveCount(3);
+            _ = restored[0].IsAbsolute.Should().BeTrue();
+            _ = restored[1].IsAbsolute.Should().BeFalse();
+            _ = restored[2].UseCurrentPosition.Should().BeTrue();
+            _ = restored[2].IsAbsolute.Should().BeFalse();
         }
         finally
         {
@@ -1145,9 +1146,9 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Script Macro", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].Type.Should().Be(EventType.Click);
-        sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
     }
 
     [Fact]
@@ -1169,8 +1170,8 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "State Only Script", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().BeEmpty();
-        sequence.ScriptSteps.Should().ContainSingle().Which.Should().StartWith("set i");
+        _ = sequence.Events.Should().BeEmpty();
+        _ = sequence.ScriptSteps.Should().ContainSingle().Which.Should().StartWith("set i");
     }
 
     [Fact]
@@ -1184,8 +1185,8 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Clipboard Macro", isAbsolute: true);
 
-        sequence.Events.Should().BeEmpty();
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.Events.Should().BeEmpty();
+        _ = sequence.ScriptSteps.Should().Equal(
             "clipboard get clipText",
             "clipboard set hello $clipText");
     }
@@ -1200,8 +1201,8 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Clipboard Macro", isAbsolute: true);
 
-        sequence.Events.Should().BeEmpty();
-        sequence.ScriptSteps.Should().Equal("clipboard set literal $$clipText");
+        _ = sequence.Events.Should().BeEmpty();
+        _ = sequence.ScriptSteps.Should().Equal("clipboard set literal $$clipText");
     }
 
     [Fact]
@@ -1218,13 +1219,13 @@ public class EditorActionConverterTests
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        result.RestoredFromScriptSteps.Should().BeTrue();
-        result.Warnings.Should().BeEmpty();
-        result.Actions.Should().HaveCount(2);
-        result.Actions[0].Type.Should().Be(EditorActionType.ClipboardGet);
-        result.Actions[0].ScriptVariableName.Should().Be("clipText");
-        result.Actions[1].Type.Should().Be(EditorActionType.ClipboardSet);
-        result.Actions[1].Text.Should().Be("hello $clipText");
+        _ = result.RestoredFromScriptSteps.Should().BeTrue();
+        _ = result.Warnings.Should().BeEmpty();
+        _ = result.Actions.Should().HaveCount(2);
+        _ = result.Actions[0].Type.Should().Be(EditorActionType.ClipboardGet);
+        _ = result.Actions[0].ScriptVariableName.Should().Be("clipText");
+        _ = result.Actions[1].Type.Should().Be(EditorActionType.ClipboardSet);
+        _ = result.Actions[1].Text.Should().Be("hello $clipText");
     }
 
     [Fact]
@@ -1232,16 +1233,16 @@ public class EditorActionConverterTests
     {
         var sequence = new MacroSequence
         {
-            ScriptSteps = {"clipboard set literal $$clipText"},
+            ScriptSteps = { "clipboard set literal $$clipText" },
         };
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        result.RestoredFromScriptSteps.Should().BeTrue();
-        result.Warnings.Should().BeEmpty();
-        result.Actions.Should().ContainSingle();
-        result.Actions[0].Type.Should().Be(EditorActionType.ClipboardSet);
-        result.Actions[0].Text.Should().Be("literal $$clipText");
+        _ = result.RestoredFromScriptSteps.Should().BeTrue();
+        _ = result.Warnings.Should().BeEmpty();
+        _ = result.Actions.Should().ContainSingle();
+        _ = result.Actions[0].Type.Should().Be(EditorActionType.ClipboardSet);
+        _ = result.Actions[0].Text.Should().Be("literal $$clipText");
     }
 
     [Fact]
@@ -1260,11 +1261,11 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Mixed Macro", isAbsolute: true);
 
         // Assert
-        sequence.IsAbsoluteCoordinates.Should().BeTrue();
-        sequence.Events.Should().HaveCount(3);
-        sequence.Events[0].Type.Should().Be(EventType.MouseMove);
-        sequence.Events[1].Type.Should().Be(EventType.Click);
-        sequence.Events[2].Type.Should().Be(EventType.Click);
+        _ = sequence.IsAbsoluteCoordinates.Should().BeTrue();
+        _ = sequence.Events.Should().HaveCount(3);
+        _ = sequence.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = sequence.Events[1].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[2].Type.Should().Be(EventType.Click);
     }
 
     [Fact]
@@ -1300,15 +1301,15 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "State Script Mixed Coordinates", isAbsolute: true);
 
         // Assert
-        sequence.Events.Should().HaveCount(2);
-        sequence.Events[0].Type.Should().Be(EventType.Click);
-        sequence.Events[0].UseCurrentPosition.Should().BeTrue();
-        sequence.Events[0].CoordinateMode.Should().BeNull();
-        sequence.Events[1].Type.Should().Be(EventType.MouseMove);
-        sequence.Events[1].X.Should().Be(320);
-        sequence.Events[1].Y.Should().Be(240);
-        sequence.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.Events.Should().HaveCount(2);
+        _ = sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[0].UseCurrentPosition.Should().BeTrue();
+        _ = sequence.Events[0].CoordinateMode.Should().BeNull();
+        _ = sequence.Events[1].Type.Should().Be(EventType.MouseMove);
+        _ = sequence.Events[1].X.Should().Be(320);
+        _ = sequence.Events[1].Y.Should().Be(240);
+        _ = sequence.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = sequence.ScriptSteps.Should().Equal(
             "set mode fast",
             "click current left",
             "move abs 320 240");
@@ -1342,13 +1343,13 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Absolute Then Current Click", isAbsolute: true);
 
         // Assert
-        sequence.Events.Should().HaveCount(2);
-        sequence.Events[0].Type.Should().Be(EventType.MouseMove);
-        sequence.Events[0].X.Should().Be(500);
-        sequence.Events[0].Y.Should().Be(300);
-        sequence.Events[1].Type.Should().Be(EventType.Click);
-        sequence.Events[1].UseCurrentPosition.Should().BeTrue();
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.Events.Should().HaveCount(2);
+        _ = sequence.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = sequence.Events[0].X.Should().Be(500);
+        _ = sequence.Events[0].Y.Should().Be(300);
+        _ = sequence.Events[1].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[1].UseCurrentPosition.Should().BeTrue();
+        _ = sequence.ScriptSteps.Should().Equal(
             "repeat 1 {",
             "move abs 500 300",
             "click current left",
@@ -1370,7 +1371,7 @@ public class EditorActionConverterTests
         Action act = () => _converter.ToMacroSequence(actions, "Broken Script", isAbsolute: false);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>();
+        _ = act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -1403,9 +1404,9 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Structured Script Macro", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].Type.Should().Be(EventType.Click);
-        sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
     }
 
     [Fact]
@@ -1434,11 +1435,11 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Set Equals Text", isAbsolute: false);
 
         // Assert
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "set x=a=b",
             "click current left");
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].Type.Should().Be(EventType.Click);
     }
 
     [Fact]
@@ -1467,10 +1468,10 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Set Dollar Text", isAbsolute: false);
 
         // Assert
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "set name $$foo",
             "click current left");
-        sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events.Should().HaveCount(1);
     }
 
     [Fact]
@@ -1502,12 +1503,12 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Condition Dollar Text", isAbsolute: false);
 
         // Assert
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "if $$foo == $$foo {",
             "click current left",
             "}");
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].Type.Should().Be(EventType.Click);
     }
 
     [Fact]
@@ -1543,12 +1544,12 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Condition Variable Prefix", isAbsolute: false);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "set name $$foo",
             "if $name == $$foo {",
             "click current left",
             "}");
-        sequence.Events.Should().ContainSingle();
+        _ = sequence.Events.Should().ContainSingle();
     }
 
     [Fact]
@@ -1585,7 +1586,7 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Condition Color", isAbsolute: false);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "pixelcolor 1 2 color timeout 5000",
             "if $color == 1C1C1C {",
             "click current left",
@@ -1647,7 +1648,7 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Structured Overrides Legacy Text", isAbsolute: false);
 
         // Assert
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "set counter 0",
             "inc counter 2",
             "if $counter >= 2 {",
@@ -1656,7 +1657,7 @@ public class EditorActionConverterTests
             "for j from 1 to 2 step 1 {",
             "click current left",
             "}");
-        sequence.Events.Should().HaveCount(3);
+        _ = sequence.Events.Should().HaveCount(3);
     }
 
     [Fact]
@@ -1672,10 +1673,10 @@ public class EditorActionConverterTests
             },
         });
 
-        loadedActions.Should().HaveCount(2);
-        loadedActions[0].Type.Should().Be(EditorActionType.SetVariable);
-        loadedActions[0].Text.Should().Be("1bad=0");
-        loadedActions[0].PreferLegacyScriptText.Should().BeTrue();
+        _ = loadedActions.Should().HaveCount(2);
+        _ = loadedActions[0].Type.Should().Be(EditorActionType.SetVariable);
+        _ = loadedActions[0].Text.Should().Be("1bad=0");
+        _ = loadedActions[0].PreferLegacyScriptText.Should().BeTrue();
 
         // Simulate editing via structured controls and then returning to defaults.
         loadedActions[0].ScriptVariableName = "counter";
@@ -1683,17 +1684,17 @@ public class EditorActionConverterTests
         loadedActions[0].ScriptValue = "5";
         loadedActions[0].ScriptValue = "0";
 
-        loadedActions[0].PreferLegacyScriptText.Should().BeFalse();
+        _ = loadedActions[0].PreferLegacyScriptText.Should().BeFalse();
 
         // Act
         var sequence = _converter.ToMacroSequence(loadedActions, "Legacy Reset Defaults", isAbsolute: false);
 
         // Assert
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "set i 0",
             "click current left");
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].Type.Should().Be(EventType.Click);
     }
 
     [Fact]
@@ -1719,8 +1720,8 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Structured For Macro", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().HaveCount(3);
-        sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click);
+        _ = sequence.Events.Should().HaveCount(3);
+        _ = sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click);
     }
 
     [Fact]
@@ -1756,9 +1757,9 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Shared For Variable", isAbsolute: false);
 
         // Assert
-        sequence.ScriptSteps.Should().Contain("for i from 0 to $limit step $limit {");
-        sequence.Events.Should().HaveCount(2); // i = 0, 3
-        sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click);
+        _ = sequence.ScriptSteps.Should().Contain("for i from 0 to $limit step $limit {");
+        _ = sequence.Events.Should().HaveCount(2); // i = 0, 3
+        _ = sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click);
     }
 
     [Fact]
@@ -1786,9 +1787,9 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Break Loop Macro", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].Type.Should().Be(EventType.Click);
-        sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
     }
 
     [Fact]
@@ -1816,8 +1817,8 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Continue Loop Macro", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().HaveCount(3);
-        sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click && ev.Button == MacroMouseButton.Left);
+        _ = sequence.Events.Should().HaveCount(3);
+        _ = sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click && ev.Button == MacroMouseButton.Left);
     }
 
     [Fact]
@@ -1834,7 +1835,7 @@ public class EditorActionConverterTests
         Action act = () => _converter.ToMacroSequence(actions, "Invalid Break Macro", isAbsolute: false);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        _ = act.Should().Throw<InvalidOperationException>()
             .WithMessage("*can only be used inside repeat/while/for blocks*");
     }
 
@@ -1862,7 +1863,7 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Skip Initial Propagation", isAbsolute: false, skipInitialZeroZero: false);
 
         // Assert
-        sequence.SkipInitialZeroZero.Should().BeTrue();
+        _ = sequence.SkipInitialZeroZero.Should().BeTrue();
     }
 
     [Fact]
@@ -1895,7 +1896,7 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Script Step Preserve", isAbsolute: false);
 
         // Assert
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "set i 0",
             "for i from 1 to 3 {",
             "click current left",
@@ -1924,10 +1925,10 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Script Random Delay", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().HaveCount(2);
-        sequence.Events[1].HasRandomDelay.Should().BeTrue();
-        sequence.Events[1].RandomDelayMinMs.Should().Be(10);
-        sequence.Events[1].RandomDelayMaxMs.Should().Be(20);
+        _ = sequence.Events.Should().HaveCount(2);
+        _ = sequence.Events[1].HasRandomDelay.Should().BeTrue();
+        _ = sequence.Events[1].RandomDelayMinMs.Should().Be(10);
+        _ = sequence.Events[1].RandomDelayMaxMs.Should().Be(20);
     }
 
     [Fact]
@@ -1946,18 +1947,18 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Script Initial Random Delay", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().HaveCount(1);
-        sequence.Events[0].Type.Should().Be(EventType.Click);
-        sequence.Events[0].HasRandomDelay.Should().BeTrue();
-        sequence.Events[0].RandomDelayMinMs.Should().Be(10);
-        sequence.Events[0].RandomDelayMaxMs.Should().Be(20);
+        _ = sequence.Events.Should().HaveCount(1);
+        _ = sequence.Events[0].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[0].HasRandomDelay.Should().BeTrue();
+        _ = sequence.Events[0].RandomDelayMinMs.Should().Be(10);
+        _ = sequence.Events[0].RandomDelayMaxMs.Should().Be(20);
     }
 
     [Fact]
     public void ToMacroSequence_WhenScriptBackedModifierOnlyKeyPress_DoesNotFail()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
+        _ = _keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
         var actions = new[]
         {
             new EditorAction
@@ -1978,11 +1979,11 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Modifier KeyPress", isAbsolute: false);
 
         // Assert
-        sequence.Events.Should().HaveCount(2);
-        sequence.Events[0].Type.Should().Be(EventType.KeyPress);
-        sequence.Events[0].KeyCode.Should().Be(29);
-        sequence.Events[1].Type.Should().Be(EventType.KeyRelease);
-        sequence.Events[1].KeyCode.Should().Be(29);
+        _ = sequence.Events.Should().HaveCount(2);
+        _ = sequence.Events[0].Type.Should().Be(EventType.KeyPress);
+        _ = sequence.Events[0].KeyCode.Should().Be(29);
+        _ = sequence.Events[1].Type.Should().Be(EventType.KeyRelease);
+        _ = sequence.Events[1].KeyCode.Should().Be(29);
     }
 
     [Fact]
@@ -2007,41 +2008,41 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(7);
+        _ = actions.Should().HaveCount(7);
 
-        actions[0].Type.Should().Be(EditorActionType.SetVariable);
-        actions[0].ScriptVariableName.Should().Be("i");
-        actions[0].ScriptValueType.Should().Be(ScriptValueType.Number);
-        actions[0].ScriptValue.Should().Be("0");
+        _ = actions[0].Type.Should().Be(EditorActionType.SetVariable);
+        _ = actions[0].ScriptVariableName.Should().Be("i");
+        _ = actions[0].ScriptValueType.Should().Be(ScriptValueType.Number);
+        _ = actions[0].ScriptValue.Should().Be("0");
 
-        actions[1].Type.Should().Be(EditorActionType.ForBlockStart);
-        actions[1].ForVariableName.Should().Be("i");
-        actions[1].ForStartType.Should().Be(ScriptNumericSourceType.Number);
-        actions[1].ForStartValue.Should().Be("1");
-        actions[1].ForEndType.Should().Be(ScriptNumericSourceType.Number);
-        actions[1].ForEndValue.Should().Be("10");
+        _ = actions[1].Type.Should().Be(EditorActionType.ForBlockStart);
+        _ = actions[1].ForVariableName.Should().Be("i");
+        _ = actions[1].ForStartType.Should().Be(ScriptNumericSourceType.Number);
+        _ = actions[1].ForStartValue.Should().Be("1");
+        _ = actions[1].ForEndType.Should().Be(ScriptNumericSourceType.Number);
+        _ = actions[1].ForEndValue.Should().Be("10");
 
-        actions[2].Type.Should().Be(EditorActionType.MouseClick);
-        actions[2].UseCurrentPosition.Should().BeTrue();
+        _ = actions[2].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[2].UseCurrentPosition.Should().BeTrue();
 
-        actions[3].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = actions[3].Type.Should().Be(EditorActionType.BlockEnd);
 
-        actions[4].Type.Should().Be(EditorActionType.RepeatBlockStart);
-        actions[4].ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.VariableReference);
-        actions[4].ScriptNumericValue.Should().Be("n");
+        _ = actions[4].Type.Should().Be(EditorActionType.RepeatBlockStart);
+        _ = actions[4].ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.VariableReference);
+        _ = actions[4].ScriptNumericValue.Should().Be("n");
 
-        actions[5].Type.Should().Be(EditorActionType.KeyPress);
-        actions[5].KeyCode.Should().Be(30);
+        _ = actions[5].Type.Should().Be(EditorActionType.KeyPress);
+        _ = actions[5].KeyCode.Should().Be(30);
 
-        actions[6].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = actions[6].Type.Should().Be(EditorActionType.BlockEnd);
     }
 
     [Fact]
     public void FromMacroSequence_WhenScriptStepsContainNamedKeyDownUp_RestoresKeyActions()
     {
         // Arrange
-        _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
-        _keyCodeMapper.GetKeyName(29).Returns("Ctrl");
+        _ = _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
+        _ = _keyCodeMapper.GetKeyName(29).Returns("Ctrl");
         var sequence = new MacroSequence
         {
             ScriptSteps =
@@ -2055,21 +2056,21 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions[0].Type.Should().Be(EditorActionType.KeyDown);
-        actions[0].KeyCode.Should().Be(29);
-        actions[0].KeyName.Should().Be("Ctrl");
-        actions[1].Type.Should().Be(EditorActionType.KeyUp);
-        actions[1].KeyCode.Should().Be(29);
-        actions[1].KeyName.Should().Be("Ctrl");
+        _ = actions.Should().HaveCount(2);
+        _ = actions[0].Type.Should().Be(EditorActionType.KeyDown);
+        _ = actions[0].KeyCode.Should().Be(29);
+        _ = actions[0].KeyName.Should().Be("Ctrl");
+        _ = actions[1].Type.Should().Be(EditorActionType.KeyUp);
+        _ = actions[1].KeyCode.Should().Be(29);
+        _ = actions[1].KeyName.Should().Be("Ctrl");
     }
 
     [Fact]
     public void FromMacroSequence_WhenScriptStepContainsNamedSingleTap_RestoresKeyPress()
     {
         // Arrange
-        _keyCodeMapper.GetKeyCode("enter").Returns(28);
-        _keyCodeMapper.GetKeyName(28).Returns("Enter");
+        _ = _keyCodeMapper.GetKeyCode("enter").Returns(28);
+        _ = _keyCodeMapper.GetKeyName(28).Returns("Enter");
         var sequence = new MacroSequence
         {
             ScriptSteps =
@@ -2082,10 +2083,10 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(1);
-        actions[0].Type.Should().Be(EditorActionType.KeyPress);
-        actions[0].KeyCode.Should().Be(28);
-        actions[0].KeyName.Should().Be("Enter");
+        _ = actions.Should().HaveCount(1);
+        _ = actions[0].Type.Should().Be(EditorActionType.KeyPress);
+        _ = actions[0].KeyCode.Should().Be(28);
+        _ = actions[0].KeyName.Should().Be("Enter");
     }
 
     [Fact]
@@ -2104,9 +2105,9 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(1);
-        actions[0].Type.Should().Be(EditorActionType.ScrollVertical);
-        actions[0].ScrollAmount.Should().Be(1);
+        _ = actions.Should().HaveCount(1);
+        _ = actions[0].Type.Should().Be(EditorActionType.ScrollVertical);
+        _ = actions[0].ScrollAmount.Should().Be(1);
     }
 
     [Fact]
@@ -2128,14 +2129,14 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(4);
-        actions[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
-        actions[1].Type.Should().Be(EditorActionType.Delay);
-        actions[1].UseRandomDelay.Should().BeTrue();
-        actions[1].RandomDelayMinMs.Should().Be(10);
-        actions[1].RandomDelayMaxMs.Should().Be(20);
-        actions[2].Type.Should().Be(EditorActionType.MouseClick);
-        actions[3].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = actions.Should().HaveCount(4);
+        _ = actions[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
+        _ = actions[1].Type.Should().Be(EditorActionType.Delay);
+        _ = actions[1].UseRandomDelay.Should().BeTrue();
+        _ = actions[1].RandomDelayMinMs.Should().Be(10);
+        _ = actions[1].RandomDelayMaxMs.Should().Be(20);
+        _ = actions[2].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[3].Type.Should().Be(EditorActionType.BlockEnd);
     }
 
     [Fact]
@@ -2155,11 +2156,11 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions[0].Type.Should().Be(EditorActionType.SetVariable);
-        actions[0].ScriptVariableName.Should().Be("name");
-        actions[0].ScriptValueType.Should().Be(ScriptValueType.Text);
-        actions[0].ScriptValue.Should().Be("$foo");
+        _ = actions.Should().HaveCount(2);
+        _ = actions[0].Type.Should().Be(EditorActionType.SetVariable);
+        _ = actions[0].ScriptVariableName.Should().Be("name");
+        _ = actions[0].ScriptValueType.Should().Be(ScriptValueType.Text);
+        _ = actions[0].ScriptValue.Should().Be("$foo");
     }
 
     [Fact]
@@ -2180,12 +2181,12 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(3);
-        actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
-        actions[0].ScriptLeftOperandType.Should().Be(ScriptOperandType.Text);
-        actions[0].ScriptLeftOperand.Should().Be("$foo");
-        actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Text);
-        actions[0].ScriptRightOperand.Should().Be("$bar");
+        _ = actions.Should().HaveCount(3);
+        _ = actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
+        _ = actions[0].ScriptLeftOperandType.Should().Be(ScriptOperandType.Text);
+        _ = actions[0].ScriptLeftOperand.Should().Be("$foo");
+        _ = actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Text);
+        _ = actions[0].ScriptRightOperand.Should().Be("$bar");
     }
 
     [Fact]
@@ -2205,17 +2206,17 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions[0].Type.Should().Be(EditorActionType.MouseMove);
-        actions[0].IsAbsolute.Should().BeTrue();
-        actions[0].X.Should().Be(200);
-        actions[0].Y.Should().Be(300);
-        actions[1].Type.Should().Be(EditorActionType.MouseClick);
-        actions[1].IsAbsolute.Should().BeTrue();
-        actions[1].X.Should().Be(200);
-        actions[1].Y.Should().Be(300);
-        actions[1].Button.Should().Be(MacroMouseButton.Left);
-        actions[1].UseCurrentPosition.Should().BeFalse();
+        _ = actions.Should().HaveCount(2);
+        _ = actions[0].Type.Should().Be(EditorActionType.MouseMove);
+        _ = actions[0].IsAbsolute.Should().BeTrue();
+        _ = actions[0].X.Should().Be(200);
+        _ = actions[0].Y.Should().Be(300);
+        _ = actions[1].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[1].IsAbsolute.Should().BeTrue();
+        _ = actions[1].X.Should().Be(200);
+        _ = actions[1].Y.Should().Be(300);
+        _ = actions[1].Button.Should().Be(MacroMouseButton.Left);
+        _ = actions[1].UseCurrentPosition.Should().BeFalse();
     }
 
     [Fact]
@@ -2238,25 +2239,25 @@ public class EditorActionConverterTests
         var saved = _converter.ToMacroSequence(actions, "RoundTrip Move Click Pairs", isAbsolute: true);
 
         // Assert
-        actions.Should().HaveCount(4);
-        actions[0].Type.Should().Be(EditorActionType.MouseMove);
-        actions[1].Type.Should().Be(EditorActionType.MouseClick);
-        actions[2].Type.Should().Be(EditorActionType.MouseMove);
-        actions[3].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions.Should().HaveCount(4);
+        _ = actions[0].Type.Should().Be(EditorActionType.MouseMove);
+        _ = actions[1].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[2].Type.Should().Be(EditorActionType.MouseMove);
+        _ = actions[3].Type.Should().Be(EditorActionType.MouseClick);
 
-        saved.Events.Should().HaveCount(4);
-        saved.Events[0].Type.Should().Be(EventType.MouseMove);
-        saved.Events[0].X.Should().Be(10);
-        saved.Events[0].Y.Should().Be(10);
-        saved.Events[1].Type.Should().Be(EventType.Click);
-        saved.Events[1].X.Should().Be(10);
-        saved.Events[1].Y.Should().Be(10);
-        saved.Events[2].Type.Should().Be(EventType.MouseMove);
-        saved.Events[2].X.Should().Be(20);
-        saved.Events[2].Y.Should().Be(20);
-        saved.Events[3].Type.Should().Be(EventType.Click);
-        saved.Events[3].X.Should().Be(20);
-        saved.Events[3].Y.Should().Be(20);
+        _ = saved.Events.Should().HaveCount(4);
+        _ = saved.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = saved.Events[0].X.Should().Be(10);
+        _ = saved.Events[0].Y.Should().Be(10);
+        _ = saved.Events[1].Type.Should().Be(EventType.Click);
+        _ = saved.Events[1].X.Should().Be(10);
+        _ = saved.Events[1].Y.Should().Be(10);
+        _ = saved.Events[2].Type.Should().Be(EventType.MouseMove);
+        _ = saved.Events[2].X.Should().Be(20);
+        _ = saved.Events[2].Y.Should().Be(20);
+        _ = saved.Events[3].Type.Should().Be(EventType.Click);
+        _ = saved.Events[3].X.Should().Be(20);
+        _ = saved.Events[3].Y.Should().Be(20);
     }
 
     [Fact]
@@ -2279,19 +2280,19 @@ public class EditorActionConverterTests
         var saved = _converter.ToMacroSequence(actions, "Mixed Script Modes", isAbsolute: false);
 
         // Assert
-        actions.Should().HaveCount(4);
-        actions[0].IsAbsolute.Should().BeTrue();
-        actions[1].IsAbsolute.Should().BeTrue();
-        actions[1].UseCurrentPosition.Should().BeFalse();
-        actions[2].IsAbsolute.Should().BeFalse();
-        actions[3].IsAbsolute.Should().BeFalse();
-        actions[3].UseCurrentPosition.Should().BeFalse();
+        _ = actions.Should().HaveCount(4);
+        _ = actions[0].IsAbsolute.Should().BeTrue();
+        _ = actions[1].IsAbsolute.Should().BeTrue();
+        _ = actions[1].UseCurrentPosition.Should().BeFalse();
+        _ = actions[2].IsAbsolute.Should().BeFalse();
+        _ = actions[3].IsAbsolute.Should().BeFalse();
+        _ = actions[3].UseCurrentPosition.Should().BeFalse();
 
-        saved.Events.Should().HaveCount(4);
-        saved.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        saved.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        saved.Events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
-        saved.Events[3].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = saved.Events.Should().HaveCount(4);
+        _ = saved.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = saved.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = saved.Events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = saved.Events[3].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
     }
 
     [Fact]
@@ -2318,14 +2319,14 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Script Backed No Duplicate Move", isAbsolute: true);
 
         // Assert
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "repeat 1 {",
             "move abs 200 300",
             "click left",
             "}");
-        sequence.Events.Should().HaveCount(2);
-        sequence.Events[0].Type.Should().Be(EventType.MouseMove);
-        sequence.Events[1].Type.Should().Be(EventType.Click);
+        _ = sequence.Events.Should().HaveCount(2);
+        _ = sequence.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = sequence.Events[1].Type.Should().Be(EventType.Click);
     }
 
     [Fact]
@@ -2346,19 +2347,19 @@ public class EditorActionConverterTests
         var saved = _converter.ToMacroSequence(actions, "DownUpCurrentPosition", isAbsolute: false);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions[0].Type.Should().Be(EditorActionType.MouseDown);
-        actions[0].UseCurrentPosition.Should().BeTrue();
-        actions[0].IsAbsolute.Should().BeFalse();
-        actions[1].Type.Should().Be(EditorActionType.MouseUp);
-        actions[1].UseCurrentPosition.Should().BeTrue();
-        actions[1].IsAbsolute.Should().BeFalse();
+        _ = actions.Should().HaveCount(2);
+        _ = actions[0].Type.Should().Be(EditorActionType.MouseDown);
+        _ = actions[0].UseCurrentPosition.Should().BeTrue();
+        _ = actions[0].IsAbsolute.Should().BeFalse();
+        _ = actions[1].Type.Should().Be(EditorActionType.MouseUp);
+        _ = actions[1].UseCurrentPosition.Should().BeTrue();
+        _ = actions[1].IsAbsolute.Should().BeFalse();
 
-        saved.Events.Should().HaveCount(2);
-        saved.Events[0].Type.Should().Be(EventType.ButtonPress);
-        saved.Events[0].UseCurrentPosition.Should().BeTrue();
-        saved.Events[1].Type.Should().Be(EventType.ButtonRelease);
-        saved.Events[1].UseCurrentPosition.Should().BeTrue();
+        _ = saved.Events.Should().HaveCount(2);
+        _ = saved.Events[0].Type.Should().Be(EventType.ButtonPress);
+        _ = saved.Events[0].UseCurrentPosition.Should().BeTrue();
+        _ = saved.Events[1].Type.Should().Be(EventType.ButtonRelease);
+        _ = saved.Events[1].UseCurrentPosition.Should().BeTrue();
     }
 
     [Fact]
@@ -2378,14 +2379,14 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(2);
-        actions[0].Type.Should().Be(EditorActionType.MouseMove);
-        actions[0].IsAbsolute.Should().BeTrue();
-        actions[0].X.Should().Be(120);
-        actions[0].Y.Should().Be(240);
-        actions[1].Type.Should().Be(EditorActionType.MouseClick);
-        actions[1].UseCurrentPosition.Should().BeTrue();
-        actions[1].IsAbsolute.Should().BeFalse();
+        _ = actions.Should().HaveCount(2);
+        _ = actions[0].Type.Should().Be(EditorActionType.MouseMove);
+        _ = actions[0].IsAbsolute.Should().BeTrue();
+        _ = actions[0].X.Should().Be(120);
+        _ = actions[0].Y.Should().Be(240);
+        _ = actions[1].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[1].UseCurrentPosition.Should().BeTrue();
+        _ = actions[1].IsAbsolute.Should().BeFalse();
     }
 
     [Fact]
@@ -2406,18 +2407,18 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(3);
-        actions[0].Type.Should().Be(EditorActionType.MouseMove);
-        actions[0].IsAbsolute.Should().BeTrue();
-        actions[0].X.Should().Be(500);
-        actions[0].Y.Should().Be(300);
-        actions[1].Type.Should().Be(EditorActionType.Delay);
-        actions[1].DelayMs.Should().Be(50);
-        actions[2].Type.Should().Be(EditorActionType.MouseClick);
-        actions[2].UseCurrentPosition.Should().BeFalse();
-        actions[2].IsAbsolute.Should().BeTrue();
-        actions[2].X.Should().Be(500);
-        actions[2].Y.Should().Be(300);
+        _ = actions.Should().HaveCount(3);
+        _ = actions[0].Type.Should().Be(EditorActionType.MouseMove);
+        _ = actions[0].IsAbsolute.Should().BeTrue();
+        _ = actions[0].X.Should().Be(500);
+        _ = actions[0].Y.Should().Be(300);
+        _ = actions[1].Type.Should().Be(EditorActionType.Delay);
+        _ = actions[1].DelayMs.Should().Be(50);
+        _ = actions[2].Type.Should().Be(EditorActionType.MouseClick);
+        _ = actions[2].UseCurrentPosition.Should().BeFalse();
+        _ = actions[2].IsAbsolute.Should().BeTrue();
+        _ = actions[2].X.Should().Be(500);
+        _ = actions[2].Y.Should().Be(300);
     }
 
     [Fact]
@@ -2441,13 +2442,13 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(6);
-        actions[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
-        actions[1].Type.Should().Be(EditorActionType.Break);
-        actions[2].Type.Should().Be(EditorActionType.BlockEnd);
-        actions[3].Type.Should().Be(EditorActionType.RepeatBlockStart);
-        actions[4].Type.Should().Be(EditorActionType.Continue);
-        actions[5].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = actions.Should().HaveCount(6);
+        _ = actions[0].Type.Should().Be(EditorActionType.RepeatBlockStart);
+        _ = actions[1].Type.Should().Be(EditorActionType.Break);
+        _ = actions[2].Type.Should().Be(EditorActionType.BlockEnd);
+        _ = actions[3].Type.Should().Be(EditorActionType.RepeatBlockStart);
+        _ = actions[4].Type.Should().Be(EditorActionType.Continue);
+        _ = actions[5].Type.Should().Be(EditorActionType.BlockEnd);
     }
 
     [Fact]
@@ -2468,13 +2469,13 @@ public class EditorActionConverterTests
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
         // Assert
-        result.RestoredFromScriptSteps.Should().BeTrue();
-        result.Warnings.Should().HaveCount(1);
-        result.Warnings[0].StepIndex.Should().Be(2);
-        result.Warnings[0].Step.Should().Be("tap ctrl+c");
-        result.Actions.Should().HaveCount(3);
-        result.Actions[1].Type.Should().Be(EditorActionType.RawScriptStep);
-        result.Actions[1].Text.Should().Be("tap ctrl+c");
+        _ = result.RestoredFromScriptSteps.Should().BeTrue();
+        _ = result.Warnings.Should().HaveCount(1);
+        _ = result.Warnings[0].StepIndex.Should().Be(2);
+        _ = result.Warnings[0].Step.Should().Be("tap ctrl+c");
+        _ = result.Actions.Should().HaveCount(3);
+        _ = result.Actions[1].Type.Should().Be(EditorActionType.RawScriptStep);
+        _ = result.Actions[1].Text.Should().Be("tap ctrl+c");
     }
 
     [Fact]
@@ -2496,34 +2497,34 @@ public class EditorActionConverterTests
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
         // Assert
-        result.RestoredFromScriptSteps.Should().BeTrue();
-        result.Warnings.Should().BeEmpty();
-        result.Actions.Should().HaveCount(4);
-        result.Actions[0].Type.Should().Be(EditorActionType.PixelColor);
-        result.Actions[0].ScreenX.Should().Be(10);
-        result.Actions[0].ScreenY.Should().Be(20);
-        result.Actions[0].ScreenColorVariableName.Should().Be("color");
-        result.Actions[1].Type.Should().Be(EditorActionType.PixelColor);
-        result.Actions[1].IsAbsolute.Should().BeFalse();
-        result.Actions[1].ScreenX.Should().Be(-1);
-        result.Actions[1].ScreenY.Should().Be(2);
-        result.Actions[1].ScreenColorVariableName.Should().Be("relativeColor");
-        result.Actions[2].Type.Should().Be(EditorActionType.WaitColor);
-        result.Actions[2].ScreenX.Should().Be(11);
-        result.Actions[2].ScreenY.Should().Be(22);
-        result.Actions[2].ScreenColorHex.Should().Be("00FFAA");
-        result.Actions[2].ScreenTimeoutMs.Should().Be(2500);
-        result.Actions[2].ScreenColorVariableName.Should().Be("wait_ok");
-        result.Actions[3].Type.Should().Be(EditorActionType.PixelSearch);
-        result.Actions[3].ScreenLeft.Should().Be(0);
-        result.Actions[3].ScreenTop.Should().Be(0);
-        result.Actions[3].ScreenWidth.Should().Be(3);
-        result.Actions[3].ScreenHeight.Should().Be(3);
-        result.Actions[3].ScreenColorHex.Should().Be("123456");
-        result.Actions[3].ScreenFoundVariableName.Should().Be("found");
-        result.Actions[3].ScreenFoundXVariableName.Should().Be("x");
-        result.Actions[3].ScreenFoundYVariableName.Should().Be("y");
-        result.Actions[3].ScreenTolerance.Should().Be(5);
+        _ = result.RestoredFromScriptSteps.Should().BeTrue();
+        _ = result.Warnings.Should().BeEmpty();
+        _ = result.Actions.Should().HaveCount(4);
+        _ = result.Actions[0].Type.Should().Be(EditorActionType.PixelColor);
+        _ = result.Actions[0].ScreenX.Should().Be(10);
+        _ = result.Actions[0].ScreenY.Should().Be(20);
+        _ = result.Actions[0].ScreenColorVariableName.Should().Be("color");
+        _ = result.Actions[1].Type.Should().Be(EditorActionType.PixelColor);
+        _ = result.Actions[1].IsAbsolute.Should().BeFalse();
+        _ = result.Actions[1].ScreenX.Should().Be(-1);
+        _ = result.Actions[1].ScreenY.Should().Be(2);
+        _ = result.Actions[1].ScreenColorVariableName.Should().Be("relativeColor");
+        _ = result.Actions[2].Type.Should().Be(EditorActionType.WaitColor);
+        _ = result.Actions[2].ScreenX.Should().Be(11);
+        _ = result.Actions[2].ScreenY.Should().Be(22);
+        _ = result.Actions[2].ScreenColorHex.Should().Be("00FFAA");
+        _ = result.Actions[2].ScreenTimeoutMs.Should().Be(2500);
+        _ = result.Actions[2].ScreenColorVariableName.Should().Be("wait_ok");
+        _ = result.Actions[3].Type.Should().Be(EditorActionType.PixelSearch);
+        _ = result.Actions[3].ScreenLeft.Should().Be(0);
+        _ = result.Actions[3].ScreenTop.Should().Be(0);
+        _ = result.Actions[3].ScreenWidth.Should().Be(3);
+        _ = result.Actions[3].ScreenHeight.Should().Be(3);
+        _ = result.Actions[3].ScreenColorHex.Should().Be("123456");
+        _ = result.Actions[3].ScreenFoundVariableName.Should().Be("found");
+        _ = result.Actions[3].ScreenFoundXVariableName.Should().Be("x");
+        _ = result.Actions[3].ScreenFoundYVariableName.Should().Be("y");
+        _ = result.Actions[3].ScreenTolerance.Should().Be(5);
     }
 
     [Fact]
@@ -2576,7 +2577,7 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Screen Reading", isAbsolute: true);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "pixelcolor 10 20 color timeout 1200",
             "pixelcolor rel -1 2 relativeColor timeout 1300",
             "waitcolor 11 22 00FFAA 2500 wait_ok",
@@ -2607,26 +2608,26 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Image Search", isAbsolute: true);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "imagesearch 10 20 40 60 Target_1 foundTarget targetX targetY timeout 1500 similarity 0.875 downsample 2");
 
         var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        restored.RestoredFromScriptSteps.Should().BeTrue();
-        restored.Warnings.Should().BeEmpty();
-        restored.Actions.Should().ContainSingle();
-        restored.Actions[0].Type.Should().Be(EditorActionType.ImageSearch);
-        restored.Actions[0].ScreenLeft.Should().Be(10);
-        restored.Actions[0].ScreenTop.Should().Be(20);
-        restored.Actions[0].ScreenWidth.Should().Be(30);
-        restored.Actions[0].ScreenHeight.Should().Be(40);
-        restored.Actions[0].ImageAssetName.Should().Be("Target_1");
-        restored.Actions[0].ScreenFoundVariableName.Should().Be("foundTarget");
-        restored.Actions[0].ScreenFoundXVariableName.Should().Be("targetX");
-        restored.Actions[0].ScreenFoundYVariableName.Should().Be("targetY");
-        restored.Actions[0].ScreenTimeoutMs.Should().Be(1500);
-        restored.Actions[0].ImageSearchSimilarity.Should().Be(0.875);
-        restored.Actions[0].ImageSearchDownsample.Should().Be(2);
+        _ = restored.RestoredFromScriptSteps.Should().BeTrue();
+        _ = restored.Warnings.Should().BeEmpty();
+        _ = restored.Actions.Should().ContainSingle();
+        _ = restored.Actions[0].Type.Should().Be(EditorActionType.ImageSearch);
+        _ = restored.Actions[0].ScreenLeft.Should().Be(10);
+        _ = restored.Actions[0].ScreenTop.Should().Be(20);
+        _ = restored.Actions[0].ScreenWidth.Should().Be(30);
+        _ = restored.Actions[0].ScreenHeight.Should().Be(40);
+        _ = restored.Actions[0].ImageAssetName.Should().Be("Target_1");
+        _ = restored.Actions[0].ScreenFoundVariableName.Should().Be("foundTarget");
+        _ = restored.Actions[0].ScreenFoundXVariableName.Should().Be("targetX");
+        _ = restored.Actions[0].ScreenFoundYVariableName.Should().Be("targetY");
+        _ = restored.Actions[0].ScreenTimeoutMs.Should().Be(1500);
+        _ = restored.Actions[0].ImageSearchSimilarity.Should().Be(0.875);
+        _ = restored.Actions[0].ImageSearchDownsample.Should().Be(2);
     }
 
     [Fact]
@@ -2644,12 +2645,12 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Image Search", isAbsolute: true);
 
-        sequence.ScriptSteps.Should().ContainSingle()
+        _ = sequence.ScriptSteps.Should().ContainSingle()
             .Which.Should().EndWith("scaleaware");
         var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        restored.Actions.Should().ContainSingle();
-        restored.Actions[0].ImageSearchScaleAware.Should().BeTrue();
+        _ = restored.Actions.Should().ContainSingle();
+        _ = restored.Actions[0].ImageSearchScaleAware.Should().BeTrue();
     }
 
     [Theory]
@@ -2680,27 +2681,27 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Image Click", isAbsolute: true);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             $"imageclick 10 20 40 60 ButtonAsset clicked clickX clickY button {buttonToken} timeout 1600 similarity 0.75 downsample 3");
 
         var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        restored.RestoredFromScriptSteps.Should().BeTrue();
-        restored.Warnings.Should().BeEmpty();
-        restored.Actions.Should().ContainSingle();
-        restored.Actions[0].Type.Should().Be(EditorActionType.ImageClick);
-        restored.Actions[0].ScreenLeft.Should().Be(10);
-        restored.Actions[0].ScreenTop.Should().Be(20);
-        restored.Actions[0].ScreenWidth.Should().Be(30);
-        restored.Actions[0].ScreenHeight.Should().Be(40);
-        restored.Actions[0].ImageAssetName.Should().Be("ButtonAsset");
-        restored.Actions[0].ScreenFoundVariableName.Should().Be("clicked");
-        restored.Actions[0].ScreenFoundXVariableName.Should().Be("clickX");
-        restored.Actions[0].ScreenFoundYVariableName.Should().Be("clickY");
-        restored.Actions[0].Button.Should().Be(button);
-        restored.Actions[0].ScreenTimeoutMs.Should().Be(1600);
-        restored.Actions[0].ImageSearchSimilarity.Should().Be(0.75);
-        restored.Actions[0].ImageSearchDownsample.Should().Be(3);
+        _ = restored.RestoredFromScriptSteps.Should().BeTrue();
+        _ = restored.Warnings.Should().BeEmpty();
+        _ = restored.Actions.Should().ContainSingle();
+        _ = restored.Actions[0].Type.Should().Be(EditorActionType.ImageClick);
+        _ = restored.Actions[0].ScreenLeft.Should().Be(10);
+        _ = restored.Actions[0].ScreenTop.Should().Be(20);
+        _ = restored.Actions[0].ScreenWidth.Should().Be(30);
+        _ = restored.Actions[0].ScreenHeight.Should().Be(40);
+        _ = restored.Actions[0].ImageAssetName.Should().Be("ButtonAsset");
+        _ = restored.Actions[0].ScreenFoundVariableName.Should().Be("clicked");
+        _ = restored.Actions[0].ScreenFoundXVariableName.Should().Be("clickX");
+        _ = restored.Actions[0].ScreenFoundYVariableName.Should().Be("clickY");
+        _ = restored.Actions[0].Button.Should().Be(button);
+        _ = restored.Actions[0].ScreenTimeoutMs.Should().Be(1600);
+        _ = restored.Actions[0].ImageSearchSimilarity.Should().Be(0.75);
+        _ = restored.Actions[0].ImageSearchDownsample.Should().Be(3);
     }
 
     [Fact]
@@ -2727,26 +2728,26 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Wait Image", isAbsolute: true);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "waitimage 1 2 4 6 DialogAsset dialogFound dialogX dialogY timeout 2500 similarity 0.625 downsample 2");
 
         var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        restored.RestoredFromScriptSteps.Should().BeTrue();
-        restored.Warnings.Should().BeEmpty();
-        restored.Actions.Should().ContainSingle();
-        restored.Actions[0].Type.Should().Be(EditorActionType.WaitImage);
-        restored.Actions[0].ScreenLeft.Should().Be(1);
-        restored.Actions[0].ScreenTop.Should().Be(2);
-        restored.Actions[0].ScreenWidth.Should().Be(3);
-        restored.Actions[0].ScreenHeight.Should().Be(4);
-        restored.Actions[0].ImageAssetName.Should().Be("DialogAsset");
-        restored.Actions[0].ScreenFoundVariableName.Should().Be("dialogFound");
-        restored.Actions[0].ScreenFoundXVariableName.Should().Be("dialogX");
-        restored.Actions[0].ScreenFoundYVariableName.Should().Be("dialogY");
-        restored.Actions[0].ScreenTimeoutMs.Should().Be(2500);
-        restored.Actions[0].ImageSearchSimilarity.Should().Be(0.625);
-        restored.Actions[0].ImageSearchDownsample.Should().Be(2);
+        _ = restored.RestoredFromScriptSteps.Should().BeTrue();
+        _ = restored.Warnings.Should().BeEmpty();
+        _ = restored.Actions.Should().ContainSingle();
+        _ = restored.Actions[0].Type.Should().Be(EditorActionType.WaitImage);
+        _ = restored.Actions[0].ScreenLeft.Should().Be(1);
+        _ = restored.Actions[0].ScreenTop.Should().Be(2);
+        _ = restored.Actions[0].ScreenWidth.Should().Be(3);
+        _ = restored.Actions[0].ScreenHeight.Should().Be(4);
+        _ = restored.Actions[0].ImageAssetName.Should().Be("DialogAsset");
+        _ = restored.Actions[0].ScreenFoundVariableName.Should().Be("dialogFound");
+        _ = restored.Actions[0].ScreenFoundXVariableName.Should().Be("dialogX");
+        _ = restored.Actions[0].ScreenFoundYVariableName.Should().Be("dialogY");
+        _ = restored.Actions[0].ScreenTimeoutMs.Should().Be(2500);
+        _ = restored.Actions[0].ImageSearchSimilarity.Should().Be(0.625);
+        _ = restored.Actions[0].ImageSearchDownsample.Should().Be(2);
     }
 
     [Theory]
@@ -2759,10 +2760,10 @@ public class EditorActionConverterTests
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        result.RestoredFromScriptSteps.Should().BeTrue();
-        result.Warnings.Should().ContainSingle();
-        result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
-        result.Actions[0].Text.Should().Be(step);
+        _ = result.RestoredFromScriptSteps.Should().BeTrue();
+        _ = result.Warnings.Should().ContainSingle();
+        _ = result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
+        _ = result.Actions[0].Text.Should().Be(step);
     }
 
     [Fact]
@@ -2798,15 +2799,15 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Screen Reading Variables", isAbsolute: true);
 
-        sequence.ScriptSteps.Should().Equal(
+        _ = sequence.ScriptSteps.Should().Equal(
             "waitcolor 11 22 $sampled 2500 wait_ok",
             "pixelsearch 0 0 3 3 $sampled found x y timeout 5000 tolerance 5");
 
         var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        restored.RestoredFromScriptSteps.Should().BeTrue();
-        restored.Warnings.Should().BeEmpty();
-        restored.Actions.Should().HaveCount(2);
+        _ = restored.RestoredFromScriptSteps.Should().BeTrue();
+        _ = restored.Warnings.Should().BeEmpty();
+        _ = restored.Actions.Should().HaveCount(2);
 
         AssertScreenTargetColor(restored.Actions[0], EditorActionType.WaitColor, "sampled");
         AssertScreenTargetColor(restored.Actions[1], EditorActionType.PixelSearch, "sampled");
@@ -2822,29 +2823,29 @@ public class EditorActionConverterTests
         // Arrange
         var sequence = new MacroSequence
         {
-            ScriptSteps = {step},
+            ScriptSteps = { step },
         };
 
         // Act
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
         // Assert
-        result.RestoredFromScriptSteps.Should().BeTrue();
-        result.Warnings.Should().ContainSingle();
-        result.Warnings[0].Step.Should().Be(step);
-        result.Actions.Should().ContainSingle();
-        result.Actions[0].Type.Should().Be(EditorActionType.RawScriptStep);
-        result.Actions[0].Text.Should().Be(step);
+        _ = result.RestoredFromScriptSteps.Should().BeTrue();
+        _ = result.Warnings.Should().ContainSingle();
+        _ = result.Warnings[0].Step.Should().Be(step);
+        _ = result.Actions.Should().ContainSingle();
+        _ = result.Actions[0].Type.Should().Be(EditorActionType.RawScriptStep);
+        _ = result.Actions[0].Text.Should().Be(step);
     }
 
     [Fact]
     public void ToMacroSequence_WhenRawScriptStepPresent_PreservesRawStepAndCompiles()
     {
         // Arrange
-        _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
-        _keyCodeMapper.GetKeyCode("c").Returns(46);
-        _keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
-        _keyCodeMapper.IsModifierKeyCode(46).Returns(returnThis: false);
+        _ = _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
+        _ = _keyCodeMapper.GetKeyCode("c").Returns(46);
+        _ = _keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
+        _ = _keyCodeMapper.IsModifierKeyCode(46).Returns(returnThis: false);
 
         var actions = new[]
         {
@@ -2859,10 +2860,10 @@ public class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Raw Step", isAbsolute: false);
 
         // Assert
-        sequence.ScriptSteps.Should().Equal("tap ctrl+c");
-        sequence.Events.Should().HaveCount(4);
-        sequence.Events[0].Type.Should().Be(EventType.KeyPress);
-        sequence.Events[3].Type.Should().Be(EventType.KeyRelease);
+        _ = sequence.ScriptSteps.Should().Equal("tap ctrl+c");
+        _ = sequence.Events.Should().HaveCount(4);
+        _ = sequence.Events[0].Type.Should().Be(EventType.KeyPress);
+        _ = sequence.Events[3].Type.Should().Be(EventType.KeyRelease);
     }
 
     [Fact]
@@ -2883,13 +2884,13 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        actions.Should().HaveCount(3);
-        actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
-        actions[0].ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
-        actions[0].ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
-        actions[0].ScriptLeftOperand.Should().Be("mode");
-        actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Text);
-        actions[0].ScriptRightOperand.Should().Be("a>=b");
+        _ = actions.Should().HaveCount(3);
+        _ = actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
+        _ = actions[0].ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
+        _ = actions[0].ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
+        _ = actions[0].ScriptLeftOperand.Should().Be("mode");
+        _ = actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Text);
+        _ = actions[0].ScriptRightOperand.Should().Be("a>=b");
     }
 
     [Fact]
@@ -2907,12 +2908,12 @@ public class EditorActionConverterTests
 
         var actions = _converter.FromMacroSequence(sequence);
 
-        actions.Should().HaveCount(3);
-        actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
-        actions[0].ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
-        actions[0].ScriptLeftOperand.Should().Be("color");
-        actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Color);
-        actions[0].ScriptRightOperand.Should().Be("1C1C1C");
+        _ = actions.Should().HaveCount(3);
+        _ = actions[0].Type.Should().Be(EditorActionType.IfBlockStart);
+        _ = actions[0].ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
+        _ = actions[0].ScriptLeftOperand.Should().Be("color");
+        _ = actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Color);
+        _ = actions[0].ScriptRightOperand.Should().Be("1C1C1C");
     }
 
     [Fact]
@@ -2930,9 +2931,9 @@ public class EditorActionConverterTests
 
         var actions = _converter.FromMacroSequence(sequence);
 
-        actions.Should().HaveCount(3);
-        actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Color);
-        actions[0].ScriptRightOperand.Should().Be("000000");
+        _ = actions.Should().HaveCount(3);
+        _ = actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Color);
+        _ = actions[0].ScriptRightOperand.Should().Be("000000");
     }
 
     [Fact]
@@ -2950,10 +2951,10 @@ public class EditorActionConverterTests
 
         var actions = _converter.FromMacroSequence(sequence);
 
-        actions.Should().HaveCount(3);
-        actions[0].ScriptConditionOperator.Should().Be(ScriptConditionOperator.GreaterThan);
-        actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Number);
-        actions[0].ScriptRightOperand.Should().Be("100000");
+        _ = actions.Should().HaveCount(3);
+        _ = actions[0].ScriptConditionOperator.Should().Be(ScriptConditionOperator.GreaterThan);
+        _ = actions[0].ScriptRightOperandType.Should().Be(ScriptOperandType.Number);
+        _ = actions[0].ScriptRightOperand.Should().Be("100000");
     }
 
     [Theory]
@@ -2979,7 +2980,7 @@ public class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence([action], "Shell", isAbsolute: false);
 
-        sequence.ScriptSteps.Should().Equal(expectedStep);
+        _ = sequence.ScriptSteps.Should().Equal(expectedStep);
     }
 
     [Theory]
@@ -3004,16 +3005,16 @@ public class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         var action = actions.Should().ContainSingle().Subject;
-        action.Type.Should().Be(EditorActionType.ShellCommand);
-        action.ShellCommandMode.Should().Be(expectedMode);
-        action.ShellCommand.Should().Be(expectedCommand);
-        action.ShellStandardInput.Should().Be(expectedInput);
-        action.ShellExitCodeVariableName.Should().Be(expectedExit);
-        action.ShellStandardOutputVariableName.Should().Be(expectedStdout);
-        action.ShellStandardErrorVariableName.Should().Be(expectedStderr);
-        action.ShellRetries.Should().Be(expectedRetries);
-        action.ShellBackoffMs.Should().Be(expectedBackoff);
-        action.ShellTimeoutMs.Should().Be(expectedTimeout);
+        _ = action.Type.Should().Be(EditorActionType.ShellCommand);
+        _ = action.ShellCommandMode.Should().Be(expectedMode);
+        _ = action.ShellCommand.Should().Be(expectedCommand);
+        _ = action.ShellStandardInput.Should().Be(expectedInput);
+        _ = action.ShellExitCodeVariableName.Should().Be(expectedExit);
+        _ = action.ShellStandardOutputVariableName.Should().Be(expectedStdout);
+        _ = action.ShellStandardErrorVariableName.Should().Be(expectedStderr);
+        _ = action.ShellRetries.Should().Be(expectedRetries);
+        _ = action.ShellBackoffMs.Should().Be(expectedBackoff);
+        _ = action.ShellTimeoutMs.Should().Be(expectedTimeout);
     }
 
     [Fact]
@@ -3023,8 +3024,8 @@ public class EditorActionConverterTests
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
-        result.Warnings.Should().ContainSingle();
+        _ = result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
+        _ = result.Warnings.Should().ContainSingle();
     }
 
     [Theory]
@@ -3047,7 +3048,7 @@ public class EditorActionConverterTests
     {
         var sequence = _converter.ToMacroSequence([CreateWindowAction(mode)], "Window", isAbsolute: false);
 
-        sequence.ScriptSteps.Should().Equal(expectedStep);
+        _ = sequence.ScriptSteps.Should().Equal(expectedStep);
     }
 
     [Fact]
@@ -3057,11 +3058,11 @@ public class EditorActionConverterTests
 
         var action = _converter.FromMacroSequence(sequence).Should().ContainSingle().Subject;
 
-        action.Type.Should().Be(EditorActionType.WindowCommand);
-        action.WindowCommandMode.Should().Be(WindowCommandMode.Search);
-        action.WindowSelectorKind.Should().Be("title");
-        action.WindowSelectorValue.Should().Be("Fire\"fox");
-        action.WindowOutputVariable.Should().Be("addr");
+        _ = action.Type.Should().Be(EditorActionType.WindowCommand);
+        _ = action.WindowCommandMode.Should().Be(WindowCommandMode.Search);
+        _ = action.WindowSelectorKind.Should().Be("title");
+        _ = action.WindowSelectorValue.Should().Be("Fire\"fox");
+        _ = action.WindowOutputVariable.Should().Be("addr");
     }
 
     [Fact]
@@ -3071,9 +3072,9 @@ public class EditorActionConverterTests
 
         var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
 
-        result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
-        result.Actions[0].Text.Should().Be("window search title $missingTerm");
-        result.Warnings.Should().ContainSingle();
+        _ = result.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.RawScriptStep);
+        _ = result.Actions[0].Text.Should().Be("window search title $missingTerm");
+        _ = result.Warnings.Should().ContainSingle();
     }
 
     private static EditorAction CreateWindowAction(WindowCommandMode mode)
@@ -3085,7 +3086,12 @@ public class EditorActionConverterTests
             WindowSelectorKind = "title",
             WindowSelectorValue = mode is WindowCommandMode.WorkspaceMoveWindow ? "0x123" : "Firefox",
             WindowActiveField = "title",
-            WindowOutputVariable = mode is WindowCommandMode.WorkspaceGet ? "workspaceName" : mode is WindowCommandMode.Active ? "activeTitle" : "windowAddress",
+            WindowOutputVariable = mode switch
+            {
+                WindowCommandMode.WorkspaceGet => "workspaceName",
+                WindowCommandMode.Active => "activeTitle",
+                _ => "windowAddress",
+            },
             WindowTimeoutMs = 2500,
             WindowX = 100,
             WindowY = 200,
@@ -3097,17 +3103,17 @@ public class EditorActionConverterTests
 
     private void ConfigureTextInputTyping()
     {
-        _keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(call => 1_000 + call.Arg<char>());
-        _keyCodeMapper.GetCharacterForKeyCode(Arg.Any<int>(), Arg.Any<bool>()).Returns(call => (char)(call.Arg<int>() - 1_000));
-        _keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(returnThis: false);
-        _keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(returnThis: false);
+        _ = _keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(call => 1_000 + call.Arg<char>());
+        _ = _keyCodeMapper.GetCharacterForKeyCode(Arg.Any<int>(), Arg.Any<bool>()).Returns(call => (char)(call.Arg<int>() - 1_000));
+        _ = _keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(returnThis: false);
+        _ = _keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(returnThis: false);
     }
 
     private static void AssertScreenTargetColor(EditorAction action, EditorActionType expectedType, string expectedVariableName)
     {
-        action.Type.Should().Be(expectedType);
-        action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
-        payload.ScreenTargetColorSource.Should().Be(EditorActionScreenTargetColorSource.Variable);
-        payload.ScreenTargetColorVariableName.Should().Be(expectedVariableName);
+        _ = action.Type.Should().Be(expectedType);
+        _ = action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
+        _ = payload.ScreenTargetColorSource.Should().Be(EditorActionScreenTargetColorSource.Variable);
+        _ = payload.ScreenTargetColorVariableName.Should().Be(expectedVariableName);
     }
 }

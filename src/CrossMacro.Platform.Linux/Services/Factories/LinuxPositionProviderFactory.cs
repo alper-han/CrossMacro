@@ -15,34 +15,29 @@ public class LinuxPositionProviderFactory
     public LinuxPositionProviderFactory(
         IEnumerable<IPositionProviderSelector> selectors,
         ILinuxCapabilitySnapshotProvider snapshotProvider)
-        : this(selectors, null, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), _: true)
     {
+        _selectors = selectors ?? throw new ArgumentNullException(nameof(selectors));
+        _environmentDetector = null;
+        _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
     }
 
     internal LinuxPositionProviderFactory(
         IEnumerable<IPositionProviderSelector> selectors,
         ILinuxEnvironmentDetector environmentDetector)
-        : this(selectors, environmentDetector, snapshotProvider: null, _: true)
     {
+        _selectors = selectors ?? throw new ArgumentNullException(nameof(selectors));
+        _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
+        _snapshotProvider = null;
     }
 
     internal LinuxPositionProviderFactory(
         IEnumerable<IPositionProviderSelector> selectors,
         ILinuxEnvironmentDetector environmentDetector,
         ILinuxCapabilitySnapshotProvider snapshotProvider)
-        : this(selectors, environmentDetector, snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider)), _: true)
-    {
-    }
-
-    private LinuxPositionProviderFactory(
-        IEnumerable<IPositionProviderSelector> selectors,
-        ILinuxEnvironmentDetector? environmentDetector,
-        ILinuxCapabilitySnapshotProvider? snapshotProvider,
-        bool _)
     {
         _selectors = selectors ?? throw new ArgumentNullException(nameof(selectors));
-        _environmentDetector = environmentDetector;
-        _snapshotProvider = snapshotProvider;
+        _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
+        _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
     }
 
     /// <summary>

@@ -10,11 +10,11 @@ public partial class StyleCompositionTests
         var appStylesPath = Path.Combine(repoRoot, "src", "CrossMacro.UI", "Styles", "AppStyles.axaml");
         var content = File.ReadAllText(appStylesPath);
 
-        var includes = StyleIncludeRegex().Matches(content)
+        var includes = StyleIncludeRegex.Matches(content)
             .Select(match => match.Groups[1].Value)
             .ToArray();
 
-        includes.Should().Equal(
+        _ = includes.Should().Equal(
             "/Styles/Base/Foundations.axaml",
             "/Styles/Components/Buttons.axaml",
             "/Styles/Components/ListsAndNavigation.axaml",
@@ -26,6 +26,6 @@ public partial class StyleCompositionTests
             "/Styles/Components/TemplateOverrides.axaml");
     }
 
-    [GeneratedRegex("<StyleInclude\\s+Source=\"([^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
-    private static partial Regex StyleIncludeRegex();
+    [GeneratedRegex("<StyleInclude\\s+Source=\"(?<source>[^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    private static partial Regex StyleIncludeRegex { get; }
 }

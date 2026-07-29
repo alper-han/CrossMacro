@@ -1,19 +1,19 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class EditorActionValidatorTests
+public sealed class EditorActionValidatorTests
 {
     private readonly EditorActionValidator _validator;
 
     public EditorActionValidatorTests()
     {
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
-        keyCodeMapper.GetKeyCode("Shift").Returns(42);
-        keyCodeMapper.GetKeyCode("AltGr").Returns(100);
-        keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(call => call.Arg<char>());
-        keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(call => char.IsUpper(call.Arg<char>()));
-        keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(returnThis: false);
+        _ = keyCodeMapper.GetKeyCode(Arg.Any<string>()).Returns(-1);
+        _ = keyCodeMapper.GetKeyCode("Shift").Returns(42);
+        _ = keyCodeMapper.GetKeyCode("AltGr").Returns(100);
+        _ = keyCodeMapper.GetKeyCodeForCharacter(Arg.Any<char>()).Returns(call => call.Arg<char>());
+        _ = keyCodeMapper.RequiresShift(Arg.Any<char>()).Returns(call => char.IsUpper(call.Arg<char>()));
+        _ = keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(returnThis: false);
 
         _validator = new EditorActionValidator(new EditorActionConverter(keyCodeMapper));
     }
@@ -32,8 +32,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().NotBeNullOrWhiteSpace();
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
@@ -50,8 +50,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -61,8 +61,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -72,8 +72,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("Clipboard destination variable");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("Clipboard destination variable");
     }
 
     [Fact]
@@ -83,8 +83,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -94,8 +94,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("Clipboard text");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("Clipboard text");
     }
 
     [Theory]
@@ -111,8 +111,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().ContainEquivalentOf(expected);
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().ContainEquivalentOf(expected);
     }
 
     [Fact]
@@ -122,8 +122,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -133,8 +133,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("Raw script step cannot be empty");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("Raw script step cannot be empty");
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeTrue();
+        _ = result.IsValid.Should().BeTrue();
     }
 
     [Fact]
@@ -174,18 +174,19 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("capture targets");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("capture targets");
     }
 
     [Theory]
     [MemberData(nameof(ValidWindowActions))]
-    public void Validate_WindowCommandWithValidMode_ReturnsValid(EditorAction action)
+    [MemberData(nameof(ValidScreenReadingActions))]
+    public void Validate_StructuredActionWithValidPayload_ReturnsValid(EditorAction action)
     {
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -201,8 +202,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("Invalid variable");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("Invalid variable");
     }
 
     [Fact]
@@ -219,8 +220,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("Search term");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("Search term");
     }
 
     public static IEnumerable<object[]> ValidWindowActions()
@@ -266,8 +267,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -286,8 +287,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("maximum");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("maximum");
     }
 
     [Fact]
@@ -305,8 +306,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("result variable");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("result variable");
     }
 
     [Fact]
@@ -328,18 +329,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("output variable");
-    }
-
-    [Theory]
-    [MemberData(nameof(ValidScreenReadingActions))]
-    public void Validate_ScreenReadingActionsWithStructuredPayload_ReturnsValid(EditorAction action)
-    {
-        var result = _validator.Validate(action);
-
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("output variable");
     }
 
     public static IEnumerable<object[]> ValidScreenReadingActions()
@@ -393,13 +384,13 @@ public class EditorActionValidatorTests
     public void Validate_TargetColorSource_WhenManualModeAndHexIsInvalid_ReturnsInvalid(EditorActionType actionType)
     {
         var action = CreateScreenReadingAction(actionType);
-        SetRequiredEnumPropertyValue(action, "ScreenTargetColorSource", "Manual");
+        action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.ManualHex;
         action.ScreenColorHex = "00GG00";
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("target");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("target");
     }
 
     [Theory]
@@ -408,14 +399,14 @@ public class EditorActionValidatorTests
     public void Validate_TargetColorSource_WhenVariableModeAndNameIsInvalid_ReturnsInvalid(EditorActionType actionType)
     {
         var action = CreateScreenReadingAction(actionType);
-        SetRequiredEnumPropertyValue(action, "ScreenTargetColorSource", "Variable");
-        SetRequiredPropertyValue(action, "ScreenTargetColorVariableName", "1invalid");
+        action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.Variable;
+        action.ScreenTargetColorVariableName = "1invalid";
         action.ScreenColorHex = "00FF00";
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("variable");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("variable");
     }
 
     private static EditorAction CreateScreenReadingAction(EditorActionType actionType)
@@ -444,26 +435,40 @@ public class EditorActionValidatorTests
                 ScreenFoundXVariableName = "found_x",
                 ScreenFoundYVariableName = "found_y",
             },
+            EditorActionType.MouseMove => throw new NotSupportedException(),
+            EditorActionType.MouseClick => throw new NotSupportedException(),
+            EditorActionType.MouseDown => throw new NotSupportedException(),
+            EditorActionType.MouseUp => throw new NotSupportedException(),
+            EditorActionType.KeyPress => throw new NotSupportedException(),
+            EditorActionType.KeyDown => throw new NotSupportedException(),
+            EditorActionType.KeyUp => throw new NotSupportedException(),
+            EditorActionType.Delay => throw new NotSupportedException(),
+            EditorActionType.ScrollVertical => throw new NotSupportedException(),
+            EditorActionType.ScrollHorizontal => throw new NotSupportedException(),
+            EditorActionType.TextInput => throw new NotSupportedException(),
+            EditorActionType.SetVariable => throw new NotSupportedException(),
+            EditorActionType.IncrementVariable => throw new NotSupportedException(),
+            EditorActionType.DecrementVariable => throw new NotSupportedException(),
+            EditorActionType.RepeatBlockStart => throw new NotSupportedException(),
+            EditorActionType.IfBlockStart => throw new NotSupportedException(),
+            EditorActionType.ElseBlockStart => throw new NotSupportedException(),
+            EditorActionType.WhileBlockStart => throw new NotSupportedException(),
+            EditorActionType.ForBlockStart => throw new NotSupportedException(),
+            EditorActionType.BlockEnd => throw new NotSupportedException(),
+            EditorActionType.Break => throw new NotSupportedException(),
+            EditorActionType.Continue => throw new NotSupportedException(),
+            EditorActionType.PixelColor => throw new NotSupportedException(),
+            EditorActionType.ImageSearch => throw new NotSupportedException(),
+            EditorActionType.ImageClick => throw new NotSupportedException(),
+            EditorActionType.WaitImage => throw new NotSupportedException(),
+            EditorActionType.ClipboardGet => throw new NotSupportedException(),
+            EditorActionType.ClipboardSet => throw new NotSupportedException(),
+            EditorActionType.ShellCommand => throw new NotSupportedException(),
+            EditorActionType.Screenshot => throw new NotSupportedException(),
+            EditorActionType.WindowCommand => throw new NotSupportedException(),
+            EditorActionType.RawScriptStep => throw new NotSupportedException(),
             _ => throw new ArgumentOutOfRangeException(nameof(actionType), actionType, message: null),
         };
-    }
-
-    private static PropertyInfo GetRequiredProperty(object target, string propertyName)
-    {
-        return target.GetType().GetProperty(propertyName)
-            ?? throw new InvalidOperationException($"Expected property '{propertyName}' on {target.GetType().Name}.");
-    }
-
-    private static void SetRequiredPropertyValue(object target, string propertyName, object? value)
-    {
-        GetRequiredProperty(target, propertyName).SetValue(target, value);
-    }
-
-    private static void SetRequiredEnumPropertyValue(object target, string propertyName, string enumName)
-    {
-        var property = GetRequiredProperty(target, propertyName);
-        var value = Enum.Parse(property.PropertyType, enumName, ignoreCase: false);
-        property.SetValue(target, value);
     }
 
     [Fact]
@@ -480,8 +485,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
     }
 
     [Fact]
@@ -498,8 +503,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
     }
 
     [Fact]
@@ -522,8 +527,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
     }
 
     [Fact]
@@ -546,8 +551,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
     }
 
     [Fact]
@@ -570,8 +575,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Errors.Should().NotContain(e => e.Contains("Cannot mix Absolute and Relative coordinates"));
     }
 
     [Fact]
@@ -590,8 +595,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
     }
 
     [Fact]
@@ -610,8 +615,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Be(ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
     }
 
     [Fact]
@@ -630,8 +635,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -650,8 +655,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("Variable name");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("Variable name");
     }
 
     [Fact]
@@ -675,8 +680,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -694,8 +699,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain(">= 0");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain(">= 0");
     }
 
     [Fact]
@@ -719,8 +724,8 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("cannot be 0");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("cannot be 0");
     }
 
     [Fact]
@@ -744,9 +749,9 @@ public class EditorActionValidatorTests
         var result = _validator.Validate(action);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("variable reference");
-        result.Error.Should().Contain("not a number literal");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("variable reference");
+        _ = result.Error.Should().Contain("not a number literal");
     }
 
     [Fact]
@@ -764,8 +769,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -783,8 +788,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeTrue();
-        result.Error.Should().BeNull();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
     }
 
     [Fact]
@@ -810,8 +815,8 @@ public class EditorActionValidatorTests
 
             var result = _validator.Validate(action);
 
-            result.IsValid.Should().BeFalse();
-            result.Error.Should().Contain("similarity");
+            _ = result.IsValid.Should().BeFalse();
+            _ = result.Error.Should().Contain("similarity");
         }
     }
 
@@ -838,8 +843,8 @@ public class EditorActionValidatorTests
 
             var result = _validator.Validate(action);
 
-            result.IsValid.Should().BeTrue();
-            result.Error.Should().BeNull();
+            _ = result.IsValid.Should().BeTrue();
+            _ = result.Error.Should().BeNull();
         }
     }
 
@@ -862,8 +867,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("button");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("button");
     }
 
     [Fact]
@@ -881,8 +886,8 @@ public class EditorActionValidatorTests
 
         var result = _validator.Validate(action);
 
-        result.IsValid.Should().BeFalse();
-        result.Error.Should().Contain("Right operand");
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("Right operand");
     }
 
     [Fact]
@@ -899,8 +904,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error => error.Contains("else block", StringComparison.OrdinalIgnoreCase));
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().Contain(error => error.Contains("else block", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -921,7 +926,7 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
+        _ = result.IsValid.Should().BeTrue();
     }
 
     [Fact]
@@ -940,8 +945,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
-        result.Errors.Should().BeEmpty();
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -960,7 +965,7 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
+        _ = result.IsValid.Should().BeTrue();
     }
 
     [Fact]
@@ -977,8 +982,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error =>
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().Contain(error =>
             error.Contains("break", StringComparison.OrdinalIgnoreCase)
             && error.Contains("inside repeat/while/for blocks", StringComparison.OrdinalIgnoreCase));
     }
@@ -1000,7 +1005,7 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeTrue();
+        _ = result.IsValid.Should().BeTrue();
     }
 
     [Fact]
@@ -1017,8 +1022,8 @@ public class EditorActionValidatorTests
         var result = _validator.ValidateAll(actions);
 
         // Assert
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(error =>
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().Contain(error =>
             error.Contains("continue", StringComparison.OrdinalIgnoreCase)
             && error.Contains("inside repeat/while/for blocks", StringComparison.OrdinalIgnoreCase));
     }

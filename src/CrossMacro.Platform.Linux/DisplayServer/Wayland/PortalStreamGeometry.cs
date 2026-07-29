@@ -187,7 +187,7 @@ internal static class PortalStreamGeometry
         }
     }
 
-    private static ScreenRect GetUnionBounds(IReadOnlyList<PortalMonitorStream> streams)
+    private static ScreenRect GetUnionBounds(List<PortalMonitorStream> streams)
     {
         var left = streams[0].Bounds.X;
         var top = streams[0].Bounds.Y;
@@ -214,7 +214,7 @@ internal static class PortalStreamGeometry
             var nextY = region.Bottom;
             var intervals = new List<(int Left, int Right)>();
 
-            foreach (var bounds in streams.Select(stream => stream.Bounds))
+            foreach (var bounds in streams.Select(static stream => stream.Bounds))
             {
                 if (bounds.Y > currentY && bounds.Y < nextY)
                 {
@@ -269,7 +269,7 @@ internal static class PortalStreamGeometry
         first.X < second.Right && first.Right > second.X && first.Y < second.Bottom && first.Bottom > second.Y;
 
     private static string FormatBounds(IReadOnlyList<PortalMonitorStream> streams) =>
-        string.Join(", ", streams.Select(stream => FormatBounds(stream.Bounds)));
+        string.Join(", ", streams.Select(static stream => FormatBounds(stream.Bounds)));
 
     private static string FormatBounds(ScreenRect bounds) =>
         $"({bounds.X.ToString(CultureInfo.InvariantCulture)},{bounds.Y.ToString(CultureInfo.InvariantCulture)},{bounds.Width.ToString(CultureInfo.InvariantCulture)}x{bounds.Height.ToString(CultureInfo.InvariantCulture)})";

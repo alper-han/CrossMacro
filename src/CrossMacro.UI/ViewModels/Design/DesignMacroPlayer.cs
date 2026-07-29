@@ -1,9 +1,9 @@
 
-namespace CrossMacro.UI.ViewModels;
+namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignMacroPlayer : IMacroPlayer
 {
-    public bool IsPlaying { get; private set; }
+    public bool IsPlaying { get; }
     public bool IsPaused { get; private set; }
 
     public int CurrentLoop { get; private set; }
@@ -33,7 +33,5 @@ internal sealed class DesignMacroPlayer : IMacroPlayer
 
     public void ResumePlayback() => IsPaused = false;
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

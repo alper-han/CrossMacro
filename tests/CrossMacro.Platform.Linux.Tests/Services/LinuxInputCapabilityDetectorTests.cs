@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
-public class LinuxInputCapabilityDetectorTests
+public sealed class LinuxInputCapabilityDetectorTests
 {
     [Fact]
     public void IsWithinDaemonGracePeriod_IsDeterministicAtGraceAndFailureBoundaries()
@@ -322,10 +322,8 @@ string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal
         var detector = new LinuxInputCapabilityDetector(
             fileExists: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
             canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
-            canOpenForRead: path => path is "/dev/input/event0",
             hasUsableReadableInputDevices: () => false,
             daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket),
-            getInputEventCandidates: () => ["/dev/input/event0"],
             utcNow: () => DateTime.UtcNow);
 
         var mode = detector.DetermineMode();
@@ -541,7 +539,7 @@ string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal
             return;
         }
 
-        var socketPath = Path.Combine(Path.GetTempPath(), $"crossmacro-input-probe-{Guid.NewGuid():N}.sock");
+        var socketPath = TestSocketPaths.CreateShort("cm-input");
         using var server = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         server.Bind(new UnixDomainSocketEndPoint(socketPath));
         server.Listen(1);

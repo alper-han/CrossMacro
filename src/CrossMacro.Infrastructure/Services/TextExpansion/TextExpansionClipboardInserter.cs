@@ -47,7 +47,7 @@ internal sealed class TextExpansionClipboardInserter
 
             return new PreparedClipboardPaste(oldClipboard, replacement);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Clipboard paste preparation failed");
             return null;
@@ -57,14 +57,15 @@ internal sealed class TextExpansionClipboardInserter
     public static async Task CommitAsync(
         IInputSimulator inputSimulator,
         PreparedClipboardPaste preparedPaste,
-        PasteMethod pasteMethod)
+        PasteMethod pasteMethod,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(inputSimulator);
         ArgumentNullException.ThrowIfNull(preparedPaste);
 
-        await Task.Delay(TextExpansionExecutionTimings.ClipboardPrePasteDelay).ConfigureAwait(false);
-        await PerformPasteAsync(inputSimulator, pasteMethod).ConfigureAwait(false);
-        await Task.Delay(TextExpansionExecutionTimings.PasteSettleDelay).ConfigureAwait(false);
+        await Task.Delay(TextExpansionExecutionTimings.ClipboardPrePasteDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+        await PerformPasteAsync(inputSimulator, pasteMethod, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(TextExpansionExecutionTimings.PasteSettleDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task RestoreAsync(PreparedClipboardPaste preparedPaste)
@@ -85,39 +86,38 @@ internal sealed class TextExpansionClipboardInserter
         {
             return await ReadClipboardWithTimeoutAsync(TextExpansionExecutionTimings.ClipboardBackupReadTimeout).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "Failed to backup clipboard");
             return null;
         }
     }
 
-    private static async Task PerformPasteAsync(IInputSimulator inputSimulator, PasteMethod pasteMethod)
+    private static async Task PerformPasteAsync(IInputSimulator inputSimulator, PasteMethod pasteMethod, CancellationToken cancellationToken)
     {
         switch (pasteMethod)
         {
             case PasteMethod.CtrlShiftV:
-                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, shift: true, ctrl: true).ConfigureAwait(false);
+                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, shift: true, ctrl: true, cancellationToken: cancellationToken).ConfigureAwait(false);
                 break;
             case PasteMethod.ShiftInsert:
-                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_INSERT, shift: true).ConfigureAwait(false);
+                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_INSERT, shift: true, cancellationToken: cancellationToken).ConfigureAwait(false);
                 break;
-            case PasteMethod.CtrlV:
             default:
-                await SendStandardPasteAsync(inputSimulator).ConfigureAwait(false);
+                await SendStandardPasteAsync(inputSimulator, cancellationToken).ConfigureAwait(false);
                 break;
         }
     }
 
-    private static async Task SendStandardPasteAsync(IInputSimulator inputSimulator)
+    private static async Task SendStandardPasteAsync(IInputSimulator inputSimulator, CancellationToken cancellationToken)
     {
         if (inputSimulator is IPlatformPasteShortcutProvider { UsesMetaKeyForStandardPaste: true })
         {
-            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, meta: true).ConfigureAwait(false);
+            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, meta: true, cancellationToken: cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, ctrl: true).ConfigureAwait(false);
+        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_V, ctrl: true, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> VerifyClipboardContainsReplacementAsync(string replacement)
@@ -134,7 +134,7 @@ internal sealed class TextExpansionClipboardInserter
             var retryDelay = remaining < TextExpansionExecutionTimings.ClipboardWriteSettleDelay
                 ? remaining
                 : TextExpansionExecutionTimings.ClipboardWriteSettleDelay;
-            await Task.Delay(retryDelay).ConfigureAwait(false);
+            await Task.Delay(retryDelay, TimeProvider.System, CancellationToken.None).ConfigureAwait(false);
             remaining = TextExpansionExecutionTimings.ClipboardVerifyTimeout - Stopwatch.GetElapsedTime(startedAt);
             if (remaining > TimeSpan.Zero && await ClipboardContainsReplacementAsync(replacement, remaining).ConfigureAwait(false))
             {
@@ -161,16 +161,16 @@ internal sealed class TextExpansionClipboardInserter
         try
         {
             // Clipboard restore remains best-effort to avoid clobbering a newer user copy.
-            await Task.Delay(TextExpansionExecutionTimings.ClipboardRestoreDelay).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.ClipboardRestoreDelay, TimeProvider.System, CancellationToken.None).ConfigureAwait(false);
             var currentClipboard = await TryReadClipboardAsync().ConfigureAwait(false);
             if (!string.Equals(currentClipboard, insertedText, StringComparison.Ordinal))
             {
                 return;
             }
 
-            await TryWriteClipboardAsync(oldClipboard, TextExpansionExecutionTimings.ClipboardRestoreTimeout).ConfigureAwait(false);
+            _ = await TryWriteClipboardAsync(oldClipboard, TextExpansionExecutionTimings.ClipboardRestoreTimeout).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "Clipboard restore skipped after best-effort failure");
             // Clipboard restore is best-effort.
@@ -183,7 +183,7 @@ internal sealed class TextExpansionClipboardInserter
         {
             return await ReadClipboardWithTimeoutAsync(TextExpansionExecutionTimings.ClipboardRestoreTimeout).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "Clipboard read skipped after best-effort failure");
             return null;
@@ -199,7 +199,7 @@ internal sealed class TextExpansionClipboardInserter
 
         try
         {
-            if (await Task.WhenAny(readTask, Task.Delay(timeout)).ConfigureAwait(false) == readTask)
+            if (await Task.WhenAny(readTask, Task.Delay(timeout, TimeProvider.System, timeoutSource.Token)).ConfigureAwait(false) == readTask)
             {
                 try
                 {
@@ -211,7 +211,7 @@ internal sealed class TextExpansionClipboardInserter
                 }
             }
 
-            timeoutSource.Cancel();
+            await timeoutSource.CancelAsync().ConfigureAwait(false);
             ObserveTimedOutOperation(readTask, timeoutSource);
             Log.Warning("Clipboard read timed out after {TimeoutMs}ms", timeout.TotalMilliseconds);
             return null;
@@ -222,7 +222,7 @@ internal sealed class TextExpansionClipboardInserter
             Log.Warning("Clipboard read timed out after {TimeoutMs}ms", timeout.TotalMilliseconds);
             return null;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             timeoutSource.Dispose();
             throw;
@@ -242,7 +242,7 @@ internal sealed class TextExpansionClipboardInserter
 
         try
         {
-            if (await Task.WhenAny(writeTask, Task.Delay(timeout)).ConfigureAwait(false) == writeTask)
+            if (await Task.WhenAny(writeTask, Task.Delay(timeout, TimeProvider.System, timeoutSource.Token)).ConfigureAwait(false) == writeTask)
             {
                 try
                 {
@@ -254,7 +254,7 @@ internal sealed class TextExpansionClipboardInserter
                 }
             }
 
-            timeoutSource.Cancel();
+            await timeoutSource.CancelAsync().ConfigureAwait(false);
             ObserveTimedOutOperation(writeTask, timeoutSource);
             Log.Warning("Clipboard write timed out after {TimeoutMs}ms", timeout.TotalMilliseconds);
             return false;
@@ -265,7 +265,7 @@ internal sealed class TextExpansionClipboardInserter
             Log.Warning("Clipboard write timed out after {TimeoutMs}ms", timeout.TotalMilliseconds);
             return false;
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             timeoutSource.Dispose();
             throw;
@@ -276,7 +276,9 @@ internal sealed class TextExpansionClipboardInserter
         Func<CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken)
     {
-        return Task.Run(() => operation(cancellationToken), CancellationToken.None);
+        // Offload to the thread pool: some IClipboardService implementations block synchronously
+        // before returning a Task, which would bypass the timeout entirely.
+        return Task.Run(() => operation(cancellationToken), cancellationToken);
     }
 
     private static void ObserveTimedOutOperation(Task operation, CancellationTokenSource timeoutSource)
@@ -292,5 +294,5 @@ internal sealed class TextExpansionClipboardInserter
             TaskScheduler.Default);
     }
 
-    internal sealed record class PreparedClipboardPaste(string? OldClipboard, string InsertedText);
+    internal sealed record PreparedClipboardPaste(string? OldClipboard, string InsertedText);
 }

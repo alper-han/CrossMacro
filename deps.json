@@ -1,8 +1,8 @@
 [
   {
     "pname": "Avalonia",
-    "version": "12.1.0",
-    "hash": "sha256-G824thlSx6grixZdFX0yonwGXQYequFLwFAyhEyuPzk="
+    "version": "12.1.1",
+    "hash": "sha256-GTv2rouQKTrLcryoodYujka0YKSFJ/Xx8Y9ikHPZ130="
   },
   {
     "pname": "Avalonia.BuildServices",
@@ -11,53 +11,53 @@
   },
   {
     "pname": "Avalonia.Fonts.Inter",
-    "version": "12.1.0",
-    "hash": "sha256-YftgXpcYGWL6oZT9EBh2R+PQGQjTEuIXLzpySJST1xg="
+    "version": "12.1.1",
+    "hash": "sha256-mt0zAlHoW5t+oTpu5wi43IQvZWAYsBPztYSinvfOF9k="
   },
   {
     "pname": "Avalonia.FreeDesktop",
-    "version": "12.1.0",
-    "hash": "sha256-ba4NDAxe4kp8TooGwws1HekMdF9MBezHbsYZb2Agjt4="
+    "version": "12.1.1",
+    "hash": "sha256-w61F1fA/RZdT25xtJWRes2SEYS1ixc797cUOfRu4tmM="
   },
   {
     "pname": "Avalonia.FreeDesktop.AtSpi",
-    "version": "12.1.0",
-    "hash": "sha256-3CVUOuKLXjTvcEYozutyX/gLmjM5TsE69pSKM1CBaqE="
+    "version": "12.1.1",
+    "hash": "sha256-c+B2eV5v/gZgBZqj4Z1QeJbHgyPJEenyFCutiQBUwRU="
   },
   {
     "pname": "Avalonia.HarfBuzz",
-    "version": "12.1.0",
-    "hash": "sha256-0uxtp+KmAFQz78Szvxa4hwo/vLNSkdgvcCynpaSeCjQ="
+    "version": "12.1.1",
+    "hash": "sha256-7lChqcimsELWLlx3J1VhHJq3V0AoZ5iSHstZrT7ItBA="
   },
   {
     "pname": "Avalonia.Native",
-    "version": "12.1.0",
-    "hash": "sha256-fshmU1Px5n8nRGmKKevLi0zPgyZJSNF3N0bqdiYQFPg="
+    "version": "12.1.1",
+    "hash": "sha256-1VfWF3vFifgBiuM1LV6v6s6Dbh0uUQ+CHL3PxmtWlVI="
   },
   {
     "pname": "Avalonia.Remote.Protocol",
-    "version": "12.1.0",
-    "hash": "sha256-PXrrCyFLIdrcEnNUz2ZzjFjs65hVaxEm5h/ux8tOo0k="
+    "version": "12.1.1",
+    "hash": "sha256-Ewx9x7XsVrmv3Z2TkqVzTASxloSijLftrkYB9YK5MBE="
   },
   {
     "pname": "Avalonia.Skia",
-    "version": "12.1.0",
-    "hash": "sha256-6f/isIqnWUCEeWlfooN32tkbi78DKdBBuTka70br9U4="
+    "version": "12.1.1",
+    "hash": "sha256-9oPb5fXc395iy4vuDMdeO5vsldn5JHlso2J72ov6TyU="
   },
   {
     "pname": "Avalonia.Themes.Fluent",
-    "version": "12.1.0",
-    "hash": "sha256-lvDXmhWLaB20IzRXKdrl6lTEF86nNd9MbZ7FspDK0wc="
+    "version": "12.1.1",
+    "hash": "sha256-YnRV5nn276iYP7PfbX+u9K3xpD3RX4jN80K3rvHEbbQ="
   },
   {
     "pname": "Avalonia.Wayland",
-    "version": "12.1.0",
-    "hash": "sha256-IXm76hvpQtF0GW6cjtFueS76A4eAwpX6TI1xHEpBBnI="
+    "version": "12.1.1",
+    "hash": "sha256-kibFk1KgWdGv/sCI0dGGOxL68ZFrlMt49PpufwJfpgE="
   },
   {
     "pname": "Avalonia.X11",
-    "version": "12.1.0",
-    "hash": "sha256-n2QWzUw5UsDtMEHI/MSkbPFucdStdz/1gLDqVR5zW/A="
+    "version": "12.1.1",
+    "hash": "sha256-/D2+LG3fiOeKprFV82EMzNoKfxSXfh3pDvb+MzNl4Kg="
   },
   {
     "pname": "CommunityToolkit.Mvvm",
@@ -91,8 +91,8 @@
   },
   {
     "pname": "Meziantou.Analyzer",
-    "version": "3.0.123",
-    "hash": "sha256-2leZoAbitcvMy3OuM+vvdJH7SMou3iz9h0SGLFB1sGM="
+    "version": "3.0.137",
+    "hash": "sha256-SSfebkwgoWHDbQQp3cDajz0vz0gX4p8mnUyxD9WoRqI="
   },
   {
     "pname": "MicroCom.Runtime",
@@ -101,13 +101,13 @@
   },
   {
     "pname": "Microsoft.Extensions.DependencyInjection",
-    "version": "10.0.9",
-    "hash": "sha256-YIqgDknwTq48X88Imdrfav3tmQ6tZwIOYsLt6dT40M8="
+    "version": "10.0.10",
+    "hash": "sha256-SZDbEORdMQa+Zg9F29lP5By7jaT5b9XLj8LAx7j1EZA="
   },
   {
     "pname": "Microsoft.Extensions.DependencyInjection.Abstractions",
-    "version": "10.0.9",
-    "hash": "sha256-YzQpGAsrjLU18s016LmM7DMJKml0MzKl1bPPYJ/erEk="
+    "version": "10.0.10",
+    "hash": "sha256-2r+Qvd0u3zODfQ1NAL+qu+W5XGaqJjm31bG6SGJKZn0="
   },
   {
     "pname": "NWayland",
@@ -121,8 +121,8 @@
   },
   {
     "pname": "Serilog",
-    "version": "4.3.1",
-    "hash": "sha256-TY+GaQYnyDfOGl0gi67xDyUMOuV/mjz8BU66/UsmStI="
+    "version": "4.4.0",
+    "hash": "sha256-tP4X06ThcDVL6XXtYIhdJyxn4uL9jLL0s3DRO6HNQk8="
   },
   {
     "pname": "Serilog.Sinks.Async",
@@ -166,8 +166,8 @@
   },
   {
     "pname": "SonarAnalyzer.CSharp",
-    "version": "10.29.0.143774",
-    "hash": "sha256-BK4i92sF6vH7QSPPHl+fr3zRZMJqna3WaA7oodD1sTM="
+    "version": "10.31.0.145097",
+    "hash": "sha256-FfpKfrvF2jgtegBbqItB++X3+pqYvuACkcL6MuPFVA8="
   },
   {
     "pname": "Tmds.DBus.Protocol",

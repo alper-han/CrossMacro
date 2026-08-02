@@ -61,25 +61,9 @@ internal static class Program
     {
         ConfigurePlatformServices(services, environment);
         GuiHostBootstrap.AddCommonGuiServices(services);
-        _ = services.AddSingleton<PlatformProcessRunner, ProcessRunner>();
-        _ = services.AddSingleton<IHostClipboardService>(sp => new PlatformFlatpakClipboard(
-            sp.GetRequiredService<PlatformProcessRunner>(),
-            sp.GetRequiredService<IRuntimeContext>(),
-            environment));
-        _ = services.AddSingleton<PlatformLinuxClipboard>(sp => new PlatformLinuxClipboard(
-            sp.GetRequiredService<PlatformProcessRunner>(), environment));
-        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<PlatformLinuxClipboard>());
-        _ = services.AddSingleton<PlatformFlatpakImageClipboard>(sp => new PlatformFlatpakImageClipboard(
-            sp.GetRequiredService<PlatformProcessRunner>(),
-            sp.GetRequiredService<IRuntimeContext>(),
-            environment));
-        _ = services.AddSingleton<PlatformLinuxImageClipboard>(sp => new PlatformLinuxImageClipboard(
-            sp.GetRequiredService<PlatformProcessRunner>(), environment));
-        _ = services.AddSingleton<IClipboardService, CompositeClipboardService>();
-        _ = services.AddSingleton<IImageClipboardService>(sp =>
-            sp.GetRequiredService<IRuntimeContext>().IsFlatpak
-                ? sp.GetRequiredService<PlatformFlatpakImageClipboard>()
-                : sp.GetRequiredService<PlatformLinuxImageClipboard>());
+        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
     }
 
     private static void ConfigureCliServices(
@@ -88,21 +72,9 @@ internal static class Program
         CliRuntimeProfile runtimeProfile)
     {
         ConfigurePlatformServices(services, environment);
-        _ = services.AddSingleton<PlatformProcessRunner, ProcessRunner>();
-        _ = services.AddSingleton<PlatformLinuxClipboard>(sp => new PlatformLinuxClipboard(
-            sp.GetRequiredService<PlatformProcessRunner>(), environment));
-        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<PlatformLinuxClipboard>());
-        _ = services.AddSingleton<PlatformLinuxImageClipboard>(sp => new PlatformLinuxImageClipboard(
-            sp.GetRequiredService<PlatformProcessRunner>(), environment));
-        _ = services.AddSingleton<PlatformFlatpakImageClipboard>(sp => new PlatformFlatpakImageClipboard(
-            sp.GetRequiredService<PlatformProcessRunner>(),
-            sp.GetRequiredService<IRuntimeContext>(),
-            environment));
-        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<PlatformLinuxClipboard>());
-        _ = services.AddSingleton<IImageClipboardService>(sp =>
-            sp.GetRequiredService<IRuntimeContext>().IsFlatpak
-                ? sp.GetRequiredService<PlatformFlatpakImageClipboard>()
-                : sp.GetRequiredService<PlatformLinuxImageClipboard>());
+        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
         _ = services.AddCrossMacroCommonRuntimeServices();
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent

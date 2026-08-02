@@ -130,7 +130,15 @@ public static class CliGuiRuntime
             return (int)CliExitCode.EnvironmentError;
         }
 
-        return startGui();
+        try
+        {
+            return startGui();
+        }
+        catch (OperationCanceledException ex)
+        {
+            SerilogLog.Debug(ex, "GUI shutdown canceled an Avalonia background operation.");
+            return (int)CliExitCode.Success;
+        }
     }
 
     private static int WriteParseFailure(CliParseResult parseResult)

@@ -5,6 +5,7 @@ internal sealed class WaylandInterfaceHandle : IDisposable
 {
     private readonly WlCString _name;
     private readonly WlMessage[] _methods;
+    private readonly WlMessage[] _events;
     private readonly List<WlCString> _strings = [];
     private readonly List<GCHandle> _typeHandles = [];
     private readonly GCHandle _methodsHandle;
@@ -16,16 +17,16 @@ internal sealed class WaylandInterfaceHandle : IDisposable
     {
         _name = new WlCString(name);
         _methods = BuildMessages(methods);
-        var eventMessages = BuildMessages(events);
+        _events = BuildMessages(events);
         _methodsHandle = GCHandle.Alloc(_methods, GCHandleType.Pinned);
-        _eventsHandle = GCHandle.Alloc(eventMessages, GCHandleType.Pinned);
+        _eventsHandle = GCHandle.Alloc(_events, GCHandleType.Pinned);
         _interfaceHandle = GCHandle.Alloc(new WlInterface
         {
             Name = _name.Address,
             Version = version,
             MethodCount = _methods.Length,
             Methods = _methodsHandle.AddrOfPinnedObject(),
-            EventCount = eventMessages.Length,
+            EventCount = _events.Length,
             Events = _eventsHandle.AddrOfPinnedObject(),
         }, GCHandleType.Pinned);
     }
@@ -34,11 +35,44 @@ internal sealed class WaylandInterfaceHandle : IDisposable
 
     public void SetMethodTypes(int methodIndex, params IntPtr[] typePointers)
     {
-        var typed = new IntPtr[typePointers.Length];
+        var argumentCount = GetArgumentCount(_methods[methodIndex]);
+        if (typePointers.Length > argumentCount)
+        {
+            throw new ArgumentException("The supplied Wayland interface type table has too many entries.", nameof(typePointers));
+        }
+
+        if (argumentCount is 0)
+        {
+            _methods[methodIndex].Types = IntPtr.Zero;
+            return;
+        }
+
+        var typed = new IntPtr[argumentCount];
         Array.Copy(typePointers, typed, typePointers.Length);
         var handle = GCHandle.Alloc(typed, GCHandleType.Pinned);
         _typeHandles.Add(handle);
         _methods[methodIndex].Types = handle.AddrOfPinnedObject();
+    }
+
+    public void SetEventTypes(int eventIndex, params IntPtr[] typePointers)
+    {
+        var argumentCount = GetArgumentCount(_events[eventIndex]);
+        if (typePointers.Length > argumentCount)
+        {
+            throw new ArgumentException("The supplied Wayland interface type table has too many entries.", nameof(typePointers));
+        }
+
+        if (argumentCount is 0)
+        {
+            _events[eventIndex].Types = IntPtr.Zero;
+            return;
+        }
+
+        var typed = new IntPtr[argumentCount];
+        Array.Copy(typePointers, typed, typePointers.Length);
+        var handle = GCHandle.Alloc(typed, GCHandleType.Pinned);
+        _typeHandles.Add(handle);
+        _events[eventIndex].Types = handle.AddrOfPinnedObject();
     }
 
     public void Dispose()
@@ -87,9 +121,24 @@ internal sealed class WaylandInterfaceHandle : IDisposable
             var signature = new WlCString(definitions[i].Signature);
             _strings.Add(name);
             _strings.Add(signature);
-            result[i] = new WlMessage { Name = name.Address, Signature = signature.Address, Types = IntPtr.Zero };
+            var argumentCount = CountArguments(definitions[i].Signature);
+            var types = new IntPtr[argumentCount];
+            var typeHandle = GCHandle.Alloc(types, GCHandleType.Pinned);
+            _typeHandles.Add(typeHandle);
+            result[i] = new WlMessage
+            {
+                Name = name.Address,
+                Signature = signature.Address,
+                Types = argumentCount is 0 ? IntPtr.Zero : typeHandle.AddrOfPinnedObject(),
+            };
         }
 
         return result;
     }
+
+    private static int CountArguments(string signature) =>
+        signature.Count(static character => character is 'i' or 'u' or 'f' or 's' or 'o' or 'n' or 'a' or 'h');
+
+    private static int GetArgumentCount(WlMessage message) =>
+        CountArguments(Marshal.PtrToStringUTF8(message.Signature) ?? string.Empty);
 }

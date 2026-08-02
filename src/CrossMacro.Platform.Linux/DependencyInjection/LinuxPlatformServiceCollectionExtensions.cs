@@ -12,6 +12,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
             new LinuxKeyCodeMapper(sp.GetRequiredService<IXkbStateManager>()));
         _ = services.AddSingleton<IKeyboardLayoutService, LinuxKeyboardLayoutService>();
         _ = services.AddSingleton<IpcClient>();
+        _ = services.AddSingleton<LinuxNativeClipboardService>();
 
         _ = services.AddSingleton<ILinuxEnvironmentVariables>(new LinuxEnvironmentVariables(environment));
         _ = services.AddSingleton<ILinuxEnvironmentDetector>(sp => new LinuxEnvironmentDetector(

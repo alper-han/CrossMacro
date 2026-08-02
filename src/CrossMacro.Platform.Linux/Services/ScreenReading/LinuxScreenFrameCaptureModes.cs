@@ -7,7 +7,7 @@ internal static class LinuxScreenFrameCaptureModes
 
     private static bool SupportsFullFrame(LinuxScreenReaderBackend backend) => backend switch
     {
-        LinuxScreenReaderBackend.KWinScreenShot2 => false,
+        LinuxScreenReaderBackend.KWinScreenShot2 => true,
         LinuxScreenReaderBackend.ExtImageCopy => true,
         LinuxScreenReaderBackend.WlrScreencopy => true,
         LinuxScreenReaderBackend.Portal => true,

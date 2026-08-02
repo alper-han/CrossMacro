@@ -7,6 +7,15 @@ namespace CrossMacro.Platform.Linux.Native.X11;
 internal static partial class X11Native
 {
     private const string LibX11 = "libX11.so.6";
+    public const int SelectionClear = 29;
+    public const int SelectionRequest = 30;
+    public const int SelectionNotify = 31;
+    public const int PropertyNotify = 28;
+    public const int PropertyNewValue = 0;
+    public const int PropertyDelete = 1;
+    public const int PropModeReplace = 0;
+    public const nuint PropertyChangeMask = 1u << 22;
+    public const nuint CurrentTime = 0;
     public const int ZPixmap = 2;
     public static readonly UIntPtr AllPlanes = new(ulong.MaxValue);
 
@@ -219,6 +228,102 @@ internal static partial class X11Native
     [LibraryImport(LibX11)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int XNextEvent(IntPtr display, IntPtr event_return);
+
+    [LibraryImport(LibX11, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial nuint XInternAtom(
+        IntPtr display,
+        string atom_name,
+        [MarshalAs(UnmanagedType.Bool)] bool only_if_exists);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial nuint XCreateSimpleWindow(
+        IntPtr display,
+        nuint parent,
+        int x,
+        int y,
+        uint width,
+        uint height,
+        uint border_width,
+        nuint border,
+        nuint background);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XDestroyWindow(IntPtr display, nuint window);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XSelectInput(IntPtr display, nuint window, nuint event_mask);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XSetSelectionOwner(IntPtr display, nuint selection, nuint owner, nuint time);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial nuint XGetSelectionOwner(IntPtr display, nuint selection);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XConvertSelection(
+        IntPtr display,
+        nuint selection,
+        nuint target,
+        nuint property,
+        nuint requestor,
+        nuint time);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XDeleteProperty(IntPtr display, nuint window, nuint property);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XGetWindowProperty(
+        IntPtr display,
+        nuint window,
+        nuint property,
+        nint long_offset,
+        nint long_length,
+        [MarshalAs(UnmanagedType.Bool)] bool delete,
+        nuint requested_type,
+        out nuint actual_type,
+        out int actual_format,
+        out nuint nitems,
+        out nuint bytes_after,
+        out IntPtr prop_return);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XChangeProperty(
+        IntPtr display,
+        nuint window,
+        nuint property,
+        nuint type,
+        int format,
+        int mode,
+        IntPtr data,
+        int nelements);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool XSendEvent(
+        IntPtr display,
+        nuint window,
+        [MarshalAs(UnmanagedType.Bool)] bool propagate,
+        nuint event_mask,
+        IntPtr event_send);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XConnectionNumber(IntPtr display);
+
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int XFree(IntPtr data);
 
     [LibraryImport(LibX11)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

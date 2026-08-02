@@ -109,6 +109,13 @@ internal sealed partial class WaylandLibrary : IDisposable
     public void DisplayDispatch(IntPtr display, WaylandCaptureCancellation cancellation) =>
         DispatchInterruptibly(display, cancellation);
     public int AddDispatcher(IntPtr proxy, IntPtr dispatcherPtr) => _addDispatcher(proxy, dispatcherPtr, IntPtr.Zero, IntPtr.Zero);
+    public void DestroyProxy(IntPtr proxy)
+    {
+        if (proxy != IntPtr.Zero)
+        {
+            _proxyDestroy(proxy);
+        }
+    }
     public IntPtr GetRegistry(IntPtr display, WaylandInterfaceHandle registryInterface)
     {
         using var args = new WlArgumentPack(1);
@@ -301,12 +308,47 @@ internal sealed partial class WaylandLibrary : IDisposable
     public IntPtr Bind(IntPtr registry, uint name, string iface, uint version, WaylandInterfaceHandle targetInterface)
     {
         using var ifaceName = new WlCString(iface);
-        using var args = new WlArgumentPack(3);
+        using var args = new WlArgumentPack(4);
         args[0] = new WlArgument { u = name };
         args[1] = new WlArgument { s = ifaceName.Address };
         args[2] = new WlArgument { u = version };
+        args[3] = new WlArgument { o = IntPtr.Zero };
         return _marshalConstructor(registry, 0, args.Address, targetInterface.Address, version);
     }
+
+    public IntPtr MarshalConstructor(
+        IntPtr proxy,
+        uint opcode,
+        WlArgumentPack? args,
+        WaylandInterfaceHandle targetInterface,
+        uint version)
+    {
+        ArgumentNullException.ThrowIfNull(targetInterface);
+        return _marshalConstructor(
+            proxy,
+            opcode,
+            args?.Address ?? IntPtr.Zero,
+            targetInterface.Address,
+            version);
+    }
+
+    public IntPtr MarshalRequest(
+        IntPtr proxy,
+        uint opcode,
+        WlArgumentPack? args,
+        uint version = 1,
+        uint flags = 0)
+    {
+        return _marshalFlags(
+            proxy,
+            opcode,
+            IntPtr.Zero,
+            version,
+            flags,
+            args?.Address ?? IntPtr.Zero);
+    }
+
+    public int DisplayFlush(IntPtr display) => _displayFlush(display);
 
     public IntPtr CreateShmPool(IntPtr shm, int fd, int size, WaylandInterfaceHandle poolInterface)
     {

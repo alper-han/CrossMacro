@@ -24,13 +24,6 @@ public sealed class KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture cap
                 _support.ErrorMessage ?? "KDE KWin ScreenShot2 is unavailable.");
         }
 
-        if (region is null)
-        {
-            return ScreenReadResultFactory.Failure<ScreenFrame>(
-                ScreenReadErrorKind.Unsupported,
-                "KDE KWin ScreenShot2 screen reading currently requires a bounded region.");
-        }
-
         if (options.CancellationToken.IsCancellationRequested)
         {
             return LinuxScreenFrameProviderResults.CanceledBeforeStart("KDE KWin ScreenShot2 capture was canceled before it started.");
@@ -39,7 +32,9 @@ public sealed class KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture cap
         KWinScreenShotCaptureResult captureResult;
         try
         {
-            captureResult = await _capture.CaptureAreaAsync(region.Value, options).ConfigureAwait(false);
+            captureResult = region is { } boundedRegion
+                ? await _capture.CaptureAreaAsync(boundedRegion, options).ConfigureAwait(false)
+                : await _capture.CaptureWorkspaceAsync(options).ConfigureAwait(false);
         }
         catch (Exception ex) when (LinuxScreenFrameProviderResults.IsKnownCaptureException(ex))
         {

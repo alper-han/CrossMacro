@@ -7,15 +7,12 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
     private const string Path = "/org/kde/KWin/ScreenShot2";
     private const string Interface = "org.kde.KWin.ScreenShot2";
     private const uint RawFormatBgra8888 = 6;
-    private const UnixFileMode OwnerOnlyDirectoryMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
-    private const UnixFileMode OwnerOnlyFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private static readonly ScreenRect ProbeRegion = new(0, 0, 1, 1);
 
     private readonly bool _isAppImageKde;
     private readonly bool _isFlatpak;
     private readonly bool _isKde;
     private readonly TimeProvider _timeProvider;
-    private readonly Func<string> _rawDirectoryFactory;
 
     internal KWinScreenShotCapture()
         : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
@@ -24,18 +21,11 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         : this(environment, TimeProvider.System) { /* Empty */ }
 
     internal KWinScreenShotCapture(LinuxEnvironmentSnapshot environment, TimeProvider timeProvider)
-        : this(environment, timeProvider, static () => System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"crossmacro-kwin-screenshot-{Guid.NewGuid():N}")) { /* Empty */ }
-
-    internal KWinScreenShotCapture(
-        LinuxEnvironmentSnapshot environment,
-        TimeProvider timeProvider,
-        Func<string> rawDirectoryFactory)
     {
         _isAppImageKde = !string.IsNullOrEmpty(environment.AppImage) && IsKde(environment.CurrentDesktop);
         _isFlatpak = environment.IsFlatpak;
         _isKde = _isAppImageKde || IsKde(environment.CurrentDesktop);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-        _rawDirectoryFactory = rawDirectoryFactory ?? throw new ArgumentNullException(nameof(rawDirectoryFactory));
     }
 
     public KWinScreenShotSupportResult ProbeSupport()
@@ -138,19 +128,57 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         return CaptureAreaCoreAsync(region, options);
     }
 
+    public Task<KWinScreenShotCaptureResult> CaptureWorkspaceAsync(ScreenReadOptions options)
+    {
+        if (options.CancellationToken.IsCancellationRequested)
+        {
+            return Task.FromResult(KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.Canceled, "KWin ScreenShot2 workspace capture was canceled before it started."));
+        }
+
+        return CaptureWorkspaceCoreAsync(options);
+    }
+
     public void Dispose() { /* Empty */ }
 
     private async Task<KWinScreenShotCaptureResult> CaptureAreaCoreAsync(ScreenRect region, ScreenReadOptions options)
     {
-        var rawDirectory = _rawDirectoryFactory();
-        var rawPath = System.IO.Path.Combine(rawDirectory, "frame.raw");
+        return await CaptureCoreAsync(
+            options,
+            "CaptureArea",
+            "iiuua{sv}h",
+            (ref MessageWriter writer) =>
+            {
+                writer.WriteInt32(region.X);
+                writer.WriteInt32(region.Y);
+                writer.WriteUInt32(checked((uint)region.Width));
+                writer.WriteUInt32(checked((uint)region.Height));
+            },
+            rawCapture => CreateFrame(region, rawCapture)).ConfigureAwait(false);
+    }
+
+    private async Task<KWinScreenShotCaptureResult> CaptureWorkspaceCoreAsync(ScreenReadOptions options)
+    {
+        return await CaptureCoreAsync(
+            options,
+            "CaptureWorkspace",
+            "a{sv}h",
+            static (ref MessageWriter _) => { },
+            CreateWorkspaceFrame).ConfigureAwait(false);
+    }
+
+    private async Task<KWinScreenShotCaptureResult> CaptureCoreAsync(
+        ScreenReadOptions options,
+        string method,
+        string signature,
+        MessageWriterAction writeArguments,
+        Func<KWinRawCapture, KWinScreenShotFrame> frameFactory)
+    {
         try
         {
-            CreatePrivateRawDirectory(rawDirectory);
             using var connection = new DBusConnection(DBusAddress.Session!);
             await connection.ConnectAsync().AsTask().WaitAsync(options.CancellationToken).ConfigureAwait(false);
-            var rawCapture = await CaptureRawAsync(connection, region, rawPath, options).ConfigureAwait(false);
-            var frame = CreateFrame(region, rawCapture);
+            var rawCapture = await CaptureRawAsync(connection, options, method, signature, writeArguments).ConfigureAwait(false);
+            var frame = frameFactory(rawCapture);
             return KWinScreenShotCaptureResult.Success(frame);
         }
         catch (OperationCanceledException)
@@ -165,52 +193,50 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         {
             return KWinScreenShotCaptureResult.Failure(MapException(ex), BuildErrorMessage(ex));
         }
-        finally
-        {
-            TryDelete(rawPath);
-            TryDeleteDirectory(rawDirectory);
-        }
     }
 
     private async Task<KWinRawCapture> CaptureRawAsync(
         DBusConnection connection,
-        ScreenRect region,
-        string rawPath,
-        ScreenReadOptions options)
+        ScreenReadOptions options,
+        string method,
+        string signature,
+        MessageWriterAction writeArguments)
     {
-        FileStream rawFile = CreatePrivateRawFile(rawPath);
+        var pipe = new KWinScreenShotPipe();
         try
         {
-            using var dbusHandle = DuplicateForDbus(rawFile.SafeFileHandle);
-            var writer = connection.GetMessageWriter();
-            writer.WriteMethodCallHeader(Service, Path, Interface, "CaptureArea", "iiuua{sv}h");
-            writer.WriteInt32(region.X);
-            writer.WriteInt32(region.Y);
-            writer.WriteUInt32(checked((uint)region.Width));
-            writer.WriteUInt32(checked((uint)region.Height));
-            writer.WriteDictionary(Array.Empty<KeyValuePair<string, VariantValue>>());
-            writer.WriteHandle(dbusHandle);
-
-            var call = connection.CallMethodAsync(writer.CreateMessage(), static (message, _) =>
+            Task<Dictionary<string, VariantValue>> call;
+            using (var dbusHandle = DuplicateForDbus(pipe.WriteHandle))
             {
-                var reader = message.GetBodyReader();
-                return reader.ReadDictionaryOfStringToVariantValue();
-            });
+                var writer = connection.GetMessageWriter();
+                writer.WriteMethodCallHeader(Service, Path, Interface, method, signature);
+                writeArguments(ref writer);
+                writer.WriteDictionary(Array.Empty<KeyValuePair<string, VariantValue>>());
+                writer.WriteHandle(dbusHandle);
+
+                call = connection.CallMethodAsync(writer.CreateMessage(), static (message, _) =>
+                {
+                    var reader = message.GetBodyReader();
+                    return reader.ReadDictionaryOfStringToVariantValue();
+                });
+            }
+
+            pipe.WriteHandle.Dispose();
 
             var results = options.Timeout is { } timeout
                 ? await call.WaitAsync(timeout, _timeProvider, options.CancellationToken).ConfigureAwait(false)
                 : await call.WaitAsync(options.CancellationToken).ConfigureAwait(false);
 
-            var pixels = await ReadCapturedBytesAsync(rawFile, options.CancellationToken).ConfigureAwait(false);
+            var pixels = await ReadCapturedBytesAsync(pipe.ReadStream, results, options).ConfigureAwait(false);
             return new KWinRawCapture(results, pixels);
         }
         finally
         {
-            await rawFile.DisposeAsync().ConfigureAwait(false);
+            await pipe.DisposeAsync().ConfigureAwait(false);
         }
     }
 
-    internal static SafeFileHandle DuplicateForDbus(SafeFileHandle fileHandle)
+    internal static SafeFileHandle DuplicateForDbus(SafeHandle fileHandle)
     {
         var duplicated = PortalPipeWireLibc.dup(fileHandle);
         if (duplicated < 0)
@@ -243,47 +269,40 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         return new KWinScreenShotFrame(region, checked((int)stride), ScreenPixelFormat.Bgra8888, rawCapture.Pixels);
     }
 
-    internal static void CreatePrivateRawDirectory(string rawDirectory)
+    private static KWinScreenShotFrame CreateWorkspaceFrame(KWinRawCapture rawCapture)
     {
-        _ = Directory.CreateDirectory(rawDirectory);
-        File.SetUnixFileMode(rawDirectory, OwnerOnlyDirectoryMode);
+        var results = rawCapture.Results;
+        var width = GetRequiredUInt(results, "width");
+        var height = GetRequiredUInt(results, "height");
+        var region = new ScreenRect(0, 0, checked((int)width), checked((int)height));
+        return CreateFrame(region, rawCapture);
     }
 
-    internal static FileStream CreatePrivateRawFile(string rawPath)
+    internal static async Task<byte[]> ReadCapturedBytesAsync(
+        Stream stream,
+        IReadOnlyDictionary<string, VariantValue> results,
+        ScreenReadOptions options)
     {
-        var options = new FileStreamOptions
+        var stride = GetRequiredUInt(results, "stride");
+        var height = GetRequiredUInt(results, "height");
+        var expectedLength = checked((ulong)stride * height);
+        if (expectedLength > int.MaxValue)
         {
-            Mode = FileMode.CreateNew,
-            Access = FileAccess.ReadWrite,
-            Share = FileShare.None,
-            Options = FileOptions.DeleteOnClose,
-            UnixCreateMode = OwnerOnlyFileMode,
-        };
+            throw new InvalidOperationException("KWin ScreenShot2 returned a raw frame that is too large for the supported pixel buffer.");
+        }
 
-        return new FileStream(rawPath, options);
-    }
-
-    private static async Task<byte[]> ReadCapturedBytesAsync(FileStream file, CancellationToken cancellationToken)
-    {
-        await file.FlushAsync(cancellationToken).ConfigureAwait(false);
-        file.Position = 0;
-        var length = checked((int)file.Length);
-        var pixels = new byte[length];
+        var expectedByteCount = (int)expectedLength;
+        var pixels = new byte[expectedByteCount];
         var offset = 0;
         while (offset < pixels.Length)
         {
-            var read = await file.ReadAsync(pixels.AsMemory(offset, pixels.Length - offset), cancellationToken).ConfigureAwait(false);
+            var read = await stream.ReadAsync(pixels.AsMemory(offset, pixels.Length - offset), options.CancellationToken).ConfigureAwait(false);
             if (read is 0)
             {
-                break;
+                throw new EndOfStreamException($"KWin ScreenShot2 raw frame ended after {offset.ToString(CultureInfo.InvariantCulture)} of {expectedByteCount.ToString(CultureInfo.InvariantCulture)} bytes.");
             }
 
             offset += read;
-        }
-
-        if (offset != pixels.Length)
-        {
-            throw new EndOfStreamException("KWin ScreenShot2 raw file changed while it was being read.");
         }
 
         return pixels;
@@ -317,44 +336,6 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         }
 
         return ex.Message;
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (IOException ex)
-        {
-            GC.KeepAlive(ex);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            GC.KeepAlive(ex);
-        }
-    }
-
-    private static void TryDeleteDirectory(string path)
-    {
-        try
-        {
-            if (Directory.Exists(path))
-            {
-                Directory.Delete(path);
-            }
-        }
-        catch (IOException ex)
-        {
-            GC.KeepAlive(ex);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            GC.KeepAlive(ex);
-        }
     }
 
     private readonly record struct KWinRawCapture(IReadOnlyDictionary<string, VariantValue> Results, byte[] Pixels);

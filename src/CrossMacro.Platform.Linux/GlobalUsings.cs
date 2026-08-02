@@ -13,6 +13,7 @@ global using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 global using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 global using CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 global using CrossMacro.Platform.Linux.DisplayServer.X11;
+global using CrossMacro.Platform.Linux.Clipboard;
 global using CrossMacro.Platform.Linux.Extensions;
 global using CrossMacro.Platform.Linux.Helpers;
 global using CrossMacro.Platform.Linux.Ipc;

@@ -39,6 +39,7 @@ public sealed partial class LinuxPackagingStaticParityTests
 
         var expectedFinishArgs = new[]
         {
+            "--socket=wayland",
             "--socket=x11",
             "--share=ipc",
             DeviceAllArg,

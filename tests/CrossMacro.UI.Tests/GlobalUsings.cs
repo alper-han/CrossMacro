@@ -56,6 +56,4 @@ global using System.Text.RegularExpressions;
 global using System.Threading;
 global using System.Threading.Tasks;
 global using Xunit;
-global using FlatpakHostClipboardService = CrossMacro.Platform.Linux.Clipboard.FlatpakHostClipboardService;
 global using LinuxProgram = CrossMacro.UI.Linux.Program;
-global using LinuxShellClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellClipboardService;

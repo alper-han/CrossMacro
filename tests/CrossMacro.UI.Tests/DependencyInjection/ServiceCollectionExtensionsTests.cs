@@ -114,7 +114,7 @@ public sealed class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddCrossMacroCliRuntimeServices_DoesNotRegisterLinuxClipboardCompatibilityBinding()
+    public void AddCrossMacroCliRuntimeServices_LeavesLinuxClipboardCompositionToExecutableRoot()
     {
         var services = new ServiceCollection();
         _ = services.AddCrossMacroCliRuntimeServices(new LinuxLikePlatformServiceRegistrar());
@@ -123,7 +123,7 @@ public sealed class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddCrossMacroGuiRuntimeServices_DoesNotRegisterCompositeClipboardCompatibilityBinding()
+    public void AddCrossMacroGuiRuntimeServices_LeavesLinuxClipboardCompositionToExecutableRoot()
     {
         var services = new ServiceCollection();
         ComposeGuiServices(services, new LinuxLikePlatformServiceRegistrar());
@@ -132,7 +132,7 @@ public sealed class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddCrossMacroGuiRuntimeServices_DoesNotRegisterLinuxImageClipboardCompatibilityBinding()
+    public void AddCrossMacroGuiRuntimeServices_LeavesLinuxImageClipboardCompositionToExecutableRoot()
     {
         var services = new ServiceCollection();
         ComposeGuiServices(services, new LinuxLikePlatformServiceRegistrar());

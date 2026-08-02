@@ -42,7 +42,3 @@ global using System.Threading.Tasks;
 global using Xunit;
 global using CrossMacro.Infrastructure.Persistence.Macros;
 global using CoreLogging = CrossMacro.Core.Logging;
-global using FlatpakHostClipboardService = CrossMacro.Platform.Linux.Clipboard.FlatpakHostClipboardService;
-global using FlatpakHostImageClipboardService = CrossMacro.Platform.Linux.Clipboard.FlatpakHostImageClipboardService;
-global using LinuxShellClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellClipboardService;
-global using LinuxShellImageClipboardService = CrossMacro.Platform.Linux.Clipboard.LinuxShellImageClipboardService;

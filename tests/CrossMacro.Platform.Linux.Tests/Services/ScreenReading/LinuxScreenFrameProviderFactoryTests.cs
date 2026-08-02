@@ -115,9 +115,14 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     }
 
     [Fact]
-    public async Task CaptureFrameAsync_WhenNativeKdeFullFrameRequestAndKWinAndExtAvailable_SkipsKWinAndUsesExt()
+    public async Task CaptureFrameAsync_WhenNativeKdeFullFrameRequestAndKWinAndExtAvailable_UsesKWinWorkspace()
     {
-        var kWinCapture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
+        var kWinFrame = ScreenReadingFrameFixtures.KWinFrame(
+            new ScreenRect(0, 0, 2, 1),
+            ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
+        var kWinCapture = new FakeKWinScreenShotCapture(
+            KWinScreenShotSupportResult.Supported(),
+            KWinScreenShotCaptureResult.Success(kWinFrame));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext capture failed"));
@@ -134,18 +139,23 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         using var provider = factory.Create();
         var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Equal("ext capture failed", result.ErrorMessage);
+        Assert.True(result.IsSuccess);
+        using var resultFrame = Assert.IsType<ScreenFrame>(result.Value);
+        Assert.Equal(new ScreenRect(0, 0, 2, 1), resultFrame.LogicalBounds);
         Assert.Equal(0, kWinCapture.CaptureCalls);
-        Assert.Equal(1, extProvider.CaptureCalls);
-        Assert.Null(extProvider.LastRegion);
+        Assert.Equal(1, kWinCapture.WorkspaceCaptureCalls);
+        Assert.Equal(0, extProvider.CaptureCalls);
     }
 
     [Fact]
-    public async Task CaptureFrameAsync_WhenNativeKdeFullFrameRequestAndOnlyKWinAvailable_ReturnsKWinUnsupportedWithoutCapture()
+    public async Task CaptureFrameAsync_WhenNativeKdeFullFrameRequestAndOnlyKWinAvailable_UsesKWinWorkspace()
     {
-        var kWinCapture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
+        var kWinFrame = ScreenReadingFrameFixtures.KWinFrame(
+            new ScreenRect(0, 0, 2, 1),
+            ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
+        var kWinCapture = new FakeKWinScreenShotCapture(
+            KWinScreenShotSupportResult.Supported(),
+            KWinScreenShotCaptureResult.Success(kWinFrame));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -167,16 +177,19 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         using var provider = factory.Create();
         var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Unsupported, result.ErrorKind);
-        Assert.Contains("bounded region", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.True(result.IsSuccess);
+        using var resultFrame = Assert.IsType<ScreenFrame>(result.Value);
+        Assert.Equal(new ScreenRect(0, 0, 2, 1), resultFrame.LogicalBounds);
         Assert.Equal(0, kWinCapture.CaptureCalls);
+        Assert.Equal(1, kWinCapture.WorkspaceCaptureCalls);
     }
 
     [Fact]
-    public async Task CaptureFrameAsync_WhenFullFrameCompatibleBackendPermissionDenied_ReturnsDeniedWithoutKWinUnsupportedFallback()
+    public async Task CaptureFrameAsync_WhenKWinWorkspaceCapturePermissionDenied_ReturnsDeniedWithoutFallback()
     {
-        var kWinCapture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
+        var kWinCapture = new FakeKWinScreenShotCapture(
+            KWinScreenShotSupportResult.Supported(),
+            KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.PermissionDenied, "kwin denied"));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, "ext denied"));
@@ -195,9 +208,10 @@ public sealed class LinuxScreenFrameProviderFactoryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Equal("ext denied", result.ErrorMessage);
+        Assert.Equal("kwin denied", result.ErrorMessage);
         Assert.Equal(0, kWinCapture.CaptureCalls);
-        Assert.Equal(1, extProvider.CaptureCalls);
+        Assert.Equal(1, kWinCapture.WorkspaceCaptureCalls);
+        Assert.Equal(0, extProvider.CaptureCalls);
     }
 
     [Fact]

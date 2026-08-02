@@ -37,20 +37,19 @@ public sealed class LinuxGuiCompositionTests
         var startupCoordinator = provider.GetRequiredService<IDesktopStartupCoordinator>();
         var textExpansionService = provider.GetRequiredService<ITextExpansionService>();
         var clipboard = provider.GetRequiredService<IClipboardService>();
+        var imageClipboard = provider.GetRequiredService<IImageClipboardService>();
         var profileManager = provider.GetRequiredService<IProfileManager>();
         var triggerService = provider.GetRequiredService<ITriggerService>();
 
-        var composite = Assert.IsType<CompositeClipboardService>(clipboard);
-        var fallbackField = typeof(CompositeClipboardService).GetField(
-            "_avaloniaService",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+        var nativeClipboard = provider.GetRequiredService<LinuxNativeClipboardService>();
 
         Assert.NotNull(startupCoordinator);
         Assert.NotNull(textExpansionService);
+        Assert.Same(nativeClipboard, clipboard);
+        Assert.Same(nativeClipboard, imageClipboard);
+        Assert.Same(nativeClipboard, provider.GetRequiredService<ILinuxClipboardService>());
         TestAssertions.IsType<ProfileRuntimeCoordinator>(profileManager);
         TestAssertions.IsType<TriggerService>(triggerService);
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(Func<IProfileManager>));
-        Assert.NotNull(fallbackField);
-        Assert.Same(provider.GetRequiredService<AvaloniaClipboardService>(), fallbackField!.GetValue(composite));
     }
 }

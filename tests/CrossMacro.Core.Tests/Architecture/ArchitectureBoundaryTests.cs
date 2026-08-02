@@ -201,8 +201,6 @@ public sealed class ArchitectureBoundaryTests
     {
         var forbiddenPatterns = new[]
         {
-            "FlatpakHostClipboardService",
-            "LinuxShellClipboardService",
             "Infrastructure.Services.InputSimulatorPool",
             "Infrastructure.Services.KeyCodeMapper",
             "Infrastructure.Services.InputSimulator",

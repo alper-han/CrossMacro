@@ -11,6 +11,7 @@ internal sealed class FakeKWinScreenShotCapture(
             "no fake KWin ScreenShot2 frame configured");
 
     public int CaptureCalls { get; private set; }
+    public int WorkspaceCaptureCalls { get; private set; }
     public int ProbeCalls { get; private set; }
     public int DisposeCount { get; private set; }
     public Exception? CaptureException { get; init; }
@@ -26,6 +27,17 @@ internal sealed class FakeKWinScreenShotCapture(
     {
         CaptureCalls++;
         LastRegion = region;
+        if (CaptureException is not null)
+        {
+            return Task.FromException<KWinScreenShotCaptureResult>(CaptureException);
+        }
+
+        return Task.FromResult(_captureResult);
+    }
+
+    public Task<KWinScreenShotCaptureResult> CaptureWorkspaceAsync(ScreenReadOptions options)
+    {
+        WorkspaceCaptureCalls++;
         if (CaptureException is not null)
         {
             return Task.FromException<KWinScreenShotCaptureResult>(CaptureException);

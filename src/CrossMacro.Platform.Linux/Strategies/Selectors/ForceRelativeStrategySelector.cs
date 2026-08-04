@@ -16,7 +16,7 @@ public class ForceRelativeStrategySelector(IMousePositionProvider positionProvid
     public ICoordinateStrategy Create(StrategyContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (context.IsWayland && _positionProvider.SupportsAbsolutePosition)
+        if (context.IsWayland && _positionProvider.HasUsableAbsolutePosition())
         {
             return new CompositorCoordinateStrategy(
                 _positionProvider,
@@ -25,7 +25,7 @@ public class ForceRelativeStrategySelector(IMousePositionProvider positionProvid
 
         if (!context.IsWayland
             && context.Compositor is CompositorType.X11
-            && _positionProvider.SupportsAbsolutePosition)
+            && _positionProvider.HasUsableAbsolutePosition())
         {
             return new X11LogicalRelativeCoordinateStrategy(_positionProvider);
         }

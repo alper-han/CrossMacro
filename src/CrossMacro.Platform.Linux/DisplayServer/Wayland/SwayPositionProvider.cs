@@ -2,9 +2,10 @@
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 /// <summary>
-/// Sway provider for display geometry. Cursor position is intentionally unsupported
-/// because Sway explicitly does not expose an absolute cursor-position API over IPC.
-/// CrossMacro will fall back to relative mouse coordinates.
+/// Sway provider for display geometry. Sway IPC does not expose an absolute
+/// cursor-position API; the optional Wayland cursor provider is layered on top
+/// when the compositor exposes a usable cursor position. Otherwise CrossMacro
+/// records raw relative mouse deltas.
 /// </summary>
 public sealed class SwayPositionProvider : IMousePositionProvider
 {
@@ -29,7 +30,8 @@ public sealed class SwayPositionProvider : IMousePositionProvider
 
     public Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {
-        // Sway natively blocks global absolute pointer polling via IPC/Wayland.
+        // Sway IPC does not provide a cursor position. The optional native
+        // Wayland cursor provider is responsible for absolute coordinates.
         return Task.FromResult<(int X, int Y)?>(null);
     }
 

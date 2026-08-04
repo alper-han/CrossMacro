@@ -14,6 +14,8 @@ public sealed class CompositorCoordinateStrategy(
     private readonly TimeSpan _activePollInterval = positionProvider is IMousePositionChangeSource
         ? NotificationRecoveryPollInterval
         : QueryPollInterval;
+    private readonly RelativeCoordinateStrategy? _rawRelativeFallback =
+        emitRelativeCoordinates ? new RelativeCoordinateStrategy() : null;
     private readonly Lock _positionLock = new();
     private readonly Lock _publicationLock = new();
     private readonly SemaphoreSlim _pollActivity = new(0, 1);
@@ -25,9 +27,11 @@ public sealed class CompositorCoordinateStrategy(
     private long _lastActivityTimestamp;
     private long _lastNotificationTimestamp;
     private long _notificationGeneration;
+    private int _rawRelativeFallbackActivated;
     private int _disposed;
 
-    public bool ProducesLogicalCoordinates => true;
+    public bool ProducesLogicalCoordinates =>
+        Volatile.Read(ref _rawRelativeFallbackActivated) is 0;
 
     public bool ProducesRelativeCoordinates { get; } = emitRelativeCoordinates;
 
@@ -36,6 +40,11 @@ public sealed class CompositorCoordinateStrategy(
     public async Task InitializeAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+
+        if (_rawRelativeFallback is not null)
+        {
+            await _rawRelativeFallback.InitializeAsync(ct).ConfigureAwait(false);
+        }
 
         if (_positionProvider is IMousePositionChangeSource changeSource)
         {
@@ -54,6 +63,12 @@ public sealed class CompositorCoordinateStrategy(
             Log.Warning(
                 "[CompositorCoordinateStrategy] {ProviderName} did not provide an initial cursor position.",
                 _positionProvider.ProviderName);
+        }
+
+        if (_rawRelativeFallback is not null && !_positionProvider.HasUsableAbsolutePosition())
+        {
+            ActivateRawRelativeFallback();
+            return;
         }
 
         _pollCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -75,6 +90,17 @@ public sealed class CompositorCoordinateStrategy(
 
     public CoordinateSample ProcessPosition(CapturedInputEvent e)
     {
+        if (_rawRelativeFallback is not null && Volatile.Read(ref _rawRelativeFallbackActivated) is not 0)
+        {
+            return _rawRelativeFallback.ProcessPosition(e);
+        }
+
+        if (_rawRelativeFallback is not null && !_positionProvider.HasUsableAbsolutePosition())
+        {
+            ActivateRawRelativeFallback();
+            return _rawRelativeFallback.ProcessPosition(e);
+        }
+
         if (e.Type is InputEventType.MouseMove)
         {
             SignalPollingActivity();
@@ -104,6 +130,8 @@ public sealed class CompositorCoordinateStrategy(
         {
             changeSource.PositionChanged -= OnPositionChanged;
         }
+
+        _rawRelativeFallback?.Dispose();
 
         var cancellation = Interlocked.Exchange(location1: ref _pollCancellation, value: null);
         var pollTask = Interlocked.Exchange(location1: ref _pollTask, value: null);
@@ -282,6 +310,12 @@ public sealed class CompositorCoordinateStrategy(
 
     private void PublishPositionCore(int x, int y, bool isDiscontinuity)
     {
+        if (_rawRelativeFallback is not null &&
+            Volatile.Read(ref _rawRelativeFallbackActivated) is not 0)
+        {
+            return;
+        }
+
         CoordinateSample sample;
         lock (_positionLock)
         {
@@ -315,5 +349,25 @@ public sealed class CompositorCoordinateStrategy(
         }
 
         SampleAvailable?.Invoke(this, new CoordinateSampleEventArgs(sample));
+    }
+
+    private void ActivateRawRelativeFallback()
+    {
+        if (_rawRelativeFallback is null ||
+            Interlocked.Exchange(ref _rawRelativeFallbackActivated, 1) is not 0)
+        {
+            return;
+        }
+
+        if (_positionProvider is IMousePositionChangeSource changeSource)
+        {
+            changeSource.PositionChanged -= OnPositionChanged;
+        }
+
+        _pollCancellation?.Cancel();
+
+        Log.Warning(
+            "[CompositorCoordinateStrategy] {ProviderName} lost its live cursor position; falling back to raw relative input for the remainder of this recording.",
+            _positionProvider.ProviderName);
     }
 }

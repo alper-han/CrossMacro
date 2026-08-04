@@ -155,6 +155,60 @@ public sealed class CompositorCoordinateStrategyTests
     }
 
     [Fact]
+    public async Task RelativeStrategy_WhenLivePositionIsLost_FallsBackToRawDeltas()
+    {
+        using var provider = new AvailabilityPositionProvider((100, 80));
+        using var strategy = new CompositorCoordinateStrategy(provider, emitRelativeCoordinates: true);
+
+        await strategy.InitializeAsync(CancellationToken.None);
+        provider.IsPositionAvailable = false;
+
+        _ = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.REL_X,
+            Value = 12,
+        });
+        _ = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.REL_Y,
+            Value = -4,
+        });
+        var sample = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
+
+        _ = sample.Should().Be(CoordinateSample.Create(12, -4));
+        _ = strategy.ProducesRelativeCoordinates.Should().BeTrue();
+        _ = strategy.ProducesLogicalCoordinates.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RelativeStrategy_WhenInitializedWithoutLivePosition_UsesRawDeltas()
+    {
+        using var provider = new AvailabilityPositionProvider((100, 80))
+        {
+            IsPositionAvailable = false,
+        };
+        using var strategy = new CompositorCoordinateStrategy(provider, emitRelativeCoordinates: true);
+
+        await strategy.InitializeAsync(CancellationToken.None);
+
+        _ = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.REL_X,
+            Value = -7,
+        });
+        var sample = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.Sync,
+        });
+
+        _ = sample.Should().Be(CoordinateSample.Create(-7, 0));
+        _ = strategy.ProducesLogicalCoordinates.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task PollingStrategy_WhenIdle_ShouldNotContinuouslyQueryCompositor()
     {
         using var provider = new CountingPositionProvider();
@@ -365,6 +419,25 @@ public sealed class CompositorCoordinateStrategyTests
             _ = Interlocked.Increment(ref _queryCount);
             return Task.FromResult<(int X, int Y)?>((0, 0));
         }
+
+        public Task<(int Width, int Height)?> GetScreenResolutionAsync() =>
+            Task.FromResult<(int Width, int Height)?>(null);
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class AvailabilityPositionProvider((int X, int Y) initialPosition) :
+        IMousePositionProvider,
+        IMousePositionAvailability
+    {
+        public string ProviderName => "Availability compositor";
+        public bool IsSupported => true;
+        public bool IsPositionAvailable { get; set; } = true;
+
+        public Task<(int X, int Y)?> GetAbsolutePositionAsync() =>
+            Task.FromResult<(int X, int Y)?>(initialPosition);
 
         public Task<(int Width, int Height)?> GetScreenResolutionAsync() =>
             Task.FromResult<(int Width, int Height)?>(null);

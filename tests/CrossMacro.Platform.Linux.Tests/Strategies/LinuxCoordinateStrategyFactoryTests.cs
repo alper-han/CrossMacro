@@ -105,6 +105,23 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     }
 
     [LinuxFact]
+    public void Sway_WhenNativeCursorPositionIsUnavailable_ShouldUseRawRelativeStrategy()
+    {
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.SWAY);
+        _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
+        _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
+
+        var result = _factory.Create(
+            useAbsoluteCoordinates: false,
+            forceRelative: false,
+            skipInitialZero: false);
+
+        var strategy = Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.True(strategy.ProducesRelativeCoordinates);
+        Assert.False(strategy.ProducesLogicalCoordinates);
+    }
+
+    [LinuxFact]
     public void ForceRelative_OnWaylandWithoutPositionProvider_ShouldReturnRawRelativeStrategy()
     {
         _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.NIRI);

@@ -125,10 +125,11 @@ public sealed class LinuxPositionProviderFactoryTests
         _ = selector.CanHandle(CompositorType.NIRI).Returns(returnThis: true);
         _ = selector.Create().Returns(fallback);
 
-        var nativeCursor = Substitute.For<IMousePositionProvider, IMousePositionChangeSource>();
+        var nativeCursor = Substitute.For<IMousePositionProvider, IMousePositionChangeSource, IMousePositionAvailability>();
         _ = nativeCursor.ProviderName.Returns("Wayland native cursor");
         _ = nativeCursor.IsSupported.Returns(returnThis: true);
         _ = nativeCursor.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = ((IMousePositionAvailability)nativeCursor).IsPositionAvailable.Returns(returnThis: true);
         var factory = new LinuxPositionProviderFactory(
             [selector],
             snapshotProvider,
@@ -139,6 +140,78 @@ public sealed class LinuxPositionProviderFactoryTests
         var composite = Assert.IsType<CompositeMousePositionProvider>(provider);
         Assert.True(composite.SupportsAbsolutePosition);
         Assert.Contains("Niri IPC", composite.ProviderName, StringComparison.Ordinal);
+    }
+
+    [LinuxFact]
+    public void Create_OnSway_UsesNativeCursorProviderWhenAvailable()
+    {
+        var snapshotProvider = Substitute.For<ILinuxCapabilitySnapshotProvider>();
+        _ = snapshotProvider.GetSnapshot().Returns(CreateWaylandSnapshot(
+            CompositorType.SWAY,
+            extImageCopyAvailable: true));
+
+        var fallback = Substitute.For<IMousePositionProvider>();
+        _ = fallback.ProviderName.Returns("Sway IPC (Resolution Only)");
+        _ = fallback.SupportsAbsolutePosition.Returns(returnThis: false);
+        var selector = Substitute.For<IPositionProviderSelector>();
+        _ = selector.Priority.Returns(10);
+        _ = selector.CanHandle(CompositorType.SWAY).Returns(returnThis: true);
+        _ = selector.Create().Returns(fallback);
+        var nativeCursor = Substitute.For<IMousePositionProvider, IMousePositionChangeSource, IMousePositionAvailability>();
+        _ = nativeCursor.ProviderName.Returns("Wayland native cursor");
+        _ = nativeCursor.IsSupported.Returns(returnThis: true);
+        _ = nativeCursor.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = ((IMousePositionAvailability)nativeCursor).IsPositionAvailable.Returns(returnThis: true);
+        var protocolFactoryCalls = 0;
+        var factory = new LinuxPositionProviderFactory(
+            [selector],
+            snapshotProvider,
+            () =>
+            {
+                protocolFactoryCalls++;
+                return nativeCursor;
+            });
+
+        using var provider = factory.Create();
+
+        var composite = Assert.IsType<CompositeMousePositionProvider>(provider);
+        Assert.Contains("Wayland native cursor", composite.ProviderName, StringComparison.Ordinal);
+        Assert.True(composite.SupportsAbsolutePosition);
+        Assert.Equal(1, protocolFactoryCalls);
+    }
+
+    [LinuxFact]
+    public void Create_OnSway_WhenNativeCursorHasNoPositionKeepsCapabilityButUsesRelativeAvailability()
+    {
+        var snapshotProvider = Substitute.For<ILinuxCapabilitySnapshotProvider>();
+        _ = snapshotProvider.GetSnapshot().Returns(CreateWaylandSnapshot(
+            CompositorType.SWAY,
+            extImageCopyAvailable: true));
+
+        var fallback = Substitute.For<IMousePositionProvider>();
+        _ = fallback.ProviderName.Returns("Sway IPC (Resolution Only)");
+        _ = fallback.SupportsAbsolutePosition.Returns(returnThis: false);
+        var selector = Substitute.For<IPositionProviderSelector>();
+        _ = selector.Priority.Returns(10);
+        _ = selector.CanHandle(CompositorType.SWAY).Returns(returnThis: true);
+        _ = selector.Create().Returns(fallback);
+        var nativeCursor = Substitute.For<IMousePositionProvider, IMousePositionChangeSource, IMousePositionAvailability>();
+        _ = nativeCursor.ProviderName.Returns("Wayland native cursor");
+        _ = nativeCursor.IsSupported.Returns(returnThis: true);
+        _ = nativeCursor.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = ((IMousePositionAvailability)nativeCursor).IsPositionAvailable.Returns(returnThis: false);
+        var factory = new LinuxPositionProviderFactory(
+            [selector],
+            snapshotProvider,
+            () => nativeCursor);
+
+        using var provider = factory.Create();
+
+        var composite = Assert.IsType<CompositeMousePositionProvider>(provider);
+        Assert.Contains("Wayland native cursor", composite.ProviderName, StringComparison.Ordinal);
+        Assert.True(composite.SupportsAbsolutePosition);
+        Assert.False(composite.IsPositionAvailable);
+        Assert.False(composite.HasUsableAbsolutePosition());
     }
 
     [LinuxFact]

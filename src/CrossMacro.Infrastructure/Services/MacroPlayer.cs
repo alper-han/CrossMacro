@@ -96,7 +96,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         {
             if (_positionProvider.IsSupported)
             {
-                Log.Information("[MacroPlayer] Using position provider: {ProviderName}", _positionProvider.ProviderName);
+                Log.Debug("[MacroPlayer] Using position provider: {ProviderName}", _positionProvider.ProviderName);
             }
             else
             {
@@ -106,7 +106,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
         if (dependencies.SimulatorPool is not null)
         {
-            Log.Information("[MacroPlayer] Using InputSimulatorPool for zero-delay device acquisition");
+            Log.Debug("[MacroPlayer] Using InputSimulatorPool for zero-delay device acquisition");
         }
     }
 
@@ -262,10 +262,16 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             }
         }
 
-        if (_positionProvider is not null && !_positionProvider.IsSupported)
+        if (_positionProvider is not null && !_positionProvider.SupportsAbsolutePosition)
         {
             Log.Information(
                 "[MacroPlayer] Position provider {ProviderName} is resolution-only for playback; absolute playback will require an absolute-capable input simulator",
+                _positionProvider.ProviderName);
+        }
+        else if (_positionProvider is IMousePositionAvailability { IsPositionAvailable: false })
+        {
+            Log.Debug(
+                "[MacroPlayer] Position provider {ProviderName} exposes absolute coordinates but has no current cursor sample; playback will use the configured input/coordinate fallback",
                 _positionProvider.ProviderName);
         }
 

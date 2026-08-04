@@ -15,14 +15,17 @@ internal sealed class WaylandCursorPositionConnection : IDisposable
     private WaylandCursorPositionConnection(
         WaylandWlrConnection connection,
         IntPtr pointer,
-        ScreenRect desktopBounds)
+        ScreenRect desktopBounds,
+        IReadOnlyList<ScreenRect> outputBounds)
     {
         _connection = connection;
         _pointer = pointer;
         DesktopBounds = desktopBounds;
+        OutputBounds = outputBounds;
     }
 
     public ScreenRect DesktopBounds { get; }
+    public IReadOnlyList<ScreenRect> OutputBounds { get; }
 
     public static WaylandCursorPositionConnection Connect(
         Action<int, int> positionChanged,
@@ -54,22 +57,32 @@ internal sealed class WaylandCursorPositionConnection : IDisposable
                 throw new InvalidOperationException("wl_seat.get_pointer returned NULL.");
             }
 
+            var outputs = registry.Outputs
+                .Where(static output => output.ModeWidth > 0 && output.ModeHeight > 0)
+                .ToArray();
+            if (outputs.Length is 0)
+            {
+                throw new InvalidOperationException("Wayland compositor did not expose usable outputs.");
+            }
+
             cursorConnection = new WaylandCursorPositionConnection(
                 connection,
                 pointer,
-                connection.GetVirtualScreenBounds());
-            foreach (var output in registry.Outputs.Where(static output =>
-                         output.ModeWidth > 0 && output.ModeHeight > 0))
+                connection.GetVirtualScreenBounds(),
+                outputs
+                    .Select(static output => new ScreenRect(
+                        output.X,
+                        output.Y,
+                        output.ModeWidth,
+                        output.ModeHeight))
+                    .Distinct()
+                    .ToArray());
+            foreach (var output in outputs)
             {
                 cursorConnection._sessions.Add(connection.CreateCursorOutputSession(
                     output,
                     pointer,
                     positionChanged));
-            }
-
-            if (cursorConnection._sessions.Count is 0)
-            {
-                throw new InvalidOperationException("Wayland compositor did not expose usable outputs.");
             }
 
             var setupCancellation = new WaylandCaptureCancellation(options);
@@ -83,7 +96,7 @@ internal sealed class WaylandCursorPositionConnection : IDisposable
             if (cursorConnection._sessions.Exists(static session => !session.IsReady))
             {
                 throw new InvalidOperationException(
-                    "Wayland cursor capture sessions did not report usable buffer geometry.");
+                    "Wayland output capture sessions did not report usable buffer geometry.");
             }
 
             foreach (var session in cursorConnection._sessions)

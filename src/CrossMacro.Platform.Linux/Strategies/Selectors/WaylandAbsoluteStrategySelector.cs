@@ -16,10 +16,10 @@ public class WaylandAbsoluteStrategySelector(IMousePositionProvider positionProv
     public ICoordinateStrategy Create(StrategyContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (!_positionProvider.SupportsAbsolutePosition)
+        if (!_positionProvider.HasUsableAbsolutePosition())
         {
             Log.Warning(
-                "[WaylandAbsoluteStrategySelector] Provider {ProviderName} is unsupported for {Compositor}; falling back to relative strategy.",
+                "[WaylandAbsoluteStrategySelector] Provider {ProviderName} has no usable cursor position for {Compositor}; falling back to raw relative strategy.",
                 _positionProvider.ProviderName,
                 context.Compositor);
             return new RelativeCoordinateStrategy();

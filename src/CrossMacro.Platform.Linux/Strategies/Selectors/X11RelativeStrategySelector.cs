@@ -16,7 +16,7 @@ public class X11RelativeStrategySelector(IMousePositionProvider positionProvider
 
     public ICoordinateStrategy Create(StrategyContext context)
     {
-        return _positionProvider.SupportsAbsolutePosition
+        return _positionProvider.HasUsableAbsolutePosition()
             ? new X11LogicalRelativeCoordinateStrategy(_positionProvider)
             : new RelativeCoordinateStrategy();
     }

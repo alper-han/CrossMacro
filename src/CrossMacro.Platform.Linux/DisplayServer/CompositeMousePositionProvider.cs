@@ -2,7 +2,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer;
 
 internal sealed class CompositeMousePositionProvider :
     IMousePositionProvider,
+    IMousePositionAvailability,
     IMousePositionChangeSource,
+    IOutputTopologyProvider,
     IExtensionStatusNotifier,
     IAsyncDisposable
 {
@@ -30,6 +32,8 @@ internal sealed class CompositeMousePositionProvider :
     public string ProviderName => $"{_primary.ProviderName} (fallback: {_fallback.ProviderName})";
     public bool IsSupported => _primary.IsSupported || _fallback.IsSupported;
     public bool SupportsAbsolutePosition => _primary.SupportsAbsolutePosition || _fallback.SupportsAbsolutePosition;
+    public bool IsPositionAvailable =>
+        _primary.HasUsableAbsolutePosition() || _fallback.HasUsableAbsolutePosition();
     public Task<bool> InitializationTask => AwaitInitializationAsync();
 
     public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
@@ -100,6 +104,25 @@ internal sealed class CompositeMousePositionProvider :
     {
         var bounds = await _primary.GetDesktopBoundsAsync().ConfigureAwait(false);
         return bounds ?? await _fallback.GetDesktopBoundsAsync().ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<ScreenRect>> GetOutputBoundsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (_primary is IOutputTopologyProvider primaryTopology)
+        {
+            var outputs = await primaryTopology
+                .GetOutputBoundsAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (outputs.Count > 0)
+            {
+                return outputs;
+            }
+        }
+
+        return _fallback is IOutputTopologyProvider fallbackTopology
+            ? await fallbackTopology.GetOutputBoundsAsync(cancellationToken).ConfigureAwait(false)
+            : [];
     }
 
     public void Dispose()

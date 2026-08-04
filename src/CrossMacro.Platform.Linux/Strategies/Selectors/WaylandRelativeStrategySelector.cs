@@ -15,7 +15,7 @@ public class WaylandRelativeStrategySelector(IMousePositionProvider positionProv
 
     public ICoordinateStrategy Create(StrategyContext context)
     {
-        if (_positionProvider.SupportsAbsolutePosition)
+        if (_positionProvider.HasUsableAbsolutePosition())
         {
             return new CompositorCoordinateStrategy(
                 _positionProvider,

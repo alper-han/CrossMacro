@@ -32,12 +32,13 @@ public sealed class LinuxEnvironmentDetectorTests
         var compositor = detector.DetectedCompositor;
 
         var expected = compositor is CompositorType.HYPRLAND
-or CompositorType.WAYFIRE
-or CompositorType.NIRI
-or CompositorType.COSMIC
-or CompositorType.GNOME
-or CompositorType.KDE
-or CompositorType.Other;
+            or CompositorType.WAYFIRE
+            or CompositorType.NIRI
+            or CompositorType.COSMIC
+            or CompositorType.SWAY
+            or CompositorType.GNOME
+            or CompositorType.KDE
+            or CompositorType.Other;
 
         Assert.Equal(expected, detector.IsWayland);
         Assert.False(detector.IsWayland && detector.IsX11);

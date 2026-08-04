@@ -17,8 +17,12 @@ public interface IMousePositionProvider : IDisposable
     public bool IsSupported { get; }
 
     /// <summary>
-    /// Whether this provider can return the global logical cursor position.
-    /// Resolution-only providers override this with <see langword="false" />.
+    /// Whether this provider exposes a mechanism for returning the global
+    /// logical cursor position. Resolution-only providers override this with
+    /// <see langword="false" />. This describes backend capability, not whether
+    /// a position sample is available at this instant; use
+    /// <see cref="MousePositionProviderExtensions.HasUsableAbsolutePosition" />
+    /// when a current sample is required.
     /// </summary>
     public bool SupportsAbsolutePosition => IsSupported;
 

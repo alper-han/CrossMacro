@@ -2,7 +2,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public sealed class WaylandCursorPositionProvider :
     IMousePositionProvider,
+    IMousePositionAvailability,
     IMousePositionChangeSource,
+    IOutputTopologyProvider,
     IAsyncDisposable
 {
     private readonly Lock _positionLock = new();
@@ -24,13 +26,34 @@ public sealed class WaylandCursorPositionProvider :
 
     public string ProviderName => "Wayland ext-image-copy cursor";
     public bool IsSupported => Volatile.Read(ref _supported) is 1 && Volatile.Read(ref _disposed) is 0;
+    public bool SupportsAbsolutePosition => IsSupported;
+    public bool IsPositionAvailable
+    {
+        get
+        {
+            if (!IsSupported)
+            {
+                return false;
+            }
+
+            lock (_positionLock)
+            {
+                // The protocol object can be created successfully even when
+                // the compositor does not expose a live cursor image (for
+                // example, a software cursor on Sway). The static capability
+                // remains true, while runtime availability stays false until
+                // a real position has arrived.
+                return _hasPosition;
+            }
+        }
+    }
     public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
 
     public static WaylandCursorPositionProvider? TryCreate(CancellationToken cancellationToken = default)
     {
         try
         {
-            return new WaylandCursorPositionProvider(cancellationToken);
+            return CreateOrThrow(cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -42,6 +65,9 @@ public sealed class WaylandCursorPositionProvider :
             return null;
         }
     }
+
+    internal static WaylandCursorPositionProvider CreateOrThrow(CancellationToken cancellationToken) =>
+        new(cancellationToken);
 
     public Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {
@@ -60,6 +86,17 @@ public sealed class WaylandCursorPositionProvider :
     }
 
     public Task<ScreenRect?> GetDesktopBoundsAsync() => Task.FromResult(ReadDesktopBounds());
+
+    Task<IReadOnlyList<ScreenRect>> IOutputTopologyProvider.GetOutputBoundsAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_connectionLock)
+        {
+            IReadOnlyList<ScreenRect> bounds = _connection?.OutputBounds ?? [];
+            return Task.FromResult(bounds);
+        }
+    }
 
     public void Dispose()
     {

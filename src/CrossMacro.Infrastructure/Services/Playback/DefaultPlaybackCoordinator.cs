@@ -94,7 +94,7 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
 
         // Try to get current position from provider
         if (_positionProvider is not null
-            && _positionProvider.SupportsAbsolutePosition
+            && _positionProvider.HasUsableAbsolutePosition()
             && await TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false))
         {
             Log.Information("[PlaybackCoordinator] Position initialized from provider: ({X}, {Y})", CurrentX, CurrentY);
@@ -160,7 +160,7 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
         if (firstCoordinateMode is MouseCoordinateMode.Absolute)
         {
             // Sync tracked position when possible; the first absolute event itself performs the movement.
-            if (_positionProvider is not null && _positionProvider.SupportsAbsolutePosition)
+            if (_positionProvider is not null && _positionProvider.HasUsableAbsolutePosition())
             {
                 InvalidatePosition();
                 if (await TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false))
@@ -257,7 +257,7 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
 
     private async Task<(int X, int Y)?> QueryPositionAsync(CancellationToken cancellationToken)
     {
-        if (_positionProvider is null || !_positionProvider.SupportsAbsolutePosition)
+        if (_positionProvider is null || !_positionProvider.HasUsableAbsolutePosition())
         {
             return null;
         }

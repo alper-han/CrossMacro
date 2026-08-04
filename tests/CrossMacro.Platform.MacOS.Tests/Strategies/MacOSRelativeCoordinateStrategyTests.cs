@@ -27,7 +27,7 @@ public sealed class MacOSRelativeCoordinateStrategyTests
             Type = InputEventType.Sync,
         });
 
-        Assert.Equal((15, -10), result);
+        Assert.Equal(CoordinateSample.Create(15, -10), result);
     }
 
     [Fact]
@@ -37,10 +37,10 @@ public sealed class MacOSRelativeCoordinateStrategyTests
         await strategy.InitializeAsync(CancellationToken.None);
 
         MoveTo(strategy, 115, 190);
-        Assert.Equal((15, -10), Sync(strategy));
+        Assert.Equal(CoordinateSample.Create(15, -10), Sync(strategy));
 
         MoveTo(strategy, 120, 210);
-        Assert.Equal((5, 20), Sync(strategy));
+        Assert.Equal(CoordinateSample.Create(5, 20), Sync(strategy));
     }
 
     [Fact]
@@ -58,8 +58,8 @@ public sealed class MacOSRelativeCoordinateStrategyTests
             Value = 1,
         });
 
-        Assert.Equal((2, 5), result);
-        Assert.Equal((0, 0), Sync(strategy));
+        Assert.Equal(CoordinateSample.Create(2, 5), result);
+        Assert.False(Sync(strategy).HasValue);
     }
 
     [Fact]
@@ -89,8 +89,8 @@ public sealed class MacOSRelativeCoordinateStrategyTests
             Value = 15,
         });
 
-        Assert.Equal((0, 0), buttonResult);
-        Assert.Equal((2, 5), Sync(strategy));
+        Assert.False(buttonResult.HasValue);
+        Assert.Equal(CoordinateSample.Create(2, 5), Sync(strategy));
     }
 
     private static void MoveTo(MacOSRelativeCoordinateStrategy strategy, int x, int y)
@@ -109,7 +109,7 @@ public sealed class MacOSRelativeCoordinateStrategyTests
         });
     }
 
-    private static (int X, int Y) Sync(MacOSRelativeCoordinateStrategy strategy)
+    private static CoordinateSample Sync(MacOSRelativeCoordinateStrategy strategy)
     {
         return strategy.ProcessPosition(new CapturedInputEvent
         {

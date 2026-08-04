@@ -183,7 +183,7 @@ public class MacroFileManager(
 
         if (MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev) && ev.CoordinateMode is not null)
         {
-            return $"{command},{ToCoordinateModeToken(ev.CoordinateMode.Value)},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)},{ev.Button}";
+            return $"{command},{ToCoordinateModeToken(ev)},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)},{ev.Button}";
         }
 
         return $"{command},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)},{ev.Button}";
@@ -191,13 +191,18 @@ public class MacroFileManager(
 
     private static string BuildMouseMoveLine(MacroEvent ev)
     {
-        return ev.CoordinateMode is not null ? $"M,{ToCoordinateModeToken(ev.CoordinateMode.Value)},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)}"
+        return ev.CoordinateMode is not null ? $"M,{ToCoordinateModeToken(ev)},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)}"
             : $"M,{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)}";
     }
 
-    private static string ToCoordinateModeToken(MouseCoordinateMode mode)
+    private static string ToCoordinateModeToken(MacroEvent ev)
     {
-        return mode is MouseCoordinateMode.Absolute ? "abs" : "rel";
+        if (ev.CoordinateMode is MouseCoordinateMode.Absolute)
+        {
+            return "abs";
+        }
+
+        return ev.CoordinateSpace is MouseCoordinateSpace.LogicalDesktop ? "rel-logical" : "rel-raw";
     }
 
     private void ValidateScriptStepsBeforeSave(MacroSequence macro)
@@ -474,12 +479,13 @@ public class MacroFileManager(
                     var coordinateIndex = 1;
                     if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
                     {
-                        if (parts.Length < 4 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode))
+                        if (parts.Length < 4 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode, out var space))
                         {
                             throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
                         }
 
                         ev.CoordinateMode = mode;
+                        ev.CoordinateSpace = space;
                         coordinateIndex++;
                         x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     }
@@ -495,14 +501,16 @@ public class MacroFileManager(
                 {
                     var coordinateIndex = 1;
                     MouseCoordinateMode? coordinateMode = null;
+                    MouseCoordinateSpace? coordinateSpace = null;
                     if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
                     {
-                        if (parts.Length < 5 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode))
+                        if (parts.Length < 5 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode, out var space))
                         {
                             throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
                         }
 
                         coordinateMode = mode;
+                        coordinateSpace = space;
                         coordinateIndex++;
                         x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     }
@@ -521,6 +529,7 @@ public class MacroFileManager(
                     if (!ev.UseCurrentPosition && MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
                     {
                         ev.CoordinateMode = coordinateMode;
+                        ev.CoordinateSpace = coordinateSpace;
                     }
 
                     validEvent = true;
@@ -803,13 +812,17 @@ public class MacroFileManager(
         return true;
     }
 
-    private static bool TryParseCoordinateMode(string token, out MouseCoordinateMode mode)
+    private static bool TryParseCoordinateMode(
+        string token,
+        out MouseCoordinateMode mode,
+        out MouseCoordinateSpace? space)
     {
         var normalized = token.Trim();
         if (normalized.Equals("abs", StringComparison.OrdinalIgnoreCase)
             || normalized.Equals("absolute", StringComparison.OrdinalIgnoreCase))
         {
             mode = MouseCoordinateMode.Absolute;
+            space = MouseCoordinateSpace.LogicalDesktop;
             return true;
         }
 
@@ -817,10 +830,26 @@ public class MacroFileManager(
             || normalized.Equals("relative", StringComparison.OrdinalIgnoreCase))
         {
             mode = MouseCoordinateMode.Relative;
+            space = null;
+            return true;
+        }
+
+        if (normalized.Equals("rel-logical", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = MouseCoordinateMode.Relative;
+            space = MouseCoordinateSpace.LogicalDesktop;
+            return true;
+        }
+
+        if (normalized.Equals("rel-raw", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = MouseCoordinateMode.Relative;
+            space = MouseCoordinateSpace.RawDevice;
             return true;
         }
 
         mode = default;
+        space = null;
         return false;
     }
 

@@ -20,7 +20,6 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
     private readonly Func<IButtonStateTracker> _buttonTrackerFactory;
     private readonly Func<IKeyStateTracker> _keyTrackerFactory;
     private readonly IPlaybackMouseButtonMapper _buttonMapper;
-    private readonly IPlaybackBehaviorPolicy _playbackBehaviorPolicy;
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly PlaybackDelayResolver _delayResolver;
     private readonly PlaybackSessionResourceOwner _session;
@@ -33,6 +32,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
     private int _cachedScreenWidth;
     private int _cachedScreenHeight;
+    private ScreenRect? _cachedDesktopBounds;
     private bool _resolutionCached;
 
     private int _errorCount;
@@ -80,7 +80,6 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         _imageClickMovementResolver = dependencies.ImageClickMovementResolver;
         _imageAssetCodec = dependencies.ImageAssetCodec;
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-        _playbackBehaviorPolicy = dependencies.PlaybackBehaviorPolicy;
         _timingService = dependencies.TimingService;
         _playbackWaitAsync = dependencies.PlaybackWaitAsync;
         _playbackElapsedMillisecondsFactory = dependencies.PlaybackElapsedMillisecondsFactory;
@@ -176,6 +175,10 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
     {
         _session.Begin(cancellationToken);
         _inputSimulator = null;
+        _cachedDesktopBounds = null;
+        _cachedScreenWidth = 0;
+        _cachedScreenHeight = 0;
+        _resolutionCached = false;
         IsPlaying = true;
         _errorCount = 0;
         _runtimeVariables.Clear();
@@ -229,14 +232,28 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         {
             try
             {
-                var res = await _positionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
-                if (res is not null)
+                var bounds = await _positionProvider.GetDesktopBoundsAsync().ConfigureAwait(false);
+                if (bounds is null)
                 {
-                    _cachedScreenWidth = res.Value.Width;
-                    _cachedScreenHeight = res.Value.Height;
+                    var resolution = await _positionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
+                    if (resolution is { Width: > 0, Height: > 0 })
+                    {
+                        bounds = new ScreenRect(0, 0, resolution.Value.Width, resolution.Value.Height);
+                    }
+                }
+
+                if (bounds is not null)
+                {
+                    _cachedDesktopBounds = bounds;
+                    _cachedScreenWidth = bounds.Value.Width;
+                    _cachedScreenHeight = bounds.Value.Height;
                     _resolutionCached = true;
-                    Log.Information("[MacroPlayer] Screen resolution cached: {Width}x{Height}",
-                        _cachedScreenWidth, _cachedScreenHeight);
+                    Log.Information(
+                        "[MacroPlayer] Desktop bounds cached: ({X},{Y}) {Width}x{Height}",
+                        bounds.Value.X,
+                        bounds.Value.Y,
+                        bounds.Value.Width,
+                        bounds.Value.Height);
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -258,8 +275,9 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
     private async Task AcquireSimulatorAsync(MacroSequence macro)
     {
-        bool needsAbsoluteDevice = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro)
-            || HasAbsoluteRuntimeScriptSteps(macro)
+        bool needsAbsoluteDevice = MacroPositionSemantics.HasAnyLogicalDesktopCoordinateEvents(macro)
+            || MacroPositionSemantics.RequiresInitialCornerReset(macro)
+            || HasLogicalDesktopRuntimeMoveSteps(macro)
             || HasImageClickRuntimeScriptSteps(macro);
         bool canCreateAbsoluteDevice = needsAbsoluteDevice && _resolutionCached;
         int deviceWidth = canCreateAbsoluteDevice ? _cachedScreenWidth : 0;
@@ -271,7 +289,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
     private void EnsureAbsolutePlaybackSupported(MacroSequence macro)
     {
-        if (!MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro) && !HasAbsoluteRuntimeScriptSteps(macro))
+        if (!MacroPositionSemantics.HasAnyLogicalDesktopCoordinateEvents(macro)
+            && !HasLogicalDesktopRuntimeMoveSteps(macro))
         {
             return;
         }
@@ -294,6 +313,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         var buttonTracker = _buttonTrackerFactory();
         var keyTracker = _keyTrackerFactory();
         _coordinator = _coordinatorFactory();
+        _coordinator.ConfigureDesktopBounds(_cachedDesktopBounds);
 
         // Create event executor with all dependencies
         _eventExecutor = new MacroEventExecutor(
@@ -301,11 +321,10 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             buttonTracker,
             keyTracker,
             _buttonMapper,
-            _coordinator,
-            useHybridAbsoluteDragMovement: _playbackBehaviorPolicy.UseHybridAbsoluteDragMovement);
+            _coordinator);
         _session.AttachInputState(_eventExecutor, buttonTracker, keyTracker);
 
-        _eventExecutor.Initialize(_cachedScreenWidth, _cachedScreenHeight);
+        _eventExecutor.Initialize(_cachedDesktopBounds);
 
         // Initialize coordinator for first iteration
         await _coordinator.InitializeAsync(macro, _inputSimulator!,
@@ -469,11 +488,10 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             state.ScheduledElapsedMs += adjustedDelay;
             var elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
             var remainingDelayMs = state.ScheduledElapsedMs - elapsedSinceAnchorMs;
-            int delayToWait = (int)Math.Floor(remainingDelayMs);
 
-            if (delayToWait > 0)
+            if (remainingDelayMs > 0)
             {
-                await _timingService.WaitAsync(delayToWait, this, cancellationToken).ConfigureAwait(false);
+                await _timingService.WaitAsync(remainingDelayMs, this, cancellationToken).ConfigureAwait(false);
                 waitedForDelay = true;
 
                 elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
@@ -509,9 +527,21 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             }
 
             var coordinateMode = MacroPositionSemantics.ResolveCoordinateMode(eventToExecute, macro.IsAbsoluteCoordinates);
-            _eventExecutor!.Execute(eventToExecute, coordinateMode);
+            var coordinateSpace = MacroPositionSemantics.ResolveCoordinateSpace(eventToExecute, macro.IsAbsoluteCoordinates);
+            if (coordinateMode is MouseCoordinateMode.Relative
+                && coordinateSpace is MouseCoordinateSpace.LogicalDesktop
+                && !_coordinator!.HasKnownPosition)
+            {
+                _ = await _coordinator.TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            _eventExecutor!.Execute(eventToExecute, coordinateMode, coordinateSpace);
         }
         catch (AbsolutePlaybackUnsupportedException)
+        {
+            throw;
+        }
+        catch (LogicalRelativePositionUnavailableException)
         {
             throw;
         }
@@ -595,13 +625,15 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         return RunScriptRuntimeStepClassifier.IsRuntimeStep(step);
     }
 
-    private static bool HasAbsoluteRuntimeScriptSteps(MacroSequence macro)
+    private static bool HasLogicalDesktopRuntimeMoveSteps(MacroSequence macro)
     {
         return macro.ScriptSteps.Any(step =>
         {
-            var trimmed = step.TrimStart();
-            return trimmed.StartsWith("move abs ", StringComparison.OrdinalIgnoreCase)
-                || trimmed.StartsWith("move absolute ", StringComparison.OrdinalIgnoreCase);
+            var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Length >= 2
+                && string.Equals(parts[0], "move", StringComparison.OrdinalIgnoreCase)
+                && RunScriptSyntax.TryParseMouseMoveMode(parts[1], out _, out var coordinateSpace)
+                && coordinateSpace is MouseCoordinateSpace.LogicalDesktop;
         });
     }
 

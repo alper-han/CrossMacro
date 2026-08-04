@@ -7,8 +7,8 @@ namespace CrossMacro.Infrastructure.Persistence.Macros;
 /// </summary>
 public class PersistedMacroDocument
 {
-    public const int CurrentSchemaVersion = 2;
-    public const string CurrentFormat = "CrossMacroFormatV2";
+    public const int CurrentSchemaVersion = 3;
+    public const string CurrentFormat = "CrossMacroFormatV3";
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public string Format => $"CrossMacroFormatV{SchemaVersion.ToString(CultureInfo.InvariantCulture)}";

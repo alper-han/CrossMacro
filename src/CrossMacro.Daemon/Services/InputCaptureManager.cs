@@ -5,6 +5,7 @@ internal sealed class InputCaptureManager : IInputCaptureManager
 {
     private readonly List<ILinuxCaptureReader> _readers = new();
     private readonly Lock _lock = new();
+    private readonly Lock _reportForwardLock = new();
     private readonly Func<IReadOnlyList<InputDeviceHelper.InputDevice>> _deviceEnumerator;
     private readonly Func<InputDeviceHelper.InputDevice, ILinuxCaptureReader> _readerFactory;
 
@@ -44,16 +45,34 @@ internal sealed class InputCaptureManager : IInputCaptureManager
                 try
                 {
                     evReader = _readerFactory(dev);
+                    var pendingReport = new List<UInputNative.input_event>(capacity: 8);
                     evReader.EventReceived += (sender, e) =>
                     {
-                        // Invoke callback. 
-                        // Note: This runs on EvdevReader's thread.
-                        // Callback must handle synchronization.
                         try
                         {
+                            if (IsReportBoundary(e))
+                            {
+                                if (pendingReport.Count is 0)
+                                {
+                                    return;
+                                }
+
+                                pendingReport.Add(e);
+                                lock (_reportForwardLock)
+                                {
+                                    foreach (var reportEvent in pendingReport)
+                                    {
+                                        onEvent(reportEvent);
+                                    }
+                                }
+
+                                pendingReport.Clear();
+                                return;
+                            }
+
                             if (ShouldForwardEvent(e, captureMouse, captureKeyboard))
                             {
-                                onEvent(e);
+                                pendingReport.Add(e);
                             }
                         }
                         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -120,6 +139,12 @@ internal sealed class InputCaptureManager : IInputCaptureManager
             UInputNative.EV_SYN => captureMouse || captureKeyboard,
             _ => false,
         };
+    }
+
+    private static bool IsReportBoundary(UInputNative.input_event inputEvent)
+    {
+        return inputEvent.type == UInputNative.EV_SYN
+            && inputEvent.code == UInputNative.SYN_REPORT;
     }
 
     private static bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device, bool captureMouse, bool captureKeyboard)

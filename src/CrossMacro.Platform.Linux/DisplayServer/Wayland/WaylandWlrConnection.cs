@@ -24,6 +24,24 @@ internal sealed class WaylandWlrConnection : IDisposable
 
     public WaylandRegistryState Registry { get; }
 
+    internal ScreenRect GetVirtualScreenBounds() => GetVirtualScreenBounds(requestedRegion: null);
+
+    internal IntPtr CreatePointer() => _library.GetPointer(Registry.Seat, _protocol.WlPointer);
+
+    internal WaylandExtCursorOutputSession CreateCursorOutputSession(
+        WaylandOutputInfo output,
+        IntPtr pointer,
+        Action<int, int> positionChanged) =>
+        new(_library, _protocol, Registry, output, pointer, positionChanged);
+
+    internal void DisplayRoundtrip(WaylandCaptureCancellation cancellation) =>
+        _library.DisplayRoundtrip(_display, cancellation);
+
+    internal void DisplayDispatch(WaylandCaptureCancellation cancellation) =>
+        _library.DisplayDispatch(_display, cancellation);
+
+    internal void DestroyPointer(IntPtr pointer) => _library.DestroyProxy(pointer);
+
     public static WaylandWlrConnection Connect(ScreenReadOptions options = default)
     {
         var cancellation = new WaylandCaptureCancellation(options);

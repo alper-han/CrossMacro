@@ -258,6 +258,28 @@ public sealed class MacOSInputCaptureTests
         Assert.Equal(1, inputEvent.Value);
     }
 
+    [Theory]
+    [InlineData(2, MouseButtonCode.Middle)]
+    [InlineData(3, MouseButtonCode.Side1)]
+    [InlineData(4, MouseButtonCode.Side2)]
+    public void TryMapOtherMouseButton_UsesCoreGraphicsButtonNumbers(long buttonNumber, int expectedButton)
+    {
+        bool mapped = MacOSInputCapture.TryMapOtherMouseButton(buttonNumber, out int button);
+
+        Assert.True(mapped);
+        Assert.Equal(expectedButton, button);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(5)]
+    public void TryMapOtherMouseButton_WhenUnsupported_ReturnsFalse(long buttonNumber)
+    {
+        Assert.False(MacOSInputCapture.TryMapOtherMouseButton(buttonNumber, out _));
+    }
+
     private static long CreateSystemDefinedData1(int keyType, int state)
     {
         return (keyType << 16) | (state << 8);

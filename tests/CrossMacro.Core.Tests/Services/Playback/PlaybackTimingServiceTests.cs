@@ -48,6 +48,23 @@ public sealed class PlaybackTimingServiceTests
         _ = await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public async Task WaitAsync_WhenDelayIsNotFinite_ThrowsArgumentOutOfRangeException(double delayMilliseconds)
+    {
+        var service = new PlaybackTimingService();
+        var pauseToken = new FakePauseToken();
+
+        var act = async () => await service.WaitAsync(
+            delayMilliseconds,
+            pauseToken,
+            CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+    }
+
     private sealed class FakePauseToken : IPlaybackPauseToken
     {
         public bool IsPaused { get; set; }

@@ -14,6 +14,7 @@ public class PersistedMacroEvent
     public int RandomDelayMaxMs { get; init; }
     public int KeyCode { get; init; }
     public MouseCoordinateMode? CoordinateMode { get; init; }
+    public MouseCoordinateSpace? CoordinateSpace { get; init; }
     public bool UseCurrentPosition { get; init; }
 
     public static PersistedMacroEvent FromRuntime(MacroEvent ev) => new()
@@ -29,6 +30,7 @@ public class PersistedMacroEvent
         RandomDelayMaxMs = ev.RandomDelayMaxMs,
         KeyCode = ev.KeyCode,
         CoordinateMode = ev.CoordinateMode,
+        CoordinateSpace = ev.CoordinateSpace,
         UseCurrentPosition = ev.UseCurrentPosition,
     };
 
@@ -45,6 +47,7 @@ public class PersistedMacroEvent
         RandomDelayMaxMs = RandomDelayMaxMs,
         KeyCode = KeyCode,
         CoordinateMode = CoordinateMode,
+        CoordinateSpace = CoordinateSpace,
         UseCurrentPosition = UseCurrentPosition,
     };
 }

@@ -72,11 +72,12 @@ public sealed class InputCaptureManagerTests
 
         Assert.True(result.Success);
 
-        reader.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 30, value = 1 });
+        reader.EmitReport(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 30, value = 1 });
         Assert.Empty(received);
 
-        reader.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, value = 1 });
-        _ = Assert.Single(received);
+        reader.EmitReport(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, value = 1 });
+        Assert.Equal(2, received.Count);
+        Assert.Equal(UInputNative.BTN_LEFT, received[0].code);
     }
 
     [Fact]
@@ -123,11 +124,12 @@ public sealed class InputCaptureManagerTests
 
         Assert.True(result.Success);
 
-        reader.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, value = 1 });
+        reader.EmitReport(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT, value = 1 });
         Assert.Empty(received);
 
-        reader.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 30, value = 1 });
-        _ = Assert.Single(received);
+        reader.EmitReport(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 30, value = 1 });
+        Assert.Equal(2, received.Count);
+        Assert.Equal((ushort)30, received[0].code);
     }
 
     [Fact]
@@ -157,6 +159,7 @@ public sealed class InputCaptureManagerTests
             code = 30,
             value = 1,
         });
+        Assert.Empty(received);
         reader.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
         {
             type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_SYN,
@@ -181,6 +184,46 @@ public sealed class InputCaptureManagerTests
     }
 
     [Fact]
+    public void StartCapture_WhenDeviceReportsOverlap_ForwardsEachReportAtomically()
+    {
+        var mouseReader = new FakeLinuxCaptureReader();
+        var keyboardReader = new FakeLinuxCaptureReader();
+        var manager = new InputCaptureManager(
+            () =>
+            [
+                new InputDeviceHelper.InputDevice
+                {
+                    Path = "/dev/input/event-mouse",
+                    Name = "Mouse",
+                    IsMouse = true,
+                },
+                new InputDeviceHelper.InputDevice
+                {
+                    Path = "/dev/input/event-keyboard",
+                    Name = "Keyboard",
+                    IsKeyboard = true,
+                },
+            ],
+            device => device.IsMouse ? mouseReader : keyboardReader);
+        var received = new List<UInputNative.input_event>();
+
+        var result = manager.StartCapture(captureMouse: true, captureKeyboard: true, received.Add);
+        mouseReader.Emit(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_X, value = 4 });
+        keyboardReader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
+        mouseReader.Emit(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_Y, value = 6 });
+        mouseReader.Emit(new UInputNative.input_event { type = UInputNative.EV_SYN, code = UInputNative.SYN_REPORT });
+
+        Assert.True(result.Success);
+        Assert.Collection(
+            received,
+            inputEvent => Assert.Equal((UInputNative.EV_KEY, (ushort)30), (inputEvent.type, inputEvent.code)),
+            inputEvent => Assert.Equal((UInputNative.EV_SYN, UInputNative.SYN_REPORT), (inputEvent.type, inputEvent.code)),
+            inputEvent => Assert.Equal((UInputNative.EV_REL, UInputNative.REL_X), (inputEvent.type, inputEvent.code)),
+            inputEvent => Assert.Equal((UInputNative.EV_REL, UInputNative.REL_Y), (inputEvent.type, inputEvent.code)),
+            inputEvent => Assert.Equal((UInputNative.EV_SYN, UInputNative.SYN_REPORT), (inputEvent.type, inputEvent.code)));
+    }
+
+    [Fact]
     public void StartCapture_WhenConfiguredForMouseOnly_ForwardsAbsoluteMouseMoveEvents()
     {
         var reader = new FakeLinuxCaptureReader();
@@ -201,8 +244,9 @@ public sealed class InputCaptureManagerTests
 
         Assert.True(result.Success);
 
-        reader.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_ABS, code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.ABS_X, value = 1200 });
-        _ = Assert.Single(received);
+        reader.EmitReport(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_ABS, code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.ABS_X, value = 1200 });
+        Assert.Equal(2, received.Count);
+        Assert.Equal(UInputNative.ABS_X, received[0].code);
     }
 
     [Fact]
@@ -300,9 +344,9 @@ public sealed class InputCaptureManagerTests
         Assert.Equal(1, result.StartedDeviceCount);
         Assert.Equal(1, virtualKeyboardReader.StartCalls);
 
-        virtualKeyboardReader.Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 30, value = 1 });
+        virtualKeyboardReader.EmitReport(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event { type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY, code = 30, value = 1 });
 
-        _ = Assert.Single(received);
+        Assert.Equal(2, received.Count);
         Assert.Equal(30, received[0].code);
     }
 
@@ -339,6 +383,20 @@ public sealed class InputCaptureManagerTests
         public void Emit(CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event inputEvent)
         {
             EventReceivedInternal?.Invoke(this, inputEvent);
+        }
+
+        public void EmitReport(params CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event[] events)
+        {
+            foreach (var inputEvent in events)
+            {
+                Emit(inputEvent);
+            }
+
+            Emit(new CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event
+            {
+                type = CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_SYN,
+                code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.SYN_REPORT,
+            });
         }
     }
 }

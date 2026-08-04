@@ -25,7 +25,7 @@ public sealed class RunScriptShellRuntimeTests
             new ShellCommandResult(0, "", ""));
         var timingService = Substitute.For<IPlaybackTimingService>();
         var pauseToken = Substitute.For<IPlaybackPauseToken>();
-        _ = timingService.WaitAsync(Arg.Any<int>(), Arg.Any<IPlaybackPauseToken>(), Arg.Any<CancellationToken>())
+        _ = timingService.WaitAsync(Arg.Any<double>(), Arg.Any<IPlaybackPauseToken>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
         var executor = new RunScriptShellExecutor(runner, timingService, pauseToken);
 
@@ -209,7 +209,7 @@ public sealed class RunScriptShellRuntimeTests
     {
         var timingService = Substitute.For<IPlaybackTimingService>();
         var pauseToken = Substitute.For<IPlaybackPauseToken>();
-        _ = timingService.WaitAsync(Arg.Any<int>(), Arg.Any<IPlaybackPauseToken>(), Arg.Any<CancellationToken>())
+        _ = timingService.WaitAsync(Arg.Any<double>(), Arg.Any<IPlaybackPauseToken>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
         return new RunScriptShellExecutor(runner, timingService, pauseToken);
     }
@@ -244,7 +244,7 @@ public sealed class RunScriptShellRuntimeTests
         return new MacroPlayerDependencies(positionProvider, new PlaybackTimingService(), (_, _) => Task.CompletedTask,
             CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
             () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
-            new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false), NullScreenPixelReader.Instance, keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner,
+            NullScreenPixelReader.Instance, keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner,
             screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
     }
 

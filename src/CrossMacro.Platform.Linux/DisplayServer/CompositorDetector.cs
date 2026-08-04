@@ -1,4 +1,6 @@
 
+using CrossMacro.Platform.Linux.Extensions;
+
 namespace CrossMacro.Platform.Linux.DisplayServer;
 
 /// <summary>
@@ -26,7 +28,8 @@ public static class CompositorDetector
             return CompositorType.Unknown;
         }
 
-        Log.Information("[CompositorDetector] Environment Detection - SessionType: {SessionType}, WaylandDisplay: {WaylandDisplay}, Display: {Display}",
+        var environmentKey = $"{environment.SessionType}|{environment.WaylandDisplay}|{environment.Display}";
+        LoggingExtensions.LogOnce($"CompositorDetector.Environment.{environmentKey}", "[CompositorDetector] Environment Detection - SessionType: {SessionType}, WaylandDisplay: {WaylandDisplay}, Display: {Display}",
             environment.SessionType ?? "null", environment.WaylandDisplay ?? "null", environment.Display ?? "null");
 
         var isWayland = !string.IsNullOrEmpty(environment.WaylandDisplay) ||
@@ -35,17 +38,17 @@ public static class CompositorDetector
         var isX11 = !string.IsNullOrEmpty(environment.Display) ||
                     string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
 
-        Log.Information("[CompositorDetector] Session Flags - IsWayland: {IsWayland}, IsX11: {IsX11}", isWayland, isX11);
+        LoggingExtensions.LogOnce($"CompositorDetector.Flags.{environmentKey}", "[CompositorDetector] Session Flags - IsWayland: {IsWayland}, IsX11: {IsX11}", isWayland, isX11);
 
         if (isX11 && !isWayland)
         {
-            Log.Information("[CompositorDetector] X11 session detected");
+            LoggingExtensions.LogOnce("CompositorDetector.X11", "[CompositorDetector] X11 session detected");
             return CompositorType.X11;
         }
 
         if (!isWayland)
         {
-            Log.Warning("[CompositorDetector] No known display server detected");
+            LoggingExtensions.LogOnce("CompositorDetector.UnknownDisplay", "[CompositorDetector] No known display server detected");
             return CompositorType.Unknown;
         }
 
@@ -90,13 +93,13 @@ public static class CompositorDetector
 
     private static CompositorType LogAndReturn(CompositorType type, string name)
     {
-        Log.Information("[CompositorDetector] Detected {Compositor}", name);
+        LoggingExtensions.LogOnce($"CompositorDetector.Detected.{type}", "[CompositorDetector] Detected {Compositor}", name);
         return type;
     }
 
     private static CompositorType LogAndReturnUnknown(string desktop)
     {
-        Log.Information("[CompositorDetector] Wayland session detected but specific compositor unknown (Desktop: {Desktop})", desktop);
+        LoggingExtensions.LogOnce($"CompositorDetector.UnknownWayland.{desktop}", "[CompositorDetector] Wayland session detected but specific compositor unknown (Desktop: {Desktop})", desktop);
         return CompositorType.Other;
     }
 }

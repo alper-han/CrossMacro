@@ -392,9 +392,9 @@ public sealed class MacOSInputCapture : IInputCapture
         else if (type is CoreGraphics.CGEventType.OtherMouseDown or CoreGraphics.CGEventType.OtherMouseUp)
         {
             long btnNum = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventButtonNumber);
-            if (btnNum == 2)
+            if (TryMapOtherMouseButton(btnNum, out var button))
             {
-                FireBtn(MouseButtonCode.Middle, type is CoreGraphics.CGEventType.OtherMouseDown, timestamp);
+                FireBtn(button, type is CoreGraphics.CGEventType.OtherMouseDown, timestamp);
             }
         }
 
@@ -431,6 +431,18 @@ public sealed class MacOSInputCapture : IInputCapture
         {
             ProcessScrollWheelEvent(eventRef, timestamp);
         }
+    }
+
+    internal static bool TryMapOtherMouseButton(long buttonNumber, out int button)
+    {
+        button = buttonNumber switch
+        {
+            2 => MouseButtonCode.Middle,
+            3 => MouseButtonCode.Side1,
+            4 => MouseButtonCode.Side2,
+            _ => 0,
+        };
+        return button is not 0;
     }
 
     private void ProcessScrollWheelEvent(IntPtr eventRef, long timestamp)

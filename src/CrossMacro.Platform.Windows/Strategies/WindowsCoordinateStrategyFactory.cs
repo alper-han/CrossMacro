@@ -10,7 +10,7 @@ public class WindowsCoordinateStrategyFactory(
     {
         if (forceRelative)
         {
-            return new RelativeCoordinateStrategy();
+            return new RelativeCoordinateStrategy(producesLogicalCoordinates: true);
         }
 
         if (useAbsoluteCoordinates)
@@ -18,6 +18,6 @@ public class WindowsCoordinateStrategyFactory(
             return new WindowsAbsoluteCoordinateStrategy(_positionProvider);
         }
 
-        return new RelativeCoordinateStrategy();
+        return new RelativeCoordinateStrategy(producesLogicalCoordinates: true);
     }
 }

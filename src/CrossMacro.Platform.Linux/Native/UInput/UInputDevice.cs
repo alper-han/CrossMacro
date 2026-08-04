@@ -182,6 +182,7 @@ public sealed partial class UInputDevice(int width = 0, int height = 0) : IUInpu
 
     private void ConfigureDeviceCapabilities()
     {
+        EnableBit(UInputNative.UI_SET_PROPBIT, UInputNative.INPUT_PROP_POINTER);
         EnableBit(UInputNative.UI_SET_EVBIT, UInputNative.EV_KEY);
         EnableBit(UInputNative.UI_SET_KEYBIT, UInputNative.BTN_LEFT);
         EnableBit(UInputNative.UI_SET_KEYBIT, UInputNative.BTN_RIGHT);
@@ -194,6 +195,7 @@ public sealed partial class UInputDevice(int width = 0, int height = 0) : IUInpu
             EnableBit(UInputNative.UI_SET_ABSBIT, UInputNative.ABS_Y);
             EnableBit(UInputNative.UI_SET_EVBIT, UInputNative.EV_REL);
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_WHEEL);
+            EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_HWHEEL);
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_X);
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_Y);
             Log.Information("[UInputDevice] Creating ABSOLUTE mode device (EV_ABS + EV_REL hybrid)");
@@ -204,6 +206,7 @@ public sealed partial class UInputDevice(int width = 0, int height = 0) : IUInpu
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_X);
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_Y);
             EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_WHEEL);
+            EnableBit(UInputNative.UI_SET_RELBIT, UInputNative.REL_HWHEEL);
             Log.Information("[UInputDevice] Creating RELATIVE mode device");
         }
 

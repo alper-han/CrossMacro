@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Windows.Services;
 
-public sealed class WindowsInputCapture : IInputCapture
+public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInputCapture
 {
     private const uint LowLevelKeyboardHookFlagExtended = 0x01;
     private const uint LowLevelKeyboardHookFlagLowerIntegrityInjected = 0x02;
@@ -19,6 +19,7 @@ public sealed class WindowsInputCapture : IInputCapture
 
     private bool _captureMouse;
     private bool _captureKeyboard;
+    private bool _useAbsoluteCoordinates;
 
     private int _lastX;
     private int _lastY;
@@ -52,6 +53,13 @@ public sealed class WindowsInputCapture : IInputCapture
         _captureKeyboard = captureKeyboard;
     }
 
+    public void ConfigureCoordinateMode(
+        bool useAbsoluteCoordinates,
+        bool useLogicalCoordinates)
+    {
+        _ = useLogicalCoordinates;
+        _useAbsoluteCoordinates = useAbsoluteCoordinates;
+    }
 
 
     public async Task StartAsync(CancellationToken ct)
@@ -122,6 +130,7 @@ public sealed class WindowsInputCapture : IInputCapture
     {
         if (_captureMouse)
         {
+            InitializeMousePosition();
             _mouseHookHandle = InstallMouseHook(moduleHandle);
             if (_mouseHookHandle == IntPtr.Zero)
             {
@@ -136,6 +145,16 @@ public sealed class WindowsInputCapture : IInputCapture
             {
                 throw new InvalidOperationException("Failed to install keyboard hook");
             }
+        }
+    }
+
+    private void InitializeMousePosition()
+    {
+        _firstMove = !User32.GetCursorPos(out var position);
+        if (!_firstMove)
+        {
+            _lastX = position.x;
+            _lastY = position.y;
         }
     }
 
@@ -378,59 +397,86 @@ public sealed class WindowsInputCapture : IInputCapture
 
     private void HandleMouseMove(int currentX, int currentY)
     {
+        bool hadPreviousPosition = !_firstMove;
+        int previousX = _lastX;
+        int previousY = _lastY;
         if (_firstMove)
         {
             _lastX = currentX;
             _lastY = currentY;
             _firstMove = false;
+
+            if (!_useAbsoluteCoordinates)
+            {
+                return;
+            }
         }
 
-        int deltaX = currentX - _lastX;
-        int deltaY = currentY - _lastY;
+        if (hadPreviousPosition && currentX == previousX && currentY == previousY)
+        {
+            return;
+        }
+
+        var movement = ResolveMouseMovement(
+            _useAbsoluteCoordinates,
+            currentX,
+            currentY,
+            previousX,
+            previousY);
 
         _lastX = currentX;
         _lastY = currentY;
+        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-        if (deltaX is not 0)
+        if (_useAbsoluteCoordinates || movement.XValue is not 0)
         {
             var xArgs = new CapturedInputEvent
             {
                 Type = InputEventType.MouseMove,
-                Code = InputEventCode.REL_X,
-                Value = deltaX,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Code = movement.XCode,
+                Value = movement.XValue,
+                Timestamp = timestamp,
                 DeviceName = "VirtualMouse",
             };
             InputReceived?.Invoke(this, new CapturedInputEventArgs(xArgs));
         }
 
-        if (deltaY is not 0)
+        if (_useAbsoluteCoordinates || movement.YValue is not 0)
         {
             var yArgs = new CapturedInputEvent
             {
                 Type = InputEventType.MouseMove,
-                Code = InputEventCode.REL_Y,
-                Value = deltaY,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Code = movement.YCode,
+                Value = movement.YValue,
+                Timestamp = timestamp,
                 DeviceName = "VirtualMouse",
             };
             InputReceived?.Invoke(this, new CapturedInputEventArgs(yArgs));
         }
 
-        // Emit SYNC to flush the movement buffer in MacroRecorder
-        if (deltaX is not 0 || deltaY is not 0)
+        var syncArgs = new CapturedInputEvent
         {
-            var syncArgs = new CapturedInputEvent
-            {
-                Type = InputEventType.Sync,
-                Code = 0,
-                Value = 0,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                DeviceName = "VirtualMouse",
-            };
-            InputReceived?.Invoke(this, new CapturedInputEventArgs(syncArgs));
-        }
+            Type = InputEventType.Sync,
+            Code = 0,
+            Value = 0,
+            Timestamp = timestamp,
+            DeviceName = "VirtualMouse",
+        };
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(syncArgs));
     }
+
+    internal static (ushort XCode, int XValue, ushort YCode, int YValue) ResolveMouseMovement(
+        bool useAbsoluteCoordinates,
+        int currentX,
+        int currentY,
+        int previousX,
+        int previousY) => useAbsoluteCoordinates
+            ? (InputEventCode.ABS_X, currentX, InputEventCode.ABS_Y, currentY)
+            : (
+                InputEventCode.REL_X,
+                (int)Math.Clamp((long)currentX - previousX, int.MinValue, int.MaxValue),
+                InputEventCode.REL_Y,
+                (int)Math.Clamp((long)currentY - previousY, int.MinValue, int.MaxValue));
 
     private void EmitMouseButtonOrScrollEvent(ushort evdevCode, int value, ushort type)
     {

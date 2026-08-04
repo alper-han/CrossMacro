@@ -335,6 +335,9 @@ internal sealed class RunScriptScreenReadExecutor(
             Y = movement.Y,
             Button = button,
             CoordinateMode = movement.CoordinateMode,
+            CoordinateSpace = movement.CoordinateMode is MouseCoordinateMode.Absolute
+                ? MouseCoordinateSpace.LogicalDesktop
+                : MouseCoordinateSpace.RawDevice,
         }, cancellationToken).ConfigureAwait(false);
     }
 

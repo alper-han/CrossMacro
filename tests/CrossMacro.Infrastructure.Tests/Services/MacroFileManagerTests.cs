@@ -57,7 +57,16 @@ public sealed class MacroFileManagerTests : IDisposable
         var second = await _manager.LoadAsync(savedPath);
 
         _ = second.Should().NotBeNull();
-        _ = second!.Events.Should().BeEquivalentTo(first.Events);
+        var expectedEvents = first.Events.Select(static ev =>
+        {
+            if (ev.CoordinateMode is MouseCoordinateMode.Relative && ev.CoordinateSpace is null)
+            {
+                ev.CoordinateSpace = MouseCoordinateSpace.RawDevice;
+            }
+
+            return ev;
+        });
+        _ = second!.Events.Should().BeEquivalentTo(expectedEvents);
         _ = second.ScriptSteps.Should().Equal(first.ScriptSteps);
         _ = second.TextInputBoundaries.Should().Equal(first.TextInputBoundaries);
         _ = second.TrailingDelayMs.Should().Be(first.TrailingDelayMs);
@@ -158,6 +167,7 @@ public sealed class MacroFileManagerTests : IDisposable
                     Timestamp = 0,
                     DelayMs = 0,
                     CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
                 },
                 new MacroEvent
                 {
@@ -194,7 +204,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("# TrailingRandomDelayMs: 23,41");
         _ = saved.Should().Contain("# TextInputBoundaryBase64: ");
         _ = saved.Should().Contain($"# Image: Target = {TransparentPngBase64}");
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
 
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Name.Should().Be(macro.Name);
@@ -380,7 +390,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
         _ = saved.Should().Contain("[Events]");
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Events.Should().HaveCount(macro.Events.Count);
@@ -740,7 +750,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
         _ = saved.Should().Contain("[Script]");
         _ = saved.Should().Contain("set i 0");
         _ = saved.Should().Contain("for i from 1 to 10 {");
@@ -809,7 +819,7 @@ public sealed class MacroFileManagerTests : IDisposable
         // Assert
         _ = saved.Should().Contain($"# Image: Target_1 = {TransparentPngBase64}");
         _ = saved.IndexOf("# Image: Target_1", StringComparison.Ordinal)
-            .Should().BeLessThan(saved.IndexOf("# Format: CrossMacroFormatV2", StringComparison.Ordinal));
+            .Should().BeLessThan(saved.IndexOf("# Format: CrossMacroFormatV3", StringComparison.Ordinal));
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Images.Should().Equal(macro.Images);
         _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
@@ -841,7 +851,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = savedLines.Should().ContainInOrder(
             $"# Image: Alpha_2 = {BlackPngBase64}",
             $"# Image: Zeta = {TransparentPngBase64}",
-            "# Format: CrossMacroFormatV2");
+            "# Format: CrossMacroFormatV3");
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Images.Should().Equal(macro.Images);
     }
@@ -902,7 +912,7 @@ public sealed class MacroFileManagerTests : IDisposable
             "# Image: MissingSeparator",
             "# Image: Invalid-Name = iVBORw0KGgo=",
             "# Image: ValidName = not-base64",
-            "# Format: CrossMacroFormatV2",
+            "# Format: CrossMacroFormatV3",
             "[Events]",
             "M,0,0",
         ], NonCancelableToken);
@@ -1049,7 +1059,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = savedLines.Should().ContainInOrder(
-            "# Format: CrossMacroFormatV2",
+            "# Format: CrossMacroFormatV3",
             "[Script]",
             "type first line",
             "| path C:\\Users\\me");
@@ -1078,7 +1088,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
         _ = saved.Should().Contain("[Script]");
         _ = saved.Should().Contain("pixelcolor 10 20 color");
         _ = saved.Should().Contain("pixelsearch 0 0 3 3 123456 x y");
@@ -1108,7 +1118,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = saved.Should().Contain("type [demo], #1, C:\\Temp\\macro.txt");
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Events.Should().BeEmpty();
         _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
@@ -1184,7 +1194,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV2");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
         _ = saved.Should().Contain("# TextInputBoundaryBase64:");
         _ = saved.Should().Contain("[Events]");
         _ = loaded.Should().NotBeNull();
@@ -1225,7 +1235,14 @@ public sealed class MacroFileManagerTests : IDisposable
             IsAbsoluteCoordinates = false,
             Events = {
                 new() { Type = EventType.MouseMove, X = 100, Y = 200, CoordinateMode = MouseCoordinateMode.Absolute },
-                new() { Type = EventType.MouseMove, X = 10, Y = 20, CoordinateMode = MouseCoordinateMode.Relative },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = 20,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                },
             },
         };
         var filePath = GetTempFilePath();
@@ -1237,11 +1254,14 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = saved.Should().Contain("M,abs,100,200");
-        _ = saved.Should().Contain("M,rel,10,20");
+        _ = saved.Should().Contain("M,rel-raw,10,20");
         _ = loaded.Should().NotBeNull();
         _ = loaded.Events.Select(ev => ev.CoordinateMode).Should().Equal(
             MouseCoordinateMode.Absolute,
             MouseCoordinateMode.Relative);
+        _ = loaded.Events.Select(ev => ev.CoordinateSpace).Should().Equal(
+            MouseCoordinateSpace.LogicalDesktop,
+            MouseCoordinateSpace.RawDevice);
     }
 
     [Fact]
@@ -1289,8 +1309,24 @@ public sealed class MacroFileManagerTests : IDisposable
             IsAbsoluteCoordinates = true,
             Events = {
                 new() { Type = EventType.ButtonPress, X = 1, Y = 2, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute },
-                new() { Type = EventType.ButtonRelease, X = 3, Y = 4, Button = MacroMouseButton.Right, CoordinateMode = MouseCoordinateMode.Relative },
-                new() { Type = EventType.Click, X = 5, Y = 6, Button = MacroMouseButton.Middle, CoordinateMode = MouseCoordinateMode.Relative },
+                new()
+                {
+                    Type = EventType.ButtonRelease,
+                    X = 3,
+                    Y = 4,
+                    Button = MacroMouseButton.Right,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                },
+                new()
+                {
+                    Type = EventType.Click,
+                    X = 5,
+                    Y = 6,
+                    Button = MacroMouseButton.Middle,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                },
             },
         };
         var filePath = GetTempFilePath();
@@ -1302,13 +1338,17 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = saved.Should().Contain("P,abs,1,2,Left");
-        _ = saved.Should().Contain("R,rel,3,4,Right");
-        _ = saved.Should().Contain("C,rel,5,6,Middle");
+        _ = saved.Should().Contain("R,rel-raw,3,4,Right");
+        _ = saved.Should().Contain("C,rel-raw,5,6,Middle");
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
             MouseCoordinateMode.Absolute,
             MouseCoordinateMode.Relative,
             MouseCoordinateMode.Relative);
+        _ = loaded.Events.Select(ev => ev.CoordinateSpace).Should().Equal(
+            MouseCoordinateSpace.LogicalDesktop,
+            MouseCoordinateSpace.RawDevice,
+            MouseCoordinateSpace.RawDevice);
     }
 
     [Fact]

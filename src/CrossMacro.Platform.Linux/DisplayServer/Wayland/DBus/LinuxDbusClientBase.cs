@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
 internal abstract class LinuxDbusClientBase(DBusConnection connection, string serviceName, string objectPath, string interfaceName)
 {
-    private readonly DBusConnection _connection = connection;
+    protected DBusConnection Connection { get; } = connection;
 
     protected string ServiceName { get; } = serviceName;
 
@@ -13,7 +13,7 @@ internal abstract class LinuxDbusClientBase(DBusConnection connection, string se
 
     protected MessageBuffer CreateMethodCall(string member, string? signature = null, MessageWriterAction? writeBody = null)
     {
-        var writer = _connection.GetMessageWriter();
+        var writer = Connection.GetMessageWriter();
         writer.WriteMethodCallHeader(
             destination: ServiceName,
             path: ObjectPath,
@@ -26,16 +26,16 @@ internal abstract class LinuxDbusClientBase(DBusConnection connection, string se
     }
 
     protected Task CallAsync(string member, string? signature = null, MessageWriterAction? writeBody = null)
-        => _connection.CallMethodAsync(CreateMethodCall(member, signature, writeBody));
+        => Connection.CallMethodAsync(CreateMethodCall(member, signature, writeBody));
 
     protected Task<TResult> CallAsync<TResult>(string member, MessageValueReader<TResult> reader, string? signature = null, MessageWriterAction? writeBody = null)
-        => _connection.CallMethodAsync(CreateMethodCall(member, signature, writeBody), reader);
+        => Connection.CallMethodAsync(CreateMethodCall(member, signature, writeBody), reader);
 
     protected MessageBuffer CreateMethodCallByRef(string member, string? signature = null, MessageWriterAction? writeBody = null)
         => CreateMethodCall(member, signature, writeBody);
 
     protected Task CallAsyncByRefAsync(string member, string? signature = null, MessageWriterAction? writeBody = null)
-        => _connection.CallMethodAsync(CreateMethodCallByRef(member, signature, writeBody));
+        => Connection.CallMethodAsync(CreateMethodCallByRef(member, signature, writeBody));
 
     protected static object UnboxVariant(VariantValue value)
     {

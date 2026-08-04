@@ -28,6 +28,58 @@ public static class RunScriptSyntax
     public const string ShellCommand = "shell";
     public const string ScreenshotCommand = "screenshot";
 
+    public static bool TryParseMouseMoveMode(
+        string? token,
+        out MouseCoordinateMode coordinateMode,
+        out MouseCoordinateSpace coordinateSpace)
+    {
+        coordinateMode = MouseCoordinateMode.Relative;
+        coordinateSpace = MouseCoordinateSpace.RawDevice;
+
+        if (string.Equals(token, "abs", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "absolute", StringComparison.OrdinalIgnoreCase))
+        {
+            coordinateMode = MouseCoordinateMode.Absolute;
+            coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
+            return true;
+        }
+
+        if (string.Equals(token, "rel", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "relative", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(token, "rel-logical", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "relative-logical", StringComparison.OrdinalIgnoreCase))
+        {
+            coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
+            return true;
+        }
+
+        if (string.Equals(token, "rel-raw", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "relative-raw", StringComparison.OrdinalIgnoreCase))
+        {
+            coordinateSpace = MouseCoordinateSpace.RawDevice;
+            return true;
+        }
+
+        return false;
+    }
+
+    public static string ToMouseMoveModeToken(
+        MouseCoordinateMode coordinateMode,
+        MouseCoordinateSpace coordinateSpace)
+    {
+        return coordinateMode switch
+        {
+            MouseCoordinateMode.Absolute => "abs",
+            MouseCoordinateMode.Relative when coordinateSpace is MouseCoordinateSpace.LogicalDesktop => "rel-logical",
+            MouseCoordinateMode.Relative when coordinateSpace is MouseCoordinateSpace.RawDevice => "rel-raw",
+            _ => throw new ArgumentOutOfRangeException(nameof(coordinateMode), coordinateMode, "Mouse coordinate mode is invalid."),
+        };
+    }
+
     public static IReadOnlyList<string> SplitQuotedTokens(string input)
     {
         ArgumentNullException.ThrowIfNull(input);

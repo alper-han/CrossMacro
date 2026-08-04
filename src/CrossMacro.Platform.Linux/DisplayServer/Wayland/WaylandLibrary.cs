@@ -38,12 +38,22 @@ internal sealed partial class WaylandLibrary : IDisposable
 
     private delegate IntPtr WlDisplayConnect(IntPtr name);
     private delegate void WlDisplayDisconnect(IntPtr display);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, SetLastError = true)]
     private delegate int WlDisplayGetFd(IntPtr display);
+
     private delegate int WlDisplayPrepareRead(IntPtr display);
     private delegate void WlDisplayCancelRead(IntPtr display);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, SetLastError = true)]
     private delegate int WlDisplayReadEvents(IntPtr display);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, SetLastError = true)]
     private delegate int WlDisplayDispatchPending(IntPtr display);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, SetLastError = true)]
     private delegate int WlDisplayFlush(IntPtr display);
+
     private delegate IntPtr WlProxyMarshalArrayConstructorVersioned(IntPtr proxy, uint opcode, IntPtr args, IntPtr iface, uint version);
     private delegate IntPtr WlProxyMarshalArrayFlags(IntPtr proxy, uint opcode, IntPtr iface, uint version, uint flags, IntPtr args);
     private delegate void WlProxyDestroy(IntPtr proxy);
@@ -396,10 +406,38 @@ internal sealed partial class WaylandLibrary : IDisposable
         return _marshalConstructor(copyManager, 0, args.Address, sessionInterface.Address, 1);
     }
 
-    public IntPtr CreateExtImageFrame(IntPtr session, WaylandInterfaceHandle frameInterface)
+    public IntPtr GetPointer(IntPtr seat, WaylandInterfaceHandle pointerInterface)
     {
         using var args = new WlArgumentPack(1);
         args[0] = new WlArgument { o = IntPtr.Zero };
+        return _marshalConstructor(seat, 0, args.Address, pointerInterface.Address, 1);
+    }
+
+    public IntPtr CreateExtCursorSession(
+        IntPtr copyManager,
+        IntPtr source,
+        IntPtr pointer,
+        WaylandInterfaceHandle cursorSessionInterface)
+    {
+        using var args = new WlArgumentPack(3);
+        args[0] = new WlArgument { o = IntPtr.Zero };
+        args[1] = new WlArgument { o = source };
+        args[2] = new WlArgument { o = pointer };
+        return _marshalConstructor(copyManager, 1, args.Address, cursorSessionInterface.Address, 1);
+    }
+
+    public IntPtr GetExtCursorCaptureSession(
+        IntPtr cursorSession,
+        WaylandInterfaceHandle captureSessionInterface)
+    {
+        using var args = new WlArgumentPack(1);
+        args[0] = new WlArgument { o = IntPtr.Zero };
+        return _marshalConstructor(cursorSession, 1, args.Address, captureSessionInterface.Address, 1);
+    }
+
+    public IntPtr CreateExtImageFrame(IntPtr session, WaylandInterfaceHandle frameInterface)
+    {
+        using var args = new WlArgumentPack(1);
         args[0] = new WlArgument { o = IntPtr.Zero };
         return _marshalConstructor(session, 0, args.Address, frameInterface.Address, 1);
     }
@@ -448,6 +486,7 @@ internal sealed partial class WaylandLibrary : IDisposable
     public void DestroyXdgOutput(IntPtr xdgOutput) => _marshalFlags(xdgOutput, 0, IntPtr.Zero, 1, 1, IntPtr.Zero);
     public void DestroyExtImageSource(IntPtr source) => _marshalFlags(source, 0, IntPtr.Zero, 1, 1, IntPtr.Zero);
     public void DestroyExtImageSession(IntPtr session) => _marshalFlags(session, 1, IntPtr.Zero, 1, 1, IntPtr.Zero);
+    public void DestroyExtCursorSession(IntPtr session) => _marshalFlags(session, 0, IntPtr.Zero, 1, 1, IntPtr.Zero);
     public void DestroyExtImageFrame(IntPtr frame) => _marshalFlags(frame, 0, IntPtr.Zero, 1, 1, IntPtr.Zero);
     public void DestroyWlrFrame(IntPtr frame) => _marshalFlags(frame, 1, IntPtr.Zero, 1, 1, IntPtr.Zero);
 

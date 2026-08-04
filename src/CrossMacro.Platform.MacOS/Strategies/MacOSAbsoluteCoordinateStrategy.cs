@@ -10,9 +10,17 @@ public sealed class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
 {
     private int _lastX;
     private int _lastY;
+    private bool _hasPendingMovement;
+
+    public bool ProducesLogicalCoordinates => true;
+
+    public bool ProducesRelativeCoordinates => false;
 
     public Task InitializeAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        _hasPendingMovement = false;
+
         // Get initial position from macOS
         var eventRef = CoreGraphics.CGEventCreate(IntPtr.Zero);
         if (eventRef == IntPtr.Zero)
@@ -28,33 +36,40 @@ public sealed class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
 
         _lastX = (int)loc.X;
         _lastY = (int)loc.Y;
-
         return Task.CompletedTask;
     }
 
-    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
+    public CoordinateSample ProcessPosition(CapturedInputEvent e)
     {
         if (e.Type is InputEventType.Sync)
         {
-            return (0, 0);
+            if (!_hasPendingMovement)
+            {
+                return CoordinateSample.None;
+            }
+
+            _hasPendingMovement = false;
+            return CoordinateSample.Create(_lastX, _lastY);
         }
 
         if (e.Type is not InputEventType.MouseMove)
         {
-            return (_lastX, _lastY);
+            return CoordinateSample.Create(_lastX, _lastY);
         }
 
         // macOS sends ABS_X and ABS_Y with absolute positions
         if (e.Code == InputEventCode.ABS_X)
         {
             _lastX = e.Value;
+            _hasPendingMovement = true;
         }
         else if (e.Code == InputEventCode.ABS_Y)
         {
             _lastY = e.Value;
+            _hasPendingMovement = true;
         }
 
-        return (_lastX, _lastY);
+        return CoordinateSample.None;
     }
 
     public void Dispose() { /* Empty */ }

@@ -84,7 +84,7 @@ public sealed class RunScriptScreenshotRuntimeTests
         return new MacroPlayerDependencies(positionProvider, new PlaybackTimingService(), (_, _) => Task.CompletedTask,
             CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
             () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
-            new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false), NullScreenPixelReader.Instance, keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner: null,
+            NullScreenPixelReader.Instance, keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner: null,
             screenshotCaptureService, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
     }
 

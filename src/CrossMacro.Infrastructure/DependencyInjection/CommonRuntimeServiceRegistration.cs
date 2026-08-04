@@ -13,6 +13,7 @@ internal static class CommonRuntimeServiceRegistration
         _ = services.AddSingleton<Func<ICoordinateStrategy, IInputEventProcessor>>(_ => strategy => new StandardInputEventProcessor(strategy));
         _ = services.AddTransient<IMacroRecorder>(sp => new MacroRecorder(
             sp.GetService<Func<IInputCapture>>(), sp.GetRequiredService<ICoordinateStrategyFactory>(),
-            sp.GetRequiredService<Func<ICoordinateStrategy, IInputEventProcessor>>(), sp.GetService<Func<IInputSimulator>>()));
+            sp.GetRequiredService<Func<ICoordinateStrategy, IInputEventProcessor>>(), sp.GetService<Func<IInputSimulator>>(),
+            sp.GetService<IMousePositionProvider>()));
     }
 }

@@ -15,16 +15,23 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
 
     public ScreenRect GetVirtualScreenBounds()
     {
-        var displays = GetActiveDisplays();
+        return GetVirtualScreenBounds(_native);
+    }
+
+    internal static ScreenRect GetVirtualScreenBounds(IMacOSCoreGraphicsNative native)
+    {
+        ArgumentNullException.ThrowIfNull(native);
+
+        var displays = GetActiveDisplays(native);
         if (displays.Length is 0)
         {
             throw new BackendUnavailableException("CoreGraphics did not report any active displays.");
         }
 
-        var bounds = ToScreenRect(_native.GetDisplayBounds(displays[0]));
+        var bounds = ToScreenRect(native.GetDisplayBounds(displays[0]));
         for (var index = 1; index < displays.Length; index++)
         {
-            bounds = Union(bounds, ToScreenRect(_native.GetDisplayBounds(displays[index])));
+            bounds = Union(bounds, ToScreenRect(native.GetDisplayBounds(displays[index])));
         }
 
         return bounds;
@@ -66,15 +73,15 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
         return new MacOSScreenCaptureFrame(region, stride, ScreenPixelFormat.Bgra8888, pixels);
     }
 
-    private uint[] GetActiveDisplays()
+    private static uint[] GetActiveDisplays(IMacOSCoreGraphicsNative native)
     {
-        var count = _native.GetActiveDisplayCount();
+        var count = native.GetActiveDisplayCount();
         if (count == 0)
         {
             return [];
         }
 
-        return _native.GetActiveDisplays(count);
+        return native.GetActiveDisplays(count);
     }
 
     private static void CopyImageToFrame(MacOSCapturedImage image, ScreenRect sourceRect, ScreenRect targetRect, int targetStride, byte[] targetPixels)

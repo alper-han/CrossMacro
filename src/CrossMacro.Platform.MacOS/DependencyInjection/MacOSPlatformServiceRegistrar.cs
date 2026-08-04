@@ -8,8 +8,6 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
         _ = services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();
         _ = services.AddSingleton<IEnvironmentInfoProvider, MacOSEnvironmentInfoProvider>();
-        _ = services.AddSingleton<IPlaybackBehaviorPolicy>(
-            _ => new MacOSPlaybackBehaviorPolicy());
         _ = services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
         _ = services.AddSingleton<IScreenFrameProvider, MacOSScreenFrameProvider>();
         _ = services.AddSingleton<IMacOSScreenRecordingPermissionProbe, CoreGraphicsScreenRecordingPermissionProbe>();

@@ -33,30 +33,7 @@ public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
                     return null;
                 }
 
-                if (pos.X is 0 && pos.Y is 0)
-                {
-                    return null;
-                }
-
-                if (_isAbsoluteCoordinates)
-                {
-                    if (pos.X == _lastEmittedX && pos.Y == _lastEmittedY)
-                    {
-                        return null;
-                    }
-
-                    _lastEmittedX = pos.X;
-                    _lastEmittedY = pos.Y;
-                }
-
-                return new MacroEvent
-                {
-                    Type = EventType.MouseMove,
-                    Timestamp = timestamp,
-                    X = pos.X,
-                    Y = pos.Y,
-                    CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
-                };
+                return ProcessPositionSample(pos, timestamp);
 
             case InputEventType.MouseScroll:
                 if (!_recordMouse)
@@ -71,8 +48,8 @@ public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
                         Type = EventType.Click,
                         Button = args.Value > 0 ? MacroMouseButton.ScrollRight : MacroMouseButton.ScrollLeft,
                         Timestamp = timestamp,
-                        X = pos.X,
-                        Y = pos.Y,
+                        X = pos.HasValue ? pos.X : 0,
+                        Y = pos.HasValue ? pos.Y : 0,
                     };
                 }
 
@@ -81,8 +58,8 @@ public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
                     Type = EventType.Click,
                     Button = args.Value > 0 ? MacroMouseButton.ScrollUp : MacroMouseButton.ScrollDown,
                     Timestamp = timestamp,
-                    X = pos.X,
-                    Y = pos.Y,
+                    X = pos.HasValue ? pos.X : 0,
+                    Y = pos.HasValue ? pos.Y : 0,
                 };
 
             case InputEventType.MouseButton:
@@ -91,7 +68,11 @@ public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
                     return null;
                 }
 
-                return ProcessMouseButton(args, pos.X, pos.Y, timestamp);
+                return ProcessMouseButton(
+                    args,
+                    pos.HasValue ? pos.X : 0,
+                    pos.HasValue ? pos.Y : 0,
+                    timestamp);
 
             case InputEventType.Key:
                 if (!_recordKeyboard)
@@ -107,25 +88,49 @@ public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
                     return null;
                 }
 
-                if (pos.X is 0 && pos.Y is 0)
-                {
-                    return null;
-                }
-
-                return new MacroEvent
-                {
-                    Type = EventType.MouseMove,
-                    Timestamp = timestamp,
-                    X = pos.X,
-                    Y = pos.Y,
-                    CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
-                };
+                return ProcessPositionSample(pos, timestamp);
 
             case InputEventType.Unknown:
                 return null;
         }
 
         return null;
+    }
+
+    public MacroEvent? ProcessPositionSample(CoordinateSample sample, long timestamp)
+    {
+        if (!_recordMouse || !sample.HasValue)
+        {
+            return null;
+        }
+
+        if (!_isAbsoluteCoordinates && sample.X is 0 && sample.Y is 0)
+        {
+            return null;
+        }
+
+        if (_isAbsoluteCoordinates)
+        {
+            if (sample.X == _lastEmittedX && sample.Y == _lastEmittedY)
+            {
+                return null;
+            }
+
+            _lastEmittedX = sample.X;
+            _lastEmittedY = sample.Y;
+        }
+
+        return new MacroEvent
+        {
+            Type = EventType.MouseMove,
+            Timestamp = timestamp,
+            X = sample.X,
+            Y = sample.Y,
+            CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
+            CoordinateSpace = _coordinateStrategy.ProducesLogicalCoordinates
+                ? MouseCoordinateSpace.LogicalDesktop
+                : MouseCoordinateSpace.RawDevice,
+        };
     }
 
     private MacroEvent? ProcessMouseButton(CapturedInputEvent e, int x, int y, long timestamp)
@@ -136,6 +141,9 @@ public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
             X = x,
             Y = y,
             CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
+            CoordinateSpace = _coordinateStrategy.ProducesLogicalCoordinates
+                ? MouseCoordinateSpace.LogicalDesktop
+                : MouseCoordinateSpace.RawDevice,
         };
 
         if (e.Code == InputEventCode.BTN_LEFT)

@@ -25,6 +25,8 @@ public sealed class SwayPositionProvider : IMousePositionProvider
 
     public bool IsSupported => _ipcClient.IsAvailable;
 
+    public bool SupportsAbsolutePosition => false;
+
     public Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {
         // Sway natively blocks global absolute pointer polling via IPC/Wayland.
@@ -32,6 +34,12 @@ public sealed class SwayPositionProvider : IMousePositionProvider
     }
 
     public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
+    {
+        var bounds = await GetDesktopBoundsAsync().ConfigureAwait(false);
+        return bounds is not null ? (bounds.Value.Width, bounds.Value.Height) : null;
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
     {
         if (_disposed || !_ipcClient.IsAvailable)
         {
@@ -46,38 +54,60 @@ public sealed class SwayPositionProvider : IMousePositionProvider
                 return null;
             }
 
-            var outputs = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayOutputDtoArray);
-            if (outputs is null || outputs.Length is 0)
+            if (!TryParseDesktopBounds(response, out var bounds))
             {
                 return null;
             }
 
-            var activeOutputs = outputs.Where(static o => o.Active && o.Rect is not null).ToArray();
-            if (activeOutputs.Length is 0)
-            {
-                return null;
-            }
-
-            int minX = activeOutputs.Min(static o => o.Rect!.X);
-            int minY = activeOutputs.Min(static o => o.Rect!.Y);
-            int maxX = activeOutputs.Max(static o => o.Rect!.X + o.Rect.Width);
-            int maxY = activeOutputs.Max(static o => o.Rect!.Y + o.Rect.Height);
-
-            if (maxX <= minX || maxY <= minY)
-            {
-                return null;
-            }
-
-            int width = maxX - minX;
-            int height = maxY - minY;
-
-            Log.Information("[SwayPositionProvider] Screen resolution detected: {Width}x{Height}", width, height);
-            return (width, height);
+            Log.Information(
+                "[SwayPositionProvider] Desktop bounds detected: ({X},{Y}) {Width}x{Height}",
+                bounds.X,
+                bounds.Y,
+                bounds.Width,
+                bounds.Height);
+            return bounds;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[SwayPositionProvider] Failed to get screen resolution");
             return null;
+        }
+    }
+
+    internal static bool TryParseDesktopBounds(string response, out ScreenRect bounds)
+    {
+        bounds = default;
+        try
+        {
+            var outputs = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayOutputDtoArray);
+            if (outputs is null || outputs.Length is 0)
+            {
+                return false;
+            }
+
+            var activeOutputs = outputs
+                .Where(static output => output.Active && output.Rect is { Width: > 0, Height: > 0 })
+                .ToArray();
+            if (activeOutputs.Length is 0)
+            {
+                return false;
+            }
+
+            int minX = activeOutputs.Min(static output => output.Rect!.X);
+            int minY = activeOutputs.Min(static output => output.Rect!.Y);
+            int maxX = activeOutputs.Max(static output => checked(output.Rect!.X + output.Rect.Width));
+            int maxY = activeOutputs.Max(static output => checked(output.Rect!.Y + output.Rect.Height));
+            if (maxX <= minX || maxY <= minY)
+            {
+                return false;
+            }
+
+            bounds = new ScreenRect(minX, minY, checked(maxX - minX), checked(maxY - minY));
+            return true;
+        }
+        catch (Exception ex) when (ex is JsonException or OverflowException)
+        {
+            return false;
         }
     }
 

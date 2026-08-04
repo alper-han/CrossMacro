@@ -281,7 +281,15 @@ public sealed class EditorActionConverterTests
             new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = true, X = 10, Y = 20 },
             new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, IsAbsolute = false, X = 3, Y = 4 },
             new EditorAction { Type = EditorActionType.MouseDown, Button = MacroMouseButton.Right, IsAbsolute = true, X = 30, Y = 40 },
-            new EditorAction { Type = EditorActionType.MouseUp, Button = MacroMouseButton.Right, IsAbsolute = false, X = 5, Y = 6 },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseUp,
+                Button = MacroMouseButton.Right,
+                IsAbsolute = false,
+                CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                X = 5,
+                Y = 6,
+            },
         };
 
         // Act
@@ -289,10 +297,14 @@ public sealed class EditorActionConverterTests
 
         // Assert
         _ = events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = events[0].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = events[1].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = events[1].Type.Should().Be(EventType.Click);
         _ = events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = events[2].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = events[3].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = events[3].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
     }
 
     [Fact]
@@ -352,7 +364,9 @@ public sealed class EditorActionConverterTests
 
         // Assert
         _ = moveAction.IsAbsolute.Should().BeTrue();
+        _ = moveAction.CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = clickAction.IsAbsolute.Should().BeFalse();
+        _ = clickAction.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
         _ = clickAction.UseCurrentPosition.Should().BeFalse();
     }
 
@@ -969,6 +983,7 @@ public sealed class EditorActionConverterTests
                     X = 5,
                     Y = -2,
                     CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
                 },
                 new MacroEvent
                 {
@@ -985,6 +1000,7 @@ public sealed class EditorActionConverterTests
                     X = -1,
                     Y = -1,
                     CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
                 },
                 new MacroEvent
                 {
@@ -1005,11 +1021,13 @@ public sealed class EditorActionConverterTests
         _ = actions[0].IsAbsolute.Should().BeTrue();
         _ = actions[1].Type.Should().Be(EditorActionType.MouseClick);
         _ = actions[1].IsAbsolute.Should().BeFalse();
+        _ = actions[1].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = actions[1].UseCurrentPosition.Should().BeFalse();
         _ = actions[2].Type.Should().Be(EditorActionType.MouseDown);
         _ = actions[2].IsAbsolute.Should().BeTrue();
         _ = actions[3].Type.Should().Be(EditorActionType.MouseUp);
         _ = actions[3].IsAbsolute.Should().BeFalse();
+        _ = actions[3].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
         _ = actions[4].Type.Should().Be(EditorActionType.MouseClick);
         _ = actions[4].UseCurrentPosition.Should().BeTrue();
         _ = actions[4].IsAbsolute.Should().BeFalse();
@@ -1058,6 +1076,7 @@ public sealed class EditorActionConverterTests
         _ = sequence.Events.Should().HaveCount(5);
         _ = sequence.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
         _ = sequence.Events[1].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = sequence.Events[1].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = sequence.Events[2].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
         _ = sequence.Events[2].Type.Should().Be(EventType.Click);
         _ = sequence.Events[3].UseCurrentPosition.Should().BeTrue();
@@ -1068,6 +1087,7 @@ public sealed class EditorActionConverterTests
         _ = restored.Should().HaveCount(5);
         _ = restored[0].IsAbsolute.Should().BeTrue();
         _ = restored[1].IsAbsolute.Should().BeFalse();
+        _ = restored[1].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = restored[2].IsAbsolute.Should().BeTrue();
         _ = restored[3].UseCurrentPosition.Should().BeTrue();
         _ = restored[3].IsAbsolute.Should().BeFalse();
@@ -1102,7 +1122,11 @@ public sealed class EditorActionConverterTests
                 MouseCoordinateMode.Relative,
                 null);
             _ = saved.Should().Contain("M,abs,100,200");
-            _ = saved.Should().Contain("M,rel,5,-3");
+            _ = sequence.Events.Select(ev => ev.CoordinateSpace).Should().Equal(
+                MouseCoordinateSpace.LogicalDesktop,
+                MouseCoordinateSpace.LogicalDesktop,
+                null);
+            _ = saved.Should().Contain("M,rel-logical,5,-3");
             _ = saved.Should().Contain("C,0,0,Left,CurrentPosition");
             _ = saved.Should().NotContain("C,abs,0,0,Left");
             _ = saved.Should().NotContain("C,rel,0,0,Left");
@@ -1112,9 +1136,14 @@ public sealed class EditorActionConverterTests
                 MouseCoordinateMode.Absolute,
                 MouseCoordinateMode.Relative,
                 null);
+            _ = loaded.Events.Select(ev => ev.CoordinateSpace).Should().Equal(
+                MouseCoordinateSpace.LogicalDesktop,
+                MouseCoordinateSpace.LogicalDesktop,
+                null);
             _ = restored.Should().HaveCount(3);
             _ = restored[0].IsAbsolute.Should().BeTrue();
             _ = restored[1].IsAbsolute.Should().BeFalse();
+            _ = restored[1].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
             _ = restored[2].UseCurrentPosition.Should().BeTrue();
             _ = restored[2].IsAbsolute.Should().BeFalse();
         }
@@ -1125,6 +1154,61 @@ public sealed class EditorActionConverterTests
                 File.Delete(filePath);
             }
         }
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenRelativeActionUsesRawDeviceSpace_PreservesIt()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = false,
+                CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                X = 7,
+                Y = -4,
+            },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Raw relative", isAbsolute: false);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        _ = sequence.Events.Should().ContainSingle();
+        _ = sequence.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = sequence.Events[0].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
+        _ = restored.Should().ContainSingle();
+        _ = restored[0].IsAbsolute.Should().BeFalse();
+        _ = restored[0].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenScriptBackedActionUsesRawDeviceSpace_PreservesIt()
+    {
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = false,
+                CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                X = 7,
+                Y = -4,
+            },
+            new EditorAction { Type = EditorActionType.BlockEnd },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Raw relative script", isAbsolute: false);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        _ = sequence.ScriptSteps.Should().Equal("repeat 1 {", "move rel-raw 7 -4", "}");
+        _ = sequence.Events.Should().ContainSingle();
+        _ = sequence.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = sequence.Events[0].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
+        _ = restored.Should().HaveCount(3);
+        _ = restored[1].IsAbsolute.Should().BeFalse();
+        _ = restored[1].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
     }
 
     [Fact]
@@ -2270,7 +2354,7 @@ public sealed class EditorActionConverterTests
             {
                 "move abs 200 300",
                 "click left",
-                "move rel 5 -4",
+                "move rel-logical 5 -4",
                 "click right",
             },
         };
@@ -2285,7 +2369,9 @@ public sealed class EditorActionConverterTests
         _ = actions[1].IsAbsolute.Should().BeTrue();
         _ = actions[1].UseCurrentPosition.Should().BeFalse();
         _ = actions[2].IsAbsolute.Should().BeFalse();
+        _ = actions[2].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = actions[3].IsAbsolute.Should().BeFalse();
+        _ = actions[3].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = actions[3].UseCurrentPosition.Should().BeFalse();
 
         _ = saved.Events.Should().HaveCount(4);

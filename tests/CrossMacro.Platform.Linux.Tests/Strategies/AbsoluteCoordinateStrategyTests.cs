@@ -26,7 +26,7 @@ public sealed class AbsoluteCoordinateStrategyTests
     }
 
     [Fact]
-    public async Task AbsoluteCoordinateStrategy_ProcessPosition_ShouldAccumulateRelativeDeltas()
+    public async Task AbsoluteCoordinateStrategy_ProcessPosition_ShouldUseAbsoluteRootCoordinates()
     {
         // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
@@ -36,23 +36,26 @@ public sealed class AbsoluteCoordinateStrategyTests
         using var cts = new CancellationTokenSource(TestTimeout);
         await strategy.InitializeAsync(cts.Token);
 
-        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 10 };
-        var yEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_Y, Value = 20 };
+        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_X, Value = 10 };
+        var yEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_Y, Value = 20 };
 
         // Act
-        _ = strategy.ProcessPosition(xEvent);
-        var result = strategy.ProcessPosition(yEvent);
+        var xResult = strategy.ProcessPosition(xEvent);
+        var yResult = strategy.ProcessPosition(yEvent);
+        var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
-        // Assert - should accumulate from initial position
-        _ = result.X.Should().Be(110); // 100 + 10
-        _ = result.Y.Should().Be(120); // 100 + 20
+        // Assert - should emit one atomic sample after both axes have been accumulated
+        _ = xResult.HasValue.Should().BeFalse();
+        _ = yResult.HasValue.Should().BeFalse();
+        _ = result.X.Should().Be(10);
+        _ = result.Y.Should().Be(20);
 
         // Cleanup
         strategy.Dispose();
     }
 
     [Fact]
-    public void AbsoluteCoordinateStrategy_ProcessPosition_Sync_ShouldReturnZero()
+    public void AbsoluteCoordinateStrategy_ProcessPosition_Sync_ShouldReturnNoSample()
     {
         // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
@@ -63,7 +66,7 @@ public sealed class AbsoluteCoordinateStrategyTests
         var result = strategy.ProcessPosition(syncEvent);
 
         // Assert
-        _ = result.Should().Be((0, 0));
+        _ = result.HasValue.Should().BeFalse();
 
         // Cleanup
         strategy.Dispose();
@@ -83,9 +86,10 @@ public sealed class AbsoluteCoordinateStrategyTests
         await strategy.InitializeAsync(cts.Token);
 
         // Assert - defaults to (0, 0)
-        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.REL_X, Value = 5 };
-        var result = strategy.ProcessPosition(xEvent);
-        _ = result.X.Should().Be(5); // 0 + 5
+        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_X, Value = 5 };
+        _ = strategy.ProcessPosition(xEvent);
+        var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
+        _ = result.X.Should().Be(5);
 
         // Cleanup
         strategy.Dispose();

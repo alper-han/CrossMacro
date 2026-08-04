@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposable
+public sealed class KdePositionProvider : IMousePositionProvider, IMousePositionChangeSource, IAsyncDisposable
 {
     private static readonly string ScriptDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -15,9 +15,13 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
     private int _currentX;
     private int _currentY;
     private bool _hasPosition;
+    private (int Width, int Height)? _currentResolution;
+    private ScreenRect? _currentDesktopBounds;
+    private bool _positionDiscontinuityPending;
     private readonly Lock _lock = new();
     private readonly TaskCompletionSource<(int X, int Y)> _positionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<(int Width, int Height)> _resolutionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<ScreenRect?> _desktopBoundsTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly CancellationTokenSource _cts = new();
     private Task? _initializationTask;
 
@@ -27,11 +31,14 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
     public string ProviderName => "KDE KWin Script (DBus)";
     public bool IsSupported { get; private set; }
 
+    public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
+
     public KdePositionProvider()
         : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
 
     public KdePositionProvider(LinuxEnvironmentSnapshot environment)
         : this(
+            LinuxDisplaySessionClassifier.IsWayland(environment) &&
             !string.IsNullOrEmpty(environment.CurrentDesktop) &&
             (environment.CurrentDesktop.Contains("KDE", StringComparison.OrdinalIgnoreCase) ||
              environment.CurrentDesktop.Contains("PLASMA", StringComparison.OrdinalIgnoreCase)),
@@ -50,6 +57,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
         {
             _ = _positionTcs.TrySetResult((0, 0));
             _ = _resolutionTcs.TrySetResult((0, 0));
+            _ = _desktopBoundsTcs.TrySetResult(null);
         }
     }
 
@@ -77,14 +85,23 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
             return;
         }
 
+        bool changed;
+        bool isDiscontinuity;
         lock (_lock)
         {
+            isDiscontinuity = _positionDiscontinuityPending;
+            changed = !_hasPosition || _currentX != x || _currentY != y || isDiscontinuity;
             _currentX = x;
             _currentY = y;
             _hasPosition = true;
+            _positionDiscontinuityPending = false;
         }
 
         _ = _positionTcs.TrySetResult((x, y));
+        if (changed)
+        {
+            PositionChanged?.Invoke(this, new MousePositionChangedEventArgs(x, y, isDiscontinuity));
+        }
     }
 
     internal void ApplyResolutionUpdate(int width, int height)
@@ -95,6 +112,43 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
         }
 
         Log.Information("[KdePositionProvider] Resolution received via DBus: {W}x{H}", width, height);
+        if (width > 0 && height > 0)
+        {
+            lock (_lock)
+            {
+                _currentResolution = (width, height);
+            }
+        }
+
+        _ = _resolutionTcs.TrySetResult((width, height));
+    }
+
+    internal void ApplyDesktopBoundsUpdate(int x, int y, int width, int height)
+    {
+        if (IsDisposed || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var bounds = new ScreenRect(x, y, width, height);
+        lock (_lock)
+        {
+            if (_currentDesktopBounds is { } currentBounds && currentBounds != bounds)
+            {
+                _positionDiscontinuityPending = true;
+            }
+
+            _currentDesktopBounds = bounds;
+            _currentResolution = (width, height);
+        }
+
+        Log.Information(
+            "[KdePositionProvider] Desktop bounds received via DBus: ({X},{Y}) {W}x{H}",
+            x,
+            y,
+            width,
+            height);
+        _ = _desktopBoundsTcs.TrySetResult(bounds);
         _ = _resolutionTcs.TrySetResult((width, height));
     }
 
@@ -223,6 +277,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
             IsSupported = false;
             _ = _positionTcs.TrySetResult((0, 0));
             _ = _resolutionTcs.TrySetResult((0, 0));
+            _ = _desktopBoundsTcs.TrySetResult(null);
         }
     }
 
@@ -235,7 +290,10 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
             await _dbusConnection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
             ThrowIfDisposedOrCanceled(ct);
 
-            var trackerService = new KdeTrackerService(ApplyPositionUpdate, ApplyResolutionUpdate);
+            var trackerService = new KdeTrackerService(
+                ApplyPositionUpdate,
+                ApplyResolutionUpdate,
+                onDesktopBoundsUpdate: ApplyDesktopBoundsUpdate);
             var trackerHandler = new KdeTrackerServiceMethodHandler(trackerService);
             _dbusConnection.AddMethodHandler(trackerHandler);
             await _dbusConnection
@@ -286,6 +344,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
             IsSupported = false;
             _ = _positionTcs.TrySetResult((0, 0));
             _ = _resolutionTcs.TrySetResult((0, 0));
+            _ = _desktopBoundsTcs.TrySetResult(null);
             return;
         }
 
@@ -347,6 +406,11 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
             return null;
         }
 
+        if (ReadCurrentResolution() is { } currentResolution)
+        {
+            return currentResolution;
+        }
+
         // Wait for initialization to complete before starting the resolution timeout.
         // InitializeAsync runs fire-and-forget; if we don't await it first, the 2 s
         // window starts counting before the KWin script has even been loaded.
@@ -371,12 +435,17 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
             return null;
         }
 
+        if (ReadCurrentResolution() is { } initializedResolution)
+        {
+            return initializedResolution;
+        }
+
         try
         {
             var resolution = await AwaitResolutionAsync(_resolutionTcs.Task, ResolutionTimeout, timeout => Task.Delay(timeout, _cts.Token)).ConfigureAwait(false);
             if (resolution is not null)
             {
-                return resolution;
+                return ReadCurrentResolution() ?? resolution;
             }
         }
         catch (OperationCanceledException)
@@ -390,6 +459,70 @@ public sealed class KdePositionProvider : IMousePositionProvider, IAsyncDisposab
 
         Log.Warning("[KdePositionProvider] Resolution detection timed out; downgrading to unknown resolution mode.");
         return null;
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
+    {
+        if (!IsSupported || IsDisposed)
+        {
+            return null;
+        }
+
+        if (ReadCurrentDesktopBounds() is { } currentBounds)
+        {
+            return currentBounds;
+        }
+
+        if (_initializationTask is { IsCompleted: false })
+        {
+            try
+            {
+                await _initializationTask.WaitAsync(_cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+            {
+                return null;
+            }
+        }
+
+        try
+        {
+            var completedTask = await Task.WhenAny(
+                _desktopBoundsTcs.Task,
+                Task.Delay(ResolutionTimeout, TimeProvider.System, _cts.Token)).ConfigureAwait(false);
+            if (completedTask == _desktopBoundsTcs.Task)
+            {
+                var initialBounds = await _desktopBoundsTcs.Task.ConfigureAwait(false);
+                return ReadCurrentDesktopBounds() ?? initialBounds;
+            }
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+        {
+            return null;
+        }
+
+        var resolution = await GetScreenResolutionAsync().ConfigureAwait(false);
+        return resolution is { Width: > 0, Height: > 0 }
+            ? new ScreenRect(0, 0, resolution.Value.Width, resolution.Value.Height)
+            : null;
+    }
+
+    private (int Width, int Height)? ReadCurrentResolution()
+    {
+        lock (_lock)
+        {
+            return _currentDesktopBounds is { } bounds
+                ? (bounds.Width, bounds.Height)
+                : _currentResolution;
+        }
+    }
+
+    private ScreenRect? ReadCurrentDesktopBounds()
+    {
+        lock (_lock)
+        {
+            return _currentDesktopBounds;
+        }
     }
 
     public async ValueTask DisposeAsync()

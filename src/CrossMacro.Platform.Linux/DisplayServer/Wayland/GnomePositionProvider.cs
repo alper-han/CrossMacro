@@ -1,7 +1,10 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionStatusNotifier
+public sealed class GnomePositionProvider :
+    IMousePositionProvider,
+    IMousePositionChangeSource,
+    IExtensionStatusNotifier
 {
     // Embedded GNOME Shell Extension files - auto-installed/updated when needed
     private static readonly string EXTENSION_JS = LoadEmbeddedScript("CrossMacro.Platform.Linux.DisplayServer.Wayland.GnomePositionProvider.js");
@@ -26,7 +29,10 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
     private LinuxDbusSession? _dbusSession;
     private GnomeTrackerClient? _trackerClient;
     private GnomeShellExtensionsClient? _extensionsClient;
-    private readonly TaskCompletionSource<bool> _initializationTcs = new();
+    private IDisposable? _positionChangedSubscription;
+    private readonly TaskCompletionSource<bool> _initializationTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly CancellationTokenSource _lifetimeCancellation;
+    private readonly CancellationToken _lifetimeToken;
     private bool _isInitialized;
     private (int Width, int Height)? _cachedResolution;
     private bool _resolutionUnavailableLogged;
@@ -34,6 +40,7 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
 
     public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
     public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged;
+    public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
 
     public ExtensionStatusChangedEventArgs? CurrentExtensionStatus { get; private set; }
 
@@ -47,15 +54,19 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
 
     public GnomePositionProvider(LinuxEnvironmentSnapshot environment)
     {
+        _lifetimeCancellation = new CancellationTokenSource();
+        _lifetimeToken = _lifetimeCancellation.Token;
+
         var currentDesktop = environment.CurrentDesktop;
         var session = environment.GdmSession;
 
-        IsSupported = (currentDesktop?.Contains("GNOME", StringComparison.OrdinalIgnoreCase) ?? false) ||
-                      (session?.Contains("gnome", StringComparison.OrdinalIgnoreCase) ?? false);
+        IsSupported = LinuxDisplaySessionClassifier.IsWayland(environment) &&
+                      ((currentDesktop?.Contains("GNOME", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                       (session?.Contains("gnome", StringComparison.OrdinalIgnoreCase) ?? false));
 
         if (IsSupported)
         {
-            _ = Task.Run(InitializeAsync, CancellationToken.None);
+            _ = Task.Run(() => InitializeAsync(_lifetimeToken), CancellationToken.None);
         }
         else
         {
@@ -63,10 +74,11 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
         }
     }
 
-    private async Task EnsureExtensionInstalledAsync()
+    private async Task EnsureExtensionInstalledAsync(CancellationToken cancellationToken)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             bool jsExisted = File.Exists(ExtensionJsPath);
             bool metadataExisted = File.Exists(MetadataJsonPath);
             bool wasFreshInstall = !jsExisted || !metadataExisted;
@@ -78,8 +90,8 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
 
             _ = Directory.CreateDirectory(ExtensionPath);
 
-            bool jsUpdated = await EnsureFileContentAsync(ExtensionJsPath, EXTENSION_JS).ConfigureAwait(false);
-            bool metadataUpdated = await EnsureFileContentAsync(MetadataJsonPath, METADATA_JSON).ConfigureAwait(false);
+            bool jsUpdated = await EnsureFileContentAsync(ExtensionJsPath, EXTENSION_JS, cancellationToken).ConfigureAwait(false);
+            bool metadataUpdated = await EnsureFileContentAsync(MetadataJsonPath, METADATA_JSON, cancellationToken).ConfigureAwait(false);
 
             if (jsUpdated || metadataUpdated)
             {
@@ -107,7 +119,7 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
                     break;
                 }
 
-                await Task.Delay(100, CancellationToken.None).ConfigureAwait(false);
+                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
                 elapsedMs += 100;
             }
 
@@ -116,6 +128,10 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
                 Log.Warning("[GnomePositionProvider] File verification timeout, proceeding anyway");
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Provider disposal interrupted extension setup.
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[GnomePositionProvider] Failed to install GNOME extension");
@@ -123,22 +139,25 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
         }
     }
 
-    internal static async Task<bool> EnsureFileContentAsync(string filePath, string expectedContent)
+    internal static async Task<bool> EnsureFileContentAsync(
+        string filePath,
+        string expectedContent,
+        CancellationToken cancellationToken = default)
     {
         if (File.Exists(filePath))
         {
-            var existingContent = await File.ReadAllTextAsync(filePath, CancellationToken.None).ConfigureAwait(false);
+            var existingContent = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
             if (string.Equals(existingContent, expectedContent, StringComparison.Ordinal))
             {
                 return false;
             }
         }
 
-        await File.WriteAllTextAsync(filePath, expectedContent, CancellationToken.None).ConfigureAwait(false);
+        await File.WriteAllTextAsync(filePath, expectedContent, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
-    private async Task<bool> CheckExtensionEnabledAsync()
+    private async Task<bool> CheckExtensionEnabledAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -147,7 +166,13 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
                 return false;
             }
 
-            return await IsExtensionEnabledAsync(() => _extensionsClient.GetExtensionInfoAsync(ExtensionUuid)).ConfigureAwait(false);
+            return await IsExtensionEnabledAsync(() => _extensionsClient.GetExtensionInfoAsync(ExtensionUuid))
+                .WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -156,7 +181,7 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
         }
     }
 
-    private async Task<bool> EnableExtensionAsync()
+    private async Task<bool> EnableExtensionAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -165,7 +190,13 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
                 return false;
             }
 
-            return await _extensionsClient.EnableExtensionAsync(ExtensionUuid).ConfigureAwait(false);
+            return await _extensionsClient.EnableExtensionAsync(ExtensionUuid)
+                .WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -174,23 +205,24 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
         }
     }
 
-    private async Task ValidateExtensionStatusAsync()
+    private async Task ValidateExtensionStatusAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Check if extension is enabled
-        bool isEnabled = await CheckExtensionEnabledAsync().ConfigureAwait(false);
+        bool isEnabled = await CheckExtensionEnabledAsync(cancellationToken).ConfigureAwait(false);
 
         if (!isEnabled)
         {
             Log.Information("[GnomePositionProvider] Extension is not enabled, attempting to enable via DBus...");
 
             // Try to enable it
-            bool enableSuccess = await EnableExtensionAsync().ConfigureAwait(false);
+            bool enableSuccess = await EnableExtensionAsync(cancellationToken).ConfigureAwait(false);
 
             if (enableSuccess)
             {
                 // Verify it's actually enabled now
-                await Task.Delay(500, CancellationToken.None).ConfigureAwait(false); // Give it a moment
-                isEnabled = await CheckExtensionEnabledAsync().ConfigureAwait(false);
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false); // Give it a moment
+                isEnabled = await CheckExtensionEnabledAsync(cancellationToken).ConfigureAwait(false);
 
                 if (isEnabled)
                 {
@@ -230,7 +262,7 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
         ExtensionStatusChanged?.Invoke(this, new ExtensionStatusMessageEventArgs(message));
     }
 
-    private async Task InitializeAsync()
+    private async Task InitializeAsync(CancellationToken cancellationToken)
     {
         LinuxDbusSession? dbusSession = null;
 
@@ -238,7 +270,8 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
         {
             // Ensure extension is installed before connecting
             // This runs on a background thread now, so it won't block startup
-            await EnsureExtensionInstalledAsync().ConfigureAwait(false);
+            await EnsureExtensionInstalledAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (_disposed)
             {
@@ -246,7 +279,7 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
                 return;
             }
 
-            dbusSession = await LinuxDbusSession.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+            dbusSession = await LinuxDbusSession.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
             if (_disposed)
             {
@@ -260,10 +293,30 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
             _trackerClient = dbusSession.CreateGnomeTrackerClient();
 
             // Now that we are connected, check status via DBus
-            await ValidateExtensionStatusAsync().ConfigureAwait(false);
+            await ValidateExtensionStatusAsync(cancellationToken).ConfigureAwait(false);
+
+            try
+            {
+                _positionChangedSubscription = await _trackerClient
+                    .WatchPositionChangedAsync(OnPositionChangedNotification)
+                    .WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.Debug(
+                    ex,
+                    "[GnomePositionProvider] Position-change signal is unavailable; activity polling remains enabled");
+            }
 
             if (_disposed)
             {
+                _positionChangedSubscription?.Dispose();
+                _positionChangedSubscription = null;
                 dbusSession.Dispose();
                 _dbusSession = null;
                 _extensionsClient = null;
@@ -276,8 +329,21 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
             _ = _initializationTcs.TrySetResult(true);
             Log.Information("[GnomePositionProvider] Connected to DBus service");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _positionChangedSubscription?.Dispose();
+            _positionChangedSubscription = null;
+            dbusSession?.Dispose();
+            _dbusSession = null;
+            _extensionsClient = null;
+            _trackerClient = null;
+            _isInitialized = false;
+            _ = _initializationTcs.TrySetResult(false);
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            _positionChangedSubscription?.Dispose();
+            _positionChangedSubscription = null;
             dbusSession?.Dispose();
             _dbusSession = null;
             _extensionsClient = null;
@@ -301,8 +367,15 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
         }
 
         // Wait for initialization with timeout (only on first call)
-        var completedTask = await Task.WhenAny(_initializationTcs.Task, Task.Delay(2000, CancellationToken.None)).ConfigureAwait(false);
-        return completedTask == _initializationTcs.Task && await _initializationTcs.Task.ConfigureAwait(false);
+        try
+        {
+            var completedTask = await Task.WhenAny(_initializationTcs.Task, Task.Delay(2000, _lifetimeToken)).ConfigureAwait(false);
+            return completedTask == _initializationTcs.Task && await _initializationTcs.Task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_lifetimeToken.IsCancellationRequested)
+        {
+            return false;
+        }
     }
 
     public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
@@ -452,6 +525,31 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
             || message.Contains("org.freedesktop.DBus.Error.UnknownObject", StringComparison.OrdinalIgnoreCase);
     }
 
+    private void OnPositionChangedNotification(Exception? exception, (int x, int y) position)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (exception is not null)
+        {
+            Log.Debug(exception, "[GnomePositionProvider] Position-change signal subscription ended");
+            return;
+        }
+
+        try
+        {
+            PositionChanged?.Invoke(
+                this,
+                new MousePositionChangedEventArgs(position.x, position.y));
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[GnomePositionProvider] PositionChanged subscriber threw");
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -460,11 +558,15 @@ public sealed class GnomePositionProvider : IMousePositionProvider, IExtensionSt
         }
 
         _disposed = true;
+        _lifetimeCancellation.Cancel();
+        _positionChangedSubscription?.Dispose();
+        _positionChangedSubscription = null;
         _extensionsClient = null;
         _trackerClient = null;
         _isInitialized = false;
         _dbusSession?.Dispose();
         _dbusSession = null;
+        _lifetimeCancellation.Dispose();
         GC.SuppressFinalize(this);
     }
 }

@@ -3,26 +3,36 @@ namespace CrossMacro.Core.Services.Playback;
 
 /// <summary>
 /// High-precision timing service for playback delays.
-/// Uses coarse async waits with a very short final spin window.
+/// Uses coarse async waits while reserving the final millisecond for a precise wait.
 /// </summary>
 public class PlaybackTimingService : IPlaybackTimingService
 {
     private const int MaxDelayChunkMs = 50;
-    private const int CoarseSafetyMarginMs = 2;
-    private const double FinalSpinWindowMs = 0.1;
+    private const double FinalSpinWindowMs = 1.0;
     private const int YieldSpinInterval = 8;
 
-    public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
+    public async Task WaitAsync(
+        double delayMilliseconds,
+        IPlaybackPauseToken pauseToken,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(pauseToken);
 
-        if (delayMs <= 0)
+        if (!double.IsFinite(delayMilliseconds))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(delayMilliseconds),
+                delayMilliseconds,
+                "Playback delay must be finite.");
+        }
+
+        if (delayMilliseconds <= 0)
         {
             return;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        long deadlineTicks = Stopwatch.GetTimestamp() + MillisecondsToTicks(delayMs);
+        long deadlineTicks = Stopwatch.GetTimestamp() + MillisecondsToTicks(delayMilliseconds);
 
         while (true)
         {
@@ -45,18 +55,12 @@ public class PlaybackTimingService : IPlaybackTimingService
             }
 
             double remainingMs = TicksToMilliseconds(remainingTicks);
-            if (remainingMs > CoarseSafetyMarginMs + 1)
+            int coarseDelayMs = Math.Min(
+                MaxDelayChunkMs,
+                Math.Max(0, Convert.ToInt32(Math.Floor(remainingMs - FinalSpinWindowMs))));
+            if (coarseDelayMs > 0)
             {
-                int delaySliceMs = Math.Min(
-                    MaxDelayChunkMs,
-                    Math.Max(1, Convert.ToInt32(Math.Floor(remainingMs)) - CoarseSafetyMarginMs));
-                await Task.Delay(delaySliceMs, cancellationToken).ConfigureAwait(false);
-                continue;
-            }
-
-            if (remainingMs > FinalSpinWindowMs)
-            {
-                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(coarseDelayMs, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 

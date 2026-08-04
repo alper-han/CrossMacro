@@ -12,7 +12,6 @@ public sealed class MacroPlayerDependencies(
     IPlaybackMouseButtonMapper buttonMapper,
     Func<IInputSimulator>? inputSimulatorFactory,
     IInputSimulatorPool? simulatorPool,
-    IPlaybackBehaviorPolicy playbackBehaviorPolicy,
     IScreenPixelReader screenPixelReader,
     IKeyCodeMapper keyCodeMapper,
     IWindowManager windowManager,
@@ -33,7 +32,6 @@ public sealed class MacroPlayerDependencies(
     public IPlaybackMouseButtonMapper ButtonMapper { get; } = buttonMapper ?? throw new ArgumentNullException(nameof(buttonMapper));
     public Func<IInputSimulator>? InputSimulatorFactory { get; } = inputSimulatorFactory;
     public IInputSimulatorPool? SimulatorPool { get; } = simulatorPool;
-    public IPlaybackBehaviorPolicy PlaybackBehaviorPolicy { get; } = playbackBehaviorPolicy ?? throw new ArgumentNullException(nameof(playbackBehaviorPolicy));
     public IScreenPixelReader ScreenPixelReader { get; } = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
     public IKeyCodeMapper KeyCodeMapper { get; } = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
     public IWindowManager WindowManager { get; } = windowManager ?? throw new ArgumentNullException(nameof(windowManager));

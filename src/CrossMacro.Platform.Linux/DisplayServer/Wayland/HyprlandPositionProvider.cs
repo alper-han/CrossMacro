@@ -50,6 +50,12 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
 
     public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
     {
+        var bounds = await GetDesktopBoundsAsync().ConfigureAwait(false);
+        return bounds is not null ? (bounds.Value.Width, bounds.Value.Height) : null;
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
+    {
         if (_disposed || !IsSupported)
         {
             return null;
@@ -63,7 +69,7 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
                 return null;
             }
 
-            return ParseMonitors(response);
+            return ParseMonitorBounds(response);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -72,15 +78,17 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
         }
     }
 
-    private static (int Width, int Height)? ParseMonitors(string output)
+    internal static ScreenRect? ParseMonitorBounds(string output)
     {
         if (string.IsNullOrWhiteSpace(output))
         {
             return null;
         }
 
-        int maxWidth = 0;
-        int maxHeight = 0;
+        int minX = int.MaxValue;
+        int minY = int.MaxValue;
+        int maxX = int.MinValue;
+        int maxY = int.MinValue;
 
         foreach (var block in output.Split("Monitor ", StringSplitOptions.RemoveEmptyEntries))
         {
@@ -88,10 +96,10 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
             {
                 if (TryParseMonitorBlock(block, out int blockWidth, out int blockHeight, out int posX, out int posY))
                 {
-                    int logicalWidth = blockWidth;
-                    int logicalHeight = blockHeight;
-                    maxWidth = Math.Max(maxWidth, posX + logicalWidth);
-                    maxHeight = Math.Max(maxHeight, posY + logicalHeight);
+                    minX = Math.Min(minX, posX);
+                    minY = Math.Min(minY, posY);
+                    maxX = Math.Max(maxX, checked(posX + blockWidth));
+                    maxY = Math.Max(maxY, checked(posY + blockHeight));
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -100,7 +108,9 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
             }
         }
 
-        return maxWidth > 0 && maxHeight > 0 ? (maxWidth, maxHeight) : null;
+        return minX < maxX && minY < maxY
+            ? new ScreenRect(minX, minY, checked(maxX - minX), checked(maxY - minY))
+            : null;
     }
 
     private static bool TryParseMonitorBlock(string block, out int width, out int height, out int posX, out int posY)
@@ -109,6 +119,7 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
         height = 0;
         posX = 0;
         posY = 0;
+        int transform = 0;
         double scale = 1.0;
         bool resolutionFound = false;
 
@@ -132,12 +143,30 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
                     scale = s;
                 }
             }
+
+            if (trimmed.StartsWith("transform:", StringComparison.Ordinal))
+            {
+                var transformPart = trimmed.Substring("transform:".Length).Trim();
+                _ = int.TryParse(transformPart, NumberStyles.Integer, CultureInfo.InvariantCulture, out transform);
+            }
         }
 
-        if (resolutionFound && width > 0 && height > 0)
+        if (resolutionFound && width > 0 && height > 0 && double.IsFinite(scale) && scale > 0)
         {
-            width = (int)Math.Round(width / scale, MidpointRounding.AwayFromZero);
-            height = (int)Math.Round(height / scale, MidpointRounding.AwayFromZero);
+            if (transform is 1 or 3 or 5 or 7)
+            {
+                (width, height) = (height, width);
+            }
+
+            double logicalWidth = Math.Round(width / scale, MidpointRounding.AwayFromZero);
+            double logicalHeight = Math.Round(height / scale, MidpointRounding.AwayFromZero);
+            if (logicalWidth is < 1 or > int.MaxValue || logicalHeight is < 1 or > int.MaxValue)
+            {
+                return false;
+            }
+
+            width = (int)logicalWidth;
+            height = (int)logicalHeight;
             return true;
         }
 
@@ -201,7 +230,18 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
             return null;
         }
 
-        return ((int)Math.Round(x, MidpointRounding.AwayFromZero), (int)Math.Round(y, MidpointRounding.AwayFromZero));
+        double roundedX = Math.Round(x, MidpointRounding.AwayFromZero);
+        double roundedY = Math.Round(y, MidpointRounding.AwayFromZero);
+        if (!double.IsFinite(roundedX) ||
+            !double.IsFinite(roundedY) ||
+            roundedX is < int.MinValue or > int.MaxValue ||
+            roundedY is < int.MinValue or > int.MaxValue)
+        {
+            Log.Warning("[HyprlandPositionProvider] Cursor position is outside the supported range: {Response}", response);
+            return null;
+        }
+
+        return ((int)roundedX, (int)roundedY);
     }
 
     public void Dispose()

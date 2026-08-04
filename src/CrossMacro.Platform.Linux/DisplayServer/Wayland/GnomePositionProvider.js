@@ -1,5 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -12,6 +13,10 @@ const MouseInterface = `
       <arg type="i" direction="out" name="x"/>
       <arg type="i" direction="out" name="y"/>
     </method>
+    <signal name="PositionChanged">
+      <arg type="i" name="x"/>
+      <arg type="i" name="y"/>
+    </signal>
     <method name="GetResolution">
       <arg type="i" direction="out" name="width"/>
       <arg type="i" direction="out" name="height"/>
@@ -82,6 +87,17 @@ export default class CrossMacroExtension extends Extension {
         this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(MouseInterface, this);
         this._dbusImpl.export(Gio.DBus.session, '/io/github/alper_han/crossmacro/Tracker');
 
+        this._lastPointerX = null;
+        this._lastPointerY = null;
+        this._capturedEventId = global.stage.connect('captured-event', (_actor, event) => {
+            if (event.type() === Clutter.EventType.MOTION) {
+                let [x, y] = event.get_coords();
+                this._publishPosition(Math.floor(x), Math.floor(y));
+            }
+
+            return Clutter.EVENT_PROPAGATE;
+        });
+
         Gio.DBus.session.own_name(
             'io.github.alper_han.crossmacro.Tracker',
             Gio.BusNameOwnerFlags.NONE,
@@ -91,6 +107,11 @@ export default class CrossMacroExtension extends Extension {
     }
 
     disable() {
+        if (this._capturedEventId) {
+            global.stage.disconnect(this._capturedEventId);
+            this._capturedEventId = null;
+        }
+
         if (this._dbusImpl) {
             this._dbusImpl.unexport();
             this._dbusImpl = null;
@@ -100,6 +121,19 @@ export default class CrossMacroExtension extends Extension {
     GetPosition() {
         let [x, y, mask] = global.get_pointer();
         return [x, y];
+    }
+
+    _publishPosition(x, y) {
+        if (!this._dbusImpl || (x === this._lastPointerX && y === this._lastPointerY)) {
+            return;
+        }
+
+        this._lastPointerX = x;
+        this._lastPointerY = y;
+        this._dbusImpl.emit_signal(
+            'PositionChanged',
+            new GLib.Variant('(ii)', [x, y])
+        );
     }
 
     GetResolution() {

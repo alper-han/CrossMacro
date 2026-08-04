@@ -56,7 +56,8 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         IModifierStateTracker modifierTracker,
         IHotkeyStringBuilder hotkeyStringBuilder,
         IMouseButtonMapper mouseButtonMapper,
-        Func<IInputCapture>? inputCaptureFactory = null)
+        Func<IInputCapture>? inputCaptureFactory = null,
+        HotkeySettings? initialSettings = null)
     {
         _configService = configService;
         _hotkeyParser = hotkeyParser;
@@ -67,7 +68,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         _inputCaptureFactory = inputCaptureFactory;
         _persistenceQueue = new HotkeyPersistenceQueue(_configService, ReportPersistenceFailure);
 
-        var settings = _configService.Load();
+        var settings = initialSettings ?? _configService.Load();
         UpdateHotkeys(settings.RecordingHotkey, settings.PlaybackHotkey, settings.PauseHotkey, save: false);
     }
 

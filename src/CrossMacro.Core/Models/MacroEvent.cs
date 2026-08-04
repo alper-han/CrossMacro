@@ -69,6 +69,12 @@ public struct MacroEvent : IEquatable<MacroEvent>
     public MouseCoordinateMode? CoordinateMode { get; set; }
 
     /// <summary>
+    /// Coordinate unit space for this event. When absent, legacy relative events
+    /// retain raw-device behavior and absolute events use logical desktop pixels.
+    /// </summary>
+    public MouseCoordinateSpace? CoordinateSpace { get; set; }
+
+    /// <summary>
     /// Whether a non-scroll mouse button event should use the live cursor
     /// position at playback time instead of the stored coordinates.
     /// </summary>
@@ -87,6 +93,7 @@ public struct MacroEvent : IEquatable<MacroEvent>
             && RandomDelayMaxMs == other.RandomDelayMaxMs
             && KeyCode == other.KeyCode
             && CoordinateMode == other.CoordinateMode
+            && CoordinateSpace == other.CoordinateSpace
             && UseCurrentPosition == other.UseCurrentPosition;
     }
 
@@ -106,6 +113,7 @@ public struct MacroEvent : IEquatable<MacroEvent>
         hash.Add(RandomDelayMaxMs);
         hash.Add(KeyCode);
         hash.Add(CoordinateMode);
+        hash.Add(CoordinateSpace);
         hash.Add(UseCurrentPosition);
         return hash.ToHashCode();
     }

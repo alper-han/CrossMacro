@@ -89,7 +89,6 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<LinuxQuickSetupExecutor>();
         _ = services.AddSingleton<FlatpakHostCommandLauncher>();
         _ = services.AddSingleton<DirectPkexecHostCommandLauncher>();
-        _ = services.AddSingleton<IPlaybackBehaviorPolicy>(_ => new LinuxPlaybackBehaviorPolicy());
         _ = services.AddSingleton<IFlatpakQuickSetupService>(sp => new FlatpakQuickSetupService(
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment,
             sp.GetRequiredService<LinuxQuickSetupExecutor>(),
@@ -189,7 +188,8 @@ internal static class LinuxPlatformServiceCollectionExtensions
     {
         _ = services.AddSingleton<LinuxPositionProviderFactory>(sp => new LinuxPositionProviderFactory(
             sp.GetServices<IPositionProviderSelector>(),
-            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>()));
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
+            static () => WaylandCursorPositionProvider.TryCreate(CancellationToken.None)));
 
         _ = services.AddSingleton<LinuxSimulatorFactory>(sp => new LinuxSimulatorFactory(
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),

@@ -22,7 +22,6 @@ public sealed class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(IDisplaySessionService) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IPermissionChecker) && d.ImplementationType == typeof(LinuxPermissionChecker));
         Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategyFactory) && d.ImplementationType == typeof(LinuxCoordinateStrategyFactory));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPlaybackBehaviorPolicy));
         Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupIdentityResolver) && d.ImplementationType == typeof(LinuxQuickSetupIdentityResolver));
         Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupExecutor) && d.ImplementationType == typeof(LinuxQuickSetupExecutor));
         Assert.Contains(services, d => d.ServiceType == typeof(FlatpakHostCommandLauncher) && d.ImplementationType == typeof(FlatpakHostCommandLauncher));
@@ -91,7 +90,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
     }
 
     [Fact]
-    public void RegisterPlatformServices_RegistersLinuxPlaybackBehaviorPolicy()
+    public void RegisterPlatformServices_RegistersRuntimeInputServices()
     {
         var services = new ServiceCollection();
         new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
@@ -101,11 +100,9 @@ public sealed class LinuxPlatformServiceRegistrarTests
         _ = Assert.IsType<LinuxEnvironmentDetector>(provider.GetRequiredService<ILinuxEnvironmentDetector>());
         _ = Assert.IsType<LinuxDisplaySessionService>(provider.GetRequiredService<IDisplaySessionService>());
         _ = Assert.IsType<LinuxEnvironmentInfoProvider>(provider.GetRequiredService<IEnvironmentInfoProvider>());
-        var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
         var simulatorFactory = provider.GetRequiredService<Func<IInputSimulator>>();
         var captureFactory = provider.GetRequiredService<Func<IInputCapture>>();
 
-        Assert.True(policy.UseHybridAbsoluteDragMovement);
         Assert.NotNull(simulatorFactory);
         Assert.NotNull(captureFactory);
     }

@@ -31,13 +31,11 @@ public sealed class MacOSPlatformServiceRegistrarTests
         var strategyFactory = provider.GetRequiredService<ICoordinateStrategyFactory>();
         var displaySession = provider.GetRequiredService<IDisplaySessionService>();
         var notifier = provider.GetService<IExtensionStatusNotifier>();
-        var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
 
         _ = Assert.IsType<MacOSInputCapture>(captureFactory());
         _ = Assert.IsType<MacOSInputSimulator>(simulatorFactory());
         _ = Assert.IsType<MacOSCoordinateStrategyFactory>(strategyFactory);
         _ = Assert.IsType<GenericDisplaySessionService>(displaySession);
         Assert.Null(notifier);
-        Assert.False(policy.UseHybridAbsoluteDragMovement);
     }
 }

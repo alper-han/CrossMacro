@@ -32,6 +32,12 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
 
     public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
     {
+        var bounds = await GetDesktopBoundsAsync().ConfigureAwait(false);
+        return bounds is not null ? (bounds.Value.Width, bounds.Value.Height) : null;
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
+    {
         if (_disposed)
         {
             return null;
@@ -41,10 +47,15 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
         {
             using var timeoutCts = new CancellationTokenSource(CommandTimeoutMs);
             var output = await _readOutputTopologyAsync(timeoutCts.Token).ConfigureAwait(false);
-            if (TryParseScreenResolution(output, out var width, out var height))
+            if (TryParseDesktopBounds(output, out var bounds))
             {
-                Log.Information("[CosmicPositionProvider] Screen resolution detected: {Width}x{Height}", width, height);
-                return (width, height);
+                Log.Information(
+                    "[CosmicPositionProvider] Desktop bounds detected: ({X},{Y}) {Width}x{Height}",
+                    bounds.X,
+                    bounds.Y,
+                    bounds.Width,
+                    bounds.Height);
+                return bounds;
             }
 
             Log.Warning("[CosmicPositionProvider] Failed to parse screen resolution from cosmic-randr output");
@@ -64,8 +75,21 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
 
     internal static bool TryParseScreenResolution(string? kdl, out int width, out int height)
     {
+        if (TryParseDesktopBounds(kdl, out var bounds))
+        {
+            width = bounds.Width;
+            height = bounds.Height;
+            return true;
+        }
+
         width = 0;
         height = 0;
+        return false;
+    }
+
+    internal static bool TryParseDesktopBounds(string? kdl, out ScreenRect desktopBounds)
+    {
+        desktopBounds = default;
 
         if (string.IsNullOrWhiteSpace(kdl))
         {
@@ -78,8 +102,9 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             var usableOutputs = outputs
                 .Where(static output => output.Enabled &&
                                         !output.IsMirrored &&
-output.Position is not null &&
-output.CurrentMode is not null &&
+                                        output.Position is not null &&
+                                        output.CurrentMode is not null &&
+                                        double.IsFinite(output.Scale) &&
                                         output.Scale > 0)
                 .Select(static output => output.ToLogicalRectangle())
                 .Where(static rectangle => rectangle.Width > 0 && rectangle.Height > 0)
@@ -92,16 +117,15 @@ output.CurrentMode is not null &&
 
             var minX = usableOutputs.Min(static rectangle => rectangle.X);
             var minY = usableOutputs.Min(static rectangle => rectangle.Y);
-            var maxX = usableOutputs.Max(static rectangle => rectangle.X + rectangle.Width);
-            var maxY = usableOutputs.Max(static rectangle => rectangle.Y + rectangle.Height);
+            var maxX = usableOutputs.Max(static rectangle => checked(rectangle.X + rectangle.Width));
+            var maxY = usableOutputs.Max(static rectangle => checked(rectangle.Y + rectangle.Height));
 
             if (maxX <= minX || maxY <= minY)
             {
                 return false;
             }
 
-            width = maxX - minX;
-            height = maxY - minY;
+            desktopBounds = new ScreenRect(minX, minY, checked(maxX - minX), checked(maxY - minY));
             return true;
         }
         catch (FormatException)
@@ -331,8 +355,8 @@ output.CurrentMode is not null &&
                 (modeWidth, modeHeight) = (modeHeight, modeWidth);
             }
 
-            var width = (int)Math.Round(modeWidth / Scale, MidpointRounding.AwayFromZero);
-            var height = (int)Math.Round(modeHeight / Scale, MidpointRounding.AwayFromZero);
+            var width = checked((int)Math.Round(modeWidth / Scale, MidpointRounding.AwayFromZero));
+            var height = checked((int)Math.Round(modeHeight / Scale, MidpointRounding.AwayFromZero));
             var (x, y) = Position ?? throw new InvalidOperationException("Position is not set.");
 
             return new LogicalRectangle(x, y, width, height);

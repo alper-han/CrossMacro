@@ -11,7 +11,7 @@ internal sealed class KdeTrackerServiceMethodHandler(KdeTrackerService service) 
     }
 
     private static readonly ReadOnlyMemory<byte> InterfaceXml =
-        "<interface name=\"io.github.alper_han.crossmacro.Tracker\"><method name=\"UpdatePosition\"><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/></method><method name=\"UpdateResolution\"><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/></method><method name=\"ReportWindowData\"><arg direction=\"in\" type=\"s\"/><arg direction=\"in\" type=\"s\"/></method></interface>"u8.ToArray();
+        "<interface name=\"io.github.alper_han.crossmacro.Tracker\"><method name=\"UpdatePosition\"><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/></method><method name=\"UpdateResolution\"><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/></method><method name=\"UpdateDesktopBounds\"><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/><arg direction=\"in\" type=\"i\"/></method><method name=\"ReportWindowData\"><arg direction=\"in\" type=\"s\"/><arg direction=\"in\" type=\"s\"/></method></interface>"u8.ToArray();
 
     private readonly KdeTrackerService _service = service;
 
@@ -63,6 +63,21 @@ internal sealed class KdeTrackerServiceMethodHandler(KdeTrackerService service) 
                     await _service.UpdateResolutionAsync(width, height).WaitAsync(cancellationToken).ConfigureAwait(false);
                     return DispatchResult.Handled;
                 }
+            case KdeTrackerService.UpdateDesktopBoundsMethod:
+                {
+                    var (x, y, width, height) = ReadFourNumbers(ref reader, signature);
+                    Log.Information(
+                        "[KdeTrackerServiceMethodHandler] Received UpdateDesktopBounds DBus call: ({X},{Y}) {Width}x{Height} (sig: {Signature})",
+                        x,
+                        y,
+                        width,
+                        height,
+                        signature);
+                    await _service.UpdateDesktopBoundsAsync(x, y, width, height)
+                        .WaitAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    return DispatchResult.Handled;
+                }
             case KdeTrackerService.ReportWindowDataMethod:
                 {
                     string correlationId = reader.ReadString();
@@ -78,20 +93,25 @@ internal sealed class KdeTrackerServiceMethodHandler(KdeTrackerService service) 
 
     private static (int First, int Second) ReadTwoNumbers(ref Reader reader, string? signature)
     {
-        if (string.Equals(signature, "dd", StringComparison.Ordinal))
-        {
-            return ((int)reader.ReadDouble(), (int)reader.ReadDouble());
-        }
-        if (string.Equals(signature, "id", StringComparison.Ordinal))
-        {
-            return (reader.ReadInt32(), (int)reader.ReadDouble());
-        }
-        if (string.Equals(signature, "di", StringComparison.Ordinal))
-        {
-            return ((int)reader.ReadDouble(), reader.ReadInt32());
-        }
+        return (
+            ReadNumber(ref reader, signature, index: 0),
+            ReadNumber(ref reader, signature, index: 1));
+    }
 
-        return (reader.ReadInt32(), reader.ReadInt32());
+    private static (int X, int Y, int Width, int Height) ReadFourNumbers(ref Reader reader, string? signature)
+    {
+        return (
+            ReadNumber(ref reader, signature, index: 0),
+            ReadNumber(ref reader, signature, index: 1),
+            ReadNumber(ref reader, signature, index: 2),
+            ReadNumber(ref reader, signature, index: 3));
+    }
+
+    private static int ReadNumber(ref Reader reader, string? signature, int index)
+    {
+        return signature is not null && signature.Length > index && signature[index] is 'd'
+            ? checked((int)reader.ReadDouble())
+            : reader.ReadInt32();
     }
 
     public async ValueTask HandleMethodAsync(MethodContext context)
@@ -153,6 +173,12 @@ internal sealed class KdeTrackerServiceMethodHandler(KdeTrackerService service) 
                    string.Equals(signature, "di", StringComparison.Ordinal);
         }
 
+        if (string.Equals(member, KdeTrackerService.UpdateDesktopBoundsMethod, StringComparison.Ordinal))
+        {
+            return string.IsNullOrEmpty(signature)
+                || (signature.Length is 4 && signature.All(static type => type is 'i' or 'd'));
+        }
+
         return false;
     }
 
@@ -160,6 +186,7 @@ internal sealed class KdeTrackerServiceMethodHandler(KdeTrackerService service) 
     {
         return string.Equals(member, KdeTrackerService.UpdatePositionMethod, StringComparison.Ordinal)
             || string.Equals(member, KdeTrackerService.UpdateResolutionMethod, StringComparison.Ordinal)
+            || string.Equals(member, KdeTrackerService.UpdateDesktopBoundsMethod, StringComparison.Ordinal)
             || string.Equals(member, KdeTrackerService.ReportWindowDataMethod, StringComparison.Ordinal);
     }
 }

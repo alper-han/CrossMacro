@@ -1,7 +1,12 @@
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSupportedProbe = null) : IInputSimulator, IInputSimulatorCapabilities, IBatchedInputSimulator, IAsyncBatchedInputSimulator
+public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSupportedProbe = null) :
+    IInputSimulator,
+    IInputSimulatorCapabilities,
+    IInputSimulatorAbsoluteBounds,
+    IBatchedInputSimulator,
+    IAsyncBatchedInputSimulator
 {
     private IpcClient Client { get; } = client;
     private readonly Func<bool> _isSupportedProbe = isSupportedProbe ?? (static () => true);
@@ -10,6 +15,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
     public string ProviderName => "Secure Daemon (UInput)";
     public bool IsSupported => !_disposed && (Client.IsConnected || IsProbeSupported());
     public bool SupportsAbsoluteCoordinates { get; private set; }
+    public bool UsesZeroBasedScreenBounds => true;
     public bool SupportsBatchedInput => !_disposed && Client.IsConnected;
 
     private const ushort EV_KEY = 0x01;
@@ -38,10 +44,6 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
         int screenHeight = 0,
         CancellationToken cancellationToken = default)
     {
-        // Daemon initializes UInput lazy-loaded or on start. 
-        // Resolution support would require protocol update.
-        // For now, ignoring resolution, assuming relative movement mostly or default mapping.
-
         SupportsAbsoluteCoordinates = false;
 
         // Ensure connection

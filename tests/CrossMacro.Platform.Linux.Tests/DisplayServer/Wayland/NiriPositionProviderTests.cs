@@ -14,6 +14,17 @@ public sealed class NiriPositionProviderTests
     }
 
     [Fact]
+    public void TryParseDesktopBounds_ShouldPreserveNegativeLogicalOrigin()
+    {
+        var parsed = NiriPositionProvider.TryParseDesktopBounds(
+            OutputsResponseWithNegativeOrigin(),
+            out var bounds);
+
+        Assert.True(parsed);
+        Assert.Equal(new ScreenRect(-1920, 0, 4480, 1440), bounds);
+    }
+
+    [Fact]
     public void TryParseScreenResolution_ShouldSupportWrappedOutputsResponse()
     {
         var response = $@"{{ ""Ok"": {{ ""Outputs"": {OutputsObjectWithSingleMonitor()} }} }}" + '\n';
@@ -65,15 +76,34 @@ public sealed class NiriPositionProviderTests
     }
 
     [Fact]
+    public void TryParseDesktopBounds_ShouldRejectOverflowingOutputExtent()
+    {
+        const string response = """
+            {
+              "Outputs": {
+                "DP-1": {
+                  "current_mode": 0,
+                  "logical": { "x": 2147483640, "y": 0, "width": 100, "height": 100 }
+                }
+              }
+            }
+            """;
+
+        Assert.False(NiriPositionProvider.TryParseDesktopBounds(response, out _));
+    }
+
+    [Fact]
     public async Task GetScreenResolutionAsync_ShouldReturnResolution_WhenIpcResponseIsValid()
     {
         using var provider = new NiriPositionProvider(new FakeNiriIpcClient(OutputsResponseWithNegativeOrigin()));
 
         var resolution = await provider.GetScreenResolutionAsync();
+        var bounds = await provider.GetDesktopBoundsAsync();
 
         Assert.False(provider.IsSupported);
         Assert.Null(await provider.GetAbsolutePositionAsync());
         Assert.Equal((4480, 1440), resolution);
+        Assert.Equal(new ScreenRect(-1920, 0, 4480, 1440), bounds);
     }
 
     [Fact]

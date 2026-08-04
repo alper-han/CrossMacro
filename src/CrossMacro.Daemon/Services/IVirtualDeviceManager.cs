@@ -7,6 +7,13 @@ namespace CrossMacro.Daemon.Services;
 internal interface IVirtualDeviceManager : IDisposable
 {
     /// <summary>
+    /// Creates the default relative device when no virtual device exists yet.
+    /// An already configured device is preserved.
+    /// </summary>
+    public Task EnsureInitializedAsync(CancellationToken cancellationToken = default) =>
+        ConfigureAsync(0, 0, cancellationToken);
+
+    /// <summary>
     /// Configures (or re-configures) the virtual device with specific resolution.
     /// If resolution is 0x0, it uses relative mode.
     /// </summary>

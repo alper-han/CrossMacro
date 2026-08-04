@@ -50,5 +50,8 @@ public interface IEventExecutor : IDisposable
     /// <summary>
     /// Execute a macro event with full handling. A null coordinate mode means no implicit coordinate movement.
     /// </summary>
-    public void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode);
+    public void Execute(
+        MacroEvent ev,
+        MouseCoordinateMode? coordinateMode,
+        MouseCoordinateSpace? coordinateSpace = null);
 }

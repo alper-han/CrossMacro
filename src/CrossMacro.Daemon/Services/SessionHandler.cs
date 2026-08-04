@@ -201,7 +201,7 @@ internal sealed class SessionHandler : ISessionHandler
         {
             try
             {
-                await _virtualDevice.ConfigureAsync(0, 0, token).ConfigureAwait(false);
+                await _virtualDevice.EnsureInitializedAsync(token).ConfigureAwait(false);
                 return true;
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)

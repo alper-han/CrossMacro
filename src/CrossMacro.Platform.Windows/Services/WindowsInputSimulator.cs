@@ -7,8 +7,7 @@ public sealed class WindowsInputSimulator :
     ITaggedKeyboardInputSimulator,
     ITaggedUnicodeTextInputSimulator
 {
-    private int _screenWidth;
-    private int _screenHeight;
+    private ScreenRect? _desktopBounds;
 
     // ThreadStatic ensures each thread has its own buffer - thread-safe without locking
     [field: ThreadStatic]
@@ -22,14 +21,8 @@ public sealed class WindowsInputSimulator :
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {
-        _screenWidth = screenWidth;
-        _screenHeight = screenHeight;
-
-        if (_screenWidth <= 0 || _screenHeight <= 0)
-        {
-            _screenWidth = User32.GetSystemMetrics(User32.SM_CXSCREEN);
-            _screenHeight = User32.GetSystemMetrics(User32.SM_CYSCREEN);
-        }
+        _desktopBounds = WindowsMousePositionProvider.ReadDesktopBounds(User32.GetSystemMetrics)
+            ?? (screenWidth > 0 && screenHeight > 0 ? new ScreenRect(0, 0, screenWidth, screenHeight) : null);
     }
 
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
@@ -41,23 +34,7 @@ public sealed class WindowsInputSimulator :
 
     public void MoveAbsolute(int x, int y)
     {
-        var input = new InputStruct
-        {
-            type = InputType.INPUT_MOUSE,
-            U = new InputUnion
-            {
-                mi = new MouseInput
-                {
-                    dx = CalculateAbsoluteCoordinate(x, _screenWidth),
-                    dy = CalculateAbsoluteCoordinate(y, _screenHeight),
-                    dwFlags = MouseEventFlags.MOUSEEVENTF_ABSOLUTE | MouseEventFlags.MOUSEEVENTF_MOVE,
-                    time = 0,
-                    dwExtraInfo = IntPtr.Zero,
-                },
-            },
-        };
-
-        SendInput(input);
+        SendInput(CreateAbsoluteMouseInput(x, y, _desktopBounds));
     }
 
     public void MoveRelative(int dx, int dy)
@@ -71,7 +48,7 @@ public sealed class WindowsInputSimulator :
                 {
                     dx = dx,
                     dy = dy,
-                    dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE,
+                    dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE | MouseEventFlags.MOUSEEVENTF_MOVE_NOCOALESCE,
                     time = 0,
                     dwExtraInfo = IntPtr.Zero,
                 },
@@ -252,14 +229,38 @@ public sealed class WindowsInputSimulator :
         }
     }
 
-    private static int CalculateAbsoluteCoordinate(int val, int max)
+    internal static InputStruct CreateAbsoluteMouseInput(int x, int y, ScreenRect? desktopBounds)
     {
-        if (max <= 0)
+        var bounds = desktopBounds ?? new ScreenRect(0, 0, 1, 1);
+        return new InputStruct
+        {
+            type = InputType.INPUT_MOUSE,
+            U = new InputUnion
+            {
+                mi = new MouseInput
+                {
+                    dx = CalculateAbsoluteCoordinate(x, bounds.X, bounds.Width),
+                    dy = CalculateAbsoluteCoordinate(y, bounds.Y, bounds.Height),
+                    dwFlags = MouseEventFlags.MOUSEEVENTF_ABSOLUTE
+                        | MouseEventFlags.MOUSEEVENTF_VIRTUALDESK
+                        | MouseEventFlags.MOUSEEVENTF_MOVE
+                        | MouseEventFlags.MOUSEEVENTF_MOVE_NOCOALESCE,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero,
+                },
+            },
+        };
+    }
+
+    private static int CalculateAbsoluteCoordinate(int value, int origin, int extent)
+    {
+        if (extent <= 1)
         {
             return 0;
         }
 
-        return val * 65535 / max;
+        long offset = Math.Clamp((long)value - origin, 0, extent - 1L);
+        return (int)Math.Round(offset * 65535d / (extent - 1L), MidpointRounding.AwayFromZero);
     }
 
     private static void SendInput(InputStruct input)

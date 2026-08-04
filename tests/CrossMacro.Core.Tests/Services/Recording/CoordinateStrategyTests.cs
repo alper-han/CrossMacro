@@ -30,9 +30,9 @@ public sealed class CoordinateStrategyTests
         var resultX = strategy.ProcessPosition(xEvent);
         var resultY = strategy.ProcessPosition(yEvent);
 
-        // Assert - should return (0,0) until sync
-        _ = resultX.Should().Be((0, 0));
-        _ = resultY.Should().Be((0, 0));
+        // Assert
+        _ = resultX.HasValue.Should().BeFalse();
+        _ = resultY.HasValue.Should().BeFalse();
     }
 
     [Fact]
@@ -84,8 +84,8 @@ public sealed class CoordinateStrategyTests
         _ = strategy.ProcessPosition(syncEvent);
         var secondSync = strategy.ProcessPosition(syncEvent);
 
-        // Assert - second sync should return (0,0) since pending was cleared
-        _ = secondSync.Should().Be((0, 0));
+        // Assert
+        _ = secondSync.HasValue.Should().BeFalse();
     }
 
     [Fact]

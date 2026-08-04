@@ -47,6 +47,9 @@ public class EditorActionConverter : IEditorActionConverter
                     Y = action.Y,
                     DelayMs = action.DelayMs,
                     CoordinateMode = action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
+                    CoordinateSpace = action.IsAbsolute
+                        ? MouseCoordinateSpace.LogicalDesktop
+                        : action.CoordinateSpace,
                 });
                 break;
 
@@ -60,6 +63,7 @@ public class EditorActionConverter : IEditorActionConverter
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
                     CoordinateMode = GetCoordinateMode(action),
+                    CoordinateSpace = GetCoordinateSpace(action),
                 });
                 break;
 
@@ -73,6 +77,7 @@ public class EditorActionConverter : IEditorActionConverter
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
                     CoordinateMode = GetCoordinateMode(action),
+                    CoordinateSpace = GetCoordinateSpace(action),
                 });
                 break;
 
@@ -86,6 +91,7 @@ public class EditorActionConverter : IEditorActionConverter
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
                     CoordinateMode = GetCoordinateMode(action),
+                    CoordinateSpace = GetCoordinateSpace(action),
                 });
                 break;
 
@@ -312,6 +318,17 @@ public class EditorActionConverter : IEditorActionConverter
         return action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative;
     }
 
+    private static MouseCoordinateSpace? GetCoordinateSpace(EditorAction action)
+    {
+        return GetCoordinateMode(action) switch
+        {
+            MouseCoordinateMode.Absolute => MouseCoordinateSpace.LogicalDesktop,
+            MouseCoordinateMode.Relative => action.CoordinateSpace,
+            null => null,
+            _ => null,
+        };
+    }
+
     private static MacroEvent CloneEvent(MacroEvent ev)
     {
         return ev;
@@ -347,6 +364,7 @@ public class EditorActionConverter : IEditorActionConverter
                 if (ev.CoordinateMode is not null)
                 {
                     action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
+                    action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
                 }
                 break;
 
@@ -368,6 +386,7 @@ public class EditorActionConverter : IEditorActionConverter
                     if (ev.CoordinateMode is not null)
                     {
                         action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
+                        action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
                     }
                 }
                 break;
@@ -381,6 +400,7 @@ public class EditorActionConverter : IEditorActionConverter
                 if (ev.CoordinateMode is not null)
                 {
                     action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
+                    action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
                 }
                 break;
 
@@ -393,6 +413,7 @@ public class EditorActionConverter : IEditorActionConverter
                 if (ev.CoordinateMode is not null)
                 {
                     action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
+                    action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
                 }
                 break;
 
@@ -422,6 +443,17 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         return action;
+    }
+
+    private static MouseCoordinateSpace ResolveExplicitEditorCoordinateSpace(MacroEvent ev)
+    {
+        return ev.CoordinateMode switch
+        {
+            MouseCoordinateMode.Absolute => MouseCoordinateSpace.LogicalDesktop,
+            MouseCoordinateMode.Relative => ev.CoordinateSpace ?? MouseCoordinateSpace.RawDevice,
+            null => MouseCoordinateSpace.LogicalDesktop,
+            _ => MouseCoordinateSpace.LogicalDesktop,
+        };
     }
 
     /// <summary>
@@ -632,7 +664,7 @@ public class EditorActionConverter : IEditorActionConverter
         switch (action.Type)
         {
             case EditorActionType.MouseMove:
-                yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
+                yield return $"move {ToMouseMoveModeToken(action)} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
                 yield break;
 
             case EditorActionType.MouseClick:
@@ -642,7 +674,7 @@ public class EditorActionConverter : IEditorActionConverter
                 }
                 else
                 {
-                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
+                    yield return $"move {ToMouseMoveModeToken(action)} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
                     yield return $"click {ToButtonToken(action.Button)}";
                 }
 
@@ -651,7 +683,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.MouseDown:
                 if (!action.UseCurrentPosition)
                 {
-                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
+                    yield return $"move {ToMouseMoveModeToken(action)} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
                 }
 
                 yield return action.UseCurrentPosition
@@ -662,7 +694,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.MouseUp:
                 if (!action.UseCurrentPosition)
                 {
-                    yield return $"move {(action.IsAbsolute ? "abs" : "rel")} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
+                    yield return $"move {ToMouseMoveModeToken(action)} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
                 }
 
                 yield return action.UseCurrentPosition
@@ -799,6 +831,14 @@ public class EditorActionConverter : IEditorActionConverter
             default:
                 yield break;
         }
+    }
+
+    private static string ToMouseMoveModeToken(EditorAction action)
+    {
+        var coordinateMode = action.IsAbsolute
+            ? MouseCoordinateMode.Absolute
+            : MouseCoordinateMode.Relative;
+        return RunScriptSyntax.ToMouseMoveModeToken(coordinateMode, action.CoordinateSpace);
     }
 
     private static string BuildPixelColorStep(EditorAction action)
@@ -1170,14 +1210,24 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        if (!TryParseMoveStep(existingSteps[^1].Step, out var previousIsAbsolute, out var previousX, out var previousY)
-            || !previousIsAbsolute)
+        if (!TryParseMoveStep(
+                existingSteps[^1].Step,
+                out var previousMode,
+                out _,
+                out var previousX,
+                out var previousY)
+            || previousMode is not MouseCoordinateMode.Absolute)
         {
             return false;
         }
 
-        if (!TryParseMoveStep(actionSteps[0], out var currentIsAbsolute, out var currentX, out var currentY)
-            || !currentIsAbsolute)
+        if (!TryParseMoveStep(
+                actionSteps[0],
+                out var currentMode,
+                out _,
+                out var currentX,
+                out var currentY)
+            || currentMode is not MouseCoordinateMode.Absolute)
         {
             return false;
         }
@@ -1267,6 +1317,7 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     action.UseCurrentPosition = true;
                     action.IsAbsolute = false;
+                    action.CoordinateSpace = MouseCoordinateSpace.LogicalDesktop;
                     action.X = 0;
                     action.Y = 0;
                 }
@@ -1274,6 +1325,8 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     action.IsAbsolute = MacroPositionSemantics.ResolveCoordinateMode(ev, sequence.IsAbsoluteCoordinates)
  is MouseCoordinateMode.Absolute;
+                    action.CoordinateSpace = MacroPositionSemantics.ResolveCoordinateSpace(ev, sequence.IsAbsoluteCoordinates)
+                        ?? MouseCoordinateSpace.LogicalDesktop;
                 }
             }
 
@@ -1408,6 +1461,7 @@ public class EditorActionConverter : IEditorActionConverter
         var absoluteCursorX = 0;
         var absoluteCursorY = 0;
         MouseCoordinateMode? currentMoveMode = null;
+        MouseCoordinateSpace? currentMoveCoordinateSpace = null;
 
         for (var index = 0; index < scriptSteps.Count; index++)
         {
@@ -1420,10 +1474,16 @@ public class EditorActionConverter : IEditorActionConverter
             var step = rawStep.Trim();
             var stepForType = rawStep.TrimStart();
 
-            if (TryParseMoveStep(step, out var isAbsoluteMove, out var moveX, out var moveY))
+            if (TryParseMoveStep(
+                step,
+                out var moveMode,
+                out var moveCoordinateSpace,
+                out var moveX,
+                out var moveY))
             {
-                currentMoveMode = isAbsoluteMove ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative;
-                if (isAbsoluteMove)
+                currentMoveMode = moveMode;
+                currentMoveCoordinateSpace = moveCoordinateSpace;
+                if (moveMode is MouseCoordinateMode.Absolute)
                 {
                     hasAbsoluteCursorPosition = true;
                     absoluteCursorX = moveX;
@@ -1437,7 +1497,8 @@ public class EditorActionConverter : IEditorActionConverter
                 actions.Add(new EditorAction
                 {
                     Type = EditorActionType.MouseMove,
-                    IsAbsolute = isAbsoluteMove,
+                    IsAbsolute = moveMode is MouseCoordinateMode.Absolute,
+                    CoordinateSpace = moveCoordinateSpace,
                     X = moveX,
                     Y = moveY,
                 });
@@ -1462,6 +1523,7 @@ public class EditorActionConverter : IEditorActionConverter
                         currentButtonKeyword,
                         currentButton,
                         isAbsolute: true,
+                        MouseCoordinateSpace.LogicalDesktop,
                         absoluteCursorX,
                         absoluteCursorY));
                     continue;
@@ -1473,6 +1535,7 @@ public class EditorActionConverter : IEditorActionConverter
                         currentButtonKeyword,
                         currentButton,
                         isAbsolute: false,
+                        currentMoveCoordinateSpace ?? MouseCoordinateSpace.LogicalDesktop,
                         0,
                         0));
                     continue;
@@ -1656,9 +1719,15 @@ public class EditorActionConverter : IEditorActionConverter
         return actions.Count > 0;
     }
 
-    private static bool TryParseMoveStep(string step, out bool isAbsolute, out int x, out int y)
+    private static bool TryParseMoveStep(
+        string step,
+        out MouseCoordinateMode coordinateMode,
+        out MouseCoordinateSpace coordinateSpace,
+        out int x,
+        out int y)
     {
-        isAbsolute = false;
+        coordinateMode = MouseCoordinateMode.Relative;
+        coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
         x = 0;
         y = 0;
 
@@ -1668,10 +1737,7 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        if (!tokens[1].Equals("abs", StringComparison.OrdinalIgnoreCase)
-            && !tokens[1].Equals("absolute", StringComparison.OrdinalIgnoreCase)
-            && !tokens[1].Equals("rel", StringComparison.OrdinalIgnoreCase)
-            && !tokens[1].Equals("relative", StringComparison.OrdinalIgnoreCase))
+        if (!RunScriptSyntax.TryParseMouseMoveMode(tokens[1], out coordinateMode, out coordinateSpace))
         {
             return false;
         }
@@ -1682,8 +1748,6 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        isAbsolute = tokens[1].Equals("abs", StringComparison.OrdinalIgnoreCase)
-            || tokens[1].Equals("absolute", StringComparison.OrdinalIgnoreCase);
         return true;
     }
 
@@ -1753,7 +1817,13 @@ public class EditorActionConverter : IEditorActionConverter
         return button is not MacroMouseButton.None;
     }
 
-    private static EditorAction CreatePositionedButtonAction(string keyword, MacroMouseButton button, bool isAbsolute, int x, int y)
+    private static EditorAction CreatePositionedButtonAction(
+        string keyword,
+        MacroMouseButton button,
+        bool isAbsolute,
+        MouseCoordinateSpace coordinateSpace,
+        int x,
+        int y)
     {
         var actionType = keyword switch
         {
@@ -1768,6 +1838,7 @@ public class EditorActionConverter : IEditorActionConverter
             Type = actionType,
             Button = button,
             IsAbsolute = isAbsolute,
+            CoordinateSpace = coordinateSpace,
             X = x,
             Y = y,
             UseCurrentPosition = false,

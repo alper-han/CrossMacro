@@ -8,6 +8,11 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 public interface IPlaybackCoordinator
 {
     /// <summary>
+    /// Configures logical desktop bounds used when cursor synchronization is unavailable.
+    /// </summary>
+    public void ConfigureDesktopBounds(ScreenRect? desktopBounds);
+
+    /// <summary>
     /// Initialize playback for a macro (called once at start)
     /// </summary>
     /// <param name="macro">The macro being played</param>
@@ -50,12 +55,24 @@ public interface IPlaybackCoordinator
     public int CurrentY { get; }
 
     /// <summary>
+    /// Whether the tracked coordinates are known to match the logical cursor position.
+    /// </summary>
+    public bool HasKnownPosition { get; }
+
+    /// <summary>
+    /// Refreshes the logical cursor position when the current estimate is unknown.
+    /// </summary>
+    public Task<bool> TrySynchronizePositionAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Update tracked position
     /// </summary>
     public void UpdatePosition(int x, int y);
 
     /// <summary>
-    /// Add delta to tracked position
+    /// Marks the tracked position unknown. Set <paramref name="movementMayBePending" /> when
+    /// a raw movement was just injected and the platform position provider may still expose
+    /// the pre-injection position briefly.
     /// </summary>
-    public void AddDelta(int dx, int dy);
+    public void InvalidatePosition(bool movementMayBePending = false);
 }

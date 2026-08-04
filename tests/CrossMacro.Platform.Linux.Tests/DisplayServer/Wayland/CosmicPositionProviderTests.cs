@@ -14,6 +14,34 @@ public sealed class CosmicPositionProviderTests
     }
 
     [Fact]
+    public void TryParseDesktopBounds_ShouldPreserveNegativeLogicalOrigin()
+    {
+        const string kdl = """
+            output "DP-1" enabled=#true {
+              position -1920 -200
+              scale 1.00
+              transform "normal"
+              modes {
+                mode 1920 1080 60000 current=#true
+              }
+            }
+            output "DP-2" enabled=#true {
+              position 0 0
+              scale 1.00
+              transform "normal"
+              modes {
+                mode 2560 1440 60000 current=#true
+              }
+            }
+            """;
+
+        var parsed = CosmicPositionProvider.TryParseDesktopBounds(kdl, out var bounds);
+
+        Assert.True(parsed);
+        Assert.Equal(new ScreenRect(-1920, -200, 4480, 1640), bounds);
+    }
+
+    [Fact]
     public void TryParseScreenResolution_ShouldIgnoreDisabledAndMirroredOutputs()
     {
         string kdl = "output \"DP-1\" enabled=#true {\n"

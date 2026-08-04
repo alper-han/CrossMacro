@@ -102,6 +102,7 @@ public sealed class RunScriptCompiler
         var hasEvents = false;
         var hasScreenReadingSteps = false;
         MouseCoordinateMode? currentMoveMode = null;
+        MouseCoordinateSpace? currentMoveCoordinateSpace = null;
         var hasAbsoluteCursorPosition = false;
         var absoluteCursorX = 0;
         var absoluteCursorY = 0;
@@ -153,23 +154,31 @@ public sealed class RunScriptCompiler
                 continue;
             }
 
-            if (TryParseMove(step, out var isAbsolute, out var x, out var y, out var moveError))
+            if (TryParseMove(
+                step,
+                out var coordinateMode,
+                out var coordinateSpace,
+                out var x,
+                out var y,
+                out var moveError))
             {
                 if (moveError is not null)
                 {
                     return RunScriptCompileResult.Fail($"{stepPrefix}: {moveError}");
                 }
 
-                currentMoveMode = isAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative;
+                currentMoveMode = coordinateMode;
+                currentMoveCoordinateSpace = coordinateSpace;
                 EmitEvent(new MacroEvent
                 {
                     Type = EventType.MouseMove,
                     X = x,
                     Y = y,
-                    CoordinateMode = currentMoveMode,
+                    CoordinateMode = coordinateMode,
+                    CoordinateSpace = coordinateSpace,
                 });
 
-                if (isAbsolute)
+                if (coordinateMode is MouseCoordinateMode.Absolute)
                 {
                     hasAbsoluteCursorPosition = true;
                     absoluteCursorX = x;
@@ -359,10 +368,12 @@ public sealed class RunScriptCompiler
                 buttonEvent.X = absoluteCursorX;
                 buttonEvent.Y = absoluteCursorY;
                 buttonEvent.CoordinateMode = MouseCoordinateMode.Absolute;
+                buttonEvent.CoordinateSpace = MouseCoordinateSpace.LogicalDesktop;
             }
             else if (currentMoveMode is MouseCoordinateMode.Relative)
             {
                 buttonEvent.CoordinateMode = MouseCoordinateMode.Relative;
+                buttonEvent.CoordinateSpace = currentMoveCoordinateSpace ?? MouseCoordinateSpace.LogicalDesktop;
             }
 
             EmitEvent(buttonEvent);
@@ -1584,9 +1595,16 @@ public sealed class RunScriptCompiler
         return true;
     }
 
-    private static bool TryParseMove(string step, out bool isAbsolute, out int x, out int y, out string? error)
+    private static bool TryParseMove(
+        string step,
+        out MouseCoordinateMode coordinateMode,
+        out MouseCoordinateSpace coordinateSpace,
+        out int x,
+        out int y,
+        out string? error)
     {
-        isAbsolute = false;
+        coordinateMode = MouseCoordinateMode.Relative;
+        coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
         x = 0;
         y = 0;
         error = null;
@@ -1597,19 +1615,9 @@ public sealed class RunScriptCompiler
             return false;
         }
 
-        if (string.Equals(parts[1], "abs", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(parts[1], "absolute", StringComparison.OrdinalIgnoreCase))
+        if (!RunScriptSyntax.TryParseMouseMoveMode(parts[1], out coordinateMode, out coordinateSpace))
         {
-            isAbsolute = true;
-        }
-        else if (string.Equals(parts[1], "rel", StringComparison.OrdinalIgnoreCase)
-                 || string.Equals(parts[1], "relative", StringComparison.OrdinalIgnoreCase))
-        {
-            isAbsolute = false;
-        }
-        else
-        {
-            error = "Invalid move mode. Expected: abs|absolute|rel|relative.";
+            error = "Invalid move mode. Expected: abs|absolute|rel|relative|rel-logical|rel-raw.";
             return true;
         }
 

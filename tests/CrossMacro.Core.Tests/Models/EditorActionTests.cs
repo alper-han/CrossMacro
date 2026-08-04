@@ -48,6 +48,7 @@ public sealed class EditorActionTests
             X = 40,
             Y = 55,
             IsAbsolute = false,
+            CoordinateSpace = MouseCoordinateSpace.RawDevice,
             Button = MacroMouseButton.Right,
             KeyCode = 30,
             KeyName = "A",
@@ -107,6 +108,7 @@ public sealed class EditorActionTests
         _ = clone.X.Should().Be(source.X);
         _ = clone.Y.Should().Be(source.Y);
         _ = clone.IsAbsolute.Should().Be(source.IsAbsolute);
+        _ = clone.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
         _ = clone.Button.Should().Be(source.Button);
         _ = clone.KeyCode.Should().Be(source.KeyCode);
         _ = clone.KeyName.Should().Be(source.KeyName);
@@ -154,6 +156,21 @@ public sealed class EditorActionTests
         _ = clone.WindowWidth.Should().Be(source.WindowWidth);
         _ = clone.WindowHeight.Should().Be(source.WindowHeight);
         _ = clone.WindowWorkspace.Should().Be(source.WindowWorkspace);
+    }
+
+    [Fact]
+    public void IsAbsolute_WhenModeChanges_UsesLogicalSpaceForNewEditorCoordinates()
+    {
+        var action = new EditorAction
+        {
+            IsAbsolute = false,
+            CoordinateSpace = MouseCoordinateSpace.RawDevice,
+        };
+
+        action.IsAbsolute = true;
+        action.IsAbsolute = false;
+
+        _ = action.CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
     }
 
     [Fact]

@@ -52,6 +52,28 @@ public static class MacroPositionSemantics
         return ev.CoordinateMode ?? (legacyIsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative);
     }
 
+    public static MouseCoordinateSpace? ResolveCoordinateSpace(MacroEvent ev, bool legacyIsAbsolute)
+    {
+        return ResolveCoordinateMode(ev, legacyIsAbsolute) switch
+        {
+            MouseCoordinateMode.Absolute => MouseCoordinateSpace.LogicalDesktop,
+            MouseCoordinateMode.Relative => ev.CoordinateSpace ?? MouseCoordinateSpace.RawDevice,
+            null => null,
+            _ => null,
+        };
+    }
+
+    public static bool HasAnyLogicalDesktopCoordinateEvents(MacroSequence macro)
+    {
+        if (macro is null)
+        {
+            return false;
+        }
+
+        return macro.Events.Any(ev =>
+            ResolveCoordinateSpace(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateSpace.LogicalDesktop);
+    }
+
     public static bool HasAnyAbsoluteCoordinateEvents(MacroSequence macro)
     {
         if (macro is null)
@@ -60,6 +82,27 @@ public static class MacroPositionSemantics
         }
 
         return macro.Events.Any(ev => ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Absolute);
+    }
+
+    public static MouseCoordinateMode? ResolveInitialCoordinateMode(MacroSequence macro)
+    {
+        if (macro is null)
+        {
+            return null;
+        }
+
+        var firstPositionRelevantEvent = macro.Events.FirstOrDefault(ev =>
+            ev.Type is EventType.MouseMove || IsNonScrollMouseButtonEvent(ev));
+        return firstPositionRelevantEvent.Type is EventType.None
+            ? null
+            : ResolveCoordinateMode(firstPositionRelevantEvent, macro.IsAbsoluteCoordinates);
+    }
+
+    public static bool RequiresInitialCornerReset(MacroSequence macro)
+    {
+        return macro is not null
+            && !macro.SkipInitialZeroZero
+            && ResolveInitialCoordinateMode(macro) is MouseCoordinateMode.Relative;
     }
 
     public static CoordinateModeSummary GetCoordinateModeSummary(MacroSequence macro)
@@ -100,8 +143,7 @@ public static class MacroPositionSemantics
 
     public static bool IsLegacyCurrentPositionMacro(MacroSequence macro)
     {
-        if (macro is null || macro.IsAbsoluteCoordinates
-|| !macro.SkipInitialZeroZero)
+        if (macro is null || macro.IsAbsoluteCoordinates || !macro.SkipInitialZeroZero)
         {
             return false;
         }

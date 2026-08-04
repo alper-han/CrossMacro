@@ -141,28 +141,29 @@ public sealed class HyprlandIpcClient : IDisposable
             // Connect
             await socket.ConnectAsync(endpoint, linkedCts.Token).ConfigureAwait(false);
 
-            // Send command
-            _ = await socket.SendAsync(commandBytes, SocketFlags.None, linkedCts.Token).ConfigureAwait(false);
+            await SendAllAsync(socket, commandBytes, linkedCts.Token).ConfigureAwait(false);
 
             // Read response using ArrayPool to reduce allocations
             var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
             try
             {
                 using var ms = new MemoryStream();
-                int received;
-
-                do
+                while (true)
                 {
-                    received = await socket.ReceiveAsync(
+                    int received = await socket.ReceiveAsync(
                         new Memory<byte>(buffer, 0, BufferSize),
                         SocketFlags.None,
                         linkedCts.Token).ConfigureAwait(false);
 
-                    if (received > 0)
+                    if (received is 0)
                     {
-                        await ms.WriteAsync(buffer.AsMemory(0, received), linkedCts.Token).ConfigureAwait(false);
+                        break;
                     }
-                } while (received == BufferSize);
+
+                    await ms.WriteAsync(
+                        buffer.AsMemory(start: 0, length: received),
+                        linkedCts.Token).ConfigureAwait(false);
+                }
 
                 return Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length).Trim();
             }
@@ -187,46 +188,57 @@ public sealed class HyprlandIpcClient : IDisposable
         }
     }
 
+    private static async Task SendAllAsync(
+        Socket socket,
+        ReadOnlyMemory<byte> payload,
+        CancellationToken cancellationToken)
+    {
+        int sent = 0;
+        while (sent < payload.Length)
+        {
+            int count = await socket.SendAsync(
+                payload[sent..],
+                SocketFlags.None,
+                cancellationToken).ConfigureAwait(false);
+            if (count is 0)
+            {
+                throw new IOException("Hyprland IPC socket closed before the command was sent.");
+            }
+
+            sent += count;
+        }
+    }
+
     private static string? DiscoverSocketPath() => DiscoverSocketPath(
         Environment.GetEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE"),
         Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR"));
 
     private static string? DiscoverSocketPath(string? instanceSignature, string? runtimeDir)
     {
-        // Check if running on Hyprland
-        if (string.IsNullOrEmpty(instanceSignature))
+        if (string.IsNullOrWhiteSpace(instanceSignature))
         {
             return null;
         }
 
-        if (string.IsNullOrEmpty(runtimeDir))
-        {
-            return null;
-        }
-
-        var hyprDir = Path.Combine(runtimeDir, "hypr");
-        if (!Directory.Exists(hyprDir))
+        if (string.IsNullOrWhiteSpace(runtimeDir)
+            || !string.Equals(
+                Path.GetFileName(instanceSignature),
+                instanceSignature,
+                StringComparison.Ordinal))
         {
             return null;
         }
 
         try
         {
-            foreach (var instanceDir in Directory.GetDirectories(hyprDir))
-            {
-                var socketPath = Path.Combine(instanceDir, ".socket.sock");
-                if (File.Exists(socketPath))
-                {
-                    return socketPath;
-                }
-            }
+            var socketPath = Path.Combine(runtimeDir, "hypr", instanceSignature, ".socket.sock");
+            return File.Exists(socketPath) ? socketPath : null;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Debug(ex, "[HyprlandIpcClient] Error searching for socket");
+            Log.Debug(ex, "[HyprlandIpcClient] Error resolving active instance socket");
+            return null;
         }
-
-        return null;
     }
 
     public void Dispose()

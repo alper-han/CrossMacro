@@ -11,14 +11,17 @@ public class LinuxPositionProviderFactory
     private readonly IEnumerable<IPositionProviderSelector> _selectors;
     private readonly ILinuxEnvironmentDetector? _environmentDetector;
     private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
+    private readonly Func<IMousePositionProvider?>? _waylandCursorProviderFactory;
 
     public LinuxPositionProviderFactory(
         IEnumerable<IPositionProviderSelector> selectors,
-        ILinuxCapabilitySnapshotProvider snapshotProvider)
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
+        Func<IMousePositionProvider?>? waylandCursorProviderFactory = null)
     {
         _selectors = selectors ?? throw new ArgumentNullException(nameof(selectors));
         _environmentDetector = null;
         _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
+        _waylandCursorProviderFactory = waylandCursorProviderFactory;
     }
 
     internal LinuxPositionProviderFactory(
@@ -28,6 +31,7 @@ public class LinuxPositionProviderFactory
         _selectors = selectors ?? throw new ArgumentNullException(nameof(selectors));
         _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
         _snapshotProvider = null;
+        _waylandCursorProviderFactory = null;
     }
 
     internal LinuxPositionProviderFactory(
@@ -38,6 +42,7 @@ public class LinuxPositionProviderFactory
         _selectors = selectors ?? throw new ArgumentNullException(nameof(selectors));
         _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
         _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
+        _waylandCursorProviderFactory = null;
     }
 
     /// <summary>
@@ -45,7 +50,8 @@ public class LinuxPositionProviderFactory
     /// </summary>
     public IMousePositionProvider Create()
     {
-        var compositorType = _snapshotProvider?.GetSnapshot().Compositor ?? _environmentDetector?.DetectedCompositor ?? CompositorType.Unknown;
+        var snapshot = _snapshotProvider?.GetSnapshot();
+        var compositorType = snapshot?.Compositor ?? _environmentDetector?.DetectedCompositor ?? CompositorType.Unknown;
 
         LoggingExtensions.LogOnce("LinuxPositionProviderFactory_Compositor", "[LinuxPositionProviderFactory] Compositor: {Compositor}", compositorType);
 
@@ -57,9 +63,18 @@ public class LinuxPositionProviderFactory
 
         if (provider is null)
         {
-            // Should ideally not happen if Fallback selector is registered, but as a safety net:
             Log.Warning("[LinuxPositionProviderFactory] No matching selector found for {Compositor}, using Fallback.", compositorType);
-            return new FallbackPositionProvider();
+            provider = new FallbackPositionProvider();
+        }
+
+        if (snapshot is { IsWayland: true }
+            && provider is not IMousePositionChangeSource
+            && _waylandCursorProviderFactory?.Invoke() is { } waylandCursorProvider)
+        {
+            Log.Information(
+                "[LinuxPositionProviderFactory] Using ext-image-copy cursor notifications with {FallbackProvider} fallback",
+                provider.ProviderName);
+            return new CompositeMousePositionProvider(waylandCursorProvider, provider);
         }
 
         return provider;

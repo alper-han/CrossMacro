@@ -116,6 +116,84 @@ public sealed class MacroPositionSemanticsTests
     }
 
     [Fact]
+    public void ResolveCoordinateSpace_WhenAbsolute_ReturnsLogicalDesktop()
+    {
+        var ev = new MacroEvent
+        {
+            Type = EventType.MouseMove,
+            CoordinateMode = MouseCoordinateMode.Absolute,
+            CoordinateSpace = MouseCoordinateSpace.RawDevice,
+        };
+
+        _ = MacroPositionSemantics.ResolveCoordinateSpace(ev, legacyIsAbsolute: false)
+            .Should().Be(MouseCoordinateSpace.LogicalDesktop);
+    }
+
+    [Theory]
+    [InlineData(MouseCoordinateSpace.LogicalDesktop)]
+    [InlineData(MouseCoordinateSpace.RawDevice)]
+    public void ResolveCoordinateSpace_WhenRelativeSpaceIsExplicit_PreservesSpace(MouseCoordinateSpace coordinateSpace)
+    {
+        var ev = new MacroEvent
+        {
+            Type = EventType.MouseMove,
+            CoordinateMode = MouseCoordinateMode.Relative,
+            CoordinateSpace = coordinateSpace,
+        };
+
+        _ = MacroPositionSemantics.ResolveCoordinateSpace(ev, legacyIsAbsolute: true)
+            .Should().Be(coordinateSpace);
+    }
+
+    [Fact]
+    public void ResolveCoordinateSpace_WhenLegacyRelativeSpaceIsUnset_DefaultsToRawDevice()
+    {
+        var ev = new MacroEvent { Type = EventType.MouseMove };
+
+        _ = MacroPositionSemantics.ResolveCoordinateSpace(ev, legacyIsAbsolute: false)
+            .Should().Be(MouseCoordinateSpace.RawDevice);
+    }
+
+    [Fact]
+    public void ResolveCoordinateSpace_WhenEventIsNotCoordinateBearing_ReturnsNull()
+    {
+        var ev = new MacroEvent
+        {
+            Type = EventType.KeyPress,
+            CoordinateMode = MouseCoordinateMode.Relative,
+            CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+        };
+
+        _ = MacroPositionSemantics.ResolveCoordinateSpace(ev, legacyIsAbsolute: false).Should().BeNull();
+    }
+
+    [Fact]
+    public void HasAnyLogicalDesktopCoordinateEvents_WhenLogicalRelativeExists_ReturnsTrue()
+    {
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            Events =
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+            },
+        };
+
+        _ = MacroPositionSemantics.HasAnyLogicalDesktopCoordinateEvents(macro).Should().BeTrue();
+    }
+
+    [Fact]
     public void HasAnyAbsoluteCoordinateEvents_WhenEffectiveAbsoluteExists_ReturnsTrue()
     {
         var macro = new MacroSequence
@@ -143,6 +221,65 @@ public sealed class MacroPositionSemanticsTests
         };
 
         _ = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeFalse();
+    }
+
+    [Fact]
+    public void RequiresInitialCornerReset_WhenFirstPositionEventIsRelativeAndResetEnabled_ReturnsTrue()
+    {
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            SkipInitialZeroZero = false,
+            Events =
+            {
+                new() { Type = EventType.KeyPress, KeyCode = 30 },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
+            },
+        };
+
+        _ = MacroPositionSemantics.ResolveInitialCoordinateMode(macro)
+            .Should().Be(MouseCoordinateMode.Relative);
+        _ = MacroPositionSemantics.RequiresInitialCornerReset(macro).Should().BeTrue();
+    }
+
+    [Fact]
+    public void RequiresInitialCornerReset_WhenCurrentPositionClickIsFirst_ReturnsFalse()
+    {
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = false,
+            Events =
+            {
+                new()
+                {
+                    Type = EventType.Click,
+                    Button = MacroMouseButton.Left,
+                    UseCurrentPosition = true,
+                },
+                new() { Type = EventType.MouseMove },
+            },
+        };
+
+        _ = MacroPositionSemantics.ResolveInitialCoordinateMode(macro).Should().BeNull();
+        _ = MacroPositionSemantics.RequiresInitialCornerReset(macro).Should().BeFalse();
+    }
+
+    [Fact]
+    public void RequiresInitialCornerReset_WhenResetIsSkipped_ReturnsFalse()
+    {
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events = { new() { Type = EventType.MouseMove } },
+        };
+
+        _ = MacroPositionSemantics.RequiresInitialCornerReset(macro).Should().BeFalse();
     }
 
     [Fact]

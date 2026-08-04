@@ -16,11 +16,11 @@ public sealed class WindowsAbsoluteCoordinateStrategyTests
         var pos = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Key });
 
         // Assert
-        Assert.Equal((10, 20), pos);
+        Assert.Equal(CoordinateSample.Create(10, 20), pos);
     }
 
     [WindowsFact]
-    public void ProcessPosition_WhenSyncEvent_ReturnsZero()
+    public void ProcessPosition_WhenSyncEvent_ReturnsNoSample()
     {
         // Arrange
         var provider = Substitute.For<IMousePositionProvider>();
@@ -30,6 +30,32 @@ public sealed class WindowsAbsoluteCoordinateStrategyTests
         var pos = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
         // Assert
-        Assert.Equal((0, 0), pos);
+        Assert.False(pos.HasValue);
+    }
+
+    [Fact]
+    public async Task ProcessPosition_WhenCaptureProvidesAbsoluteAxes_UsesEventCoordinatesWithoutRequerying()
+    {
+        var provider = Substitute.For<IMousePositionProvider>();
+        _ = provider.GetAbsolutePositionAsync().Returns((10, 20));
+        var strategy = new WindowsAbsoluteCoordinateStrategy(provider);
+        await strategy.InitializeAsync(CancellationToken.None);
+
+        _ = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.ABS_X,
+            Value = -120,
+        });
+        _ = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.ABS_Y,
+            Value = 450,
+        });
+        var sample = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
+
+        Assert.Equal(CoordinateSample.Create(-120, 450), sample);
+        _ = provider.Received(1).GetAbsolutePositionAsync();
     }
 }

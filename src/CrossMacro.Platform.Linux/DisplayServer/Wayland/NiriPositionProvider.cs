@@ -31,6 +31,12 @@ public sealed class NiriPositionProvider : IMousePositionProvider
 
     public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
     {
+        var bounds = await GetDesktopBoundsAsync().ConfigureAwait(false);
+        return bounds is not null ? (bounds.Value.Width, bounds.Value.Height) : null;
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
+    {
         if (_disposed || !_ipcClient.IsAvailable)
         {
             return null;
@@ -39,10 +45,15 @@ public sealed class NiriPositionProvider : IMousePositionProvider
         try
         {
             var response = await _ipcClient.SendRequestAsync(OutputsRequestJson).ConfigureAwait(false);
-            if (TryParseScreenResolution(response, out var width, out var height))
+            if (TryParseDesktopBounds(response, out var bounds))
             {
-                Log.Information("[NiriPositionProvider] Screen resolution detected: {Width}x{Height}", width, height);
-                return (width, height);
+                Log.Information(
+                    "[NiriPositionProvider] Desktop bounds detected: ({X},{Y}) {Width}x{Height}",
+                    bounds.X,
+                    bounds.Y,
+                    bounds.Width,
+                    bounds.Height);
+                return bounds;
             }
 
             Log.Warning("[NiriPositionProvider] Failed to parse screen resolution from Niri outputs response");
@@ -57,8 +68,21 @@ public sealed class NiriPositionProvider : IMousePositionProvider
 
     internal static bool TryParseScreenResolution(string? response, out int width, out int height)
     {
+        if (TryParseDesktopBounds(response, out var bounds))
+        {
+            width = bounds.Width;
+            height = bounds.Height;
+            return true;
+        }
+
         width = 0;
         height = 0;
+        return false;
+    }
+
+    internal static bool TryParseDesktopBounds(string? response, out ScreenRect desktopBounds)
+    {
+        desktopBounds = default;
 
         if (string.IsNullOrWhiteSpace(response))
         {
@@ -86,9 +110,13 @@ public sealed class NiriPositionProvider : IMousePositionProvider
                 return false;
             }
 
-            return TryComputeScreenExtents(bounds, out width, out height);
+            return TryComputeDesktopBounds(bounds, out desktopBounds);
         }
         catch (JsonException)
+        {
+            return false;
+        }
+        catch (OverflowException)
         {
             return false;
         }
@@ -115,13 +143,14 @@ public sealed class NiriPositionProvider : IMousePositionProvider
             return null;
         }
 
-        return (x, y, x + logicalWidth, y + logicalHeight);
+        return (x, y, checked(x + logicalWidth), checked(y + logicalHeight));
     }
 
-    private static bool TryComputeScreenExtents(List<(int X, int Y, int Right, int Bottom)> bounds, out int width, out int height)
+    private static bool TryComputeDesktopBounds(
+        List<(int X, int Y, int Right, int Bottom)> bounds,
+        out ScreenRect desktopBounds)
     {
-        width = 0;
-        height = 0;
+        desktopBounds = default;
 
         var minX = bounds.Min(static b => b.X);
         var minY = bounds.Min(static b => b.Y);
@@ -133,8 +162,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
             return false;
         }
 
-        width = maxX - minX;
-        height = maxY - minY;
+        desktopBounds = new ScreenRect(minX, minY, checked(maxX - minX), checked(maxY - minY));
         return true;
     }
 

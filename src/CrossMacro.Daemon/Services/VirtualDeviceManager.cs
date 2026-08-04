@@ -3,12 +3,52 @@ namespace CrossMacro.Daemon.Services;
 
 internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDisposable
 {
-    private UInputDevice? _uInputDevice;
+    private readonly Func<int, int, CancellationToken, Task<IUInputDevice>> _deviceFactory;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly Lock _disposeLock = new();
+    private IUInputDevice? _uInputDevice;
+    private (int Width, int Height)? _configuration;
     private bool _disposed;
     private Task? _disposeTask;
+
+    public VirtualDeviceManager()
+        : this(CreateDeviceAsync)
+    {
+    }
+
+    internal VirtualDeviceManager(Func<int, int, CancellationToken, Task<IUInputDevice>> deviceFactory)
+    {
+        ArgumentNullException.ThrowIfNull(deviceFactory);
+        _deviceFactory = deviceFactory;
+    }
+
+    public async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformNotSupportedException("Virtual input devices are supported only on Linux.");
+        }
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
+        await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposed();
+            linkedCts.Token.ThrowIfCancellationRequested();
+
+            if (_uInputDevice is not null)
+            {
+                return;
+            }
+
+            await ReplaceDeviceAsync(width: 0, height: 0, linkedCts.Token).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
+    }
 
     public async Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default)
     {
@@ -23,23 +63,18 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         {
             ThrowIfDisposed();
             linkedCts.Token.ThrowIfCancellationRequested();
-            var newDevice = new UInputDevice(width, height);
-            try
-            {
-                await newDevice.CreateVirtualInputDeviceAsync().ConfigureAwait(false);
-                linkedCts.Token.ThrowIfCancellationRequested();
 
-                var previousDevice = _uInputDevice;
-                _uInputDevice = newDevice;
-                previousDevice?.Dispose();
-                Log.Information("[VirtualDeviceManager] Reconfigured UInput device with resolution {W}x{H}", width, height);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            if (_uInputDevice is not null && _configuration is (var configuredWidth, var configuredHeight)
+                && configuredWidth == width && configuredHeight == height)
             {
-                newDevice.Dispose();
-                Log.LogError(ex, "[VirtualDeviceManager] Failed to configure UInput device");
-                throw;
+                Log.Debug(
+                    "[VirtualDeviceManager] UInput device is already configured for {W}x{H}",
+                    width,
+                    height);
+                return;
             }
+
+            await ReplaceDeviceAsync(width, height, linkedCts.Token).ConfigureAwait(false);
         }
         finally
         {
@@ -114,6 +149,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         {
             _uInputDevice?.Dispose();
             _uInputDevice = null;
+            _configuration = null;
             Log.Information("[VirtualDeviceManager] Device reset");
         }
         finally
@@ -174,6 +210,58 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
 
         _uInputDevice?.Dispose();
         _uInputDevice = null;
+        _configuration = null;
+    }
+
+    private static async Task<IUInputDevice> CreateDeviceAsync(
+        int width,
+        int height,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var device = new UInputDevice(width, height);
+        try
+        {
+            await device.CreateVirtualInputDeviceAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return device;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            device.Dispose();
+            throw;
+        }
+    }
+
+    private async Task ReplaceDeviceAsync(int width, int height, CancellationToken cancellationToken)
+    {
+        IUInputDevice? newDevice = null;
+        try
+        {
+            newDevice = await _deviceFactory(width, height, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            newDevice?.Dispose();
+            Log.LogError(ex, "[VirtualDeviceManager] Failed to configure UInput device");
+            throw;
+        }
+
+        var previousDevice = _uInputDevice;
+        _uInputDevice = newDevice;
+        _configuration = (width, height);
+
+        try
+        {
+            previousDevice?.Dispose();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[VirtualDeviceManager] Failed to dispose the previous UInput device");
+        }
+
+        Log.Information("[VirtualDeviceManager] Reconfigured UInput device with resolution {W}x{H}", width, height);
     }
 
     private CancellationToken GetOperationToken()

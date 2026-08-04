@@ -167,19 +167,7 @@ public abstract class X11CaptureBase : IInputCapture
             return false;
         }
 
-        var maskBytes = new byte[4];
-        if (_captureKeyboard)
-        {
-            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawKeyPress);
-            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawKeyRelease);
-        }
-
-        if (_captureMouse)
-        {
-            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawButtonPress);
-            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawButtonRelease);
-            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawMotion);
-        }
+        var maskBytes = CreateEventMask(_captureMouse, _captureKeyboard);
 
         IntPtr maskPtr = Marshal.AllocHGlobal(maskBytes.Length);
         try
@@ -200,6 +188,25 @@ public abstract class X11CaptureBase : IInputCapture
         }
 
         return true;
+    }
+
+    internal static byte[] CreateEventMask(bool captureMouse, bool captureKeyboard)
+    {
+        var maskBytes = new byte[4];
+        if (captureKeyboard)
+        {
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawKeyPress);
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawKeyRelease);
+        }
+
+        if (captureMouse)
+        {
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawButtonPress);
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawButtonRelease);
+            XInput2Consts.SetMask(maskBytes, XInput2Consts.XI_RawMotion);
+        }
+
+        return maskBytes;
     }
 
     private void RunEventLoop()
@@ -264,11 +271,14 @@ public abstract class X11CaptureBase : IInputCapture
     protected virtual void OnCaptureStarted() { /* Empty */ }
 
     /// <summary>
-    /// Called when no X events are pending. Default implementation sleeps 1ms.
+    /// Called when no X events are pending. Waits on the X connection instead
+    /// of continuously waking the capture thread.
     /// </summary>
     protected virtual void OnLoopIdle()
     {
-        Thread.Sleep(1);
+        _ = LinuxFileDescriptorNative.PollReadable(
+            X11Native.XConnectionNumber(_display),
+            timeoutMilliseconds: 100);
     }
 
     /// <summary>

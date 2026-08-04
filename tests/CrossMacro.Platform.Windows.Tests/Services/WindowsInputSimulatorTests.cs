@@ -126,4 +126,44 @@ public sealed class WindowsInputSimulatorTests
         Assert.Equal(MouseEventFlags.MOUSEEVENTF_WHEEL, input.U.mi.dwFlags);
         Assert.Equal(120u, input.U.mi.mouseData);
     }
+
+    [Theory]
+    [InlineData(-1920, -200, 0, 0)]
+    [InlineData(2559, 1439, 65535, 65535)]
+    public void CreateAbsoluteMouseInput_ShouldNormalizeEntireVirtualDesktop(
+        int x,
+        int y,
+        int expectedX,
+        int expectedY)
+    {
+        var input = WindowsInputSimulator.CreateAbsoluteMouseInput(
+            x,
+            y,
+            new ScreenRect(-1920, -200, 4480, 1640));
+
+        Assert.Equal(expectedX, input.U.mi.dx);
+        Assert.Equal(expectedY, input.U.mi.dy);
+        Assert.Equal(
+            MouseEventFlags.MOUSEEVENTF_MOVE
+            | MouseEventFlags.MOUSEEVENTF_ABSOLUTE
+            | MouseEventFlags.MOUSEEVENTF_VIRTUALDESK
+            | MouseEventFlags.MOUSEEVENTF_MOVE_NOCOALESCE,
+            input.U.mi.dwFlags);
+    }
+
+    [Fact]
+    public void ReadDesktopBounds_ShouldUseVirtualScreenMetricsIncludingOrigin()
+    {
+        var metrics = new Dictionary<int, int>
+        {
+            [User32.SM_XVIRTUALSCREEN] = -1920,
+            [User32.SM_YVIRTUALSCREEN] = -200,
+            [User32.SM_CXVIRTUALSCREEN] = 4480,
+            [User32.SM_CYVIRTUALSCREEN] = 1640,
+        };
+
+        var bounds = WindowsMousePositionProvider.ReadDesktopBounds(metric => metrics[metric]);
+
+        Assert.Equal(new ScreenRect(-1920, -200, 4480, 1640), bounds);
+    }
 }

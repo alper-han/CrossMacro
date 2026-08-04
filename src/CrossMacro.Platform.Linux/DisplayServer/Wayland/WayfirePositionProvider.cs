@@ -20,11 +20,6 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
     private volatile bool _isSupported;
     private bool _hasLayout;
 
-    private int _originX;
-    private int _originY;
-    private int _layoutWidth;
-    private int _layoutHeight;
-
     public string ProviderName => "Wayfire IPC";
     public bool IsSupported => !_disposed && _isSupported;
 
@@ -66,26 +61,16 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
             return null;
         }
 
-        int normalizedX = rawX - Volatile.Read(ref _originX);
-        int normalizedY = rawY - Volatile.Read(ref _originY);
-
-        int width = Volatile.Read(ref _layoutWidth);
-        int height = Volatile.Read(ref _layoutHeight);
-
-        if (width > 0)
-        {
-            normalizedX = Math.Clamp(normalizedX, 0, width - 1);
-        }
-
-        if (height > 0)
-        {
-            normalizedY = Math.Clamp(normalizedY, 0, height - 1);
-        }
-
-        return (normalizedX, normalizedY);
+        return (rawX, rawY);
     }
 
     public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
+    {
+        var bounds = await GetDesktopBoundsAsync().ConfigureAwait(false);
+        return bounds is not null ? (bounds.Value.Width, bounds.Value.Height) : null;
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
     {
         if (_disposed)
         {
@@ -99,7 +84,13 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
         }
 
         var layout = await RefreshLayoutAsync(_probeCts.Token).ConfigureAwait(false);
-        return layout is not null ? (layout.Value.Width, layout.Value.Height) : null;
+        return layout is not null
+            ? new ScreenRect(
+                layout.Value.OriginX,
+                layout.Value.OriginY,
+                layout.Value.Width,
+                layout.Value.Height)
+            : null;
     }
 
     private async Task ProbeCapabilitiesAsync(CancellationToken cancellationToken)
@@ -123,14 +114,14 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
             }
 
             var outputsResponse = await _ipcClient.SendRequestAsync(ListOutputsMethod, cts.Token).ConfigureAwait(false);
-            if (!TryParseOutputLayout(outputsResponse, out var layout, out _))
+            if (!TryParseOutputLayout(outputsResponse, out _, out _))
             {
                 _isSupported = false;
                 Log.Debug("[WayfirePositionProvider] Capability probe failed; provider unavailable");
                 return;
             }
 
-            SetLayout(layout);
+            MarkLayoutAvailable();
             _isSupported = true;
             Log.Information("[WayfirePositionProvider] Capability probe succeeded");
         }
@@ -202,16 +193,12 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
             return null;
         }
 
-        SetLayout(layout);
+        MarkLayoutAvailable();
         return layout;
     }
 
-    private void SetLayout(OutputLayout layout)
+    private void MarkLayoutAvailable()
     {
-        _ = Interlocked.Exchange(ref _originX, layout.OriginX);
-        _ = Interlocked.Exchange(ref _originY, layout.OriginY);
-        _ = Interlocked.Exchange(ref _layoutWidth, layout.Width);
-        _ = Interlocked.Exchange(ref _layoutHeight, layout.Height);
         Volatile.Write(ref _hasLayout, true);
     }
 
@@ -259,11 +246,9 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
                 return false;
             }
 
-            x = (int)Math.Round(xValue, MidpointRounding.AwayFromZero);
-            y = (int)Math.Round(yValue, MidpointRounding.AwayFromZero);
-            return true;
+            return TryRoundToInt32(xValue, out x) && TryRoundToInt32(yValue, out y);
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or OverflowException)
         {
             return false;
         }
@@ -299,7 +284,7 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
 
             return TryCalculateOutputLayout(outputs, out layout);
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or OverflowException)
         {
             return false;
         }
@@ -329,47 +314,47 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
     {
         layout = default;
 
-            bool hasAnyGeometry = false;
-            int minX = 0;
-            int minY = 0;
-            int maxX = 0;
-            int maxY = 0;
+        bool hasAnyGeometry = false;
+        int minX = 0;
+        int minY = 0;
+        int maxX = 0;
+        int maxY = 0;
 
-            foreach (var output in outputs.EnumerateArray())
+        foreach (var output in outputs.EnumerateArray())
+        {
+            if (!TryGetOutputBounds(output, out var x, out var y, out var right, out var bottom))
             {
-                if (!TryGetOutputBounds(output, out var x, out var y, out var right, out var bottom))
-                {
-                    continue;
-                }
-
-                if (!hasAnyGeometry)
-                {
-                    hasAnyGeometry = true;
-                    minX = x;
-                    minY = y;
-                    maxX = right;
-                    maxY = bottom;
-                    continue;
-                }
-
-                minX = Math.Min(minX, x);
-                minY = Math.Min(minY, y);
-                maxX = Math.Max(maxX, right);
-                maxY = Math.Max(maxY, bottom);
+                continue;
             }
 
             if (!hasAnyGeometry)
             {
-                return false;
+                hasAnyGeometry = true;
+                minX = x;
+                minY = y;
+                maxX = right;
+                maxY = bottom;
+                continue;
             }
 
-            layout = new OutputLayout(
-                OriginX: minX,
-                OriginY: minY,
-                Width: maxX - minX,
-                Height: maxY - minY);
+            minX = Math.Min(minX, x);
+            minY = Math.Min(minY, y);
+            maxX = Math.Max(maxX, right);
+            maxY = Math.Max(maxY, bottom);
+        }
 
-            return layout.Width > 0 && layout.Height > 0;
+        if (!hasAnyGeometry)
+        {
+            return false;
+        }
+
+        layout = new OutputLayout(
+            OriginX: minX,
+            OriginY: minY,
+            Width: checked(maxX - minX),
+            Height: checked(maxY - minY));
+
+        return layout.Width > 0 && layout.Height > 0;
     }
 
     private static bool TryGetOutputBounds(JsonElement output, out int x, out int y, out int right, out int bottom)
@@ -390,17 +375,36 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
             return false;
         }
 
-        x = (int)Math.Round(gx, MidpointRounding.AwayFromZero);
-        y = (int)Math.Round(gy, MidpointRounding.AwayFromZero);
-        int width = (int)Math.Round(gw, MidpointRounding.AwayFromZero);
-        int height = (int)Math.Round(gh, MidpointRounding.AwayFromZero);
-        if (width <= 0 || height <= 0)
+        if (!TryRoundToInt32(gx, out x) ||
+            !TryRoundToInt32(gy, out y) ||
+            !TryRoundToInt32(gw, out int width) ||
+            !TryRoundToInt32(gh, out int height) ||
+            width <= 0 ||
+            height <= 0)
         {
             return false;
         }
 
-        right = x + width;
-        bottom = y + height;
+        right = checked(x + width);
+        bottom = checked(y + height);
+        return true;
+    }
+
+    private static bool TryRoundToInt32(double value, out int result)
+    {
+        result = 0;
+        if (!double.IsFinite(value))
+        {
+            return false;
+        }
+
+        double rounded = Math.Round(value, MidpointRounding.AwayFromZero);
+        if (rounded is < int.MinValue or > int.MaxValue)
+        {
+            return false;
+        }
+
+        result = (int)rounded;
         return true;
     }
 
@@ -459,16 +463,6 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
 
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _probeCts.Cancel();
-        _probeCts.Dispose();
-        _layoutGate.Dispose();
-        _ipcClient.Dispose();
-        GC.SuppressFinalize(this);
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

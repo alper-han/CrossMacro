@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.MacOS.Tests.Strategies;
 public sealed class MacOSAbsoluteCoordinateStrategyTests
 {
     [Fact]
-    public void ProcessPosition_WhenSyncEvent_ReturnsZeroTuple()
+    public void ProcessPosition_WhenSyncEvent_ReturnsNoSample()
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
@@ -13,7 +13,7 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
             Type = InputEventType.Sync,
         });
 
-        Assert.Equal((0, 0), result);
+        Assert.False(result.HasValue);
     }
 
     [Fact]
@@ -41,33 +41,36 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
             Value = 1,
         });
 
-        Assert.Equal((42, 99), result);
+        Assert.Equal(CoordinateSample.Create(42, 99), result);
     }
 
     [Fact]
-    public void ProcessPosition_WhenAbsXEvent_UpdatesOnlyX()
+    public void ProcessPosition_WhenAxesArriveSeparately_EmitsOneAtomicSampleOnSync()
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
-        _ = strategy.ProcessPosition(new CapturedInputEvent
+        var yResult = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
             Value = 15,
         });
 
-        var result = strategy.ProcessPosition(new CapturedInputEvent
+        var xResult = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_X,
             Value = 320,
         });
+        var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
-        Assert.Equal((320, 15), result);
+        Assert.False(yResult.HasValue);
+        Assert.False(xResult.HasValue);
+        Assert.Equal(CoordinateSample.Create(320, 15), result);
     }
 
     [Fact]
-    public void ProcessPosition_WhenAbsYEvent_UpdatesOnlyY()
+    public void ProcessPosition_WhenOnlyOneAxisChanges_EmitsUpdatedPositionOnSync()
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
 
@@ -78,13 +81,14 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
             Value = 640,
         });
 
-        var result = strategy.ProcessPosition(new CapturedInputEvent
+        _ = strategy.ProcessPosition(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = InputEventCode.ABS_Y,
             Value = 480,
         });
+        var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
-        Assert.Equal((640, 480), result);
+        Assert.Equal(CoordinateSample.Create(640, 480), result);
     }
 }

@@ -3,6 +3,16 @@ namespace CrossMacro.Platform.MacOS.Services;
 
 public sealed class MacOSMousePositionProvider : IMousePositionProvider
 {
+    private readonly IMacOSCoreGraphicsNative _native;
+
+    public MacOSMousePositionProvider()
+        : this(new MacOSCoreGraphicsNative()) { /* Empty */ }
+
+    internal MacOSMousePositionProvider(IMacOSCoreGraphicsNative native)
+    {
+        _native = native ?? throw new ArgumentNullException(nameof(native));
+    }
+
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => OperatingSystem.IsMacOS();
 
@@ -37,12 +47,28 @@ public sealed class MacOSMousePositionProvider : IMousePositionProvider
 
     public Task<(int Width, int Height)?> GetScreenResolutionAsync()
     {
-        uint mainDisplay = CoreGraphics.CGMainDisplayID();
-        var bounds = CoreGraphics.CGDisplayBounds(mainDisplay);
-        return Task.FromResult<(int Width, int Height)?>((
-            (int)bounds.size.width,
-            (int)bounds.size.height
-        ));
+        var bounds = TryGetDesktopBounds();
+        return Task.FromResult<(int Width, int Height)?>(bounds is not null
+            ? (bounds.Value.Width, bounds.Value.Height)
+            : null);
+    }
+
+    public Task<ScreenRect?> GetDesktopBoundsAsync()
+    {
+        return Task.FromResult(TryGetDesktopBounds());
+    }
+
+    private ScreenRect? TryGetDesktopBounds()
+    {
+        try
+        {
+            return CoreGraphicsMacOSScreenCaptureBackend.GetVirtualScreenBounds(_native);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Trace.TraceWarning($"[MacOSMousePositionProvider] Failed to query virtual desktop bounds: {ex.Message}");
+            return null;
+        }
     }
 
     public void Dispose() { /* Empty */ }

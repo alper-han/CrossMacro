@@ -24,9 +24,6 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
         _ = services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
         _ = services.AddSingleton<IWindowManager, WindowsWindowManager>();
-        _ = services.AddSingleton<IPlaybackBehaviorPolicy>(
-            _ => new WindowsPlaybackBehaviorPolicy());
-
 #pragma warning disable CS8634 // Intentionally nullable for optional service
         _ = services.AddSingleton<IExtensionStatusNotifier?>(_ => null);
 #pragma warning restore CS8634

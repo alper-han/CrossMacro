@@ -2,126 +2,84 @@
 namespace CrossMacro.Platform.Linux.Services;
 
 /// <summary>
-/// Captures input using XInput2 but relies on XQueryPointer for absolute position data.
-/// Used for "Absolute Mouse" mode where reliable screen mapping is prioritized over raw motion.
+/// Uses globally delivered XInput2 raw-motion events as notifications, then
+/// queries the X server for the authoritative root-window pointer position.
 /// </summary>
 public class X11AbsoluteCapture : X11CaptureBase
 {
-    private double _lastX = -1;
-    private double _lastY = -1;
-
-    // State for motion compression
-    private bool _pendingMotion;
-    private long _lastMotionTime;
-    private const int MinMotionIntervalMs = 10; // ~100Hz cap
+    private int _lastX;
+    private int _lastY;
+    private bool _hasPosition;
 
     public override string ProviderName => "X11 (Absolute Motion)";
 
     protected override void OnCaptureStarted()
     {
-        // Initial position sync
-        if (X11Native.XQueryPointer(_display, _rootWindow, out _, out _, out int rootX, out int rootY, out _, out _, out _))
+        if (TryGetPointerPosition(out int rootX, out int rootY))
         {
             _lastX = rootX;
             _lastY = rootY;
-        }
-    }
-
-    protected override void OnLoopIdle()
-    {
-        if (_pendingMotion)
-        {
-            ProcessPendingMotion();
-        }
-        else
-        {
-            Thread.Sleep(1);
-        }
-    }
-
-    protected override void FlushPendingMotion()
-    {
-        if (_pendingMotion)
-        {
-            ProcessPendingMotion();
+            _hasPosition = true;
         }
     }
 
     protected override void ProcessMotion(XGenericEventCookie cookie)
     {
-
-        _pendingMotion = true;
-
-        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        if ((now - _lastMotionTime) >= MinMotionIntervalMs)
+        _ = cookie;
+        if (!TryGetPointerPosition(out int x, out int y))
         {
-            ProcessPendingMotion();
+            return;
         }
+
+        if (_hasPosition && x == _lastX && y == _lastY)
+        {
+            return;
+        }
+
+        _lastX = x;
+        _lastY = y;
+        _hasPosition = true;
+        EmitMotion(x, y);
     }
 
-    private void ProcessPendingMotion()
+    protected virtual bool TryGetPointerPosition(out int x, out int y)
     {
-        _pendingMotion = false;
-        _lastMotionTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-        if (!X11Native.XQueryPointer(_display, _rootWindow, out _, out _, out int rootX, out int rootY, out _, out _, out _))
-        {
-            return;
-        }
-
-        if (_lastX < 0)
-        {
-            _lastX = rootX;
-            _lastY = rootY;
-            return;
-        }
-
-        double dx = rootX - _lastX;
-        double dy = rootY - _lastY;
-
-        _lastX = rootX;
-        _lastY = rootY;
-
-        if (dx == 0 && dy == 0)
-        {
-            return;
-        }
-
-        EmitMotion((int)dx, (int)dy);
+        return X11Native.XQueryPointer(
+            _display,
+            _rootWindow,
+            out _,
+            out _,
+            out x,
+            out y,
+            out _,
+            out _,
+            out _);
     }
 
-    private void EmitMotion(int moveX, int moveY)
+    private void EmitMotion(int x, int y)
     {
-        if (moveX is not 0)
+        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        OnInputReceived(new CapturedInputEvent
         {
-            var argsX = new CapturedInputEvent
-            {
-                Type = InputEventType.MouseMove,
-                Code = 0,
-                Value = moveX,
-                Timestamp = _lastMotionTime,
-                DeviceName = ProviderName,
-            };
-            OnInputReceived(argsX);
-        }
-
-        if (moveY is not 0)
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.ABS_X,
+            Value = x,
+            Timestamp = timestamp,
+            DeviceName = ProviderName,
+        });
+        OnInputReceived(new CapturedInputEvent
         {
-            var argsY = new CapturedInputEvent
-            {
-                Type = InputEventType.MouseMove,
-                Code = 1,
-                Value = moveY,
-                Timestamp = _lastMotionTime,
-                DeviceName = ProviderName,
-            };
-            OnInputReceived(argsY);
-        }
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.ABS_Y,
+            Value = y,
+            Timestamp = timestamp,
+            DeviceName = ProviderName,
+        });
 
         var argsSync = new CapturedInputEvent
         {
             Type = InputEventType.Sync,
-            Timestamp = _lastMotionTime,
+            Timestamp = timestamp,
             DeviceName = ProviderName,
         };
         OnInputReceived(argsSync);

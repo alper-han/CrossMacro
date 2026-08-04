@@ -45,7 +45,7 @@ public sealed class RunScriptCompilerTests
         var result = _compiler.Compile(
         [
             new RunScriptStep("move abs 100 200"),
-            new RunScriptStep("move rel 10 -5"),
+            new RunScriptStep("move rel-logical 10 -5"),
         ]);
 
         _ = result.Success.Should().BeTrue();
@@ -55,7 +55,39 @@ public sealed class RunScriptCompilerTests
         _ = result.Sequence.Events.Select(e => (e.Type, e.X, e.Y, e.CoordinateMode)).Should().Equal(
             (EventType.MouseMove, 100, 200, MouseCoordinateMode.Absolute),
             (EventType.MouseMove, 10, -5, MouseCoordinateMode.Relative));
+        _ = result.Sequence.Events.Select(e => e.CoordinateSpace).Should().Equal(
+            MouseCoordinateSpace.LogicalDesktop,
+            MouseCoordinateSpace.LogicalDesktop);
         _ = MacroPositionSemantics.GetCoordinateModeSummary(result.Sequence).Should().Be(CoordinateModeSummary.Mixed);
+    }
+
+    [Fact]
+    public void Compile_WhenLegacyRelativeMoveIsUsed_PreservesRawDeviceSemantics()
+    {
+        var result = _compiler.Compile([new RunScriptStep("move rel 10 -5")]);
+
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().ContainSingle();
+        _ = result.Sequence.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = result.Sequence.Events[0].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
+    }
+
+    [Fact]
+    public void Compile_WhenRawRelativeMoveThenClick_PropagatesRawDeviceSpace()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("move rel-raw 10 -5"),
+            new RunScriptStep("click left"),
+        ]);
+
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().HaveCount(2);
+        _ = result.Sequence.Events.Should().OnlyContain(
+            ev => ev.CoordinateMode == MouseCoordinateMode.Relative
+                && ev.CoordinateSpace == MouseCoordinateSpace.RawDevice);
     }
 
     [Fact]
@@ -77,6 +109,7 @@ public sealed class RunScriptCompilerTests
         _ = click.X.Should().Be(0);
         _ = click.Y.Should().Be(0);
         _ = click.CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = click.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
     }
 
     [Fact]
@@ -141,7 +174,7 @@ public sealed class RunScriptCompilerTests
 
     [Theory]
     [InlineData("delay nope", "Step 1: Invalid delay value. Expected: delay <ms> with ms >= 0.")]
-    [InlineData("move sideways 1 2", "Step 1: Invalid move mode. Expected: abs|absolute|rel|relative.")]
+    [InlineData("move sideways 1 2", "Step 1: Invalid move mode. Expected: abs|absolute|rel|relative|rel-logical|rel-raw.")]
     [InlineData("click invalid", "Step 1: Unknown mouse button 'invalid'.")]
     [InlineData("key press Enter", "Step 1: Invalid key action. Expected: key down <key> | key up <key>.")]
     public void Compile_WhenStaticSyntaxIsInvalid_PreservesExactDiagnosticWithoutParameterSuffix(string step, string expectedError)

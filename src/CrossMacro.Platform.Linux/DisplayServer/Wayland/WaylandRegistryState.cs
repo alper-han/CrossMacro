@@ -6,6 +6,8 @@ internal sealed class WaylandRegistryState : IDisposable
     private readonly WaylandLibrary _library;
     private readonly WaylandProtocolTables _protocol;
     private GCHandle _dispatcherHandle;
+    private GCHandle _seatDispatcherHandle;
+    private int _generation;
     private bool _disposed;
 
     public WaylandRegistryState(WaylandLibrary library, WaylandProtocolTables protocol)
@@ -15,17 +17,24 @@ internal sealed class WaylandRegistryState : IDisposable
         var dispatcher = (RegistryDispatcher)Dispatch;
         _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
         DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
+        var seatDispatcher = (SeatDispatcher)DispatchSeat;
+        _seatDispatcherHandle = GCHandle.Alloc(seatDispatcher, GCHandleType.Normal);
+        SeatDispatcherPtr = Marshal.GetFunctionPointerForDelegate(seatDispatcher);
     }
 
     private delegate int RegistryDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
 
     public IntPtr DispatcherPtr { get; }
+    public IntPtr SeatDispatcherPtr { get; }
     public List<WaylandOutputInfo> Outputs { get; } = [];
     public IntPtr Shm { get; private set; }
     public IntPtr XdgOutputManager { get; private set; }
     public IntPtr ExtOutputSourceManager { get; private set; }
     public IntPtr ExtCopyManager { get; private set; }
     public IntPtr WlrScreencopyManager { get; private set; }
+    public IntPtr Seat { get; private set; }
+    public uint SeatCapabilities { get; private set; }
+    public int Generation => Volatile.Read(ref _generation);
 
     public void Dispose()
     {
@@ -39,11 +48,22 @@ internal sealed class WaylandRegistryState : IDisposable
         {
             _dispatcherHandle.Free();
         }
+
+        if (_seatDispatcherHandle.IsAllocated)
+        {
+            _seatDispatcherHandle.Free();
+        }
     }
 
     private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
     {
-        if (opcode != 0)
+        if (opcode is 1)
+        {
+            _ = Interlocked.Increment(ref _generation);
+            return 0;
+        }
+
+        if (opcode is not 0)
         {
             return 0;
         }
@@ -59,6 +79,11 @@ internal sealed class WaylandRegistryState : IDisposable
             var output = new WaylandOutputInfo(name, _library.Bind(target, name, iface, Math.Min(version, 4), _protocol.WlOutput));
             _ = _library.AddDispatcher(output.Proxy, output.DispatcherPtr);
             Outputs.Add(output);
+        }
+        else if (string.Equals(iface, "wl_seat", StringComparison.Ordinal) && Seat == IntPtr.Zero)
+        {
+            Seat = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.WlSeat);
+            _ = _library.AddDispatcher(Seat, SeatDispatcherPtr);
         }
         else if (string.Equals(iface, "wl_shm", StringComparison.Ordinal))
         {
@@ -79,6 +104,25 @@ internal sealed class WaylandRegistryState : IDisposable
         else if (string.Equals(iface, "ext_image_copy_capture_manager_v1", StringComparison.Ordinal))
         {
             ExtCopyManager = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.ExtCopyManager);
+        }
+
+        _ = Interlocked.Increment(ref _generation);
+
+        return 0;
+    }
+
+    private delegate int SeatDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
+
+    private int DispatchSeat(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    {
+        if (opcode is 0)
+        {
+            uint capabilities = Marshal.PtrToStructure<WlArgument>(args).u;
+            if (SeatCapabilities != capabilities)
+            {
+                SeatCapabilities = capabilities;
+                _ = Interlocked.Increment(ref _generation);
+            }
         }
 
         return 0;

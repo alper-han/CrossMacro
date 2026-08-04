@@ -6,6 +6,21 @@ public sealed class KdePositionProviderTests
     private static readonly string[] ExpectedScriptCalls = ["stop:42", "unload:42"];
 
     [LinuxFact]
+    public async Task Constructor_OnKdeX11_DoesNotEnableKWinTracker()
+    {
+        var environment = default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = "x11",
+            Display = ":0",
+            CurrentDesktop = "KDE",
+        };
+
+        await using var provider = new KdePositionProvider(environment);
+
+        Assert.False(provider.IsSupported);
+    }
+
+    [LinuxFact]
     public async Task GetAbsolutePositionAsync_ShouldReturnLatestHandlerState()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -40,6 +55,36 @@ public sealed class KdePositionProviderTests
         var resolution = await provider.GetScreenResolutionAsync();
 
         Assert.Equal((2560, 1440), resolution);
+    }
+
+    [LinuxFact]
+    public async Task GetDesktopBoundsAsync_ShouldPreserveVirtualDesktopOrigin()
+    {
+        await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
+
+        provider.ApplyDesktopBoundsUpdate(-1920, -200, 4480, 1640);
+
+        var bounds = await provider.GetDesktopBoundsAsync();
+        var resolution = await provider.GetScreenResolutionAsync();
+
+        Assert.Equal(new ScreenRect(-1920, -200, 4480, 1640), bounds);
+        Assert.Equal((4480, 1640), resolution);
+    }
+
+    [LinuxFact]
+    public async Task GetDesktopBoundsAsync_ShouldReturnLatestTopologyUpdate()
+    {
+        await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
+
+        provider.ApplyDesktopBoundsUpdate(0, 0, 1920, 1080);
+        _ = await provider.GetDesktopBoundsAsync();
+        provider.ApplyDesktopBoundsUpdate(-2560, -400, 6400, 2560);
+
+        var bounds = await provider.GetDesktopBoundsAsync();
+        var resolution = await provider.GetScreenResolutionAsync();
+
+        Assert.Equal(new ScreenRect(-2560, -400, 6400, 2560), bounds);
+        Assert.Equal((6400, 2560), resolution);
     }
 
     [LinuxFact]
@@ -121,15 +166,51 @@ public sealed class KdePositionProviderTests
     }
 
     [LinuxFact]
-    public void BuildTrackerScriptContent_ShouldUseTimerBasedCursorPolling()
+    public void BuildTrackerScriptContent_ShouldPreferCursorPositionNotifications()
     {
         var script = KdePositionProvider.BuildTrackerScriptContent();
 
-        Assert.Contains("var timer = new QTimer();", script, StringComparison.Ordinal);
-        Assert.Contains("timer.timeout.connect(function()", script, StringComparison.Ordinal);
-        Assert.Contains("timer.start();", script, StringComparison.Ordinal);
+        Assert.Contains("workspace.cursorPosChanged.connect(publishPosition)", script, StringComparison.Ordinal);
+        Assert.Contains("var positionTimer = new QTimer();", script, StringComparison.Ordinal);
+        Assert.Contains("positionTimer.interval = 1;", script, StringComparison.Ordinal);
+        Assert.Contains("positionTimer.timeout.connect(publishPosition)", script, StringComparison.Ordinal);
         Assert.Contains("callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition'", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("cursorPosChanged", script, StringComparison.Ordinal);
+        Assert.Contains("callDBus(dbusService, dbusPath, dbusInterface, 'UpdateDesktopBounds'", script, StringComparison.Ordinal);
+        Assert.Contains("workspace.virtualScreenGeometryChanged.connect(sendResolution)", script, StringComparison.Ordinal);
+    }
+
+    [LinuxFact]
+    public async Task ApplyPositionUpdate_ShouldNotifyOnlyWhenPositionChanges()
+    {
+        await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
+        var positions = new List<(int X, int Y)>();
+        provider.PositionChanged += (_, e) => positions.Add((e.X, e.Y));
+
+        provider.ApplyPositionUpdate(0, 0);
+        provider.ApplyPositionUpdate(0, 0);
+        provider.ApplyPositionUpdate(10, 5);
+
+        _ = positions.Should().Equal((0, 0), (10, 5));
+    }
+
+    [LinuxFact]
+    public async Task ApplyPositionUpdate_AfterTopologyChange_ShouldMarkNewBaselineAsDiscontinuity()
+    {
+        await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
+        var positions = new List<MousePositionChangedEventArgs>();
+        provider.PositionChanged += (_, e) => positions.Add(e);
+        provider.ApplyDesktopBoundsUpdate(0, 0, 1920, 1080);
+        provider.ApplyPositionUpdate(500, 400);
+        positions.Clear();
+
+        provider.ApplyDesktopBoundsUpdate(-1920, 0, 3840, 1080);
+        provider.ApplyDesktopBoundsUpdate(-1920, 0, 3840, 1080);
+        provider.ApplyPositionUpdate(500, 400);
+
+        var position = positions.Should().ContainSingle().Which;
+        _ = position.X.Should().Be(500);
+        _ = position.Y.Should().Be(400);
+        _ = position.IsDiscontinuity.Should().BeTrue();
     }
 
     [LinuxFact]

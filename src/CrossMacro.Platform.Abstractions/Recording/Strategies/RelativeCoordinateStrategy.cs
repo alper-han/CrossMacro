@@ -5,24 +5,24 @@ namespace CrossMacro.Platform.Abstractions.Recording.Strategies;
 /// Relative coordinate strategy that buffers X/Y deltas until a SYNC event.
 /// This ensures both axes are recorded together in a single MacroEvent.
 /// </summary>
-public sealed class RelativeCoordinateStrategy : IRelativeCoordinateStrategy
+public sealed class RelativeCoordinateStrategy(bool producesLogicalCoordinates = false) : IRelativeCoordinateStrategy
 {
-    private int _pendingX;
-    private int _pendingY;
-    private int _lastX;
-    private int _lastY;
+    private long _pendingX;
+    private long _pendingY;
+
+    public bool ProducesLogicalCoordinates { get; } = producesLogicalCoordinates;
+
+    public bool ProducesRelativeCoordinates => true;
 
     public Task InitializeAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         _pendingX = 0;
         _pendingY = 0;
-        _lastX = 0;
-        _lastY = 0;
-
         return Task.CompletedTask;
     }
 
-    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
+    public CoordinateSample ProcessPosition(CapturedInputEvent e)
     {
         switch (e.Type)
         {
@@ -36,32 +36,39 @@ public sealed class RelativeCoordinateStrategy : IRelativeCoordinateStrategy
                     _pendingY += e.Value;
                 }
 
-                return (0, 0);
+                return CoordinateSample.None;
 
             case InputEventType.Sync:
-                _lastX = _pendingX;
-                _lastY = _pendingY;
-                _pendingX = 0;
-                _pendingY = 0;
-                return (_lastX, _lastY);
+                return FlushPendingDelta();
 
             case InputEventType.MouseButton:
             case InputEventType.MouseScroll:
             case InputEventType.Key:
                 if (_pendingX is not 0 || _pendingY is not 0)
                 {
-                    _lastX = _pendingX;
-                    _lastY = _pendingY;
-                    _pendingX = 0;
-                    _pendingY = 0;
-                    return (_lastX, _lastY);
+                    return FlushPendingDelta();
                 }
 
-                return (0, 0);
+                return CoordinateSample.None;
 
             default:
-                return (_lastX, _lastY);
+                return CoordinateSample.None;
         }
+    }
+
+    private CoordinateSample FlushPendingDelta()
+    {
+        if (_pendingX is 0 && _pendingY is 0)
+        {
+            return CoordinateSample.None;
+        }
+
+        var sample = CoordinateSample.Create(
+            (int)Math.Clamp(_pendingX, int.MinValue, int.MaxValue),
+            (int)Math.Clamp(_pendingY, int.MinValue, int.MaxValue));
+        _pendingX = 0;
+        _pendingY = 0;
+        return sample;
     }
 
     public void Dispose()

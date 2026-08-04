@@ -7,6 +7,23 @@ internal sealed class GnomeTrackerClient(DBusConnection connection) : LinuxDbusC
 
     public Task<(int x, int y)> GetPositionAsync() => CallAsync("GetPosition", ReadGetPositionReply);
     public Task<(int width, int height)> GetResolutionAsync() => CallAsync("GetResolution", ReadGetResolutionReply);
+    public async Task<IDisposable> WatchPositionChangedAsync(Action<Exception?, (int x, int y)> handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        return await Connection.WatchSignalAsync(
+            ServiceName,
+            ObjectPath,
+            InterfaceName,
+            "PositionChanged",
+            ReadPositionChangedSignal,
+            notification => handler(
+                notification.IsCompletion ? notification.Exception : null,
+                notification.IsCompletion ? default : notification.Value),
+            synchronizationContext: null,
+            flags: ObserverFlags.None,
+            state: null).ConfigureAwait(false);
+    }
+
     public Task<(string base64Data, int stride, bool hasAlpha)> CaptureAreaAsync(int x, int y, int width, int height)
         => CallAsync("CaptureArea", ReadCaptureAreaReply, "iiii", (ref MessageWriter writer) => { writer.WriteInt32(x); writer.WriteInt32(y); writer.WriteInt32(width); writer.WriteInt32(height); });
 
@@ -33,6 +50,7 @@ internal sealed class GnomeTrackerClient(DBusConnection connection) : LinuxDbusC
     }
 
     internal static (int x, int y) ReadGetPositionReply(Message message, object? state) => ReadInt32PairReply(message, state);
+    internal static (int x, int y) ReadPositionChangedSignal(Message message, object? state) => ReadInt32PairReply(message, state);
     internal static (int width, int height) ReadGetResolutionReply(Message message, object? state) => ReadInt32PairReply(message, state);
     internal static (string base64Data, int stride, bool hasAlpha) ReadCaptureAreaReply(Message message, object? _) { var r = message.GetBodyReader(); return (r.ReadString(), r.ReadInt32(), r.ReadBool()); }
     internal static string ReadStringReply(Message message, object? _) => message.GetBodyReader().ReadString();

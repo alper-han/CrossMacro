@@ -77,6 +77,43 @@ public sealed class WindowsInputCaptureTests
         Assert.Equal(expected, WindowsInputCapture.IsSessionRecoveryMessage(message, new IntPtr(reason)));
     }
 
+    [Theory]
+    [InlineData(true, InputEventCode.ABS_X, 120, InputEventCode.ABS_Y, -30)]
+    [InlineData(false, InputEventCode.REL_X, 20, InputEventCode.REL_Y, -10)]
+    public void ResolveMouseMovement_UsesConfiguredCoordinateMode(
+        bool useAbsoluteCoordinates,
+        ushort expectedXCode,
+        int expectedXValue,
+        ushort expectedYCode,
+        int expectedYValue)
+    {
+        var movement = WindowsInputCapture.ResolveMouseMovement(
+            useAbsoluteCoordinates,
+            currentX: 120,
+            currentY: -30,
+            previousX: 100,
+            previousY: -20);
+
+        Assert.Equal(expectedXCode, movement.XCode);
+        Assert.Equal(expectedXValue, movement.XValue);
+        Assert.Equal(expectedYCode, movement.YCode);
+        Assert.Equal(expectedYValue, movement.YValue);
+    }
+
+    [Fact]
+    public void ResolveMouseMovement_WhenDeltaOverflows_SaturatesRelativeCoordinates()
+    {
+        var movement = WindowsInputCapture.ResolveMouseMovement(
+            useAbsoluteCoordinates: false,
+            currentX: int.MaxValue,
+            currentY: int.MinValue,
+            previousX: int.MinValue,
+            previousY: int.MaxValue);
+
+        Assert.Equal(int.MaxValue, movement.XValue);
+        Assert.Equal(int.MinValue, movement.YValue);
+    }
+
     [WindowsFact]
     public async Task StartAsync_WhenMouseHookInstallFails_ThrowsInvalidOperationException()
     {

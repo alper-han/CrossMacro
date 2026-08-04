@@ -10,36 +10,46 @@ public sealed class MacroEventExecutor(
     IButtonStateTracker buttonTracker,
     IKeyStateTracker keyTracker,
     IPlaybackMouseButtonMapper buttonMapper,
-    IPlaybackCoordinator coordinator,
-    bool useHybridAbsoluteDragMovement = true) : IEventExecutor
+    IPlaybackCoordinator coordinator) : IEventExecutor
 {
     private readonly IInputSimulator _simulator = simulator ?? throw new ArgumentNullException(nameof(simulator));
     private readonly IButtonStateTracker _buttonTracker = buttonTracker ?? throw new ArgumentNullException(nameof(buttonTracker));
     private readonly IKeyStateTracker _keyTracker = keyTracker ?? throw new ArgumentNullException(nameof(keyTracker));
     private readonly IPlaybackMouseButtonMapper _buttonMapper = buttonMapper ?? throw new ArgumentNullException(nameof(buttonMapper));
     private readonly IPlaybackCoordinator _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-    private readonly bool _useHybridAbsoluteDragMovement = useHybridAbsoluteDragMovement;
+    private readonly bool _usesZeroBasedScreenBounds = simulator is IInputSimulatorAbsoluteBounds
+    {
+        UsesZeroBasedScreenBounds: true,
+    };
 
     private bool _disposed;
+    private ScreenRect? _desktopBounds;
     private readonly bool _supportsAbsoluteCoordinates = simulator is not IInputSimulatorCapabilities capabilities || capabilities.SupportsAbsoluteCoordinates;
 
     public bool IsMouseButtonPressed => _buttonTracker.IsAnyPressed;
 
     public void Initialize(int screenWidth, int screenHeight)
     {
-        // Note: Simulator is already initialized by MacroPlayer.AcquireSimulatorAsync
+        _desktopBounds = screenWidth > 0 && screenHeight > 0
+            ? new ScreenRect(0, 0, screenWidth, screenHeight)
+            : null;
+    }
+
+    public void Initialize(ScreenRect? desktopBounds)
+    {
+        _desktopBounds = desktopBounds;
     }
 
     public void MoveAbsolute(int x, int y)
     {
-        _simulator.MoveAbsolute(x, y);
-        _coordinator.UpdatePosition(x, y);
+        var target = ClampLogicalPosition(x, y);
+        MoveLogicalTarget(target);
     }
 
     public void MoveRelative(int dx, int dy)
     {
         _simulator.MoveRelative(dx, dy);
-        _coordinator.AddDelta(dx, dy);
+        _coordinator.InvalidatePosition(movementMayBePending: true);
     }
 
     public void EmitButton(ushort button, bool pressed)
@@ -84,7 +94,10 @@ public sealed class MacroEventExecutor(
     /// <summary>
     /// Execute a single macro event
     /// </summary>
-    public void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode)
+    public void Execute(
+        MacroEvent ev,
+        MouseCoordinateMode? coordinateMode,
+        MouseCoordinateSpace? coordinateSpace = null)
     {
         // Handle implicit movement for mouse button events (not keyboard, not scroll)
         if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click)
@@ -102,8 +115,7 @@ public sealed class MacroEventExecutor(
                 }
                 else if (coordinateMode is MouseCoordinateMode.Relative && (ev.X is not 0 || ev.Y is not 0))
                 {
-                    // Relative mode: use delta directly
-                    MoveRelative(ev.X, ev.Y);
+                    ExecuteRelativeMove(ev.X, ev.Y, coordinateSpace);
                 }
             }
         }
@@ -128,7 +140,7 @@ public sealed class MacroEventExecutor(
                 break;
 
             case EventType.MouseMove:
-                ExecuteMouseMove(ev, coordinateMode);
+                ExecuteMouseMove(ev, coordinateMode, coordinateSpace);
                 break;
 
             case EventType.Click:
@@ -147,7 +159,10 @@ public sealed class MacroEventExecutor(
         }
     }
 
-    private void ExecuteMouseMove(MacroEvent ev, MouseCoordinateMode? coordinateMode)
+    private void ExecuteMouseMove(
+        MacroEvent ev,
+        MouseCoordinateMode? coordinateMode,
+        MouseCoordinateSpace? coordinateSpace)
     {
         if (coordinateMode is MouseCoordinateMode.Absolute)
         {
@@ -157,31 +172,45 @@ public sealed class MacroEventExecutor(
                 return;
             }
 
-            if (_buttonTracker.IsAnyPressed && _useHybridAbsoluteDragMovement)
-            {
-                // Button pressed - use relative for smooth Wayland curves
-                // First sync to previous position with absolute (drift correction)
-                _simulator.MoveAbsolute(_coordinator.CurrentX, _coordinator.CurrentY);
-
-                // Then apply relative delta for smooth curve
-                int dx = ev.X - _coordinator.CurrentX;
-                int dy = ev.Y - _coordinator.CurrentY;
-                if (dx is not 0 || dy is not 0)
-                {
-                    _simulator.MoveRelative(dx, dy);
-                }
-            }
-            else
-            {
-                // Default absolute path (used on non-Linux to avoid ABS+REL jitter while dragging)
-                _simulator.MoveAbsolute(ev.X, ev.Y);
-            }
-            _coordinator.UpdatePosition(ev.X, ev.Y);
+            MoveLogicalTarget(ClampLogicalPosition(ev.X, ev.Y));
         }
         else if (coordinateMode is MouseCoordinateMode.Relative)
         {
-            MoveRelative(ev.X, ev.Y);
+            ExecuteRelativeMove(ev.X, ev.Y, coordinateSpace);
         }
+    }
+
+    private void ExecuteRelativeMove(
+        int deltaX,
+        int deltaY,
+        MouseCoordinateSpace? coordinateSpace)
+    {
+        if (deltaX is 0 && deltaY is 0)
+        {
+            return;
+        }
+
+        if (coordinateSpace is MouseCoordinateSpace.LogicalDesktop)
+        {
+            if (!_supportsAbsoluteCoordinates)
+            {
+                throw new AbsolutePlaybackUnsupportedException(_simulator.ProviderName);
+            }
+
+            if (!_coordinator.HasKnownPosition)
+            {
+                throw new LogicalRelativePositionUnavailableException();
+            }
+
+            var target = ClampLogicalPosition(
+                (long)_coordinator.CurrentX + deltaX,
+                (long)_coordinator.CurrentY + deltaY);
+            MoveLogicalTarget(target);
+            return;
+        }
+
+        _simulator.MoveRelative(deltaX, deltaY);
+        _coordinator.InvalidatePosition(movementMayBePending: true);
     }
 
     private void MoveRecordedAbsolute(int targetX, int targetY)
@@ -191,8 +220,35 @@ public sealed class MacroEventExecutor(
             throw new AbsolutePlaybackUnsupportedException(_simulator.ProviderName);
         }
 
-        _simulator.MoveAbsolute(targetX, targetY);
-        _coordinator.UpdatePosition(targetX, targetY);
+        var target = ClampLogicalPosition(targetX, targetY);
+        MoveLogicalTarget(target);
+    }
+
+    private void MoveLogicalTarget((int X, int Y) target)
+    {
+        SendAbsolute(target);
+        _coordinator.UpdatePosition(target.X, target.Y);
+    }
+
+    private (int X, int Y) ClampLogicalPosition(long x, long y)
+    {
+        if (!_usesZeroBasedScreenBounds || _desktopBounds is not { } bounds)
+        {
+            return ((int)Math.Clamp(x, int.MinValue, int.MaxValue), (int)Math.Clamp(y, int.MinValue, int.MaxValue));
+        }
+
+        return ((int)Math.Clamp(x, bounds.X, bounds.Right - 1L), (int)Math.Clamp(y, bounds.Y, bounds.Bottom - 1L));
+    }
+
+    private void SendAbsolute((int X, int Y) logicalPosition)
+    {
+        if (_usesZeroBasedScreenBounds && _desktopBounds is { } bounds)
+        {
+            _simulator.MoveAbsolute(logicalPosition.X - bounds.X, logicalPosition.Y - bounds.Y);
+            return;
+        }
+
+        _simulator.MoveAbsolute(logicalPosition.X, logicalPosition.Y);
     }
 
     private void ExecuteClick(MacroEvent ev)

@@ -4,6 +4,8 @@ namespace CrossMacro.Platform.Linux;
 public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
 {
     private readonly List<ILinuxInputReader> _readers = new();
+    private readonly Dictionary<ILinuxInputReader, List<UInputNative.input_event>> _pendingReports = new();
+    private readonly Lock _reportForwardLock = new();
     private readonly Func<IReadOnlyList<InputDeviceHelper.InputDevice>> _deviceEnumerator;
     private readonly Func<InputDeviceHelper.InputDevice, ILinuxInputReader> _readerFactory;
     private bool _disposed;
@@ -80,17 +82,35 @@ public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
 
         foreach (var device in devicesToUse)
         {
+            ILinuxInputReader? reader = null;
             try
             {
-                var reader = _readerFactory(device);
+                reader = _readerFactory(device);
                 reader.EventReceived += OnEvdevEventReceived;
                 reader.ErrorOccurred += OnEvdevError;
+                lock (_reportForwardLock)
+                {
+                    _pendingReports.Add(reader, new List<UInputNative.input_event>(capacity: 8));
+                }
+
                 reader.Start();
                 _readers.Add(reader);
                 Log.Information("[LinuxInputCapture]   - {Name} ({Path})", device.Name, device.Path);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                if (reader is not null)
+                {
+                    reader.EventReceived -= OnEvdevEventReceived;
+                    reader.ErrorOccurred -= OnEvdevError;
+                    lock (_reportForwardLock)
+                    {
+                        _ = _pendingReports.Remove(reader);
+                    }
+
+                    reader.Dispose();
+                }
+
                 Log.LogError(ex, "[LinuxInputCapture] Failed to open {Name}", device.Name);
             }
         }
@@ -138,6 +158,10 @@ public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
             });
 
             _readers.Clear();
+            lock (_reportForwardLock)
+            {
+                _pendingReports.Clear();
+            }
             Log.Information("[LinuxInputCapture] Stopped all readers");
         }
 
@@ -175,6 +199,10 @@ public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
 
             await Task.WhenAll(_readers.Select(StopAndDisposeReaderAsync)).ConfigureAwait(false);
             _readers.Clear();
+            lock (_reportForwardLock)
+            {
+                _pendingReports.Clear();
+            }
             Log.Information("[LinuxInputCapture] Stopped all readers");
         }
 
@@ -198,6 +226,60 @@ public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
 
     private void OnEvdevEventReceived(ILinuxInputReader reader, UInputNative.input_event e)
     {
+        lock (_reportForwardLock)
+        {
+            if (!_pendingReports.TryGetValue(reader, out var pendingReport))
+            {
+                return;
+            }
+
+            if (IsReportBoundary(e))
+            {
+                if (pendingReport.Count is 0)
+                {
+                    return;
+                }
+
+                pendingReport.Add(e);
+                foreach (var reportEvent in pendingReport)
+                {
+                    ForwardEvdevEvent(reader, reportEvent);
+                }
+
+                pendingReport.Clear();
+                return;
+            }
+
+            var eventType = MapEventType(e);
+            if (ShouldForwardEvent(eventType))
+            {
+                pendingReport.Add(e);
+            }
+        }
+    }
+
+    private void ForwardEvdevEvent(ILinuxInputReader reader, UInputNative.input_event e)
+    {
+        var eventType = MapEventType(e);
+        if (!ShouldForwardEvent(eventType))
+        {
+            return;
+        }
+
+        var args = new CapturedInputEvent
+        {
+            Type = eventType,
+            Code = e.code,
+            Value = e.value,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            DeviceName = reader.DeviceName,
+        };
+
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+    }
+
+    private static InputEventType MapEventType(UInputNative.input_event e)
+    {
         var eventType = e.type switch
         {
             UInputNative.EV_KEY => UInputNative.IsMouseButton(e.code)
@@ -214,22 +296,13 @@ public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
             UInputNative.EV_SYN => InputEventType.Sync,
             _ => InputEventType.Unknown,
         };
+        return eventType;
+    }
 
-        if (!ShouldForwardEvent(eventType))
-        {
-            return;
-        }
-
-        var args = new CapturedInputEvent
-        {
-            Type = eventType,
-            Code = e.code,
-            Value = e.value,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            DeviceName = reader.DeviceName,
-        };
-
-        InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+    private static bool IsReportBoundary(UInputNative.input_event inputEvent)
+    {
+        return inputEvent.type == UInputNative.EV_SYN
+            && inputEvent.code == UInputNative.SYN_REPORT;
     }
 
     private bool ShouldForwardEvent(InputEventType eventType)

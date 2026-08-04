@@ -6,11 +6,13 @@ namespace CrossMacro.Platform.Linux.Services;
 /// Manages both Absolute (Clamped) and Relative (Raw) capture strategies.
 /// Acts as a single entry point for dependency injection but delegates work to child captures.
 /// </summary>
-public sealed class X11InputCapture : IInputCapture
+public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCapture
 {
     private readonly X11AbsoluteCapture _absoluteCapture;
     private readonly X11RelativeCapture _relativeCapture;
     private readonly ISettingsService _settingsService;
+    private bool? _useAbsoluteCoordinates;
+    private bool? _useLogicalCoordinates;
 
     // Track active capturers
     private bool _disposed;
@@ -44,24 +46,44 @@ public sealed class X11InputCapture : IInputCapture
         _relativeCapture.Configure(captureMouse, captureKeyboard);
     }
 
+    public void ConfigureCoordinateMode(
+        bool useAbsoluteCoordinates,
+        bool useLogicalCoordinates)
+    {
+        _useAbsoluteCoordinates = useAbsoluteCoordinates;
+        _useLogicalCoordinates = useLogicalCoordinates;
+    }
+
 
 
     public async Task StartAsync(CancellationToken ct)
     {
-        bool useRelative = _settingsService.Current.ForceRelativeCoordinates;
+        bool useLogicalCapture = ShouldUseLogicalCapture(
+            _useAbsoluteCoordinates,
+            _useLogicalCoordinates,
+            _settingsService.Current.ForceRelativeCoordinates);
 
-        if (useRelative)
+        if (!useLogicalCapture)
         {
-            // Force Relative (Raw) Mode
-            // Only start Relative Capture
             await _relativeCapture.StartAsync(ct).ConfigureAwait(false);
         }
         else
         {
-            // Absolute (Standard) Mode
-            // Only start Absolute Capture
             await _absoluteCapture.StartAsync(ct).ConfigureAwait(false);
         }
+    }
+
+    internal static bool ShouldUseLogicalCapture(
+        bool? useAbsoluteCoordinates,
+        bool? useLogicalCoordinates,
+        bool legacyForceRelativeSetting)
+    {
+        if (useAbsoluteCoordinates is not null)
+        {
+            return useAbsoluteCoordinates.Value || useLogicalCoordinates is true;
+        }
+
+        return !legacyForceRelativeSetting;
     }
 
     public void StopCapture()

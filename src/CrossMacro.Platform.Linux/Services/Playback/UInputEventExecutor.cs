@@ -12,6 +12,9 @@ public sealed class UInputEventExecutor : IEventExecutor
 
     private readonly ConcurrentDictionary<ushort, byte> _pressedButtons = new();
     private readonly ConcurrentDictionary<int, byte> _pressedKeys = new();
+    private bool _hasKnownPosition;
+    private int _currentX;
+    private int _currentY;
 
     public bool IsMouseButtonPressed => !_pressedButtons.IsEmpty;
 
@@ -23,6 +26,7 @@ public sealed class UInputEventExecutor : IEventExecutor
 
         _pressedButtons.Clear();
         _pressedKeys.Clear();
+        _hasKnownPosition = false;
 
         Log.Information("[UInputEventExecutor] Virtual device created ({Width}x{Height})", screenWidth, screenHeight);
     }
@@ -30,12 +34,16 @@ public sealed class UInputEventExecutor : IEventExecutor
     public void MoveAbsolute(int x, int y)
     {
         Device?.MoveAbsolute(x, y);
+        _currentX = x;
+        _currentY = y;
+        _hasKnownPosition = true;
         Log.Debug("[UInputEventExecutor] MoveAbsolute: X={X} Y={Y}", x, y);
     }
 
     public void MoveRelative(int dx, int dy)
     {
         Device?.Move(dx, dy);
+        _hasKnownPosition = false;
         Log.Debug("[UInputEventExecutor] MoveRelative: dX={dX} dY={dY}", dx, dy);
     }
 
@@ -148,7 +156,10 @@ public sealed class UInputEventExecutor : IEventExecutor
         Log.Debug("[UInputEventExecutor] Released all inputs");
     }
 
-    public void Execute(MacroEvent ev, MouseCoordinateMode? coordinateMode)
+    public void Execute(
+        MacroEvent ev,
+        MouseCoordinateMode? coordinateMode,
+        MouseCoordinateSpace? coordinateSpace = null)
     {
         // Handle implicit movement for mouse button events (not keyboard)
         if (ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click)
@@ -160,7 +171,7 @@ public sealed class UInputEventExecutor : IEventExecutor
             }
             else if (!isScroll && !ev.UseCurrentPosition && coordinateMode is MouseCoordinateMode.Relative && (ev.X is not 0 || ev.Y is not 0))
             {
-                MoveRelative(ev.X, ev.Y);
+                ExecuteRelativeMove(ev.X, ev.Y, coordinateSpace);
             }
         }
 
@@ -183,7 +194,7 @@ public sealed class UInputEventExecutor : IEventExecutor
                 }
                 else if (coordinateMode is MouseCoordinateMode.Relative)
                 {
-                    MoveRelative(ev.X, ev.Y);
+                    ExecuteRelativeMove(ev.X, ev.Y, coordinateSpace);
                 }
 
                 break;
@@ -200,6 +211,24 @@ public sealed class UInputEventExecutor : IEventExecutor
                 EmitKey(ev.KeyCode, pressed: false);
                 break;
         }
+    }
+
+    private void ExecuteRelativeMove(int deltaX, int deltaY, MouseCoordinateSpace? coordinateSpace)
+    {
+        if (coordinateSpace is MouseCoordinateSpace.LogicalDesktop)
+        {
+            if (!_hasKnownPosition)
+            {
+                throw new LogicalRelativePositionUnavailableException();
+            }
+
+            MoveAbsolute(
+                (int)Math.Clamp((long)_currentX + deltaX, int.MinValue, int.MaxValue),
+                (int)Math.Clamp((long)_currentY + deltaY, int.MinValue, int.MaxValue));
+            return;
+        }
+
+        MoveRelative(deltaX, deltaY);
     }
 
     private void ExecuteClick(MacroEvent ev)

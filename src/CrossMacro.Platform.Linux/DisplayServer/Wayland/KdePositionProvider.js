@@ -8,6 +8,27 @@ var lastX = -1;
 var lastY = -1;
 var errorCount = 0;
 
+function publishPosition() {
+    try {
+        var pos = workspace.cursorPos;
+        if (!pos) return;
+
+        var x = Math.floor(pos.x);
+        var y = Math.floor(pos.y);
+        if (x === lastX && y === lastY) return;
+
+        callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition', x, y);
+        lastX = x;
+        lastY = y;
+        errorCount = 0;
+    } catch (e) {
+        errorCount++;
+        if (errorCount <= 3) {
+            console.error('[CrossMacro] DBus Error (Pos #' + errorCount + '): ' + e);
+        }
+    }
+}
+
 // Send initial cursor position before any other startup calls so short-lived
 // CLI commands such as `pixelcolor rel 0 0` have a cached position immediately.
 try {
@@ -23,17 +44,28 @@ try {
     console.error('[CrossMacro] DBus Error (Initial Pos): ' + e);
 }
 
-var resSent = false;
+var lastResX = null;
+var lastResY = null;
+var lastResW = null;
+var lastResH = null;
 
 function sendResolution() {
     try {
         if (!workspace.virtualScreenGeometry) return;
+        var resX = Math.floor(workspace.virtualScreenGeometry.x);
+        var resY = Math.floor(workspace.virtualScreenGeometry.y);
         var resW = Math.floor(workspace.virtualScreenGeometry.width);
         var resH = Math.floor(workspace.virtualScreenGeometry.height);
         if (resW > 0 && resH > 0) {
-            console.error('[CrossMacro] Sending resolution: ' + resW + 'x' + resH);
+            if (resX === lastResX && resY === lastResY && resW === lastResW && resH === lastResH) return;
+
+            console.error('[CrossMacro] Sending desktop bounds: (' + resX + ',' + resY + ') ' + resW + 'x' + resH);
             callDBus(dbusService, dbusPath, dbusInterface, 'UpdateResolution', resW, resH);
-            resSent = true;
+            callDBus(dbusService, dbusPath, dbusInterface, 'UpdateDesktopBounds', resX, resY, resW, resH);
+            lastResX = resX;
+            lastResY = resY;
+            lastResW = resW;
+            lastResH = resH;
             console.error('[CrossMacro] Resolution sent successfully');
         }
     } catch (e) {
@@ -44,38 +76,21 @@ function sendResolution() {
 // Initial Resolution Attempt
 sendResolution();
 
-// Start cursor tracking. KWin scripting reliably exposes QTimer here; do not
-// depend on cursor-position change signals that are not available everywhere.
-var timer = new QTimer();
-timer.interval = 1;  // 1ms interval for 1000Hz mouse support
-var ticks = 0;
+if (workspace.cursorPosChanged && workspace.cursorPosChanged.connect) {
+    workspace.cursorPosChanged.connect(publishPosition);
+} else {
+    var positionTimer = new QTimer();
+    positionTimer.interval = 1;
+    positionTimer.timeout.connect(publishPosition);
+    positionTimer.start();
+}
 
-timer.timeout.connect(function() {
-    try {
-        ticks++;
-        if (!resSent && (ticks % 100 === 0)) {
-            sendResolution();
-        }
-
-        var pos = workspace.cursorPos;
-        if (!pos) return;
-        
-        var x = Math.floor(pos.x);
-        var y = Math.floor(pos.y);
-
-        // Only send update if position changed
-        if (x !== lastX || y !== lastY) {
-            callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition', x, y);
-            lastX = x;
-            lastY = y;
-            errorCount = 0;
-        }
-    } catch (e) {
-        errorCount++;
-        if (errorCount <= 3) {
-            console.error('[CrossMacro] DBus Error (Pos #' + errorCount + '): ' + e);
-        }
-    }
-});
-timer.start();
+if (workspace.virtualScreenGeometryChanged && workspace.virtualScreenGeometryChanged.connect) {
+    workspace.virtualScreenGeometryChanged.connect(sendResolution);
+} else {
+    var resolutionTimer = new QTimer();
+    resolutionTimer.interval = 1000;
+    resolutionTimer.timeout.connect(sendResolution);
+    resolutionTimer.start();
+}
 console.error('[CrossMacro] Position tracking started');

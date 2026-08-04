@@ -1,7 +1,11 @@
 
 namespace CrossMacro.Platform.Linux;
 
-public sealed class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabilities, IBatchedInputSimulator
+public sealed class LinuxInputSimulator :
+    IInputSimulator,
+    IInputSimulatorCapabilities,
+    IInputSimulatorAbsoluteBounds,
+    IBatchedInputSimulator
 {
     private readonly Func<int, int, IUInputDevice> _deviceFactory;
     private IUInputDevice? _device;
@@ -33,6 +37,8 @@ public sealed class LinuxInputSimulator : IInputSimulator, IInputSimulatorCapabi
     }
 
     public bool SupportsAbsoluteCoordinates => _device?.SupportsAbsoluteCoordinates ?? false;
+
+    public bool UsesZeroBasedScreenBounds => true;
 
     public bool SupportsBatchedInput => _device is not null && !_disposed;
 

@@ -15,8 +15,13 @@ public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? curre
     private bool _hasPendingX;
     private bool _hasPendingY;
 
+    public bool ProducesLogicalCoordinates => true;
+
+    public bool ProducesRelativeCoordinates => true;
+
     public Task InitializeAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var position = _currentPositionProvider?.Invoke() ?? GetCurrentPosition();
         if (position is not null)
         {
@@ -38,7 +43,7 @@ public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? curre
         return Task.CompletedTask;
     }
 
-    public (int X, int Y) ProcessPosition(CapturedInputEvent e)
+    public CoordinateSample ProcessPosition(CapturedInputEvent e)
     {
         if (e.Type is InputEventType.MouseMove)
         {
@@ -55,7 +60,7 @@ public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? curre
                 _hasPendingY = true;
             }
 
-            return (0, 0);
+            return CoordinateSample.None;
         }
 
         if (e.Type is InputEventType.Sync)
@@ -68,20 +73,20 @@ public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? curre
             return FlushPendingDelta();
         }
 
-        return (0, 0);
+        return CoordinateSample.None;
     }
 
     public void Dispose() { /* Empty */ }
 
-    private (int X, int Y) FlushPendingDelta()
+    private CoordinateSample FlushPendingDelta()
     {
         if (!_hasPendingPosition)
         {
-            return (0, 0);
+            return CoordinateSample.None;
         }
 
-        int deltaX = _pendingX - _lastX;
-        int deltaY = _pendingY - _lastY;
+        int deltaX = (int)Math.Clamp((long)_pendingX - _lastX, int.MinValue, int.MaxValue);
+        int deltaY = (int)Math.Clamp((long)_pendingY - _lastY, int.MinValue, int.MaxValue);
 
         _lastX = _pendingX;
         _lastY = _pendingY;
@@ -89,7 +94,9 @@ public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? curre
         _hasPendingX = false;
         _hasPendingY = false;
 
-        return (deltaX, deltaY);
+        return deltaX is 0 && deltaY is 0
+            ? CoordinateSample.None
+            : CoordinateSample.Create(deltaX, deltaY);
     }
 
     private static (int X, int Y)? GetCurrentPosition()

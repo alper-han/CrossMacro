@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Playback;
+
 namespace CrossMacro.Platform.Linux.Tests.Services.Playback;
 
 
@@ -23,5 +25,19 @@ public sealed class UInputEventExecutorTests
 
         Assert.Null(ex);
         Assert.False(executor.IsMouseButtonPressed);
+    }
+
+    [Fact]
+    public void Execute_LogicalRelativeWithoutKnownPosition_ShouldNotFallBackToRawMovement()
+    {
+        using var executor = new UInputEventExecutor();
+        var macroEvent = new MacroEvent { Type = EventType.MouseMove, X = 4, Y = -2 };
+
+        var exception = Record.Exception(() => executor.Execute(
+            macroEvent,
+            MouseCoordinateMode.Relative,
+            MouseCoordinateSpace.LogicalDesktop));
+
+        _ = exception.Should().BeOfType<LogicalRelativePositionUnavailableException>();
     }
 }

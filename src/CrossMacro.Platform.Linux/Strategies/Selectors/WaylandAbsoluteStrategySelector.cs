@@ -16,7 +16,7 @@ public class WaylandAbsoluteStrategySelector(IMousePositionProvider positionProv
     public ICoordinateStrategy Create(StrategyContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (!_positionProvider.IsSupported)
+        if (!_positionProvider.SupportsAbsolutePosition)
         {
             Log.Warning(
                 "[WaylandAbsoluteStrategySelector] Provider {ProviderName} is unsupported for {Compositor}; falling back to relative strategy.",
@@ -25,6 +25,8 @@ public class WaylandAbsoluteStrategySelector(IMousePositionProvider positionProv
             return new RelativeCoordinateStrategy();
         }
 
-        return new EvdevAbsoluteStrategy(_positionProvider);
+        return new CompositorCoordinateStrategy(
+            _positionProvider,
+            emitRelativeCoordinates: false);
     }
 }

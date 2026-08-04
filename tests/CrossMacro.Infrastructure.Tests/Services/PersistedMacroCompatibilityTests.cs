@@ -6,9 +6,9 @@ public sealed class PersistedMacroCompatibilityTests
     [Fact]
     public void CanonicalSchema_UsesCurrentVersionAndFormat()
     {
-        _ = PersistedMacroDocument.CurrentSchemaVersion.Should().Be(2);
-        _ = PersistedMacroDocument.CurrentFormat.Should().Be("CrossMacroFormatV2");
-        _ = new PersistedMacroDocument().Format.Should().Be("CrossMacroFormatV2");
+        _ = PersistedMacroDocument.CurrentSchemaVersion.Should().Be(3);
+        _ = PersistedMacroDocument.CurrentFormat.Should().Be("CrossMacroFormatV3");
+        _ = new PersistedMacroDocument().Format.Should().Be("CrossMacroFormatV3");
     }
 
     [Fact]
@@ -21,6 +21,7 @@ public sealed class PersistedMacroCompatibilityTests
             Y = 20,
             Button = MacroMouseButton.Left,
             CoordinateMode = MouseCoordinateMode.Absolute,
+            CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
             UseCurrentPosition = true,
         };
         var macro = new MacroSequence { Events = { macroEvent } };

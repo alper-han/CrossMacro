@@ -5,18 +5,23 @@ public sealed class MacroRecorder(
     Func<IInputCapture>? inputCaptureFactory,
     ICoordinateStrategyFactory coordinateStrategyFactory,
     Func<ICoordinateStrategy, IInputEventProcessor> processorFactory,
-    Func<IInputSimulator>? inputSimulatorFactory = null) : IMacroRecorder
+    Func<IInputSimulator>? inputSimulatorFactory = null,
+    IMousePositionProvider? positionProvider = null) : IMacroRecorder
 {
+    private static readonly TimeSpan CornerResetSettleDelay = TimeSpan.FromMilliseconds(32);
+
     private MacroSequence? _currentSequence;
     private Stopwatch? _stopwatch;
     private IInputCapture? _inputCapture;
     private readonly Lock _eventLock = new();
+    private bool _isRecording;
 
     private readonly Func<IInputCapture>? _inputCaptureFactory = inputCaptureFactory;
     private readonly ICoordinateStrategyFactory _coordinateStrategyFactory = coordinateStrategyFactory;
     private readonly Func<ICoordinateStrategy, IInputEventProcessor> _processorFactory = processorFactory;
 
     private readonly Func<IInputSimulator>? _inputSimulatorFactory = inputSimulatorFactory;
+    private readonly IMousePositionProvider? _positionProvider = positionProvider;
 
     // Active components
     private ICoordinateStrategy? _currentStrategy;
@@ -24,21 +29,14 @@ public sealed class MacroRecorder(
 
     public event EventHandler<MacroEventRecordedEventArgs>? EventRecorded;
 
-    public bool IsRecording { get; private set; }
+    public bool IsRecording => Volatile.Read(ref _isRecording);
 
     public async Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
     {
-        if (IsRecording)
-        {
-            return;
-        }
-
         if (!recordMouse && !recordKeyboard)
         {
             throw new ArgumentException("At least one recording type (mouse or keyboard) must be enabled", nameof(recordMouse));
         }
-
-        IsRecording = true;
 
         bool requestedAbsoluteCoordinates = !forceRelative; // Strategy factory may adjust this based on platform capability.
         bool useAbsoluteCoordinates = requestedAbsoluteCoordinates;
@@ -48,15 +46,23 @@ public sealed class MacroRecorder(
             recordMouse, recordKeyboard, useAbsoluteCoordinates, forceRelative, skipInitialZero,
             ignoredKeysList is not null ? string.Join(',', ignoredKeysList) : "none");
 
-        _currentSequence = new MacroSequence
+        using (_eventLock.EnterScope())
         {
-            Name = MacroNameDefaults.NewRecordedMacroName,
-            CreatedAt = DateTime.UtcNow,
-            IsAbsoluteCoordinates = useAbsoluteCoordinates,
-            SkipInitialZeroZero = skipInitialZero,
-        };
+            if (_isRecording)
+            {
+                return;
+            }
 
-        _stopwatch = Stopwatch.StartNew();
+            _isRecording = true;
+            _currentSequence = new MacroSequence
+            {
+                Name = MacroNameDefaults.NewRecordedMacroName,
+                CreatedAt = DateTime.UtcNow,
+                IsAbsoluteCoordinates = useAbsoluteCoordinates,
+                SkipInitialZeroZero = skipInitialZero,
+            };
+            _stopwatch = Stopwatch.StartNew();
+        }
 
         try
         {
@@ -80,6 +86,18 @@ public sealed class MacroRecorder(
 
             _currentSequence.IsAbsoluteCoordinates = useAbsoluteCoordinates;
 
+            _currentProcessor = _processorFactory(_currentStrategy);
+            _currentProcessor.Configure(
+                recordMouse,
+                recordKeyboard,
+                ignoredKeys is not null ? new HashSet<int>(ignoredKeys) : null,
+                useAbsoluteCoordinates);
+
+            if (_currentStrategy is ICoordinateSampleSource sampleSource)
+            {
+                sampleSource.SampleAvailable += OnCoordinateSampleAvailable;
+            }
+
             // 2. Perform Corner Reset for relative recordings when requested.
             if (!useAbsoluteCoordinates && !skipInitialZero)
             {
@@ -88,14 +106,17 @@ public sealed class MacroRecorder(
 
             await _currentStrategy.InitializeAsync(cancellationToken).ConfigureAwait(false);
 
-            // 3. Initialize Processor
-            _currentProcessor = _processorFactory(_currentStrategy);
-            _currentProcessor.Configure(recordMouse, recordKeyboard, ignoredKeys is not null ? new HashSet<int>(ignoredKeys) : null, useAbsoluteCoordinates);
-
-            // 4. Initialize Capture
+            // 3. Initialize Capture
             _inputCapture = _inputCaptureFactory();
             var inputCapture = _inputCapture;
             var providerName = inputCapture.ProviderName;
+            if (inputCapture is IMouseCoordinateModeInputCapture modeAwareCapture)
+            {
+                modeAwareCapture.ConfigureCoordinateMode(
+                    useAbsoluteCoordinates,
+                    _currentStrategy.ProducesLogicalCoordinates);
+            }
+
             inputCapture.Configure(recordMouse, recordKeyboard);
             inputCapture.InputReceived += OnInputReceived;
             inputCapture.CaptureError += OnInputCaptureError;
@@ -106,7 +127,12 @@ public sealed class MacroRecorder(
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            IsRecording = false;
+            using (_eventLock.EnterScope())
+            {
+                _isRecording = false;
+                _stopwatch?.Stop();
+            }
+
             CleanupComponents();
             throw;
         }
@@ -130,7 +156,7 @@ public sealed class MacroRecorder(
         MacroEvent? recordedEvent = null;
         using (_eventLock.EnterScope())
         {
-            if (!IsRecording || _currentSequence is null || _stopwatch is null || _currentProcessor is null)
+            if (!_isRecording || _currentSequence is null || _stopwatch is null || _currentProcessor is null)
             {
                 return;
             }
@@ -148,6 +174,37 @@ public sealed class MacroRecorder(
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[MacroRecorder] Error processing input event");
+            }
+        }
+
+        if (recordedEvent is not null)
+        {
+            PublishRecordedEvent(recordedEvent.Value);
+        }
+    }
+
+    private void OnCoordinateSampleAvailable(object? sender, CoordinateSampleEventArgs e)
+    {
+        MacroEvent? recordedEvent = null;
+        using (_eventLock.EnterScope())
+        {
+            if (!_isRecording || _currentSequence is null || _stopwatch is null || _currentProcessor is null)
+            {
+                return;
+            }
+
+            try
+            {
+                var macroEvent = _currentProcessor.ProcessPositionSample(e.Sample, _stopwatch.ElapsedMilliseconds);
+                if (macroEvent is not null)
+                {
+                    AddMacroEvent(macroEvent.Value);
+                    recordedEvent = macroEvent.Value;
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.LogError(ex, "[MacroRecorder] Error processing coordinate sample");
             }
         }
 
@@ -194,24 +251,32 @@ public sealed class MacroRecorder(
 
     public MacroSequence StopRecording()
     {
-        if (!IsRecording)
+        MacroSequence? sequence;
+        Stopwatch? stopwatch;
+
+        using (_eventLock.EnterScope())
         {
-            throw new InvalidOperationException("Not currently recording");
+            if (!_isRecording)
+            {
+                throw new InvalidOperationException("Not currently recording");
+            }
+
+            Log.Information("[MacroRecorder] Stopping recording...");
+
+            _isRecording = false;
+            stopwatch = _stopwatch;
+            sequence = _currentSequence;
+            stopwatch?.Stop();
         }
-
-        Log.Information("[MacroRecorder] Stopping recording...");
-
-        IsRecording = false;
-        _stopwatch?.Stop();
 
         CleanupComponents();
 
-        if (_currentSequence is not null && _stopwatch is not null)
+        if (sequence is not null && stopwatch is not null)
         {
-            FinalizeSequence(_currentSequence, _stopwatch);
+            FinalizeSequence(sequence, stopwatch);
         }
 
-        return _currentSequence ?? new MacroSequence();
+        return sequence ?? new MacroSequence();
     }
 
     private static void FinalizeSequence(MacroSequence sequence, Stopwatch stopwatch)
@@ -272,6 +337,11 @@ public sealed class MacroRecorder(
         {
             try
             {
+                if (_currentStrategy is ICoordinateSampleSource sampleSource)
+                {
+                    sampleSource.SampleAvailable -= OnCoordinateSampleAvailable;
+                }
+
                 _currentStrategy.Dispose();
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -295,7 +365,7 @@ public sealed class MacroRecorder(
             return false;
         }
 
-        return strategy is not IRelativeCoordinateStrategy;
+        return !strategy.ProducesRelativeCoordinates;
     }
 
     private async Task PerformCornerResetAsync(CancellationToken cancellationToken)
@@ -308,11 +378,25 @@ public sealed class MacroRecorder(
 
         try
         {
-            Log.Information("[MacroRecorder] Performing Corner Reset (Force 0,0)...");
+            Log.Information("[MacroRecorder] Performing desktop corner reset...");
+            var desktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
             using var simulator = _inputSimulatorFactory();
-            await simulator.InitializeAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            simulator.MoveRelative(-20000, -20000);
-            Log.Information("[MacroRecorder] Corner Reset complete.");
+            await simulator.InitializeAsync(
+                desktopBounds?.Width ?? 0,
+                desktopBounds?.Height ?? 0,
+                cancellationToken).ConfigureAwait(false);
+            var expectedPosition = MouseCornerReset.MoveToDesktopOrigin(simulator, desktopBounds);
+            await Task.Delay(
+                CornerResetSettleDelay,
+                TimeProvider.System,
+                cancellationToken).ConfigureAwait(false);
+            Log.Information(
+                "[MacroRecorder] Corner Reset complete using {Mode} movement.",
+                expectedPosition is null ? "relative fallback" : "absolute desktop-origin");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -320,8 +404,38 @@ public sealed class MacroRecorder(
         }
     }
 
+    private async Task<ScreenRect?> TryGetDesktopBoundsAsync(CancellationToken cancellationToken)
+    {
+        if (_positionProvider is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await _positionProvider.GetDesktopBoundsAsync()
+                .WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[MacroRecorder] Failed to resolve desktop bounds for corner reset");
+            return null;
+        }
+    }
+
     public void Dispose()
     {
+        using (_eventLock.EnterScope())
+        {
+            _isRecording = false;
+            _stopwatch?.Stop();
+        }
+
         CleanupComponents();
     }
 }

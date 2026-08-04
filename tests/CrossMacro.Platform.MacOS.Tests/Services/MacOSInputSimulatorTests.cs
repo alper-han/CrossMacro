@@ -328,6 +328,181 @@ public sealed class MacOSInputSimulatorTests
         Assert.Equal(0xFFFF, virtualKeyCode);
     }
 
+    [Theory]
+    [InlineData(MouseButtonCode.Left, true, (int)CoreGraphics.CGEventType.LeftMouseDown, 0)]
+    [InlineData(MouseButtonCode.Right, false, (int)CoreGraphics.CGEventType.RightMouseUp, 1)]
+    [InlineData(MouseButtonCode.Middle, true, (int)CoreGraphics.CGEventType.OtherMouseDown, 2)]
+    [InlineData(MouseButtonCode.Side1, false, (int)CoreGraphics.CGEventType.OtherMouseUp, 3)]
+    [InlineData(MouseButtonCode.Side2, true, (int)CoreGraphics.CGEventType.OtherMouseDown, 4)]
+    public void TryResolveMouseButton_ShouldUseCoreGraphicsButtonNumbers(
+        int button,
+        bool pressed,
+        int expectedEventType,
+        long expectedButtonNumber)
+    {
+        var resolved = MacOSInputSimulator.TryResolveMouseButton(
+            button,
+            pressed,
+            out var macButton,
+            out var eventType,
+            out var buttonNumber);
+
+        Assert.True(resolved);
+        Assert.Equal((CoreGraphics.CGEventType)expectedEventType, eventType);
+        Assert.Equal(expectedButtonNumber, buttonNumber);
+        Assert.Equal((CoreGraphics.CGMouseButton)expectedButtonNumber, macButton);
+    }
+
+    [Theory]
+    [InlineData(MouseButtonCode.Left, (int)CoreGraphics.CGEventType.LeftMouseDragged, 0)]
+    [InlineData(MouseButtonCode.Right, (int)CoreGraphics.CGEventType.RightMouseDragged, 1)]
+    [InlineData(MouseButtonCode.Middle, (int)CoreGraphics.CGEventType.OtherMouseDragged, 2)]
+    [InlineData(MouseButtonCode.Side1, (int)CoreGraphics.CGEventType.OtherMouseDragged, 3)]
+    [InlineData(MouseButtonCode.Side2, (int)CoreGraphics.CGEventType.OtherMouseDragged, 4)]
+    public void ResolveMouseMovement_WhenButtonHeld_ShouldEmitMatchingDrag(
+        int button,
+        int expectedEventType,
+        long expectedButtonNumber)
+    {
+        var movement = MacOSInputSimulator.ResolveMouseMovement(new HashSet<int> { button });
+
+        Assert.Equal((CoreGraphics.CGEventType)expectedEventType, movement.EventType);
+        Assert.Equal(expectedButtonNumber, movement.ButtonNumber);
+    }
+
+    [Fact]
+    public void MoveRelative_WhenEventsArePostedBackToBack_UsesLastPostedTarget()
+    {
+        var postedPositions = new List<(int X, int Y)>();
+        var cursorQueries = 0;
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: () =>
+            {
+                cursorQueries++;
+                return new CoreGraphics.CGPoint { X = 100, Y = 80 };
+            },
+            postMouseMovement: (x, y, _) =>
+            {
+                postedPositions.Add((x, y));
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MoveRelative(10, -5);
+        simulator.MoveRelative(4, 7);
+
+        Assert.Equal(1, cursorQueries);
+        Assert.Equal([(110, 75), (114, 82)], postedPositions);
+    }
+
+    [Fact]
+    public void MoveRelative_WhenTargetOverflows_SaturatesPostedPosition()
+    {
+        (int X, int Y)? postedPosition = null;
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: static () => new CoreGraphics.CGPoint
+            {
+                X = int.MaxValue,
+                Y = int.MinValue,
+            },
+            postMouseMovement: (x, y, _) =>
+            {
+                postedPosition = (x, y);
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MoveRelative(1, -1);
+
+        Assert.Equal((int.MaxValue, int.MinValue), postedPosition);
+    }
+
+    [Fact]
+    public void MouseButton_AfterPostedMovement_UsesPostedTargetInsteadOfStaleCursorQuery()
+    {
+        (int X, int Y)? buttonPosition = null;
+        var cursorQueries = 0;
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: () =>
+            {
+                cursorQueries++;
+                return new CoreGraphics.CGPoint { X = 10, Y = 20 };
+            },
+            postMouseMovement: static (_, _, _) => true,
+            postMouseButton: (_, _, x, y) =>
+            {
+                buttonPosition = (x, y);
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MoveAbsolute(500, 600);
+        simulator.MouseButton(MouseButtonCode.Left, pressed: true);
+
+        Assert.Equal(1, cursorQueries);
+        Assert.Equal((500, 600), buttonPosition);
+    }
+
+    [Fact]
+    public void MouseButton_WithoutPostedMovement_UsesLiveCursorPosition()
+    {
+        (int X, int Y)? buttonPosition = null;
+        var cursorPositions = new Queue<CoreGraphics.CGPoint>(
+        [
+            new CoreGraphics.CGPoint { X = 10, Y = 20 },
+            new CoreGraphics.CGPoint { X = 30, Y = 40 },
+        ]);
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: () => cursorPositions.Dequeue(),
+            postMouseMovement: static (_, _, _) => true,
+            postMouseButton: (_, _, x, y) =>
+            {
+                buttonPosition = (x, y);
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MouseButton(MouseButtonCode.Left, pressed: true);
+
+        Assert.Equal((30, 40), buttonPosition);
+    }
+
+    [Fact]
+    public void MouseButton_ReleaseAfterPress_ReusesTrackedPressPosition()
+    {
+        var buttonPositions = new List<(bool Pressed, int X, int Y)>();
+        var cursorQueries = 0;
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: () =>
+            {
+                cursorQueries++;
+                return new CoreGraphics.CGPoint { X = 70, Y = 80 };
+            },
+            postMouseMovement: static (_, _, _) => true,
+            postMouseButton: (_, pressed, x, y) =>
+            {
+                buttonPositions.Add((pressed, x, y));
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MouseButton(MouseButtonCode.Left, pressed: true);
+        simulator.MouseButton(MouseButtonCode.Left, pressed: false);
+
+        Assert.Equal(2, cursorQueries);
+        Assert.Equal([(true, 70, 80), (false, 70, 80)], buttonPositions);
+    }
+
     private delegate bool TryCreateSystemDefinedCGEventDelegate(
         MacOSSystemKeyEventPayload payload,
         out IntPtr eventRef);

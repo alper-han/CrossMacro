@@ -1421,7 +1421,7 @@ region: null,
         return new MacroPlayerDependencies(positionProvider, timingService ?? new PlaybackTimingService(), (_, _) => Task.CompletedTask,
             CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
             () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
-            new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false), screenPixelReader, keyCodeMapper, new NullWindowManager(), clipboardService, shellCommandRunner: null,
+            screenPixelReader, keyCodeMapper, new NullWindowManager(), clipboardService, shellCommandRunner: null,
             screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
     }
 
@@ -1743,11 +1743,11 @@ region: null,
 
     private sealed class RecordingTimingService : IPlaybackTimingService
     {
-        public List<int> WaitCalls { get; } = [];
+        public List<double> WaitCalls { get; } = [];
 
-        public async Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
+        public async Task WaitAsync(double delayMilliseconds, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken)
         {
-            WaitCalls.Add(delayMs);
+            WaitCalls.Add(delayMilliseconds);
             if (pauseToken.IsPaused)
             {
                 await pauseToken.WaitIfPausedAsync(cancellationToken);

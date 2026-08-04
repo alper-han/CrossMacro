@@ -10,8 +10,8 @@ public interface IPlaybackTimingService
     /// <summary>
     /// Wait for specified delay with pause awareness
     /// </summary>
-    /// <param name="delayMs">Delay in milliseconds</param>
+    /// <param name="delayMilliseconds">Delay in milliseconds</param>
     /// <param name="pauseToken">Token to check for pause state</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    public Task WaitAsync(int delayMs, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken);
+    public Task WaitAsync(double delayMilliseconds, IPlaybackPauseToken pauseToken, CancellationToken cancellationToken);
 }

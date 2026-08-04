@@ -27,6 +27,9 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     private HotkeyMapping _recordingHotkey = new();
     private HotkeyMapping _playbackHotkey = new();
     private HotkeyMapping _pauseHotkey = new();
+    private string _recordingHotkeyString = string.Empty;
+    private string _playbackHotkeyString = string.Empty;
+    private string _pauseHotkeyString = string.Empty;
 
     private bool _playbackPauseHotkeysEnabled = true;
 
@@ -175,12 +178,26 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
+            var mappingsChanged = !string.Equals(_recordingHotkeyString, recordingHotkey, StringComparison.Ordinal)
+                || !string.Equals(_playbackHotkeyString, playbackHotkey, StringComparison.Ordinal)
+                || !string.Equals(_pauseHotkeyString, pauseHotkey, StringComparison.Ordinal);
+
             _recordingHotkey = _hotkeyParser.Parse(recordingHotkey);
             _playbackHotkey = _hotkeyParser.Parse(playbackHotkey);
             _pauseHotkey = _hotkeyParser.Parse(pauseHotkey);
+            _recordingHotkeyString = recordingHotkey;
+            _playbackHotkeyString = playbackHotkey;
+            _pauseHotkeyString = pauseHotkey;
 
-            Log.Information("[GlobalHotkeyService] Updated hotkeys: Recording={Recording}, Playback={Playback}, Pause={Pause}",
-                recordingHotkey, playbackHotkey, pauseHotkey);
+            if (mappingsChanged)
+            {
+                Log.Information("[GlobalHotkeyService] Updated hotkeys: Recording={Recording}, Playback={Playback}, Pause={Pause}",
+                    recordingHotkey, playbackHotkey, pauseHotkey);
+            }
+            else
+            {
+                Log.Debug("[GlobalHotkeyService] Hotkeys unchanged");
+            }
         }
 
         if (save)

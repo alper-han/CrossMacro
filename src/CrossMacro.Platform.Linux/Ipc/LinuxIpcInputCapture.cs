@@ -163,7 +163,7 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
                     ct).ConfigureAwait(false);
             }
 
-            Log.Information("[LinuxIpcInputCapture] Started capture via daemon");
+            Log.Information("[LinuxIpcInputCapture] Started capture via daemon (ConsumerId={ConsumerId})", _consumerId);
             await RegisterStopOnCancellationAsync(throwIfAlreadyCanceled: true, ct).ConfigureAwait(false);
             _ = startupCommit.StartupCompletion?.TrySetResult(true);
         }

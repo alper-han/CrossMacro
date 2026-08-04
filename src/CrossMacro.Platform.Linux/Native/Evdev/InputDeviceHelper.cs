@@ -152,17 +152,19 @@ public static partial class InputDeviceHelper
             return;
         }
 
-        Log.Warning("[InputDeviceHelper] --- Inaccessible Devices ---");
+        Log.Warning(
+            "[InputDeviceHelper] {Count} input device(s) are inaccessible; direct evdev access may be unavailable. Detailed device entries are available at Debug level.",
+            inaccessibleDevices.Count);
         foreach (var (dev, errno) in inaccessibleDevices)
         {
             if (errno is 16)
             {
-                Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) - Device is exclusively grabbed. Run: sudo fuser -v {Path}",
+                Log.Debug("[InputDeviceHelper]   [{Type}] {Name} ({Path}) - Device is exclusively grabbed. Run: sudo fuser -v {Path}",
                     dev.DeviceType, dev.Name, dev.Path, dev.Path);
             }
             else
             {
-                Log.Warning("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4} - Cannot open (errno: {Errno})",
+                Log.Debug("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4} - Cannot open (errno: {Errno})",
                     dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId, errno);
             }
         }

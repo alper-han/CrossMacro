@@ -11,6 +11,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     private const string ExpansionsFileName = ConfigFileNames.TextExpansions;
     private List<Core.Models.TextExpansionEntry> _expansions = new();
     private readonly Lock _lock = new();
+    private int _loadedState;
 
     public TextExpansionStorageService(string? configDirectory = null)
     {
@@ -37,10 +38,12 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                 {
                     Log.Information("[TextExpansionStorageService] No existing file found, starting with empty list");
                     _expansions = [];
+                    Volatile.Write(ref _loadedState, 1);
                     return _expansions;
                 }
 
                 _expansions = FileBackedJsonStorage.Read(FilePath, CrossMacroJsonContext.Default.ListTextExpansionEntry) ?? [];
+                Volatile.Write(ref _loadedState, 1);
 
                 Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
                 return _expansions;
@@ -49,6 +52,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             {
                 Log.LogError(ex, "[TextExpansionStorageService] Failed to load text expansions");
                 _expansions = [];
+                Volatile.Write(ref _loadedState, 1);
                 return _expansions;
             }
         }
@@ -75,6 +79,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                     if (string.Equals(FilePath, filePath, StringComparison.Ordinal))
                     {
                         _expansions = [];
+                        Volatile.Write(ref _loadedState, 1);
                     }
                 }
 
@@ -90,6 +95,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                 if (string.Equals(FilePath, filePath, StringComparison.Ordinal))
                 {
                     _expansions = loaded;
+                    Volatile.Write(ref _loadedState, 1);
                 }
             }
 
@@ -104,6 +110,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                 if (string.Equals(FilePath, filePath, StringComparison.Ordinal))
                 {
                     _expansions = [];
+                    Volatile.Write(ref _loadedState, 1);
                 }
             }
 
@@ -117,6 +124,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
         {
             FilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.TextExpansions);
             _expansions = [];
+            Volatile.Write(ref _loadedState, 0);
         }
 
         _ = await LoadAsync().ConfigureAwait(false);
@@ -137,6 +145,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             lock (_lock)
             {
                 _expansions = new List<Core.Models.TextExpansionEntry>(expansionList);
+                Volatile.Write(ref _loadedState, 1);
             }
 
             Log.Information("[TextExpansionStorageService] Saved {Count} text expansions", expansionList.Count);
@@ -159,6 +168,8 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             return new List<Core.Models.TextExpansionEntry>(_expansions);
         }
     }
+
+    public bool IsLoaded => Volatile.Read(ref _loadedState) is 1;
 
     /// <summary>
     /// Gets the file path where expansions are stored

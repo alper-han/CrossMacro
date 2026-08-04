@@ -28,6 +28,8 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
     private readonly Func<Func<DesktopStartupUiResources>, Task<DesktopStartupUiResources>> _executeOnUiThread;
     private readonly CancellationTokenSource _warmupCancellation = new();
     private readonly List<Task> _warmupTasks = [];
+    private readonly TaskCompletionSource _startupCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _startupStarted;
     private int _stopped;
 
     public DesktopStartupRuntimeService(
@@ -90,49 +92,63 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(desktop);
 
-        var startupResources = await _executeOnUiThread(() =>
+        if (Interlocked.CompareExchange(ref _startupStarted, 1, 0) is not 0)
         {
-            var mainWindowViewModel = _getMainWindowViewModel();
-            var mainWindow = _getMainWindow();
-            mainWindow.DataContext = mainWindowViewModel;
-
-            var trayIconService = _getTrayIconService();
-            PublishMainWindow(desktop, mainWindow);
-            trayIconService.Initialize();
-            return new DesktopStartupUiResources(mainWindowViewModel, mainWindow, trayIconService);
-        }).ConfigureAwait(false);
-
-        var inputSimulatorPool = _getInputSimulatorPool();
-        if (inputSimulatorPool is not null)
-        {
-            _warmupTasks.Add(InputSimulatorWarmupService.WarmUpAsync(
-                inputSimulatorPool,
-                _getPositionProvider(),
-                _warmupCancellation.Token));
+            return;
         }
 
-        await _runtimeLifecycle.StartAsync(CancellationToken.None).ConfigureAwait(true);
-
-        startupResources = await _executeOnUiThread(() =>
+        try
         {
-            startupResources.TrayIconService.SetEnabled(startupPreferences.ShouldEnableTrayDuringStartup);
-            startupResources.MainWindowViewModel.TrayIconEnabledChanged +=
-                (_, enabled) => startupResources.TrayIconService.SetEnabled(enabled);
+            _warmupCancellation.Token.ThrowIfCancellationRequested();
 
-            var displayMode = DesktopStartupRuntimeService.ConfigureMainWindow(
-                desktop,
-                startupResources.MainWindow,
-                startupPreferences,
-                startupResources.TrayIconService);
-            ShowWindowForStartup(startupResources.MainWindow, displayMode);
-            return startupResources;
-        }).ConfigureAwait(false);
+            var startupResources = await _executeOnUiThread(() =>
+            {
+                var mainWindowViewModel = _getMainWindowViewModel();
+                var mainWindow = _getMainWindow();
+                mainWindow.DataContext = mainWindowViewModel;
 
-        if (_screenReadingWarmup is not null)
-        {
-            _warmupTasks.Add(RunScreenReadingWarmupAsync(_warmupCancellation.Token));
+                var trayIconService = _getTrayIconService();
+                PublishMainWindow(desktop, mainWindow);
+                trayIconService.Initialize();
+                return new DesktopStartupUiResources(mainWindowViewModel, mainWindow, trayIconService);
+            }).ConfigureAwait(false);
+
+            var inputSimulatorPool = _getInputSimulatorPool();
+            if (inputSimulatorPool is not null)
+            {
+                _warmupTasks.Add(InputSimulatorWarmupService.WarmUpAsync(
+                    inputSimulatorPool,
+                    _getPositionProvider(),
+                    _warmupCancellation.Token));
+            }
+
+            await _runtimeLifecycle.StartAsync(_warmupCancellation.Token).ConfigureAwait(true);
+            _warmupCancellation.Token.ThrowIfCancellationRequested();
+
+            startupResources = await _executeOnUiThread(() =>
+            {
+                startupResources.TrayIconService.SetEnabled(startupPreferences.ShouldEnableTrayDuringStartup);
+                startupResources.MainWindowViewModel.TrayIconEnabledChanged +=
+                    (_, enabled) => startupResources.TrayIconService.SetEnabled(enabled);
+
+                var displayMode = DesktopStartupRuntimeService.ConfigureMainWindow(
+                    desktop,
+                    startupResources.MainWindow,
+                    startupPreferences,
+                    startupResources.TrayIconService);
+                ShowWindowForStartup(startupResources.MainWindow, displayMode);
+                return startupResources;
+            }).ConfigureAwait(false);
+
+            if (_screenReadingWarmup is not null)
+            {
+                _warmupTasks.Add(RunScreenReadingWarmupAsync(_warmupCancellation.Token));
+            }
         }
-
+        finally
+        {
+            _ = _startupCompletion.TrySetResult();
+        }
     }
 
     internal async Task StopAsync()
@@ -143,6 +159,30 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
         }
 
         var errors = new List<Exception>();
+
+        try
+        {
+            await _warmupCancellation.CancelAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            errors.Add(ex);
+        }
+
+        if (Volatile.Read(ref _startupStarted) is 0)
+        {
+            _ = _startupCompletion.TrySetResult();
+        }
+
+        try
+        {
+            await _startupCompletion.Task.ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            errors.Add(ex);
+        }
+
         try
         {
             await _runtimeLifecycle.StopAsync(CancellationToken.None).ConfigureAwait(true);
@@ -152,7 +192,6 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
             errors.Add(ex);
         }
 
-        await _warmupCancellation.CancelAsync().ConfigureAwait(true);
         try
         {
             await Task.WhenAll(_warmupTasks).ConfigureAwait(true);
@@ -191,6 +230,10 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 await _portalScreenReadingGuidanceService.ShowBeforePortalWarmupAsync().ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "[DesktopStartupRuntimeService] Portal screen-reading guidance failed; continuing warm-up");
@@ -200,6 +243,10 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
         try
         {
             await _screenReadingWarmup(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Shutdown cancellation is an expected completion path.
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

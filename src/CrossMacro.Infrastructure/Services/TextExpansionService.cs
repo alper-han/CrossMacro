@@ -76,7 +76,10 @@ public sealed class TextExpansionService : ITextExpansionService
 
             try
             {
-                _ = _storageService.Load();
+                if (!_storageService.IsLoaded)
+                {
+                    _ = _storageService.Load();
+                }
                 IsRunning = true;
                 _captureLifecycle.Start(
                     _inputCaptureFactory,
@@ -125,7 +128,10 @@ public sealed class TextExpansionService : ITextExpansionService
         try
         {
             startupCancellation.Token.ThrowIfCancellationRequested();
-            _ = await _storageService.LoadAsync().ConfigureAwait(false);
+            if (!_storageService.IsLoaded)
+            {
+                _ = await _storageService.LoadAsync().ConfigureAwait(false);
+            }
             startupCancellation.Token.ThrowIfCancellationRequested();
 
             lock (_lock)

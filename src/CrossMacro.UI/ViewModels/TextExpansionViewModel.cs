@@ -63,7 +63,11 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     private async Task LoadExpansionsAsync()
     {
         IReadOnlyList<TextExpansionEntry> loadedExpansions;
-        if (_storageService is not null)
+        if (_storageService is ICachedTextExpansionStore storageService && storageService.IsLoaded)
+        {
+            loadedExpansions = storageService.GetCurrent().ToArray();
+        }
+        else if (_storageService is not null)
         {
             loadedExpansions = (IReadOnlyList<TextExpansionEntry>)await _storageService.LoadAsync().ConfigureAwait(false);
         }

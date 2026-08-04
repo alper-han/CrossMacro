@@ -5,7 +5,10 @@ public interface IInputSimulatorPool : IDisposable
 {
     public bool HasWarmDevice { get; }
     public Task Completion { get; }
-    public Task WarmUpAsync(int screenWidth = 0, int screenHeight = 0);
+    public Task WarmUpAsync(
+        int screenWidth = 0,
+        int screenHeight = 0,
+        CancellationToken cancellationToken = default);
     public Task<IInputSimulator> AcquireAsync(
         int screenWidth,
         int screenHeight,

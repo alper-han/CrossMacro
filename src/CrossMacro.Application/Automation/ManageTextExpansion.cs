@@ -8,7 +8,7 @@ public sealed class ManageTextExpansion(ITextExpansionStore store, IProfileManag
 
     public async Task<IReadOnlyList<TextExpansionEntry>> ListAsync(string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
-        var expansions = await WithProfileAsync(profileIdentifier, () => _store.LoadAsync(), cancellationToken).ConfigureAwait(false);
+        var expansions = await WithProfileAsync(profileIdentifier, LoadCurrentAsync, cancellationToken).ConfigureAwait(false);
         return expansions.AsReadOnly();
     }
 
@@ -16,7 +16,7 @@ public sealed class ManageTextExpansion(ITextExpansionStore store, IProfileManag
     {
         return await WithProfileAsync(profileIdentifier, async () =>
         {
-            var expansions = await _store.LoadAsync().ConfigureAwait(false);
+            var expansions = await LoadCurrentAsync().ConfigureAwait(false);
             if (expansions.Any(item => string.Equals(item.Trigger, expansion.Trigger, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new InvalidOperationException($"Text expansion trigger already exists: {expansion.Trigger}");
@@ -32,7 +32,7 @@ public sealed class ManageTextExpansion(ITextExpansionStore store, IProfileManag
     {
         return await WithProfileAsync(profileIdentifier, async () =>
         {
-            var expansions = await _store.LoadAsync().ConfigureAwait(false);
+            var expansions = await LoadCurrentAsync().ConfigureAwait(false);
             var expansion = FindEntry(expansions, trigger) ?? throw new KeyNotFoundException($"No text expansion found with trigger: {trigger}");
             _ = expansions.Remove(expansion);
             await _store.SaveAsync(expansions).ConfigureAwait(false);
@@ -44,7 +44,7 @@ public sealed class ManageTextExpansion(ITextExpansionStore store, IProfileManag
     {
         return await WithProfileAsync(profileIdentifier, async () =>
         {
-            var expansions = await _store.LoadAsync().ConfigureAwait(false);
+            var expansions = await LoadCurrentAsync().ConfigureAwait(false);
             var expansion = FindEntry(expansions, trigger) ?? throw new KeyNotFoundException($"No text expansion found with trigger: {trigger}");
             expansion.IsEnabled = enabled;
             await _store.SaveAsync(expansions).ConfigureAwait(false);
@@ -55,7 +55,17 @@ public sealed class ManageTextExpansion(ITextExpansionStore store, IProfileManag
     public async Task<TextExpansionEntry?> FindAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
         return await WithProfileAsync(profileIdentifier, async () =>
-            FindEntry(await _store.LoadAsync().ConfigureAwait(false), trigger), cancellationToken).ConfigureAwait(false);
+            FindEntry(await LoadCurrentAsync().ConfigureAwait(false), trigger), cancellationToken).ConfigureAwait(false);
+    }
+
+    private Task<IList<TextExpansionEntry>> LoadCurrentAsync()
+    {
+        if (_store is ICachedTextExpansionStore cachedStore && cachedStore.IsLoaded)
+        {
+            return Task.FromResult(cachedStore.GetCurrent());
+        }
+
+        return _store.LoadAsync();
     }
 
     private async Task<T> WithProfileAsync<T>(string? profileIdentifier, Func<Task<T>> operation, CancellationToken cancellationToken)

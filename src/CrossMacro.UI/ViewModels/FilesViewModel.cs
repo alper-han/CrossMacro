@@ -385,6 +385,7 @@ public partial class FilesViewModel : ViewModelBase
             ev.X = 0;
             ev.Y = 0;
             ev.CoordinateMode = null;
+            ev.CoordinateSpace = null;
             macro.Events[index] = ev;
         }
     }

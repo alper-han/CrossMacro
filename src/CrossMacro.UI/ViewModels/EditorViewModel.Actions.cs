@@ -35,6 +35,7 @@ public partial class EditorViewModel
             && left.X == right.X
             && left.Y == right.Y
             && left.IsAbsolute == right.IsAbsolute
+            && left.CoordinateSpace == right.CoordinateSpace
             && left.Button == right.Button
             && left.KeyCode == right.KeyCode
             && left.DelayMs == right.DelayMs

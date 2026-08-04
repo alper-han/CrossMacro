@@ -47,7 +47,10 @@ public sealed class InputSimulatorPool(Func<IInputSimulator> factory) : IInputSi
     /// </summary>
     /// <param name="screenWidth">Screen width for absolute mode (0 for relative-only)</param>
     /// <param name="screenHeight">Screen height for absolute mode (0 for relative-only)</param>
-    public async Task WarmUpAsync(int screenWidth = 0, int screenHeight = 0)
+    public async Task WarmUpAsync(
+        int screenWidth = 0,
+        int screenHeight = 0,
+        CancellationToken cancellationToken = default)
     {
         if (_disposed)
         {
@@ -62,9 +65,14 @@ public sealed class InputSimulatorPool(Func<IInputSimulator> factory) : IInputSi
         await (previousCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
         previousCts?.Dispose();
 
+        using var linkedWarmUpCancellation = cancellationToken.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(warmUpToken, cancellationToken)
+            : null;
+        var effectiveWarmUpToken = linkedWarmUpCancellation?.Token ?? warmUpToken;
+
         try
         {
-            await RunWarmUpAsync(screenWidth, screenHeight, warmUpToken).ConfigureAwait(false);
+            await RunWarmUpAsync(screenWidth, screenHeight, effectiveWarmUpToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

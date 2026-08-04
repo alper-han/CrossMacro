@@ -87,7 +87,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
         return new HotkeySettings();
     }
 
-    public Task ReloadAsync(string profileConfigDirectory)
+    public Task<HotkeySettings> ReloadAsync(string profileConfigDirectory)
     {
         lock (_pathLock)
         {

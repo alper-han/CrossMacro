@@ -200,8 +200,8 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
     private async Task ReloadProfileServicesAsync(string profileDir)
     {
         await _settingsService.ReloadAsync(profileDir).ConfigureAwait(false);
-        await _hotkeyConfigService.ReloadAsync(profileDir).ConfigureAwait(false);
-        var loaded = await _hotkeyConfigService.LoadAsync().ConfigureAwait(false);
+        var loaded = await _hotkeyConfigService.ReloadAsync(profileDir).ConfigureAwait(false)
+            ?? await _hotkeyConfigService.LoadAsync().ConfigureAwait(false);
         _hotkeySettings.RecordingHotkey = loaded.RecordingHotkey;
         _hotkeySettings.PlaybackHotkey = loaded.PlaybackHotkey;
         _hotkeySettings.PauseHotkey = loaded.PauseHotkey;

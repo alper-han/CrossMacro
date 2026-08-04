@@ -112,6 +112,18 @@ public sealed class InputSimulatorPoolTests : IDisposable
         _ = await act.Should().NotThrowAsync();
     }
 
+    [Fact]
+    public async Task WarmUpAsync_WhenCancellationIsRequested_DoesNotCreateADevice()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await _pool.WarmUpAsync(cancellationToken: cancellation.Token);
+
+        _ = _created.Should().BeEmpty();
+        _ = _pool.HasWarmDevice.Should().BeFalse();
+    }
+
     private sealed class FakeInputSimulator : IInputSimulator
     {
         public List<(int Width, int Height)> InitializeCalls { get; } = [];

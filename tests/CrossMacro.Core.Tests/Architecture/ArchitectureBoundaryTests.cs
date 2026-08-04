@@ -137,6 +137,7 @@ public sealed class ArchitectureBoundaryTests
 
         Assert.Equal(
             [
+                "src/CrossMacro.Application/Automation/ICachedTextExpansionStore.cs",
                 "src/CrossMacro.Application/Automation/IManageSchedule.cs",
                 "src/CrossMacro.Application/Automation/IManageShortcut.cs",
                 "src/CrossMacro.Application/Automation/IManageTextExpansion.cs",

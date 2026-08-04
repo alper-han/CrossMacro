@@ -18,7 +18,10 @@ internal static class InputSimulatorWarmupService
 
             if (positionProvider is not null)
             {
-                var resolution = await positionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
+                var resolution = await positionProvider
+                    .GetScreenResolutionAsync()
+                    .WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (resolution is not null)
                 {
@@ -27,8 +30,12 @@ internal static class InputSimulatorWarmupService
                 }
             }
 
-            await simulatorPool.WarmUpAsync(width, height).ConfigureAwait(false);
+            await simulatorPool.WarmUpAsync(width, height, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Log.Debug("[DesktopStartupCoordinator] Input simulator warm-up cancelled during shutdown");
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

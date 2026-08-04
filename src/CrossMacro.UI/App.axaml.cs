@@ -95,13 +95,22 @@ public class App : Avalonia.Application
         return services.GetRequiredService<IDesktopStartupCoordinator>();
     }
 
-    private static async Task RunStartupAsync(
+    private async Task RunStartupAsync(
         IDesktopStartupCoordinator startupCoordinator,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
+        if (Volatile.Read(ref _shutdownStarted))
+        {
+            return;
+        }
+
         try
         {
             await startupCoordinator.StartAsync(desktop).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (Volatile.Read(ref _shutdownStarted))
+        {
+            // Shutdown cancellation is an expected completion path.
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -118,12 +127,12 @@ public class App : Avalonia.Application
         }
 
         e.Cancel = true;
-        if (_shutdownStarted)
+        if (Volatile.Read(ref _shutdownStarted))
         {
             return;
         }
 
-        _shutdownStarted = true;
+        Volatile.Write(ref _shutdownStarted, value: true);
         _ = CompleteShutdownAsync((IClassicDesktopStyleApplicationLifetime)sender!);
     }
 

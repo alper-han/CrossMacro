@@ -9,6 +9,7 @@ public class SettingsService : ISettingsService, IDisposable
     private readonly string _globalSettingsFilePath;
     private string _profileSettingsFilePath;
     private int _profileGeneration;
+    private int _settingsLoaded;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private int _disposed;
 
@@ -90,6 +91,7 @@ public class SettingsService : ISettingsService, IDisposable
             var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
             Current = SettingsMapper.Combine(globalSettings, profileSettings);
             NormalizeSettings(Current);
+            Volatile.Write(ref _settingsLoaded, 1);
 
             Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
             return Current;
@@ -99,6 +101,7 @@ public class SettingsService : ISettingsService, IDisposable
             Log.LogError(ex, "Failed to load settings, using defaults");
             Current = new AppSettings();
             NormalizeSettings(Current);
+            Volatile.Write(ref _settingsLoaded, 1);
             return Current;
         }
     }
@@ -111,6 +114,7 @@ public class SettingsService : ISettingsService, IDisposable
             var profileSettings = LoadProfileSettings();
             Current = SettingsMapper.Combine(globalSettings, profileSettings);
             NormalizeSettings(Current);
+            Volatile.Write(ref _settingsLoaded, 1);
 
             Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
             return Current;
@@ -120,6 +124,7 @@ public class SettingsService : ISettingsService, IDisposable
             Log.LogError(ex, "Failed to load settings, using defaults");
             Current = new AppSettings();
             NormalizeSettings(Current);
+            Volatile.Write(ref _settingsLoaded, 1);
             return Current;
         }
     }
@@ -199,17 +204,31 @@ public class SettingsService : ISettingsService, IDisposable
         try
         {
             _profileSettingsFilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Settings);
-            var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-            SettingsMapper.ApplyProfile(Current, profileSettings);
-            NormalizeSettings(Current);
+            if (Volatile.Read(ref _settingsLoaded) is 0)
+            {
+                var globalSettings = await LoadGlobalSettingsAsync().ConfigureAwait(false);
+                var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
+                Current = SettingsMapper.Combine(globalSettings, profileSettings);
+                NormalizeSettings(Current);
+                Volatile.Write(ref _settingsLoaded, 1);
 
-            Log.Information("Profile settings reloaded from {ProfilePath}", _profileSettingsFilePath);
+                Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
+            }
+            else
+            {
+                var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
+                SettingsMapper.ApplyProfile(Current, profileSettings);
+                NormalizeSettings(Current);
+
+                Log.Information("Profile settings reloaded from {ProfilePath}", _profileSettingsFilePath);
+            }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to reload profile settings, using defaults");
             SettingsMapper.ApplyProfile(Current, new ProfileSettings());
             NormalizeSettings(Current);
+            Volatile.Write(ref _settingsLoaded, 1);
         }
         finally
         {

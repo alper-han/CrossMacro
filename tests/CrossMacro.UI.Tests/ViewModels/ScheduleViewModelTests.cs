@@ -72,6 +72,29 @@ public sealed class ScheduleViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task InitializeAsync_WhenProfileRuntimeAlreadyLoaded_SkipsRedundantLoad()
+    {
+        var schedulerService = Substitute.For<ISchedulerService>();
+        _ = schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
+        _ = schedulerService.LoadAsync().Returns(Task.CompletedTask);
+        var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
+        _ = profileRuntimeState.IsInitialized.Returns(true);
+        var timeProvider = Substitute.For<TimeProvider>();
+        _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
+        using var viewModel = new ScheduleViewModel(
+            schedulerService,
+            _dialogService,
+            timeProvider,
+            _localizationService,
+            profileRuntimeState);
+
+        await viewModel.InitializeAsync();
+
+        await schedulerService.DidNotReceive().LoadAsync();
+        schedulerService.Received(1).Start();
+    }
+
+    [Fact]
     public async Task InitializeAsync_WhenLoadFails_ReportsStatusAndSkipsStart()
     {
         _ = _schedulerService.LoadAsync().Returns(Task.FromException(new InvalidOperationException("load failed")));

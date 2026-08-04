@@ -9,6 +9,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     private readonly IShortcutService _shortcutService;
     private readonly IDialogService _dialogService;
     private readonly IManageShortcut? _manageShortcut;
+    private readonly IProfileRuntimeState? _profileRuntimeState;
     private bool _disposed;
     private readonly Dictionary<Guid, ShortcutTaskEditor> _editors = [];
 
@@ -100,12 +101,14 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         IShortcutService shortcutService,
         IDialogService dialogService,
         IGlobalHotkeyService hotkeyService,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IProfileRuntimeState? profileRuntimeState = null)
     {
         _shortcutService = shortcutService;
         _dialogService = dialogService;
         GlobalHotkeyService = hotkeyService;
         LocalizationService = localizationService;
+        _profileRuntimeState = profileRuntimeState;
         LocalizationService.CultureChanged += OnCultureChanged;
 
         // Subscribe to shortcut execution events
@@ -123,8 +126,9 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         IShortcutService shortcutService,
         IDialogService dialogService,
         IGlobalHotkeyService hotkeyService,
-        ILocalizationService localizationService)
-        : this(shortcutService, dialogService, hotkeyService, localizationService)
+        ILocalizationService localizationService,
+        IProfileRuntimeState? profileRuntimeState = null)
+        : this(shortcutService, dialogService, hotkeyService, localizationService, profileRuntimeState)
     {
         _manageShortcut = manageShortcut;
     }
@@ -133,7 +137,12 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _shortcutService.LoadAsync().ConfigureAwait(false);
+            // ProfileRuntimeCoordinator owns the initial profile load before the shell is composed.
+            if (_profileRuntimeState?.IsInitialized is not true)
+            {
+                await _shortcutService.LoadAsync().ConfigureAwait(false);
+            }
+
             _shortcutService.Start();
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)

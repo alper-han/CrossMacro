@@ -62,6 +62,27 @@ public sealed class ShortcutViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Construction_WhenProfileRuntimeAlreadyLoaded_SkipsRedundantLoad()
+    {
+        var shortcutService = Substitute.For<IShortcutService>();
+        _ = shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
+        _ = shortcutService.LoadAsync().Returns(Task.CompletedTask);
+        var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
+        _ = profileRuntimeState.IsInitialized.Returns(true);
+        using var viewModel = new ShortcutViewModel(
+            shortcutService,
+            _dialogService,
+            _hotkeyService,
+            _localizationService,
+            profileRuntimeState);
+
+        await viewModel.InitializationTask;
+
+        await shortcutService.DidNotReceive().LoadAsync();
+        shortcutService.Received(1).Start();
+    }
+
+    [Fact]
     public async Task Construction_WhenLoadFails_ReportsStatusAndDoesNotThrow()
     {
         // Arrange

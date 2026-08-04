@@ -7,7 +7,8 @@ internal sealed class DesktopStartupInitializationService(
     Func<LocalizationService> getLocalizationService,
     Func<EditorActionDisplayFormatter> getEditorActionDisplayFormatter,
     IProfileManager profileManager,
-    GuiStartupOptions startupOptions)
+    GuiStartupOptions startupOptions,
+    IProfileRuntimeState? profileRuntimeState = null)
 {
     private readonly Func<ISettingsService> _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
     private readonly Func<IThemeService> _getThemeService = getThemeService ?? throw new ArgumentNullException(nameof(getThemeService));
@@ -15,13 +16,19 @@ internal sealed class DesktopStartupInitializationService(
     private readonly Func<EditorActionDisplayFormatter> _getEditorActionDisplayFormatter = getEditorActionDisplayFormatter ?? throw new ArgumentNullException(nameof(getEditorActionDisplayFormatter));
     private readonly IProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
     private readonly GuiStartupOptions _startupOptions = startupOptions ?? throw new ArgumentNullException(nameof(startupOptions));
+    private readonly IProfileRuntimeState? _profileRuntimeState = profileRuntimeState;
 
     public async Task<DesktopStartupPreferences> InitializeAsync()
     {
         await _profileManager.InitializeAsync().ConfigureAwait(false);
 
         var settingsService = _getSettingsService();
-        _ = await settingsService.LoadAsync().ConfigureAwait(false);
+        if (_profileRuntimeState?.IsInitialized is not true)
+        {
+            // Keep custom/profile-manager implementations safe without adding a
+            // second read in the normal coordinator-owned startup path.
+            _ = await settingsService.LoadAsync().ConfigureAwait(false);
+        }
 
         InitializeLocalization(settingsService);
         await ApplyThemeAsync(settingsService).ConfigureAwait(false);

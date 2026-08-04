@@ -13,7 +13,9 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
     private readonly ITriggerService _triggerService;
     private readonly IScheduledTaskRepository _scheduledTaskRepository;
     private readonly ITextExpansionStorageService _textExpansionStorageService;
+    private readonly ProfileRuntimeState? _runtimeState;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private int _initialized;
     private int _disposed;
 
     internal ProfileRuntimeCoordinator(
@@ -27,7 +29,8 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         ITextExpansionService? textExpansionService,
         ITriggerService triggerService,
         IScheduledTaskRepository scheduledTaskRepository,
-        ITextExpansionStorageService textExpansionStorageService)
+        ITextExpansionStorageService textExpansionStorageService,
+        ProfileRuntimeState? runtimeState = null)
     {
         _catalog = catalog;
         _settingsService = settingsService;
@@ -40,10 +43,12 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         _triggerService = triggerService;
         _scheduledTaskRepository = scheduledTaskRepository;
         _textExpansionStorageService = textExpansionStorageService;
+        _runtimeState = runtimeState;
     }
 
     public ProfileInfo ActiveProfile => _catalog.ActiveProfile;
     public IReadOnlyList<ProfileInfo> Profiles => _catalog.Profiles;
+    public bool IsInitialized => Volatile.Read(ref _initialized) is 1;
     public event EventHandler<ProfileChangedEventArgs>? ProfileChanged;
 
     public async Task InitializeAsync()
@@ -51,8 +56,15 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (Volatile.Read(ref _initialized) is 1)
+            {
+                return;
+            }
+
             await _catalog.InitializeAsync().ConfigureAwait(false);
             await ReloadProfileServicesAsync(_catalog.GetProfileDirectory(_catalog.ActiveProfile.Id)).ConfigureAwait(false);
+            Volatile.Write(ref _initialized, 1);
+            _runtimeState?.MarkInitialized();
         }
         finally
         {

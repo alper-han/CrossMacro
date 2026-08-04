@@ -8,6 +8,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 {
     private readonly ITriggerService _triggerService;
     private readonly IProfileManager? _profileManager;
+    private readonly IProfileRuntimeState? _profileRuntimeState;
     private readonly IDialogService _dialogService;
     private readonly IWindowManager? _windowManager;
     private readonly IManageTrigger? _manageTrigger;
@@ -156,13 +157,15 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         IProfileManager? profileManager,
         IDialogService dialogService,
         ILocalizationService localizationService,
-        IWindowManager? windowManager)
+        IWindowManager? windowManager,
+        IProfileRuntimeState? profileRuntimeState = null)
     {
         _triggerService = triggerService;
         _profileManager = profileManager;
         _dialogService = dialogService;
         LocalizationService = localizationService;
         _windowManager = windowManager;
+        _profileRuntimeState = profileRuntimeState;
         LocalizationService.CultureChanged += OnCultureChanged;
 
         _triggerService.TriggerFired += OnTriggerFired;
@@ -179,8 +182,9 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         IProfileManager? profileManager,
         IDialogService dialogService,
         ILocalizationService localizationService,
-        IWindowManager? windowManager)
-        : this(triggerService, profileManager, dialogService, localizationService, windowManager)
+        IWindowManager? windowManager,
+        IProfileRuntimeState? profileRuntimeState = null)
+        : this(triggerService, profileManager, dialogService, localizationService, windowManager, profileRuntimeState)
     {
         _manageTrigger = manageTrigger;
     }
@@ -189,7 +193,12 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _triggerService.LoadAsync().ConfigureAwait(false);
+            // ProfileRuntimeCoordinator owns the initial profile load before the shell is composed.
+            if (_profileRuntimeState?.IsInitialized is not true)
+            {
+                await _triggerService.LoadAsync().ConfigureAwait(false);
+            }
+
             _triggerService.Start();
             await RunOnUiThreadAsync(() =>
             {

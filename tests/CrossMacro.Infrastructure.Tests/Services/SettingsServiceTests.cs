@@ -84,6 +84,43 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ReloadAsync_FirstLoadCombinesGlobalAndProfileSettings()
+    {
+        var profileDirectory = Path.Combine(_tempPath, "profiles", "work");
+        _ = Directory.CreateDirectory(profileDirectory);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(_tempPath, ConfigFileNames.GlobalSettings),
+            JsonSerializer.Serialize(
+                new GlobalSettings
+                {
+                    EnableTrayIcon = true,
+                    Language = "tr",
+                },
+                CrossMacroJsonContext.Default.GlobalSettings),
+            NonCancelableToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(profileDirectory, ConfigFileNames.Settings),
+            JsonSerializer.Serialize(
+                new ProfileSettings
+                {
+                    PlaybackSpeed = 2.5,
+                    IsLooping = true,
+                },
+                CrossMacroJsonContext.Default.ProfileSettings),
+            NonCancelableToken);
+
+        var service = new SettingsService(_tempPath);
+
+        await service.ReloadAsync(profileDirectory);
+
+        _ = service.Current.EnableTrayIcon.Should().BeTrue();
+        _ = service.Current.Language.Should().Be("tr");
+        _ = service.Current.PlaybackSpeed.Should().Be(2.5);
+        _ = service.Current.IsLooping.Should().BeTrue();
+    }
+
+    [Fact]
     public void Save_DoesNotThrow()
     {
         // Arrange

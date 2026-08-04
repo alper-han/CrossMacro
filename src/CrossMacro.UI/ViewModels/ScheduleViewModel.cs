@@ -11,6 +11,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     private readonly TimeProvider _timeProvider;
     private readonly ILocalizationService _localizationService;
     private readonly IManageSchedule? _manageSchedule;
+    private readonly IProfileRuntimeState? _profileRuntimeState;
     private readonly Lock _initializeLock = new();
     private Task? _initializeTask;
     private readonly Dictionary<Guid, ScheduledTaskEditor> _editors = [];
@@ -226,12 +227,14 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         ISchedulerService schedulerService,
         IDialogService dialogService,
         TimeProvider timeProvider,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IProfileRuntimeState? profileRuntimeState = null)
     {
         _schedulerService = schedulerService ?? throw new ArgumentNullException(nameof(schedulerService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _localizationService = localizationService;
+        _profileRuntimeState = profileRuntimeState;
         _localizationService.CultureChanged += OnCultureChanged;
 
         // Subscribe to task execution events
@@ -247,8 +250,9 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         ISchedulerService schedulerService,
         IDialogService dialogService,
         TimeProvider timeProvider,
-        ILocalizationService localizationService)
-        : this(schedulerService, dialogService, timeProvider, localizationService)
+        ILocalizationService localizationService,
+        IProfileRuntimeState? profileRuntimeState = null)
+        : this(schedulerService, dialogService, timeProvider, localizationService, profileRuntimeState)
     {
         _manageSchedule = manageSchedule;
     }
@@ -280,7 +284,12 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _schedulerService.LoadAsync().ConfigureAwait(false);
+            // ProfileRuntimeCoordinator owns the initial profile load before the shell is composed.
+            if (_profileRuntimeState?.IsInitialized is not true)
+            {
+                await _schedulerService.LoadAsync().ConfigureAwait(false);
+            }
+
             _schedulerService.Start();
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)

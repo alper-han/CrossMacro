@@ -61,4 +61,30 @@ public sealed class TriggerViewModelTests
         triggerService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await triggerService.DidNotReceive().SaveAsync();
     }
+
+    [Fact]
+    public async Task Construction_WhenProfileRuntimeAlreadyLoaded_SkipsRedundantLoad()
+    {
+        var triggerService = Substitute.For<ITriggerService>();
+        _ = triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>());
+        _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
+        var profileManager = Substitute.For<IProfileManager>();
+        var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
+        _ = profileRuntimeState.IsInitialized.Returns(true);
+        var dialogService = Substitute.For<IDialogService>();
+        var localizationService = Substitute.For<ILocalizationService>();
+        var viewModel = new TriggerViewModel(
+            triggerService,
+            profileManager,
+            dialogService,
+            localizationService,
+            windowManager: null,
+            profileRuntimeState);
+
+        await viewModel.InitializationTask;
+
+        await triggerService.DidNotReceive().LoadAsync();
+        triggerService.Received(1).Start();
+        viewModel.Dispose();
+    }
 }

@@ -35,6 +35,45 @@ public sealed class ProfileManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task InitializeAsync_IsIdempotentAfterRuntimeServicesAreLoaded()
+    {
+        var settingsService = Substitute.For<ISettingsService>();
+        var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
+        var schedulerService = Substitute.For<ISchedulerService>();
+        var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
+        var textExpansionStorageService = Substitute.For<ITextExpansionStorageService>();
+        _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
+        _ = schedulerService.Completion.Returns(Task.CompletedTask);
+
+        var manager = CreateCoordinator(
+            new ProfileManager(_tempPath),
+            settingsService,
+            hotkeyConfigService,
+            new HotkeySettings(),
+            hotkeyService: null,
+            shortcutService: null,
+            schedulerService,
+            textExpansionService: null,
+            scheduledTaskRepository,
+            textExpansionStorageService);
+
+        await manager.InitializeAsync();
+        await manager.InitializeAsync();
+
+        _ = manager.IsInitialized.Should().BeTrue();
+        _ = settingsService.ReceivedCalls().Count(call =>
+            string.Equals(call.GetMethodInfo().Name, nameof(ISettingsService.ReloadAsync), StringComparison.Ordinal)).Should().Be(1);
+        _ = hotkeyConfigService.ReceivedCalls().Count(call =>
+            string.Equals(call.GetMethodInfo().Name, nameof(IHotkeyConfigurationService.ReloadAsync), StringComparison.Ordinal)).Should().Be(1);
+        _ = schedulerService.ReceivedCalls().Count(call =>
+            string.Equals(call.GetMethodInfo().Name, nameof(ISchedulerService.LoadAsync), StringComparison.Ordinal)).Should().Be(1);
+        _ = scheduledTaskRepository.ReceivedCalls().Count(call =>
+            string.Equals(call.GetMethodInfo().Name, nameof(IScheduledTaskRepository.ReloadAsync), StringComparison.Ordinal)).Should().Be(1);
+        _ = textExpansionStorageService.ReceivedCalls().Count(call =>
+            string.Equals(call.GetMethodInfo().Name, nameof(ITextExpansionStorageService.ReloadAsync), StringComparison.Ordinal)).Should().Be(1);
+    }
+
+    [Fact]
     public async Task CreateProfileAsync_WhenDefaultProfileHasUserData_CreatesCleanDefaultProfile()
     {
         var manager = new ProfileManager(_tempPath);

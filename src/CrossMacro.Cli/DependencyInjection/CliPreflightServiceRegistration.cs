@@ -13,7 +13,21 @@ internal static class CliPreflightServiceRegistration
             Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = linuxDaemonHandshakeProbe is null ? null : linuxDaemonHandshakeProbe.Probe;
             var linuxDaemonSocketAccessProbe = sp.GetService<ILinuxDaemonSocketAccessProbe>();
             Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>>? daemonSocketAccessProbe = linuxDaemonSocketAccessProbe is null ? null : (socketPath, cancellationToken) => linuxDaemonSocketAccessProbe.ProbeAsync(new LinuxDaemonSocketProbeOptions(socketPath, "crossmacro"), cancellationToken);
-            return new DoctorService(sp.GetRequiredService<IRuntimeContext>(), sp.GetRequiredService<IDisplayEnvironmentDiagnostic>(), sp.GetRequiredService<IEnvironmentInfoProvider>(), sp.GetRequiredService<IDisplaySessionService>(), sp.GetRequiredService<Func<IInputSimulator>>(), sp.GetRequiredService<Func<IInputCapture>>(), sp.GetRequiredService<IMousePositionProvider>(), sp.GetService<IPermissionChecker>(), daemonHandshakeProbe, daemonSocketAccessProbe, daemonHandshakeDiagnosticProbe, sp.GetService<IScreenReadingDiagnosticProvider>(), sp.GetService<IMacOSScreenRecordingPermissionProbe>());
+            return new DoctorService(
+                sp.GetRequiredService<IRuntimeContext>(),
+                sp.GetRequiredService<IDisplayEnvironmentDiagnostic>(),
+                sp.GetRequiredService<IEnvironmentInfoProvider>(),
+                sp.GetRequiredService<IDisplaySessionService>(),
+                sp.GetRequiredService<Func<IInputSimulator>>(),
+                sp.GetRequiredService<Func<IInputCapture>>(),
+                sp.GetRequiredService<IMousePositionProvider>(),
+                sp.GetService<IPermissionChecker>(),
+                daemonHandshakeProbe,
+                daemonSocketAccessProbe,
+                daemonHandshakeDiagnosticProbe,
+                sp.GetService<IScreenReadingDiagnosticProvider>(),
+                sp.GetService<IMacOSScreenRecordingPermissionProbe>(),
+                screenReadingCapabilityReadiness: sp.GetService<IScreenReadingCapabilityReadiness>());
         });
         _ = services.AddSingleton<ICliPreflightService>(sp => new CliPreflightService(sp.GetRequiredService<IRuntimeContext>(), sp.GetRequiredService<IDisplaySessionService>(), sp.GetRequiredService<Func<IInputSimulator>>(), sp.GetRequiredService<Func<IInputCapture>>()));
     }

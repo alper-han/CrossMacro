@@ -3,35 +3,47 @@ namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
 public sealed class ScreenReadingWarmupService(
     IScreenFrameProvider frameProvider,
-    IScreenReadingDiagnosticProvider? diagnosticProvider = null) : IScreenReadingWarmupService
+    IScreenReadingDiagnosticProvider? diagnosticProvider = null,
+    IScreenReadingCapabilityReadiness? capabilityReadiness = null) : IScreenReadingWarmupService
 {
     private static readonly ScreenRect WarmupRegion = new(0, 0, 1, 1);
     private static readonly TimeSpan WarmupTimeout = TimeSpan.FromSeconds(15);
 
     private readonly IScreenFrameProvider _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
     private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider = diagnosticProvider;
+    private readonly IScreenReadingCapabilityReadiness? _capabilityReadiness = capabilityReadiness;
     private readonly Lock _lock = new();
     private Task? _warmupTask;
 
-    public Task WarmUpPortalSessionAsync(CancellationToken cancellationToken = default)
+    public async Task WarmUpPortalSessionAsync(CancellationToken cancellationToken = default)
     {
-        if (!ShouldWarmUpPortalSession())
+        if (_capabilityReadiness is not null)
         {
-            return Task.CompletedTask;
+            await _capabilityReadiness.EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        if (!ShouldWarmUpPortalSession())
+        {
+            return;
+        }
+
+        Task warmupTask;
         lock (_lock)
         {
             if (_warmupTask is
             { IsCompleted: false } or
             { IsCompletedSuccessfully: true })
             {
-                return _warmupTask;
+                warmupTask = _warmupTask;
             }
-
-            _warmupTask = WarmUpCoreAsync(cancellationToken);
-            return _warmupTask;
+            else
+            {
+                _warmupTask = WarmUpCoreAsync(cancellationToken);
+                warmupTask = _warmupTask;
+            }
         }
+
+        await warmupTask.ConfigureAwait(false);
     }
 
     private bool ShouldWarmUpPortalSession()

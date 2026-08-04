@@ -21,6 +21,12 @@ public sealed class LinuxCapabilitySnapshotProvider : ILinuxCapabilitySnapshotPr
 
     public LinuxCapabilitySnapshot GetSnapshot() => _snapshot.Value;
 
+    public void InvalidateScreenReadingCache()
+    {
+        _screenReaderCapabilityDetector.InvalidateCache();
+        _snapshot = new Lazy<LinuxCapabilitySnapshot>(CaptureSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
     public void InvalidateCache()
     {
         _inputCapabilityDetector.InvalidateCache();
@@ -32,10 +38,14 @@ public sealed class LinuxCapabilitySnapshotProvider : ILinuxCapabilitySnapshotPr
     {
         var environment = _environmentVariables.CaptureSnapshot();
         var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
+        var screenReading = LinuxDisplaySessionClassifier.IsWayland(environment)
+            ? _screenReaderCapabilityDetector.GetSnapshot()
+            : LinuxScreenReaderCapabilitySnapshot.NotApplicable(
+                "Wayland screen-reading backends are not applicable to the current display session.");
         return new LinuxCapabilitySnapshot(
             environment,
             compositor,
             _inputCapabilityDetector.GetSnapshot(),
-            _screenReaderCapabilityDetector.GetSnapshot());
+            screenReading);
     }
 }

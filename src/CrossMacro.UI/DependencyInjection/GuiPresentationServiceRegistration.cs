@@ -10,7 +10,11 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<EditorActionDisplayFormatter>();
         _ = services.AddSingleton<ITrayIconService, TrayIconService>();
         _ = services.AddSingleton<IDialogService, DialogService>();
-        _ = services.AddSingleton<IPortalScreenReadingGuidanceService>(sp => new PortalScreenReadingGuidanceService(sp.GetRequiredService<IDialogService>(), sp.GetRequiredService<ISettingsService>(), sp.GetService<IScreenReadingDiagnosticProvider>()));
+        _ = services.AddSingleton<IPortalScreenReadingGuidanceService>(sp => new PortalScreenReadingGuidanceService(
+            sp.GetRequiredService<IDialogService>(),
+            sp.GetRequiredService<ISettingsService>(),
+            sp.GetService<IScreenReadingDiagnosticProvider>(),
+            sp.GetService<IScreenReadingCapabilityReadiness>()));
         _ = services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
         _ = services.AddSingleton<IThemeService, ThemeService>();
         _ = services.AddSingleton<Func<ISettingsService>>(sp => () => sp.GetRequiredService<ISettingsService>());

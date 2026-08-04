@@ -126,6 +126,21 @@ public sealed class LinuxScreenFrameProviderFactory
             }
         }
 
+        // GNOME extension discovery is asynchronous. Keep a request-aware provider
+        // alive while it is still initializing so the first real capture can wait
+        // for the extension instead of permanently falling back to Portal.
+        if (_capabilityDetector.IsGnomeSession)
+        {
+            return new LinuxRequestAwareScreenFrameProvider(
+                _capabilityDetector,
+                order,
+                _extFactory,
+                _wlrFactory,
+                _portalFactory,
+                _kWinFactory,
+                _gnomeFactory);
+        }
+
         var failure = permissionDenied ?? lastUnavailable ?? LinuxScreenReaderBackendCapability.Unavailable(
             LinuxScreenReaderBackend.Portal,
             ScreenReadErrorKind.BackendUnavailable,

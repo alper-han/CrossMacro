@@ -25,6 +25,7 @@ public sealed partial class DoctorService : IDoctorService
     private readonly Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult> _daemonHandshakeDiagnosticProbe;
     private readonly Func<string> _getConfigDirectory;
     private readonly IScreenReadingDiagnosticProvider? _screenReadingDiagnosticProvider;
+    private readonly IScreenReadingCapabilityReadiness? _screenReadingCapabilityReadiness;
     private readonly IMacOSScreenRecordingPermissionProbe? _macOSScreenRecordingPermissionProbe;
 
     public DoctorService(
@@ -41,7 +42,8 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
-        Func<string>? getConfigDirectory = null)
+        Func<string>? getConfigDirectory = null,
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -54,7 +56,8 @@ public sealed partial class DoctorService : IDoctorService
             daemonHandshakeDiagnosticProbe,
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
-            getConfigDirectory)
+            getConfigDirectory,
+            screenReadingCapabilityReadiness)
     {
         _displayEnvironmentDiagnostic = displayEnvironmentDiagnostic ?? throw new ArgumentNullException(nameof(displayEnvironmentDiagnostic));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
@@ -72,7 +75,8 @@ public sealed partial class DoctorService : IDoctorService
         Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
-        Func<string>? getConfigDirectory = null)
+        Func<string>? getConfigDirectory = null,
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -92,10 +96,11 @@ public sealed partial class DoctorService : IDoctorService
             daemonSocketAccessProbe,
             daemonHandshakeDiagnosticProbe,
             ReadAllTextIfExists,
-hasUsableReadableInputDevices: null,
+            hasUsableReadableInputDevices: null,
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
-            getConfigDirectory)
+            getConfigDirectory,
+            screenReadingCapabilityReadiness)
     { /* Empty */ }
 
     public DoctorService(
@@ -120,7 +125,8 @@ hasUsableReadableInputDevices: null,
         Func<bool>? hasUsableReadableInputDevices = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
-        Func<string>? getConfigDirectory = null)
+        Func<string>? getConfigDirectory = null,
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -142,7 +148,8 @@ hasUsableReadableInputDevices: null,
             readAllTextIfExists,
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
-            getConfigDirectory)
+            getConfigDirectory,
+            screenReadingCapabilityReadiness)
     { /* Empty */ }
 
     internal DoctorService(
@@ -166,7 +173,8 @@ hasUsableReadableInputDevices: null,
         Func<string, string?>? readAllTextIfExists = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
-        Func<string>? getConfigDirectory = null)
+        Func<string>? getConfigDirectory = null,
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
     {
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
         _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
@@ -190,6 +198,7 @@ hasUsableReadableInputDevices: null,
         _daemonHandshakeDiagnosticProbe = daemonHandshakeDiagnosticProbe ?? ProbeDaemonHandshakeDiagnostic;
         _getConfigDirectory = getConfigDirectory ?? GetCompatibleConfigDirectory;
         _screenReadingDiagnosticProvider = screenReadingDiagnosticProvider;
+        _screenReadingCapabilityReadiness = screenReadingCapabilityReadiness;
         _macOSScreenRecordingPermissionProbe = macOSScreenRecordingPermissionProbe;
     }
 
@@ -203,12 +212,23 @@ hasUsableReadableInputDevices: null,
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_isLinux() && _mousePositionProvider is not null)
+        if (_isLinux())
         {
             try
             {
-                // Wait up to 2 seconds for GNOME extension (or any other async provider) to initialize
-                _ = await Task.WhenAny(_mousePositionProvider.InitializationTask, Task.Delay(2000, cancellationToken)).ConfigureAwait(false);
+                if (_screenReadingCapabilityReadiness is not null)
+                {
+                    await _screenReadingCapabilityReadiness.EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+                }
+                else if (_mousePositionProvider is not null)
+                {
+                    // Preserve the legacy fallback for platform registrations that do not expose screen-reading readiness.
+                    _ = await Task.WhenAny(_mousePositionProvider.InitializationTask, Task.Delay(2000, cancellationToken)).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {

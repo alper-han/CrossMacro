@@ -74,6 +74,9 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<ILinuxEnvironmentVariables>(),
             sp.GetRequiredService<ILinuxInputCapabilityDetector>(),
             sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>()));
+        _ = services.AddSingleton<IScreenReadingCapabilityReadiness>(sp => new LinuxScreenReadingCapabilityReadiness(
+            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>()));
         _ = services.AddSingleton<IScreenReadingDiagnosticProvider>(sp => new LinuxScreenReadingDiagnosticProvider(
             sp.GetRequiredService<ILinuxEnvironmentDetector>(),
             sp.GetRequiredService<IRuntimeContext>(),

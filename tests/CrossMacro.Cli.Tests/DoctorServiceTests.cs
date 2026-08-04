@@ -60,7 +60,8 @@ public sealed class DoctorServiceTests
         Func<bool>? hasUsableReadableInputDevices = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
-        Func<string>? getConfigDirectory = null)
+        Func<string>? getConfigDirectory = null,
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
     {
         var simulatorInstance = simulator ?? CreateInputSimulator();
         var captureInstance = capture ?? CreateInputCapture();
@@ -88,7 +89,26 @@ public sealed class DoctorServiceTests
             hasUsableReadableInputDevices,
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
-            getConfigDirectory);
+            getConfigDirectory,
+            screenReadingCapabilityReadiness);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenLinuxScreenReadingReadinessIsRegistered_AwaitsItBeforeProbing()
+    {
+        var readiness = Substitute.For<IScreenReadingCapabilityReadiness>();
+        _ = readiness.EnsureReadyAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        var service = CreateService(
+            _ => null,
+            _ => false,
+            _ => false,
+            isLinux: () => true,
+            screenReadingCapabilityReadiness: readiness);
+
+        _ = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        _ = readiness.Received(1).EnsureReadyAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

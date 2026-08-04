@@ -4,16 +4,23 @@ namespace CrossMacro.UI.Services;
 internal sealed class PortalScreenReadingGuidanceService(
     IDialogService dialogService,
     ISettingsService settingsService,
-    IScreenReadingDiagnosticProvider? diagnosticProvider = null) : IPortalScreenReadingGuidanceService
+    IScreenReadingDiagnosticProvider? diagnosticProvider = null,
+    IScreenReadingCapabilityReadiness? capabilityReadiness = null) : IPortalScreenReadingGuidanceService
 {
     private readonly IDialogService _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
     private readonly ISettingsService _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
     private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider = diagnosticProvider;
+    private readonly IScreenReadingCapabilityReadiness? _capabilityReadiness = capabilityReadiness;
     private readonly Lock _lock = new();
     private bool _hasShown;
 
     public async Task ShowBeforePortalWarmupAsync()
     {
+        if (_capabilityReadiness is not null)
+        {
+            await _capabilityReadiness.EnsureReadyAsync().ConfigureAwait(false);
+        }
+
         if (!ShouldShowGuidance())
         {
             return;

@@ -35,15 +35,13 @@ internal sealed class WaylandClipboardSource : IDisposable
         }
     }
 
-    public ReadOnlyMemory<byte> GetData() => _data;
-
     private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
     {
         var argumentSize = Marshal.SizeOf<WlArgument>();
         if ((_mode is WaylandClipboardMode.Core && opcode is 1) || (_mode is not WaylandClipboardMode.Core && opcode is 0))
         {
             var fileDescriptor = Marshal.PtrToStructure<WlArgument>(args + argumentSize).h;
-            _connection.HandleSourceSend(fileDescriptor);
+            WaylandClipboardConnection.HandleSourceSend(fileDescriptor, _data);
         }
 
         return 0;

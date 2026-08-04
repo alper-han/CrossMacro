@@ -37,7 +37,7 @@ internal sealed class WaylandCoreClipboardKeyboard : IDisposable
         {
             case 0:
                 var fileDescriptor = Marshal.PtrToStructure<WlArgument>(args + argumentSize).h;
-                LinuxClipboardNative.Close(fileDescriptor);
+                LinuxFileDescriptorNative.Close(fileDescriptor);
                 break;
             case 1:
                 var serial = Marshal.PtrToStructure<WlArgument>(args).u;

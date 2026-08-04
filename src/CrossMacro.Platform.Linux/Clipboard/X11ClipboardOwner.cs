@@ -104,7 +104,7 @@ internal sealed class X11ClipboardOwner : IDisposable
             var connection = X11Native.XConnectionNumber(_display);
             while (!_shutdown.IsCancellationRequested)
             {
-                if (!LinuxClipboardNative.WaitForReadable(connection, _shutdown.Token))
+                if (!LinuxFileDescriptorNative.WaitForReadable(connection, _shutdown.Token))
                 {
                     continue;
                 }

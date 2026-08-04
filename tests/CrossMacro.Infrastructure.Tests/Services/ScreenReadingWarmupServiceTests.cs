@@ -42,6 +42,20 @@ public sealed class ScreenReadingWarmupServiceTests
         Assert.Equal(1, frameProvider.CaptureCalls);
     }
 
+    [Fact]
+    public async Task WarmUpPortalSessionAsync_WaitsForCapabilityReadinessBeforeReadingDiagnostics()
+    {
+        using var frameProvider = new RecordingScreenFrameProvider();
+        var diagnostics = new MutableScreenReadingDiagnosticProvider("Portal");
+        var readiness = new RecordingCapabilityReadiness(() => diagnostics.SelectedBackend = "GnomeExtension");
+        var service = new ScreenReadingWarmupService(frameProvider, diagnostics, readiness);
+
+        await service.WarmUpPortalSessionAsync();
+
+        Assert.Equal(1, readiness.Calls);
+        Assert.Equal(0, frameProvider.CaptureCalls);
+    }
+
     private sealed class StaticScreenReadingDiagnosticProvider(string? selectedBackend) : IScreenReadingDiagnosticProvider
     {
         private readonly string? _selectedBackend = selectedBackend;
@@ -59,6 +73,38 @@ public sealed class ScreenReadingWarmupServiceTests
                 FailureKind: null,
                 FailureMessage: null,
                 Remediation: null);
+        }
+    }
+
+    private sealed class MutableScreenReadingDiagnosticProvider(string? selectedBackend) : IScreenReadingDiagnosticProvider
+    {
+        public string? SelectedBackend { get; set; } = selectedBackend;
+
+        public ScreenReadingDiagnosticSnapshot GetSnapshot()
+        {
+            return new ScreenReadingDiagnosticSnapshot(
+                IsSupportedSession: true,
+                SessionKind: "Wayland",
+                PolicyName: "test",
+                PolicyOrder: ["Portal"],
+                SelectedBackend,
+                Backends: [],
+                FailureBackend: null,
+                FailureKind: null,
+                FailureMessage: null,
+                Remediation: null);
+        }
+    }
+
+    private sealed class RecordingCapabilityReadiness(Action onEnsure) : IScreenReadingCapabilityReadiness
+    {
+        public int Calls { get; private set; }
+
+        public Task EnsureReadyAsync(CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            onEnsure();
+            return Task.CompletedTask;
         }
     }
 

@@ -80,7 +80,7 @@ internal sealed class X11ClipboardReader
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                _ = LinuxClipboardNative.WaitForReadable(connection, cancellationToken);
+                _ = LinuxFileDescriptorNative.WaitForReadable(connection, cancellationToken);
                 while (X11Native.XPending(_display) > 0)
                 {
                     _ = X11Native.XNextEvent(_display, eventMemory);
@@ -117,7 +117,7 @@ internal sealed class X11ClipboardReader
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                _ = LinuxClipboardNative.WaitForReadable(X11Native.XConnectionNumber(_display), cancellationToken);
+                _ = LinuxFileDescriptorNative.WaitForReadable(X11Native.XConnectionNumber(_display), cancellationToken);
                 while (X11Native.XPending(_display) > 0)
                 {
                     _ = X11Native.XNextEvent(_display, eventMemory);

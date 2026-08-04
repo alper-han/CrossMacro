@@ -96,6 +96,24 @@ public sealed class PortalScreenReadingGuidanceServiceTests
     }
 
     [Fact]
+    public async Task ShowBeforePortalWarmupAsync_WaitsForCapabilityReadinessBeforeShowingPortalGuidance()
+    {
+        var dialog = new RecordingDialogService();
+        var diagnostics = new MutableDiagnosticProvider("Portal");
+        var readiness = new RecordingCapabilityReadiness(() => diagnostics.SelectedBackend = "GnomeExtension");
+        var service = new PortalScreenReadingGuidanceService(
+            dialog,
+            new StaticSettingsService(restoreToken: null),
+            diagnostics,
+            readiness);
+
+        await service.ShowBeforePortalWarmupAsync();
+
+        Assert.Equal(1, readiness.Calls);
+        Assert.Empty(dialog.MessageCalls);
+    }
+
+    [Fact]
     public void PortalGuidanceMessage_ExplainsPortalSelectionWithoutClaimingControl()
     {
         const string message = UIStrings.PortalScreenReadingGuidanceMessage;
@@ -181,6 +199,38 @@ public sealed class PortalScreenReadingGuidanceServiceTests
                 FailureKind: null,
                 FailureMessage: null,
                 Remediation: null);
+        }
+    }
+
+    private sealed class MutableDiagnosticProvider(string? selectedBackend) : IScreenReadingDiagnosticProvider
+    {
+        public string? SelectedBackend { get; set; } = selectedBackend;
+
+        public ScreenReadingDiagnosticSnapshot GetSnapshot()
+        {
+            return new ScreenReadingDiagnosticSnapshot(
+                IsSupportedSession: true,
+                SessionKind: "Wayland",
+                PolicyName: "test",
+                PolicyOrder: ["Portal"],
+                SelectedBackend,
+                Backends: [],
+                FailureBackend: null,
+                FailureKind: null,
+                FailureMessage: null,
+                Remediation: null);
+        }
+    }
+
+    private sealed class RecordingCapabilityReadiness(Action onEnsure) : IScreenReadingCapabilityReadiness
+    {
+        public int Calls { get; private set; }
+
+        public Task EnsureReadyAsync(CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            onEnsure();
+            return Task.CompletedTask;
         }
     }
 

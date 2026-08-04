@@ -21,18 +21,18 @@ internal sealed class WaylandClipboardProtocol : IDisposable
         WlDataDevice = new(
             "wl_data_device",
             3,
-            [("start_drag", "ooou"), ("set_selection", "ou"), ("release", "")],
-            [("data_offer", "n"), ("enter", "uoff"), ("leave", ""), ("motion", "uff"), ("drop", ""), ("selection", "o"), ("dnd_action", "u"), ("action", "u")]);
+            [("start_drag", "?oo?ou"), ("set_selection", "?ou"), ("release", "2")],
+            [("data_offer", "n"), ("enter", "uoff?o"), ("leave", ""), ("motion", "uff"), ("drop", ""), ("selection", "?o")]);
         WlDataSource = new(
             "wl_data_source",
             3,
-            [("offer", "s"), ("destroy", "")],
-            [("target", "s"), ("send", "sh"), ("cancelled", ""), ("dnd_drop_performed", ""), ("dnd_finished", ""), ("action", "u")]);
+            [("offer", "s"), ("destroy", ""), ("set_actions", "3u")],
+            [("target", "?s"), ("send", "sh"), ("cancelled", ""), ("dnd_drop_performed", "3"), ("dnd_finished", "3"), ("action", "3u")]);
         WlDataOffer = new(
             "wl_data_offer",
             3,
-            [("accept", "us"), ("receive", "sh"), ("destroy", ""), ("finish", ""), ("set_actions", "uu")],
-            [("offer", "s"), ("source_actions", "u"), ("action", "u")]);
+            [("accept", "u?s"), ("receive", "sh"), ("destroy", ""), ("finish", "3"), ("set_actions", "3uu")],
+            [("offer", "s"), ("source_actions", "3u"), ("action", "3u")]);
 
         ExtDataControlManager = new(
             "ext_data_control_manager_v1",
@@ -42,8 +42,8 @@ internal sealed class WaylandClipboardProtocol : IDisposable
         ExtDataControlDevice = new(
             "ext_data_control_device_v1",
             1,
-            [("set_selection", "o"), ("destroy", ""), ("set_primary_selection", "o")],
-            [("data_offer", "n"), ("selection", "o"), ("finished", ""), ("primary_selection", "o")]);
+            [("set_selection", "?o"), ("destroy", ""), ("set_primary_selection", "?o")],
+            [("data_offer", "n"), ("selection", "?o"), ("finished", ""), ("primary_selection", "?o")]);
         ExtDataControlSource = new(
             "ext_data_control_source_v1",
             1,
@@ -63,8 +63,8 @@ internal sealed class WaylandClipboardProtocol : IDisposable
         WlrDataControlDevice = new(
             "zwlr_data_control_device_v1",
             2,
-            [("set_selection", "o"), ("destroy", ""), ("set_primary_selection", "o")],
-            [("data_offer", "n"), ("selection", "o"), ("finished", ""), ("primary_selection", "o")]);
+            [("set_selection", "?o"), ("destroy", ""), ("set_primary_selection", "2?o")],
+            [("data_offer", "n"), ("selection", "?o"), ("finished", ""), ("primary_selection", "2?o")]);
         WlrDataControlSource = new(
             "zwlr_data_control_source_v1",
             1,

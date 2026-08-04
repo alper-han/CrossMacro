@@ -8,8 +8,12 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
     private readonly IPortalScreenCastSupportProbe _portalScreenCastProbe;
     private readonly IKWinScreenShotSupportProbe _kWinScreenShotProbe;
     private readonly GnomePositionProvider _gnomePositionProvider;
+    private readonly Lock _readinessLock = new();
 
     private Lazy<LinuxScreenReaderCapabilitySnapshot> _snapshot;
+    private Task? _readinessTask;
+
+    private static readonly TimeSpan GnomeInitializationTimeout = TimeSpan.FromSeconds(5);
 
     internal LinuxScreenReaderCapabilityDetector(GnomePositionProvider gnomePositionProvider)
         : this(
@@ -52,13 +56,62 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
         _gnomePositionProvider = gnomePositionProvider ?? throw new ArgumentNullException(nameof(gnomePositionProvider));
 
         _snapshot = new Lazy<LinuxScreenReaderCapabilitySnapshot>(CreateSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
+        _gnomePositionProvider.ExtensionStatusUpdated += OnGnomeExtensionStatusUpdated;
     }
 
+    public bool IsGnomeSession => _gnomePositionProvider.IsSupported;
+
     public LinuxScreenReaderCapabilitySnapshot GetSnapshot() => _snapshot.Value;
+
+    public Task EnsureReadyAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsGnomeSession)
+        {
+            return Task.CompletedTask;
+        }
+
+        Task readinessTask;
+        lock (_readinessLock)
+        {
+            _readinessTask ??= WaitForGnomeInitializationAsync();
+            readinessTask = _readinessTask;
+        }
+
+        return readinessTask.WaitAsync(cancellationToken);
+    }
 
     public void InvalidateCache()
     {
         _snapshot = new Lazy<LinuxScreenReaderCapabilitySnapshot>(CreateSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    private async Task WaitForGnomeInitializationAsync()
+    {
+        try
+        {
+            _ = await _gnomePositionProvider.InitializationTask
+                .WaitAsync(GnomeInitializationTimeout, TimeProvider.System, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            Log.Warning(
+                "[LinuxScreenReaderCapabilityDetector] GNOME extension initialization did not complete within {TimeoutSeconds}s; using the configured fallback order",
+                GnomeInitializationTimeout.TotalSeconds);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[LinuxScreenReaderCapabilityDetector] GNOME extension readiness check failed; using the configured fallback order");
+        }
+        finally
+        {
+            InvalidateCache();
+        }
+    }
+
+    private void OnGnomeExtensionStatusUpdated(object? sender, ExtensionStatusChangedEventArgs args)
+    {
+        InvalidateCache();
     }
 
     private LinuxScreenReaderCapabilitySnapshot CreateSnapshot()

@@ -4,6 +4,23 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 public sealed class KWinScreenShotCaptureTests
 {
     [Fact]
+    public void ProbeSupport_OnKdeX11_ReturnsWithoutProbingKWinScreenShot2()
+    {
+        var environment = default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = "x11",
+            Display = ":0",
+            CurrentDesktop = "KDE",
+        };
+        var capture = new KWinScreenShotCapture(environment, TimeProvider.System);
+
+        var result = capture.ProbeSupport();
+
+        Assert.False(result.IsSupported);
+        Assert.Contains("KDE Wayland", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CaptureAreaAsync_WhenCanceledBeforeStart_ShouldReturnCanceled()
     {
         var capture = CreateCapture();

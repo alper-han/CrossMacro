@@ -32,4 +32,23 @@ public readonly record struct LinuxScreenReaderCapabilitySnapshot(
         LinuxScreenReaderBackend.GnomeExtension => GnomeExtension,
         _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend."),
     };
+
+    internal static LinuxScreenReaderCapabilitySnapshot NotApplicable(string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        return new LinuxScreenReaderCapabilitySnapshot(
+            Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, reason),
+            Unavailable(LinuxScreenReaderBackend.ExtImageCopy, reason),
+            Unavailable(LinuxScreenReaderBackend.WlrScreencopy, reason),
+            Unavailable(LinuxScreenReaderBackend.Portal, reason),
+            Unavailable(LinuxScreenReaderBackend.GnomeExtension, reason));
+    }
+
+    private static LinuxScreenReaderBackendCapability Unavailable(
+        LinuxScreenReaderBackend backend,
+        string reason) =>
+        LinuxScreenReaderBackendCapability.Unavailable(
+            backend,
+            ScreenReadErrorKind.Unsupported,
+            reason);
 }

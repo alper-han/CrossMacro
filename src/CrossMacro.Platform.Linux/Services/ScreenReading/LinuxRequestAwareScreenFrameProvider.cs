@@ -20,13 +20,31 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
     private readonly Dictionary<LinuxScreenReaderBackend, IScreenFrameProvider> _providers = [];
     private bool _disposed;
 
-    public string ProviderName => GetProvider(SelectFirstAvailable()).ProviderName;
+    public string ProviderName
+    {
+        get
+        {
+            var capability = SelectFirstAvailable();
+            return capability is { } selected
+                ? GetProvider(selected).ProviderName
+                : "Linux screen reader (initializing)";
+        }
+    }
 
-    public bool IsSupported => _order.Any(backend => _capabilityDetector.GetSnapshot().GetCapability(backend).IsAvailable);
+    public bool IsSupported
+    {
+        get
+        {
+            var snapshot = _capabilityDetector.GetSnapshot();
+            return _capabilityDetector.IsGnomeSession || _order.Any(backend => snapshot.GetCapability(backend).IsAvailable);
+        }
+    }
 
-    public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+
+        await _capabilityDetector.EnsureReadyAsync(options.CancellationToken).ConfigureAwait(false);
 
         var isFullFrameRequest = region is null;
         var firstIncompatible = default(LinuxScreenReaderBackendCapability?);
@@ -47,18 +65,18 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
             }
 
             LogSelectedBackend(backend);
-            return GetProvider(capability).CaptureFrameAsync(region, options);
+            return await GetProvider(capability).CaptureFrameAsync(region, options).ConfigureAwait(false);
         }
 
         if (firstIncompatible is { } incompatible)
         {
             LogSelectedBackend(incompatible.Backend);
-            return GetProvider(incompatible).CaptureFrameAsync(region, options);
+            return await GetProvider(incompatible).CaptureFrameAsync(region, options).ConfigureAwait(false);
         }
 
-        return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
+        return ScreenReadResultFactory.Failure<ScreenFrame>(
             ScreenReadErrorKind.BackendUnavailable,
-            "No Linux Wayland screen reader backend is available."));
+            "No Linux Wayland screen reader backend is available.");
     }
 
     public void Dispose()
@@ -75,7 +93,7 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
         }
     }
 
-    private LinuxScreenReaderBackendCapability SelectFirstAvailable()
+    private LinuxScreenReaderBackendCapability? SelectFirstAvailable()
     {
         var snapshot = _capabilityDetector.GetSnapshot();
         foreach (var backend in _order)
@@ -87,7 +105,7 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
             }
         }
 
-        throw new InvalidOperationException("No Linux Wayland screen reader backend is available.");
+        return null;
     }
 
     private IScreenFrameProvider GetProvider(LinuxScreenReaderBackendCapability capability)

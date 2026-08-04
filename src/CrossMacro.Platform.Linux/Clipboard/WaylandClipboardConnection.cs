@@ -237,11 +237,11 @@ internal sealed class WaylandClipboardConnection : IDisposable
         }
     }
 
-    internal void HandleSourceSend(int fileDescriptor)
+    internal static void HandleSourceSend(int fileDescriptor, byte[] data)
     {
         _ = Task.Run(
-            () => SendClipboardDataAsync(fileDescriptor),
-            _eventLoopCancellation.Token);
+            () => SendClipboardData(fileDescriptor, data),
+            CancellationToken.None);
     }
 
     internal IntPtr SendRequest(IntPtr proxy, uint opcode, WlArgumentPack? args) =>
@@ -257,22 +257,12 @@ internal sealed class WaylandClipboardConnection : IDisposable
         _ = Library.DisplayFlush(Display);
     }
 
-    private async Task SendClipboardDataAsync(int fileDescriptor)
+    private static void SendClipboardData(int fileDescriptor, byte[] data)
     {
         try
         {
-            var data = _source?.GetData() ?? ReadOnlyMemory<byte>.Empty;
-            using var stream = new FileStream(
-                new SafeFileHandle((IntPtr)fileDescriptor, ownsHandle: true),
-                FileAccess.Write,
-                bufferSize: 16 * 1024,
-                // Wayland passes a regular pipe/socket descriptor here. It
-                // does not support .NET's native async file-handle mode.
-                // The callback already runs on a thread-pool task, so the
-                // async API can safely use the synchronous handle strategy.
-                isAsync: false);
-            await stream.WriteAsync(data, CancellationToken.None).ConfigureAwait(false);
-            await stream.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+            using var handle = new SafeFileHandle((IntPtr)fileDescriptor, ownsHandle: true);
+            LinuxFileDescriptorNative.WriteAll(fileDescriptor, data, CancellationToken.None);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -309,7 +299,7 @@ internal sealed class WaylandClipboardConnection : IDisposable
         {
             while (!_eventLoopCancellation.IsCancellationRequested)
             {
-        Library.DisplayDispatch(Display, cancellation);
+                Library.DisplayDispatch(Display, cancellation);
             }
         }
         catch (OperationCanceledException) when (_eventLoopCancellation.IsCancellationRequested)
@@ -351,14 +341,14 @@ internal sealed class WaylandClipboardConnection : IDisposable
             return string.Empty;
         }
 
-        var (readFileDescriptor, writeFileDescriptor) = LinuxClipboardNative.CreatePipe();
+        var (readFileDescriptor, writeFileDescriptor) = LinuxFileDescriptorNative.CreatePipe();
         try
         {
             Receive(offer.Proxy, mimeType, writeFileDescriptor);
         }
         finally
         {
-            LinuxClipboardNative.Close(writeFileDescriptor);
+            LinuxFileDescriptorNative.Close(writeFileDescriptor);
         }
 
         using var stream = new FileStream(

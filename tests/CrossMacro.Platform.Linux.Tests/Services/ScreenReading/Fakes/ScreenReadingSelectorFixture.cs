@@ -147,6 +147,8 @@ internal sealed class ScreenReadingSelectorFixture
 
         public int SnapshotCalls { get; private set; }
 
+        public bool IsGnomeSession => false;
+
         public LinuxScreenReaderCapabilitySnapshot GetSnapshot()
         {
             SnapshotCalls++;
@@ -155,6 +157,11 @@ internal sealed class ScreenReadingSelectorFixture
 
         public void InvalidateCache()
         {
+        }
+
+        public Task EnsureReadyAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 

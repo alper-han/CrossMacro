@@ -284,7 +284,10 @@ public sealed class ServiceCollectionExtensionsTests
         public bool HasWarmDevice => false;
         public Task Completion => Task.CompletedTask;
 
-        public Task WarmUpAsync(int screenWidth = 0, int screenHeight = 0) => Task.CompletedTask;
+        public Task WarmUpAsync(
+            int screenWidth = 0,
+            int screenHeight = 0,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task<IInputSimulator> AcquireAsync(
             int screenWidth,

@@ -22,14 +22,21 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
     internal KWinScreenShotCapture(LinuxEnvironmentSnapshot environment, TimeProvider timeProvider)
     {
-        _isAppImageKde = !string.IsNullOrEmpty(environment.AppImage) && IsKde(environment.CurrentDesktop);
+        bool isWaylandKde = LinuxDisplaySessionClassifier.IsWayland(environment) && IsKde(environment.CurrentDesktop);
+        _isAppImageKde = isWaylandKde && !string.IsNullOrEmpty(environment.AppImage);
         _isFlatpak = environment.IsFlatpak;
-        _isKde = _isAppImageKde || IsKde(environment.CurrentDesktop);
+        _isKde = isWaylandKde;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public KWinScreenShotSupportResult ProbeSupport()
     {
+        if (!_isKde)
+        {
+            return KWinScreenShotSupportResult.Unsupported(
+                "KWin ScreenShot2 is available only in KDE Wayland sessions.");
+        }
+
         if (_isAppImageKde)
         {
             EnsureAppImageKdeDesktopFile();
@@ -44,13 +51,9 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         {
             maxRetries = 20;
         }
-        else if (_isKde)
-        {
-            maxRetries = 6;
-        }
         else
         {
-            maxRetries = 1;
+            maxRetries = 6;
         }
 
         const int delayMs = 500;

@@ -23,6 +23,7 @@ public sealed class TriggerServiceTests : IDisposable
         _triggersFilePath = Path.Combine(_testRootDirectory, "triggers.json");
 
         _windowManager = Substitute.For<IWindowManager>();
+        _ = _windowManager.IsSupported.Returns(returnThis: true);
         _profileSwitchRequests = Substitute.For<IProfileSwitchRequests>();
         _macroFileManager = Substitute.For<IMacroFileManager>();
         _macroPlayer = Substitute.For<IMacroPlayer>();
@@ -279,6 +280,17 @@ public sealed class TriggerServiceTests : IDisposable
         _service.SetTaskEnabled(task.Id, enabled: false);
 
         _ = task.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PollOnce_WithUnsupportedWindowManager_DoesNotAttemptWindowQuery()
+    {
+        _ = _windowManager.IsSupported.Returns(returnThis: false);
+
+        await _service.PollOnceAsync(CancellationToken.None);
+
+        _ = await _windowManager.DidNotReceive()
+            .GetActiveWindowAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

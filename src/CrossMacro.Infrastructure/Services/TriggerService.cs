@@ -285,7 +285,7 @@ public sealed class TriggerService : ITriggerService
     /// </summary>
     internal async Task PollOnceAsync(CancellationToken ct)
     {
-        if (_windowManager is null)
+        if (_windowManager?.IsSupported is not true)
         {
             return;
         }

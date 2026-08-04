@@ -233,7 +233,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         var byteCount = checked(sessionState.Stride * (int)sessionState.Height);
         var pixels = new byte[byteCount];
         Marshal.Copy(shm.Address, pixels, 0, byteCount);
-        if (!WaylandExtImageCopyShmFormats.TryMap(sessionState.ShmFormat, out var format))
+        if (!sessionState.HasSupportedShmFormat)
         {
             throw new InvalidOperationException($"ext-image-copy selected unsupported SHM format 0x{sessionState.ShmFormat:x8}.");
         }
@@ -241,7 +241,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         return new ExtImageCopyFrame(
             logicalBounds,
             sessionState.Stride,
-            format,
+            sessionState.PixelFormat,
             pixels,
             physicalWidth: checked((int)sessionState.Width),
             physicalHeight: checked((int)sessionState.Height));
@@ -269,8 +269,9 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         public uint Width { get; private set; }
         public uint Height { get; private set; }
         public uint ShmFormat { get; private set; }
+        public ScreenPixelFormat PixelFormat { get; private set; }
         public bool HasSupportedShmFormat { get; private set; }
-        public int Stride => checked((int)Width * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Xrgb8888));
+        public int Stride => HasSupportedShmFormat && WaylandShmFormats.TryGetStride(ShmFormat, Width, out var stride) ? stride : 0;
 
         public void Dispose()
         {
@@ -286,7 +287,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
             }
         }
 
-        public string FormatAdvertisedShmFormats() => WaylandExtImageCopyShmFormats.FormatAdvertisedFormats(CollectionsMarshal.AsSpan(_advertisedShmFormats));
+        public string FormatAdvertisedShmFormats() => WaylandShmFormats.FormatAdvertisedFormats(CollectionsMarshal.AsSpan(_advertisedShmFormats));
 
         private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
         {
@@ -300,10 +301,11 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
                 case 1:
                     var format = Marshal.PtrToStructure<WlArgument>(args).u;
                     _advertisedShmFormats.Add(format);
-                    if (WaylandExtImageCopyShmFormats.TryMap(format, out _) &&
-                        (!HasSupportedShmFormat || WaylandExtImageCopyShmFormats.ShouldReplaceSelectedFormat(format, ShmFormat)))
+                    if (WaylandShmFormats.TryMap(format, out var pixelFormat) &&
+                        (!HasSupportedShmFormat || WaylandShmFormats.ShouldReplaceSelectedFormat(format, ShmFormat)))
                     {
                         ShmFormat = format;
+                        PixelFormat = pixelFormat;
                         HasSupportedShmFormat = true;
                     }
 

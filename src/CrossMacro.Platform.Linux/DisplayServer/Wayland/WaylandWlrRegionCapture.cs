@@ -10,8 +10,6 @@ internal sealed class WaylandWlrRegionCapture(
 {
     private const int ConstraintRoundtripLimit = 5;
     private const int FrameDispatchLimit = 40;
-    private const uint WlShmFormatArgb8888 = 0;
-    private const uint WlShmFormatXrgb8888 = 1;
     private WaylandLibrary Library { get; } = library;
     private WaylandProtocolTables Protocol { get; } = protocol;
     private readonly IntPtr _display = display;
@@ -99,9 +97,19 @@ internal sealed class WaylandWlrRegionCapture(
             throw new InvalidOperationException("wlr-screencopy did not provide SHM buffer constraints.");
         }
 
-        if (frameState.Format is not (WlShmFormatXrgb8888 or WlShmFormatArgb8888))
+        if (!WaylandShmFormats.TryMap(frameState.Format, out _))
         {
             throw new InvalidOperationException($"wlr-screencopy returned unsupported SHM format 0x{frameState.Format:x8}.");
+        }
+
+        if (!WaylandShmFormats.TryGetStride(frameState.Format, frameState.Width, out var minimumStride) ||
+            frameState.Stride < (uint)minimumStride)
+        {
+            throw new InvalidOperationException(
+                $"wlr-screencopy returned an invalid SHM stride. format=0x{frameState.Format:x8} " +
+                $"width={frameState.Width.ToString(CultureInfo.InvariantCulture)} " +
+                $"stride={frameState.Stride.ToString(CultureInfo.InvariantCulture)} " +
+                $"minimumStride={minimumStride.ToString(CultureInfo.InvariantCulture)}.");
         }
     }
 
@@ -132,7 +140,10 @@ internal sealed class WaylandWlrRegionCapture(
         var byteCount = checked(stride * (int)frameState.Height);
         var pixels = new byte[byteCount];
         System.Runtime.InteropServices.Marshal.Copy(shm.Address, pixels, 0, byteCount);
-        var format = frameState.Format == WlShmFormatXrgb8888 ? ScreenPixelFormat.Xrgb8888 : ScreenPixelFormat.Bgra8888;
+        if (!WaylandShmFormats.TryMap(frameState.Format, out var format))
+        {
+            throw new InvalidOperationException($"wlr-screencopy returned unsupported SHM format 0x{frameState.Format:x8}.");
+        }
         return new WlrScreencopyFrame(
             logicalBounds,
             stride,

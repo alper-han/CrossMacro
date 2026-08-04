@@ -1,10 +1,22 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal static class WaylandExtImageCopyShmFormats
+/// <summary>
+/// Maps the formats advertised by the Wayland <c>wl_shm</c> interface to the
+/// pixel formats consumed by CrossMacro's screen-frame pipeline.
+/// </summary>
+/// <remarks>
+/// Both ext-image-copy-capture and wlr-screencopy report their shared-memory
+/// buffer format using the same <c>wl_shm.format</c> values. Keeping the
+/// mapping here prevents either capture path from making protocol-specific
+/// assumptions about bytes per pixel or channel order.
+/// </remarks>
+internal static class WaylandShmFormats
 {
     public const uint Argb8888 = 0x00000000;
     public const uint Xrgb8888 = 0x00000001;
+    public const uint Rgb888 = 0x34324752;
+    public const uint Bgr888 = 0x34324742;
     public const uint Abgr8888 = 0x34324241;
     public const uint Xbgr8888 = 0x34324258;
 
@@ -18,6 +30,16 @@ internal static class WaylandExtImageCopyShmFormats
             case Xrgb8888:
                 pixelFormat = ScreenPixelFormat.Xrgb8888;
                 return true;
+            case Rgb888:
+                // wl_shm describes the packed 24-bit value; little-endian
+                // memory stores its RGB888 bytes as B, G, R.
+                pixelFormat = ScreenPixelFormat.Bgr24;
+                return true;
+            case Bgr888:
+                // Conversely, BGR888 is stored as R, G, B on little-endian
+                // Linux systems supported by this backend.
+                pixelFormat = ScreenPixelFormat.Rgb24;
+                return true;
             case Abgr8888:
                 pixelFormat = ScreenPixelFormat.Abgr8888;
                 return true;
@@ -28,6 +50,25 @@ internal static class WaylandExtImageCopyShmFormats
                 pixelFormat = default;
                 return false;
         }
+    }
+
+    public static bool TryGetStride(uint shmFormat, uint width, out int stride)
+    {
+        if (!TryMap(shmFormat, out var pixelFormat))
+        {
+            stride = 0;
+            return false;
+        }
+
+        var bytesPerPixel = ScreenFrame.GetBytesPerPixel(pixelFormat);
+        if (width > (uint)(int.MaxValue / bytesPerPixel))
+        {
+            stride = 0;
+            return false;
+        }
+
+        stride = checked((int)width * bytesPerPixel);
+        return true;
     }
 
     public static bool TrySelectPreferredPixelFormat(ReadOnlySpan<uint> advertisedFormats, out ScreenPixelFormat pixelFormat)

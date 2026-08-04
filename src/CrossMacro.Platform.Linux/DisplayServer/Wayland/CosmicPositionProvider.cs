@@ -5,7 +5,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 /// COSMIC provider for output geometry. Cursor position is intentionally unsupported
 /// because COSMIC does not currently expose a stable public cursor-position API.
 /// </summary>
-public sealed partial class CosmicPositionProvider : IMousePositionProvider
+public sealed partial class CosmicPositionProvider :
+    IMousePositionProvider,
+    IOutputTopologyProvider
 {
     private const string CosmicRandrCommand = "cosmic-randr";
     private const int CommandTimeoutMs = 1000;
@@ -38,38 +40,59 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
 
     public async Task<ScreenRect?> GetDesktopBoundsAsync()
     {
-        if (_disposed)
+        var outputs = await QueryOutputBoundsAsync(CancellationToken.None).ConfigureAwait(false);
+        if (!TryComputeDesktopBounds(outputs, out var bounds))
         {
             return null;
+        }
+
+        Log.Information(
+            "[CosmicPositionProvider] Desktop bounds detected: ({X},{Y}) {Width}x{Height}",
+            bounds.X,
+            bounds.Y,
+            bounds.Width,
+            bounds.Height);
+        return bounds;
+    }
+
+    Task<IReadOnlyList<ScreenRect>> IOutputTopologyProvider.GetOutputBoundsAsync(
+        CancellationToken cancellationToken) =>
+        QueryOutputBoundsAsync(cancellationToken);
+
+    private async Task<IReadOnlyList<ScreenRect>> QueryOutputBoundsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+        {
+            return [];
         }
 
         try
         {
-            using var timeoutCts = new CancellationTokenSource(CommandTimeoutMs);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(CommandTimeoutMs);
             var output = await _readOutputTopologyAsync(timeoutCts.Token).ConfigureAwait(false);
-            if (TryParseDesktopBounds(output, out var bounds))
+            if (TryParseOutputBounds(output, out var bounds))
             {
-                Log.Information(
-                    "[CosmicPositionProvider] Desktop bounds detected: ({X},{Y}) {Width}x{Height}",
-                    bounds.X,
-                    bounds.Y,
-                    bounds.Width,
-                    bounds.Height);
                 return bounds;
             }
 
-            Log.Warning("[CosmicPositionProvider] Failed to parse screen resolution from cosmic-randr output");
-            return null;
+            Log.Warning("[CosmicPositionProvider] Failed to parse cosmic-randr output topology");
+            return [];
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (OperationCanceledException)
         {
-            Log.Warning("[CosmicPositionProvider] Timed out while querying cosmic-randr output topology");
-            return null;
+            Log.Warning("[CosmicPositionProvider] Timed out while querying COSMIC output topology");
+            return [];
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.LogError(ex, "[CosmicPositionProvider] Failed to get screen resolution");
-            return null;
+            Log.LogError(ex, "[CosmicPositionProvider] Failed to query COSMIC output topology");
+            return [];
         }
     }
 
@@ -90,7 +113,15 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
     internal static bool TryParseDesktopBounds(string? kdl, out ScreenRect desktopBounds)
     {
         desktopBounds = default;
+        return TryParseOutputBounds(kdl, out var outputs) &&
+            TryComputeDesktopBounds(outputs, out desktopBounds);
+    }
 
+    internal static bool TryParseOutputBounds(
+        string? kdl,
+        out IReadOnlyList<ScreenRect> outputBounds)
+    {
+        outputBounds = [];
         if (string.IsNullOrWhiteSpace(kdl))
         {
             return false;
@@ -98,8 +129,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
 
         try
         {
-            var outputs = ParseOutputs(kdl);
-            var usableOutputs = outputs
+            var usableOutputs = ParseOutputs(kdl)
                 .Where(static output => output.Enabled &&
                                         !output.IsMirrored &&
                                         output.Position is not null &&
@@ -108,29 +138,48 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
                                         output.Scale > 0)
                 .Select(static output => output.ToLogicalRectangle())
                 .Where(static rectangle => rectangle.Width > 0 && rectangle.Height > 0)
+                .Select(static rectangle => new ScreenRect(
+                    rectangle.X,
+                    rectangle.Y,
+                    rectangle.Width,
+                    rectangle.Height))
+                .Distinct()
                 .ToArray();
-
-            if (usableOutputs.Length is 0)
-            {
-                return false;
-            }
-
-            var minX = usableOutputs.Min(static rectangle => rectangle.X);
-            var minY = usableOutputs.Min(static rectangle => rectangle.Y);
-            var maxX = usableOutputs.Max(static rectangle => checked(rectangle.X + rectangle.Width));
-            var maxY = usableOutputs.Max(static rectangle => checked(rectangle.Y + rectangle.Height));
-
-            if (maxX <= minX || maxY <= minY)
-            {
-                return false;
-            }
-
-            desktopBounds = new ScreenRect(minX, minY, checked(maxX - minX), checked(maxY - minY));
-            return true;
+            outputBounds = usableOutputs;
+            return usableOutputs.Length > 0;
         }
         catch (FormatException)
         {
             return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryComputeDesktopBounds(
+        IReadOnlyList<ScreenRect> outputs,
+        out ScreenRect desktopBounds)
+    {
+        desktopBounds = default;
+        if (outputs.Count is 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            int minX = outputs.Min(static output => output.X);
+            int minY = outputs.Min(static output => output.Y);
+            int maxX = outputs.Max(static output => output.Right);
+            int maxY = outputs.Max(static output => output.Bottom);
+            desktopBounds = new ScreenRect(
+                minX,
+                minY,
+                checked(maxX - minX),
+                checked(maxY - minY));
+            return true;
         }
         catch (OverflowException)
         {

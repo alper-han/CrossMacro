@@ -198,7 +198,8 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
             sp.GetRequiredService<Func<LinuxInputSimulator>>(),
             sp.GetRequiredService<Func<LinuxIpcInputSimulator>>(),
-            sp.GetRequiredService<Func<X11InputSimulator>>()));
+            sp.GetRequiredService<Func<X11InputSimulator>>(),
+            sp.GetRequiredService<IMousePositionProvider>()));
 
         _ = services.AddSingleton<LinuxCaptureFactory>(sp => new LinuxCaptureFactory(
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
@@ -226,7 +227,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddTransient<Func<IInputSimulator>>(sp =>
         {
             var factory = sp.GetRequiredService<LinuxSimulatorFactory>();
-            return () => factory.Create();
+            return factory.Create;
         });
 
         _ = services.AddTransient<Func<IInputCapture>>(sp =>

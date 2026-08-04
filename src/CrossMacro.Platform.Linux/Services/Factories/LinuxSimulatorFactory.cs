@@ -15,13 +15,15 @@ public class LinuxSimulatorFactory
     private readonly Func<LinuxIpcInputSimulator> _ipcFactory;
     private readonly Func<X11InputSimulator> _x11Factory;
     private readonly Func<X11InputSimulator, bool> _x11IsSupported;
+    private readonly IMousePositionProvider? _positionProvider;
 
     internal LinuxSimulatorFactory(
         ILinuxCapabilitySnapshotProvider snapshotProvider,
         Func<LinuxInputSimulator> legacyFactory,
         Func<LinuxIpcInputSimulator> ipcFactory,
-        Func<X11InputSimulator> x11Factory)
-        : this(environmentDetector: null, capabilityDetector: null, snapshotProvider, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported) { /* Empty */ }
+        Func<X11InputSimulator> x11Factory,
+        IMousePositionProvider? positionProvider = null)
+        : this(environmentDetector: null, capabilityDetector: null, snapshotProvider, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported, positionProvider) { /* Empty */ }
 
     public LinuxSimulatorFactory(
         ILinuxEnvironmentDetector environmentDetector,
@@ -29,7 +31,7 @@ public class LinuxSimulatorFactory
         Func<LinuxInputSimulator> legacyFactory,
         Func<LinuxIpcInputSimulator> ipcFactory,
         Func<X11InputSimulator> x11Factory)
-        : this(environmentDetector, capabilityDetector, snapshotProvider: null, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported) { /* Empty */ }
+        : this(environmentDetector, capabilityDetector, snapshotProvider: null, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported, positionProvider: null) { /* Empty */ }
 
     internal LinuxSimulatorFactory(
         ILinuxEnvironmentDetector environmentDetector,
@@ -37,8 +39,9 @@ public class LinuxSimulatorFactory
         Func<LinuxInputSimulator> legacyFactory,
         Func<LinuxIpcInputSimulator> ipcFactory,
         Func<X11InputSimulator> x11Factory,
-        Func<X11InputSimulator, bool> x11IsSupported)
-        : this(environmentDetector, capabilityDetector, snapshotProvider: null, legacyFactory, ipcFactory, x11Factory, x11IsSupported) { /* Empty */ }
+        Func<X11InputSimulator, bool> x11IsSupported,
+        IMousePositionProvider? positionProvider = null)
+        : this(environmentDetector, capabilityDetector, snapshotProvider: null, legacyFactory, ipcFactory, x11Factory, x11IsSupported, positionProvider) { /* Empty */ }
 
     internal LinuxSimulatorFactory(
         ILinuxEnvironmentDetector? environmentDetector,
@@ -47,7 +50,8 @@ public class LinuxSimulatorFactory
         Func<LinuxInputSimulator> legacyFactory,
         Func<LinuxIpcInputSimulator> ipcFactory,
         Func<X11InputSimulator> x11Factory,
-        Func<X11InputSimulator, bool> x11IsSupported)
+        Func<X11InputSimulator, bool> x11IsSupported,
+        IMousePositionProvider? positionProvider)
     {
         if (snapshotProvider is null && environmentDetector is null)
         {
@@ -66,6 +70,7 @@ public class LinuxSimulatorFactory
         _ipcFactory = ipcFactory ?? throw new ArgumentNullException(nameof(ipcFactory));
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
         _x11IsSupported = x11IsSupported ?? throw new ArgumentNullException(nameof(x11IsSupported));
+        _positionProvider = positionProvider;
     }
 
     /// <summary>
@@ -77,10 +82,12 @@ public class LinuxSimulatorFactory
         if (_snapshotProvider is not null)
         {
             var snapshot = _snapshotProvider.GetSnapshot();
-            return CreateFromSnapshot(snapshot);
+            return ApplyCompositorInputMapping(CreateFromSnapshot(snapshot), snapshot.Compositor);
         }
 
-        return CreateFromEnvironment();
+        return ApplyCompositorInputMapping(
+            CreateFromEnvironment(),
+            _environmentDetector.DetectedCompositor);
     }
 
     private IInputSimulator CreateFromSnapshot(LinuxCapabilitySnapshot snapshot)
@@ -203,5 +210,31 @@ public class LinuxSimulatorFactory
             LinuxDaemonHandshakeStatus.UnexpectedError => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
             _ => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
         };
+
+    private IInputSimulator ApplyCompositorInputMapping(
+        IInputSimulator simulator,
+        CompositorType compositor)
+    {
+        return ApplyCompositorInputMapping(simulator, compositor, _positionProvider);
+    }
+
+    internal static IInputSimulator ApplyCompositorInputMapping(
+        IInputSimulator simulator,
+        CompositorType compositor,
+        IMousePositionProvider? positionProvider)
+    {
+        ArgumentNullException.ThrowIfNull(simulator);
+        if (compositor is not CompositorType.COSMIC ||
+            simulator is UnavailableInputSimulator ||
+            positionProvider is not IOutputTopologyProvider topologyProvider)
+        {
+            return simulator;
+        }
+
+        return new CosmicAbsoluteInputSimulator(
+            simulator,
+            positionProvider,
+            topologyProvider);
+    }
 
 }

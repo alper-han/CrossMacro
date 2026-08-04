@@ -14,6 +14,19 @@ public sealed class CosmicPositionProviderTests
     }
 
     [Fact]
+    public void TryParseOutputBounds_ShouldReturnEachLogicalOutput()
+    {
+        var parsed = CosmicPositionProvider.TryParseOutputBounds(TwoMonitorKdl(), out var outputs);
+
+        Assert.True(parsed);
+        Assert.Equal(
+        [
+            new ScreenRect(0, 0, 2560, 1440),
+            new ScreenRect(2560, 0, 2560, 1440),
+        ], outputs);
+    }
+
+    [Fact]
     public void TryParseDesktopBounds_ShouldPreserveNegativeLogicalOrigin()
     {
         const string kdl = """

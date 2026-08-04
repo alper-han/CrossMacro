@@ -464,7 +464,7 @@ Security > Screen Recording, then restart CrossMacro.
 
 Additional direct-run steps include:
 
-- `move abs <x> <y>` and `move rel <dx> <dy>`
+- `move abs <x> <y>`, `move rel <dx> <dy>`, `move rel-logical <dx> <dy>`, and `move rel-raw <dx> <dy>`
 - `click <button>`, `down <button>`, and `up <button>`
 - `click current <button>`, `down current <button>`, and `up current <button>`
 - `scroll <up|down|left|right> [count]`
@@ -484,6 +484,11 @@ Additional direct-run steps include:
 - `while <left> <op> <right> { ... }`
 - `for <var> from <start> to <end> [step <n>] { ... }`
 - `break`, `continue`, and `}`
+
+`move rel` retains the raw device-relative behavior used by existing scripts;
+`move rel-raw` is its explicit spelling. `move rel-logical` uses logical desktop
+pixel deltas and therefore needs a known cursor position, an earlier absolute
+move, or the initial corner reset.
 
 Use `--dry-run` to parse, compile, and validate a direct-run command without
 sending input.

@@ -241,17 +241,27 @@ the `crossmacro` group membership.
 CrossMacro supports Wayland with compositor-specific cursor-position
 capabilities:
 
-- Absolute cursor position is available on:
-  - Hyprland through IPC
+- When the selected compositor provider does not already publish cursor-change
+  notifications and the compositor advertises `ext-image-copy-capture-v1`,
+  CrossMacro uses its native cursor sessions independently of the selected
+  screen capture backend. This provides logical global cursor positions without
+  polling or an external helper on supporting Hyprland, GNOME, Niri, Sway,
+  COSMIC, Wayfire, and other compositors. Output topology changes recreate the
+  protocol sessions so their logical bounds stay current.
+- Compositor-specific fallbacks are available on:
+  - KDE Plasma through KWin and D-Bus cursor-change and output-topology
+    notifications
+  - Hyprland through activity-driven IPC queries
   - Wayfire through IPC with `ipc` and `ipc-rules` plugins, v0.10+
-  - KDE Plasma through D-Bus
-  - GNOME through a Shell Extension
-- Niri and COSMIC are detected for screen resolution only; they do not currently
-  expose a safe absolute cursor-position API for recording.
+  - GNOME through the bundled Shell Extension
+- Niri, Sway, and COSMIC releases that do not advertise the native cursor
+  protocol remain resolution-only. In that case CrossMacro records raw relative
+  input because those compositors do not expose a safe global cursor-position
+  API.
 - If an absolute cursor provider is unavailable, CrossMacro falls back to
   relative-position mode for recording.
-- Macros that contain absolute-coordinate events require an absolute-capable
-  backend for playback.
+- Macros that contain logical desktop coordinates, whether absolute positions
+  or logical relative deltas, require an absolute-capable playback backend.
 - You can force relative mode with **Force Relative Coordinates**.
 - You can disable the origin move at recording start with
   **Skip Initial 0,0 Position**.
@@ -260,14 +270,21 @@ Absolute and relative coordinate events can be mixed in one macro.
 Current-position clicks do not carry coordinates and execute at the live cursor
 position.
 
-For the smoothest relative-position playback, disable pointer acceleration and
-use a flat pointer profile in your desktop or compositor settings; accelerated
-profiles can distort replayed movement deltas.
+New relative recordings use logical desktop deltas whenever a global cursor
+provider is available. Playback converts those deltas back to exact logical
+targets, so pointer acceleration does not distort the path. Legacy relative
+events and explicitly authored `rel-raw` events retain raw device semantics;
+use a flat pointer profile when exact replay of those raw deltas matters.
 
-GNOME Wayland needs a Shell Extension for absolute mouse position. The bundled
-extension supports GNOME Shell 45 through 50. CrossMacro reports extension status
-through its setup flow and diagnostics. Log out and back in after first-time
-setup if prompted.
+The native Wayland cursor connection is recreated automatically when outputs,
+scale, transform, seat capabilities, or relevant protocol globals change. On
+X11, root-window coordinates provide the same logical path reconstruction
+without compositor-specific helpers.
+
+On GNOME releases without the native cursor protocol, the bundled Shell
+Extension supplies absolute mouse position. It supports GNOME Shell 45 through
+51. CrossMacro reports extension status through its setup flow and diagnostics.
+Log out and back in after first-time setup if prompted.
 
 ## Minimal systems and conflicts
 

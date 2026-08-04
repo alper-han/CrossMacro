@@ -156,7 +156,7 @@ internal static class RunCommandParser
         {
             if (index + 3 >= args.Length)
             {
-                error = "Invalid inline step syntax for move. Expected: move abs <x> <y> | move rel <dx> <dy>";
+                error = "Invalid inline step syntax for move. Expected: move abs <x> <y> | move rel <dx> <dy> | move rel-logical <dx> <dy> | move rel-raw <dx> <dy>";
                 return false;
             }
 

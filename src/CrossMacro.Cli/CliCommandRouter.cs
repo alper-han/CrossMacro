@@ -555,6 +555,8 @@ public sealed class CliCommandRouter
                 "Run Steps:\n" +
                 "  move abs <x> <y>\n" +
                 "  move rel <dx> <dy>\n" +
+                "  move rel-logical <dx> <dy>\n" +
+                "  move rel-raw <dx> <dy>\n" +
                 "  down <button> | up <button> | click <button>\n" +
                 "  down current <button> | up current <button> | click current <button>\n" +
                 "  scroll <up|down|left|right> [count]\n" +

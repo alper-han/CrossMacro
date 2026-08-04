@@ -8,16 +8,15 @@ public class DialogService(IDesktopLifetimeContext desktopLifetimeContext, ILoca
 
     public async Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No")
     {
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ShowConfirmationAsync(title, message, yesText, noText)).ConfigureAwait(false);
-        }
-
         var owner = _desktopLifetimeContext.MainWindow;
-
         if (owner is null)
         {
             return false;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ShowConfirmationAsync(title, message, yesText, noText)).ConfigureAwait(false);
         }
 
         var resolvedYesText = yesText is "Yes" ? _localizationService["Dialog_Yes"] : yesText;
@@ -28,16 +27,15 @@ public class DialogService(IDesktopLifetimeContext desktopLifetimeContext, ILoca
 
     public async Task ShowMessageAsync(string title, string message, string buttonText = "OK")
     {
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        var owner = _desktopLifetimeContext.MainWindow;
+        if (owner is null)
         {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ShowMessageAsync(title, message, buttonText)).ConfigureAwait(false);
             return;
         }
 
-        var owner = _desktopLifetimeContext.MainWindow;
-
-        if (owner is null)
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         {
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ShowMessageAsync(title, message, buttonText)).ConfigureAwait(false);
             return;
         }
 
@@ -48,16 +46,15 @@ public class DialogService(IDesktopLifetimeContext desktopLifetimeContext, ILoca
 
     public async Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
     {
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ShowSaveFileDialogAsync(title, defaultFileName, filters)).ConfigureAwait(false);
-        }
-
         var mainWindow = _desktopLifetimeContext.MainWindow;
-
         if (mainWindow is null)
         {
             return null;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ShowSaveFileDialogAsync(title, defaultFileName, filters)).ConfigureAwait(false);
         }
 
         var fileTypeChoices = filters.Select(f => new Avalonia.Platform.Storage.FilePickerFileType(f.Name)
@@ -78,16 +75,15 @@ public class DialogService(IDesktopLifetimeContext desktopLifetimeContext, ILoca
 
     public async Task<string?> ShowOpenFileDialogAsync(string title, FileDialogFilter[] filters)
     {
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ShowOpenFileDialogAsync(title, filters)).ConfigureAwait(false);
-        }
-
         var mainWindow = _desktopLifetimeContext.MainWindow;
-
         if (mainWindow is null)
         {
             return null;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ShowOpenFileDialogAsync(title, filters)).ConfigureAwait(false);
         }
 
         var fileTypeFilters = filters.Select(f => new Avalonia.Platform.Storage.FilePickerFileType(f.Name)

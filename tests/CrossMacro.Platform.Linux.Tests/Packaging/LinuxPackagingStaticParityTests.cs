@@ -40,7 +40,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         var expectedFinishArgs = new[]
         {
             "--socket=wayland",
-            "--socket=x11",
+            "--socket=fallback-x11",
             "--share=ipc",
             DeviceAllArg,
             "--talk-name=org.kde.keyboard",

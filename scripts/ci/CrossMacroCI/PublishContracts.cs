@@ -44,7 +44,7 @@ internal static class PublishContracts
         else
         {
             var targets = CISupport.ReadText(targetsPath);
-            foreach (var required in new[] { "CrossMacroPublishProfile", "native-aot", "portable-trimmed", "SelfContained", "PublishReadyToRun", "PublishTrimmed" })
+            foreach (var required in new[] { "CrossMacroPublishProfile", "native-aot", "portable-trimmed", "SelfContained", "PublishReadyToRun", "PublishTrimmed", "UseAppHost", "ErrorOnDuplicatePublishOutputFiles" })
             {
                 if (!targets.Contains(required, StringComparison.Ordinal))
                 {

@@ -9,7 +9,7 @@ command: crossmacro
 finish-args:
   # Display
   - --socket=wayland
-  - --socket=x11
+  - --socket=fallback-x11
   - --share=ipc
 
   # Input devices (required for Wayland macro recording/playback)

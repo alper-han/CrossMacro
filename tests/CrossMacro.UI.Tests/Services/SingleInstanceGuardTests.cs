@@ -29,19 +29,20 @@ public sealed class SingleInstanceGuardTests
     }
 
     [Fact]
-    public void TryAcquire_WhenAlreadyHeld_ReturnsNull()
+    public async Task TryAcquire_WhenAlreadyHeld_ReturnsNull()
     {
         var mutexName = $"crossmacro-single-instance-{Guid.NewGuid():N}";
 
         using var first = SingleInstanceGuard.TryAcquire(mutexName);
+        Assert.NotNull(first);
 
-        var second = SingleInstanceGuard.TryAcquire(mutexName);
+        using var second = await Task.Run(() => SingleInstanceGuard.TryAcquire(mutexName), CancellationToken.None);
 
         Assert.Null(second);
     }
 
     [Fact]
-    public void TryAcquire_WhenRuntimeDirectoryChanges_ReturnsNull()
+    public async Task TryAcquire_WhenRuntimeDirectoryChanges_ReturnsNull()
     {
         var mutexName = $"crossmacro-single-instance-{Guid.NewGuid():N}";
         var originalRuntimeDirectory = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
@@ -56,7 +57,7 @@ public sealed class SingleInstanceGuardTests
             first = SingleInstanceGuard.TryAcquire(mutexName);
 
             Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", secondRuntimeDirectory);
-            second = SingleInstanceGuard.TryAcquire(mutexName);
+            second = await Task.Run(() => SingleInstanceGuard.TryAcquire(mutexName), CancellationToken.None);
 
             Assert.Null(second);
         }

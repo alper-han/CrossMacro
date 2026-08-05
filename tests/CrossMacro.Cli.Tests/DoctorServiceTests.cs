@@ -132,21 +132,28 @@ public sealed class DoctorServiceTests
     [Fact]
     public async Task RunAsync_WhenInjectedConfigDirectoryCannotBeCreated_ReportsFailureDetails()
     {
-        const string configDirectory = "/dev/null/crossmacro-doctor-test-config";
+        var blockerPath = Path.GetTempFileName();
+        try
+        {
+            var configDirectory = Path.Combine(blockerPath, "crossmacro-doctor-test-config");
+            var service = CreateService(
+                _ => null,
+                _ => false,
+                _ => false,
+                isLinux: () => false,
+                getConfigDirectory: () => configDirectory);
 
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            getConfigDirectory: () => configDirectory);
+            var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var check = Assert.Single(report.Checks, x => x.Name is "config-path");
-        Assert.Equal(DoctorCheckStatus.Fail, check.Status);
-        Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
-        Assert.NotNull(check.Details!["error"]);
+            var check = Assert.Single(report.Checks, x => x.Name is "config-path");
+            Assert.Equal(DoctorCheckStatus.Fail, check.Status);
+            Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
+            Assert.NotNull(check.Details!["error"]);
+        }
+        finally
+        {
+            File.Delete(blockerPath);
+        }
     }
 
     private static string? GetDetailsString(DoctorCheck check, string propertyName)

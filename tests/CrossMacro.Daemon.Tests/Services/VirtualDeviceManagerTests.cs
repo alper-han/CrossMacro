@@ -74,7 +74,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.False(devices[1].IsDisposed);
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task SendEvent_WhenNotConfigured_DoesNotThrow()
     {
         await using var manager = new VirtualDeviceManager();
@@ -84,7 +84,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.Null(ex);
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Reset_WhenNotConfigured_DoesNotThrow()
     {
         await using var manager = new VirtualDeviceManager();
@@ -108,7 +108,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.Null(ex);
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task OperationsAfterDispose_ShouldThrowObjectDisposedException()
     {
         await using var manager = new VirtualDeviceManager();
@@ -118,7 +118,7 @@ public sealed class VirtualDeviceManagerTests
             () => manager.SendEventAsync(type: 1, code: 2, value: 3));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Configure_WhenCanceledBeforeCreation_ShouldHonorCancellation()
     {
         await using var manager = new VirtualDeviceManager();

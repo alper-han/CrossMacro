@@ -12,13 +12,17 @@
   <img src="screenshots/recording-tab.png" alt="CrossMacro recording interface preview" />
 </p>
 
-CrossMacro is a cross-platform desktop automation app for recording, editing,
-scheduling, and replaying mouse/keyboard workflows. It combines a polished
-Avalonia GUI, scriptable CLI, text expansion, shortcuts, and a GUI-less desktop
-runtime in one app.
+CrossMacro is an open-source, cross-platform mouse and keyboard macro recorder,
+editor, and automation tool for Linux, Windows, and macOS. Record, edit, and
+replay macros with adjustable speed, loops, delays, global hotkeys, and schedules.
+
+Linux-first Wayland and X11 support adds compositor-aware cursor positioning
+where available, daemon-backed or direct-device input paths, text expansion,
+screen-reading commands, native PNG image recognition, profiles, a scriptable
+CLI, and a GUI-less runtime in the same application.
 
 - Linux-first support for Wayland and X11, with daemon-backed/direct-device
-  input modes and compositor-aware cursor positioning
+  input modes and compositor-aware cursor positioning where available
 - Windows support through Microsoft Store, winget, MSIX, and portable binaries
 - macOS support through Apple Silicon and Intel DMG packages
 
@@ -39,7 +43,7 @@ runtime in one app.
 
 ## Features
 
-### Record and replay
+### Macro recorder and player
 
 - Mouse recording for clicks, movement, and scrolling
 - Keyboard recording and macro playback with pause/resume
@@ -50,15 +54,16 @@ runtime in one app.
   - `F9` start/stop playback
   - `F10` pause/resume playback
 
-### Edit and organize
+### Macro editor and workflow building
 
 - Files tab for loading, saving, sequencing, and replaying `.macro` files
 - Macro editor with undo/redo, coordinate capture, action reordering, filtering,
   variables, loops, conditionals, text input, and delay editing
+- Absolute and relative coordinate modes for compositor-aware cursor workflows
 - Screen-reading commands (`pixelcolor`, `waitcolor`, `pixelsearch`) for color-based automation
 - Native PNG image recognition with `imagesearch`, `imageclick`, and `waitimage`
 
-### Automate and trigger
+### Hotkeys, scheduling, and background automation
 
 - Shortcut-bound macro execution with keyboard shortcuts and key combinations
 - Shortcut modes for press-to-start/stop and run-while-held playback
@@ -68,7 +73,7 @@ runtime in one app.
   `run` steps
 - GUI-less desktop runtime for hotkeys, scheduler, shortcuts, and text expansion
 
-### Text expansion and desktop polish
+### Text expansion, profiles, and desktop integration
 
 - Profile management to easily save, load, and switch between different configuration setups
 - Text expansion shortcuts with per-entry enable/disable, direct typing method selection, and insertion-mode controls
@@ -86,6 +91,11 @@ desktop-session tray support.
 CrossMacro is built for people who want desktop automation without stitching
 together separate recorders, hotkey tools, text expanders, and platform-specific
 scripts.
+
+Linux desktop automation is often split across several small utilities.
+CrossMacro brings macro recording and editing, hotkeys, scheduling, text
+expansion, and screen-based workflows into one GUI and CLI application while
+keeping Wayland and X11 as first-class targets.
 
 - **One workflow across platforms:** a polished Avalonia GUI with packaged builds
   for Linux, Windows, and macOS.

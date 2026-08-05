@@ -256,6 +256,17 @@ public sealed class WaylandScreenFrameComposerTests
         composedFrame.Dispose();
     }
 
+    [Fact]
+    public void Bgr888ShmPayload_MapsThroughRgb24AndPreservesScreenColor()
+    {
+        Assert.True(WaylandShmFormats.TryMap(WaylandShmFormats.Bgr888, out var pixelFormat));
+        Assert.Equal(ScreenPixelFormat.Rgb24, pixelFormat);
+
+        using var composedFrame = ComposeSinglePixel(pixelFormat, [0x12, 0x34, 0x56]);
+
+        Assert.Equal(new byte[] { 0x56, 0x34, 0x12, 0xFF }, composedFrame.Pixels.Span.ToArray());
+    }
+
     public static TheoryData<ScreenPixelFormat, byte[], byte[]> PixelFormatCases => new()
     {
         { ScreenPixelFormat.Rgb24, [0x12, 0x34, 0x56], [0x56, 0x34, 0x12, 0xFF] },

@@ -3,40 +3,57 @@ namespace CrossMacro.Platform.MacOS.Strategies;
 
 /// <summary>
 /// macOS-specific pure absolute coordinate strategy.
-/// Uses CGEventGetLocation to get true absolute coordinates directly from macOS.
+/// Uses the injected position provider to get true absolute coordinates.
 /// No delta accumulation, no hybrid approach - 100% pure absolute.
 /// </summary>
 public sealed class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
 {
+    private readonly IMousePositionProvider _positionProvider;
+    private readonly bool _ownsPositionProvider;
     private int _lastX;
     private int _lastY;
     private bool _hasPendingMovement;
+
+    public MacOSAbsoluteCoordinateStrategy()
+        : this(new MacOSMousePositionProvider(), ownsPositionProvider: true)
+    { /* Compatibility constructor for direct callers. */ }
+
+    public MacOSAbsoluteCoordinateStrategy(IMousePositionProvider positionProvider)
+        : this(positionProvider, ownsPositionProvider: false)
+    { /* The DI-owned provider outlives this short-lived strategy. */ }
+
+    private MacOSAbsoluteCoordinateStrategy(IMousePositionProvider positionProvider, bool ownsPositionProvider)
+    {
+        _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
+        _ownsPositionProvider = ownsPositionProvider;
+    }
 
     public bool ProducesLogicalCoordinates => true;
 
     public bool ProducesRelativeCoordinates => false;
 
-    public Task InitializeAsync(CancellationToken ct)
+    public async Task InitializeAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         _hasPendingMovement = false;
 
-        // Get initial position from macOS
-        var eventRef = CoreGraphics.CGEventCreate(IntPtr.Zero);
-        if (eventRef == IntPtr.Zero)
+        try
         {
-            // CGEventCreate failed - default to (0, 0)
-            _lastX = 0;
-            _lastY = 0;
-            return Task.CompletedTask;
+            var position = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+            if (position is { } current)
+            {
+                _lastX = current.X;
+                _lastY = current.Y;
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Trace.TraceWarning($"[MacOSAbsoluteCoordinateStrategy] Position provider query failed; using (0, 0): {ex.Message}");
         }
 
-        var loc = CoreGraphics.CGEventGetLocation(eventRef);
-        CoreFoundation.CFRelease(eventRef);
-
-        _lastX = (int)loc.X;
-        _lastY = (int)loc.Y;
-        return Task.CompletedTask;
+        _lastX = 0;
+        _lastY = 0;
     }
 
     public CoordinateSample ProcessPosition(CapturedInputEvent e)
@@ -72,5 +89,11 @@ public sealed class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
         return CoordinateSample.None;
     }
 
-    public void Dispose() { /* Empty */ }
+    public void Dispose()
+    {
+        if (_ownsPositionProvider)
+        {
+            _positionProvider.Dispose();
+        }
+    }
 }

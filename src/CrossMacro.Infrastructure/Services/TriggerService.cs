@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Polls the active window and runs configured <see cref="TriggerTask"/> actions on match.
 /// </summary>
-public sealed class TriggerService : ITriggerService
+public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, ITriggerTaskStore
 {
     private readonly IWindowManager? _windowManager;
     private readonly IProfileSwitchRequests _profileSwitchRequests;
@@ -32,6 +32,9 @@ public sealed class TriggerService : ITriggerService
     private const int PollIntervalMs = 1000;
 
     public ObservableCollection<TriggerTask> Tasks { get; } = new();
+
+    IReadOnlyList<TriggerTask> ITriggerTaskStore.Tasks => SnapshotTasks();
+
     public bool IsMonitoring { get; private set; }
 
     public Task Completion
@@ -46,6 +49,14 @@ public sealed class TriggerService : ITriggerService
     }
 
     public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
+
+    private IReadOnlyList<TriggerTask> SnapshotTasks()
+    {
+        lock (_lock)
+        {
+            return Array.AsReadOnly(Tasks.ToArray());
+        }
+    }
 
     public TriggerService(
         IWindowManager? windowManager,

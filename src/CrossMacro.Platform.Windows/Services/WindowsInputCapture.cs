@@ -3,12 +3,7 @@ namespace CrossMacro.Platform.Windows.Services;
 
 public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInputCapture
 {
-    private const uint LowLevelKeyboardHookFlagExtended = 0x01;
-    private const uint LowLevelKeyboardHookFlagLowerIntegrityInjected = 0x02;
-    private const uint LowLevelKeyboardHookFlagInjected = 0x10;
     private const uint NotifyForThisSession = 0;
-    private const int WtsSessionUnlock = 0x8;
-    private const int WtsSessionDesktopReady = 0xF;
     private static readonly IntPtr HwndMessage = new(-3);
 
     public string ProviderName => "Windows Hooks";
@@ -159,25 +154,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
     }
 
     private static void RunWindowsMessageLoop(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            if (User32.GetMessage(out var msg, IntPtr.Zero, 0, 0))
-            {
-                if (msg.message == User32.WM_QUIT)
-                {
-                    break;
-                }
-
-                _ = User32.TranslateMessage(ref msg);
-                _ = User32.DispatchMessage(ref msg);
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
+        => WindowsMessagePump.Run(ct);
 
     public void StopCapture()
     {
@@ -185,7 +162,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
 
         if (_messagePumpThreadId != 0)
         {
-            _ = User32.PostThreadMessage(_messagePumpThreadId, User32.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+            WindowsMessagePump.RequestStop(_messagePumpThreadId);
         }
     }
 
@@ -194,15 +171,6 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
 
     private IntPtr InstallKeyboardHook(IntPtr moduleHandle)
         => _hookInstaller.InstallKeyboardHook(moduleHandle, _keyboardProc!);
-
-    private sealed class DefaultWindowsHookInstaller : IWindowsHookInstaller
-    {
-        public IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc)
-            => User32.SetWindowsHookEx(User32.WH_MOUSE_LL, hookProc, moduleHandle, 0);
-
-        public IntPtr InstallKeyboardHook(IntPtr moduleHandle, User32.HookProc hookProc)
-            => User32.SetWindowsHookEx(User32.WH_KEYBOARD_LL, hookProc, moduleHandle, 0);
-    }
 
     private void RegisterSessionNotificationWindow()
     {
@@ -333,67 +301,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
     }
 
     internal static bool TryMapMouseButtonOrScroll(uint msg, uint mouseData, out ushort evdevCode, out int value, out ushort type)
-    {
-        evdevCode = 0;
-        value = 0;
-        type = InputEventCode.EV_KEY;
-
-        switch (msg)
-        {
-            case User32.WM_LBUTTONDOWN:
-                evdevCode = (ushort)InputEventCode.BTN_LEFT;
-                value = 1;
-                return true;
-            case User32.WM_LBUTTONUP:
-                evdevCode = (ushort)InputEventCode.BTN_LEFT;
-                value = 0;
-                return true;
-            case User32.WM_RBUTTONDOWN:
-                evdevCode = (ushort)InputEventCode.BTN_RIGHT;
-                value = 1;
-                return true;
-            case User32.WM_RBUTTONUP:
-                evdevCode = (ushort)InputEventCode.BTN_RIGHT;
-                value = 0;
-                return true;
-            case User32.WM_MBUTTONDOWN:
-                evdevCode = (ushort)InputEventCode.BTN_MIDDLE;
-                value = 1;
-                return true;
-            case User32.WM_MBUTTONUP:
-                evdevCode = (ushort)InputEventCode.BTN_MIDDLE;
-                value = 0;
-                return true;
-            case User32.WM_MOUSEWHEEL:
-                type = InputEventCode.EV_REL;
-                evdevCode = InputEventCode.REL_WHEEL;
-                value = (short)((mouseData >> 16) & 0xFFFF);
-                return true;
-            case User32.WM_XBUTTONDOWN:
-            case User32.WM_XBUTTONUP:
-                switch ((ushort)(mouseData >> 16))
-                {
-                    case User32.XBUTTON1:
-                        evdevCode = (ushort)InputEventCode.BTN_SIDE;
-                        break;
-                    case User32.XBUTTON2:
-                        evdevCode = (ushort)InputEventCode.BTN_EXTRA;
-                        break;
-                    default:
-                        return false;
-                }
-
-                value = msg == User32.WM_XBUTTONDOWN ? 1 : 0;
-                return true;
-            case User32.WM_MOUSEHWHEEL:
-                type = InputEventCode.EV_REL;
-                evdevCode = InputEventCode.REL_HWHEEL;
-                value = (short)((mouseData >> 16) & 0xFFFF);
-                return true;
-            default:
-                return false;
-        }
-    }
+        => WindowsInputEventPolicy.TryMapMouseButtonOrScroll(msg, mouseData, out evdevCode, out value, out type);
 
     private void HandleMouseMove(int currentX, int currentY)
     {
@@ -470,13 +378,12 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
         int currentX,
         int currentY,
         int previousX,
-        int previousY) => useAbsoluteCoordinates
-            ? (InputEventCode.ABS_X, currentX, InputEventCode.ABS_Y, currentY)
-            : (
-                InputEventCode.REL_X,
-                (int)Math.Clamp((long)currentX - previousX, int.MinValue, int.MaxValue),
-                InputEventCode.REL_Y,
-                (int)Math.Clamp((long)currentY - previousY, int.MinValue, int.MaxValue));
+        int previousY) => WindowsInputEventPolicy.ResolveMouseMovement(
+            useAbsoluteCoordinates,
+            currentX,
+            currentY,
+            previousX,
+            previousY);
 
     private void EmitMouseButtonOrScrollEvent(ushort evdevCode, int value, ushort type)
     {
@@ -558,37 +465,11 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
     }
 
     internal static int MapKeyboardEvent(ushort virtualKey, uint hookFlags)
-    {
-        int evdevCode = WindowsKeyMap.GetEvdevCode(virtualKey);
-        bool isExtended = (hookFlags & LowLevelKeyboardHookFlagExtended) == LowLevelKeyboardHookFlagExtended;
-
-        if (virtualKey is 0x12 or 0xA4 && isExtended)
-        {
-            return InputEventCode.KEY_RIGHTALT;
-        }
-
-        if (virtualKey is 0x11 or 0xA2 && isExtended)
-        {
-            return InputEventCode.KEY_RIGHTCTRL;
-        }
-
-        return virtualKey is 0x0D && isExtended ? InputEventCode.KEY_KPENTER : evdevCode;
-    }
+        => WindowsInputEventPolicy.MapKeyboardEvent(virtualKey, hookFlags);
 
     internal static bool ShouldIgnoreKeyboardHookEvent(uint hookFlags, IntPtr extraInfo)
-    {
-        var isInjected = (hookFlags & (LowLevelKeyboardHookFlagInjected | LowLevelKeyboardHookFlagLowerIntegrityInjected)) != 0;
-        return isInjected && extraInfo == InputEventMarkers.ToIntPtr(InputEventMarkers.TextExpansionKeyboardEvent);
-    }
+        => WindowsInputEventPolicy.ShouldIgnoreKeyboardHookEvent(hookFlags, extraInfo);
 
     internal static bool IsSessionRecoveryMessage(uint message, IntPtr wParam)
-    {
-        if (message != User32.WM_WTSSESSION_CHANGE)
-        {
-            return false;
-        }
-
-        var reason = wParam.ToInt32();
-        return reason is WtsSessionUnlock or WtsSessionDesktopReady;
-    }
+        => WindowsInputEventPolicy.IsSessionRecoveryMessage(message, wParam);
 }

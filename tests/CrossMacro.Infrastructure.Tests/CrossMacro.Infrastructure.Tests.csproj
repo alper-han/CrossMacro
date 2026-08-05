@@ -38,6 +38,7 @@
     <Compile Include="..\TestInfrastructure\LinuxFactAttribute.cs" Link="TestInfrastructure\LinuxFactAttribute.cs" />
     <Compile Include="..\TestInfrastructure\AsyncSignal.cs" Link="TestInfrastructure\AsyncSignal.cs" />
     <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
+    <Compile Include="..\TestInfrastructure\TestAssertions.FluentAssertions.cs" Link="TestInfrastructure\TestAssertions.FluentAssertions.cs" />
   </ItemGroup>
 
 </Project>

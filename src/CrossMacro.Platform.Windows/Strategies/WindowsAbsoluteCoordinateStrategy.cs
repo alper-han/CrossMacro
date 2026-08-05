@@ -3,8 +3,9 @@ namespace CrossMacro.Platform.Windows.Strategies;
 
 /// <summary>
 /// Windows-specific absolute coordinate strategy.
-/// Uses GetCursorPos to get true absolute coordinates directly from Windows,
-/// avoiding drift from accumulated relative deltas.
+/// Uses the injected position provider to get true absolute coordinates,
+/// avoiding drift from accumulated relative deltas and keeping native queries
+/// outside the strategy.
 /// </summary>
 public sealed class WindowsAbsoluteCoordinateStrategy(IMousePositionProvider positionProvider) : ICoordinateStrategy
 {
@@ -75,14 +76,21 @@ public sealed class WindowsAbsoluteCoordinateStrategy(IMousePositionProvider pos
 
     private void UpdateCursorPosition()
     {
-        if (User32.GetCursorPos(out PointStruct pt))
+        try
         {
-            _lastX = pt.x;
-            _lastY = pt.y;
+            var position = PositionProvider.GetAbsolutePositionAsync().GetAwaiter().GetResult();
+            if (position is { } current)
+            {
+                _lastX = current.X;
+                _lastY = current.Y;
+                return;
+            }
+
+            Serilog.Log.Warning("[WindowsAbsoluteCoordinateStrategy] Position provider returned no position, keeping last position ({X}, {Y})", _lastX, _lastY);
         }
-        else
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Serilog.Log.Warning("[WindowsAbsoluteCoordinateStrategy] GetCursorPos failed, keeping last position ({X}, {Y})", _lastX, _lastY);
+            Serilog.Log.Warning(ex, "[WindowsAbsoluteCoordinateStrategy] Position provider query failed, keeping last position ({X}, {Y})", _lastX, _lastY);
         }
     }
 

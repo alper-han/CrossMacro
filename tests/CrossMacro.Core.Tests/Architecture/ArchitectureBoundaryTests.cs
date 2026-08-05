@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Reflection;
+using System.Collections.ObjectModel;
 
 namespace CrossMacro.Core.Tests.Architecture;
 
@@ -142,6 +144,7 @@ public sealed class ArchitectureBoundaryTests
                 "src/CrossMacro.Application/Automation/IManageShortcut.cs",
                 "src/CrossMacro.Application/Automation/IManageTextExpansion.cs",
                 "src/CrossMacro.Application/Automation/IManageTrigger.cs",
+                "src/CrossMacro.Application/Automation/IProfileTextExpansionStore.cs",
                 "src/CrossMacro.Application/Automation/ITextExpansionStore.cs",
                 "src/CrossMacro.Application/Automation/ManageSchedule.cs",
                 "src/CrossMacro.Application/Automation/ManageShortcut.cs",
@@ -165,6 +168,35 @@ public sealed class ArchitectureBoundaryTests
                 "src/CrossMacro.Application/Runtime/RuntimeLifecycleStep.cs",
             ],
             applicationSource);
+    }
+
+    [Fact]
+    public void ApplicationTaskPorts_ShouldNotExposeUiCollectionsOrRuntimeLifecycle()
+    {
+        var ports = new[]
+        {
+            typeof(IScheduledTaskOperations),
+            typeof(IShortcutTaskOperations),
+            typeof(ITriggerTaskOperations),
+        };
+
+        foreach (var port in ports)
+        {
+            var declaredMembers = port.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            Assert.DoesNotContain(declaredMembers, member => member is EventInfo);
+            Assert.DoesNotContain(declaredMembers, member => member.Name is "Start" or "Stop" or "StopAsync" or "Completion");
+
+            foreach (var property in port.GetProperties())
+            {
+                var isObservableCollection = property.PropertyType.IsGenericType
+                    && property.PropertyType.GetGenericTypeDefinition() == typeof(ObservableCollection<>);
+                Assert.False(isObservableCollection, $"{port.Name}.{property.Name} must not expose ObservableCollection.");
+            }
+        }
+
+        Assert.DoesNotContain(typeof(IScheduledTaskOperations).GetMembers(), member => member.Name is "LoadAsync" or "SaveAsync" or "Tasks");
+        Assert.DoesNotContain(typeof(IShortcutTaskOperations).GetMembers(), member => member.Name is "LoadAsync" or "SaveAsync" or "Tasks");
+        Assert.DoesNotContain(typeof(ITriggerTaskOperations).GetMembers(), member => member.Name is "LoadAsync" or "SaveAsync" or "Tasks");
     }
 
     [Fact]
@@ -478,8 +510,6 @@ public sealed class ArchitectureBoundaryTests
         var allowedReferences = new HashSet<string>(StringComparer.Ordinal)
         {
             "CrossMacro.Core",
-            "CrossMacro.Infrastructure",
-            "CrossMacro.Daemon.Contracts",
             "CrossMacro.Platform.Abstractions",
         };
 
@@ -492,7 +522,7 @@ public sealed class ArchitectureBoundaryTests
 
         AssertNoViolations(
             violations,
-            "Core.Tests currently has intentional cross-layer test references for existing characterization coverage. Add new test dependencies to a matching mirrored test project or migrate these tests safely before expanding this exception list.");
+            "Core.Tests may reference only Core and the explicitly retained Platform.Abstractions contract/strategy tests. Infrastructure-owned characterization and serialization tests belong in Infrastructure.Tests.");
     }
 
     [Fact]
@@ -602,6 +632,56 @@ public sealed class ArchitectureBoundaryTests
         AssertNoViolations(
             missing,
             "Legacy macro readers, Linux native fallbacks, and the daemon handshake codec require an explicit compatibility-policy change before removal.");
+    }
+
+    [Fact]
+    public void LinuxNativeSources_ShouldBeOwnedByNativeProjectWithoutLinkedCompile()
+    {
+        var nativeProjectPath = "src/CrossMacro.Platform.Linux.Native/CrossMacro.Platform.Linux.Native.csproj";
+        var linuxProjectPath = "src/CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj";
+        var nativeProject = File.ReadAllText(Path.Combine(GetRepositoryRoot(), nativeProjectPath));
+        var linuxProject = File.ReadAllText(Path.Combine(GetRepositoryRoot(), linuxProjectPath));
+
+        Assert.DoesNotContain("CrossMacro.Platform.Linux/Native", nativeProject, StringComparison.Ordinal);
+        Assert.DoesNotContain("Compile Include", nativeProject, StringComparison.Ordinal);
+        Assert.DoesNotContain("Compile Remove=\"Native/Evdev", linuxProject, StringComparison.Ordinal);
+        Assert.DoesNotContain("Compile Remove=\"Native/Systemd", linuxProject, StringComparison.Ordinal);
+        Assert.DoesNotContain("Compile Remove=\"Native/UInput", linuxProject, StringComparison.Ordinal);
+        Assert.DoesNotContain("Compile Remove=\"Native/LinuxSystemPaths.cs", linuxProject, StringComparison.Ordinal);
+
+        var nativeFiles = new[]
+        {
+            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/EvdevErrorEventArgs.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/EvdevInputEventArgs.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/EvdevNative.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/EvdevReader.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/ILinuxInputDeviceAccessProbe.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/InputDeviceHelper.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/LinuxInputDeviceAccessProbe.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/LinuxSystemPaths.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/Systemd/SystemdNotify.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/UInput/IUInputDevice.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/UInput/UInputDevice.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/UInput/UInputNative.cs",
+            "src/CrossMacro.Platform.Linux.Native/Native/UInput/VirtualDeviceConstants.cs",
+        };
+
+        var missingNativeFiles = nativeFiles
+            .Where(path => !File.Exists(Path.Combine(GetRepositoryRoot(), path)))
+            .ToArray();
+        AssertNoViolations(
+            missingNativeFiles,
+            "Evdev, UInput, Systemd and Linux path sources must be physically owned by CrossMacro.Platform.Linux.Native.");
+
+        Assert.Equal(["CrossMacro.Core"], ReadProjectReferenceNames(nativeProjectPath));
+        Assert.Contains(
+            "CrossMacro.Platform.Linux.Native",
+            ReadProjectReferenceNames(linuxProjectPath),
+            StringComparer.Ordinal);
+        Assert.Contains(
+            "CrossMacro.Platform.Linux.Native",
+            ReadProjectReferenceNames("src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"),
+            StringComparer.Ordinal);
     }
 
     [Fact]

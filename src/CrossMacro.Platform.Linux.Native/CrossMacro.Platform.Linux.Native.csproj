@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- Native ABI files keep the CrossMacro.Platform.Linux.Native namespace while living under the Native folder. -->
+    <RootNamespace>CrossMacro.Platform.Linux</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsAotCompatible>true</IsAotCompatible>
@@ -10,13 +12,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="../CrossMacro.Platform.Linux/Native/Evdev/**/*.cs" Link="Native/Evdev/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../CrossMacro.Platform.Linux/Native/Systemd/**/*.cs" Link="Native/Systemd/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../CrossMacro.Platform.Linux/Native/UInput/**/*.cs" Link="Native/UInput/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../CrossMacro.Platform.Linux/Native/LinuxSystemPaths.cs" Link="Native/LinuxSystemPaths.cs" />
   </ItemGroup>
 
   <ItemGroup>

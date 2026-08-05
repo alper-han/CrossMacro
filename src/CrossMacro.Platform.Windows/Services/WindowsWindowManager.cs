@@ -372,7 +372,7 @@ public sealed class WindowsWindowManager : IWindowManager
         return User32.GetWindowTextLengthW(hwnd) > 0;
     }
 
-    private static bool TryGetActiveWindowPlacement(out WindowPlacement placement)
+    private static bool TryGetActiveWindowPlacement(out WindowsWindowPlacement placement)
     {
         placement = default;
         if (!TryGetForegroundWindow(out var hwnd) || !User32.GetWindowRect(hwnd, out var outerBounds))
@@ -381,7 +381,7 @@ public sealed class WindowsWindowManager : IWindowManager
         }
 
         var visibleBounds = GetVisibleBounds(hwnd);
-        placement = new WindowPlacement(hwnd, outerBounds, visibleBounds);
+        placement = new WindowsWindowPlacement(hwnd, outerBounds, visibleBounds);
         return true;
     }
 
@@ -576,16 +576,7 @@ public sealed class WindowsWindowManager : IWindowManager
     }
 
     private static bool TryParseHwnd(string address, out IntPtr hwnd)
-    {
-        hwnd = IntPtr.Zero;
-        if (!long.TryParse(address, CultureInfo.InvariantCulture, out var handleVal))
-        {
-            return false;
-        }
-
-        hwnd = new IntPtr(handleVal);
-        return hwnd != IntPtr.Zero;
-    }
+        => WindowsWindowAddressParser.TryParse(address, out hwnd);
 
     private static VirtualDesktopManager CreateVirtualDesktopManager()
     {
@@ -621,16 +612,4 @@ public sealed class WindowsWindowManager : IWindowManager
             && visibleBounds.bottom >= monitorBounds.bottom;
     }
 
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private readonly record struct WindowPlacement(IntPtr Hwnd, RectStruct OuterBounds, RectStruct VisibleBounds)
-    {
-        public int LeftMargin => VisibleBounds.left - OuterBounds.left;
-        public int TopMargin => VisibleBounds.top - OuterBounds.top;
-        public int RightMargin => OuterBounds.right - VisibleBounds.right;
-        public int BottomMargin => OuterBounds.bottom - VisibleBounds.bottom;
-        public int HorizontalMargin => LeftMargin + RightMargin;
-        public int VerticalMargin => TopMargin + BottomMargin;
-        public int VisibleWidth => Math.Max(0, VisibleBounds.right - VisibleBounds.left);
-        public int VisibleHeight => Math.Max(0, VisibleBounds.bottom - VisibleBounds.top);
-    }
 }

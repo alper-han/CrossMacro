@@ -3,7 +3,14 @@ namespace CrossMacro.Platform.MacOS.Strategies;
 
 public class MacOSCoordinateStrategyFactory : ICoordinateStrategyFactory
 {
-    public MacOSCoordinateStrategyFactory() { /* Empty */ }
+    private readonly IMousePositionProvider? _positionProvider;
+
+    public MacOSCoordinateStrategyFactory() { /* Compatibility constructor for direct callers. */ }
+
+    internal MacOSCoordinateStrategyFactory(IMousePositionProvider positionProvider)
+    {
+        _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
+    }
 
     public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero)
     {
@@ -12,6 +19,8 @@ public class MacOSCoordinateStrategyFactory : ICoordinateStrategyFactory
             return new MacOSRelativeCoordinateStrategy();
         }
 
-        return new MacOSAbsoluteCoordinateStrategy();
+        return _positionProvider is null
+            ? new MacOSAbsoluteCoordinateStrategy()
+            : new MacOSAbsoluteCoordinateStrategy(_positionProvider);
     }
 }

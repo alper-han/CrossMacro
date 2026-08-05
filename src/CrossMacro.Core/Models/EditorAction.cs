@@ -122,7 +122,7 @@ public class EditorAction : INotifyPropertyChanged
                     ClearPreservedTextInputEvents();
                 }
 
-                if (!IsScriptPayloadAction(value))
+                if (!EditorActionValidationPolicy.IsScriptPayloadAction(value))
                 {
                     PreferLegacyScriptText = false;
                 }
@@ -388,7 +388,7 @@ public class EditorAction : INotifyPropertyChanged
                     ClearPreservedTextInputEvents();
                 }
 
-                if (IsScriptPayloadAction(Type))
+                if (EditorActionValidationPolicy.IsScriptPayloadAction(Type))
                 {
                     PreferLegacyScriptText = !string.IsNullOrWhiteSpace(_text);
                 }
@@ -1278,38 +1278,7 @@ public class EditorAction : INotifyPropertyChanged
     /// </summary>
     /// <returns>True if valid, false otherwise.</returns>
     public bool IsValid()
-    {
-        return Type switch
-        {
-            EditorActionType.Delay when UseRandomDelay =>
-                RandomDelayMinMs >= 0
-                && RandomDelayMaxMs >= RandomDelayMinMs
-                && !(RandomDelayMinMs is 0 && RandomDelayMaxMs is 0),
-            EditorActionType.Delay => DelayMs >= 0,
-            EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => KeyCode > 0,
-            EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount is not 0,
-            EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp when UseCurrentPosition => !IsAbsolute,
-            EditorActionType.TextInput => !string.IsNullOrEmpty(Text),
-            EditorActionType.SetVariable => UseLegacyScriptTextDisplay || ValidateSetVariableFields(),
-            EditorActionType.IncrementVariable or EditorActionType.DecrementVariable => UseLegacyScriptTextDisplay || ValidateIncDecFields(),
-            EditorActionType.RepeatBlockStart => UseLegacyScriptTextDisplay || ValidateRepeatFields(),
-            EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart => UseLegacyScriptTextDisplay || ValidateConditionFields(),
-            EditorActionType.ForBlockStart => UseLegacyScriptTextDisplay || ValidateForFields(),
-            EditorActionType.PixelColor => ValidatePixelColorFields(),
-            EditorActionType.WaitColor => ValidateWaitColorFields(),
-            EditorActionType.PixelSearch => ValidatePixelSearchFields(),
-            EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage => ValidateImageSearchFields(),
-            EditorActionType.ClipboardGet => EditorActionScriptTokens.IsValidVariableName(ScriptVariableName),
-            EditorActionType.ClipboardSet => !string.IsNullOrEmpty(Text),
-            EditorActionType.ShellCommand => ValidateShellCommandFields(),
-            EditorActionType.Screenshot => ValidateScreenshotFields(),
-            EditorActionType.WindowCommand => ValidateWindowCommandFields(),
-            EditorActionType.RawScriptStep => !string.IsNullOrWhiteSpace(Text),
-            EditorActionType.ElseBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue => true,
-            EditorActionType.MouseMove => true,
-            _ => true,
-        };
-    }
+        => EditorActionValidationPolicy.IsValid(this);
 
     public EditorAction Clone()
     {
@@ -1439,33 +1408,10 @@ public class EditorAction : INotifyPropertyChanged
 
     private void MarkStructuredScriptEdited()
     {
-        if (IsScriptPayloadAction(Type))
+        if (EditorActionValidationPolicy.IsScriptPayloadAction(Type))
         {
             PreferLegacyScriptText = false;
         }
-    }
-
-    private static bool IsScriptPayloadAction(EditorActionType type)
-    {
-        return type is
-            EditorActionType.SetVariable
-            or EditorActionType.IncrementVariable
-            or EditorActionType.DecrementVariable
-            or EditorActionType.RepeatBlockStart
-            or EditorActionType.IfBlockStart
-            or EditorActionType.WhileBlockStart
-            or EditorActionType.ForBlockStart
-            or EditorActionType.PixelColor
-            or EditorActionType.WaitColor
-            or EditorActionType.PixelSearch
-            or EditorActionType.ImageSearch
-            or EditorActionType.ImageClick
-            or EditorActionType.WaitImage
-            or EditorActionType.ClipboardGet
-            or EditorActionType.ClipboardSet
-            or EditorActionType.ShellCommand
-            or EditorActionType.Screenshot
-            or EditorActionType.WindowCommand;
     }
 
     private string BuildSetValueToken()
@@ -1502,170 +1448,6 @@ public class EditorAction : INotifyPropertyChanged
     private static string BuildOperandToken(ScriptOperandType operandType, string value)
     {
         return EditorActionScriptTokens.FormatOperandToken(operandType, value);
-    }
-
-    private bool ValidateSetVariableFields()
-    {
-        if (!EditorActionScriptTokens.IsValidVariableName(ScriptVariableName))
-        {
-            return false;
-        }
-
-        return ScriptValueType switch
-        {
-            ScriptValueType.Number => int.TryParse(ScriptValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
-            ScriptValueType.Boolean => bool.TryParse(ScriptValue, out _),
-            ScriptValueType.Text => !string.IsNullOrWhiteSpace(ScriptValue),
-            ScriptValueType.VariableReference => EditorActionScriptTokens.IsValidVariableName(ScriptValue),
-            _ => false,
-        };
-    }
-
-    private bool ValidateIncDecFields()
-    {
-        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
-            && EditorActionScriptTokens.ValidateNumericToken(ScriptNumericSourceType, ScriptNumericValue);
-    }
-
-    private bool ValidateRepeatFields()
-    {
-        return EditorActionScriptTokens.ValidateNumericToken(ScriptNumericSourceType, ScriptNumericValue);
-    }
-
-    private bool ValidateConditionFields()
-    {
-        return EditorActionScriptTokens.ValidateOperandToken(ScriptLeftOperandType, ScriptLeftOperand)
-            && EditorActionScriptTokens.ValidateOperandToken(ScriptRightOperandType, ScriptRightOperand);
-    }
-
-    private bool ValidateForFields()
-    {
-        if (!EditorActionScriptTokens.IsValidVariableName(ForVariableName))
-        {
-            return false;
-        }
-
-        if (!EditorActionScriptTokens.ValidateNumericToken(ForStartType, ForStartValue)
-            || !EditorActionScriptTokens.ValidateNumericToken(ForEndType, ForEndValue))
-        {
-            return false;
-        }
-
-        return !ForHasStep || EditorActionScriptTokens.ValidateNumericToken(ForStepType, ForStepValue);
-    }
-
-    private bool ValidatePixelColorFields()
-    {
-        return TryGetScreenReadingPayload(out var payload) && payload.HasValidColorVariableName();
-    }
-
-    private bool ValidateWaitColorFields()
-    {
-        return TryGetScreenReadingPayload(out var payload)
-            && payload.HasValidTargetColor()
-            && payload.ScreenTimeoutMs >= 0;
-    }
-
-    private bool ValidatePixelSearchFields()
-    {
-        return TryGetScreenReadingPayload(out var payload)
-            && payload.HasValidTargetColor()
-            && payload.HasPositiveSearchRegion()
-            && payload.HasValidTolerance()
-            && payload.HasValidFoundCoordinateVariableNames();
-    }
-
-    private bool ValidateImageSearchFields()
-    {
-        return EditorActionScriptTokens.IsValidVariableName(ImageAssetName)
-            && ScreenWidth > 0
-            && ScreenHeight > 0
-            && EditorActionScriptTokens.IsValidVariableName(ScreenFoundVariableName)
-            && EditorActionScriptTokens.IsValidVariableName(ScreenFoundXVariableName)
-            && EditorActionScriptTokens.IsValidVariableName(ScreenFoundYVariableName)
-            && double.IsFinite(ImageSearchSimilarity)
-            && ImageSearchSimilarity is >= 0.0 and <= 1.0
-            && ImageSearchDownsample >= 1
-            && (Type is not EditorActionType.ImageClick
-                || Button is MacroMouseButton.Left or MacroMouseButton.Right or MacroMouseButton.Middle);
-    }
-
-    private bool ValidateShellCommandFields()
-    {
-        if (string.IsNullOrWhiteSpace(ShellCommand) || ShellRetries < 0 || ShellRetries > 10_000 || ShellBackoffMs < 0 || ShellTimeoutMs < 0)
-        {
-            return false;
-        }
-
-        if (ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput)
-        {
-            return IsValidShellCaptureTarget(ShellExitCodeVariableName)
-                && IsValidShellCaptureTarget(ShellStandardOutputVariableName)
-                && IsValidShellCaptureTarget(ShellStandardErrorVariableName);
-        }
-
-        return true;
-    }
-
-    private bool ValidateScreenshotFields()
-    {
-        if (string.IsNullOrWhiteSpace(ScreenshotOutputPath) && !ScreenshotCopyToClipboard)
-        {
-            return false;
-        }
-
-        return !ScreenshotUseRegion || (IsIntegerOrVariable(ScreenshotRegionX)
-            && IsIntegerOrVariable(ScreenshotRegionY)
-            && IsPositiveIntegerOrVariable(ScreenshotRegionWidth)
-            && IsPositiveIntegerOrVariable(ScreenshotRegionHeight));
-    }
-
-    private bool ValidateWindowCommandFields()
-    {
-        return WindowCommandMode switch
-        {
-            WindowCommandMode.Active => IsValidWindowActiveField(WindowActiveField)
-                && EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
-            WindowCommandMode.Search => IsValidWindowSearchSelector(WindowSelectorKind)
-                && !string.IsNullOrWhiteSpace(WindowSelectorValue)
-                && EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
-            WindowCommandMode.Wait => IsValidWindowSearchSelector(WindowSelectorKind)
-                && !string.IsNullOrWhiteSpace(WindowSelectorValue)
-                && WindowTimeoutMs > 0
-                && EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
-            WindowCommandMode.Focus => string.Equals(WindowSelectorKind, "active", StringComparison.Ordinal)
-                || (IsValidWindowFocusSelector(WindowSelectorKind) && !string.IsNullOrWhiteSpace(WindowSelectorValue)),
-            WindowCommandMode.Close => string.Equals(WindowSelectorKind, "active", StringComparison.Ordinal)
-                || (IsValidWindowCloseSelector(WindowSelectorKind) && !string.IsNullOrWhiteSpace(WindowSelectorValue)),
-            WindowCommandMode.Resize => WindowWidth > 0 && WindowHeight > 0,
-            WindowCommandMode.WorkspaceGet => EditorActionScriptTokens.IsValidVariableName(WindowOutputVariable),
-            WindowCommandMode.WorkspaceSwitch or WindowCommandMode.WorkspaceMoveActive => !string.IsNullOrWhiteSpace(WindowWorkspace),
-            WindowCommandMode.WorkspaceMoveWindow => !string.IsNullOrWhiteSpace(WindowSelectorValue) && !string.IsNullOrWhiteSpace(WindowWorkspace),
-            WindowCommandMode.Move
-                or WindowCommandMode.Center
-                or WindowCommandMode.Maximize
-                or WindowCommandMode.Fullscreen
-                or WindowCommandMode.Floating => true,
-            _ => true,
-        };
-    }
-
-    private static bool IsIntegerOrVariable(string token)
-    {
-        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _)
-            || (token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token));
-    }
-
-    private static bool IsPositiveIntegerOrVariable(string token)
-    {
-        return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
-            ? value > 0
-            : token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token);
-    }
-
-    private static bool IsValidShellCaptureTarget(string target)
-    {
-        return string.Equals(target, "_", StringComparison.Ordinal) || EditorActionScriptTokens.IsValidVariableName(target);
     }
 
     private EditorActionScreenReadingPayload ScreenReadingPayload
@@ -1761,38 +1543,6 @@ public class EditorAction : INotifyPropertyChanged
         return string.Equals(WindowSelectorKind, "active", StringComparison.Ordinal)
             ? $"{verb} active window"
             : $"{verb} window by {WindowSelectorKind} \"{WindowSelectorValue}\"";
-    }
-
-    private static bool IsValidWindowActiveField(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "class", StringComparison.Ordinal)
-            || string.Equals(value, "address", StringComparison.Ordinal)
-            || string.Equals(value, "fullscreen", StringComparison.Ordinal)
-            || string.Equals(value, "maximize", StringComparison.Ordinal)
-            || string.Equals(value, "float", StringComparison.Ordinal)
-            || string.Equals(value, "pinned", StringComparison.Ordinal)
-            || string.Equals(value, "hidden", StringComparison.Ordinal)
-            || string.Equals(value, "geometry", StringComparison.Ordinal);
-    }
-
-    private static bool IsValidWindowSearchSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "class", StringComparison.Ordinal);
-    }
-
-    private static bool IsValidWindowFocusSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "class", StringComparison.Ordinal)
-            || string.Equals(value, "address", StringComparison.Ordinal);
-    }
-
-    private static bool IsValidWindowCloseSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "address", StringComparison.Ordinal);
     }
 
     private void SetScreenField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

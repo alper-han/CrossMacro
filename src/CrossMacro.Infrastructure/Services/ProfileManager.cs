@@ -1,4 +1,6 @@
 
+using CrossMacro.Infrastructure.Persistence.Settings;
+
 namespace CrossMacro.Infrastructure.Services;
 
 internal class ProfileManager : IProfileCatalog
@@ -305,15 +307,15 @@ internal class ProfileManager : IProfileCatalog
 
         await FileBackedJsonStorage.WriteAsync(
                 GetRootConfigPath(ConfigFileNames.GlobalSettings),
-                SettingsMapper.ToGlobal(oldSettings),
-                CrossMacroJsonContext.Default.GlobalSettings,
+                SettingsPersistenceMapper.ToGlobal(oldSettings),
+                CrossMacroJsonContext.Default.PersistedGlobalSettings,
                 CancellationToken.None)
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(defaultProfileDirectory, ConfigFileNames.Settings),
-                SettingsMapper.ToProfile(oldSettings),
-                CrossMacroJsonContext.Default.ProfileSettings,
+                SettingsPersistenceMapper.ToProfile(oldSettings),
+                CrossMacroJsonContext.Default.PersistedProfileSettings,
                 CancellationToken.None)
             .ConfigureAwait(false);
 
@@ -328,15 +330,15 @@ internal class ProfileManager : IProfileCatalog
 
         await FileBackedJsonStorage.WriteAsync(
                 GetRootConfigPath(ConfigFileNames.GlobalSettings),
-                new GlobalSettings(),
-                CrossMacroJsonContext.Default.GlobalSettings,
+                new PersistedGlobalSettings(),
+                CrossMacroJsonContext.Default.PersistedGlobalSettings,
                 CancellationToken.None)
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(GetProfileDirectory(DefaultProfileId), ConfigFileNames.Settings),
-                new ProfileSettings(),
-                CrossMacroJsonContext.Default.ProfileSettings,
+                new PersistedProfileSettings(),
+                CrossMacroJsonContext.Default.PersistedProfileSettings,
                 CancellationToken.None)
             .ConfigureAwait(false);
 
@@ -353,8 +355,8 @@ internal class ProfileManager : IProfileCatalog
         {
             await FileBackedJsonStorage.WriteAsync(
                     defaultSettingsPath,
-                    new ProfileSettings(),
-                    CrossMacroJsonContext.Default.ProfileSettings,
+                    new PersistedProfileSettings(),
+                    CrossMacroJsonContext.Default.PersistedProfileSettings,
                     CancellationToken.None)
                 .ConfigureAwait(false);
         }
@@ -367,8 +369,8 @@ internal class ProfileManager : IProfileCatalog
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.Settings),
-                new ProfileSettings(),
-                CrossMacroJsonContext.Default.ProfileSettings,
+                new PersistedProfileSettings(),
+                CrossMacroJsonContext.Default.PersistedProfileSettings,
                 CancellationToken.None)
             .ConfigureAwait(false);
 

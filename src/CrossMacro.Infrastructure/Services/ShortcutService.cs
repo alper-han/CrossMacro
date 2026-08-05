@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Service for managing and executing shortcut-triggered macros
 /// </summary>
-public sealed class ShortcutService : IShortcutService
+public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations, IShortcutTaskStore
 {
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
@@ -26,10 +26,21 @@ public sealed class ShortcutService : IShortcutService
     private readonly Dictionary<Guid, HashSet<int>> _activeHotkeyKeys = new();
 
     public ObservableCollection<ShortcutTask> Tasks { get; } = new();
+
+    IReadOnlyList<ShortcutTask> IShortcutTaskStore.Tasks => SnapshotTasks();
+
     public bool IsListening { get; private set; }
 
     public event EventHandler<ShortcutExecutedEventArgs>? ShortcutExecuted;
     public event EventHandler<ShortcutStartingEventArgs>? ShortcutStarting;
+
+    private IReadOnlyList<ShortcutTask> SnapshotTasks()
+    {
+        lock (_lock)
+        {
+            return Array.AsReadOnly(Tasks.ToArray());
+        }
+    }
 
     public ShortcutService(
         IMacroFileManager fileManager,

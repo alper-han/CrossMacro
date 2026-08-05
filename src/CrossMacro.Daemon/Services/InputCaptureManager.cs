@@ -30,7 +30,7 @@ internal sealed class InputCaptureManager : IInputCaptureManager
             StopCapture(); // Clear existing
 
             var devices = _deviceEnumerator();
-            var targetDevices = devices.Where(d => ShouldCaptureDevice(d, captureMouse, captureKeyboard)).ToList();
+            var targetDevices = devices.Where(d => DaemonInputCapturePolicy.ShouldCaptureDevice(d, captureMouse, captureKeyboard)).ToList();
 
             Log.Information("[InputCaptureManager] Starting capture on {Count} devices", targetDevices.Count);
 
@@ -45,34 +45,27 @@ internal sealed class InputCaptureManager : IInputCaptureManager
                 try
                 {
                     evReader = _readerFactory(dev);
-                    var pendingReport = new List<UInputNative.input_event>(capacity: 8);
+                    var reportAccumulator = new InputCaptureReportAccumulator(captureMouse, captureKeyboard);
                     evReader.EventReceived += (sender, e) =>
                     {
                         try
                         {
-                            if (IsReportBoundary(e))
+                            if (reportAccumulator.TryAppend(e, out var completedReport))
                             {
-                                if (pendingReport.Count is 0)
+                                try
                                 {
-                                    return;
-                                }
-
-                                pendingReport.Add(e);
-                                lock (_reportForwardLock)
-                                {
-                                    foreach (var reportEvent in pendingReport)
+                                    lock (_reportForwardLock)
                                     {
-                                        onEvent(reportEvent);
+                                        foreach (var reportEvent in completedReport!)
+                                        {
+                                            onEvent(reportEvent);
+                                        }
                                     }
                                 }
-
-                                pendingReport.Clear();
-                                return;
-                            }
-
-                            if (ShouldForwardEvent(e, captureMouse, captureKeyboard))
-                            {
-                                pendingReport.Add(e);
+                                finally
+                                {
+                                    reportAccumulator.ResetCompletedReport();
+                                }
                             }
                         }
                         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -126,35 +119,6 @@ internal sealed class InputCaptureManager : IInputCaptureManager
     public void Dispose()
     {
         StopCapture();
-    }
-
-    private static bool ShouldForwardEvent(UInputNative.input_event inputEvent, bool captureMouse, bool captureKeyboard)
-    {
-        return inputEvent.type switch
-        {
-            UInputNative.EV_KEY when UInputNative.IsMouseButton(inputEvent.code) => captureMouse,
-            UInputNative.EV_KEY => captureKeyboard,
-            UInputNative.EV_REL => captureMouse,
-            UInputNative.EV_ABS when inputEvent.code is UInputNative.ABS_X or UInputNative.ABS_Y => captureMouse,
-            UInputNative.EV_SYN => captureMouse || captureKeyboard,
-            _ => false,
-        };
-    }
-
-    private static bool IsReportBoundary(UInputNative.input_event inputEvent)
-    {
-        return inputEvent.type == UInputNative.EV_SYN
-            && inputEvent.code == UInputNative.SYN_REPORT;
-    }
-
-    private static bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device, bool captureMouse, bool captureKeyboard)
-    {
-        if (VirtualDeviceConstants.IsCrossMacroVirtualDevice(device.Name, device.VendorId, device.ProductId))
-        {
-            return false;
-        }
-
-        return (captureMouse && device.IsMouse) || (captureKeyboard && device.IsKeyboard);
     }
 
     internal interface ILinuxCaptureReader : IDisposable

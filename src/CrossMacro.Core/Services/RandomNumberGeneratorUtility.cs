@@ -1,8 +1,17 @@
 namespace CrossMacro.Core.Services;
 
-internal static class RandomNumberGeneratorUtility
+/// <summary>
+/// Provides inclusive, cryptographically unbiased integer samples.
+/// </summary>
+/// <remarks>
+/// The helper is intentionally stateless so Core domain policies and outer
+/// runtime adapters can share the same inclusive-range semantics without
+/// granting either assembly friend access to Core implementation details.
+/// </remarks>
+public static class RandomNumberGeneratorUtility
 {
-    internal static int GetInt32Inclusive(int min, int max)
+    /// <summary>Returns a uniformly distributed value in the inclusive range.</summary>
+    public static int GetInt32Inclusive(int min, int max)
     {
         if (min > max)
         {

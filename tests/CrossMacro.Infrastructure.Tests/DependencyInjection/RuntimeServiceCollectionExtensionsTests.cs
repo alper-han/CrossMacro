@@ -82,13 +82,20 @@ public sealed class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IScheduledTaskRepository, JsonScheduledTaskRepository>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IScheduledTaskExecutor, MacroScheduledTaskExecutor>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ISchedulerService, SchedulerService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IScheduledTaskOperations>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IScheduledTaskStore>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IShortcutService, ShortcutService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IShortcutTaskOperations>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IShortcutTaskStore>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ProfileSwitchRequestBridge, ProfileSwitchRequestBridge>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IProfileSwitchRequests>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<ITriggerService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ITriggerTaskOperations>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ITriggerTaskStore>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IProfileCatalog>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IProfileManager>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextExpansionStorageService, TextExpansionStorageService>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<IProfileTextExpansionStore, ProfileTextExpansionStore>(services, ServiceLifetime.Singleton);
 
         AssertImplementationRegistration<IInputProcessor, InputProcessor>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextBufferState, TextBufferState>(services, ServiceLifetime.Singleton);

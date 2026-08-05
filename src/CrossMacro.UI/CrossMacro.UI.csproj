@@ -9,7 +9,7 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Description>Cross-platform mouse and keyboard macro automation tool with text expansion support.</Description>
+    <Description>Cross-platform mouse and keyboard macro recorder and automation tool with a macro editor, scheduling, text expansion, and screen recognition.</Description>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -1,4 +1,3 @@
-global using CrossMacro.Infrastructure.Persistence.Macros;
 global using CrossMacro.Application.Automation;
 global using CrossMacro.Application.Runtime;
 global using CrossMacro.Core.Diagnostics;

@@ -858,22 +858,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     internal static string? GetBackendTroubleshootingHintKey(DisplayEnvironment environment)
     {
-        return environment switch
-        {
-            DisplayEnvironment.LinuxX11
-                or DisplayEnvironment.LinuxWayland
-                or DisplayEnvironment.LinuxHyprland
-                or DisplayEnvironment.LinuxWayfire
-                or DisplayEnvironment.LinuxKDE
-                or DisplayEnvironment.LinuxGnome
-                => "MainWindow_BackendTroubleshootingLinux",
-            DisplayEnvironment.Windows
-                => "MainWindow_BackendTroubleshootingWindows",
-            DisplayEnvironment.MacOS
-                => "MainWindow_BackendTroubleshootingMacOS",
-            DisplayEnvironment.Unknown => null,
-            _ => throw new ArgumentOutOfRangeException(nameof(environment), environment, message: null),
-        };
+        return MainWindowPresentationPolicy.GetBackendTroubleshootingHintKey(environment);
     }
 
     private void ShowAppNotification(string title, string message, AppNotificationSeverity severity, TimeSpan duration)

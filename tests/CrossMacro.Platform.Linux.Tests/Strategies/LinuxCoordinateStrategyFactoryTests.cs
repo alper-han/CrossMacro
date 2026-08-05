@@ -77,6 +77,23 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     }
 
     [LinuxFact]
+    public void Sway_Absolute_WhenCursorPositionIsUnavailable_ShouldRemainRelativeOnly()
+    {
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.SWAY);
+        _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
+        _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
+
+        var result = _factory.Create(
+            useAbsoluteCoordinates: true,
+            forceRelative: false,
+            skipInitialZero: false);
+
+        var strategy = Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.True(strategy.ProducesRelativeCoordinates);
+        Assert.False(strategy.ProducesLogicalCoordinates);
+    }
+
+    [LinuxFact]
     public void Wayland_DegradedAbsolutePath_ShouldUseRelativeStrategy()
     {
         _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);

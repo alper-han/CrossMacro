@@ -1,4 +1,7 @@
 
+using CrossMacro.Infrastructure.Persistence.Macros;
+using static CrossMacro.Infrastructure.Persistence.Macros.MacroFileLimits;
+
 namespace CrossMacro.Infrastructure.Services;
 
 /// <summary>
@@ -9,21 +12,9 @@ public class MacroFileManager(
     IImageAssetCodec? imageAssetCodec = null,
     IScriptValidationService? scriptValidationService = null) : IMacroFileManager
 {
-    private const long MaxMacroFileBytes = 32L * 1024 * 1024;
-    private const int MaxMacroLineChars = 256 * 1024;
-    private const int MaxMacroFileLines = 100_000;
-    private const int MaxMacroScriptSteps = 10_000;
-    private const int MaxMacroEvents = 1_000_000;
-    private const string TrailingDelayHeader = "# TrailingDelayMs: ";
-    private const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
-    private const string TextInputBoundaryHeader = "# TextInputBoundaryBase64: ";
-    private const string ImageHeader = "# Image: ";
-    private const string ScriptSectionHeader = "[Script]";
-    private const string EventsSectionHeader = "[Events]";
-    private const string ScriptContinuationPrefix = "| ";
     private readonly Func<IKeyCodeMapper> _keyCodeMapperFactory = keyCodeMapperFactory ?? throw new ArgumentNullException(nameof(keyCodeMapperFactory));
-    private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
     private readonly IScriptValidationService? _scriptValidationService = scriptValidationService;
+    private readonly MacroAssetValidator _assetValidator = new(imageAssetCodec ?? new ImageAssetCodec());
 
     private enum MacroFileReadSection
     {
@@ -422,7 +413,7 @@ public class MacroFileManager(
                 }
                 else if (line.StartsWith(ImageHeader, StringComparison.Ordinal))
                 {
-                    totalEncodedImageChars = await TryAddImageMetadataAsync(macro, line, totalEncodedImageChars).ConfigureAwait(false);
+                    totalEncodedImageChars = await _assetValidator.AddImageMetadataAsync(macro, line, totalEncodedImageChars).ConfigureAwait(false);
                 }
 
                 continue;
@@ -609,7 +600,7 @@ public class MacroFileManager(
         macro.MouseMoveCount = macro.Events.Count(e => e.Type is EventType.MouseMove);
         macro.ClickCount = macro.Events.Count(e => e.Type is not EventType.MouseMove);
 
-        ValidateImageReferences(macro.ScriptSteps, macro.Images, "Loaded macro");
+        MacroAssetValidator.ValidateReferences(macro.ScriptSteps, macro.Images, "Loaded macro");
         return macro;
     }
 
@@ -649,95 +640,8 @@ public class MacroFileManager(
             || token.Trim().Equals("1", StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<long> TryAddImageMetadataAsync(MacroSequence macro, string line, long totalEncodedImageChars)
-    {
-        var metadata = line.Substring(ImageHeader.Length);
-        var separatorIndex = metadata.IndexOf('=', StringComparison.Ordinal);
-        if (separatorIndex < 0)
-        {
-            throw new InvalidDataException("Malformed image metadata: missing '=' separator.");
-        }
-
-        var name = metadata[..separatorIndex].Trim();
-        var encoded = metadata[(separatorIndex + 1)..].Trim();
-        if (!IsValidImageName(name))
-        {
-            throw new InvalidDataException($"Image asset '{name}': Image asset name is invalid.");
-        }
-
-        await _imageAssetCodec.ValidateBase64PngAsync(encoded, name, CancellationToken.None).ConfigureAwait(false);
-        totalEncodedImageChars = checked(totalEncodedImageChars + encoded.Length);
-        _imageAssetCodec.ValidateMacroBudget(totalEncodedImageChars);
-        macro.Images[name] = encoded;
-        return totalEncodedImageChars;
-    }
-
-    private async Task<List<KeyValuePair<string, string>>> ValidateImagesBeforeSaveAsync(MacroSequence macro)
-    {
-        if (macro.Images is null || macro.Images.Count is 0)
-        {
-            ValidateImageReferences(macro.ScriptSteps, new Dictionary<string, string>(StringComparer.Ordinal), "Saved macro");
-            return [];
-        }
-
-        var imageAssets = new List<KeyValuePair<string, string>>(macro.Images.Count);
-        long totalEncodedBytes = 0;
-        foreach (var image in macro.Images.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-        {
-            if (!IsValidImageName(image.Key))
-            {
-                throw new InvalidDataException($"Image asset '{image.Key}': Image asset name is invalid.");
-            }
-
-            var encoded = image.Value?.Trim();
-            if (encoded is null || encoded.Length is 0 || encoded.Any(char.IsWhiteSpace))
-            {
-                throw new InvalidDataException($"Image asset '{image.Key}': Image asset metadata is malformed.");
-            }
-
-            await _imageAssetCodec.ValidateBase64PngAsync(encoded, image.Key, CancellationToken.None).ConfigureAwait(false);
-            totalEncodedBytes = checked(totalEncodedBytes + encoded.Length);
-            imageAssets.Add(new KeyValuePair<string, string>(image.Key, encoded));
-        }
-
-        _imageAssetCodec.ValidateMacroBudget(totalEncodedBytes);
-        ValidateImageReferences(macro.ScriptSteps, macro.Images, "Saved macro");
-        return imageAssets;
-    }
-
-    private static void ValidateImageReferences(
-        IList<string> scriptSteps,
-        IDictionary<string, string> images,
-        string context)
-    {
-        for (var index = 0; index < scriptSteps.Count; index++)
-        {
-            var step = scriptSteps[index];
-            if (!RunScriptScreenReadingStepParser.TryParseCommand(step.Trim(), out var command, out var parts)
-                || command is not (RunScriptScreenReadingCommand.ImageSearch or RunScriptScreenReadingCommand.ImageClick or RunScriptScreenReadingCommand.WaitImage))
-            {
-                continue;
-            }
-
-            if (!RunScriptScreenReadingStepParser.TryValidateStep(step, out var error) || error is not null)
-            {
-                throw new InvalidDataException($"{context} script step {(index + 1).ToString(CultureInfo.InvariantCulture)}: {error ?? "invalid image command"}");
-            }
-
-            var imageNameIndex = parts.Length >= 6
-                && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                ? 5
-                : 1;
-            var imageName = parts[imageNameIndex];
-            if (!images.ContainsKey(imageName))
-            {
-                throw new InvalidDataException($"{context} script step {(index + 1).ToString(CultureInfo.InvariantCulture)}: image asset '{imageName}' is not defined.");
-            }
-        }
-    }
+    private Task<List<KeyValuePair<string, string>>> ValidateImagesBeforeSaveAsync(MacroSequence macro)
+        => _assetValidator.ValidateBeforeSaveAsync(macro);
 
     private sealed class BoundedLineReader(StreamReader reader, int maxChars)
     {
@@ -786,30 +690,6 @@ public class MacroFileManager(
                 return builder.ToString();
             }
         }
-    }
-
-    private static bool IsValidImageName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return false;
-        }
-
-        if (!(char.IsLetter(name[0]) || name[0] == '_'))
-        {
-            return false;
-        }
-
-        for (var index = 1; index < name.Length; index++)
-        {
-            var character = name[index];
-            if (!(char.IsLetterOrDigit(character) || character == '_'))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static bool TryParseCoordinateMode(

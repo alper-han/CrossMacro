@@ -1,4 +1,6 @@
 
+using CrossMacro.Infrastructure.Persistence.Settings;
+
 namespace CrossMacro.Infrastructure.Serialization;
 
 /// <summary>
@@ -17,6 +19,8 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(List<TriggerTask>))]
 [JsonSerializable(typeof(GlobalSettings))]
 [JsonSerializable(typeof(ProfileSettings))]
+[JsonSerializable(typeof(PersistedGlobalSettings))]
+[JsonSerializable(typeof(PersistedProfileSettings))]
 [JsonSerializable(typeof(ProfileInfo))]
 [JsonSerializable(typeof(List<ProfileInfo>))]
 [JsonSerializable(typeof(ProfileRegistry))]
@@ -24,4 +28,4 @@ namespace CrossMacro.Infrastructure.Serialization;
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     GenerationMode = JsonSourceGenerationMode.Metadata)]
-public partial class CrossMacroJsonContext : JsonSerializerContext;
+public sealed partial class CrossMacroJsonContext : JsonSerializerContext;

@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Service for scheduling and executing macro tasks
 /// </summary>
-public sealed class SchedulerService : ISchedulerService
+public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperations, IScheduledTaskStore
 {
     private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
@@ -22,6 +22,9 @@ public sealed class SchedulerService : ISchedulerService
     private bool _disposed;
 
     public ObservableCollection<ScheduledTask> Tasks { get; } = new();
+
+    IReadOnlyList<ScheduledTask> IScheduledTaskStore.Tasks => SnapshotTasks();
+
     public bool IsRunning { get; private set; }
 
     public Task Completion { get
@@ -37,6 +40,14 @@ public sealed class SchedulerService : ISchedulerService
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
     public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
+
+    private IReadOnlyList<ScheduledTask> SnapshotTasks()
+    {
+        lock (_lock)
+        {
+            return Array.AsReadOnly(Tasks.ToArray());
+        }
+    }
 
     public SchedulerService(
         IScheduledTaskRepository repository,

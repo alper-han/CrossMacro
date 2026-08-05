@@ -93,7 +93,7 @@ internal sealed class CliSourceBoundaryInspector
 
     internal string[] FindDoctorServiceForbiddenReferences()
     {
-        var doctorDocument = _documents.Single(document => document.Path == "src/CrossMacro.Cli/Services/DoctorService.cs");
+        var doctorDocument = _documents.Single(document => document.Path == "src/CrossMacro.Cli/Services/Doctor/DoctorService.cs");
         return GetRootNames(doctorDocument)
             .Where(name => name.ToString().Contains("CrossMacro.Infrastructure.Helpers", StringComparison.Ordinal) || name.ToString() == "PathHelper")
             .Select(name => FormatViolation(doctorDocument, name, string.Create(CultureInfo.InvariantCulture, $"forbidden reference '{name}'")))

@@ -18,9 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\CrossMacro.Platform.MacOS\CrossMacro.Platform.MacOS.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />

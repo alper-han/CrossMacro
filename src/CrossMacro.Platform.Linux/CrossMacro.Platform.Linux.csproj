@@ -23,10 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Native/Evdev/**/*.cs" />
-    <Compile Remove="Native/Systemd/**/*.cs" />
-    <Compile Remove="Native/UInput/**/*.cs" />
-    <Compile Remove="Native/LinuxSystemPaths.cs" />
     <InternalsVisibleTo Include="CrossMacro.Platform.Linux.Tests" />
   </ItemGroup>
 

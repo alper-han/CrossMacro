@@ -19,19 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="..\TestInfrastructure\AsyncSignal.cs" Link="TestInfrastructure\AsyncSignal.cs" />
-    <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
-    <Compile Include="..\TestInfrastructure\TestAssertions.FluentAssertions.cs" Link="TestInfrastructure\TestAssertions.FluentAssertions.cs" />
   </ItemGroup>
 
 </Project>

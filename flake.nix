@@ -110,6 +110,8 @@
                   # Enable self-contained build for Native AOT
                   selfContainedBuild = true;
 
+                  useAppHost = false;
+
                   # Native AOT requires clang for compilation and patching
                   nativeBuildInputs = with pkgs; [
                     clang
@@ -164,6 +166,8 @@
 
               # Enable self-contained build for Native AOT
               selfContainedBuild = true;
+
+              useAppHost = false;
 
               dotnetFlags = [
                 "-p:CrossMacroPublishProfile=native-aot"

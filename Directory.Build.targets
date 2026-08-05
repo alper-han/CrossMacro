@@ -44,6 +44,10 @@
 
   <Target Name="ValidateCrossMacroPublishProfile" BeforeTargets="PrepareForBuild"
           Condition="'$(CrossMacroPublishProfile)' != ''">
+    <PropertyGroup Condition="'$(CrossMacroPublishProfile)' == 'native-aot'">
+      <!-- NativeAOT targets reset this during evaluation; restore the publish policy at execution time. -->
+      <ErrorOnDuplicatePublishOutputFiles>true</ErrorOnDuplicatePublishOutputFiles>
+    </PropertyGroup>
     <Error Condition="'$(CrossMacroPublishProfile)' != 'native-aot' and '$(CrossMacroPublishProfile)' != 'portable-trimmed'"
            Text="Unknown CrossMacroPublishProfile '$(CrossMacroPublishProfile)'. Expected native-aot or portable-trimmed." />
     <Error Condition="'$(CrossMacroPublishProfile)' == 'native-aot' and '$(PublishAot)' != 'true'"

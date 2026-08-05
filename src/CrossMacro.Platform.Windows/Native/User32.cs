@@ -20,7 +20,7 @@ internal static partial class User32
     [LibraryImport("user32.dll", SetLastError = true)]
     internal static partial IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
-    [LibraryImport("user32.dll")]
+    [LibraryImport("user32.dll", EntryPoint = "GetMessageW")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool GetMessage(out Msg lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
 
@@ -28,10 +28,10 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool TranslateMessage(ref Msg lpMsg);
 
-    [LibraryImport("user32.dll")]
+    [LibraryImport("user32.dll", EntryPoint = "DispatchMessageW")]
     internal static partial IntPtr DispatchMessage(ref Msg lpMsg);
 
-    [LibraryImport("user32.dll", SetLastError = true)]
+    [LibraryImport("user32.dll", EntryPoint = "PostThreadMessageW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
 
@@ -61,7 +61,7 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool DestroyWindow(IntPtr hWnd);
 
-    [LibraryImport("user32.dll")]
+    [LibraryImport("user32.dll", EntryPoint = "DefWindowProcW")]
     internal static partial IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     public const int WH_KEYBOARD_LL = 13;
@@ -99,7 +99,7 @@ internal static partial class User32
     [LibraryImport("user32.dll", SetLastError = true)]
     internal static partial uint MapVirtualKey(uint uCode, uint uMapType);
 
-    [LibraryImport("user32.dll", SetLastError = true)]
+    [LibraryImport("user32.dll", EntryPoint = "VkKeyScanExW", SetLastError = true)]
     internal static partial short VkKeyScanEx([MarshalAs(UnmanagedType.U2)] char ch, IntPtr dwhkl);
 
     public const uint MAPVK_VK_TO_VSC = 0;

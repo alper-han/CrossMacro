@@ -7,6 +7,7 @@ public abstract class DbusIntegrationTestBase
 
     protected static async Task<PrivateDbusSessionBus> CreatePrivateSessionBusAsync()
     {
+        var socketDirectory = Directory.CreateTempSubdirectory("CrossMacroDbus_");
         var startInfo = new ProcessStartInfo
         {
             FileName = "dbus-daemon",
@@ -18,9 +19,24 @@ public abstract class DbusIntegrationTestBase
         startInfo.ArgumentList.Add("--session");
         startInfo.ArgumentList.Add("--nofork");
         startInfo.ArgumentList.Add("--print-address=1");
+        startInfo.ArgumentList.Add($"--address=unix:tmpdir={socketDirectory.FullName}");
 
-        var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Failed to start private dbus-daemon for integration tests.");
+        Process? process;
+        try
+        {
+            process = Process.Start(startInfo);
+        }
+        catch
+        {
+            DeleteSocketDirectory(socketDirectory);
+            throw;
+        }
+
+        if (process is null)
+        {
+            DeleteSocketDirectory(socketDirectory);
+            throw new InvalidOperationException("Failed to start private dbus-daemon for integration tests.");
+        }
 
         try
         {
@@ -31,11 +47,12 @@ public abstract class DbusIntegrationTestBase
                 throw new InvalidOperationException("Private dbus-daemon did not publish a bus address." + error);
             }
 
-            return new PrivateDbusSessionBus(address, process);
+            return new PrivateDbusSessionBus(address, process, socketDirectory);
         }
         catch
         {
             await StopProcessAsync(process);
+            DeleteSocketDirectory(socketDirectory);
             throw;
         }
     }
@@ -72,7 +89,26 @@ public abstract class DbusIntegrationTestBase
         }
     }
 
-    protected sealed class PrivateDbusSessionBus(string address, Process process) : IAsyncDisposable
+    private static void DeleteSocketDirectory(DirectoryInfo socketDirectory)
+    {
+        try
+        {
+            if (socketDirectory.Exists)
+            {
+                socketDirectory.Delete(recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+            Debug.WriteLine($"Failed to remove private D-Bus socket directory '{socketDirectory.FullName}'.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Debug.WriteLine($"Access denied while removing private D-Bus socket directory '{socketDirectory.FullName}'.");
+        }
+    }
+
+    protected sealed class PrivateDbusSessionBus(string address, Process process, DirectoryInfo socketDirectory) : IAsyncDisposable
     {
         public DBusConnection CreateConnection()
         {
@@ -82,6 +118,7 @@ public abstract class DbusIntegrationTestBase
         public async ValueTask DisposeAsync()
         {
             await StopProcessAsync(process);
+            DeleteSocketDirectory(socketDirectory);
         }
     }
 }

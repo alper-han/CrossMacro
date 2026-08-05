@@ -8,7 +8,7 @@ public sealed class ProfileManagerTests : IDisposable
 
     public ProfileManagerTests()
     {
-        _tempPath = Path.Combine(Path.GetTempPath(), "CrossMacroProfileManagerTests_" + Guid.NewGuid());
+        _tempPath = Path.Combine(GetPhysicalTempPath(), "CrossMacroProfileManagerTests_" + Guid.NewGuid());
         _ = Directory.CreateDirectory(_tempPath);
     }
 
@@ -311,6 +311,29 @@ public sealed class ProfileManagerTests : IDisposable
     {
         var json = await File.ReadAllTextAsync(filePath, NonCancelableToken);
         return JsonSerializer.Deserialize(json, typeInfo)!;
+    }
+
+    private static string GetPhysicalTempPath()
+    {
+        var tempPath = Path.GetFullPath(Path.GetTempPath());
+        var tempDirectory = new DirectoryInfo(tempPath);
+        for (var current = tempDirectory; current is not null; current = current.Parent)
+        {
+            if (!current.Exists || !current.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                continue;
+            }
+
+            if (current.ResolveLinkTarget(returnFinalTarget: true) is not { FullName: var targetPath })
+            {
+                break;
+            }
+
+            var suffix = Path.GetRelativePath(current.FullName, tempPath);
+            return suffix == "." ? targetPath : Path.Combine(targetPath, suffix);
+        }
+
+        return tempPath;
     }
 
     private static ProfileRuntimeCoordinator CreateCoordinator(

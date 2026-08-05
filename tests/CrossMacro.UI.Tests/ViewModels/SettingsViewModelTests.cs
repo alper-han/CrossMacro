@@ -564,14 +564,16 @@ public sealed class SettingsViewModelTests : IDisposable
     {
         var firstSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var textExpansionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = _settingsService.SaveAsync().Returns(firstSave.Task, secondSave.Task);
+        _textExpansionService.When(service => service.Start())
+            .Do(_ => textExpansionStarted.TrySetResult());
 
         _viewModel.EnableTextExpansion = true;
         _viewModel.CheckForUpdates = true;
 
         firstSave.SetResult(true);
-        await Task.Yield();
-
+        await textExpansionStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
         _textExpansionService.Received(1).Start();
 
         secondSave.SetResult(true);

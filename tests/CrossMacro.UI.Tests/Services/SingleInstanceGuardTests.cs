@@ -1,6 +1,7 @@
 namespace CrossMacro.UI.Tests.Services;
 
 
+[Collection("EnvironmentVariableSensitive")]
 public sealed class SingleInstanceGuardTests
 {
     [Fact]
@@ -33,12 +34,7 @@ public sealed class SingleInstanceGuardTests
     {
         var mutexName = $"crossmacro-single-instance-{Guid.NewGuid():N}";
 
-        using var first = SingleInstanceGuard.TryAcquire(mutexName);
-        Assert.NotNull(first);
-
-        using var second = await Task.Run(() => SingleInstanceGuard.TryAcquire(mutexName), CancellationToken.None);
-
-        Assert.Null(second);
+        await AssertSecondAcquisitionFailsAsync(mutexName);
     }
 
     [Fact]
@@ -48,23 +44,14 @@ public sealed class SingleInstanceGuardTests
         var originalRuntimeDirectory = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
         var firstRuntimeDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var secondRuntimeDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        SingleInstanceGuard? first = null;
-        SingleInstanceGuard? second = null;
-
         try
         {
             Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", firstRuntimeDirectory);
-            first = SingleInstanceGuard.TryAcquire(mutexName);
-
             Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", secondRuntimeDirectory);
-            second = await Task.Run(() => SingleInstanceGuard.TryAcquire(mutexName), CancellationToken.None);
-
-            Assert.Null(second);
+            await AssertSecondAcquisitionFailsAsync(mutexName);
         }
         finally
         {
-            second?.Dispose();
-            first?.Dispose();
             Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", originalRuntimeDirectory);
             if (Directory.Exists(firstRuntimeDirectory))
             {
@@ -75,6 +62,53 @@ public sealed class SingleInstanceGuardTests
             {
                 Directory.Delete(secondRuntimeDirectory, recursive: true);
             }
+        }
+    }
+
+    private static async Task AssertSecondAcquisitionFailsAsync(string mutexName)
+    {
+        using var releaseOwner = new ManualResetEventSlim(initialState: false);
+        var acquisitionCompleted = new TaskCompletionSource<SingleInstanceGuard?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var ownerThread = new Thread(() =>
+        {
+            SingleInstanceGuard? guard = null;
+            try
+            {
+                guard = SingleInstanceGuard.TryAcquire(mutexName);
+                acquisitionCompleted.SetResult(guard);
+                releaseOwner.Wait(CancellationToken.None);
+            }
+#pragma warning disable CA1031 // The helper must surface any owner-thread failure through the awaited task.
+            catch (Exception exception)
+            {
+                acquisitionCompleted.SetException(exception);
+            }
+#pragma warning restore CA1031
+            finally
+            {
+                guard?.Dispose();
+            }
+        })
+        {
+            IsBackground = true,
+        };
+
+        ownerThread.Start();
+
+        try
+        {
+            var first = await acquisitionCompleted.Task;
+            Assert.NotNull(first);
+
+            using var second = SingleInstanceGuard.TryAcquire(mutexName);
+            Assert.Null(second);
+        }
+        finally
+        {
+            releaseOwner.Set();
+            ownerThread.Join();
         }
     }
 

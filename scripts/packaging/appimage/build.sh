@@ -11,6 +11,7 @@ source "$SCRIPTS_DIR/lib/platform.sh"
 PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 
 APP_NAME="CrossMacro"
+APPIMAGE_DESKTOP_NAME="io.github.alper_han.crossmacro"
 VERSION="$(get_version)"
 PACKAGE_VERSION="$(to_filename_version)"
 TARGET_ARCH_RESOLVED="$(get_target_arch)"
@@ -19,16 +20,19 @@ HOST_ARCH_RESOLVED="$(normalize_arch "$(uname -m)")"
 APPIMAGETOOL_HOST_ARCH="${APPIMAGETOOL_HOST_ARCH:-$(to_appimage_arch "$HOST_ARCH_RESOLVED")}"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PUBLISH_DIR="${PUBLISH_DIR:-$SCRIPTS_DIR/../publish}"
-APP_DIR="$SCRIPTS_DIR/AppDir"
+ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
+APPIMAGE_OUTPUT_DIR="${APPIMAGE_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/appimage}"
+APPIMAGE_WORK_DIR="${APPIMAGE_WORK_DIR:-$ARTIFACT_ROOT/work/appimage}"
+APP_DIR="$APPIMAGE_WORK_DIR/AppDir"
 APPIMAGETOOL_NAME="appimagetool-${APPIMAGETOOL_HOST_ARCH}.AppImage"
-APPIMAGETOOL_PATH="$SCRIPTS_DIR/$APPIMAGETOOL_NAME"
+APPIMAGETOOL_PATH="${APPIMAGETOOL_PATH:-$ARTIFACT_ROOT/tools/$APPIMAGETOOL_NAME}"
 APPIMAGETOOL_VERSION="${APPIMAGETOOL_VERSION:-1.9.1}"
 APPIMAGETOOL_RELEASE_API="https://api.github.com/repos/AppImage/appimagetool/releases/tags/$APPIMAGETOOL_VERSION"
 APPIMAGETOOL_DOWNLOAD_URL="https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/$APPIMAGETOOL_NAME"
 CURL_RETRY_DELAY_SECONDS="${CURL_RETRY_DELAY_SECONDS:-1}"
 CURL_RETRY_MAX_TIME_SECONDS="${CURL_RETRY_MAX_TIME_SECONDS:-15}"
 CURL_RETRY_ATTEMPTS="${CURL_RETRY_ATTEMPTS:-15}"
-APPIMAGE_OUTPUT="$SCRIPTS_DIR/CrossMacro-${PACKAGE_VERSION}-${APPIMAGE_ARCH}.AppImage"
+APPIMAGE_OUTPUT="$APPIMAGE_OUTPUT_DIR/CrossMacro-${PACKAGE_VERSION}-${APPIMAGE_ARCH}.AppImage"
 
 curl_with_retry() {
     curl -fL \
@@ -100,6 +104,7 @@ verify_sha256() {
 }
 
 rm -rf "$APP_DIR"
+mkdir -p "$APPIMAGE_OUTPUT_DIR" "$APPIMAGE_WORK_DIR" "$(dirname "$APPIMAGETOOL_PATH")"
 
 if [ ! -d "$PUBLISH_DIR" ]; then
     echo "Error: Publish directory not found: $PUBLISH_DIR"
@@ -288,9 +293,9 @@ fi
 cp "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/512x512/apps/crossmacro.png" "$APP_DIR/crossmacro.png"
 ln -sf "crossmacro.png" "$APP_DIR/.DirIcon"
 cp -r "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/"* "$APP_DIR/usr/share/icons/hicolor/"
-cp "$SCRIPTS_DIR/assets/$APP_NAME.desktop" "$APP_DIR/$APP_NAME.desktop"
-cp "$SCRIPTS_DIR/assets/$APP_NAME.desktop" "$APP_DIR/usr/share/applications/$APP_NAME.desktop"
-cp "$SCRIPTS_DIR/assets/io.github.alper-han.CrossMacro.metainfo.xml" "$APP_DIR/usr/share/metainfo/"
+cp "$SCRIPTS_DIR/assets/$APPIMAGE_DESKTOP_NAME.desktop" "$APP_DIR/$APPIMAGE_DESKTOP_NAME.desktop"
+cp "$SCRIPTS_DIR/assets/$APPIMAGE_DESKTOP_NAME.desktop" "$APP_DIR/usr/share/applications/$APPIMAGE_DESKTOP_NAME.desktop"
+cp "$SCRIPTS_DIR/assets/$APPIMAGE_DESKTOP_NAME.metainfo.xml" "$APP_DIR/usr/share/metainfo/$APPIMAGE_DESKTOP_NAME.metainfo.xml"
 
 chmod +x "$APP_DIR/usr/bin/CrossMacro.UI"
 ln -sf "CrossMacro.UI" "$APP_DIR/usr/bin/crossmacro"
@@ -307,7 +312,7 @@ exec "\$HERE/usr/bin/CrossMacro.UI" "\$@"
 EOF
 chmod +x "$APP_DIR/AppRun"
 
-for desktop_file in "$APP_DIR/$APP_NAME.desktop" "$APP_DIR/usr/share/applications/$APP_NAME.desktop"; do
+for desktop_file in "$APP_DIR/$APPIMAGE_DESKTOP_NAME.desktop" "$APP_DIR/usr/share/applications/$APPIMAGE_DESKTOP_NAME.desktop"; do
     sed -i 's/^Exec=.*/Exec=AppRun/' "$desktop_file"
 
     if ! grep -q '^TryExec=' "$desktop_file"; then
@@ -324,7 +329,7 @@ for desktop_file in "$APP_DIR/$APP_NAME.desktop" "$APP_DIR/usr/share/application
 done
 
 if command -v desktop-file-validate >/dev/null 2>&1; then
-    desktop-file-validate "$APP_DIR/$APP_NAME.desktop"
+    desktop-file-validate "$APP_DIR/$APPIMAGE_DESKTOP_NAME.desktop"
 else
     echo "Warning: desktop-file-validate not found; skipping desktop file validation."
 fi

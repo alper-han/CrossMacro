@@ -140,6 +140,7 @@ assert_payload_regex "daemon binary" "$payload" '(^| )\.\/usr\/lib\/crossmacro\/
 assert_payload_regex "CLI symlink" "$payload" '(^| )\.\/usr\/bin\/crossmacro($| -> )'
 assert_payload_regex "systemd service" "$payload" '(^| )\.\/usr\/lib\/systemd\/system\/crossmacro\.service$'
 assert_payload_regex "udev rules" "$payload" '(^| )\.\/usr\/lib\/udev\/rules\.d\/99-crossmacro\.rules$'
+assert_payload_regex "modules-load config" "$payload" '(^| )\.\/usr\/lib\/modules-load\.d\/crossmacro\.conf$'
 assert_payload_regex "polkit policy" "$payload" '(^| )\.\/usr\/share\/polkit-1\/actions\/io\.github\.alper_han\.crossmacro\.policy$'
 assert_payload_regex "manpage" "$payload" '(^| )\.\/usr\/share\/man\/man1\/crossmacro\.1\.gz$'
 

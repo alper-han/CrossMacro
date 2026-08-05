@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
@@ -77,13 +77,13 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
-          path: publish/
+          path: artifacts/input/publish/
 
       - name: Download Linux daemon artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-daemon-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
-          path: publish-daemon/
+          path: artifacts/input/publish-daemon/
 
       - name: Install packaging tools
         run: |
@@ -96,15 +96,15 @@ jobs:
           SOURCE_TAG="${{ inputs.source_tag }}" \
           PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
           TARGET_ARCH="${{ matrix.target_arch }}" \
-          PUBLISH_DIR="$PWD/publish" \
-          DAEMON_DIR="$PWD/publish-daemon" \
+          PUBLISH_DIR="$PWD/artifacts/input/publish" \
+          DAEMON_DIR="$PWD/artifacts/input/publish-daemon" \
           bash scripts/build_deb.sh
 
       - name: Smoke DEB package
         if: ${{ inputs.smoke_enabled }}
         run: |
           set -euo pipefail
-          deb_file="$(find scripts -maxdepth 1 -type f -name '*.deb' -print -quit)"
+          deb_file="$(find artifacts/packages/deb -maxdepth 1 -type f -name '*.deb' -print -quit)"
           test -n "$deb_file"
           bash scripts/smoke/deb-package.sh "$deb_file" --image ubuntu:24.04
 
@@ -113,14 +113,12 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.artifact_prefix }}-deb-${{ matrix.arch_suffix }}-${{ github.run_id }}
-          path: scripts/*.deb
+          path: artifacts/packages/deb/*.deb
           retention-days: ${{ inputs.retention_days }}
 
   package-rpm:
     name: Build and Smoke RPM (${{ matrix.arch_suffix }})
     runs-on: ${{ matrix.runner }}
-    env:
-      FEDORA_IMAGE: fedora:41
     strategy:
       fail-fast: false
       matrix:
@@ -129,16 +127,14 @@ jobs:
             runner: ubuntu-latest
             target_arch: x86_64
             rpm_arch: x86_64
-            docker_platform: linux/amd64
           - arch_suffix: arm64
             runner: ubuntu-24.04-arm
             target_arch: aarch64
             rpm_arch: aarch64
-            docker_platform: linux/arm64
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
@@ -146,32 +142,32 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
-          path: publish/
+          path: artifacts/input/publish/
 
       - name: Download Linux daemon artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-daemon-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
-          path: publish-daemon/
+          path: artifacts/input/publish-daemon/
 
-      - name: Build RPM package in Fedora
+      - name: Install RPM packaging tools
         run: |
-          docker run --rm --platform "${{ matrix.docker_platform }}" \
-            -v "$PWD":/work \
-            -w /work \
-            "$FEDORA_IMAGE" \
-            bash -lc '
-              set -euo pipefail
-              dnf -y install rpm-build checkpolicy policycoreutils patchelf file >/dev/null
-              VERSION="${{ inputs.version }}" \
-              SOURCE_TAG="${{ inputs.source_tag }}" \
-              PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
-              TARGET_ARCH="${{ matrix.target_arch }}" \
-              RPM_ARCH="${{ matrix.rpm_arch }}" \
-              PUBLISH_DIR=/work/publish \
-              DAEMON_DIR=/work/publish-daemon \
-              bash scripts/build_rpm.sh
-            '
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rpm checkpolicy policycoreutils semodule-utils patchelf file
+          command -v rpmbuild checkmodule semodule_package patchelf file rpm
+
+      - name: Build RPM package on runner
+        run: |
+          set -euo pipefail
+          VERSION="${{ inputs.version }}" \
+          SOURCE_TAG="${{ inputs.source_tag }}" \
+          PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
+          TARGET_ARCH="${{ matrix.target_arch }}" \
+          RPM_ARCH="${{ matrix.rpm_arch }}" \
+          PUBLISH_DIR="$GITHUB_WORKSPACE/artifacts/input/publish" \
+          DAEMON_DIR="$GITHUB_WORKSPACE/artifacts/input/publish-daemon" \
+          bash scripts/build_rpm.sh
 
       - name: Smoke RPM package
         if: ${{ inputs.smoke_enabled }}
@@ -179,16 +175,16 @@ jobs:
           CONTAINER_ENGINE: docker
         run: |
           set -euo pipefail
-          rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+          rpm_file="$(find artifacts/packages/rpm -maxdepth 1 -type f -name '*.rpm' -print -quit)"
           test -n "$rpm_file"
-          bash scripts/smoke/rpm-package.sh "$rpm_file" --image "$FEDORA_IMAGE"
+          bash scripts/smoke/rpm-package.sh "$rpm_file"
 
       - name: Upload RPM package
         if: ${{ inputs.upload_enabled }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.artifact_prefix }}-rpm-${{ matrix.arch_suffix }}-${{ github.run_id }}
-          path: scripts/*.rpm
+          path: artifacts/packages/rpm/*.rpm
           retention-days: ${{ inputs.retention_days }}
 
   package-appimage:
@@ -213,7 +209,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
@@ -221,7 +217,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ inputs.build_run_id }}
-          path: publish/
+          path: artifacts/input/publish/
 
       - name: Install packaging tools
         run: |
@@ -237,7 +233,7 @@ jobs:
           APPIMAGE_ARCH="${{ matrix.appimage_arch }}" \
           APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" \
           APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" \
-          PUBLISH_DIR="$PWD/publish" \
+          PUBLISH_DIR="$PWD/artifacts/input/publish" \
           APPIMAGE_EXTRACT_AND_RUN=1 \
           bash scripts/build_appimage.sh
 
@@ -245,7 +241,7 @@ jobs:
         if: ${{ inputs.smoke_enabled }}
         run: |
           set -euo pipefail
-          appimage="$(find scripts -maxdepth 1 -type f -name '*-${{ matrix.appimage_arch }}.AppImage' -print -quit)"
+          appimage="$(find artifacts/packages/appimage -maxdepth 1 -type f -name '*-${{ matrix.appimage_arch }}.AppImage' -print -quit)"
           test -n "$appimage"
           chmod +x "$appimage"
           APPIMAGE_EXTRACT_AND_RUN=1 bash scripts/smoke/appimage.sh "$appimage"
@@ -255,7 +251,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.artifact_prefix }}-appimage-${{ matrix.arch_suffix }}-${{ github.run_id }}
-          path: scripts/*-${{ matrix.appimage_arch }}.AppImage
+          path: artifacts/packages/appimage/*-${{ matrix.appimage_arch }}.AppImage
           retention-days: ${{ inputs.retention_days }}
 
   package-flatpak:
@@ -277,7 +273,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
@@ -301,7 +297,7 @@ jobs:
         if: ${{ inputs.smoke_enabled }}
         run: |
           set -euo pipefail
-          bundle="flatpak/io.github.alper_han.crossmacro-${{ inputs.canonical_version }}-${{ matrix.flatpak_arch }}.flatpak"
+          bundle="artifacts/packages/flatpak/io.github.alper_han.crossmacro-${{ inputs.canonical_version }}-${{ matrix.flatpak_arch }}.flatpak"
           test -f "$bundle"
           bash scripts/smoke/flatpak.sh "$bundle"
 
@@ -310,5 +306,5 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.artifact_prefix }}-flatpak-${{ matrix.arch_suffix }}-${{ github.run_id }}
-          path: flatpak/*-${{ matrix.flatpak_arch }}.flatpak
+          path: artifacts/packages/flatpak/*-${{ matrix.flatpak_arch }}.flatpak
           retention-days: ${{ inputs.retention_days }}

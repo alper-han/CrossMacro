@@ -1,7 +1,7 @@
 Name:           crossmacro
 Version:        %{version}
 Release:        %{?release}%{!?release:1}
-Summary:        Mouse and Keyboard Macro Automation Tool
+Summary:        Mouse and keyboard macro recorder and automation
 
 License:        GPL-3.0-only
 URL:            https://github.com/alper-han/CrossMacro
@@ -32,8 +32,7 @@ Requires(postun): systemd
 Requires(postun): policycoreutils
 
 %description
-A powerful cross-platform mouse and keyboard macro automation tool.
-Supports text expansion and works on Linux (Wayland/X11), Windows, and macOS.
+Mouse and keyboard macro recorder and automation for Linux, with Wayland/X11 support, a macro editor, hotkeys, scheduling, text expansion, screen recognition, and CLI control.
 
 %prep
 # No prep needed as we are using pre-built binaries

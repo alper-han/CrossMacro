@@ -20,9 +20,13 @@ RPM_ARCH="${RPM_ARCH:-$(to_rpm_arch "$TARGET_ARCH_RESOLVED")}"
 DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
 DAEMON_RID="linux-$DOTNET_ARCH"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
-PUBLISH_DIR="${PUBLISH_DIR:-$SCRIPTS_DIR/../publish}"  # Use env var or default to ../publish
-RPM_BUILD_DIR="$SCRIPTS_DIR/rpm_build"
+PUBLISH_DIR="${PUBLISH_DIR:-$SCRIPTS_DIR/../publish}"  # Use env var or default to repository publish input
+ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
+RPM_OUTPUT_DIR="${RPM_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/rpm}"
+RPM_BUILD_DIR="${RPM_BUILD_DIR:-$ARTIFACT_ROOT/work/rpm}"
 ICON_PATH="$PROJECT_ROOT/src/CrossMacro.UI/Assets/mouse-icon.png"
+
+mkdir -p "$RPM_OUTPUT_DIR"
 
 # Clean previous build
 rm -rf "$RPM_BUILD_DIR"
@@ -82,14 +86,7 @@ else
     dotnet publish "$PROJECT_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj" \
         -c Release \
         -r "$DAEMON_RID" \
-        -p:PublishAot=true \
-        -p:PublishReadyToRun=false \
-        -p:EnableCompressionInSingleFile=true \
-        -p:OptimizationPreference=Speed \
-        -p:StripSymbols=true \
-        -p:IlcTrimMetadata=true \
-        -p:DebugType=None \
-        -p:DebugSymbols=false \
+        -p:CrossMacroPublishProfile=native-aot \
         -p:Version="$VERSION" \
         -o "$RPM_BUILD_DIR/SOURCES/daemon"
 fi
@@ -136,8 +133,8 @@ if command -v rpmbuild &> /dev/null; then
              --nodeps \
              -bb "$RPM_BUILD_DIR/SPECS/crossmacro.spec"
     
-    # Copy RPM to scripts directory for GitHub release
-    cp "$RPM_BUILD_DIR"/RPMS/"$RPM_ARCH"/*.rpm "$SCRIPTS_DIR/"
+    # Copy the package into the shared release artifact directory.
+    cp "$RPM_BUILD_DIR"/RPMS/"$RPM_ARCH"/*.rpm "$RPM_OUTPUT_DIR/"
     echo "RPM package created for version: $PACKAGE_VERSION"
 else
     echo "Error: rpmbuild not found. Cannot build .rpm package."

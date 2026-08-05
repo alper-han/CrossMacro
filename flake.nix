@@ -12,7 +12,6 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
 
@@ -123,13 +122,7 @@
                   ];
 
                   dotnetFlags = [
-                    "-p:PublishAot=true"
-                    "-p:PublishReadyToRun=false"
-                    "-p:OptimizationPreference=Speed"
-                    "-p:StripSymbols=true"
-                    "-p:IlcTrimMetadata=true"
-                    "-p:DebugType=None"
-                    "-p:DebugSymbols=false"
+                    "-p:CrossMacroPublishProfile=native-aot"
                     "-p:Version=${crossmacroVersion}"
                   ];
 
@@ -173,13 +166,7 @@
               selfContainedBuild = true;
 
               dotnetFlags = [
-                "-p:PublishAot=true"
-                "-p:PublishReadyToRun=false"
-                "-p:OptimizationPreference=Speed"
-                "-p:StripSymbols=true"
-                "-p:IlcTrimMetadata=true"
-                "-p:DebugType=None"
-                "-p:DebugSymbols=false"
+                "-p:CrossMacroPublishProfile=native-aot"
                 "-p:Version=${crossmacroVersion}"
               ];
 
@@ -190,7 +177,8 @@
 
               nativeBuildInputs = [
                 pkgs.installShellFiles
-              ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+              ]
+              ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
                 pkgs.clang
                 pkgs.autoPatchelfHook
               ];
@@ -201,8 +189,8 @@
               + (
                 if pkgs.stdenv.isLinux then
                   ''
-                    install -Dm644 scripts/assets/CrossMacro.desktop $out/share/applications/CrossMacro.desktop
-                    substituteInPlace $out/share/applications/CrossMacro.desktop \
+                    install -Dm644 scripts/assets/io.github.alper_han.crossmacro.desktop $out/share/applications/io.github.alper_han.crossmacro.desktop
+                    substituteInPlace $out/share/applications/io.github.alper_han.crossmacro.desktop \
                       --replace-fail "Exec=crossmacro" "Exec=$out/lib/crossmacro/CrossMacro.UI"
 
                     ${pkgs.lib.concatMapStringsSep "\n"
@@ -221,7 +209,7 @@
                       ]
                     }
 
-                    install -Dm644 scripts/assets/io.github.alper-han.CrossMacro.metainfo.xml $out/share/metainfo/io.github.alper-han.CrossMacro.metainfo.xml
+                    install -Dm644 scripts/assets/io.github.alper_han.crossmacro.metainfo.xml $out/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml
                   ''
                 else
                   # macOS specific post-install could go here (e.g. bundle creation)
@@ -254,11 +242,15 @@
               '';
 
               meta = with pkgs.lib; {
-                description = "Cross-platform mouse and keyboard macro recorder and player";
+                description = "Mouse and keyboard macro recorder and automation with a macro editor, hotkeys, scheduling, text expansion, screen recognition, and CLI control";
                 homepage = "https://github.com/alper-han/CrossMacro";
                 license = licenses.gpl3Only;
-                # Support both Linux and Darwin
-                platforms = platforms.unix;
+                # Keep metadata aligned with the flake's evaluated systems.
+                platforms = [
+                  "x86_64-linux"
+                  "aarch64-linux"
+                  "aarch64-darwin"
+                ];
                 mainProgram = "crossmacro";
                 maintainers = with maintainers; [ ];
               };
@@ -278,6 +270,7 @@
             default = {
               type = "app";
               program = pkgs.lib.getExe crossmacro;
+              meta.description = "Mouse and keyboard macro recorder and automation with a macro editor, hotkeys, scheduling, text expansion, screen recognition, and CLI control";
             };
           };
 
@@ -305,7 +298,7 @@
             '';
           };
 
-          formatter = pkgs.nixfmt-rfc-style;
+          formatter = pkgs.nixfmt;
         };
 
       flake = {

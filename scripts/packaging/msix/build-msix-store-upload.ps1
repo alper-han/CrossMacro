@@ -40,9 +40,9 @@ Options:
   -PackageVersion <version>  Version text used in filenames. Defaults to -Version.
   -PackageDir <dir>          Directory containing CrossMacro-<PackageVersion>-x64.msix and -arm64.msix.
   -SymbolsDir <dir>          Ignored. Debug symbols are disabled for Store uploads.
-  -BundlePath <path>         Output .msixbundle path. Defaults to <repo>/CrossMacro-<PackageVersion>.msixbundle.
+  -BundlePath <path>         Output .msixbundle path. Defaults to <repo>/artifacts/packages/msix/CrossMacro-<PackageVersion>.msixbundle.
   -AppxSymPath <path>        Ignored. Debug symbols are disabled for Store uploads.
-  -UploadPath <path>         Output .msixupload path. Defaults to <repo>/CrossMacro-<PackageVersion>.msixupload.
+  -UploadPath <path>         Output .msixupload path. Defaults to <repo>/artifacts/packages/msix/CrossMacro-<PackageVersion>.msixupload.
   -Help                      Show this help.
 '@
 }
@@ -190,8 +190,8 @@ if (-not [string]::IsNullOrWhiteSpace($AppxSymPath)) {
     Write-Warning '-AppxSymPath is ignored; no .appxsym is generated.'
 }
 
-$resolvedBundlePath = Resolve-OutputPath -Path $BundlePath -DefaultPath (Join-Path $projectRoot "CrossMacro-$PackageVersion.msixbundle")
-$resolvedUploadPath = Resolve-OutputPath -Path $UploadPath -DefaultPath (Join-Path $projectRoot "CrossMacro-$PackageVersion.msixupload")
+$resolvedBundlePath = Resolve-OutputPath -Path $BundlePath -DefaultPath (Join-Path $projectRoot "artifacts/packages/msix/CrossMacro-$PackageVersion.msixbundle")
+$resolvedUploadPath = Resolve-OutputPath -Path $UploadPath -DefaultPath (Join-Path $projectRoot "artifacts/packages/msix/CrossMacro-$PackageVersion.msixupload")
 
 $x64Package = Join-Path $resolvedPackageDir "CrossMacro-$PackageVersion-x64.msix"
 $arm64Package = Join-Path $resolvedPackageDir "CrossMacro-$PackageVersion-arm64.msix"

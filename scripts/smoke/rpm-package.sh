@@ -4,7 +4,7 @@ set -euo pipefail
 APP_NAME="crossmacro"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_SMOKE="$SCRIPT_DIR/cli-smoke.sh"
-DEFAULT_IMAGE="${RPM_SMOKE_IMAGE:-fedora:41}"
+DEFAULT_IMAGE="${RPM_SMOKE_IMAGE:-fedora:44}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
 
 usage() {
@@ -19,7 +19,7 @@ Validates a CrossMacro RPM package without installing it on the host:
   - runs shared CLI smoke against /usr/bin/crossmacro inside that container where practical
 
 Options:
-  --image <container-image>  Container image for install smoke (default: fedora:41)
+  --image <container-image>  Container image for install smoke (default: fedora:44)
   --no-container            Skip container install smoke after static package checks
   -h, --help                Show this help
 USAGE
@@ -74,6 +74,8 @@ run_container_smoke() {
   local package_name
   package_name="$(basename "$package")"
 
+  # The positional parameter is expanded by the container's shell, not this shell.
+  # shellcheck disable=SC2016
   "$engine" run --rm \
     -v "$(cd "$(dirname "$package")" && pwd):/artifacts:ro" \
     -v "$SCRIPT_DIR:/smoke:ro" \
@@ -135,10 +137,14 @@ assert_contains "RPM dependency" "$requires" "libXtst"
 assert_contains "RPM dependency" "$requires" "systemd-libs"
 
 assert_payload_path "$payload" "/usr/lib/crossmacro"
+assert_payload_path "$payload" "/usr/lib/crossmacro/CrossMacro.UI"
+assert_payload_path "$payload" "/usr/lib/crossmacro/daemon/CrossMacro.Daemon"
 assert_payload_path "$payload" "/usr/bin/crossmacro"
 assert_payload_path "$payload" "/usr/lib/systemd/system/crossmacro.service"
 assert_payload_path "$payload" "/usr/lib/udev/rules.d/99-crossmacro.rules"
+assert_payload_path "$payload" "/usr/lib/modules-load.d/crossmacro.conf"
 assert_payload_path "$payload" "/usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy"
+assert_payload_path "$payload" "/usr/share/polkit-1/rules.d/50-crossmacro.rules"
 assert_payload_path "$payload" "/usr/share/selinux/packages/crossmacro/crossmacro.pp"
 printf '%s\n' "$payload" | grep -E '^/usr/share/man/man1/crossmacro\.1(\.gz)?$' >/dev/null || fail "payload missing manpage"
 

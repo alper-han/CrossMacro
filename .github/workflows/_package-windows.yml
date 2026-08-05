@@ -64,12 +64,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '10.0.x'
 
@@ -79,27 +79,27 @@ jobs:
           ./scripts/ci/publish-windows-portable.ps1 `
             -Version '${{ inputs.version }}' `
             -Architecture '${{ matrix.architecture }}' `
-            -OutputDir publish-windows
+            -OutputDir artifacts/packages/windows/portable
 
       - name: Smoke Windows portable EXE
         if: ${{ inputs.smoke_enabled }}
         shell: pwsh
         run: |
-          ./scripts/smoke/windows-portable.ps1 -Path publish-windows
+          ./scripts/smoke/windows-portable.ps1 -Path artifacts/packages/windows/portable
 
       - name: Stage Windows portable release EXE
         if: ${{ inputs.release_mode }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $files = @(Get-ChildItem -LiteralPath publish-windows -File)
+          $files = @(Get-ChildItem -LiteralPath artifacts/packages/windows/portable -File)
           $exeFiles = @($files | Where-Object { $_.Extension -ieq '.exe' })
           if ($files.Count -ne 1 -or $exeFiles.Count -ne 1) {
               Write-Error "Windows portable publish must contain exactly one EXE before release staging: $($files.Name -join ', ')"
               exit 1
           }
 
-          $renamedExe = 'publish-windows/CrossMacro-${{ inputs.canonical_version }}-win-${{ matrix.architecture }}.exe'
+          $renamedExe = 'artifacts/packages/windows/portable/CrossMacro-${{ inputs.canonical_version }}-win-${{ matrix.architecture }}.exe'
           Move-Item -LiteralPath $exeFiles[0].FullName -Destination $renamedExe
 
       - name: Verify staged Windows portable EXE
@@ -107,7 +107,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $files = @(Get-ChildItem -LiteralPath publish-windows -File)
+          $files = @(Get-ChildItem -LiteralPath artifacts/packages/windows/portable -File)
           $expected = 'CrossMacro-${{ inputs.canonical_version }}-win-${{ matrix.architecture }}.exe'
           $executables = @($files | Where-Object { $_.Name -eq $expected })
           if ($files.Count -ne 1 -or $executables.Count -ne 1) {
@@ -120,7 +120,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.release_mode && format('windows-{0}-package', matrix.architecture) || format('{0}-portable-{1}-{2}', inputs.artifact_prefix, matrix.architecture, github.run_id) }}
-          path: publish-windows/*.exe
+          path: artifacts/packages/windows/portable/*.exe
           retention-days: ${{ inputs.retention_days }}
 
   package-msix:
@@ -138,12 +138,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '10.0.x'
 
@@ -154,15 +154,15 @@ jobs:
             -Version '${{ inputs.version }}' `
             -PackageVersion '${{ inputs.canonical_version }}' `
             -Architecture '${{ matrix.architecture }}' `
-            -OutputDir msix-content-${{ matrix.architecture }} `
-            -PackagePath CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix
+            -OutputDir artifacts/work/msix/content-${{ matrix.architecture }} `
+            -PackagePath artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix
 
       - name: Smoke MSIX package
         if: ${{ inputs.smoke_enabled }}
         shell: pwsh
         run: |
           $smokeArgs = @{
-            Path = 'CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix'
+            Path = 'artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix'
             ExpectedVersion = '${{ inputs.version }}.0'
             ExpectedArchitecture = '${{ matrix.architecture }}'
           }
@@ -173,7 +173,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.release_mode && format('msix-{0}-package', matrix.architecture) || format('{0}-msix-{1}-{2}', inputs.artifact_prefix, matrix.architecture, github.run_id) }}
-          path: CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix
+          path: artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix
           retention-days: ${{ inputs.retention_days }}
 
   package-msix-store-upload:
@@ -184,7 +184,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
@@ -207,12 +207,12 @@ jobs:
             -Version '${{ inputs.version }}' `
             -PackageVersion '${{ inputs.canonical_version }}' `
             -PackageDir msix-store/packages `
-            -BundlePath CrossMacro-${{ inputs.canonical_version }}.msixbundle `
-            -UploadPath CrossMacro-${{ inputs.canonical_version }}.msixupload
+            -BundlePath artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}.msixbundle `
+            -UploadPath artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}.msixupload
 
       - name: Upload MSIX Store artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: msix-store-package
-          path: CrossMacro-${{ inputs.canonical_version }}.msixupload
+          path: artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}.msixupload
           retention-days: ${{ inputs.retention_days }}

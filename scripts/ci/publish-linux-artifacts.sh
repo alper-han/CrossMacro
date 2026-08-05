@@ -158,14 +158,7 @@ mkdir -p "$UI_OUTPUT" "$DAEMON_OUTPUT"
 dotnet publish "$UI_PROJECT" \
     -c Release \
     -r "$RID" \
-    --self-contained true \
-    -p:PublishAot=true \
-    -p:PublishReadyToRun=false \
-    -p:OptimizationPreference=Speed \
-    -p:StripSymbols=true \
-    -p:IlcTrimMetadata=true \
-    -p:DebugType=None \
-    -p:DebugSymbols=false \
+    -p:CrossMacroPublishProfile=native-aot \
     -p:Version="$VERSION_VALUE" \
     -o "$UI_OUTPUT/"
 
@@ -179,14 +172,7 @@ dotnet publish "$DAEMON_PROJECT" \
     -c Release \
     -r "$RID" \
     "${DAEMON_ARGS[@]}" \
-    -p:PublishAot=true \
-    -p:PublishReadyToRun=false \
-    -p:EnableCompressionInSingleFile=true \
-    -p:OptimizationPreference=Speed \
-    -p:StripSymbols=true \
-    -p:IlcTrimMetadata=true \
-    -p:DebugType=None \
-    -p:DebugSymbols=false \
+    -p:CrossMacroPublishProfile=native-aot \
     -p:Version="$VERSION_VALUE" \
     -o "$DAEMON_OUTPUT/"
 

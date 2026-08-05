@@ -21,10 +21,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -57,7 +57,7 @@ jobs:
         flathub_lint_rc=$?
         set -e
         if [ "$flathub_lint_rc" -ne 0 ]; then
-          if ! printf '%s\n' "$flathub_lint_output" | python3 -c 'import json,sys; obj=json.loads(sys.stdin.read().strip()); errs=obj.get("errors", []); sys.exit(0 if errs == ["appid-filename-mismatch"] else 1)'; then
+          if ! printf '%s\n' "$flathub_lint_output" | jq -e '.errors == ["appid-filename-mismatch"]' >/dev/null; then
             printf '%s\n' "$flathub_lint_output"
             exit "$flathub_lint_rc"
           fi
@@ -69,6 +69,14 @@ jobs:
 
     - name: Validate man page source
       run: man -l docs/man/crossmacro.1 > /dev/null
+
+    - name: Validate release and documentation contracts
+      run: |
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-publish --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-flatpak --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --static-only --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-docs --repo-root "$GITHUB_WORKSPACE"
 
     - name: Restore dependencies
       run: dotnet restore
@@ -121,6 +129,7 @@ jobs:
     - name: Run Tests (Linux-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
@@ -133,10 +142,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -167,6 +176,22 @@ jobs:
           throw "Prepared manifest version '$($identity.Version)' does not match expected '$version.0'."
         }
 
+        $defaultOutputDir = Join-Path (Get-Location) "artifacts/work/msix/content"
+        Remove-Item -LiteralPath $defaultOutputDir -Recurse -Force -ErrorAction SilentlyContinue
+        Push-Location $env:RUNNER_TEMP
+        try {
+          & "$env:GITHUB_WORKSPACE/scripts/msix/prepare-msix.ps1" -Version $version
+          & "$env:GITHUB_WORKSPACE/scripts/msix/prepare-msix.ps1" -Version $version
+        }
+        finally {
+          Pop-Location
+        }
+
+        if (-not (Test-Path -LiteralPath (Join-Path $defaultOutputDir "AppxManifest.xml") -PathType Leaf)) {
+          throw "CWD-independent default MSIX output was not created at '$defaultOutputDir'."
+        }
+        Remove-Item -LiteralPath $defaultOutputDir -Recurse -Force
+
     - name: CLI Smoke (Windows)
       shell: pwsh
       run: ./scripts/smoke/cli-smoke.ps1 -Project src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj
@@ -177,6 +202,7 @@ jobs:
         $ErrorActionPreference = 'Stop'
         $projects = @(
           "tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj",
+          "tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj",
           "tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj",
           "tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj",
           "tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj",
@@ -197,10 +223,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -217,6 +243,7 @@ jobs:
     - name: Run Tests (macOS-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal

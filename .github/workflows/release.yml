@@ -76,7 +76,12 @@ jobs:
       source_tag_sha: ${{ steps.tag_sha.outputs.source_tag_sha }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+    - name: Setup .NET for file-based CI contracts
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+      with:
+        dotnet-version: '10.0.x'
     
     - name: Extract version
       id: version
@@ -120,6 +125,15 @@ jobs:
     - name: Validate man page source
       run: |
         man -l docs/man/crossmacro.1 > /dev/null
+
+    - name: Validate release and documentation contracts
+      run: |
+        set -euo pipefail
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-publish --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-flatpak --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --repo-root "$GITHUB_WORKSPACE" --static-only
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-docs --repo-root "$GITHUB_WORKSPACE"
 
   build-linux-binaries:
     name: Build Linux Binaries
@@ -201,9 +215,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         ref: ${{ needs.build-core.outputs.source_tag }}
+
+    - name: Setup .NET for file-based CI contracts
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+      with:
+        dotnet-version: '10.0.x'
 
     - name: Download all artifacts
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -255,7 +274,8 @@ jobs:
 
     - name: Verify release artifact manifest
       run: |
-        python3 scripts/ci/verify_artifacts.py \
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-artifacts \
+          --repo-root "$GITHUB_WORKSPACE" \
           --directory release-staging \
           --version "${{ needs.build-core.outputs.package_version_canonical }}" \
           --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
@@ -317,9 +337,9 @@ jobs:
         path: release-staging/
 
     - name: Upload to Release
-      # Pinned from softprops/action-gh-release@v3 on 2026-05-09.
+      # Pinned from softprops/action-gh-release@v3.0.2 on 2026-07-13.
       # Update by checking the current v3 tag, reviewing upstream changes, then replacing this SHA.
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
       with:
         name: ${{ steps.release_meta.outputs.release_name }}
         tag_name: ${{ steps.release_meta.outputs.tag }}
@@ -341,9 +361,14 @@ jobs:
       is_draft: ${{ steps.release_state.outputs.is_draft }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         ref: ${{ needs.build-core.outputs.source_tag }}
+
+    - name: Setup .NET for file-based CI contracts
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+      with:
+        dotnet-version: '10.0.x'
 
     - name: Verify release exists
       id: release_state
@@ -369,7 +394,8 @@ jobs:
 
     - name: Verify existing release asset manifest
       run: |
-        python3 scripts/ci/verify_artifacts.py \
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-artifacts \
+          --repo-root "$GITHUB_WORKSPACE" \
           --directory release-existing \
           --version "${{ needs.build-core.outputs.package_version_canonical }}" \
           --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
@@ -411,7 +437,7 @@ jobs:
           libarchive
         
     - name: Checkout code
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
     
     - name: Setup SSH for AUR
       env:
@@ -603,7 +629,7 @@ jobs:
       needs.build-core.outputs.is_prerelease_release != 'true'
     steps:
       - name: Setup .NET for WinGetCreate
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '6.x'
 

@@ -47,7 +47,6 @@ permissions:
 jobs:
   package-macos-dmg:
     name: Build and Smoke macOS DMG (${{ matrix.rid }})
-    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
@@ -55,18 +54,22 @@ jobs:
           - rid: osx-arm64
             target_arch: aarch64
             artifact_suffix: arm64
+            runner: macos-26
           - rid: osx-x64
             target_arch: x86_64
             artifact_suffix: x64
+            runner: macos-26-intel
+
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '10.0.x'
 
@@ -90,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x scripts/smoke/macos-dmg.sh
-          dmg_file="$(find scripts/macos_output -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          dmg_file="$(find artifacts/packages/macos -maxdepth 1 -type f -name '*.dmg' -print -quit)"
           test -n "$dmg_file"
           bash scripts/smoke/macos-dmg.sh "$dmg_file"
 
@@ -99,5 +102,5 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.release_mode && format('macos-{0}-package', matrix.artifact_suffix) || format('{0}-dmg-{1}-{2}', inputs.artifact_prefix, matrix.artifact_suffix, github.run_id) }}
-          path: scripts/macos_output/*.dmg
+          path: artifacts/packages/macos/*.dmg
           retention-days: ${{ inputs.retention_days }}

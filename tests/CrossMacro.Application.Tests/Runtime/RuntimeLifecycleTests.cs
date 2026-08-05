@@ -53,11 +53,10 @@ public sealed class RuntimeLifecycleTests
             Step("first", events),
             new RuntimeLifecycleStep(
                 "second",
-                _ =>
+                async _ =>
                 {
                     events.Add("start:second");
-                    cts.Cancel();
-                    return Task.CompletedTask;
+                    await cts.CancelAsync();
                 },
                 _ =>
                 {

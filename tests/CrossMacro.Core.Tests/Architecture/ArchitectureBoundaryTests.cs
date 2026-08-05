@@ -4,8 +4,23 @@ using System.Collections.ObjectModel;
 
 namespace CrossMacro.Core.Tests.Architecture;
 
-public sealed class ArchitectureBoundaryTests
+public sealed partial class ArchitectureBoundaryTests
 {
+    [GeneratedRegex("AddSingleton<IRuntimeContext(?:,|>\\()", RegexOptions.NonBacktracking)]
+    private static partial Regex RuntimeContextRegistrationRegex { get; }
+
+    [GeneratedRegex(
+        @"(?<![A-Za-z0-9_])(?:global::)?(CrossMacro\.Infrastructure(?:\.[A-Za-z_][A-Za-z0-9_]*)*)",
+        RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+        matchTimeoutMilliseconds: 100)]
+    private static partial Regex InfrastructureReferenceRegex { get; }
+
+    private static readonly char[] PathSeparators =
+    [
+        Path.DirectorySeparatorChar,
+        Path.AltDirectorySeparatorChar,
+    ];
+
     private static readonly IReadOnlyDictionary<string, string[]> TemporaryPlatformInfrastructureProjectReferences =
         new Dictionary<string, string[]>(StringComparer.Ordinal);
 
@@ -285,7 +300,7 @@ public sealed class ArchitectureBoundaryTests
         foreach (var relativePath in roots)
         {
             var source = File.ReadAllText(Path.Combine(GetRepositoryRoot(), relativePath));
-            _ = Assert.Single(Regex.Matches(source, "AddSingleton<IRuntimeContext(?:,|>\\()", RegexOptions.NonBacktracking));
+            _ = Assert.Single(RuntimeContextRegistrationRegex.Matches(source));
             Assert.Contains("RuntimeContext", source, StringComparison.Ordinal);
         }
     }
@@ -375,7 +390,10 @@ public sealed class ArchitectureBoundaryTests
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(TemporaryPlatformInfrastructureSourceFiles.Order(StringComparer.Ordinal), sourceReferences);
+        Assert.Equal(
+            TemporaryPlatformInfrastructureSourceFiles.Order(StringComparer.Ordinal),
+            sourceReferences,
+            StringComparer.Ordinal);
     }
 
     [Fact]
@@ -807,7 +825,7 @@ public sealed class ArchitectureBoundaryTests
         var directory = Path.Combine(root, relativeDirectory);
 
         return Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
-            .Where(path => !path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Where(path => !path.Split(PathSeparators)
                 .Any(segment => segment is "obj" or "bin"))
             .Order(StringComparer.Ordinal)
             .SelectMany(path => FindTextViolationsInFile(path, forbiddenPatterns))
@@ -868,11 +886,7 @@ public sealed class ArchitectureBoundaryTests
         var relativePath = NormalizeRepositoryRelativePath(path);
         foreach (var line in File.ReadLines(path))
         {
-            foreach (Match match in Regex.Matches(
-                line,
-                @"(?<![A-Za-z0-9_])(?:global::)?(CrossMacro\.Infrastructure(?:\.[A-Za-z_][A-Za-z0-9_]*)*)",
-                RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-                TimeSpan.FromMilliseconds(100)))
+            foreach (Match match in InfrastructureReferenceRegex.Matches(line))
             {
                 var reference = match.Groups[1].Value;
                 yield return $"{relativePath}: {reference}";

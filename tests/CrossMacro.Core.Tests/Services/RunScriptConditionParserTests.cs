@@ -13,7 +13,7 @@ public sealed class RunScriptConditionParserTests
         Assert.True(success);
         Assert.Null(error);
         Assert.NotNull(condition);
-        Assert.Equal("$mode", condition!.LeftToken);
+        Assert.Equal("$mode", condition.LeftToken);
         Assert.Equal("==", condition.OperatorToken);
         Assert.Equal("a>=b", condition.RightToken);
     }

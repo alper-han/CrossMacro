@@ -107,7 +107,7 @@ public sealed class ScheduledTaskTests
         task.CalculateNextRunTime(now);
 
         _ = task.NextRunTime.Should().NotBeNull();
-        _ = task.NextRunTime!.Value.Should().BeOnOrAfter(now + ToInterval(unit, minValue));
+        _ = task.NextRunTime.Value.Should().BeOnOrAfter(now + ToInterval(unit, minValue));
         _ = task.NextRunTime.Value.Should().BeOnOrBefore(now + ToInterval(unit, maxValue));
     }
 
@@ -165,7 +165,7 @@ public sealed class ScheduledTaskTests
         task.CalculateNextRunTime(now);
 
         _ = task.NextRunTime.Should().NotBeNull();
-        _ = task.NextRunTime!.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
+        _ = task.NextRunTime.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
         _ = task.NextRunTime.Value.Kind.Should().Be(DateTimeKind.Utc);
     }
 
@@ -185,7 +185,7 @@ public sealed class ScheduledTaskTests
         _ = act.Should().NotThrow();
         _ = task.IsEnabled.Should().BeTrue();
         _ = task.NextRunTime.Should().NotBeNull();
-        _ = task.NextRunTime!.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
+        _ = task.NextRunTime.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
         _ = task.NextRunTime.Value.Kind.Should().Be(DateTimeKind.Utc);
     }
 

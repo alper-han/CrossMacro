@@ -11,21 +11,23 @@ public sealed class ManageTaskWorkflowCancellationTests
         var task = new ShortcutTask { Id = Guid.NewGuid() };
         _ = store.Tasks.Returns(new ObservableCollection<ShortcutTask> { task });
         CancellationTokenSource? currentCancellation = null;
-        _ = store.LoadAsync().Returns(_ =>
+        _ = store.LoadAsync().Returns(async _ =>
         {
-            currentCancellation!.Cancel();
-            return Task.CompletedTask;
+            await (currentCancellation ?? throw new InvalidOperationException("Cancellation source was not initialized.")).CancelAsync();
         });
         var workflow = new ManageShortcut(operations, store);
 
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.AddAsync(task, currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.UpdateAsync(task, currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.RemoveAsync(new TaskRequest(task.Id), currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), currentCancellation.Token));
+        async Task AssertLoadCancellationAsync(Func<CancellationToken, Task> operation)
+        {
+            using var cancellation = new CancellationTokenSource();
+            currentCancellation = cancellation;
+            _ = await Assert.ThrowsAsync<OperationCanceledException>(() => operation(cancellation.Token));
+        }
+
+        await AssertLoadCancellationAsync(token => workflow.AddAsync(task, token));
+        await AssertLoadCancellationAsync(token => workflow.UpdateAsync(task, token));
+        await AssertLoadCancellationAsync(token => workflow.RemoveAsync(new TaskRequest(task.Id), token));
+        await AssertLoadCancellationAsync(token => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), token));
 
         operations.DidNotReceive().AddTask(Arg.Any<ShortcutTask>());
         operations.DidNotReceive().UpdateTask(Arg.Any<ShortcutTask>());
@@ -42,21 +44,23 @@ public sealed class ManageTaskWorkflowCancellationTests
         var task = new ScheduledTask { Id = Guid.NewGuid() };
         _ = store.Tasks.Returns(new ObservableCollection<ScheduledTask> { task });
         CancellationTokenSource? currentCancellation = null;
-        _ = store.LoadAsync().Returns(_ =>
+        _ = store.LoadAsync().Returns(async _ =>
         {
-            currentCancellation!.Cancel();
-            return Task.CompletedTask;
+            await (currentCancellation ?? throw new InvalidOperationException("Cancellation source was not initialized.")).CancelAsync();
         });
         var workflow = new ManageSchedule(operations, store);
 
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.AddAsync(task, currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.UpdateAsync(task, currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.RemoveAsync(new TaskRequest(task.Id), currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), currentCancellation.Token));
+        async Task AssertLoadCancellationAsync(Func<CancellationToken, Task> operation)
+        {
+            using var cancellation = new CancellationTokenSource();
+            currentCancellation = cancellation;
+            _ = await Assert.ThrowsAsync<OperationCanceledException>(() => operation(cancellation.Token));
+        }
+
+        await AssertLoadCancellationAsync(token => workflow.AddAsync(task, token));
+        await AssertLoadCancellationAsync(token => workflow.UpdateAsync(task, token));
+        await AssertLoadCancellationAsync(token => workflow.RemoveAsync(new TaskRequest(task.Id), token));
+        await AssertLoadCancellationAsync(token => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), token));
 
         operations.DidNotReceive().AddTask(Arg.Any<ScheduledTask>());
         operations.DidNotReceive().UpdateTask(Arg.Any<ScheduledTask>());
@@ -73,21 +77,23 @@ public sealed class ManageTaskWorkflowCancellationTests
         var task = new TriggerTask { Id = Guid.NewGuid() };
         _ = store.Tasks.Returns(new ObservableCollection<TriggerTask> { task });
         CancellationTokenSource? currentCancellation = null;
-        _ = store.LoadAsync().Returns(_ =>
+        _ = store.LoadAsync().Returns(async _ =>
         {
-            currentCancellation!.Cancel();
-            return Task.CompletedTask;
+            await (currentCancellation ?? throw new InvalidOperationException("Cancellation source was not initialized.")).CancelAsync();
         });
         var workflow = new ManageTrigger(operations, store);
 
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.AddAsync(task, currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.UpdateAsync(task, currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.RemoveAsync(new TaskRequest(task.Id), currentCancellation.Token));
-        currentCancellation = new CancellationTokenSource();
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), currentCancellation.Token));
+        async Task AssertLoadCancellationAsync(Func<CancellationToken, Task> operation)
+        {
+            using var cancellation = new CancellationTokenSource();
+            currentCancellation = cancellation;
+            _ = await Assert.ThrowsAsync<OperationCanceledException>(() => operation(cancellation.Token));
+        }
+
+        await AssertLoadCancellationAsync(token => workflow.AddAsync(task, token));
+        await AssertLoadCancellationAsync(token => workflow.UpdateAsync(task, token));
+        await AssertLoadCancellationAsync(token => workflow.RemoveAsync(new TaskRequest(task.Id), token));
+        await AssertLoadCancellationAsync(token => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), token));
 
         operations.DidNotReceive().AddTask(Arg.Any<TriggerTask>());
         operations.DidNotReceive().UpdateTask(Arg.Any<TriggerTask>());

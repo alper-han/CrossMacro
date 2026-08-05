@@ -33,17 +33,22 @@ internal sealed partial class StaMessageThread : IDisposable
 
     private void Run()
     {
-        int hr = OleInitialize(IntPtr.Zero);
-        if (hr is < 0 and not unchecked((int)0x80010106))
-        {
-            Marshal.ThrowExceptionForHR(hr);
-        }
+        var oleInitialized = false;
+        var startupSignaled = false;
         try
         {
+            int hr = OleInitialize(IntPtr.Zero);
+            if (hr is < 0 and not unchecked((int)0x80010106))
+            {
+                Marshal.ThrowExceptionForHR(hr);
+            }
+            oleInitialized = hr >= 0;
+
             _threadId = Kernel32.GetCurrentThreadId();
             if (!TryInitializeWindow(out string className, out var hInstance))
             {
                 ReportStartupFailure();
+                startupSignaled = true;
                 return;
             }
 
@@ -51,6 +56,7 @@ internal sealed partial class StaMessageThread : IDisposable
             {
                 _ = PeekMessage(out _, IntPtr.Zero, 0, 0, 0);
                 _ = _readyEvent.Set();
+                startupSignaled = true;
                 RunMessageLoop();
             }
             finally
@@ -58,10 +64,20 @@ internal sealed partial class StaMessageThread : IDisposable
                 DestroyMessageWindow(className, hInstance);
             }
         }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            if (!startupSignaled)
+            {
+                ReportStartupFailure(ex);
+            }
+        }
         finally
         {
             FailPendingWork();
-            OleUninitialize();
+            if (oleInitialized)
+            {
+                OleUninitialize();
+            }
         }
     }
 
@@ -184,10 +200,6 @@ internal sealed partial class StaMessageThread : IDisposable
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 _ = tcs.TrySetException(ex);
-                if (ex is OutOfMemoryException)
-                {
-                    throw;
-                }
             }
         });
 
@@ -221,9 +233,9 @@ internal sealed partial class StaMessageThread : IDisposable
         _readyEvent.Dispose();
     }
 
-    private void ReportStartupFailure()
+    private void ReportStartupFailure(Exception? exception = null)
     {
-        _startupException = new Win32Exception(Marshal.GetLastWin32Error());
+        _startupException = exception ?? new Win32Exception(Marshal.GetLastWin32Error());
         _ = _readyEvent.Set();
     }
 

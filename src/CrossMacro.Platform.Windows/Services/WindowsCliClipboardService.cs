@@ -2,9 +2,9 @@
 namespace CrossMacro.Platform.Windows.Services;
 
 [SupportedOSPlatform("windows")]
-internal sealed class WindowsCliClipboardService(StaMessageThread staThread) : IClipboardService
+internal sealed class WindowsCliClipboardService(Lazy<StaMessageThread> staThread) : IClipboardService
 {
-    private readonly StaMessageThread _staThread = staThread;
+    private readonly Lazy<StaMessageThread> _staThread = staThread;
 
     public bool IsSupported => OperatingSystem.IsWindows();
 
@@ -16,7 +16,8 @@ internal sealed class WindowsCliClipboardService(StaMessageThread staThread) : I
         }
 
         var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal);
-        return _staThread.InvokeAsync(() => SetTextInternal(normalized, _staThread.MessageWindowHandle));
+        var thread = _staThread.Value;
+        return thread.InvokeAsync(() => SetTextInternal(normalized, thread.MessageWindowHandle));
     }
 
     private static void SetTextInternal(string text, IntPtr hwndOwner)
@@ -91,7 +92,8 @@ internal sealed class WindowsCliClipboardService(StaMessageThread staThread) : I
 
     public Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {
-        return _staThread.InvokeAsync(() =>
+        var thread = _staThread.Value;
+        return thread.InvokeAsync(() =>
         {
             if (!User32.IsClipboardFormatAvailable(User32.CF_UNICODETEXT) &&
                 !User32.IsClipboardFormatAvailable(User32.CF_TEXT))
@@ -99,7 +101,7 @@ internal sealed class WindowsCliClipboardService(StaMessageThread staThread) : I
                 return null;
             }
 
-            if (!User32.OpenClipboard(_staThread.MessageWindowHandle))
+            if (!User32.OpenClipboard(thread.MessageWindowHandle))
             {
                 return null;
             }
@@ -174,9 +176,10 @@ internal sealed class WindowsCliClipboardService(StaMessageThread staThread) : I
 
     private async Task ClearAsync(CancellationToken cancellationToken = default)
     {
-        await _staThread.InvokeAsync(() =>
+        var thread = _staThread.Value;
+        await thread.InvokeAsync(() =>
         {
-            if (User32.OpenClipboard(_staThread.MessageWindowHandle))
+            if (User32.OpenClipboard(thread.MessageWindowHandle))
             {
                 try
                 {

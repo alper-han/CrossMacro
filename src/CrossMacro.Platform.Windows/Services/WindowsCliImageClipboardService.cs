@@ -2,9 +2,9 @@
 namespace CrossMacro.Platform.Windows.Services;
 
 [SupportedOSPlatform("windows")]
-internal sealed partial class WindowsCliImageClipboardService(StaMessageThread staThread) : IImageClipboardService
+internal sealed partial class WindowsCliImageClipboardService(Lazy<StaMessageThread> staThread) : IImageClipboardService
 {
-    private readonly StaMessageThread _staThread = staThread;
+    private readonly Lazy<StaMessageThread> _staThread = staThread;
     private static readonly Lazy<uint> _pngFormatId = new(() => User32.RegisterClipboardFormat("PNG"));
     private static readonly Lazy<uint> _imagePngFormatId = new(() => User32.RegisterClipboardFormat("image/png"));
 
@@ -19,7 +19,8 @@ internal sealed partial class WindowsCliImageClipboardService(StaMessageThread s
 
         byte[] pngArray = pngBytes.ToArray();
 
-        await _staThread.InvokeAsync(() =>
+        var thread = _staThread.Value;
+        await thread.InvokeAsync(() =>
         {
             uint pngFormat = _pngFormatId.Value;
             uint imagePngFormat = _imagePngFormatId.Value;
@@ -32,7 +33,7 @@ internal sealed partial class WindowsCliImageClipboardService(StaMessageThread s
             IntPtr hwndOwner = Kernel32.GetConsoleWindow();
             if (hwndOwner == IntPtr.Zero)
             {
-                hwndOwner = _staThread.MessageWindowHandle;
+                hwndOwner = thread.MessageWindowHandle;
             }
 
             SetPngInternal(pngArray, pngFormat, imagePngFormat, hwndOwner);

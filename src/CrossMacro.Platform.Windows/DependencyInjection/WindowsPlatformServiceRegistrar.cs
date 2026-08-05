@@ -6,15 +6,23 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
     public static void RegisterCliClipboardServices(IServiceCollection services)
     {
-        _ = services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsCliClipboard"));
+        RegisterStaClipboardThread(services, "CrossMacro_WindowsCliClipboard");
         _ = services.AddSingleton<IClipboardService, WindowsCliClipboardService>();
         _ = services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
     }
 
     public static void RegisterGuiImageClipboardServices(IServiceCollection services)
     {
-        _ = services.AddSingleton(sp => new StaMessageThread("CrossMacro_WindowsGuiClipboard"));
+        RegisterStaClipboardThread(services, "CrossMacro_WindowsGuiClipboard");
         _ = services.AddSingleton<IImageClipboardService, WindowsCliImageClipboardService>();
+    }
+
+    private static void RegisterStaClipboardThread(IServiceCollection services, string name)
+    {
+        _ = services.AddSingleton(_ => new StaMessageThread(name));
+        _ = services.AddSingleton(sp => new Lazy<StaMessageThread>(
+            sp.GetRequiredService<StaMessageThread>,
+            LazyThreadSafetyMode.ExecutionAndPublication));
     }
 
     public void RegisterPlatformServices(IServiceCollection services)

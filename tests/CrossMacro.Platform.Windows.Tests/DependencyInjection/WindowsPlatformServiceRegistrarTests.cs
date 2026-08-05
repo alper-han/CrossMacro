@@ -17,6 +17,22 @@ public sealed class WindowsPlatformServiceRegistrarTests
         Assert.NotNull(descriptor.ImplementationFactory);
     }
 
+    [Fact]
+    public void RegisterCliClipboardServices_DefersStaMessageThreadCreation()
+    {
+        var services = new ServiceCollection();
+
+        WindowsPlatformServiceRegistrar.RegisterCliClipboardServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var staThread = provider.GetRequiredService<Lazy<StaMessageThread>>();
+
+        Assert.False(staThread.IsValueCreated);
+        _ = provider.GetRequiredService<IClipboardService>();
+        _ = provider.GetRequiredService<IImageClipboardService>();
+        Assert.False(staThread.IsValueCreated);
+    }
+
     [WindowsFact]
     public void RegisterPlatformServices_RegistersKeyboardLayoutService()
     {

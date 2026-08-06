@@ -335,6 +335,15 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         // Initialize coordinator for first iteration
         await _coordinator.InitializeAsync(macro, _inputSimulator!,
             _cachedScreenWidth, _cachedScreenHeight, _session.Token).ConfigureAwait(false);
+
+        // Re-anchor the reusable virtual device before logical absolute input.
+        if ((MacroPositionSemantics.HasAnyLogicalDesktopCoordinateEvents(macro)
+                || HasLogicalDesktopRuntimeMoveSteps(macro))
+            && _coordinator.HasKnownPosition)
+        {
+            _eventExecutor.MoveAbsolute(_coordinator.CurrentX, _coordinator.CurrentY);
+            await EnsureAbsolutePositionSettledAsync(_coordinator, _session.Token).ConfigureAwait(false);
+        }
     }
 
     private async Task PlayOnceAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
@@ -541,7 +550,26 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                 _ = await _coordinator.TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            _eventExecutor!.Execute(eventToExecute, coordinateMode, coordinateSpace);
+            var coordinator = _coordinator ?? throw new InvalidOperationException("Playback coordinator is not initialized.");
+            var executor = _eventExecutor ?? throw new InvalidOperationException("Playback event executor is not initialized.");
+            if (coordinateMode is MouseCoordinateMode.Absolute
+                && MacroPositionSemantics.IsNonScrollMouseButtonEvent(eventToExecute)
+                && !eventToExecute.UseCurrentPosition)
+            {
+                executor.MoveAbsolute(eventToExecute.X, eventToExecute.Y);
+                await EnsureAbsolutePositionSettledAsync(coordinator, cancellationToken).ConfigureAwait(false);
+                eventToExecute.UseCurrentPosition = true;
+                eventToExecute.X = 0;
+                eventToExecute.Y = 0;
+            }
+
+            executor.Execute(eventToExecute, coordinateMode, coordinateSpace);
+            if (coordinateMode is MouseCoordinateMode.Absolute
+                && eventToExecute.Type is EventType.MouseMove
+                && MacroPositionSemantics.IsCoordinateBearing(eventToExecute))
+            {
+                await EnsureAbsolutePositionSettledAsync(coordinator, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (AbsolutePlaybackUnsupportedException)
         {
@@ -559,6 +587,14 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         {
             throw;
         }
+        catch (AbsoluteCursorMoveNotSettledException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[MacroPlayer] Error executing event {Current}/{Total}: {Type}", state.EventCount, totalEvents, ev.Type);
@@ -570,6 +606,20 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         }
 
         state.IsFirstEvent = false;
+    }
+
+    private static async Task EnsureAbsolutePositionSettledAsync(
+        IPlaybackCoordinator coordinator,
+        CancellationToken cancellationToken)
+    {
+        var settled = await coordinator.WaitForPositionAsync(
+            coordinator.CurrentX,
+            coordinator.CurrentY,
+            cancellationToken).ConfigureAwait(false);
+        if (!settled)
+        {
+            throw new AbsoluteCursorMoveNotSettledException(coordinator.CurrentX, coordinator.CurrentY);
+        }
     }
 
     private async Task ExecuteScreenReadScriptStepsAsync(MacroSequence macro, CancellationToken cancellationToken)

@@ -65,6 +65,14 @@ public interface IPlaybackCoordinator
     public Task<bool> TrySynchronizePositionAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Waits until the compositor reports the requested absolute position after
+    /// an injected move. Input injection acknowledgement only confirms that the
+    /// event reached the virtual device; it does not guarantee that the
+    /// compositor has applied the pointer update before a following click.
+    /// </summary>
+    public Task<bool> WaitForPositionAsync(int expectedX, int expectedY, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Update tracked position
     /// </summary>
     public void UpdatePosition(int x, int y);

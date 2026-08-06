@@ -89,6 +89,185 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenPixelSearchCoordinatesFeedAbsoluteMove_ClicksTheMatch()
+    {
+        var activity = new List<string>();
+        var screenReader = new RecordingScreenPixelReader(activity)
+        {
+            SearchResult = ScreenReadResultFactory.Success(
+                new ScreenPixelSearchMatch(
+                    new ScreenPoint(321, 654),
+                    new ScreenPixelColor(0x14, 0x2C, 0x2D))),
+        };
+        var inputSimulator = new RecordingInputSimulator(activity);
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelsearch 0 0 1000 1000 142C2D btn_found btn_x btn_y tolerance 5",
+                "if $btn_found == true {",
+                "move abs $btn_x $btn_y",
+                "click left",
+                "}",
+            },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = activity.Should().Equal(
+            "screen:pixelsearch:0,0",
+            "input:move-abs:321,654",
+            "input:click:left");
+        var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
+        _ = variables.Should().Contain("btn_found", "true");
+        _ = variables.Should().Contain("btn_x", "321");
+        _ = variables.Should().Contain("btn_y", "654");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeAbsoluteMoveStartsAfterUserReposition_ReanchorsBeforeClick()
+    {
+        var activity = new List<string>();
+        var screenReader = new RecordingScreenPixelReader(activity);
+        var positionProvider = CreatePositionProvider((500, 400));
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var positions = new Queue<(int X, int Y)?>([(500, 400), (500, 400), (100, 200)]);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            var position = positions.Count > 0 ? positions.Dequeue() : ((int X, int Y)?)(100, 200);
+            return Task.FromResult(position);
+        });
+        var inputSimulator = new RecordingInputSimulator(activity);
+        using var player = CreatePlayer(positionProvider, screenReader, inputSimulator);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "move abs 100 200",
+                "click left",
+            },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = activity.Should().Equal(
+            "input:move-abs:500,400",
+            "screen:pixelcolor:1,2",
+            "input:move-abs:100,200",
+            "input:click:left");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeAbsoluteMoveDoesNotSettle_RefusesFollowingClick()
+    {
+        var activity = new List<string>();
+        var screenReader = new RecordingScreenPixelReader(activity);
+        var positionProvider = CreatePositionProvider((500, 400));
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((500, 400)));
+        var inputSimulator = new RecordingInputSimulator(activity);
+        using var player = CreatePlayer(positionProvider, screenReader, inputSimulator);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "move abs 100 200",
+                "click left",
+            },
+        };
+
+        _ = await Assert.ThrowsAsync<AbsoluteCursorMoveNotSettledException>(() =>
+            player.PlayAsync(macro, cancellationToken: CancellationToken.None));
+
+        _ = activity.Should().Equal(
+            "input:move-abs:500,400",
+            "screen:pixelcolor:1,2",
+            "input:move-abs:100,200");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenCanceledDuringAbsoluteSettle_PropagatesCancellation()
+    {
+        var activity = new List<string>();
+        var screenReader = new RecordingScreenPixelReader(activity);
+        var positionProvider = CreatePositionProvider((500, 400));
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var settleStarted = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pendingPosition = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var positionCall = 0;
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(callInfo =>
+        {
+            var call = Interlocked.Increment(ref positionCall);
+            if (call < 3)
+            {
+                return Task.FromResult<(int X, int Y)?>((500, 400));
+            }
+
+            _ = settleStarted.TrySetResult(null);
+            return pendingPosition.Task;
+        });
+        var inputSimulator = new RecordingInputSimulator(activity);
+        using var player = CreatePlayer(positionProvider, screenReader, inputSimulator);
+        using var cancellation = new CancellationTokenSource();
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "move abs 100 200",
+                "click left",
+            },
+        };
+
+        var playbackTask = player.PlayAsync(macro, cancellationToken: cancellation.Token);
+        _ = await settleStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        await cancellation.CancelAsync();
+
+        var act = async () => await playbackTask;
+        _ = await act.Should().ThrowAsync<OperationCanceledException>();
+        _ = activity.Should().Equal(
+            "input:move-abs:500,400",
+            "screen:pixelcolor:1,2",
+            "input:move-abs:100,200");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenAbsoluteClickDoesNotSettle_RefusesButtonEvent()
+    {
+        var activity = new List<string>();
+        var positionProvider = CreatePositionProvider((500, 400));
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((500, 400)));
+        var inputSimulator = new RecordingInputSimulator(activity);
+        using var player = CreatePlayer(positionProvider, new FakeScreenPixelReader(), inputSimulator);
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new MacroEvent
+                {
+                    Type = EventType.Click,
+                    X = 100,
+                    Y = 200,
+                    Button = MacroMouseButton.Left,
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+            },
+        };
+
+        _ = await Assert.ThrowsAsync<AbsoluteCursorMoveNotSettledException>(() =>
+            player.PlayAsync(macro, cancellationToken: CancellationToken.None));
+
+        _ = activity.Should().Equal(
+            "input:move-abs:500,400",
+            "input:move-abs:100,200");
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenRuntimeVariablesUseSetIncDec_PreservesCaseInsensitiveDictionaryAndValues()
     {
         var activity = new List<string>();

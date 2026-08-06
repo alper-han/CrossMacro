@@ -88,13 +88,14 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     public void MoveAbsolute(int x, int y)
     {
-        Span<(ushort, ushort, int)> events =
+        // Keep ABS_X, ABS_Y and SYN_REPORT together and await daemon processing.
+        InputSimulationStep[] events =
         [
-            (EV_ABS, ABS_X, x),
-            (EV_ABS, ABS_Y, y),
-            (EV_SYN, SYN_REPORT, 0),
+            new(EV_ABS, ABS_X, x),
+            new(EV_ABS, ABS_Y, y),
+            new(EV_SYN, SYN_REPORT, 0),
         ];
-        Client.SimulateEvents(events);
+        Client.SimulateEventBatch(events);
     }
 
     public void MoveRelative(int dx, int dy)

@@ -1025,6 +1025,28 @@ public sealed class IpcClientIntegrationTests
     }
 
     [LinuxFact]
+    public async Task LinuxIpcInputSimulator_MoveAbsolute_ShouldWaitForDaemonBatchAcknowledgement()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+        using var simulator = new LinuxIpcInputSimulator(client);
+
+        await simulator.InitializeAsync(screenWidth: 5120, screenHeight: 1440, CancellationToken.None);
+        simulator.MoveAbsolute(1775, 153);
+
+        await daemon.WaitForCommandCountAsync(expected: 4, timeout: TimeSpan.FromSeconds(2));
+        var commands = daemon.GetCommandsSnapshot();
+        var batchCommands = commands.Where(command => command.OpCode is IpcOpCode.SimulateEventBatch).ToArray();
+
+        Assert.Equal(3, batchCommands.Length);
+        Assert.Equal((0x03, 0, 1775, 0), (batchCommands[0].Type, batchCommands[0].Code, batchCommands[0].Value, batchCommands[0].DelayAfterMs));
+        Assert.Equal((0x03, 1, 153, 0), (batchCommands[1].Type, batchCommands[1].Code, batchCommands[1].Value, batchCommands[1].DelayAfterMs));
+        Assert.Equal((0x00, 0, 0, 0), (batchCommands[2].Type, batchCommands[2].Code, batchCommands[2].Value, batchCommands[2].DelayAfterMs));
+    }
+
+    [LinuxFact]
     public async Task SimulateEventBatch_WhenDaemonReturnsFailure_ShouldThrowConnectFailed()
     {
         var socketPath = GetUniqueSocketPath();

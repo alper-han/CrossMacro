@@ -277,7 +277,11 @@ public sealed partial class MacroPlayerTests
         _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         _ = positionProvider.ProviderName.Returns("Mutable desktop");
         _ = positionProvider.GetAbsolutePositionAsync()
-            .Returns(Task.FromResult<(int X, int Y)?>((0, 0)));
+            .Returns(
+                Task.FromResult<(int X, int Y)?>((0, 0)),
+                Task.FromResult<(int X, int Y)?>((0, 0)),
+                Task.FromResult<(int X, int Y)?>((100, 200)),
+                Task.FromResult<(int X, int Y)?>((100, 200)));
         var currentBounds = new ScreenRect(0, 0, 1920, 1080);
         _ = positionProvider.GetDesktopBoundsAsync()
             .Returns(_ => Task.FromResult<ScreenRect?>(currentBounds));
@@ -591,7 +595,7 @@ public sealed partial class MacroPlayerTests
 
         await player.PlayAsync(macro);
 
-        _ = simulator.Operations.Should().Equal("rel:5,5", "abs:123,108");
+        _ = simulator.Operations.Should().Equal("abs:100,100", "rel:5,5", "abs:123,108");
         _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
     }
 
@@ -629,7 +633,7 @@ public sealed partial class MacroPlayerTests
 
         _ = simulator.InitializedWidth.Should().Be(1920);
         _ = simulator.InitializedHeight.Should().Be(1080);
-        _ = simulator.Operations.Should().ContainSingle().Which.Should().Be("abs:103,195");
+        _ = simulator.Operations.Should().Equal("abs:100,200", "abs:103,195");
     }
 
     [Fact]

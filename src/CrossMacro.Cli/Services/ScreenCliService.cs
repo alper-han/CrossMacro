@@ -49,7 +49,7 @@ public sealed class ScreenCliService(
             return error;
         }
 
-        var result = await reader.GetPixelAsync(point.Point, CreateOptions(options.TimeoutMs, cancellationToken)).ConfigureAwait(false);
+        var result = await reader.GetPixelAsync(point.Point, CreateOptions(options, cancellationToken)).ConfigureAwait(false);
         if (!result.IsSuccess)
         {
             return ToFailure("Failed to read screen pixel.", result);
@@ -62,7 +62,7 @@ public sealed class ScreenCliService(
     private static async Task<CliCommandExecutionResult> WaitColorAsync(IScreenPixelReader reader, ScreenCliOptions options, ScreenPixelColor expected, CancellationToken cancellationToken)
     {
         var point = new ScreenPoint(options.X, options.Y);
-        var result = await reader.WaitForPixelAsync(point, expected, CreateOptions(options.TimeoutMs, cancellationToken)).ConfigureAwait(false);
+        var result = await reader.WaitForPixelAsync(point, expected, CreateOptions(options, cancellationToken)).ConfigureAwait(false);
         if (!result.IsSuccess)
         {
             return ToFailure("Failed while waiting for screen color.", result);
@@ -77,7 +77,7 @@ public sealed class ScreenCliService(
         var left = Math.Min(options.X, x2);
         var top = Math.Min(options.Y, y2);
         var region = new ScreenRect(left, top, checked(Math.Max(options.X, x2) - left), checked(Math.Max(options.Y, y2) - top));
-        var result = await reader.SearchPixelAsync(region, expected, options.Tolerance, CreateOptions(options.TimeoutMs, cancellationToken)).ConfigureAwait(false);
+        var result = await reader.SearchPixelAsync(region, expected, options.Tolerance, CreateOptions(options, cancellationToken)).ConfigureAwait(false);
         if (!result.IsSuccess)
         {
             return ToFailure("Failed while searching for screen color.", result);
@@ -166,7 +166,8 @@ public sealed class ScreenCliService(
         {
             if (result.ErrorKind is ScreenReadErrorKind.Unsupported)
             {
-                return CliCommandExecutionResult.Fail(CliExitCode.EnvironmentError, "Screen image click requires absolute coordinate support.", [result.ErrorMessage ?? "Image click movement could not be resolved."]);
+                var message = result.ErrorMessage ?? "Screen image click movement is unavailable in the current session.";
+                return CliCommandExecutionResult.Fail(CliExitCode.EnvironmentError, message, [message]);
             }
             if (result.ErrorKind is ScreenReadErrorKind.InvalidArguments)
             {
@@ -192,7 +193,16 @@ public sealed class ScreenCliService(
             error = InvalidOptions(options.Action);
             return null;
         }
-        return new ScreenImageAutomationRequest(options.ImagePath!, region, options.Similarity, options.Downsample, options.MatchMode, options.ScaleAware, options.TimeoutMs is { } timeout ? TimeSpan.FromMilliseconds(timeout) : null);
+        return new ScreenImageAutomationRequest(
+            options.ImagePath!,
+            region,
+            options.Similarity,
+            options.Downsample,
+            options.MatchMode,
+            options.ScaleAware,
+            options.TimeoutMs is { } timeout ? TimeSpan.FromMilliseconds(timeout) : null,
+            options.Poll,
+            options.PollIntervalMs is { } pollInterval ? TimeSpan.FromMilliseconds(pollInterval) : null);
     }
 
     private bool TryGetImageAutomation([NotNullWhen(true)] out IScreenImageAutomation? automation, [NotNullWhen(false)] out CliCommandExecutionResult? error)
@@ -268,7 +278,11 @@ public sealed class ScreenCliService(
         new(found, x, y, score, Path.GetFullPath(options.ImagePath!), region?.X, region?.Y, region?.Width, region?.Height, options.Similarity, options.Downsample, options.MatchMode is ScreenImageMatchMode.Best ? "best" : "first", options.ScaleAware, providerName);
 
     private static int ToMouseButtonCode(MacroMouseButton button) => button switch { MacroMouseButton.Right => MouseButtonCode.Right, MacroMouseButton.Middle => MouseButtonCode.Middle, MacroMouseButton.Left => MouseButtonCode.Left, MacroMouseButton.None => MouseButtonCode.Left, MacroMouseButton.ScrollUp => MouseButtonCode.Left, MacroMouseButton.ScrollDown => MouseButtonCode.Left, MacroMouseButton.ScrollLeft => MouseButtonCode.Left, MacroMouseButton.ScrollRight => MouseButtonCode.Left, MacroMouseButton.Side1 => MouseButtonCode.Left, MacroMouseButton.Side2 => MouseButtonCode.Left, _ => MouseButtonCode.Left };
-    private static ScreenReadOptions CreateOptions(int? timeout, CancellationToken token) => new(timeout is { } value ? TimeSpan.FromMilliseconds(value) : null, ScreenReadOptions.Default.PollInterval, token);
+    private static ScreenReadOptions CreateOptions(ScreenCliOptions options, CancellationToken token) => new(
+        options.TimeoutMs is { } timeout ? TimeSpan.FromMilliseconds(timeout) : null,
+        options.PollIntervalMs is { } pollInterval ? TimeSpan.FromMilliseconds(pollInterval) : ScreenReadOptions.Default.PollInterval,
+        pollUntilMatch: options.Poll,
+        cancellationToken: token);
     private static CliCommandExecutionResult InvalidOptions(ScreenCliAction action) => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, $"Invalid options for screen action '{action}'.");
 
     private static CliCommandExecutionResult ToFailure<T>(string message, ScreenReadResult<T> result)

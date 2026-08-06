@@ -9,7 +9,7 @@ internal static class RunScriptPlatformSyntax
     public static bool IsScreenshotStep(string? step) => RunScriptSyntax.IsScreenshotStep(step);
 
     public static bool IsImageSearchMatchModeKeyword(string? token) =>
-        string.Equals(token?.Trim(), RunScriptSyntax.ImageSearchMatchModeKeyword, StringComparison.OrdinalIgnoreCase);
+        ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.MatchMode;
 
     public static bool TryParseImageMatchMode(string? token, out EditorImageMatchMode mode)
     {

@@ -31,7 +31,7 @@ public sealed class ScreenImageAutomation(
 
         using (setup.Template)
         {
-            return ToResult(await SearchOnceAsync(setup, request.Timeout, cancellationToken).ConfigureAwait(false));
+            return ToResult(await SearchOnceAsync(setup, request.Timeout, request.PollUntilMatch, request.PollInterval, cancellationToken).ConfigureAwait(false));
         }
     }
 
@@ -47,17 +47,13 @@ public sealed class ScreenImageAutomation(
         using (setup.Template)
         {
             var timeout = request.Timeout ?? TimeSpan.FromSeconds(5);
-            var deadline = DateTimeOffset.UtcNow + timeout;
-            var pollInterval = ScreenReadOptions.Default.PollInterval ?? TimeSpan.FromMilliseconds(50);
+            var deadline = ScreenReadPolling.GetDeadline(timeout);
+            var pollInterval = request.PollInterval ?? ScreenReadOptions.Default.PollInterval ?? TimeSpan.FromMilliseconds(50);
             while (true)
             {
-                var remaining = deadline - DateTimeOffset.UtcNow;
-                if (remaining < TimeSpan.Zero)
-                {
-                    remaining = TimeSpan.Zero;
-                }
+                var remaining = ScreenReadPolling.GetRemaining(deadline);
 
-                var result = await SearchOnceAsync(setup, remaining, cancellationToken).ConfigureAwait(false);
+                var result = await SearchOnceAsync(setup, remaining, pollUntilMatch: false, pollInterval: null, cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
                     return ToResult(result);
@@ -68,12 +64,15 @@ public sealed class ScreenImageAutomation(
                     return ToResult(result);
                 }
 
-                if (DateTimeOffset.UtcNow >= deadline)
+                if (ScreenReadPolling.HasExpired(deadline))
                 {
                     return ToResult(result);
                 }
 
-                await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(
+                    ScreenReadPolling.GetDelay(deadline, pollInterval),
+                    TimeProvider.System,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -81,18 +80,29 @@ public sealed class ScreenImageAutomation(
     public async Task<ScreenImageAutomationResult> ClickAsync(ScreenImageAutomationRequest request, int buttonCode, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (_inputSimulatorFactory is null)
+        if (_inputSimulatorFactory is null && _simulatorPool is null)
         {
             return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.Unsupported, "No supported IInputSimulator is available for the current platform/session.");
         }
 
-        var resolution = _mousePositionProvider is null ? null : await _mousePositionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
-        var width = resolution?.Width ?? 0;
-        var height = resolution?.Height ?? 0;
-        var simulator = _simulatorPool is not null
-            ? await _simulatorPool.AcquireAsync(width, height, cancellationToken).ConfigureAwait(false)
-            : _inputSimulatorFactory();
-        var pooled = _simulatorPool is not null;
+        var geometry = await ResolveDesktopGeometryAsync(cancellationToken).ConfigureAwait(false);
+        var width = geometry.Bounds?.Width ?? geometry.Width;
+        var height = geometry.Bounds?.Height ?? geometry.Height;
+        var pool = _simulatorPool;
+        var factory = _inputSimulatorFactory;
+        IInputSimulator simulator;
+        if (pool is not null)
+        {
+            simulator = await pool.AcquireAsync(width, height, cancellationToken).ConfigureAwait(false);
+        }
+        else if (factory is not null)
+        {
+            simulator = factory();
+        }
+        else
+        {
+            return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.Unsupported, "No supported IInputSimulator is available for the current platform/session.");
+        }
         try
         {
             if (!simulator.IsSupported)
@@ -108,15 +118,16 @@ public sealed class ScreenImageAutomation(
 
             using (setup.Template)
             {
-                var result = await SearchOnceAsync(setup, request.Timeout, cancellationToken).ConfigureAwait(false);
+                var result = await SearchOnceAsync(setup, request.Timeout, request.PollUntilMatch, request.PollInterval, cancellationToken).ConfigureAwait(false);
                 if (!result.IsSuccess)
                 {
                     return ToResult(result);
                 }
 
+                var template = setup.Template ?? throw new InvalidOperationException("Template is not initialized in a success setup.");
                 var point = new ScreenPoint(
-                    checked(result.Value.Point.X + (setup.Template!.LogicalBounds.Width / 2)),
-                    checked(result.Value.Point.Y + (setup.Template.LogicalBounds.Height / 2)));
+                    checked(result.Value.Point.X + ((result.Value.MatchedWidth > 0 ? result.Value.MatchedWidth : template.LogicalBounds.Width) / 2)),
+                    checked(result.Value.Point.Y + ((result.Value.MatchedHeight > 0 ? result.Value.MatchedHeight : template.LogicalBounds.Height) / 2)));
                 await simulator.InitializeAsync(width, height, cancellationToken).ConfigureAwait(false);
                 var movement = await _movementResolver.ResolveAsync(simulator, point, cancellationToken).ConfigureAwait(false);
                 if (!movement.IsSuccess)
@@ -126,7 +137,24 @@ public sealed class ScreenImageAutomation(
 
                 if (movement.CoordinateMode is MouseCoordinateMode.Absolute)
                 {
-                    simulator.MoveAbsolute(movement.X, movement.Y);
+                    var devicePoint = AbsoluteInputCoordinateMapper.ToDeviceCoordinates(
+                        simulator,
+                        geometry.Bounds,
+                        movement.X,
+                        movement.Y);
+                    simulator.MoveAbsolute(devicePoint.X, devicePoint.Y);
+
+                    var settleResult = await AbsoluteCursorPositionSynchronizer.WaitAsync(
+                        _mousePositionProvider,
+                        movement.X,
+                        movement.Y,
+                        cancellationToken).ConfigureAwait(false);
+                    if (!settleResult.IsSettled)
+                    {
+                        return ScreenImageAutomationResult.Failure(
+                            ScreenReadErrorKind.CaptureFailed,
+                            $"Absolute cursor move did not settle at ({movement.X.ToString(CultureInfo.InvariantCulture)},{movement.Y.ToString(CultureInfo.InvariantCulture)}).");
+                    }
                 }
                 else
                 {
@@ -141,15 +169,36 @@ public sealed class ScreenImageAutomation(
         }
         finally
         {
-            if (pooled)
+            if (pool is not null)
             {
-                _simulatorPool!.Release(simulator, width, height);
+                pool.Release(simulator, width, height);
             }
             else
             {
                 simulator.Dispose();
             }
         }
+    }
+
+    private async Task<(ScreenRect? Bounds, int Width, int Height)> ResolveDesktopGeometryAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_mousePositionProvider is null)
+        {
+            return (Bounds: null, Width: 0, Height: 0);
+        }
+
+        var bounds = await _mousePositionProvider.GetDesktopBoundsAsync().ConfigureAwait(false);
+        if (bounds is { Width: > 0, Height: > 0 })
+        {
+            return (bounds, bounds.Value.Width, bounds.Value.Height);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var resolution = await _mousePositionProvider.GetScreenResolutionAsync().ConfigureAwait(false);
+        return resolution is { Width: > 0, Height: > 0 }
+            ? (Bounds: new ScreenRect(0, 0, resolution.Value.Width, resolution.Value.Height), resolution.Value.Width, resolution.Value.Height)
+            : (Bounds: null, Width: 0, Height: 0);
     }
 
     private async Task<ImageSearchSetup> PrepareAsync(ScreenImageAutomationRequest request, CancellationToken cancellationToken)
@@ -159,7 +208,11 @@ public sealed class ScreenImageAutomation(
             return ImageSearchSetup.Failure(ScreenImageAutomationResult.Failure(ScreenReadErrorKind.Unsupported, "Screen image matching is not supported in this runtime."));
         }
 
-        if (!double.IsFinite(request.Similarity) || request.Similarity is < 0.0 or > 1.0 || request.Downsample < 1)
+        if (!double.IsFinite(request.Similarity)
+            || request.Similarity is < 0.0 or > 1.0
+            || request.Downsample < 1
+            || (request.Timeout is { } timeout && timeout < TimeSpan.Zero)
+            || (request.PollInterval is { } pollInterval && pollInterval < TimeSpan.Zero))
         {
             return ImageSearchSetup.Failure(ScreenImageAutomationResult.Failure(ScreenReadErrorKind.InvalidArguments, "Invalid image search options."));
         }
@@ -196,7 +249,12 @@ public sealed class ScreenImageAutomation(
         }
     }
 
-    private static async Task<ScreenReadResult<ScreenImageMatch>> SearchOnceAsync(ImageSearchSetup setup, TimeSpan? timeout, CancellationToken cancellationToken)
+    private static async Task<ScreenReadResult<ScreenImageMatch>> SearchOnceAsync(
+        ImageSearchSetup setup,
+        TimeSpan? timeout,
+        bool pollUntilMatch,
+        TimeSpan? pollInterval,
+        CancellationToken cancellationToken)
     {
         var reader = setup.Reader ?? throw new InvalidOperationException("Reader is not initialized in a success setup.");
         var template = setup.Template ?? throw new InvalidOperationException("Template is not initialized in a success setup.");
@@ -205,7 +263,7 @@ public sealed class ScreenImageAutomation(
             setup.Region,
             template,
             options,
-            new ScreenReadOptions(timeout, ScreenReadOptions.Default.PollInterval, cancellationToken)).ConfigureAwait(false);
+            new ScreenReadOptions(timeout, pollInterval ?? ScreenReadOptions.Default.PollInterval, pollUntilMatch, cancellationToken)).ConfigureAwait(false);
     }
 
     private static ScreenImageAutomationResult ToResult(ScreenReadResult<ScreenImageMatch> result) =>

@@ -23,6 +23,7 @@ public static class RunScriptSyntax
     public const string ImageSearchTimeoutKeyword = "timeout";
     public const string ImageSearchMatchModeKeyword = "matchmode";
     public const string ImageSearchScaleAwareKeyword = "scaleaware";
+    public const string ScreenReadPollKeyword = "poll";
     public const string WindowCommand = "window";
     public const string ClipboardCommand = "clipboard";
     public const string ShellCommand = "shell";
@@ -242,26 +243,29 @@ public static class RunScriptSyntax
 
     public static bool IsPixelSearchToleranceKeyword(string? token)
     {
-        return string.Equals(token?.Trim(), PixelSearchToleranceKeyword, StringComparison.OrdinalIgnoreCase);
+        return ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Tolerance;
     }
 
     public static bool IsImageSearchSimilarityKeyword(string? token)
     {
-        return string.Equals(token?.Trim(), ImageSearchSimilarityKeyword, StringComparison.OrdinalIgnoreCase);
+        return ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Similarity;
     }
 
     public static bool IsImageSearchDownsampleKeyword(string? token)
     {
-        return string.Equals(token?.Trim(), ImageSearchDownsampleKeyword, StringComparison.OrdinalIgnoreCase);
+        return ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Downsample;
     }
 
     public static bool IsImageSearchTimeoutKeyword(string? token)
     {
-        return string.Equals(token?.Trim(), ImageSearchTimeoutKeyword, StringComparison.OrdinalIgnoreCase);
+        return ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Timeout;
     }
 
     public static bool IsImageSearchScaleAwareKeyword(string? token) =>
-        string.Equals(token?.Trim(), ImageSearchScaleAwareKeyword, StringComparison.OrdinalIgnoreCase);
+        ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.ScaleAware;
+
+    public static bool IsScreenReadPollKeyword(string? token) =>
+        ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Poll;
 
     public static bool IsWindowStep(string? step)
     {

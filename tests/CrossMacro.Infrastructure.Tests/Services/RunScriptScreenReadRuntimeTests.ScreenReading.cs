@@ -21,7 +21,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             {
                 "pixelcolor 10 20 sampled",
                 "pixelcolor rel 5 -3 relativeSampled",
-                "waitcolor 1 2 00FF00 123",
+                "waitcolor 1 2 00FF00 123 poll 25",
                 "pixelsearch 0 0 10 12 112233 found_x found_y tolerance 10",
             },
         };
@@ -32,7 +32,8 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         _ = screenReader.WaitCalls.Should().ContainSingle(call =>
             call.Point == new ScreenPoint(1, 2)
             && call.Expected == new ScreenPixelColor(0x00, 0xFF, 0x00)
-            && call.Options.Timeout == TimeSpan.FromMilliseconds(123));
+            && call.Options.Timeout == TimeSpan.FromMilliseconds(123)
+            && call.Options.PollInterval == TimeSpan.FromMilliseconds(25));
         _ = screenReader.SearchCalls.Should().ContainSingle(call =>
             call.Region.X == 0
             && call.Region.Y == 0
@@ -589,6 +590,28 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
         _ = result.IsSuccess.Should().BeFalse();
         _ = result.ErrorKind.Should().Be(ScreenReadErrorKind.OutOfBounds);
+    }
+
+    [Fact]
+    public async Task SearchPixelAsync_WhenPollingIsEnabled_RepeatsUntilMatch()
+    {
+        var provider = new DisposalTrackingFrameProvider(
+            new ScreenPixelColor(0x00, 0x00, 0x00),
+            new ScreenPixelColor(0x00, 0xFF, 0x00));
+        using var reader = new ScreenPixelReader(provider);
+
+        var result = await reader.SearchPixelAsync(
+            new ScreenRect(1, 2, 1, 1),
+            new ScreenPixelColor(0x00, 0xFF, 0x00),
+            tolerance: 0,
+            new ScreenReadOptions(
+                timeout: TimeSpan.FromSeconds(1),
+                pollInterval: TimeSpan.Zero,
+                pollUntilMatch: true));
+
+        _ = result.IsSuccess.Should().BeTrue();
+        _ = result.Value.Point.Should().Be(new ScreenPoint(1, 2));
+        _ = provider.CaptureCalls.Should().Be(2);
     }
 
     [Fact]

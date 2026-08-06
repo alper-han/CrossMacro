@@ -11,9 +11,6 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
     private static readonly TimeSpan CornerPositionRefreshInterval = TimeSpan.FromMilliseconds(4);
     private const int CornerPositionRefreshAttempts = 8;
     private const int CornerPositionTolerance = 1;
-    private static readonly TimeSpan AbsolutePositionSettleInterval = TimeSpan.FromMilliseconds(4);
-    private const int AbsolutePositionSettleAttempts = 8;
-    private const int AbsolutePositionTolerance = 1;
     private static readonly TimeSpan RawMovementPositionRefreshInterval = TimeSpan.FromMilliseconds(4);
     private const int RawMovementPositionRefreshAttempts = 5;
     private const int RawMovementMinimumRefreshAttemptsWithoutReference = 3;
@@ -81,36 +78,27 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
 
     public async Task<bool> WaitForPositionAsync(int expectedX, int expectedY, CancellationToken cancellationToken)
     {
-        if (_positionProvider is null || !_positionProvider.HasUsableAbsolutePosition())
+        var result = await AbsoluteCursorPositionSynchronizer.WaitAsync(
+            _positionProvider,
+            expectedX,
+            expectedY,
+            cancellationToken).ConfigureAwait(false);
+        if (result.IsSettled)
         {
-            return true;
-        }
-
-        (int X, int Y)? lastObservedPosition = null;
-        for (var attempt = 0; attempt < AbsolutePositionSettleAttempts; attempt++)
-        {
-            var position = await QueryPositionAsync(cancellationToken).ConfigureAwait(false);
-            lastObservedPosition = position;
-            if (position is { } observed
-                && Math.Abs(observed.X - expectedX) <= AbsolutePositionTolerance
-                && Math.Abs(observed.Y - expectedY) <= AbsolutePositionTolerance)
+            if (result.LastObservedPosition is { } observed)
             {
                 UpdatePosition(observed.X, observed.Y);
-                return true;
             }
 
-            if (attempt + 1 < AbsolutePositionSettleAttempts)
-            {
-                await Task.Delay(AbsolutePositionSettleInterval, TimeProvider.System, cancellationToken).ConfigureAwait(false);
-            }
+            return true;
         }
 
         Log.Warning(
             "[PlaybackCoordinator] Absolute cursor move did not settle at ({ExpectedX},{ExpectedY}); last observed position is ({CurrentX},{CurrentY}).",
             expectedX,
             expectedY,
-            lastObservedPosition?.X ?? CurrentX,
-            lastObservedPosition?.Y ?? CurrentY);
+            result.LastObservedPosition?.X ?? CurrentX,
+            result.LastObservedPosition?.Y ?? CurrentY);
         return false;
     }
 

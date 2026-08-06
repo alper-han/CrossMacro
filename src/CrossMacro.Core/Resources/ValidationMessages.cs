@@ -24,7 +24,7 @@ public static class ValidationMessages
 
     // MouseMove
     public const string CoordinateTokenInvalid = "Coordinates must be integers or variable references";
-    public const string AbsoluteCoordsMustBeNonNegative = "Absolute coordinates must be non-negative";
+    public const string AbsoluteCoordsMustBeNonNegative = "Absolute coordinates are outside the supported range";
     public const string CoordsExceedMaximum = "Coordinates exceed maximum supported value";
     public const string RelativeMoveMustHaveValue = "Relative move must have non-zero X or Y";
     public const string RelativeMoveTooLarge = "Relative movement too large (max: ±10000)";

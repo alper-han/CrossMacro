@@ -22,5 +22,7 @@ public sealed record ScreenCliOptions(
     bool ScaleAware = false,
     MacroMouseButton Button = MacroMouseButton.Left,
     bool JsonOutput = false,
-    string? LogLevel = null)
+    string? LogLevel = null,
+    bool Poll = false,
+    int? PollIntervalMs = null)
     : CliCommandOptions(JsonOutput, LogLevel);

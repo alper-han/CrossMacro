@@ -219,15 +219,10 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
         if (action.IsAbsolute)
         {
-            if ((hasLiteralX && x < 0) || (hasLiteralY && y < 0))
+            if ((hasLiteralX && Math.Abs((long)x) > EditorActionValidationLimits.MaxAbsoluteCoordinate)
+                || (hasLiteralY && Math.Abs((long)y) > EditorActionValidationLimits.MaxAbsoluteCoordinate))
             {
                 return (false, ValidationMessages.AbsoluteCoordsMustBeNonNegative);
-            }
-
-            if ((hasLiteralX && x > EditorActionValidationLimits.MaxAbsoluteCoordinate)
-                || (hasLiteralY && y > EditorActionValidationLimits.MaxAbsoluteCoordinate))
-            {
-                return (false, ValidationMessages.CoordsExceedMaximum);
             }
         }
         else
@@ -612,11 +607,6 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
     {
         var payload = GetScreenReadingPayload(action);
 
-        if (payload.IsAbsolute && (payload.ScreenX < 0 || payload.ScreenY < 0))
-        {
-            return (false, "Pixel color coordinates must be non-negative.");
-        }
-
         if (!payload.HasValidColorVariableName())
         {
             return (false, "Pixel color output variable name is invalid.");
@@ -633,11 +623,6 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
     private static (bool IsValid, string? Error) ValidateWaitColor(EditorAction action)
     {
         var payload = GetScreenReadingPayload(action);
-
-        if (payload.ScreenX < 0 || payload.ScreenY < 0)
-        {
-            return (false, "Wait color coordinates must be non-negative.");
-        }
 
         if (!payload.HasValidTargetColor())
         {

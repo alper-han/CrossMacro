@@ -112,6 +112,21 @@ public sealed class DefaultPlaybackCoordinatorTests
     }
 
     [Fact]
+    public async Task WaitForPositionAsync_WhenCallerIsCanceled_PropagatesCancellation()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.IsSupported.Returns(true);
+        _ = positionProvider.SupportsAbsolutePosition.Returns(true);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((0, 0)));
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            coordinator.WaitForPositionAsync(100, 100, cancellation.Token));
+    }
+
+    [Fact]
     public async Task PrepareIterationAsync_AbsoluteMode_DoesNotPreMoveFirstEvent()
     {
         // Arrange

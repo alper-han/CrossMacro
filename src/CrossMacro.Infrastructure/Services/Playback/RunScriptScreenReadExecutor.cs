@@ -118,7 +118,7 @@ internal sealed class RunScriptScreenReadExecutor(
             : new ScreenPoint(x, y);
 
         var timeout = ParseScreenReadTimeout(parts, variableIndex: isRelative ? 4 : 3);
-        var result = await _screenPixelReader.GetPixelAsync(point, CreateOptions(timeout, cancellationToken)).ConfigureAwait(false);
+        var result = await _screenPixelReader.GetPixelAsync(point, CreateOptions(timeout, pollUntilMatch: false, pollInterval: null, cancellationToken: cancellationToken)).ConfigureAwait(false);
         EnsureSuccess(stepNumber, "pixelcolor", result);
 
         var variableIndex = isRelative ? 4 : 3;
@@ -136,12 +136,16 @@ internal sealed class RunScriptScreenReadExecutor(
     {
         var point = new ScreenPoint(ParseInteger(parts[1]), ParseInteger(parts[2]));
         var expected = ResolveTargetColor(parts[3], stepNumber, runtimeVariables);
-        var timeout = parts.Length >= 5
-            ? TimeSpan.FromMilliseconds(ParseInteger(parts[4]))
-            : (TimeSpan?)null;
-        var resultVariable = parts.Length >= 6 ? parts[5] : null;
+        var index = 4;
+        TimeSpan? timeout = index < parts.Length && !RunScriptScreenReadingStepParser.IsScreenReadPollKeyword(parts[index])
+            ? TimeSpan.FromMilliseconds(ParseInteger(parts[index++]))
+            : null;
+        var resultVariable = index < parts.Length && !RunScriptScreenReadingStepParser.IsScreenReadPollKeyword(parts[index])
+            ? parts[index++]
+            : null;
+        var poll = ParsePollOptions(parts, index, RunScriptScreenReadingStepParser.IsScreenReadPollKeyword);
 
-        var result = await _screenPixelReader.WaitForPixelAsync(point, expected, CreateOptions(timeout, cancellationToken)).ConfigureAwait(false);
+        var result = await _screenPixelReader.WaitForPixelAsync(point, expected, CreateOptions(timeout, pollUntilMatch: false, pollInterval: poll.PollInterval, cancellationToken: cancellationToken)).ConfigureAwait(false);
         if (resultVariable is not null && CanStoreResultVariable(result))
         {
             runtimeVariables[resultVariable] = result.IsSuccess ? "true" : "false";
@@ -184,7 +188,8 @@ internal sealed class RunScriptScreenReadExecutor(
         var region = new ScreenRect(left, top, width, height);
 
         var timeout = ParseScreenReadTimeout(parts, GetPixelSearchOptionStartIndex(parts));
-        var result = await _screenPixelReader.SearchPixelAsync(region, expected, tolerance, CreateOptions(timeout, cancellationToken)).ConfigureAwait(false);
+        var poll = ParsePollOptions(parts, GetPixelSearchOptionStartIndex(parts), RunScriptScreenReadingStepParser.IsPixelSearchOptionKeyword);
+        var result = await _screenPixelReader.SearchPixelAsync(region, expected, tolerance, CreateOptions(timeout, poll.PollUntilMatch, poll.PollInterval, cancellationToken)).ConfigureAwait(false);
         var variableLayout = GetPixelSearchVariableLayout(parts);
         if (variableLayout.FoundVariableName is not null && CanStoreResultVariable(result))
         {
@@ -242,10 +247,12 @@ internal sealed class RunScriptScreenReadExecutor(
         using var template = await DecodeImageAssetAsync(stepNumber, "imagesearch", imageName, imageAssets, cancellationToken).ConfigureAwait(false);
         var variableLayout = GetImageSearchVariableLayout(parts, imageNameIndex + 1);
         var matchOptions = ParseImageSearchOptions(stepNumber, "imagesearch", parts, imageNameIndex + 1 + variableLayout.VariableCount, region);
-        var timeout = ParseImageTimeout(parts, imageNameIndex + 1 + variableLayout.VariableCount);
+        var optionStartIndex = imageNameIndex + 1 + variableLayout.VariableCount;
+        var timeout = ParseImageTimeout(parts, optionStartIndex);
+        var poll = ParsePollOptions(parts, optionStartIndex, RunScriptScreenReadingStepParser.IsImageSearchOptionKeyword);
 
         cancellationToken.ThrowIfCancellationRequested();
-        var result = await imageSearchReader.SearchImageAsync(region, template, matchOptions, CreateOptions(timeout, cancellationToken)).ConfigureAwait(false);
+        var result = await imageSearchReader.SearchImageAsync(region, template, matchOptions, CreateOptions(timeout, poll.PollUntilMatch, poll.PollInterval, cancellationToken)).ConfigureAwait(false);
         if (variableLayout.FoundVariableName is not null && CanStoreResultVariable(result))
         {
             runtimeVariables[variableLayout.FoundVariableName] = result.IsSuccess ? "true" : "false";
@@ -302,9 +309,10 @@ internal sealed class RunScriptScreenReadExecutor(
         var optionStartIndex = imageNameIndex + 1 + variableLayout.VariableCount;
         var matchOptions = ParseImageSearchOptions(stepNumber, "imageclick", parts, optionStartIndex, region);
         var timeout = ParseImageTimeout(parts, optionStartIndex);
+        var poll = ParsePollOptions(parts, optionStartIndex, IsImageClickOptionKeyword);
         var button = ParseImageClickButton(parts, optionStartIndex);
 
-        var result = await imageSearchReader.SearchImageAsync(region, template, matchOptions, CreateOptions(timeout, cancellationToken)).ConfigureAwait(false);
+        var result = await imageSearchReader.SearchImageAsync(region, template, matchOptions, CreateOptions(timeout, poll.PollUntilMatch, poll.PollInterval, cancellationToken)).ConfigureAwait(false);
         if (!result.IsSuccess && variableLayout.FoundVariableName is not null && result.ErrorKind is ScreenReadErrorKind.CaptureTimeout)
         {
             StoreImageSearchVariables(runtimeVariables, variableLayout, found: false, default);
@@ -358,19 +366,16 @@ internal sealed class RunScriptScreenReadExecutor(
         var optionStartIndex = imageNameIndex + 1 + variableLayout.VariableCount;
         var matchOptions = ParseImageSearchOptions(stepNumber, "waitimage", parts, optionStartIndex, region);
         var timeout = ParseImageTimeout(parts, optionStartIndex) ?? ScreenReadOptions.Default.Timeout ?? TimeSpan.FromSeconds(5);
-        var pollInterval = ScreenReadOptions.Default.PollInterval ?? TimeSpan.FromMilliseconds(50);
-        var deadline = DateTimeOffset.UtcNow + timeout;
+        var poll = ParsePollOptions(parts, optionStartIndex, RunScriptScreenReadingStepParser.IsImageSearchOptionKeyword);
+        var pollInterval = poll.PollInterval ?? ScreenReadOptions.Default.PollInterval ?? TimeSpan.FromMilliseconds(50);
+        var deadline = ScreenReadPolling.GetDeadline(timeout);
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var remaining = deadline - DateTimeOffset.UtcNow;
-            if (remaining < TimeSpan.Zero)
-            {
-                remaining = TimeSpan.Zero;
-            }
+            var remaining = ScreenReadPolling.GetRemaining(deadline);
 
-            var result = await imageSearchReader.SearchImageAsync(region, template, matchOptions, CreateOptions(remaining, cancellationToken)).ConfigureAwait(false);
+            var result = await imageSearchReader.SearchImageAsync(region, template, matchOptions, CreateOptions(remaining, pollUntilMatch: false, pollInterval: null, cancellationToken: cancellationToken)).ConfigureAwait(false);
             if (result.IsSuccess)
             {
                 StoreImageSearchVariables(runtimeVariables, variableLayout, found: true, result.Value.Point);
@@ -382,7 +387,7 @@ internal sealed class RunScriptScreenReadExecutor(
                 EnsureSuccess(stepNumber, "waitimage", result);
             }
 
-            if (DateTimeOffset.UtcNow >= deadline)
+            if (ScreenReadPolling.HasExpired(deadline))
             {
                 if (variableLayout.FoundVariableName is not null)
                 {
@@ -393,7 +398,10 @@ internal sealed class RunScriptScreenReadExecutor(
                 EnsureSuccess(stepNumber, "waitimage", result);
             }
 
-            await Task.Delay(pollInterval, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(
+                ScreenReadPolling.GetDelay(deadline, pollInterval),
+                TimeProvider.System,
+                cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -496,7 +504,10 @@ internal sealed class RunScriptScreenReadExecutor(
         var hasSimilarity = false;
         var hasDownsample = false;
         var hasTimeout = false;
+        var hasPoll = false;
         var hasButton = false;
+        var hasMatchMode = false;
+        var hasScaleAware = false;
         for (var index = startIndex; index < parts.Length;)
         {
             if (RunScriptSyntax.IsImageSearchSimilarityKeyword(parts[index]))
@@ -538,6 +549,11 @@ internal sealed class RunScriptScreenReadExecutor(
 
             if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
             {
+                if (hasMatchMode)
+                {
+                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: duplicate matchmode option.");
+                }
+
                 if (index + 1 >= parts.Length || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out var parsedMode))
                 {
                     throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: matchmode must be first or best.");
@@ -546,12 +562,19 @@ internal sealed class RunScriptScreenReadExecutor(
                 selectionMode = parsedMode is EditorImageMatchMode.BestMatch
                     ? ScreenImageMatchSelectionMode.BestMatch
                     : ScreenImageMatchSelectionMode.FirstThresholdMatch;
+                hasMatchMode = true;
                 index += 2;
                 continue;
             }
 
             if (RunScriptSyntax.IsImageSearchScaleAwareKeyword(parts[index]))
             {
+                if (hasScaleAware)
+                {
+                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: duplicate scale-aware option.");
+                }
+
+                hasScaleAware = true;
                 scaleAware = true;
                 index++;
                 continue;
@@ -571,6 +594,30 @@ internal sealed class RunScriptScreenReadExecutor(
 
                 hasTimeout = true;
                 index += 2;
+                continue;
+            }
+
+            if (RunScriptScreenReadingStepParser.IsScreenReadPollKeyword(parts[index]))
+            {
+                if (hasPoll)
+                {
+                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: duplicate poll option.");
+                }
+
+                index++;
+                if (index < parts.Length
+                    && !(command is "imageclick" && string.Equals(parts[index], "button", StringComparison.OrdinalIgnoreCase))
+                    && !RunScriptScreenReadingStepParser.IsImageSearchOptionKeyword(parts[index]))
+                {
+                    if (!int.TryParse(parts[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out var pollIntervalMs) || pollIntervalMs <= 0)
+                    {
+                        throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: poll interval must be a positive integer in milliseconds.");
+                    }
+
+                    index++;
+                }
+
+                hasPoll = true;
                 continue;
             }
 
@@ -604,11 +651,16 @@ internal sealed class RunScriptScreenReadExecutor(
             || string.Equals(value, "middle", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static ScreenReadOptions CreateOptions(TimeSpan? timeout, CancellationToken cancellationToken)
+    private static ScreenReadOptions CreateOptions(
+        TimeSpan? timeout,
+        bool pollUntilMatch,
+        TimeSpan? pollInterval,
+        CancellationToken cancellationToken)
     {
         return new ScreenReadOptions(
             timeout ?? ScreenReadOptions.Default.Timeout,
-            ScreenReadOptions.Default.PollInterval,
+            pollInterval ?? ScreenReadOptions.Default.PollInterval,
+            pollUntilMatch,
             cancellationToken);
     }
 
@@ -669,6 +721,31 @@ internal sealed class RunScriptScreenReadExecutor(
         }
 
         return null;
+    }
+
+    private static (bool PollUntilMatch, TimeSpan? PollInterval) ParsePollOptions(
+        string[] parts,
+        int startIndex,
+        Func<string, bool> isOptionKeyword)
+    {
+        var pollUntilMatch = false;
+        TimeSpan? pollInterval = null;
+        for (var index = startIndex; index < parts.Length; index++)
+        {
+            if (!RunScriptScreenReadingStepParser.IsScreenReadPollKeyword(parts[index]))
+            {
+                continue;
+            }
+
+            pollUntilMatch = true;
+            if (index + 1 < parts.Length && !isOptionKeyword(parts[index + 1]))
+            {
+                pollInterval = TimeSpan.FromMilliseconds(ParseInteger(parts[index + 1]));
+                index++;
+            }
+        }
+
+        return (pollUntilMatch, pollInterval);
     }
 
     private static TimeSpan? ParseScreenReadTimeout(string[] parts, int variableIndex)

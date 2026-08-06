@@ -101,21 +101,17 @@ internal static class RunScriptScreenReadingStepParser
     public static bool IsScreenReadTimeoutKeyword(string value) =>
         RunScriptSyntax.IsImageSearchTimeoutKeyword(value);
 
+    public static bool IsScreenReadPollKeyword(string value) =>
+        RunScriptSyntax.IsScreenReadPollKeyword(value);
+
     public static bool IsPixelSearchOptionKeyword(string value) =>
-        IsPixelSearchToleranceKeyword(value) || IsScreenReadTimeoutKeyword(value);
+        ScreenReadOptionGrammar.IsPixelSearchOption(ScreenReadOptionGrammar.GetScriptOptionKind(value));
 
     public static bool IsImageSearchOptionKeyword(string value) =>
-        RunScriptSyntax.IsImageSearchSimilarityKeyword(value)
-        || RunScriptSyntax.IsImageSearchDownsampleKeyword(value)
-        || RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(value)
-        || RunScriptSyntax.IsImageSearchScaleAwareKeyword(value)
-        || RunScriptSyntax.IsImageSearchTimeoutKeyword(value);
+        ScreenReadOptionGrammar.IsImageSearchOption(ScreenReadOptionGrammar.GetScriptOptionKind(value));
 
     public static bool IsImageMatchOptionKeyword(string value) =>
-        RunScriptSyntax.IsImageSearchSimilarityKeyword(value)
-        || RunScriptSyntax.IsImageSearchDownsampleKeyword(value)
-        || RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(value)
-        || RunScriptSyntax.IsImageSearchScaleAwareKeyword(value);
+        ScreenReadOptionGrammar.IsImageMatchOption(ScreenReadOptionGrammar.GetScriptOptionKind(value));
 
     private static bool TryValidatePixelColorStep(string[] parts, out string? error)
     {
@@ -173,9 +169,9 @@ internal static class RunScriptScreenReadingStepParser
     private static bool TryValidateWaitColorStep(string[] parts, out string? error)
     {
         error = null;
-        if (parts.Length is < 4 or > 6)
+        if (parts.Length < 4)
         {
-            error = "Invalid waitcolor syntax. Expected: waitcolor <x> <y> <color> [timeout_ms] [result_var].";
+            error = "Invalid waitcolor syntax. Expected: waitcolor <x> <y> <color> [timeout_ms] [result_var] [poll [interval_ms]].";
             return true;
         }
 
@@ -190,16 +186,47 @@ internal static class RunScriptScreenReadingStepParser
             return true;
         }
 
-        if (parts.Length >= 5
-            && (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs) || timeoutMs < 0))
+        var index = 4;
+        if (index < parts.Length && !IsScreenReadPollKeyword(parts[index]))
         {
-            error = "Invalid waitcolor timeout. Expected integer >= 0.";
-            return true;
+            if (!int.TryParse(parts[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs) || timeoutMs < 0)
+            {
+                error = "Invalid waitcolor timeout. Expected integer >= 0.";
+                return true;
+            }
+
+            index++;
         }
 
-        if (parts.Length is 6 && !EditorActionScriptTokens.IsValidVariableName(parts[5]))
+        if (index < parts.Length && !IsScreenReadPollKeyword(parts[index]))
         {
-            error = $"Invalid variable name '{parts[5]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
+            if (!EditorActionScriptTokens.IsValidVariableName(parts[index]))
+            {
+                error = $"Invalid variable name '{parts[index]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
+                return true;
+            }
+
+            index++;
+        }
+
+        if (index < parts.Length)
+        {
+            if (!IsScreenReadPollKeyword(parts[index]))
+            {
+                error = "Invalid waitcolor poll. Expected poll [<milliseconds>=1+].";
+                return true;
+            }
+
+            if (!TryConsumePollOption(parts, ref index, IsScreenReadPollKeyword, out error))
+            {
+                error ??= "Invalid waitcolor poll. Expected poll [<milliseconds>=1+].";
+                return true;
+            }
+        }
+
+        if (index < parts.Length)
+        {
+            error = "Invalid waitcolor syntax. Expected: waitcolor <x> <y> <color> [timeout_ms] [result_var] [poll [interval_ms]].";
         }
 
         return true;
@@ -210,7 +237,7 @@ internal static class RunScriptScreenReadingStepParser
         error = null;
         if (parts.Length < 6)
         {
-            error = "Invalid pixelsearch syntax. Expected: pixelsearch <x1> <y1> <x2> <y2> <color> [found_var var_x var_y|var_x var_y] [timeout <milliseconds>=0+] [tolerance <0..255>].";
+            error = "Invalid pixelsearch syntax. Expected: pixelsearch <x1> <y1> <x2> <y2> <color> [found_var var_x var_y|var_x var_y] [timeout <milliseconds>=0+] [tolerance <0..255>] [poll [interval_ms]].";
             return true;
         }
 
@@ -264,6 +291,7 @@ internal static class RunScriptScreenReadingStepParser
 
         var hasTolerance = false;
         var hasTimeout = false;
+        var hasPoll = false;
         while (index < parts.Length)
         {
             if (IsScreenReadTimeoutKeyword(parts[index]))
@@ -276,6 +304,18 @@ internal static class RunScriptScreenReadingStepParser
 
                 hasTimeout = true;
                 index += 2;
+                continue;
+            }
+
+            if (IsScreenReadPollKeyword(parts[index]))
+            {
+                if (hasPoll || !TryConsumePollOption(parts, ref index, IsPixelSearchOptionKeyword, out error))
+                {
+                    error ??= "Invalid pixelsearch poll. Expected poll [<milliseconds>=1+].";
+                    return true;
+                }
+
+                hasPoll = true;
                 continue;
             }
 
@@ -292,7 +332,7 @@ internal static class RunScriptScreenReadingStepParser
                 continue;
             }
 
-            error = $"Unknown pixelsearch option '{parts[index]}'. Expected timeout <milliseconds>=0+ or tolerance <0..255>.";
+            error = $"Unknown pixelsearch option '{parts[index]}'. Expected timeout <milliseconds>=0+, tolerance <0..255>, or poll [<milliseconds>=1+].";
             return true;
         }
 
@@ -359,6 +399,9 @@ internal static class RunScriptScreenReadingStepParser
         var hasSimilarity = false;
         var hasDownsample = false;
         var hasTimeout = false;
+        var hasPoll = false;
+        var hasMatchMode = false;
+        var hasScaleAware = false;
         while (index < parts.Length)
         {
             if (RunScriptSyntax.IsImageSearchSimilarityKeyword(parts[index]))
@@ -416,18 +459,32 @@ internal static class RunScriptScreenReadingStepParser
 
             if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
             {
+                if (hasMatchMode)
+                {
+                    error = "Duplicate imagesearch matchmode option.";
+                    return true;
+                }
+
                 if (index + 1 >= parts.Length || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out _))
                 {
                     error = "Invalid imagesearch matchmode. Expected matchmode <first|best>.";
                     return true;
                 }
 
+                hasMatchMode = true;
                 index += 2;
                 continue;
             }
 
             if (RunScriptSyntax.IsImageSearchScaleAwareKeyword(parts[index]))
             {
+                if (hasScaleAware)
+                {
+                    error = "Duplicate imagesearch scale-aware option.";
+                    return true;
+                }
+
+                hasScaleAware = true;
                 index++;
                 continue;
             }
@@ -451,7 +508,19 @@ internal static class RunScriptScreenReadingStepParser
                 continue;
             }
 
-            error = $"Unknown imagesearch option '{parts[index]}'. Expected timeout <milliseconds>=0+, similarity <0..1>, or downsample <integer>=1+.";
+            if (IsScreenReadPollKeyword(parts[index]))
+            {
+                if (hasPoll || !TryConsumePollOption(parts, ref index, IsImageSearchOptionKeyword, out error))
+                {
+                    error ??= "Invalid imagesearch poll. Expected poll [<milliseconds>=1+].";
+                    return true;
+                }
+
+                hasPoll = true;
+                continue;
+            }
+
+            error = $"Unknown imagesearch option '{parts[index]}'. Expected timeout <milliseconds>=0+, poll [<milliseconds>=1+], similarity <0..1>, or downsample <integer>=1+.";
             return true;
         }
 
@@ -493,8 +562,22 @@ internal static class RunScriptScreenReadingStepParser
         }
 
         var hasButton = false;
+        var hasPoll = false;
+        var seenOptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         while (index < parts.Length)
         {
+            if (IsScreenReadPollKeyword(parts[index]))
+            {
+                if (hasPoll || !TryConsumePollOption(parts, ref index, IsImageClickOptionKeyword, out error))
+                {
+                    error ??= "Invalid imageclick poll. Expected poll [<milliseconds>=1+].";
+                    return true;
+                }
+
+                hasPoll = true;
+                continue;
+            }
+
             if (string.Equals(parts[index], "button", StringComparison.OrdinalIgnoreCase))
             {
                 if (hasButton || index + 1 >= parts.Length || !IsValidMouseButton(parts[index + 1]))
@@ -508,7 +591,7 @@ internal static class RunScriptScreenReadingStepParser
                 continue;
             }
 
-            if (!TryValidateImageMatchOption(parts, ref index, out error))
+            if (!TryValidateImageMatchOption(parts, ref index, seenOptions, out error))
             {
                 return true;
             }
@@ -558,8 +641,22 @@ internal static class RunScriptScreenReadingStepParser
         }
 
         var hasTimeout = false;
+        var hasPoll = false;
+        var seenOptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         while (index < parts.Length)
         {
+            if (IsScreenReadPollKeyword(parts[index]))
+            {
+                if (hasPoll || !TryConsumePollOption(parts, ref index, IsImageSearchOptionKeyword, out error))
+                {
+                    error ??= "Invalid waitimage poll. Expected poll [<milliseconds>=1+].";
+                    return true;
+                }
+
+                hasPoll = true;
+                continue;
+            }
+
             if (RunScriptSyntax.IsImageSearchTimeoutKeyword(parts[index]))
             {
                 if (hasTimeout || index + 1 >= parts.Length)
@@ -579,7 +676,7 @@ internal static class RunScriptScreenReadingStepParser
                 continue;
             }
 
-            if (!TryValidateImageMatchOption(parts, ref index, out error))
+            if (!TryValidateImageMatchOption(parts, ref index, seenOptions, out error))
             {
                 return true;
             }
@@ -626,11 +723,21 @@ internal static class RunScriptScreenReadingStepParser
         return true;
     }
 
-    private static bool TryValidateImageMatchOption(string[] parts, ref int index, out string? error)
+    private static bool TryValidateImageMatchOption(
+        string[] parts,
+        ref int index,
+        ISet<string> seenOptions,
+        out string? error)
     {
         error = null;
         if (RunScriptSyntax.IsImageSearchSimilarityKeyword(parts[index]))
         {
+            if (!seenOptions.Add("similarity"))
+            {
+                error = "Duplicate image similarity option.";
+                return false;
+            }
+
             if (index + 1 >= parts.Length
                 || !double.TryParse(parts[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out var similarity)
                 || !double.IsFinite(similarity)
@@ -646,6 +753,12 @@ internal static class RunScriptScreenReadingStepParser
 
         if (RunScriptSyntax.IsImageSearchDownsampleKeyword(parts[index]))
         {
+            if (!seenOptions.Add("downsample"))
+            {
+                error = "Duplicate image downsample option.";
+                return false;
+            }
+
             if (index + 1 >= parts.Length
                 || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var downsample)
                 || downsample < 1)
@@ -660,6 +773,12 @@ internal static class RunScriptScreenReadingStepParser
 
         if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
         {
+            if (!seenOptions.Add("matchmode"))
+            {
+                error = "Duplicate image matchmode option.";
+                return false;
+            }
+
             if (index + 1 >= parts.Length || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out _))
             {
                 error = "Invalid image matchmode. Expected matchmode <first|best>.";
@@ -672,6 +791,12 @@ internal static class RunScriptScreenReadingStepParser
 
         if (RunScriptSyntax.IsImageSearchTimeoutKeyword(parts[index]))
         {
+            if (!seenOptions.Add("timeout"))
+            {
+                error = "Duplicate image timeout option.";
+                return false;
+            }
+
             if (index + 1 >= parts.Length
                 || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs)
                 || timeoutMs < 0)
@@ -684,14 +809,60 @@ internal static class RunScriptScreenReadingStepParser
             return true;
         }
 
+        if (IsScreenReadPollKeyword(parts[index]))
+        {
+            if (!seenOptions.Add("poll"))
+            {
+                error = "Duplicate image poll option.";
+                return false;
+            }
+
+            if (!TryConsumePollOption(parts, ref index, IsImageSearchOptionKeyword, out error))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         if (RunScriptSyntax.IsImageSearchScaleAwareKeyword(parts[index]))
         {
+            if (!seenOptions.Add("scale-aware"))
+            {
+                error = "Duplicate image scale-aware option.";
+                return false;
+            }
+
             index++;
             return true;
         }
 
-        error = $"Unknown image option '{parts[index]}'. Expected timeout <milliseconds>=0+, similarity <0..1>, or downsample <integer>=1+.";
+        error = $"Unknown image option '{parts[index]}'. Expected timeout <milliseconds>=0+, poll [<milliseconds>=1+], similarity <0..1>, or downsample <integer>=1+.";
         return false;
+    }
+
+    private static bool TryConsumePollOption(
+        string[] parts,
+        ref int index,
+        Func<string, bool> isNextOption,
+        out string? error)
+    {
+        error = null;
+        index++;
+        if (index >= parts.Length || isNextOption(parts[index]))
+        {
+            return true;
+        }
+
+        if (!int.TryParse(parts[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out var intervalMs)
+            || intervalMs <= 0)
+        {
+            error = "Invalid screen poll interval. Expected a positive integer in milliseconds.";
+            return false;
+        }
+
+        index++;
+        return true;
     }
 
     private static bool IsValidMouseButton(string value)

@@ -8,4 +8,6 @@ public sealed record ScreenImageAutomationRequest(
     int Downsample = 1,
     ScreenImageMatchMode MatchMode = ScreenImageMatchMode.First,
     bool ScaleAware = false,
-    TimeSpan? Timeout = null);
+    TimeSpan? Timeout = null,
+    bool PollUntilMatch = false,
+    TimeSpan? PollInterval = null);

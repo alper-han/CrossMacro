@@ -186,7 +186,7 @@ region: null,
     }
 
     [Fact]
-    public async Task SearchImageAsync_WhenFirstModeFindsImmediateMatchAfterTimeout_ReturnsSuccess()
+    public async Task SearchImageAsync_WhenCaptureExceedsTimeout_ReturnsCaptureTimeout()
     {
         using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
         using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
@@ -198,8 +198,8 @@ region: null,
             ScreenImageMatchOptions.Create(searchRegion: null, 1.0, 1, ScreenImageMatchSelectionMode.FirstThresholdMatch),
             new ScreenReadOptions(timeout: TimeSpan.FromMilliseconds(1)));
 
-        _ = result.IsSuccess.Should().BeTrue($"{result.ErrorKind}: {result.ErrorMessage}");
-        _ = result.Value.Point.Should().Be(new ScreenPoint(0, 0));
+        _ = result.IsSuccess.Should().BeFalse($"{result.ErrorKind}: {result.ErrorMessage}");
+        _ = result.ErrorKind.Should().Be(ScreenReadErrorKind.CaptureTimeout);
     }
 
     [Fact]

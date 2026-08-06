@@ -443,7 +443,7 @@ public sealed class PrimitiveCliServiceTests
             Assert.False(result.Success);
             Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
             Assert.Empty(input.ButtonEvents);
-            Assert.Contains("requires absolute coordinate support", result.Message, StringComparison.Ordinal);
+            Assert.Contains("relative movement", result.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

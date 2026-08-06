@@ -242,13 +242,10 @@ public sealed class MacroEventExecutor(
 
     private void SendAbsolute((int X, int Y) logicalPosition)
     {
-        if (_usesZeroBasedScreenBounds && _desktopBounds is { } bounds)
-        {
-            _simulator.MoveAbsolute(logicalPosition.X - bounds.X, logicalPosition.Y - bounds.Y);
-            return;
-        }
-
-        _simulator.MoveAbsolute(logicalPosition.X, logicalPosition.Y);
+        var devicePosition = _usesZeroBasedScreenBounds
+            ? AbsoluteInputCoordinateMapper.ToDeviceCoordinates(_simulator, _desktopBounds, logicalPosition.X, logicalPosition.Y)
+            : logicalPosition;
+        _simulator.MoveAbsolute(devicePosition.X, devicePosition.Y);
     }
 
     private void ExecuteClick(MacroEvent ev)

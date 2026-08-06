@@ -203,6 +203,8 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
         public ScreenImageMatchOptions LastImageOptions { get; private set; } = ScreenImageMatchOptions.Default;
 
+        public TaskCompletionSource<object?> ImageSearchStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public List<ScreenPoint> GetPixelPoints { get; } = [];
 
         public List<(ScreenPoint Point, ScreenPixelColor Expected, ScreenReadOptions Options)> WaitCalls { get; } = [];
@@ -245,6 +247,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             ScreenReadOptions readOptions)
         {
             readOptions.CancellationToken.ThrowIfCancellationRequested();
+            _ = ImageSearchStarted.TrySetResult(null);
             LastImageOptions = options;
             LastImageReadOptions = readOptions;
             return Task.FromResult(ImageSearchResult ?? ScreenReadResultFactory.Success<ScreenImageMatch>(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0)));

@@ -62,6 +62,56 @@ region: null,
     }
 
     [Fact]
+    public async Task SearchImageAsync_WhenCallerCancellationWinsOverTimeout_ReturnsCanceled()
+    {
+        using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var provider = new CancellationAwareFrameProvider(frame);
+        using var reader = new ScreenPixelReader(provider);
+        using var cts = new CancellationTokenSource();
+
+        var searchTask = reader.SearchImageAsync(
+            region: null,
+            template,
+            ScreenImageMatchOptions.Default,
+            new ScreenReadOptions(timeout: TimeSpan.FromSeconds(1), cancellationToken: cts.Token));
+        _ = await provider.Started.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        await cts.CancelAsync();
+
+        var result = await searchTask;
+
+        _ = result.IsSuccess.Should().BeFalse();
+        _ = result.ErrorKind.Should().Be(ScreenReadErrorKind.Canceled);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenWaitImageIsCanceledBeforeTimeout_PropagatesCancellation()
+    {
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        var screenReader = new FakeScreenPixelReader
+        {
+            ImageSearchResult = ScreenReadResultFactory.Failure<ScreenImageMatch>(
+                ScreenReadErrorKind.CaptureTimeout,
+                "No image matching the template was found."),
+        };
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
+        using var cts = new CancellationTokenSource();
+        var macro = new MacroSequence
+        {
+            ScriptSteps = { "waitimage Target found found_x found_y timeout 5000" },
+            Images = { ["Target"] = await EncodePngBase64Async(template) },
+        };
+
+        var playbackTask = player.PlayAsync(macro, cancellationToken: cts.Token);
+        _ = await screenReader.ImageSearchStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        await cts.CancelAsync();
+
+        var act = async () => await playbackTask;
+        _ = await act.Should().ThrowAsync<OperationCanceledException>();
+        _ = screenReader.LastImageReadOptions.CancellationToken.IsCancellationRequested.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenWaitImageTimeoutExpires_ForwardsRemainingDeadlineToImageSearch()
     {
         using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
@@ -389,5 +439,36 @@ region: null,
         _ = variables.Should().Contain("found", "true");
         _ = variables.Should().Contain("found_x", "1");
         _ = variables.Should().Contain("found_y", "2");
+    }
+
+    private sealed class CancellationAwareFrameProvider(ScreenFrame frame) : IScreenFrameProvider
+    {
+        private readonly ScreenFrame _frame = frame;
+
+        public string ProviderName => "cancellation-aware-frame-provider";
+
+        public bool IsSupported => true;
+
+        public TaskCompletionSource<object?> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+        {
+            _ = Started.TrySetResult(null);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, options.CancellationToken);
+                return ScreenReadResultFactory.Success<ScreenFrame>(_frame);
+            }
+            catch (OperationCanceledException)
+            {
+                return ScreenReadResultFactory.Failure<ScreenFrame>(
+                    ScreenReadErrorKind.Canceled,
+                    "Screen frame capture was canceled.");
+            }
+        }
+
+        public void Dispose()
+        {
+        }
     }
 }

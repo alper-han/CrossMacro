@@ -373,6 +373,14 @@ public sealed class EditorActionTests
         _ = action.IsValid().Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("$ target")]
+    [InlineData("target value")]
+    public void ScriptTokens_WhenVariableContainsWhitespace_ReturnFalse(string token)
+    {
+        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeFalse();
+    }
+
     [Fact]
     public void DisplayName_WhenForVariableValuesUseDollarPrefix_DoesNotDuplicateDollar()
     {
@@ -452,6 +460,23 @@ public sealed class EditorActionTests
         };
 
         _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("count")]
+    [InlineData("$count")]
+    public void IsValidVariableName_WhenTokenHasValidName_ReturnsTrue(string token)
+    {
+        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("$ x")]
+    [InlineData("count value")]
+    [InlineData("$1count")]
+    public void IsValidVariableName_WhenTokenContainsWhitespaceOrInvalidStart_ReturnsFalse(string token)
+    {
+        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeFalse();
     }
 
     [Fact]

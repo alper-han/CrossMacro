@@ -3,11 +3,21 @@ namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 
 public sealed class ImageAssetCodec : IImageAssetCodec
 {
-    public async Task<ScreenFrame> DecodeFileAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<byte[]> ReadFileAsync(
+        string filePath,
+        string? assetName = null,
+        CancellationToken cancellationToken = default)
     {
-        ScreenImageAssetPolicy.ValidateFileLength(filePath);
+        ScreenImageAssetPolicy.ValidateFileLength(filePath, assetName);
         var pngBytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
+        ScreenImageAssetPolicy.ValidateEncodedSize(pngBytes.Length, assetName);
+        return pngBytes;
+    }
+
+    public async Task<ScreenFrame> DecodeFileAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        var pngBytes = await ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
         return await DecodePngAsync(pngBytes, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 

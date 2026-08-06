@@ -24,6 +24,7 @@ internal static class CliCommandHandlerRegistrationModule
         _ = services.AddCliCommandHandler<TriggerCliOptions, TriggerCommandHandler>();
         _ = services.AddCliCommandHandler<RecordCliOptions, RecordCommandHandler>();
         _ = services.AddCliCommandHandler<RunCliOptions, RunCommandHandler>();
+        _ = services.AddCliCommandHandler<InputCliOptions, InputCommandHandler>();
         _ = services.AddCliCommandHandler<ClipboardCliOptions, ClipboardCommandHandler>();
         _ = services.AddCliCommandHandler<WindowCliOptions, WindowCommandHandler>();
         _ = services.AddCliCommandHandler<ScreenCliOptions, ScreenCommandHandler>();

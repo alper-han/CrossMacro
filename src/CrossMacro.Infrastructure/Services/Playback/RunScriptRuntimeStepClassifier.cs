@@ -13,6 +13,7 @@ internal static class RunScriptRuntimeStepClassifier
             || RunScriptPlatformSyntax.IsScreenshotStep(trimmed)
             || IsRuntimeDelayStep(trimmed)
             || IsRuntimeVariableStep(trimmed)
+            || trimmed.StartsWith("key ", StringComparison.OrdinalIgnoreCase)
             || RunScriptSyntax.IsBreakCommand(trimmed)
             || RunScriptSyntax.IsContinueCommand(trimmed)
             || RunScriptSyntax.IsBlockEndToken(trimmed)

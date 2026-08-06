@@ -40,6 +40,36 @@ public sealed class RunScriptExecutionServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenImageAssetExceedsEncodedLimit_RejectsBeforeReadingContents()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"crossmacro-oversized-{Guid.NewGuid():N}.png");
+        try
+        {
+            await using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                stream.SetLength(ScreenImageAssetPolicy.MaxEncodedBytes + 1L);
+            }
+
+            var runtimeService = Substitute.For<CrossMacro.Application.Runtime.IRunExecutionService>();
+            var service = new RunScriptExecutionService(runtimeService, new ImageAssetCodec());
+            var result = await service.ExecuteAsync(new RunCliExecutionRequest
+            {
+                Steps = ["imagesearch button"],
+                ImageAssets = [new RunImageAssetCliOption("button", path)],
+            }, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
+            Assert.Contains(result.Errors, error => error.Contains("maximum encoded size", StringComparison.OrdinalIgnoreCase));
+            _ = runtimeService.DidNotReceive().ExecuteAsync(Arg.Any<CrossMacro.Application.Runtime.RunExecutionRequest>(), Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenScreenReadingScriptUsesRuntimeMappedKey_ReturnsSuccess()
     {
         _ = _keyCodeMapper.GetKeyCode("Backspace").Returns(InputEventCode.KEY_BACKSPACE);

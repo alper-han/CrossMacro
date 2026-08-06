@@ -89,6 +89,32 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenRuntimeScriptContainsKeyAction_InitializesSimulatorAndExecutesKey()
+    {
+        var activity = new List<string>();
+        var inputSimulator = new RecordingInputSimulator(activity);
+        var keyCodeMapper = CreateKeyCodeMapper();
+        _ = keyCodeMapper.GetKeyCode("A").Returns(30);
+        using var player = CreatePlayer(
+            CreatePositionProvider((0, 0)),
+            new FakeScreenPixelReader(),
+            inputSimulator,
+            keyCodeMapper: keyCodeMapper);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "set ready=1",
+                "key down A",
+            },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = activity.Should().Contain("input:key:30:down");
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenPixelSearchCoordinatesFeedAbsoluteMove_ClicksTheMatch()
     {
         var activity = new List<string>();
@@ -123,6 +149,29 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         _ = variables.Should().Contain("btn_found", "true");
         _ = variables.Should().Contain("btn_x", "321");
         _ = variables.Should().Contain("btn_y", "654");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenPixelSearchPollingIsRequested_ForwardsPollingOptions()
+    {
+        var screenReader = new FakeScreenPixelReader
+        {
+            SearchResult = ScreenReadResultFactory.Success(
+                new ScreenPixelSearchMatch(
+                    new ScreenPoint(3, 4),
+                    new ScreenPixelColor(0xFF, 0x00, 0x00))),
+        };
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
+        var macro = new MacroSequence
+        {
+            ScriptSteps = { "pixelsearch 0 0 10 10 FF0000 found x y timeout 1000 poll 25" },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = screenReader.SearchCalls.Should().ContainSingle();
+        _ = screenReader.SearchCalls[0].Options.PollUntilMatch.Should().BeTrue();
+        _ = screenReader.SearchCalls[0].Options.PollInterval.Should().Be(TimeSpan.FromMilliseconds(25));
     }
 
     [Fact]

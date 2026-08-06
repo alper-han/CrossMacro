@@ -9,5 +9,6 @@ public sealed record RunCliOptions(
     int TimeoutSeconds = 0,
     bool DryRun = false,
     bool JsonOutput = false,
-    string? LogLevel = null)
+    string? LogLevel = null,
+    IReadOnlyList<RunImageAssetCliOption>? ImageAssets = null)
     : CliCommandOptions(JsonOutput, LogLevel);

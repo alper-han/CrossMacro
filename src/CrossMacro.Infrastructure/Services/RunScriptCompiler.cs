@@ -46,6 +46,12 @@ public sealed class RunScriptCompiler
             return RunScriptCompileResult.Fail("Internal parser error: unhandled loop-control signal.");
         }
 
+        if (expandedSteps.Count > 0
+            && expandedSteps.TrueForAll(static step => step.Step.TrimStart().StartsWith("delay ", StringComparison.OrdinalIgnoreCase)))
+        {
+            return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);
+        }
+
         if (expandedSteps.Count is 0 && RunScriptRuntimeValidator.ContainsRuntimeBackedNode(parseResult.Nodes!))
         {
             return CompileRuntimeScriptBackedSteps(steps, parseResult.Nodes!);

@@ -2,6 +2,11 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IImageAssetCodec
 {
+    public Task<byte[]> ReadFileAsync(
+        string filePath,
+        string? assetName = null,
+        CancellationToken cancellationToken = default);
+
     public Task<ScreenFrame> DecodeFileAsync(string filePath, CancellationToken cancellationToken = default);
 
     public ScreenFrame DecodePng(ReadOnlySpan<byte> pngBytes, string? assetName = null);

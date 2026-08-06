@@ -416,8 +416,8 @@ public sealed class CliCommandRouter
         {
             return
                 "Usage:\n" +
-                "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n" +
-                "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n\n" +
+                "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--asset <name> <png-path>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n" +
+                "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--asset <name> <png-path>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n\n" +
                 "Run Steps:\n" +
                 "  move abs <integer|$variable> <integer|$variable>\n" +
                 "  move rel <integer|$variable> <integer|$variable>\n" +
@@ -444,8 +444,13 @@ public sealed class CliCommandRouter
                 "  type <text>\n" +
                 "  pixelcolor <x> <y> [var]\n" +
                 "  pixelcolor rel <dx> <dy> [var]\n" +
-                "  waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]\n" +
-                "  pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]\n\n" +
+                "  waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var] [poll [interval_ms]]\n" +
+                "  pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [timeout <ms>] [tolerance <0..255>] [poll [interval_ms]]\n\n" +
+                "  imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <ms>] [poll [interval_ms]] [similarity <0..1>] [downsample <n>] [matchmode first|best] [scaleaware]\n" +
+                "  imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button left|right|middle] [timeout <ms>] [poll [interval_ms]]\n" +
+                "  waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <ms>] [poll [interval_ms]]\n" +
+                "  window ... | clipboard ... | screenshot ...\n\n" +
+                "  --asset <name> <png-path>  Load a named PNG asset for image script steps; repeatable.\n\n" +
                 "Shell capture modes store exit/stdout/stderr variables; use _ to ignore a value. Capture modes do not fail on non-zero exits.\n" +
                 "Shell output captured into variables is capped at 65536 characters per stream.\n" +
                 "Shell steps execute arbitrary commands as the current OS user; only run trusted macros. Flatpak builds disable shell steps. Use $$NAME to pass $NAME to the shell.\n\n" +
@@ -462,8 +467,34 @@ public sealed class CliCommandRouter
                 "  crossmacro run --step \"pixelcolor 500 300 sampled\"\n" +
                 "  crossmacro run --step \"waitcolor 500 300 00FF00 5000\"\n" +
                 "  crossmacro run --step 'pixelcolor 500 300 sampled' --step 'waitcolor 500 300 $sampled 5000'\n" +
-                "  crossmacro run --step \"pixelsearch 0 0 1920 1080 FF0000 found_x found_y tolerance 26\"\n" +
+                "  crossmacro run --step \"pixelsearch 0 0 1920 1080 FF0000 found_x found_y timeout 5000 poll 100 tolerance 26\"\n" +
+                "  crossmacro run --asset button ./button.png --step \"imagesearch button found found_x found_y timeout 5000 poll 100\"\n" +
                 "  crossmacro run --file ./steps.txt --json\n";
+        }
+
+        if (string.Equals(topic, "input", StringComparison.OrdinalIgnoreCase)
+            || IsInputCommandTopic(topic))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro move abs|rel|rel-logical|rel-raw <x> <y> [--dry-run] [--json] [--log-level <level>]\n" +
+                "  crossmacro click|down|up [current] <button> [--dry-run] [--json] [--log-level <level>]\n" +
+                "  crossmacro scroll <up|down|left|right> [count] [--dry-run] [--json] [--log-level <level>]\n" +
+                "  crossmacro key down|up <key> [--dry-run] [--json] [--log-level <level>]\n" +
+                "  crossmacro tap <combo> [--dry-run] [--json] [--log-level <level>]\n" +
+                "  crossmacro type <text> [--dry-run] [--json] [--log-level <level>]\n" +
+                "  crossmacro delay <ms> | delay random <min> <max> [--dry-run] [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Executes one input primitive using the same script compiler and coordinate handling as run.\n" +
+                "  Use run for variables, conditions, loops, screen reads, window operations, or multiple steps.\n\n" +
+                "Examples:\n" +
+                "  crossmacro move abs 500 300\n" +
+                "  crossmacro click left\n" +
+                "  crossmacro key down Ctrl\n" +
+                "  crossmacro tap Ctrl+C\n" +
+                "  crossmacro type \"hello world\"\n" +
+                "  crossmacro scroll down 3\n" +
+                "  crossmacro move abs 500 300 --dry-run --json\n";
         }
 
         if (string.Equals(topic, "headless", StringComparison.OrdinalIgnoreCase))
@@ -543,11 +574,11 @@ public sealed class CliCommandRouter
             return
                 "Usage:\n" +
                 "  crossmacro screen pixel <x> <y> [--relative] [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
-                "  crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
-                "  crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--json] [--log-level <level>]\n" +
-    "  crossmacro screen search-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
-    "  crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
-    "  crossmacro screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n\n" +
+                "  crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--poll] [--poll-ms <n>] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen search-image <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
+    "  crossmacro screen image-click <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n\n" +
                 "Colors are 6-character RGB hex values. search-color bounds are end-exclusive. image commands read 8-bit PNG templates.\n";
         }
 
@@ -572,6 +603,19 @@ public sealed class CliCommandRouter
     private static bool IsCliCommandToken(string firstToken)
     {
         return CliCommandCatalog.RootCommandLookup.ContainsKey(firstToken);
+    }
+
+    private static bool IsInputCommandTopic(string topic)
+    {
+        return string.Equals(topic, "move", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "click", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "down", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "up", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "scroll", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "key", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "tap", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "type", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(topic, "delay", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryGetRootCommand(

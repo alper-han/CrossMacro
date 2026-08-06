@@ -591,7 +591,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         {
             throw;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
             throw;
         }
@@ -711,7 +711,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                 || trimmed.StartsWith("up ", StringComparison.OrdinalIgnoreCase)
                 || trimmed.StartsWith("scroll ", StringComparison.OrdinalIgnoreCase)
                 || trimmed.StartsWith("tap ", StringComparison.OrdinalIgnoreCase)
-                || trimmed.StartsWith("type ", StringComparison.OrdinalIgnoreCase);
+                || trimmed.StartsWith("type ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("key ", StringComparison.OrdinalIgnoreCase);
         });
     }
 

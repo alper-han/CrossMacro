@@ -63,9 +63,10 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         IInputSimulator? inputSimulator = null,
         IPlaybackTimingService? timingService = null,
         Func<IInputSimulator>? inputSimulatorFactory = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IKeyCodeMapper? keyCodeMapper = null)
     {
-        var keyCodeMapper = CreateKeyCodeMapper();
+        keyCodeMapper ??= CreateKeyCodeMapper();
         return new MacroPlayer(
             new PlaybackValidator(keyCodeMapper, positionProvider),
             CreateDependencies(
@@ -400,6 +401,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
         public void KeyPress(int keyCode, bool pressed)
         {
+            _activity.Add($"input:key:{keyCode}:{(pressed ? "down" : "up")}");
         }
 
         public void Sync()

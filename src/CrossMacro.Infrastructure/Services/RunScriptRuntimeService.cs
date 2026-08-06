@@ -34,6 +34,11 @@ public sealed class RunScriptRuntimeService(
         }
 
         var sequence = compileResult.Sequence!;
+        if (request.ImageAssets is { Count: > 0 })
+        {
+            sequence.ReplaceImages(request.ImageAssets);
+        }
+
         var validation = new PlaybackValidator(_keyCodeMapper, _mousePositionProvider).Validate(sequence);
         if (!validation.IsValid)
         {

@@ -8,4 +8,5 @@ public sealed class RunCliExecutionRequest
     public double SpeedMultiplier { get; init; } = 1.0;
     public int CountdownSeconds { get; init; }
     public bool DryRun { get; init; }
+    public IReadOnlyList<RunImageAssetCliOption> ImageAssets { get; init; } = [];
 }

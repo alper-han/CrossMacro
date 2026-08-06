@@ -32,6 +32,7 @@ public sealed class RunCommandHandler(IRunScriptExecutionService runScriptExecut
             SpeedMultiplier = options.SpeedMultiplier,
             CountdownSeconds = options.CountdownSeconds,
             DryRun = options.DryRun,
+            ImageAssets = options.ImageAssets ?? [],
         }, cancellationToken).ConfigureAwait(false);
 
         return result.Success

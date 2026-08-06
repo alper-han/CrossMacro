@@ -13,6 +13,7 @@ internal static class RunCommandParser
         var dryRun = false;
         var jsonOutput = false;
         string? logLevel = null;
+        var imageAssets = new List<RunImageAssetCliOption>();
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -41,6 +42,43 @@ internal static class RunCommandParser
                     return CliParseHelpers.Error(fileError, jsonOutput);
                 }
 
+                continue;
+            }
+
+            if (string.Equals(token, "--asset", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!CliParseHelpers.TryReadNonEmptyString(args, ref i, out var assetName, out var nameError))
+                {
+                    return CliParseHelpers.Error(nameError, jsonOutput);
+                }
+
+                assetName = assetName.Trim();
+                if (assetName.StartsWith('-'))
+                {
+                    return CliParseHelpers.Error("--asset requires a name before the asset path.", jsonOutput);
+                }
+
+                if (!CliParseHelpers.TryReadNonEmptyString(args, ref i, out var assetPath, out var pathError))
+                {
+                    return CliParseHelpers.Error(pathError, jsonOutput);
+                }
+
+                if (assetPath.StartsWith('-'))
+                {
+                    return CliParseHelpers.Error("--asset requires a PNG path that does not start with '-'.", jsonOutput);
+                }
+
+                if (!IsValidImageAssetName(assetName))
+                {
+                    return CliParseHelpers.Error($"Invalid run image asset name '{assetName}'. Expected [A-Za-z_][A-Za-z0-9_]*.", jsonOutput);
+                }
+
+                if (imageAssets.Exists(asset => string.Equals(asset.Name, assetName, StringComparison.Ordinal)))
+                {
+                    return CliParseHelpers.Error($"Duplicate run image asset name: {assetName}", jsonOutput);
+                }
+
+                imageAssets.Add(new RunImageAssetCliOption(assetName, assetPath));
                 continue;
             }
 
@@ -115,8 +153,8 @@ internal static class RunCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "run requires at least one --step argument or --file.",
                 jsonOutput,
-                "crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
-                "crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
+                "crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--asset <name> <png-path>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
+                "crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--asset <name> <png-path>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
         }
 
         if (countdown < 0)
@@ -142,7 +180,8 @@ internal static class RunCommandParser
             TimeoutSeconds: timeout,
             DryRun: dryRun,
             JsonOutput: jsonOutput,
-            LogLevel: logLevel));
+            LogLevel: logLevel,
+            ImageAssets: imageAssets));
     }
 
     private static bool TryParseInlineRunStep(string[] args, ref int index, out string step, out string error)
@@ -302,6 +341,13 @@ internal static class RunCommandParser
                 step += $" {variableName}";
             }
 
+            if (index + 2 < args.Length
+                && RunScriptSyntax.IsImageSearchTimeoutKeyword(args[index + 1]))
+            {
+                step += $" {args[index + 1]} {args[index + 2]}";
+                index += 2;
+            }
+
             return true;
         }
 
@@ -324,6 +370,19 @@ internal static class RunCommandParser
             if (TryConsumeOptionalInlineArgument(args, ref index, out var resultVariableName))
             {
                 step += $" {resultVariableName}";
+            }
+
+            if (index + 1 < args.Length
+                && RunScriptSyntax.IsScreenReadPollKeyword(args[index + 1]))
+            {
+                step += $" {args[index + 1]}";
+                index++;
+                if (index + 1 < args.Length
+                    && int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                {
+                    step += $" {args[index + 1]}";
+                    index++;
+                }
             }
 
             return true;
@@ -363,13 +422,48 @@ internal static class RunCommandParser
                 step += " " + string.Join(' ', optionalVariables);
             }
 
-            if (index + 2 < args.Length && RunScriptSyntax.IsPixelSearchToleranceKeyword(args[index + 1]))
+            var stepBuilder = new StringBuilder(step);
+            while (index + 1 < args.Length)
             {
-                step += $" {args[index + 1]} {args[index + 2]}";
-                index += 2;
+                var option = args[index + 1];
+                if (RunScriptSyntax.IsPixelSearchToleranceKeyword(option)
+                    || RunScriptSyntax.IsImageSearchTimeoutKeyword(option))
+                {
+                    if (index + 2 >= args.Length)
+                    {
+                        error = $"Invalid inline step syntax for pixelsearch. Expected a value after {option}.";
+                        return false;
+                    }
+
+                    _ = stepBuilder.Append(' ').Append(option).Append(' ').Append(args[index + 2]);
+                    index += 2;
+                    continue;
+                }
+
+                if (RunScriptSyntax.IsScreenReadPollKeyword(option))
+                {
+                    _ = stepBuilder.Append(' ').Append(option);
+                    index++;
+                    if (index + 1 < args.Length
+                        && int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    {
+                        _ = stepBuilder.Append(' ').Append(args[index + 1]);
+                        index++;
+                    }
+
+                    continue;
+                }
+
+                break;
             }
 
+            step = stepBuilder.ToString();
             return true;
+        }
+
+        if (IsExtendedRuntimeStepToken(token))
+        {
+            return TryParseInlineRuntimeStep(args, ref index, out step, out error);
         }
 
         if (string.Equals(token, "tap", StringComparison.OrdinalIgnoreCase)
@@ -542,6 +636,7 @@ internal static class RunCommandParser
 
         var candidate = args[index + 1];
         if (candidate.StartsWith('-')
+            || IsInlineRunOptionToken(candidate)
             || IsInlineRunCommandToken(candidate))
         {
             return false;
@@ -650,9 +745,64 @@ internal static class RunCommandParser
             || string.Equals(token, "else", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "for", StringComparison.OrdinalIgnoreCase)
             || RunScriptSyntax.IsScreenReadingCommandToken(token)
+            || IsExtendedRuntimeStepToken(token)
             || RunScriptSyntax.IsBreakCommand(token)
             || RunScriptSyntax.IsContinueCommand(token)
             || RunScriptSyntax.IsBlockEndToken(token);
+    }
+
+    private static bool IsExtendedRuntimeStepToken(string token)
+    {
+        return string.Equals(token, "window", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "clipboard", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "screenshot", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "imagesearch", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "imageclick", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "waitimage", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsInlineRunOptionToken(string token)
+    {
+        return string.Equals(token, "timeout", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "tolerance", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "similarity", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "downsample", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "matchmode", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "scaleaware", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "button", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "poll", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryParseInlineRuntimeStep(string[] args, ref int index, out string step, out string error)
+    {
+        step = string.Empty;
+        error = string.Empty;
+        var startIndex = index;
+        while (index + 1 < args.Length)
+        {
+            var next = args[index + 1];
+            // Runtime-backed commands have their own sub-command vocabulary.  A
+            // sub-command such as `window move` is also a valid top-level run
+            // command token, so it must be retained as the first operand of the
+            // runtime step.  Subsequent command tokens still delimit the next
+            // inline step (for example, `window move -10 -20 click left`).
+            if (next.StartsWith("--", StringComparison.Ordinal)
+                || (index > startIndex && IsInlineRunCommandToken(next)))
+            {
+                break;
+            }
+
+            index++;
+        }
+
+        if (index == startIndex)
+        {
+            error = $"Invalid inline step syntax for {args[startIndex]}. Expected command operands.";
+            return false;
+        }
+
+        step = string.Join(' ', args[startIndex..(index + 1)]);
+        return true;
     }
 
     private static bool IsVariableReferenceToken(string token)
@@ -682,5 +832,11 @@ internal static class RunCommandParser
         }
 
         return true;
+    }
+
+    private static bool IsValidImageAssetName(string value)
+    {
+        return !value.StartsWith('$')
+            && EditorActionScriptTokens.IsValidVariableName(value);
     }
 }

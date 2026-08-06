@@ -13,8 +13,9 @@ public static class EditorActionScriptTokens
             return false;
         }
 
-        var name = NormalizeVariableToken(value);
-        if (name.Length is 0)
+        var token = value.Trim();
+        var name = token.StartsWith('$') ? token[1..] : token;
+        if (name.Length is 0 || name.Any(char.IsWhiteSpace))
         {
             return false;
         }

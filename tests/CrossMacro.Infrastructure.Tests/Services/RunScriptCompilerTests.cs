@@ -205,6 +205,17 @@ public sealed class RunScriptCompilerTests
         _ = result.ErrorMessage.Should().NotContain("Parameter 'step'");
     }
 
+    [Fact]
+    public void Compile_WhenScriptContainsOnlyDelay_PreservesRuntimeDelayStep()
+    {
+        var result = _compiler.Compile([new RunScriptStep("delay 100")]);
+
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.ScriptSteps.Should().ContainSingle().Which.Should().Be("delay 100");
+    }
+
     [Theory]
     [InlineData("delay nope", "Step 1: Invalid delay value. Expected: delay <ms> with ms >= 0.")]
     [InlineData("move sideways 1 2", "Step 1: Invalid move mode. Expected: abs|absolute|rel|relative|rel-logical|rel-raw.")]
@@ -432,6 +443,8 @@ public sealed class RunScriptCompilerTests
     [InlineData("imagesearch TargetImage similarity -Infinity", "Invalid imagesearch similarity")]
     [InlineData("imagesearch TargetImage similarity 0,9", "Invalid imagesearch similarity")]
     [InlineData("imagesearch TargetImage downsample 0", "Invalid imagesearch downsample")]
+    [InlineData("imagesearch TargetImage matchmode first matchmode best", "Duplicate imagesearch matchmode")]
+    [InlineData("imagesearch TargetImage poll poll", "Invalid imagesearch poll")]
     [InlineData("imageclick TargetImage button side1", "Invalid imageclick button")]
     [InlineData("imageclick TargetImage button l", "Invalid imageclick button")]
     [InlineData("imageclick TargetImage button left button right", "Invalid imageclick button")]
@@ -450,6 +463,9 @@ public sealed class RunScriptCompilerTests
     [InlineData("screenshot region 1 2 3 4 region 5 6 7 8 clipboard", "Unknown screenshot token 'region'")]
     [InlineData("screenshot output", "Syntax: screenshot output <path>")]
     [InlineData("screenshot unknown", "Unknown screenshot token 'unknown'")]
+    [InlineData("pixelsearch 0 0 10 10 123456 poll 0", "poll interval")]
+    [InlineData("imagesearch TargetImage poll nope", "poll interval")]
+    [InlineData("waitcolor 1 2 FF0000 1000 wait_ok poll 0", "poll interval")]
     public void Compile_WhenScreenReadingStepIsMalformed_ReturnsFailure(string step, string expectedError)
     {
         var result = _compiler.Compile([new RunScriptStep(step)]);
@@ -470,12 +486,15 @@ public sealed class RunScriptCompilerTests
     [InlineData("waitcolor 1 2 FF0000")]
     [InlineData("waitcolor 1 2 FF0000 1000")]
     [InlineData("waitcolor 1 2 FF0000 1000 wait_ok")]
+    [InlineData("waitcolor 1 2 FF0000 1000 wait_ok poll 25")]
+    [InlineData("waitcolor 1 2 FF0000 poll 25")]
     [InlineData("waitcolor 1 2 $sampled 100 wait_ok")]
     [InlineData("pixelsearch 0 0 10 10 123456")]
     [InlineData("pixelsearch 0 0 10 10 123456 found_x found_y")]
     [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y")]
     [InlineData("pixelsearch 0 0 10 10 123456 tolerance 10")]
     [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y tolerance 26")]
+    [InlineData("pixelsearch 0 0 10 10 123456 found found_x found_y timeout 5000 poll 25 tolerance 26")]
     [InlineData("pixelsearch 0 0 10 10 $sampled found found_x found_y tolerance 10")]
     [InlineData("imagesearch TargetImage")]
     [InlineData("imagesearch 0 0 10 10 TargetImage")]
@@ -485,6 +504,9 @@ public sealed class RunScriptCompilerTests
     [InlineData("imagesearch TargetImage similarity 0.9")]
     [InlineData("imagesearch TargetImage downsample 2")]
     [InlineData("imagesearch 0 0 10 10 TargetImage found found_x found_y similarity 0.85 downsample 2")]
+    [InlineData("imagesearch TargetImage found found_x found_y timeout 5000 poll 25")]
+    [InlineData("imageclick TargetImage button right timeout 5000 poll")]
+    [InlineData("waitimage TargetImage found found_x found_y timeout 5000 poll 100")]
     [InlineData("screenshot output shot.png")]
     [InlineData("screenshot clipboard")]
     [InlineData("screenshot output shot.png clipboard")]

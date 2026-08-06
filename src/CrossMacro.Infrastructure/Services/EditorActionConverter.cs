@@ -237,7 +237,25 @@ public class EditorActionConverter : IEditorActionConverter
                 break;
         }
 
+        ApplyActionRandomDelay(events, action);
         return events;
+    }
+
+    private static void ApplyActionRandomDelay(List<MacroEvent> events, EditorAction action)
+    {
+        if (action.Type is EditorActionType.Delay
+            || !action.UseRandomDelay
+            || events.Count is 0)
+        {
+            return;
+        }
+
+        var firstEvent = events[0];
+        firstEvent.DelayMs = 0;
+        firstEvent.HasRandomDelay = true;
+        firstEvent.RandomDelayMinMs = action.RandomDelayMinMs;
+        firstEvent.RandomDelayMaxMs = action.RandomDelayMaxMs;
+        events[0] = firstEvent;
     }
 
     private static bool UsesPositionCoordinates(EditorAction action)
@@ -671,13 +689,22 @@ public class EditorActionConverter : IEditorActionConverter
                 actionSteps.RemoveAt(0);
             }
 
-            if (actionSteps.Count > 0
-                && action.Type is not EditorActionType.Delay
-                && action.DelayMs > 0)
+            if (actionSteps.Count > 0 && action.Type is not EditorActionType.Delay)
             {
-                actionSteps.Insert(
-                    0,
-                    $"delay {action.DelayMs.ToString(CultureInfo.InvariantCulture)}");
+                string? delayStep = null;
+                if (action.UseRandomDelay)
+                {
+                    delayStep = $"delay random {action.RandomDelayMinMs.ToString(CultureInfo.InvariantCulture)} {action.RandomDelayMaxMs.ToString(CultureInfo.InvariantCulture)}";
+                }
+                else if (action.DelayMs > 0)
+                {
+                    delayStep = $"delay {action.DelayMs.ToString(CultureInfo.InvariantCulture)}";
+                }
+
+                if (delayStep is not null)
+                {
+                    actionSteps.Insert(0, delayStep);
+                }
             }
 
             foreach (var step in actionSteps)

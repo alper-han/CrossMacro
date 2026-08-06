@@ -735,6 +735,50 @@ public sealed partial class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToMacroSequence_WhenVariableCoordinateActionHasRandomDelay_PreservesRandomDelayInScript()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "x",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "10",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "y",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "20",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = true,
+                CoordinateXToken = "$x",
+                CoordinateYToken = "$y",
+                UseRandomDelay = true,
+                RandomDelayMinMs = 10,
+                RandomDelayMaxMs = 20,
+            },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Variable Coordinate Random Delay", isAbsolute: true);
+
+        _ = sequence.ScriptSteps.Should().Equal(
+            "set x 10",
+            "set y 20",
+            "delay random 10 20",
+            "move abs $x $y");
+        _ = sequence.Events.Should().ContainSingle();
+        _ = sequence.Events[0].HasRandomDelay.Should().BeTrue();
+        _ = sequence.Events[0].RandomDelayMinMs.Should().Be(10);
+        _ = sequence.Events[0].RandomDelayMaxMs.Should().Be(20);
+    }
+
+    [Fact]
     public void ToMacroSequence_WhenPixelSearchFeedsDelayedVariableMove_SerializesDelayBeforeMove()
     {
         var actions = new[]

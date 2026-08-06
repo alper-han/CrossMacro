@@ -23,6 +23,7 @@ public static class ValidationMessages
     public const string ScrollAmountTooLarge = "Scroll amount cannot exceed 100";
 
     // MouseMove
+    public const string CoordinateTokenInvalid = "Coordinates must be integers or variable references";
     public const string AbsoluteCoordsMustBeNonNegative = "Absolute coordinates must be non-negative";
     public const string CoordsExceedMaximum = "Coordinates exceed maximum supported value";
     public const string RelativeMoveMustHaveValue = "Relative move must have non-zero X or Y";

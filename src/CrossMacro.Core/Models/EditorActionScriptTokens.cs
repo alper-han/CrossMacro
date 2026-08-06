@@ -51,6 +51,42 @@ public static class EditorActionScriptTokens
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
     }
 
+    public static bool TryParseNumericToken(
+        string? rawToken,
+        out ScriptNumericSourceType sourceType,
+        out string value)
+    {
+        sourceType = ScriptNumericSourceType.Number;
+        value = string.Empty;
+
+        var token = rawToken?.Trim() ?? string.Empty;
+        if (token.Length is 0)
+        {
+            return false;
+        }
+
+        if (token.StartsWith('$'))
+        {
+            var variableName = NormalizeVariableToken(token);
+            if (variableName.Any(char.IsWhiteSpace) || !IsValidVariableName(variableName))
+            {
+                return false;
+            }
+
+            sourceType = ScriptNumericSourceType.VariableReference;
+            value = variableName;
+            return true;
+        }
+
+        if (!int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+        {
+            return false;
+        }
+
+        value = number.ToString(CultureInfo.InvariantCulture);
+        return true;
+    }
+
     public static bool ValidateOperandToken(ScriptOperandType operandType, string token)
     {
         ArgumentNullException.ThrowIfNull(token);

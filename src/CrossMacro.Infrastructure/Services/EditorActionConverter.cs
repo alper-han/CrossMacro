@@ -36,6 +36,15 @@ public class EditorActionConverter : IEditorActionConverter
     {
         ArgumentNullException.ThrowIfNull(action);
         var events = new List<MacroEvent>();
+        var x = action.X;
+        var y = action.Y;
+
+        if (UsesPositionCoordinates(action)
+            && !action.TryGetLiteralCoordinates(out x, out y))
+        {
+            throw new InvalidOperationException(
+                "Variable mouse coordinates require script-backed sequence conversion.");
+        }
 
         switch (action.Type)
         {
@@ -43,8 +52,8 @@ public class EditorActionConverter : IEditorActionConverter
                 events.Add(new MacroEvent
                 {
                     Type = EventType.MouseMove,
-                    X = action.X,
-                    Y = action.Y,
+                    X = x,
+                    Y = y,
                     DelayMs = action.DelayMs,
                     CoordinateMode = action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
                     CoordinateSpace = action.IsAbsolute
@@ -57,8 +66,8 @@ public class EditorActionConverter : IEditorActionConverter
                 events.Add(new MacroEvent
                 {
                     Type = EventType.Click,
-                    X = action.UseCurrentPosition ? 0 : action.X,
-                    Y = action.UseCurrentPosition ? 0 : action.Y,
+                    X = action.UseCurrentPosition ? 0 : x,
+                    Y = action.UseCurrentPosition ? 0 : y,
                     Button = action.Button,
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
@@ -71,8 +80,8 @@ public class EditorActionConverter : IEditorActionConverter
                 events.Add(new MacroEvent
                 {
                     Type = EventType.ButtonPress,
-                    X = action.UseCurrentPosition ? 0 : action.X,
-                    Y = action.UseCurrentPosition ? 0 : action.Y,
+                    X = action.UseCurrentPosition ? 0 : x,
+                    Y = action.UseCurrentPosition ? 0 : y,
                     Button = action.Button,
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
@@ -85,8 +94,8 @@ public class EditorActionConverter : IEditorActionConverter
                 events.Add(new MacroEvent
                 {
                     Type = EventType.ButtonRelease,
-                    X = action.UseCurrentPosition ? 0 : action.X,
-                    Y = action.UseCurrentPosition ? 0 : action.Y,
+                    X = action.UseCurrentPosition ? 0 : x,
+                    Y = action.UseCurrentPosition ? 0 : y,
                     Button = action.Button,
                     DelayMs = action.DelayMs,
                     UseCurrentPosition = action.UseCurrentPosition,
@@ -229,6 +238,13 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         return events;
+    }
+
+    private static bool UsesPositionCoordinates(EditorAction action)
+    {
+        return action.Type is EditorActionType.MouseMove
+            || (action.Type is EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp
+                && !action.UseCurrentPosition);
     }
 
     private static bool TryGetTextInputControlKeyCode(char character, out int keyCode)
@@ -478,7 +494,12 @@ public class EditorActionConverter : IEditorActionConverter
         var hasStateScriptActions = actionList.Exists(action => EditorActionScriptClassifier.IsScriptStateAction(action.Type));
         var hasOpaqueScriptActions = actionList.Exists(action => EditorActionScriptClassifier.IsOpaqueScriptAction(action.Type));
         var hasRuntimeEventActions = actionList.Exists(action => EditorActionScriptClassifier.IsRuntimeEventAction(action.Type));
-        if (hasFlowControlScriptActions || hasOpaqueScriptActions || (hasStateScriptActions && !hasRuntimeEventActions))
+        var hasScriptCoordinateActions = actionList.Exists(action =>
+            UsesPositionCoordinates(action) && !action.TryGetLiteralCoordinates(out _, out _));
+        if (hasFlowControlScriptActions
+            || hasOpaqueScriptActions
+            || hasScriptCoordinateActions
+            || (hasStateScriptActions && !hasRuntimeEventActions))
         {
             return CompileScriptBackedSequence(actionList, name);
         }
@@ -650,6 +671,15 @@ public class EditorActionConverter : IEditorActionConverter
                 actionSteps.RemoveAt(0);
             }
 
+            if (actionSteps.Count > 0
+                && action.Type is not EditorActionType.Delay
+                && action.DelayMs > 0)
+            {
+                actionSteps.Insert(
+                    0,
+                    $"delay {action.DelayMs.ToString(CultureInfo.InvariantCulture)}");
+            }
+
             foreach (var step in actionSteps)
             {
                 steps.Add(new RunScriptStep(step, SourceLineNumber: null, sourceIndex));
@@ -664,7 +694,7 @@ public class EditorActionConverter : IEditorActionConverter
         switch (action.Type)
         {
             case EditorActionType.MouseMove:
-                yield return $"move {ToMouseMoveModeToken(action)} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
+                yield return $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
                 yield break;
 
             case EditorActionType.MouseClick:
@@ -674,7 +704,7 @@ public class EditorActionConverter : IEditorActionConverter
                 }
                 else
                 {
-                    yield return $"move {ToMouseMoveModeToken(action)} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
+                    yield return $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
                     yield return $"click {ToButtonToken(action.Button)}";
                 }
 
@@ -683,7 +713,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.MouseDown:
                 if (!action.UseCurrentPosition)
                 {
-                    yield return $"move {ToMouseMoveModeToken(action)} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
+                    yield return $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
                 }
 
                 yield return action.UseCurrentPosition
@@ -694,7 +724,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.MouseUp:
                 if (!action.UseCurrentPosition)
                 {
-                    yield return $"move {ToMouseMoveModeToken(action)} {action.X.ToString(CultureInfo.InvariantCulture)} {action.Y.ToString(CultureInfo.InvariantCulture)}";
+                    yield return $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
                 }
 
                 yield return action.UseCurrentPosition
@@ -1232,7 +1262,8 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        return previousX == currentX && previousY == currentY;
+        return string.Equals(previousX, currentX, StringComparison.Ordinal)
+            && string.Equals(previousY, currentY, StringComparison.Ordinal);
     }
 
     /// <inheritdoc/>
@@ -1458,8 +1489,8 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var hasAbsoluteCursorPosition = false;
-        var absoluteCursorX = 0;
-        var absoluteCursorY = 0;
+        var absoluteCursorX = "0";
+        var absoluteCursorY = "0";
         MouseCoordinateMode? currentMoveMode = null;
         MouseCoordinateSpace? currentMoveCoordinateSpace = null;
 
@@ -1499,8 +1530,8 @@ public class EditorActionConverter : IEditorActionConverter
                     Type = EditorActionType.MouseMove,
                     IsAbsolute = moveMode is MouseCoordinateMode.Absolute,
                     CoordinateSpace = moveCoordinateSpace,
-                    X = moveX,
-                    Y = moveY,
+                    CoordinateXToken = moveX,
+                    CoordinateYToken = moveY,
                 });
                 continue;
             }
@@ -1536,8 +1567,8 @@ public class EditorActionConverter : IEditorActionConverter
                         currentButton,
                         isAbsolute: false,
                         currentMoveCoordinateSpace ?? MouseCoordinateSpace.LogicalDesktop,
-                        0,
-                        0));
+                        "0",
+                        "0"));
                     continue;
                 }
 
@@ -1723,13 +1754,13 @@ public class EditorActionConverter : IEditorActionConverter
         string step,
         out MouseCoordinateMode coordinateMode,
         out MouseCoordinateSpace coordinateSpace,
-        out int x,
-        out int y)
+        out string x,
+        out string y)
     {
         coordinateMode = MouseCoordinateMode.Relative;
         coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
-        x = 0;
-        y = 0;
+        x = string.Empty;
+        y = string.Empty;
 
         var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (tokens.Length is not 4 || !tokens[0].Equals("move", StringComparison.OrdinalIgnoreCase))
@@ -1742,11 +1773,14 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
-        if (!int.TryParse(tokens[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out x)
-            || !int.TryParse(tokens[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out y))
+        if (!EditorActionScriptTokens.TryParseNumericToken(tokens[2], out var xSourceType, out var xValue)
+            || !EditorActionScriptTokens.TryParseNumericToken(tokens[3], out var ySourceType, out var yValue))
         {
             return false;
         }
+
+        x = EditorActionScriptTokens.FormatNumericToken(xSourceType, xValue);
+        y = EditorActionScriptTokens.FormatNumericToken(ySourceType, yValue);
 
         return true;
     }
@@ -1822,8 +1856,8 @@ public class EditorActionConverter : IEditorActionConverter
         MacroMouseButton button,
         bool isAbsolute,
         MouseCoordinateSpace coordinateSpace,
-        int x,
-        int y)
+        string x,
+        string y)
     {
         var actionType = keyword switch
         {
@@ -1839,8 +1873,8 @@ public class EditorActionConverter : IEditorActionConverter
             Button = button,
             IsAbsolute = isAbsolute,
             CoordinateSpace = coordinateSpace,
-            X = x,
-            Y = y,
+            CoordinateXToken = x,
+            CoordinateYToken = y,
             UseCurrentPosition = false,
         };
     }
@@ -3326,35 +3360,7 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static bool TryParseNumericToken(string rawToken, out ScriptNumericSourceType sourceType, out string tokenValue)
     {
-        sourceType = ScriptNumericSourceType.Number;
-        tokenValue = string.Empty;
-
-        var token = rawToken.Trim();
-        if (token.Length is 0)
-        {
-            return false;
-        }
-
-        if (token.StartsWith('$'))
-        {
-            var variable = token[1..].Trim();
-            if (!TryNormalizeVariableName(variable, out tokenValue))
-            {
-                return false;
-            }
-
-            sourceType = ScriptNumericSourceType.VariableReference;
-            return true;
-        }
-
-        if (!int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
-        {
-            return false;
-        }
-
-        sourceType = ScriptNumericSourceType.Number;
-        tokenValue = number.ToString(CultureInfo.InvariantCulture);
-        return true;
+        return EditorActionScriptTokens.TryParseNumericToken(rawToken, out sourceType, out tokenValue);
     }
 
     private static bool TryParseOperandToken(

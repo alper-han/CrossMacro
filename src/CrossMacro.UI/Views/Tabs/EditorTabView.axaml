@@ -227,7 +227,7 @@
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCoordinates}">
                                 <TextBlock Text="{localization:Loc Editor_Coordinates}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Grid ColumnDefinitions="*,8,*">
-                                    <TextBox Text="{Binding SelectedAction.X, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                                    <TextBox Text="{Binding SelectedAction.CoordinateXToken, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="X"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
@@ -235,7 +235,7 @@
                                              CornerRadius="4"
                                              Padding="8,6"/>
                                     <TextBox Grid.Column="2"
-                                             Text="{Binding SelectedAction.Y, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                                             Text="{Binding SelectedAction.CoordinateYToken, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="Y"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"

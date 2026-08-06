@@ -464,7 +464,7 @@ Security > Screen Recording, then restart CrossMacro.
 
 Additional direct-run steps include:
 
-- `move abs <x> <y>`, `move rel <dx> <dy>`, `move rel-logical <dx> <dy>`, and `move rel-raw <dx> <dy>`
+- `move abs <integer|$variable> <integer|$variable>`, `move rel <integer|$variable> <integer|$variable>`, `move rel-logical <integer|$variable> <integer|$variable>`, and `move rel-raw <integer|$variable> <integer|$variable>`
 - `click <button>`, `down <button>`, and `up <button>`
 - `click current <button>`, `down current <button>`, and `up current <button>`
 - `scroll <up|down|left|right> [count]`
@@ -484,6 +484,25 @@ Additional direct-run steps include:
 - `while <left> <op> <right> { ... }`
 - `for <var> from <start> to <end> [step <n>] { ... }`
 - `break`, `continue`, and `}`
+
+Move coordinates may be integer literals or `$variable` references. Variable
+coordinates are resolved immediately before the move executes, so screen-reading
+results such as `pixelsearch` coordinates can be used in subsequent moves. The
+resolved values must be valid integers; absolute moves still require an input
+provider with absolute-coordinate support.
+
+```text
+pixelsearch 0 0 1920 1080 FF0000 found found_x found_y tolerance 5
+if $found == true {
+  move abs $found_x $found_y
+  click left
+}
+```
+
+The macro editor accepts the same values in the X and Y fields for mouse move,
+click, hold, and release actions. When invoking the CLI from a shell, quote steps
+containing `$variable` references so the shell does not expand them first, for
+example `--step 'move abs $found_x $found_y'`.
 
 `move rel` retains the raw device-relative behavior used by existing scripts;
 `move rel-raw` is its explicit spelling. `move rel-logical` uses logical desktop

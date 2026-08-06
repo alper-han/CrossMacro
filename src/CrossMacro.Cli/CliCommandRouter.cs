@@ -419,10 +419,10 @@ public sealed class CliCommandRouter
                 "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n" +
                 "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n\n" +
                 "Run Steps:\n" +
-                "  move abs <x> <y>\n" +
-                "  move rel <dx> <dy>\n" +
-                "  move rel-logical <dx> <dy>\n" +
-                "  move rel-raw <dx> <dy>\n" +
+                "  move abs <integer|$variable> <integer|$variable>\n" +
+                "  move rel <integer|$variable> <integer|$variable>\n" +
+                "  move rel-logical <integer|$variable> <integer|$variable>\n" +
+                "  move rel-raw <integer|$variable> <integer|$variable>\n" +
                 "  down <button> | up <button> | click <button>\n" +
                 "  down current <button> | up current <button> | click current <button>\n" +
                 "  scroll <up|down|left|right> [count]\n" +

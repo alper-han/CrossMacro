@@ -73,6 +73,39 @@ public sealed class RunScriptCompilerTests
         _ = result.Sequence.Events[0].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
     }
 
+    [Theory]
+    [InlineData("abs")]
+    [InlineData("rel")]
+    [InlineData("rel-logical")]
+    [InlineData("rel-raw")]
+    public void Compile_WhenRuntimeScreenStepFeedsVariableMove_AllowsCoordinateModes(string mode)
+    {
+        var steps = new[]
+        {
+            new RunScriptStep("pixelsearch 0 0 10 10 142C2D found found_x found_y"),
+            new RunScriptStep($"move {mode} $found_x $found_y"),
+        };
+
+        var result = _compiler.Compile(steps);
+
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence.ScriptSteps.Should().Equal(steps.Select(step => step.Step));
+    }
+
+    [Fact]
+    public void Compile_WhenRuntimeScreenStepFeedsMalformedVariableMove_ReturnsCoordinateDiagnostic()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("pixelsearch 0 0 10 10 142C2D found found_x found_y"),
+            new RunScriptStep("move abs $found_x not-a-coordinate"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Contain("Invalid move coordinates");
+    }
+
     [Fact]
     public void Compile_WhenRawRelativeMoveThenClick_PropagatesRawDeviceSpace()
     {

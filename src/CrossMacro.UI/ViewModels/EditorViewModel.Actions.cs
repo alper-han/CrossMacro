@@ -34,6 +34,8 @@ public partial class EditorViewModel
         return left.Type == right.Type
             && left.X == right.X
             && left.Y == right.Y
+            && string.Equals(left.CoordinateXToken, right.CoordinateXToken, StringComparison.Ordinal)
+            && string.Equals(left.CoordinateYToken, right.CoordinateYToken, StringComparison.Ordinal)
             && left.IsAbsolute == right.IsAbsolute
             && left.CoordinateSpace == right.CoordinateSpace
             && left.Button == right.Button
@@ -247,6 +249,7 @@ public partial class EditorViewModel
 
     private bool ShouldCoalescePropertyUndo(EditorAction? action, string propertyName)
     {
+        propertyName = GetUndoPropertyName(propertyName);
         var now = DateTimeOffset.UtcNow;
         var shouldCoalesce =
             action is not null && ReferenceEquals(action, _lastPropertyEditAction)
@@ -258,6 +261,16 @@ public partial class EditorViewModel
         _lastPropertyEditUndoAt = now;
 
         return shouldCoalesce;
+    }
+
+    private static string GetUndoPropertyName(string propertyName)
+    {
+        return propertyName switch
+        {
+            nameof(EditorAction.X) or nameof(EditorAction.CoordinateXToken) => nameof(EditorAction.CoordinateXToken),
+            nameof(EditorAction.Y) or nameof(EditorAction.CoordinateYToken) => nameof(EditorAction.CoordinateYToken),
+            _ => propertyName,
+        };
     }
 
     private void OnSelectedActionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

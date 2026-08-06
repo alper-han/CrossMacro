@@ -47,6 +47,8 @@ public sealed class EditorActionTests
             Type = EditorActionType.MouseMove,
             X = 40,
             Y = 55,
+            CoordinateXToken = "$found_x",
+            CoordinateYToken = "$found_y",
             IsAbsolute = false,
             CoordinateSpace = MouseCoordinateSpace.RawDevice,
             Button = MacroMouseButton.Right,
@@ -107,6 +109,8 @@ public sealed class EditorActionTests
         _ = clone.Type.Should().Be(source.Type);
         _ = clone.X.Should().Be(source.X);
         _ = clone.Y.Should().Be(source.Y);
+        _ = clone.CoordinateXToken.Should().Be("$found_x");
+        _ = clone.CoordinateYToken.Should().Be("$found_y");
         _ = clone.IsAbsolute.Should().Be(source.IsAbsolute);
         _ = clone.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
         _ = clone.Button.Should().Be(source.Button);
@@ -156,6 +160,53 @@ public sealed class EditorActionTests
         _ = clone.WindowWidth.Should().Be(source.WindowWidth);
         _ = clone.WindowHeight.Should().Be(source.WindowHeight);
         _ = clone.WindowWorkspace.Should().Be(source.WindowWorkspace);
+    }
+
+    [Fact]
+    public void CoordinateTokens_WhenSwitchingBetweenVariableAndLiteral_KeepNumericFacadeConsistent()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            X = 10,
+            Y = 20,
+            CoordinateXToken = "$found_x",
+            CoordinateYToken = "42",
+        };
+
+        _ = action.CoordinateXToken.Should().Be("$found_x");
+        _ = action.CoordinateYToken.Should().Be("42");
+        _ = action.Y.Should().Be(42);
+        _ = action.HasVariableCoordinates.Should().BeTrue();
+        _ = action.TryGetLiteralCoordinates(out _, out _).Should().BeFalse();
+
+        action.X = 7;
+
+        _ = action.CoordinateXToken.Should().Be("7");
+        _ = action.HasVariableCoordinates.Should().BeFalse();
+        _ = action.TryGetLiteralCoordinates(out var x, out var y).Should().BeTrue();
+        _ = x.Should().Be(7);
+        _ = y.Should().Be(42);
+    }
+
+    [Theory]
+    [InlineData("$x", true)]
+    [InlineData("-15", true)]
+    [InlineData("$1bad", false)]
+    [InlineData("$ x", false)]
+    [InlineData("$x y", false)]
+    [InlineData("not-a-coordinate", false)]
+    public void IsValid_MouseMoveValidatesCoordinateTokens(string xToken, bool expected)
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            CoordinateXToken = xToken,
+            CoordinateYToken = "1",
+            IsAbsolute = false,
+        };
+
+        _ = action.IsValid().Should().Be(expected);
     }
 
     [Fact]

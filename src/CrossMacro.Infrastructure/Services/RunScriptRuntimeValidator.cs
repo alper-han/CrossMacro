@@ -112,6 +112,11 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
         }
 
+        if (IsRuntimeMoveCommand(trimmed))
+        {
+            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        }
+
         var compileResult = _compileStaticCommand(step);
         return compileResult.Success ? RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0) : RunScriptCompileResult.Fail(compileResult.ErrorMessage);
     }
@@ -175,6 +180,25 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
         }
 
         return token.StartsWith('$') && token.Length > 1 && EditorActionScriptTokens.IsValidVariableName(token[1..]);
+    }
+
+    private static bool IsRuntimeMoveCommand(string step)
+    {
+        var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length is not 4 || !string.Equals(parts[0], "move", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!RunScriptSyntax.TryParseMouseMoveMode(parts[1], out _, out _))
+        {
+            return false;
+        }
+
+        return EditorActionScriptTokens.TryParseNumericToken(parts[2], out var xSourceType, out _)
+            && EditorActionScriptTokens.TryParseNumericToken(parts[3], out var ySourceType, out _)
+            && (xSourceType is ScriptNumericSourceType.VariableReference
+                || ySourceType is ScriptNumericSourceType.VariableReference);
     }
 
     private static bool IsRuntimeServiceCommand(string step)

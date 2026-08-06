@@ -267,6 +267,33 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
+    public void Undo_AfterCoordinateVariableEdit_RestoresLiteralToken()
+    {
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+
+        _viewModel.SelectedAction!.CoordinateXToken = "$found_x";
+        _viewModel.Undo();
+
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction.CoordinateXToken.Should().Be("0");
+    }
+
+    [Fact]
+    public void Undo_AfterLiteralCoordinateTokenEdit_RestoresPreviousCoordinate()
+    {
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+
+        _viewModel.SelectedAction!.CoordinateXToken = "25";
+        _viewModel.Undo();
+
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction.CoordinateXToken.Should().Be("0");
+        _ = _viewModel.SelectedAction.X.Should().Be(0);
+    }
+
+    [Fact]
     public void Undo_CoalescesRapidEditsOfSameProperty()
     {
         // Arrange

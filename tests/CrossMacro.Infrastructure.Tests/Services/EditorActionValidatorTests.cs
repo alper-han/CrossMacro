@@ -4,6 +4,7 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 public sealed class EditorActionValidatorTests
 {
     private readonly EditorActionValidator _validator;
+    private readonly EditorActionValidator _scriptAwareValidator;
 
     public EditorActionValidatorTests()
     {
@@ -16,6 +17,9 @@ public sealed class EditorActionValidatorTests
         _ = keyCodeMapper.RequiresAltGr(Arg.Any<char>()).Returns(returnThis: false);
 
         _validator = new EditorActionValidator(new EditorActionConverter(keyCodeMapper));
+        _scriptAwareValidator = new EditorActionValidator(
+            new EditorActionConverter(keyCodeMapper),
+            new ScriptValidationService(keyCodeMapper));
     }
 
     [Fact]
@@ -966,6 +970,70 @@ public sealed class EditorActionValidatorTests
 
         // Assert
         _ = result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ValidateAll_WhenPixelSearchFeedsVariableMove_ReturnsValid()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.PixelSearch,
+                ScreenLeft = 0,
+                ScreenTop = 0,
+                ScreenWidth = 10,
+                ScreenHeight = 10,
+                ScreenColorHex = "00FF00",
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "found_x",
+                ScreenFoundYVariableName = "found_y",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.IfBlockStart,
+                ScriptLeftOperandType = ScriptOperandType.VariableReference,
+                ScriptLeftOperand = "found",
+                ScriptConditionOperator = ScriptConditionOperator.Equals,
+                ScriptRightOperandType = ScriptOperandType.Boolean,
+                ScriptRightOperand = "true",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = true,
+                CoordinateXToken = "$found_x",
+                CoordinateYToken = "$found_y",
+            },
+            new EditorAction { Type = EditorActionType.BlockEnd },
+        };
+
+        var result = _scriptAwareValidator.ValidateAll(actions);
+
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ValidateAll_WhenVariableMoveUsesUndefinedVariable_ReturnsError()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = true,
+                CoordinateXToken = "$missing_x",
+                CoordinateYToken = "100",
+            },
+        };
+
+        var result = _scriptAwareValidator.ValidateAll(actions);
+
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().Contain(error =>
+            error.Contains("unknown variable", StringComparison.OrdinalIgnoreCase)
+            && error.Contains("missing_x", StringComparison.Ordinal));
     }
 
     [Fact]

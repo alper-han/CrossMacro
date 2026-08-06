@@ -12,6 +12,8 @@ public class EditorAction : INotifyPropertyChanged
     private EditorActionType _type;
     private int _x;
     private int _y;
+    private string? _coordinateXToken;
+    private string? _coordinateYToken;
     private bool _isAbsolute = true;
     private MouseCoordinateSpace _coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
     private MacroMouseButton _button = MacroMouseButton.Left;
@@ -145,10 +147,12 @@ public class EditorAction : INotifyPropertyChanged
         get => _x;
         set
         {
-            if (_x != value)
+            if (_x != value || _coordinateXToken is not null)
             {
                 _x = value;
+                _coordinateXToken = null;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CoordinateXToken));
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
@@ -163,13 +167,56 @@ public class EditorAction : INotifyPropertyChanged
         get => _y;
         set
         {
-            if (_y != value)
+            if (_y != value || _coordinateYToken is not null)
             {
                 _y = value;
+                _coordinateYToken = null;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CoordinateYToken));
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
+    }
+
+    /// <summary>
+    /// X coordinate token used by script-backed mouse actions.
+    /// Accepts an integer literal or a variable reference such as <c>$found_x</c>.
+    /// </summary>
+    public string CoordinateXToken
+    {
+        get => _coordinateXToken ?? _x.ToString(CultureInfo.InvariantCulture);
+        set => SetCoordinateToken(
+            value,
+            ref _coordinateXToken,
+            ref _x,
+            nameof(CoordinateXToken),
+            nameof(X));
+    }
+
+    /// <summary>
+    /// Y coordinate token used by script-backed mouse actions.
+    /// Accepts an integer literal or a variable reference such as <c>$found_y</c>.
+    /// </summary>
+    public string CoordinateYToken
+    {
+        get => _coordinateYToken ?? _y.ToString(CultureInfo.InvariantCulture);
+        set => SetCoordinateToken(
+            value,
+            ref _coordinateYToken,
+            ref _y,
+            nameof(CoordinateYToken),
+            nameof(Y));
+    }
+
+    public bool HasVariableCoordinates =>
+        IsVariableCoordinateToken(CoordinateXToken)
+        || IsVariableCoordinateToken(CoordinateYToken);
+
+    public bool TryGetLiteralCoordinates(out int x, out int y)
+    {
+        var hasX = int.TryParse(CoordinateXToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out x);
+        var hasY = int.TryParse(CoordinateYToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out y);
+        return hasX && hasY;
     }
 
     /// <summary>
@@ -1157,17 +1204,17 @@ public class EditorAction : INotifyPropertyChanged
     {
         return Type switch
         {
-            EditorActionType.MouseMove when IsAbsolute => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Move to ({X}, {Y})"),
-            EditorActionType.MouseMove => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Move by ({X:+#;-#;0}, {Y:+#;-#;0})"),
+            EditorActionType.MouseMove when IsAbsolute => $"Move to ({CoordinateXToken}, {CoordinateYToken})",
+            EditorActionType.MouseMove => $"Move by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
             EditorActionType.MouseClick when UseCurrentPosition => $"Click {Button} at current position",
-            EditorActionType.MouseClick when IsAbsolute => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Click {Button} at ({X}, {Y})"),
-            EditorActionType.MouseClick => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Click {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})"),
+            EditorActionType.MouseClick when IsAbsolute => $"Click {Button} at ({CoordinateXToken}, {CoordinateYToken})",
+            EditorActionType.MouseClick => $"Click {Button} by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
             EditorActionType.MouseDown when UseCurrentPosition => $"Hold {Button} at current position",
-            EditorActionType.MouseDown when IsAbsolute => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Hold {Button} at ({X}, {Y})"),
-            EditorActionType.MouseDown => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Hold {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})"),
+            EditorActionType.MouseDown when IsAbsolute => $"Hold {Button} at ({CoordinateXToken}, {CoordinateYToken})",
+            EditorActionType.MouseDown => $"Hold {Button} by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
             EditorActionType.MouseUp when UseCurrentPosition => $"Release {Button} at current position",
-            EditorActionType.MouseUp when IsAbsolute => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Release {Button} at ({X}, {Y})"),
-            EditorActionType.MouseUp => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Release {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})"),
+            EditorActionType.MouseUp when IsAbsolute => $"Release {Button} at ({CoordinateXToken}, {CoordinateYToken})",
+            EditorActionType.MouseUp => $"Release {Button} by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
             EditorActionType.KeyPress => $"Press '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
             EditorActionType.KeyDown => $"Hold '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
             EditorActionType.KeyUp => $"Release '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
@@ -1273,6 +1320,56 @@ public class EditorAction : INotifyPropertyChanged
         return $"Raw Script: {stepText}";
     }
 
+    private static bool IsVariableCoordinateToken(string token)
+    {
+        return EditorActionScriptTokens.TryParseNumericToken(token, out var sourceType, out _)
+            && sourceType is ScriptNumericSourceType.VariableReference;
+    }
+
+    private static string FormatRelativeCoordinateToken(string token)
+    {
+        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value.ToString("+#;-#;0", CultureInfo.InvariantCulture)
+            : token;
+    }
+
+    private void SetCoordinateToken(
+        string? value,
+        ref string? tokenOverride,
+        ref int coordinate,
+        string tokenPropertyName,
+        string coordinatePropertyName)
+    {
+        var previousToken = tokenOverride ?? coordinate.ToString(CultureInfo.InvariantCulture);
+        var token = value?.Trim() ?? string.Empty;
+        var coordinateChanged = false;
+
+        if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var literal))
+        {
+            coordinateChanged = coordinate != literal;
+            coordinate = literal;
+            tokenOverride = null;
+            token = literal.ToString(CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            tokenOverride = token;
+        }
+
+        if (!coordinateChanged && string.Equals(previousToken, token, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (coordinateChanged)
+        {
+            OnPropertyChanged(coordinatePropertyName);
+        }
+
+        OnPropertyChanged(tokenPropertyName);
+        OnPropertyChanged(nameof(DisplayName));
+    }
+
     /// <summary>
     /// Validates this action.
     /// </summary>
@@ -1328,6 +1425,8 @@ public class EditorAction : INotifyPropertyChanged
         clone._type = Type;
         clone._x = X;
         clone._y = Y;
+        clone._coordinateXToken = _coordinateXToken;
+        clone._coordinateYToken = _coordinateYToken;
         clone._isAbsolute = IsAbsolute;
         clone._coordinateSpace = CoordinateSpace;
         clone._button = Button;

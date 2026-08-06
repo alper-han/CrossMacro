@@ -208,28 +208,37 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
     private static (bool IsValid, string? Error) ValidateCoordinateBounds(EditorAction action, bool requireRelativeNonZero)
     {
+        if (!EditorActionScriptTokens.TryParseNumericToken(action.CoordinateXToken, out _, out _)
+            || !EditorActionScriptTokens.TryParseNumericToken(action.CoordinateYToken, out _, out _))
+        {
+            return (false, ValidationMessages.CoordinateTokenInvalid);
+        }
+
+        var hasLiteralX = int.TryParse(action.CoordinateXToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var x);
+        var hasLiteralY = int.TryParse(action.CoordinateYToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var y);
+
         if (action.IsAbsolute)
         {
-            if (action.X < 0 || action.Y < 0)
+            if ((hasLiteralX && x < 0) || (hasLiteralY && y < 0))
             {
                 return (false, ValidationMessages.AbsoluteCoordsMustBeNonNegative);
             }
 
-            if (action.X > EditorActionValidationLimits.MaxAbsoluteCoordinate
-                || action.Y > EditorActionValidationLimits.MaxAbsoluteCoordinate)
+            if ((hasLiteralX && x > EditorActionValidationLimits.MaxAbsoluteCoordinate)
+                || (hasLiteralY && y > EditorActionValidationLimits.MaxAbsoluteCoordinate))
             {
                 return (false, ValidationMessages.CoordsExceedMaximum);
             }
         }
         else
         {
-            if (requireRelativeNonZero && action.X is 0 && action.Y is 0)
+            if (requireRelativeNonZero && hasLiteralX && hasLiteralY && x is 0 && y is 0)
             {
                 return (false, ValidationMessages.RelativeMoveMustHaveValue);
             }
 
-            if (Math.Abs(action.X) > EditorActionValidationLimits.MaxRelativeCoordinateDelta
-                || Math.Abs(action.Y) > EditorActionValidationLimits.MaxRelativeCoordinateDelta)
+            if ((hasLiteralX && Math.Abs((long)x) > EditorActionValidationLimits.MaxRelativeCoordinateDelta)
+                || (hasLiteralY && Math.Abs((long)y) > EditorActionValidationLimits.MaxRelativeCoordinateDelta))
             {
                 return (false, ValidationMessages.RelativeMoveTooLarge);
             }
@@ -793,8 +802,13 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
         var hasStateScriptActions = actions.Any(action => EditorActionScriptClassifier.IsScriptStateAction(action.Type));
         var hasOpaqueScriptActions = actions.Any(action => EditorActionScriptClassifier.IsOpaqueScriptAction(action.Type));
         var hasRuntimeEventActions = actions.Any(action => EditorActionScriptClassifier.IsRuntimeEventAction(action.Type));
+        var hasVariableCoordinateActions = actions.Any(action =>
+            UsesCoordinateMode(action.Type)
+            && !IsCurrentPositionMouseButtonAction(action)
+            && action.HasVariableCoordinates);
         return hasFlowControlScriptActions
             || hasOpaqueScriptActions
+            || hasVariableCoordinateActions
             || (hasStateScriptActions && !hasRuntimeEventActions);
     }
 }

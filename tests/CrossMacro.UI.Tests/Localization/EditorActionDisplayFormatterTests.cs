@@ -33,6 +33,36 @@ public sealed class EditorActionDisplayFormatterTests
     }
 
     [Fact]
+    public void Format_ForVariableMouseMove_ShowsStructuredCoordinateTokens()
+    {
+        var formatter = CreateFormatter("Editor_Action_MouseMoveAbsolute", "Move to ({0}, {1})");
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            IsAbsolute = true,
+            CoordinateXToken = "$btn_x",
+            CoordinateYToken = "$btn_y",
+        };
+
+        _ = formatter.Format(action).Should().Be("Move to ($btn_x, $btn_y)");
+    }
+
+    [Fact]
+    public void Format_ForVariableRelativeMouseMove_IgnoresNumericFormatSpecifiers()
+    {
+        var formatter = CreateFormatter("Editor_Action_MouseMoveRelative", "Move by ({0:+#;-#;0}, {1:+#;-#;0})");
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            IsAbsolute = false,
+            CoordinateXToken = "$delta_x",
+            CoordinateYToken = "$delta_y",
+        };
+
+        _ = formatter.Format(action).Should().Be("Move by ($delta_x, $delta_y)");
+    }
+
+    [Fact]
     public void Format_ForClipboardSet_IncludesTextPreview()
     {
         var formatter = CreateFormatter("Editor_Action_ClipboardSet", "Set clipboard to \"{0}\"");

@@ -695,6 +695,135 @@ public sealed partial class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToMacroSequence_WhenVariableCoordinateActionHasDelay_PreservesDelayInScriptAndEvent()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "x",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "10",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "y",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "20",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = true,
+                CoordinateXToken = "$x",
+                CoordinateYToken = "$y",
+                DelayMs = 500,
+            },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Variable Coordinate Delay", isAbsolute: true);
+
+        _ = sequence.ScriptSteps.Should().Equal(
+            "set x 10",
+            "set y 20",
+            "delay 500",
+            "move abs $x $y");
+        _ = sequence.Events.Should().ContainSingle();
+        _ = sequence.Events[0].DelayMs.Should().Be(500);
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenPixelSearchFeedsDelayedVariableMove_SerializesDelayBeforeMove()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.PixelSearch,
+                ScreenLeft = 0,
+                ScreenTop = 0,
+                ScreenWidth = 100,
+                ScreenHeight = 100,
+                ScreenColorHex = "142C2D",
+                ScreenFoundVariableName = "found",
+                ScreenFoundXVariableName = "x",
+                ScreenFoundYVariableName = "y",
+                ScreenTimeoutMs = 5000,
+                ScreenTolerance = 5,
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = true,
+                CoordinateXToken = "$x",
+                CoordinateYToken = "$y",
+                DelayMs = 500,
+            },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Runtime Variable Coordinate Delay", isAbsolute: true);
+
+        _ = sequence.ScriptSteps.Should().Equal(
+            "pixelsearch 0 0 100 100 142C2D found x y timeout 5000 tolerance 5",
+            "delay 500",
+            "move abs $x $y");
+        _ = sequence.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenDelayedAbsoluteClickReusesPreviousVariableMove_KeepsDelayAfterMove()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "x",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "10",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "y",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "20",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = true,
+                CoordinateXToken = "$x",
+                CoordinateYToken = "$y",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseClick,
+                IsAbsolute = true,
+                CoordinateXToken = "$x",
+                CoordinateYToken = "$y",
+                Button = MacroMouseButton.Left,
+                DelayMs = 500,
+            },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Delayed Variable Click", isAbsolute: true);
+
+        _ = sequence.ScriptSteps.Should().Equal(
+            "set x 10",
+            "set y 20",
+            "move abs $x $y",
+            "delay 500",
+            "click left");
+        _ = sequence.Events.Should().HaveCount(2);
+        _ = sequence.Events[0].Type.Should().Be(EventType.MouseMove);
+        _ = sequence.Events[1].Type.Should().Be(EventType.Click);
+        _ = sequence.Events[1].DelayMs.Should().Be(500);
+    }
+
+    [Fact]
     public void ToMacroSequence_WhenScriptBackedHasInitialRandomDelay_PreservesFirstEventRandomDelay()
     {
         // Arrange
@@ -956,6 +1085,54 @@ public sealed partial class EditorActionConverterTests
         _ = actions[1].Y.Should().Be(300);
         _ = actions[1].Button.Should().Be(MacroMouseButton.Left);
         _ = actions[1].UseCurrentPosition.Should().BeFalse();
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenPixelSearchFeedsVariableMove_RestoresStructuredMouseActions()
+    {
+        var sequence = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelsearch 0 0 100 100 142C2D btn_found btn_x btn_y tolerance 5",
+                "if $btn_found == true {",
+                "move abs $btn_x $btn_y",
+                "click left",
+                "}",
+            },
+        };
+
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+        var saved = _converter.ToMacroSequence(result.Actions, "Variable Move", isAbsolute: true);
+
+        _ = result.Warnings.Should().BeEmpty();
+        _ = result.Actions.Should().NotContain(action => action.Type == EditorActionType.RawScriptStep);
+        _ = result.Actions.Should().HaveCount(5);
+        _ = result.Actions[2].Type.Should().Be(EditorActionType.MouseMove);
+        _ = result.Actions[2].CoordinateXToken.Should().Be("$btn_x");
+        _ = result.Actions[2].CoordinateYToken.Should().Be("$btn_y");
+        _ = result.Actions[3].Type.Should().Be(EditorActionType.MouseClick);
+        _ = result.Actions[3].CoordinateXToken.Should().Be("$btn_x");
+        _ = result.Actions[3].CoordinateYToken.Should().Be("$btn_y");
+        _ = saved.ScriptSteps.Should().ContainSingle(step => step == "move abs $btn_x $btn_y");
+        _ = saved.ScriptSteps.Should().Contain("click left");
+        _ = saved.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ToMacroEvents_WhenMouseCoordinatesUseVariables_RequiresScriptBackedSequence()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            CoordinateXToken = "$x",
+            CoordinateYToken = "$y",
+        };
+
+        var act = () => _converter.ToMacroEvents(action);
+
+        _ = act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*script-backed sequence conversion*");
     }
 
     [Fact]

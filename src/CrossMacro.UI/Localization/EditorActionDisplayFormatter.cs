@@ -11,17 +11,17 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
 
         return action.Type switch
         {
-            EditorActionType.MouseMove when action.IsAbsolute => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseMoveAbsolute"], action.X, action.Y),
-            EditorActionType.MouseMove => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseMoveRelative"], action.X, action.Y),
+            EditorActionType.MouseMove when action.IsAbsolute => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseMoveAbsolute"], FormatCoordinate(action.CoordinateXToken), FormatCoordinate(action.CoordinateYToken)),
+            EditorActionType.MouseMove => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseMoveRelative"], FormatCoordinate(action.CoordinateXToken), FormatCoordinate(action.CoordinateYToken)),
             EditorActionType.MouseClick when action.UseCurrentPosition => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseClickCurrent"], FormatMouseButton(action.Button)),
-            EditorActionType.MouseClick when action.IsAbsolute => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseClickAbsolute"], FormatMouseButton(action.Button), action.X, action.Y),
-            EditorActionType.MouseClick => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseClickRelative"], FormatMouseButton(action.Button), action.X, action.Y),
+            EditorActionType.MouseClick when action.IsAbsolute => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseClickAbsolute"], FormatMouseButton(action.Button), FormatCoordinate(action.CoordinateXToken), FormatCoordinate(action.CoordinateYToken)),
+            EditorActionType.MouseClick => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseClickRelative"], FormatMouseButton(action.Button), FormatCoordinate(action.CoordinateXToken), FormatCoordinate(action.CoordinateYToken)),
             EditorActionType.MouseDown when action.UseCurrentPosition => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseDownCurrent"], FormatMouseButton(action.Button)),
-            EditorActionType.MouseDown when action.IsAbsolute => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseDownAbsolute"], FormatMouseButton(action.Button), action.X, action.Y),
-            EditorActionType.MouseDown => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseDownRelative"], FormatMouseButton(action.Button), action.X, action.Y),
+            EditorActionType.MouseDown when action.IsAbsolute => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseDownAbsolute"], FormatMouseButton(action.Button), FormatCoordinate(action.CoordinateXToken), FormatCoordinate(action.CoordinateYToken)),
+            EditorActionType.MouseDown => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseDownRelative"], FormatMouseButton(action.Button), FormatCoordinate(action.CoordinateXToken), FormatCoordinate(action.CoordinateYToken)),
             EditorActionType.MouseUp when action.UseCurrentPosition => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseUpCurrent"], FormatMouseButton(action.Button)),
-            EditorActionType.MouseUp when action.IsAbsolute => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseUpAbsolute"], FormatMouseButton(action.Button), action.X, action.Y),
-            EditorActionType.MouseUp => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseUpRelative"], FormatMouseButton(action.Button), action.X, action.Y),
+            EditorActionType.MouseUp when action.IsAbsolute => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseUpAbsolute"], FormatMouseButton(action.Button), FormatCoordinate(action.CoordinateXToken), FormatCoordinate(action.CoordinateYToken)),
+            EditorActionType.MouseUp => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MouseUpRelative"], FormatMouseButton(action.Button), FormatCoordinate(action.CoordinateXToken), FormatCoordinate(action.CoordinateYToken)),
             EditorActionType.KeyPress => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_KeyPress"], action.KeyName ?? action.KeyCode.ToString(localizationService.CurrentCulture)),
             EditorActionType.KeyDown => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_KeyDown"], action.KeyName ?? action.KeyCode.ToString(localizationService.CurrentCulture)),
             EditorActionType.KeyUp => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_KeyUp"], action.KeyName ?? action.KeyCode.ToString(localizationService.CurrentCulture)),
@@ -105,6 +105,13 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.RawScriptStep => localizationService["Editor_ActionType_RawScriptStep"],
             _ => actionType.ToString(),
         };
+    }
+
+    private static object FormatCoordinate(string token)
+    {
+        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : token;
     }
 
     public string FormatBlockName(EditorActionType actionType)

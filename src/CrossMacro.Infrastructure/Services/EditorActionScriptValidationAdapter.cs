@@ -34,17 +34,39 @@ internal sealed class EditorActionScriptValidationAdapter(IEditorActionConverter
 
     public IReadOnlyList<string> Validate(IEnumerable<EditorAction> actions)
     {
-        if (_service is null)
+        var actionList = actions.ToList();
+        var diagnostics = new List<string>();
+        if (actionList.Exists(action => IsCoordinateAction(action) && action.HasVariableCoordinates))
         {
-            return [];
+            try
+            {
+                _ = _converter.ToMacroSequence(actionList, "Validation", isAbsolute: false);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                diagnostics.Add($"Script: {exception.Message}");
+            }
         }
 
-        var steps = actions
+        if (_service is null)
+        {
+            return diagnostics;
+        }
+
+        var steps = actionList
             .Where(action => action.Type is EditorActionType.RawScriptStep && !string.IsNullOrWhiteSpace(action.Text))
             .Select((action, index) => new RunScriptStep(action.Text, SourceIndex: index))
             .ToList();
-        return _service.Validate(steps)
+        diagnostics.AddRange(_service.Validate(steps)
             .Select(diagnostic => $"Script: {diagnostic.Message}")
-            .ToArray();
+            .ToArray());
+        return diagnostics;
+    }
+
+    private static bool IsCoordinateAction(EditorAction action)
+    {
+        return action.Type is EditorActionType.MouseMove
+            || (action.Type is EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp
+                && !action.UseCurrentPosition);
     }
 }

@@ -48,6 +48,7 @@ internal static class EditorActionValidationPolicy
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => action.KeyCode > 0,
             EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => action.ScrollAmount is not 0,
             EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp when action.UseCurrentPosition => !action.IsAbsolute,
+            EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp => ValidateCoordinateTokens(action),
             EditorActionType.TextInput => !string.IsNullOrEmpty(action.Text),
             EditorActionType.SetVariable => UsesLegacyScriptText(action) || ValidateSetVariableFields(action),
             EditorActionType.IncrementVariable or EditorActionType.DecrementVariable => UsesLegacyScriptText(action) || ValidateIncDecFields(action),
@@ -65,7 +66,7 @@ internal static class EditorActionValidationPolicy
             EditorActionType.WindowCommand => ValidateWindowCommandFields(action),
             EditorActionType.RawScriptStep => !string.IsNullOrWhiteSpace(action.Text),
             EditorActionType.ElseBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue => true,
-            EditorActionType.MouseMove => true,
+            EditorActionType.MouseMove => ValidateCoordinateTokens(action),
             _ => true,
         };
     }
@@ -88,6 +89,12 @@ internal static class EditorActionValidationPolicy
             ScriptValueType.VariableReference => EditorActionScriptTokens.IsValidVariableName(action.ScriptValue),
             _ => false,
         };
+    }
+
+    private static bool ValidateCoordinateTokens(EditorAction action)
+    {
+        return EditorActionScriptTokens.TryParseNumericToken(action.CoordinateXToken, out _, out _)
+            && EditorActionScriptTokens.TryParseNumericToken(action.CoordinateYToken, out _, out _);
     }
 
     private static bool ValidateIncDecFields(EditorAction action)

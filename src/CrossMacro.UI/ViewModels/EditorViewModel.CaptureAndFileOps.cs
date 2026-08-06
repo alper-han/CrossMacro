@@ -611,17 +611,38 @@ public partial class EditorViewModel
     }
 
 
-    private CancellationTokenSource? _testPlaybackCts;
+    private enum TestPlaybackOutcome
+    {
+        Completed,
+        Cancelled,
+        Failed,
+    }
+
+    private const int TestPlaybackRunning = 0;
+    private const int TestPlaybackStopRequested = 1;
+    private const int TestPlaybackCompleted = 2;
+
+    private sealed class TestPlaybackSession(CancellationTokenSource cancellationSource)
+    {
+        public CancellationTokenSource CancellationSource { get; } = cancellationSource;
+        public TaskCompletionSource<object?> StopCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int State;
+    }
+
+    private readonly Lock _testPlaybackGate = new();
+    private TestPlaybackSession? _testPlaybackSession;
 
     public async Task ToggleTestPlaybackAsync()
     {
-        if (IsRunningTest)
+        TestPlaybackSession? activeSession;
+        lock (_testPlaybackGate)
         {
-            if (_testPlaybackCts is not null)
-            {
-                await _testPlaybackCts.CancelAsync().ConfigureAwait(false);
-            }
-            _macroPlayer.StopPlayback();
+            activeSession = _testPlaybackSession;
+        }
+
+        if (activeSession is not null)
+        {
+            await StopTestPlaybackAsync(activeSession).ConfigureAwait(false);
             return;
         }
 
@@ -637,38 +658,103 @@ public partial class EditorViewModel
             return;
         }
 
+        var playbackCts = new CancellationTokenSource();
+        var playbackSession = new TestPlaybackSession(playbackCts);
+        var started = false;
         await RunOnUiThreadAsync(() =>
         {
+            lock (_testPlaybackGate)
+            {
+                if (_testPlaybackSession is not null)
+                {
+                    return;
+                }
+
+                _testPlaybackSession = playbackSession;
+                started = true;
+            }
+
             IsRunningTest = true;
             Status = Localize("Editor_StatusTestRunning");
-            _testPlaybackCts = new CancellationTokenSource();
         }).ConfigureAwait(false);
+
+        if (!started)
+        {
+            playbackCts.Dispose();
+            return;
+        }
+
+        var outcome = TestPlaybackOutcome.Completed;
+        string? errorMessage = null;
         try
         {
             var options = new CrossMacro.Core.Models.PlaybackOptions { Loop = false, RepeatCount = 1 };
-            var testPlaybackCts = _testPlaybackCts ?? throw new InvalidOperationException("Test playback cancellation was not initialized.");
-            await _macroPlayer.PlayAsync(sequence, options, testPlaybackCts.Token).ConfigureAwait(false);
-            if (!testPlaybackCts.IsCancellationRequested)
+            await _macroPlayer.PlayAsync(sequence, options, playbackSession.CancellationSource.Token).ConfigureAwait(false);
+            if (playbackCts.IsCancellationRequested)
             {
-                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusTestComplete")).ConfigureAwait(false);
+                outcome = TestPlaybackOutcome.Cancelled;
             }
-            else
-            {
-                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusTestCancelled")).ConfigureAwait(false);
-            }
+        }
+        catch (OperationCanceledException) when (playbackCts.IsCancellationRequested
+            || Volatile.Read(ref playbackSession.State) is TestPlaybackStopRequested)
+        {
+            outcome = TestPlaybackOutcome.Cancelled;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusTestError"), ex.Message)).ConfigureAwait(false);
+            outcome = TestPlaybackOutcome.Failed;
+            errorMessage = ex.Message;
         }
         finally
         {
+            var previousState = Interlocked.Exchange(ref playbackSession.State, TestPlaybackCompleted);
+            if (previousState is TestPlaybackStopRequested)
+            {
+                _ = await playbackSession.StopCompleted.Task.ConfigureAwait(false);
+            }
+
             await RunOnUiThreadAsync(() =>
             {
-                IsRunningTest = false;
-                _testPlaybackCts?.Dispose();
-                _testPlaybackCts = null;
+                lock (_testPlaybackGate)
+                {
+                    if (!ReferenceEquals(_testPlaybackSession, playbackSession))
+                    {
+                        return;
+                    }
+
+                    Status = outcome switch
+                    {
+                        TestPlaybackOutcome.Completed => Localize("Editor_StatusTestComplete"),
+                        TestPlaybackOutcome.Cancelled => Localize("Editor_StatusTestCancelled"),
+                        TestPlaybackOutcome.Failed => string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusTestError"), errorMessage),
+                        _ => Status,
+                    };
+                    IsRunningTest = false;
+                    _testPlaybackSession = null;
+                }
             }).ConfigureAwait(false);
+            playbackSession.CancellationSource.Dispose();
+        }
+    }
+
+    private async Task StopTestPlaybackAsync(TestPlaybackSession playbackSession)
+    {
+        if (Interlocked.CompareExchange(
+                location1: ref playbackSession.State,
+                value: TestPlaybackStopRequested,
+                comparand: TestPlaybackRunning) is not TestPlaybackRunning)
+        {
+            return;
+        }
+
+        try
+        {
+            await playbackSession.CancellationSource.CancelAsync().ConfigureAwait(false);
+            _macroPlayer.StopPlayback();
+        }
+        finally
+        {
+            _ = playbackSession.StopCompleted.TrySetResult(null);
         }
     }
 

@@ -1187,6 +1187,7 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                         <Button Command="{Binding ToggleTestPlaybackAsync}"
                                 Classes="success compact"
+                                Classes.danger="{Binding IsRunningTest}"
                                 IsEnabled="{Binding HasActions}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <icons:EmojiAppIcon Icon="{Binding RunIcon}" Width="16" Height="16"/>

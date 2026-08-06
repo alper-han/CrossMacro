@@ -13,26 +13,31 @@ crossmacro <command> --help
 
 The packaged manpage is also available at [`docs/man/crossmacro.1`](man/crossmacro.1).
 
+Command syntax notation: `<value>` is required, `[value]` is optional, `a|b`
+means choose one, and `...` marks a repeatable argument.
+
 ## Command overview
 
 | Area | Commands |
 | --- | --- |
 | Help and startup | `--help`, `<command> --help`, `--version`, `--start-minimized` |
-| Macro files | `play`, `record`, `macro validate`, `macro info` |
-| Inline automation | `run --step ...`, `run --file ...` |
-| Runtime primitives | `clipboard`, `window`, `screen`, `screenshot` |
-| User data | `settings`, `profile`, `text-expansion`, `schedule`, `shortcut`, `trigger` |
-| Diagnostics/runtime | `doctor`, `headless`, `--headless` |
+| Macro files | [`play`](#macro-files-playback-recording-and-diagnostics), [`record`](#macro-files-playback-recording-and-diagnostics), [`macro validate`](#macro-files-playback-recording-and-diagnostics), [`macro info`](#macro-files-playback-recording-and-diagnostics) |
+| Inline automation | [`run --step ...`](#direct-run-examples), positional [`run <step> ...`](#direct-run-examples), [`run --file ...`](#direct-run-examples), [direct input commands](#direct-input-commands) |
+| Runtime primitives | [`clipboard`](#clipboard-command), [`window`](#window-command), [`screen`](#screen-command), [`screenshot`](#screenshot-command) |
+| User data | [`settings`](#settings-command), [`profile`](#profile-command), [`text-expansion`](#text-expansion-command), [`schedule`](#schedule-and-shortcut-commands), [`shortcut`](#schedule-and-shortcut-commands), [`trigger`](#trigger-command) |
+| Diagnostics/runtime | [`doctor`](#macro-files-playback-recording-and-diagnostics), [`headless`](#gui-less-desktop-runtime), [`--headless`](#gui-less-desktop-runtime) |
 
 Use the command-specific sections below for examples, option notes, and platform
 behavior.
 
-Supported log levels for CLI commands are `Verbose`, `Debug`, `Information`,
-`Warning`, `Error`, and `Fatal`.
-
 For desktop autostart, use `crossmacro --start-minimized`. When tray icon
 support is available, CrossMacro starts hidden to tray; otherwise it starts as a
 minimized window.
+
+GUI startup also accepts platform launcher switches such as `--drm`, `--fbdev`,
+`--tty`, `--display`, `--x11`, and `--wayland` (and macOS Finder `-psn_*`
+tokens). These are startup switches, not options for a subcommand; unknown
+commands and options still return a CLI parse error.
 
 ## GUI-less desktop runtime
 
@@ -46,6 +51,91 @@ crossmacro --headless
 
 This mode still requires a desktop session. It is not intended for display-less
 server automation.
+
+## Direct input commands
+
+The following one-step commands execute input directly, without a `run` wrapper:
+
+| Group | Commands | Example |
+| --- | --- | --- |
+| Mouse | `move`, `click`, `down`, `up`, `scroll` | `crossmacro move abs 200 200` |
+| Keyboard | `key`, `tap` | `crossmacro key down CTRL` |
+| Text and timing | `type`, `delay` | `crossmacro type "hello world"` |
+
+They use the same compiler, coordinate spaces, button/key names, and runtime
+preflight as `run`. Each command accepts `--dry-run`, `--json`, and
+`--log-level`. They do not support variables, conditions, loops, or multiple
+steps; use [`run`](#direct-run-examples) for those workflows.
+
+### Mouse commands
+
+`move` accepts `abs`, `rel`, `rel-logical`, or `rel-raw` coordinates. `click`,
+`down`, and `up` accept a mouse button; adding `current` uses the live cursor
+position. `scroll` accepts `up`, `down`, `left`, or `right` and an optional
+count.
+
+```bash
+crossmacro move abs 200 200
+crossmacro move rel-logical 10 0
+crossmacro click current left
+crossmacro scroll down 3
+```
+
+### Keyboard and text commands
+
+`key down|up <key>` sends one key transition, `tap <combo>` sends a key
+combination, and `type <text>` types text as one shell argument.
+
+```bash
+crossmacro key down CTRL
+crossmacro key up CTRL
+crossmacro tap CTRL+ALT+T
+crossmacro type "hello world"
+```
+
+### Delay command
+
+`delay <milliseconds>` waits for a fixed duration. `delay random <min> <max>`
+or `delay random <min>..<max>` chooses a duration in the inclusive range.
+
+```bash
+crossmacro delay 50
+crossmacro delay random 20 80
+```
+
+The `type` text must be one shell argument; quote it when it contains spaces.
+Absolute and logical-relative moves require the same position/input capability
+checks as equivalent `run` steps. `--dry-run` validates the command without
+sending input.
+
+## Macro files, playback, recording, and diagnostics
+
+These commands do not open the editor:
+
+```bash
+crossmacro macro validate ./demo.macro
+crossmacro macro info ./demo.macro --json
+crossmacro play ./demo.macro --speed 1.25 --repeat 3
+crossmacro play ./demo.macro --dry-run
+crossmacro record --output ./recorded.macro --mode auto --duration 10
+crossmacro doctor --verbose --json
+```
+
+- `macro validate` reads the file and checks syntax and playback compatibility;
+  it never sends input.
+- `macro info` reports metadata such as event count, duration, coordinate mode,
+  and validation warnings. A validation error is returned with exit code `4`.
+- `play` supports `--speed`, `--loop`, `--repeat`, `--repeat-delay-ms`,
+  `--countdown`, `--timeout`, and `--dry-run`.
+- `run` supports repeatable `--step`, positional step commands, `--file`,
+  repeatable `--asset <name> <png-path>` options for image steps, `--speed`,
+  `--countdown`, `--timeout`, and `--dry-run`.
+- `record` supports `--output`/`-o`, `--mouse`, `--keyboard`, `--mode`,
+  `--skip-initial-zero`, and `--duration`.
+- `doctor` supports `--verbose` and checks the session, input injection, screen
+  capture, daemon, and direct-device paths. On Linux, daemon readiness and
+  direct-device readiness are reported separately; one can pass while the other
+  fails.
 
 ## Clipboard command
 
@@ -97,8 +187,12 @@ crossmacro window workspace move-window --address 0x1234 2
 ```
 
 Title and class selectors use case-insensitive substring matching. Address
-selectors match the compositor/window-manager address exactly. Unsupported
-platforms return a clear non-zero environment error.
+selectors match the compositor/window-manager address exactly. Operations that
+target a title/class use the first matching window returned by the active
+backend; use `--address` when more than one match is possible. `window wait`
+polls, and its CLI `--timeout-ms 0` behavior differs from the script form as
+documented in the [Detailed CLI and Runtime Reference](#detailed-cli-and-runtime-reference).
+Unsupported platforms return a clear non-zero environment error.
 
 ## Screen command
 
@@ -108,9 +202,9 @@ The first-class screen command is an ergonomic wrapper for pixel/color reads:
 crossmacro screen pixel 500 300
 crossmacro screen pixel 500 300 --timeout-ms 5000
 crossmacro screen pixel --relative 0 0 --json
-crossmacro screen wait-color 500 300 00FF00 --timeout-ms 5000
-crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26 --timeout-ms 5000 --json
-crossmacro screen search-image ./button.png --similarity 0.95
+crossmacro screen wait-color 500 300 00FF00 --timeout-ms 5000 --poll-ms 100
+crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26 --timeout-ms 5000 --poll --poll-ms 100 --json
+crossmacro screen search-image ./button.png --similarity 0.95 --poll --poll-ms 100
 crossmacro screen wait-image ./ready.png --timeout-ms 10000 --downsample 2
 crossmacro screen image-click ./button.png --button right
 ```
@@ -119,30 +213,48 @@ crossmacro screen image-click ./button.png --button right
   coordinates/color in JSON `data`.
 - `screen pixel --relative <dx> <dy>` samples relative to the current cursor; it
   returns an unsupported error if no mouse position provider is available.
-- `screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>]` waits for a color.
-- `screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>]`
-  searches the end-exclusive region `[x1, x2) x [y1, y2)`. Timeout values are
-  milliseconds; `0` means no timeout.
-- `screen search-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]`
-  searches for a native PNG template. A timeout is optional and has no default.
-- `screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]`
-  polls until the template appears. The default timeout is 5000 milliseconds.
-- `screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]`
-  searches for the template and clicks its center. The default button is
-  `left`; `right` and `middle` are optional. A timeout is optional and has no
-  default.
+- `screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--poll] [--poll-ms <n>]` waits for a color. `--poll-ms` overrides the default 50 ms interval; `--poll` is accepted for symmetry and keeps the default interval.
+- `screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--poll] [--poll-ms <n>]`
+  searches the end-exclusive region `[x1, x2) x [y1, y2)`. It is one-shot by
+  default. Add `--poll` to retry until the timeout; `--poll-ms` selects the
+  positive interval and implies `--poll`.
+- `screen search-image <image-path>` accepts these optional options:
+  `--timeout-ms <n>`, `--region <x> <y> <width> <height>`,
+  `--similarity <0..1>`, `--downsample <n>`,
+  `--matchmode <first|best>`, `--scale-aware`, `--poll`, and `--poll-ms <n>`;
+  it performs a one-shot search by default and retries until the timeout when
+  polling is requested.
+- `screen wait-image <image-path>` accepts the same optional options and polls
+  until the template appears.
+- `screen image-click <image-path>` accepts `--timeout-ms <n>`, `--poll`,
+  and `--poll-ms <n>`,
+  `--button <left|right|middle>`, `--region <x> <y> <width> <height>`,
+  `--similarity <0..1>`, `--downsample <n>`,
+  `--matchmode <first|best>`, and `--scale-aware`.
+  It performs one search and clicks the template center. The default button is
+  `left`; `right` and `middle` are optional.
 - Image commands accept finite similarity values from `0.0` to `1.0`, defaulting
   to `1.0`, and a downsample factor of at least `1`, defaulting to `1`.
-- Image matching defaults to `first` (`FirstThresholdMatch`): it scans
+- Image matching defaults to `first`: it scans
   deterministic row-major bands and returns the first band containing a match.
-  `--matchmode best` scans the complete region and selects the best SAD score,
-  with deterministic Y/X tie-breaking. `--matchmode first` makes the default
-  explicit.
+  `--matchmode best` scans the complete region and selects the best SAD score
+  (sum of absolute per-channel differences), with deterministic Y/X tie-breaking.
+  `--matchmode first` makes the default explicit.
 - `--scale-aware` is disabled by default. When enabled, matching tries the
-  supported uniform scales `0.75`, `0.8`, `0.9`, `1.0`, `1.1`, `1.25`, and
+  supported uniform scales `0.7`, `0.75`, `0.8`, `0.85`, `0.9`, `0.95`, `1.0`,
+  `1.05`, `1.1`, `1.15`, `1.2`, `1.25`, `1.3`, `1.35`, `1.4`, `1.45`, and
   `1.5`; it does not change the meaning of `--downsample`.
 - Image files must be native 8-bit PNG files. Other formats, including JPG, are
   not imported.
+
+`wait-color` and `wait-image` are the polling forms. Their complete timing,
+timeout, and no-match behavior is defined in the [Detailed CLI and Runtime
+Reference](#detailed-cli-and-runtime-reference) below.
+
+On macOS, screen capture requires Screen Recording permission. On Wayland,
+capture and coordinates depend on the compositor/provider and use the global
+virtual desktop; see the [platform details](#platform-limitations) before
+automating across monitors.
 
 ## Screenshot command
 
@@ -229,7 +341,7 @@ Schedule commands manage active-profile scheduled macro tasks:
 crossmacro schedule list --json
 crossmacro schedule run <task-id>
 crossmacro schedule add --name Daily --macro ./demo.macro --interval 10m
-crossmacro schedule add --name Once --macro ./demo.macro --at "2026-07-05T18:00:00"
+crossmacro schedule add --name Once --macro ./demo.macro --at "2026-08-07T18:00:00"
 crossmacro schedule add --name Weekly --macro ./demo.macro --weekly mon,wed --time 09:30
 crossmacro schedule edit <task-id> --name Office --speed 1.25 --enabled true
 crossmacro schedule remove <task-id>
@@ -239,10 +351,6 @@ crossmacro schedule next <task-id> --json
 ```
 
 - `add` requires `--name` and `--macro`.
-- `--interval` accepts a positive integer with optional `s`, `m`, or `h` suffix.
-- `--at` creates a one-time schedule using a parseable date/time value.
-- `--weekly` accepts comma-separated day names such as `mon,wed`, plus
-  `weekdays`, `weekends`, or `everyday`; `--time` sets the local time of day.
 - `--speed` sets the playback speed for that scheduled macro.
 - `next` reports the task's next run time and does not save changes.
 
@@ -263,8 +371,9 @@ crossmacro shortcut disable <task-id>
 
 - `add` requires `--name`, `--macro`, and `--hotkey`.
 - `bind` is shorthand for replacing a shortcut task's hotkey.
-- `--loop`, `--repeat`, `--repeat-delay-ms`, `--random-repeat-delay`, and
-  `--run-while-held` mirror the GUI shortcut playback options.
+- `--speed`, `--loop`, `--repeat`, `--repeat-delay-ms`,
+  `--random-repeat-delay`, `--run-while-held`, and `--enabled` mirror the GUI
+  shortcut playback/task options.
 
 ## Trigger command
 
@@ -286,7 +395,8 @@ crossmacro trigger disable <task-id>
 - `--action` accepts `SwitchProfile` or `RunMacro`.
 - `--profile` sets the target profile to switch to, and `--macro` sets the macro path to run.
 - `--fire-mode` accepts `OnceOnChange`, `EveryMatch`, `OnEnter`, or `OnExit`.
-- `--cooldown-ms` and `--debounce-ms` accept positive integers representing milliseconds.
+- `--cooldown-ms` and `--debounce-ms` are integer millisecond values; `0` clears
+  the interval, while a positive value enables it.
 
 ## Settings command
 
@@ -305,14 +415,22 @@ crossmacro settings reset updates.checkForUpdates
   all supported keys; `settings get --all` is the explicit all-settings form.
 - `settings list-keys` prints supported public keys.
 - `settings reset <key>` resets one supported key to its default value.
-- Supported UI/update keys include `ui.theme`, `ui.language`, `ui.trayIcon`,
+- Playback keys are `playback.speed`, `playback.loop`, `playback.loopCount`,
+  `playback.loopDelayMs`, and `playback.countdownSeconds`. Recording keys are
+  `recording.mouse`, `recording.keyboard`, `recording.forceRelative`, and
+  `recording.skipInitialZeroZero`. Other keys are `logging.level`,
+  `textExpansion.enabled`, `ui.theme`, `ui.language`, `ui.trayIcon`,
   `ui.startMinimized`, and `updates.checkForUpdates`.
 - `screen.portalRestoreToken` is status/reset only. `get` reports `set` or
   `empty`, and `reset` clears it; the raw token is never printed.
+- Boolean values accept `true`, `false`, `1`, `0`, `yes`, `no`, `on`, and `off`.
+  Numeric timing values are milliseconds unless the key name says seconds;
+  `logging.level` accepts `Debug`, `Information`, `Warning`, or `Error`.
 
 ## Direct run examples
 
-`crossmacro run` executes inline steps without a `.macro` file:
+`crossmacro run` executes inline steps without a `.macro` file. It accepts
+repeatable `--step` arguments, a `--file`, or the legacy positional step form:
 
 ```bash
 crossmacro run --step "move abs 800 400" --step "click left" --dry-run
@@ -326,11 +444,29 @@ crossmacro run \
   --step "}"
 crossmacro run --step 'shell "notify-send done" 1 250 5000'
 crossmacro run --file ./steps.txt --json
+crossmacro run move rel 100 0 delay 40 click left
+crossmacro run --asset button ./button.png --step 'imagesearch button found x y timeout 5000 poll 100'
 ```
 
-Use single quotes around shell expressions containing `$`, such as
-`'repeat $n {'`, so the shell does not expand the variable before CrossMacro
-sees it.
+The examples above use Bash/Zsh quoting. Single quotes preserve `$variables`
+and braces there. PowerShell also preserves `$` in single-quoted strings, so
+the same `--step 'repeat $n {'` form can be used. In `cmd.exe`, `$` is not a
+variable-expansion character; use double quotes to group a complete step, for
+example:
+
+```text
+crossmacro run --step "move abs $found_x $found_y"
+```
+
+`notify-send` is a Linux-only example. Use a portable command such as
+`shell "echo done" 1 250 5000` when the macro must also run on Windows or
+macOS. Use `--step` when a step contains braces, `$variables`, or options that
+would be ambiguous in the positional form.
+
+Image steps use named assets supplied with repeatable `--asset <name> <png-path>`;
+the name must match `[A-Za-z_][A-Za-z0-9_]*` and is referenced by
+`imagesearch`, `imageclick`, or `waitimage`. Assets are loaded and validated
+before playback and are not written into the user's macro store.
 
 `shell "<command>" [retries] [backoff_ms] [timeout_ms]` runs a command through
 the platform shell (`/bin/sh -c` on Unix, `cmd.exe /S /C` on Windows). `retries`
@@ -360,14 +496,14 @@ receive `$NAME` literally instead of resolving a CrossMacro variable.
 
 ## Runtime clipboard, window, and screen steps
 
-CrossMacro's screen-reading commands use the available platform capture provider
-on Windows desktop sessions, macOS 10.15+, native Linux X11, and Linux Wayland.
-Windows and macOS use native capture APIs; macOS requires Screen Recording
-permission. Linux backend details and Wayland provider limitations are documented
-in [`docs/linux.md`](linux.md).
+CrossMacro's screen-reading commands use the active platform capture provider.
+Provider availability, permissions, and Wayland limitations are summarized in the
+[Detailed CLI and Runtime Reference](#detailed-cli-and-runtime-reference) below;
+Linux backend details are in [`docs/linux.md`](linux.md).
 
 ```bash
 pixelcolor 500 300 mycolor
+pixelcolor 500 300 mycolor timeout 1000
 pixelcolor rel 0 0 underCursor
 clipboard get clipText
 clipboard set "new clipboard text"
@@ -386,22 +522,26 @@ window setdesktop 2
 window setdesktopforwindow address 0x1234 2
 waitcolor 500 300 00FF00 5000 wait_ok
 waitcolor 500 300 $mycolor 5000 wait_ok
-pixelsearch 0 0 1920 1080 FF0000 found found_x found_y tolerance 26
+pixelsearch 0 0 1920 1080 FF0000 found found_x found_y timeout 5000 tolerance 26
 imagesearch button found found_x found_y similarity 0.95 downsample 2 timeout 5000
 imageclick button clicked click_x click_y button right similarity 0.95
 waitimage ready found found_x found_y timeout 10000
 ```
 
-- `pixelcolor <x> <y> [var]` samples one pixel at an absolute position.
-- `pixelcolor rel <dx> <dy> [var]` samples one pixel relative to the current
-  cursor position.
-- `waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]` waits for an exact
-  color match at a single point. When `result_var` is present, timeout writes
-  `false` and playback continues; without it, timeout keeps the existing
-  fail-fast behavior.
-- `pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]`
-  searches the end-exclusive region `[x1, x2) x [y1, y2)` and stores the first
-  match. When `found_var` is present, no match writes `false` plus `-1, -1`
+- `pixelcolor <x> <y> [var] [timeout <milliseconds>]` samples one pixel at an
+  absolute position. `pixelcolor rel <dx> <dy> [var] [timeout <milliseconds>]`
+  samples relative to the current cursor position.
+- `waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var] [poll [interval_ms]]` waits for an exact
+  color match at a single point. `poll` keeps the existing wait behavior and
+  optionally overrides its 50 ms interval. When `result_var` is present,
+  timeout writes `false` and playback continues; without it, timeout keeps the
+  existing fail-fast behavior.
+- `pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [timeout <milliseconds>] [tolerance <0..255>] [poll [interval_ms]]`
+  captures one frame and searches the end-exclusive region `[x1, x2) x [y1, y2)`.
+  `timeout` limits capture/matching; it does not repeat the scan unless the
+  explicit `poll` option is present. `poll` retries until the timeout and may
+  take a positive interval in milliseconds (default 50). When
+  `found_var` is present, a no-match/timeout writes `false` plus `-1, -1`
   coordinates and playback continues; the legacy `var_x var_y` form keeps
   fail-fast behavior.
 - `clipboard get <var>` stores current clipboard text in a runtime variable.
@@ -422,43 +562,29 @@ waitimage ready found found_x found_y timeout 10000
   mutate the active window.
 - `window getdesktop <var>`, `window setdesktop <workspace>`, and
   `window setdesktopforwindow active|address <addr> <workspace>` manage workspaces.
-- `imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [scaleaware] [timeout <milliseconds>]`
-  searches a named PNG asset. Region bounds are end-exclusive. With result
-  variables, a miss stores `false` and `-1, -1`; without them, a miss fails the
-  step. `matchmode` defaults to `first`; `best` performs a full-region SAD
-  reduction. `scaleaware` is opt-in and uses the same supported scales as the
-  CLI.
+- `imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [scaleaware] [timeout <milliseconds>] [poll [interval_ms]]`
+  searches a named PNG asset once by default. Add `poll` to retry until the
+  timeout. Region bounds are end-exclusive.
 - `<ImageName>` is the embedded macro asset name, not a filesystem path; for
   example, an imported `button.png` may be referenced as `button`.
-- `imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button <left|right|middle>] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [timeout <milliseconds>]`
-  clicks the center of a matching template. The default button is `left`.
-- `waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <milliseconds>] [similarity <0..1>] [downsample <n>] [matchmode <first|best>]`
-  polls every 50 milliseconds until the template appears. Its default timeout is
-  5000 milliseconds. Result variables make a timeout store `false` and `-1, -1`.
+- `imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button <left|right|middle>] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [scaleaware] [timeout <milliseconds>] [poll [interval_ms]]`
+  searches once by default and clicks the center of a matching template. Add
+  `poll` to retry until the timeout. The default button is `left`.
+- `waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <milliseconds>] [poll [interval_ms]] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [scaleaware]`
+  waits until the template appears; `poll` optionally overrides its 50 ms
+  interval (waiting is already repeated by definition).
+
+Script image commands spell the scale option `scaleaware`; the first-class CLI
+commands use the equivalent `--scale-aware` spelling.
 
 Target colors can be a canonical six-digit `RRGGBB` value with no `#`, or a
 `$var` reference to a color previously written by `pixelcolor`; bare variable
 names are not accepted in target color positions. Hex values are written back in
 uppercase. `pixelsearch` defaults to exact matching when tolerance is omitted;
 non-zero tolerance allows that many shades of difference per RGB channel.
-Image matching defaults to exact matching with similarity `1.0` and
-`FirstThresholdMatch`. The matcher checks cancellation and the configured
-timeout during both capture and CPU matching. A CLI search no-match is a
-successful JSON result with `Found: false` and null match coordinates; a timeout
-or capture/provider failure is an error result. Script result variables use
-`false` and `-1, -1` for a no-match timeout path, while fail-fast script forms
-raise an error.
-
-`waitcolor` polls every 50 ms by default and uses a 30 second default timeout
-when `timeout_ms` is omitted. If you pass a timeout, it is measured in
-milliseconds.
-
-`pixelsearch` scans row by row, left to right, and only assigns `var_x` and
-`var_y` after the search succeeds. Variable names still follow the usual script
-variable rules.
-
-On macOS, grant Screen Recording permission in System Settings > Privacy &
-Security > Screen Recording, then restart CrossMacro.
+Image matching, timeout, polling, and result-variable behavior is defined in
+the [Detailed CLI and Runtime Reference](#detailed-cli-and-runtime-reference)
+below.
 
 ## Other run step commands
 
@@ -476,7 +602,6 @@ Additional direct-run steps include:
 - `shell capture "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
 - `shell input "<stdin text>" "<command>" [retries] [backoff_ms] [timeout_ms]`
 - `shell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
-- `screenshot [region <x> <y> <width> <height>] [output <path>] [clipboard]`
 - `set <name> <value>` or `set <name>=<value>`
 - `inc <name> [amount]` and `dec <name> [amount]`
 - `repeat <count> { ... }`
@@ -484,6 +609,9 @@ Additional direct-run steps include:
 - `while <left> <op> <right> { ... }`
 - `for <var> from <start> to <end> [step <n>] { ... }`
 - `break`, `continue`, and `}`
+
+The `screenshot [region ...] [output ...] [clipboard]` step is documented in
+the Runtime clipboard, window, and screen section above.
 
 Move coordinates may be integer literals or `$variable` references. Variable
 coordinates are resolved immediately before the move executes, so screen-reading
@@ -504,10 +632,268 @@ click, hold, and release actions. When invoking the CLI from a shell, quote step
 containing `$variable` references so the shell does not expand them first, for
 example `--step 'move abs $found_x $found_y'`.
 
-`move rel` retains the raw device-relative behavior used by existing scripts;
-`move rel-raw` is its explicit spelling. `move rel-logical` uses logical desktop
-pixel deltas and therefore needs a known cursor position, an earlier absolute
-move, or the initial corner reset.
+The coordinate-space differences between `move rel`, `move rel-raw`, and
+`move rel-logical` are defined in the [Detailed CLI and Runtime
+Reference](#detailed-cli-and-runtime-reference) below.
 
 Use `--dry-run` to parse, compile, and validate a direct-run command without
 sending input.
+
+## Detailed CLI and Runtime Reference
+
+This section is the compact contract for scripting. Command-specific sections
+above show the common workflows; `--help` remains the authoritative syntax for
+the installed build.
+
+### Global options and JSON output
+
+The following options are available on CLI commands that produce a result:
+
+```bash
+crossmacro <command> --help
+crossmacro <command> --json
+crossmacro <command> --log-level Debug
+crossmacro --version
+```
+
+- `--json` writes one envelope to stdout with `status`, `code`, `message`,
+  `data`, `warnings`, and `errors`. `data` is command-specific and can be
+  `null`; do not parse human-readable `message` text as a schema.
+- In text mode, successful data is printed to stdout and failures to stderr.
+  `clipboard get` is intentionally special: text mode prints only the clipboard
+  value, without the status envelope.
+- `--log-level` accepts `Verbose`, `Debug`, `Information`, `Warning`, `Error`,
+  or `Fatal`. Keep logs separate from machine-readable JSON output.
+- This runtime option intentionally has a wider value set than the persisted
+  `logging.level` profile setting: the setting accepts only `Debug`,
+  `Information`, `Warning`, or `Error`.
+- `--help` and `--version` exit with code `0`. A standalone option such as
+  `--json` without a command is an argument error.
+
+Example JSON shape:
+
+```json
+{
+  "status": "ok",
+  "code": 0,
+  "message": "Pixel 500,300: 1C7B41",
+  "data": { "x": 500, "y": 300, "color": "1C7B41" },
+  "warnings": [],
+  "errors": []
+}
+```
+
+### Exit codes
+
+| Code | Meaning |
+| ---: | --- |
+| `0` | Success, including `--help`, `--version`, and a successful dry-run. |
+| `2` | Invalid command-line arguments or parse error. |
+| `3` | Macro/file read, write, or path error. |
+| `4` | Macro or run-script validation error. |
+| `5` | Environment, permission, backend, or runtime-readiness error. |
+| `6` | Runtime playback, capture, matching, or mutation error. |
+| `130` | Cancelled by Ctrl+C or another cancellation request. |
+
+For automation, branch on `code` and use `errors`/`warnings` for diagnostics;
+`message` is intended for a short human summary.
+
+### Macro playback and recording
+
+`play` and `run` have two different timeout layers:
+
+```bash
+crossmacro play ./demo.macro --timeout 30
+crossmacro run --step 'waitcolor 500 300 00FF00 10000 found' --timeout 20
+```
+
+`--timeout` is in seconds and cancels the whole command. Screen/window step
+timeouts inside the macro are independent and are in milliseconds. `--dry-run`
+does not require input permissions and does not execute shell or input steps.
+
+`record --duration` is in seconds. With `0`, recording continues until cancelled;
+the output is saved only when at least one event was captured. `--mode auto` and
+`--mode absolute` may fall back to relative recording when the current backend
+cannot expose absolute coordinates; the result and warnings identify the mode
+that was actually saved.
+
+### Mouse button names and aliases
+
+For script/`run` mouse steps, these aliases are equivalent:
+
+| Canonical | Aliases |
+| --- | --- |
+| `left` | `l` |
+| `right` | `r` |
+| `middle` | `m` |
+| `side1` | `side`, `back` |
+| `side2` | `extra`, `forward` |
+
+`scroll up|down|left|right [count]` is a separate wheel command. `click`,
+`down`, and `up` use the last resolved mouse position; add `current` (for
+example `click current left`) to force the live cursor position and ignore a
+previous absolute move's coordinates. First-class `screen image-click` and the
+script `imageclick` intentionally accept only `left`, `right`, and `middle`.
+
+### Conditions and variable values
+
+Variables use the pattern `[A-Za-z_][A-Za-z0-9_]*`:
+
+```text
+set found=false
+set count=3
+if $found == false {
+  set count=0
+}
+if $count > 0 {
+  click left
+}
+```
+
+- Assign with `set name value` or `set name=value`; reference with `$name`.
+  Use `$$NAME` when a literal dollar-prefixed value must be passed through.
+- Supported operators are `==`, `!=`, `>`, `>=`, `<`, and `<=`.
+- Equality compares colors, integers, booleans, and then exact strings. Relational
+  operators require two integer values.
+- There is no implicit truthiness and no `&&`/`||` expression syntax. Write
+  `if $found == true` or `if $count > 0`; `if $found` is not a valid condition.
+- Screen result-variable forms use `true`/`false`; a no-match coordinate is
+  `-1,-1`. A missing variable or invalid numeric value is a runtime error.
+
+### Screen search versus wait semantics
+
+Search commands inspect one captured frame. Wait commands poll until a condition
+is met or their total wait budget expires.
+
+| Operation | Behavior | Default timeout |
+| --- | --- | --- |
+| `screen pixel`, `pixelcolor` | One point read; timeout only bounds capture. | Not set |
+| `screen search-color`, `pixelsearch` | One frame, row-major scan by default; `--poll`/`poll` enables retries. | Not set (5 s when polling is enabled) |
+| `screen search-image`, `imagesearch` | One frame/template match by default; `--poll`/`poll` enables retries. | Not set (5 s when polling is enabled) |
+| `screen image-click`, `imageclick` | One image match, then click by default; `--poll`/`poll` enables retries. | Not set (5 s when polling is enabled) |
+| `screen wait-color`, `waitcolor` | Poll every 50 ms by default; CLI `--poll-ms` or script `poll [interval_ms]` overrides the interval. | 30 s |
+| `screen wait-image`, `waitimage` | Poll every 50 ms. | 5 s |
+| `window wait` (CLI or script) | Poll window state every 200 ms. | 5 s |
+
+`Not set` means the operation has no automatic timeout default.
+
+### Result semantics
+
+The following table is the single no-match/timeout reference for screen search
+and wait operations. A one-shot `timeout`/`--timeout-ms` is a capture/matcher
+deadline, not a retry count. Search retries are opt-in: use CLI `--poll` (or
+`--poll-ms`) or script `poll [interval_ms]`.
+
+| Surface | No match or timeout | Process/result behavior |
+| --- | --- | --- |
+| `screen search-color` | Error | Exit `6`; JSON uses the error envelope and text mode writes the failure to stderr. |
+| `screen search-image` | Normal result | Exit `0`; JSON contains `data.found: false` (text mode reports no match). |
+| `screen wait-color` | Error on total-budget expiry | Exit `6`; JSON uses the error envelope and text mode writes the failure to stderr. |
+| `screen wait-image` | Normal result on total-budget expiry | Exit `0`; JSON contains `data.found: false` (text mode reports no match). |
+| `screen image-click` | Error | Exit `6`; no click is sent when the template is not found. |
+| Script search/wait with result variables | Continue with `false` and `-1,-1` for coordinate results; `waitcolor` stores only `false`. | The step itself is not a failure; later steps still run. |
+| Script search/wait without result variables | Error (fail-fast) | Playback stops and `run` reports a runtime error. |
+
+Use a wait command, explicit `poll`, or an external loop when the screen may
+change after the command starts.
+
+### Timeout units and defaults
+
+Use the unit encoded by the option name or command:
+
+| Scope | Syntax | Unit and default |
+| --- | --- | --- |
+| Whole `play`/`run` command | `--timeout <n>` | Seconds; `0` means no command deadline. |
+| CLI screen/window operation | `--timeout-ms <n>` | Milliseconds; wait defaults above. |
+| Script screen operation | `timeout <n>` or positional wait timeout | Milliseconds; one-shot operations have no polling default. `poll [interval_ms]` opts into retries (default interval 50 ms). |
+| Shell step | `[timeout_ms]` | Milliseconds per attempt; `0` means no per-attempt limit. |
+| Shell retry | `[retries] [backoff_ms]` | Extra attempts after the first, with millisecond backoff. |
+| Schedule interval | `--interval 10s|5m|2h` | Seconds, minutes, or hours. |
+| Recording/schedule countdown | `--duration`, `--countdown` | Seconds. |
+| Trigger debounce/cooldown | `--debounce-ms`, `--cooldown-ms` | Milliseconds. |
+
+`waitcolor`/`waitimage` timeouts are total budgets across all polls. A value of
+`0` performs an immediate check and does not mean infinite waiting. Use Ctrl+C
+or an outer command timeout to cancel an operation explicitly.
+
+`window wait` has one compatibility detail: the CLI form treats
+`--timeout-ms 0` as one immediate poll, while the script form treats a missing
+or non-positive `timeout_ms` as its 5000 ms default. Use a positive script
+timeout when an explicit window-wait budget is required.
+
+### Coordinate spaces and multi-monitor behavior
+
+- CLI screen coordinates and `move abs` use the logical virtual desktop. A
+  search region is two corners with end-exclusive right/bottom edges:
+  `[x1, x2) x [y1, y2)`; color searches normalize the two corners, while
+  image/script regions must produce a positive right/bottom extent. The editor
+  displays `left`, `top`, `width`, `height` and converts the latter to
+  `right = left + width`, `bottom = top + height`.
+- `screen pixel --relative` and `pixelcolor rel` add a delta to the live cursor.
+  `move rel-raw`/`move rel` preserve raw device-relative behavior;
+  `move rel-logical` uses logical desktop pixels and needs a known cursor
+  position (an absolute move, a position provider, or the initial anchor).
+- Absolute moves and image clicks use an absolute-capable backend when one is
+  available. Otherwise image-click may use a current-position relative
+  fallback; if neither position capability exists, it returns an environment
+  error.
+- On Wayland, capture regions may be stitched from intersecting monitors,
+  including monitors with negative virtual coordinates. Areas between monitors
+  are voids, not black pixels; matching ignores them and a template crossing a
+  void is rejected. Portal-based sessions require every monitor containing the
+  requested pixels to be selected in the portal picker.
+- Keep search regions on the intended monitor. Coordinates are global desktop
+  coordinates, not coordinates relative to the CrossMacro window or a monitor
+  width/height pair.
+
+### Schedule, shortcut, and trigger constraints
+
+- Schedule, shortcut, and trigger tasks belong to the active profile. Use
+  `list --json` first and pass the returned GUID to `run`, `edit`, `remove`,
+  `enable`, `disable`, or `next`.
+- A schedule accepts at most one of `--interval`, `--at`, or `--weekly`. If no
+  form is supplied, it keeps the default 30-second interval. Interval values
+  are positive integers with optional `s`, `m`, or `h` suffixes (no suffix means
+  seconds). `--at` is parsed with the invariant-culture .NET date/time parser
+  and is interpreted as local time when no offset is supplied. Prefer an
+  unambiguous ISO-style value such as `2026-08-07T18:00` or
+  `2026-08-07T18:00:00`; the CLI does not promise a narrower grammar, and
+  daylight-saving edge cases follow the host runtime's local-time rules.
+  Weekly values accept comma-separated short or full day names (`mon,wed` or
+  `monday,wednesday`), `weekdays`, `weekends`, `everyday`, `daily`, or `all`;
+  they require at least one day. `--time` is local time and only applies to
+  weekly tasks.
+- Schedule tasks are disabled by default unless `--enabled true` is supplied;
+  `schedule enable <task-id>` also validates the completed task configuration.
+- A shortcut needs a macro path and a `+`-separated hotkey before it can be
+  enabled. `--run-while-held` is an infinite hold loop; otherwise `--loop`
+  enables repeated playback and `--repeat` controls the count (`0` means
+  infinite in loop mode).
+- Shortcut tasks are disabled by default unless `--enabled true` is supplied;
+  `shortcut enable <task-id>` requires both the macro path and hotkey.
+- A trigger needs a non-empty `--value` for every field except `None`.
+  `SwitchProfile` requires `--profile`; `RunMacro` requires `--macro`.
+  `OnceOnChange`/`OnEnter` fire on a stable transition, `EveryMatch` fires on
+  each matching poll, and `OnExit` fires when a previous match ends. Debounce
+  requires a stable match for its interval; cooldown suppresses fires until its
+  interval has elapsed.
+- Trigger tasks are disabled by default unless `--enabled true` is supplied and
+  the selected action is fully configured.
+
+### Platform limitations
+
+- Headless mode still needs a desktop session; it is not a display-less server
+  mode. It keeps hotkeys, scheduling, shortcuts, and text expansion alive until
+  Ctrl+C.
+- Screen capture is available through native Windows capture, macOS 10.15+
+  capture, Linux X11, or a supported Linux Wayland provider. macOS screen reads
+  need Screen Recording permission; input recording/playback also needs the
+  permissions described in [`docs/macos.md`](macos.md).
+- Linux Wayland input and capture depend on the compositor, portal selection,
+  daemon/direct-device path, and permissions. Run
+  `crossmacro doctor --json --verbose` first; see [`docs/linux.md`](linux.md)
+  for the supported paths.
+- Window commands require a supported window manager/compositor. Unsupported
+  backends return exit code `5`; they do not silently mutate another backend.
+- Shell steps execute as the current user and are disabled in Flatpak builds.
+  Treat shell-enabled macros as trusted code.

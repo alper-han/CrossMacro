@@ -1,4 +1,4 @@
-.TH CROSSMACRO 1 "2026-02-28" "CrossMacro" "User Commands"
+.TH CROSSMACRO 1 "2026-08-06" "CrossMacro" "User Commands"
 .SH NAME
 crossmacro \- keyboard and mouse macro automation CLI
 .SH SYNOPSIS
@@ -53,13 +53,19 @@ crossmacro \- keyboard and mouse macro automation CLI
 .br
 .B crossmacro
 \fBrun\fR [\fB\-\-step\fR \fISTEP\fR]... [\fB\-\-file\fR \fISTEPS_FILE\fR]
+[\fB\-\-asset\fR \fINAME\fR \fIPNG_PATH\fR]...
 [\fB\-\-speed\fR \fIN\fR] [\fB\-\-countdown\fR \fISEC\fR] [\fB\-\-timeout\fR \fISEC\fR]
 [\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBrun\fR \fISTEP_COMMAND\fR [\fISTEP_COMMAND\fR]... [\fB\-\-file\fR \fISTEPS_FILE\fR]
+[\fB\-\-asset\fR \fINAME\fR \fIPNG_PATH\fR]...
 [\fB\-\-speed\fR \fIN\fR] [\fB\-\-countdown\fR \fISEC\fR] [\fB\-\-timeout\fR \fISEC\fR]
 [\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+.B move|click|down|up|scroll|key|tap|type|delay
+... [\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBclipboard get\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
@@ -165,10 +171,15 @@ Providing \fB\-\-repeat\fR with value > 0 implies loop semantics for that playba
 .B run
 \fB\-\-speed\fR must be between 0.1 and 10.0.
 \fB\-\-countdown\fR and \fB\-\-timeout\fR must be >= 0.
+\fB\-\-asset NAME PNG_PATH\fR is repeatable; NAME must match
+\fB[A-Za-z_][A-Za-z0-9_]*\fR and PNG_PATH must be a valid native PNG.
 .TP
 .B window and screen
 \fBwindow wait --timeout-ms\fR must be >= 0. \fBscreen search-color --tolerance\fR must be between 0 and 255.
 \fBscreen search-color\fR bounds are end-exclusive and must produce a positive region.
+\fB\-\-poll-ms\fR must be positive and implies \fB\-\-poll\fR. Search commands are
+one-shot unless polling is explicitly requested; script searches use
+\fBpoll [interval_ms]\fR with a default interval of 50 ms.
 Image command timeouts and regions must be non-negative and positive-sized respectively.
 Image similarity must be finite and between 0.0 and 1.0. Downsample must be at least 1.
 .TP
@@ -288,6 +299,12 @@ Supported steps:
 screen-reading steps \fBpixelcolor\fR, \fBwaitcolor\fR, \fBpixelsearch\fR,
 \fBimagesearch\fR, \fBimageclick\fR, and \fBwaitimage\fR,
 plus loop control with \fBbreak\fR and \fBcontinue\fR.
+Named image assets are supplied with repeatable
+\fB\-\-asset NAME PNG_PATH\fR options and are referenced by image-step name.
+Search steps are one-shot by default. Add script \fBpoll [interval_ms]\fR to
+retry until the step timeout; the default poll interval is 50 ms.
+Wait-color and wait-image already poll; the same poll form may override their
+50 millisecond interval.
 Randomized timing is supported with
 \fBdelay random <min> <max>\fR or \fBdelay random <min>..<max>\fR.
 .PP
@@ -317,6 +334,31 @@ template matching. Similarity defaults to 1.0, downsample defaults to 1, and
 Image assets are native 8-bit PNG files only, not JPG files.
 Target colors use six-digit \fBRRGGBB\fR values or \fB$var\fR references to
 values written by \fBpixelcolor\fR. Unsupported platforms return runtime errors.
+.SS Direct input commands
+The one-step input commands can be used without a \fBrun\fR wrapper:
+\fBmove\fR, \fBclick\fR, \fBdown\fR, \fBup\fR, \fBscroll\fR,
+\fBkey\fR, \fBtap\fR, \fBtype\fR, and \fBdelay\fR.
+They use the same compiler, coordinate spaces, button/key names, and runtime
+preflight as \fBrun\fR. Use \fBrun\fR for variables, conditions, loops, or
+multiple steps.
+.TP
+.B move, click, down, up, scroll, key, tap, type, delay
+Execute one common input primitive without a \fBrun\fR wrapper. These aliases
+use the same input compiler and coordinate spaces as \fBrun\fR and accept
+\fB\-\-dry-run\fR, \fB\-\-json\fR, and \fB\-\-log-level\fR. Use \fBrun\fR for
+variables, conditions, loops, screen/window steps, or multiple operations.
+.PP
+Examples:
+.br
+\fBcrossmacro move abs 200 200\fR
+.br
+\fBcrossmacro click left\fR
+.br
+\fBcrossmacro key down CTRL\fR
+.br
+\fBcrossmacro type "hello world"\fR
+.br
+\fBcrossmacro delay 50\fR
 .TP
 .B clipboard
 Read or replace text clipboard contents without writing a run script.
@@ -338,14 +380,20 @@ Title and class selectors use case-insensitive substring matching. Unsupported w
 .TP
 .B screen
 Read screen pixels or match native PNG templates without writing a run script.
-Supported forms include \fBpixel <x> <y>\fR, \fBpixel --relative <dx> <dy>\fR,
-\fBwait-color <x> <y> <RRGGBB> [--timeout-ms <n>]\fR, and
-\fBsearch-color <x1> <y1> <x2> <y2> <RRGGBB> [--tolerance <0..255>]\fR.
-Image forms are \fBsearch-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>]\fR,
+Supported forms include \fBpixel <x> <y> [--timeout-ms <n>]\fR,
+\fBpixel --relative <dx> <dy> [--timeout-ms <n>]\fR,
+\fBwait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--poll] [--poll-ms <n>]\fR, and
+\fBsearch-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--poll] [--poll-ms <n>]\fR.
+Search-color and image-search/click are one-shot by default; polling is opt-in.
+Image forms are \fBsearch-image <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]\fR,
 \fBwait-image\fR with the same options, and
-\fBimage-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>]\fR.
+\fBimage-click <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]\fR.
 \fBwait-image\fR defaults to a 5000 millisecond timeout. Search and click have
 no timeout unless one is supplied. Image regions are end-exclusive.
+\fB\-\-matchmode first\fR is the deterministic row-major first-match mode;
+\fB\-\-matchmode best\fR scans the region and selects the best match.
+\fB\-\-scale-aware\fR is disabled by default and enables supported uniform-scale
+ matching in addition to the requested template size.
 When a Wayland capture provider is available, a region may be stitched from
 intersecting monitor outputs. Gaps outside real outputs are voids and are
 ignored by matching; image-click will not click a template that crosses one.

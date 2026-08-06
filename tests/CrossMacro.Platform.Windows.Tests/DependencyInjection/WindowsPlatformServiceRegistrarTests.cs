@@ -42,7 +42,7 @@ public sealed class WindowsPlatformServiceRegistrarTests
 
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IKeyboardLayoutService));
         Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsKeyboardLayoutService), descriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsKeyboardLayoutService), descriptor.ImplementationType);
     }
 
     [WindowsFact]
@@ -54,7 +54,7 @@ public sealed class WindowsPlatformServiceRegistrarTests
 
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IMousePositionProvider));
         Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsMousePositionProvider), descriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsMousePositionProvider), descriptor.ImplementationType);
     }
 
     [WindowsFact]
@@ -66,7 +66,7 @@ public sealed class WindowsPlatformServiceRegistrarTests
 
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IScreenFrameProvider));
         Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsScreenFrameProvider), descriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsScreenFrameProvider), descriptor.ImplementationType);
     }
 
     [WindowsFact]
@@ -78,7 +78,7 @@ public sealed class WindowsPlatformServiceRegistrarTests
 
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IEnvironmentInfoProvider));
         Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsEnvironmentInfoProvider), descriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsEnvironmentInfoProvider), descriptor.ImplementationType);
     }
 
     [WindowsFact]
@@ -90,11 +90,11 @@ public sealed class WindowsPlatformServiceRegistrarTests
 
         var strategyDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(ICoordinateStrategyFactory));
         Assert.NotNull(strategyDescriptor);
-        Assert.Equal(typeof(WindowsCoordinateStrategyFactory), strategyDescriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsCoordinateStrategyFactory), strategyDescriptor.ImplementationType);
 
         var displayDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(IDisplaySessionService));
         Assert.NotNull(displayDescriptor);
-        Assert.Equal(typeof(GenericDisplaySessionService), displayDescriptor!.ImplementationType);
+        Assert.Equal(typeof(GenericDisplaySessionService), displayDescriptor.ImplementationType);
     }
 
     [WindowsFact]

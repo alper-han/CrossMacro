@@ -34,7 +34,7 @@ public sealed class RunCommandHandlerTests
         Assert.True(result.Success);
         Assert.Equal((int)CliExitCode.Success, result.ExitCode);
         _ = await _runService.Received(1).ExecuteAsync(
-            Arg.Is<CliRunExecutionRequest>(x => x.Steps.Count == 2 && x.StepFilePath == "/tmp/steps.txt" && x.DryRun),
+            Arg.Is<CliRunExecutionRequest>(x => x != null && x.Steps.Count == 2 && x.StepFilePath == "/tmp/steps.txt" && x.DryRun),
             Arg.Any<CancellationToken>());
     }
 
@@ -63,7 +63,8 @@ public sealed class RunCommandHandlerTests
         Assert.True(result.Success);
         _ = await _runService.Received(1).ExecuteAsync(
             Arg.Is<CliRunExecutionRequest>(x =>
-                x.DryRun
+                x != null
+                && x.DryRun
                 && x.Steps.Count == 4
                 && x.Steps[0] == "pixelcolor 500 300 mycolor"
                 && x.Steps[1] == "pixelcolor rel 0 0 underCursor"

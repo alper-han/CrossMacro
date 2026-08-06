@@ -143,7 +143,7 @@ public sealed class MacOSScreenFrameProviderTests
 
     public static TheoryData<Exception> KnownCaptureExceptions => new()
     {
-        new ArgumentException("capture failed"),
+        CreateArgumentException("capture failed"),
         new ArithmeticException("capture failed"),
         new InvalidOperationException("capture failed"),
     };
@@ -161,6 +161,9 @@ public sealed class MacOSScreenFrameProviderTests
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
         Assert.Contains("capture failed", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static ArgumentException CreateArgumentException(string message) =>
+        new(message, nameof(message));
 
     private sealed class RecordingPermission : IMacOSScreenCapturePermission
     {

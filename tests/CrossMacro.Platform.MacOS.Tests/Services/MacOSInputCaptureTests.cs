@@ -303,7 +303,7 @@ public sealed class MacOSInputCaptureTests
     {
         using var capture = new MacOSInputCapture();
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(() => capture.StartAsync(cts.Token));
     }

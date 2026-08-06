@@ -102,9 +102,9 @@ public sealed class WindowsScreenFrameProviderTests
 
     public static TheoryData<Exception> KnownCaptureExceptions => new()
     {
-        new ArgumentException("bad region"),
+        CreateArgumentException("region"),
         new ArithmeticException("overflow"),
-        new ExternalException("gdi failed"),
+        new Win32Exception(0, "gdi failed"),
         new Win32Exception(5, "access denied"),
         new InvalidOperationException("invalid screen"),
     };
@@ -113,6 +113,8 @@ public sealed class WindowsScreenFrameProviderTests
     [MemberData(nameof(KnownCaptureExceptions))]
     public async Task CaptureFrameAsync_WhenBackendThrowsKnownCaptureException_ReturnsCaptureFailed(Exception exception)
     {
+        ArgumentNullException.ThrowIfNull(exception);
+
         var backend = new RecordingCaptureBackend
         {
             CaptureException = exception,
@@ -125,6 +127,9 @@ public sealed class WindowsScreenFrameProviderTests
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
         Assert.Contains(exception.Message, result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static ArgumentException CreateArgumentException(string region) =>
+        new($"bad {region}", nameof(region));
 
     private sealed class RecordingCaptureBackend : IWindowsScreenCaptureBackend
     {

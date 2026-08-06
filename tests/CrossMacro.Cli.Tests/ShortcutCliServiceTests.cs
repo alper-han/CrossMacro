@@ -128,7 +128,8 @@ public sealed class ShortcutCliServiceTests
         var taskData = Assert.IsType<ShortcutTaskData>(result.Data);
         Assert.False(taskData.RandomRepeatDelay);
         _ = await shortcuts.Received(1).AddAsync(Arg.Is<ShortcutTask>(task =>
-            task.Name == "Demo"
+            task != null
+            && task.Name == "Demo"
             && task.MacroFilePath == "/tmp/demo.macro"
             && task.HotkeyString == "Ctrl+Alt+D"
             && task.LoopEnabled
@@ -161,7 +162,8 @@ public sealed class ShortcutCliServiceTests
         Assert.Equal(100, taskData.RepeatDelayMinMs);
         Assert.Equal(200, taskData.RepeatDelayMaxMs);
         _ = await shortcuts.Received(1).UpdateAsync(Arg.Is<ShortcutTask>(updated =>
-            updated.Id == id
+            updated != null
+            && updated.Id == id
             && updated.Name == "New"
             && updated.UseRandomRepeatDelay
             && updated.RepeatDelayMinMs == 100
@@ -182,7 +184,7 @@ public sealed class ShortcutCliServiceTests
             CancellationToken.None);
 
         Assert.True(result.Success);
-        _ = await shortcuts.Received(1).UpdateAsync(Arg.Is<ShortcutTask>(updated => updated.Id == id && updated.HotkeyString == "Ctrl+Shift+M"));
+        _ = await shortcuts.Received(1).UpdateAsync(Arg.Is<ShortcutTask>(updated => updated != null && updated.Id == id && updated.HotkeyString == "Ctrl+Shift+M"));
     }
 
     [Fact]

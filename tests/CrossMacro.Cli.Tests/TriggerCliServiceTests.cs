@@ -61,7 +61,8 @@ public sealed class TriggerCliServiceTests
         Assert.Equal(250, taskData.DebounceMs);
 
         _ = await triggerService.Received(1).AddAsync(Arg.Is<TriggerTask>(task =>
-            task.Name == "Demo Trigger"
+            task != null
+            && task.Name == "Demo Trigger"
             && task.Field == TriggerField.WindowTitle
             && task.MatchMode == TriggerMatchMode.Regex
             && task.Value == ".*Firefox.*"
@@ -106,7 +107,8 @@ public sealed class TriggerCliServiceTests
         Assert.Equal(500, taskData.CooldownMs);
 
         _ = await triggerService.Received(1).UpdateAsync(Arg.Is<TriggerTask>(updated =>
-            updated.Id == id
+            updated != null
+            && updated.Id == id
             && updated.Name == "New Name"
             && updated.Value == "new"
             && updated.CooldownMs == 500));

@@ -150,10 +150,10 @@ public sealed class WindowsInputCaptureTests
 
         var startTask = capture.StartAsync(cts.Token);
         await hookInstaller.HookInstallStarted.Task
-            .WaitAsync(TimeSpan.FromSeconds(2))
+            .WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token)
             ;
 
-        cts.Cancel();
+        await cts.CancelAsync();
         hookInstaller.ReleaseHookInstall();
 
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(

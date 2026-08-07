@@ -10,7 +10,7 @@ internal static partial class User32
 
     public delegate IntPtr WindowProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    [LibraryImport("user32.dll", SetLastError = true)]
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowsHookExW", SetLastError = true)]
     internal static partial IntPtr SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);
 
     [LibraryImport("user32.dll", SetLastError = true)]
@@ -96,7 +96,7 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "GetKeyNameTextW", SetLastError = true)]
     internal static partial int GetKeyNameTextW(int lParam, IntPtr lpString, int nSize);
 
-    [LibraryImport("user32.dll", SetLastError = true)]
+    [LibraryImport("user32.dll", EntryPoint = "MapVirtualKeyW", SetLastError = true)]
     internal static partial uint MapVirtualKey(uint uCode, uint uMapType);
 
     [LibraryImport("user32.dll", EntryPoint = "VkKeyScanExW", SetLastError = true)]
@@ -311,7 +311,7 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "GetClassNameW", SetLastError = true)]
     internal static partial int GetClassNameW(IntPtr hWnd, IntPtr lpClassName, int nMaxCount);
 
-    [LibraryImport("user32.dll", SetLastError = true)]
+    [LibraryImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 

@@ -20,7 +20,18 @@ public class App : Avalonia.Application
     {
         Name = "CrossMacro";
         AvaloniaXamlLoader.Load(this);
+        InitializeThemeResources();
         ConfigureServices();
+    }
+
+    private void InitializeThemeResources()
+    {
+        if (Resources is null)
+        {
+            return;
+        }
+
+        ThemeResourceDictionaryFactory.ReplaceActiveTheme(Resources, ThemeResourceDictionaryFactory.Create(ThemeCatalog.DefaultTheme));
     }
 
     private void ConfigureServices()

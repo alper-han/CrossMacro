@@ -16,7 +16,11 @@ internal static class GuiPresentationServiceRegistration
             sp.GetService<IScreenReadingDiagnosticProvider>(),
             sp.GetService<IScreenReadingCapabilityReadiness>()));
         _ = services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
-        _ = services.AddSingleton<IThemeService, ThemeService>();
+        _ = services.AddSingleton<IDirectoryOpener, DirectoryOpener>();
+        _ = services.AddSingleton<IThemeDirectoryResolver, ThemeDirectoryResolver>();
+        _ = services.AddSingleton<IThemeSampleProvisioner, ThemeSampleProvisioner>();
+        _ = services.AddSingleton<IExternalThemeSource, ThemeJsonFileSource>();
+        _ = services.AddSingleton<IThemeService>(sp => new ThemeService(Avalonia.Application.Current?.Resources, sp.GetRequiredService<IExternalThemeSource>()));
         _ = services.AddSingleton<Func<ISettingsService>>(sp => () => sp.GetRequiredService<ISettingsService>());
         _ = services.AddSingleton<Func<IThemeService>>(sp => () => sp.GetRequiredService<IThemeService>());
         _ = services.AddSingleton<Func<ITrayIconService>>(sp => () => sp.GetRequiredService<ITrayIconService>());

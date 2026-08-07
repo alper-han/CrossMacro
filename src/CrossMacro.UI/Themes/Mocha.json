@@ -1,0 +1,33 @@
+{
+  "name": "Mocha",
+  "palette": {
+    "primaryColor": "#cba6f7",
+    "primaryHoverColor": "#dbc2fa",
+    "primaryPressedColor": "#b581f4",
+    "successColor": "#a6e3a1",
+    "successHoverColor": "#bceab9",
+    "successPressedColor": "#a6e3a1",
+    "dangerColor": "#f38ba8",
+    "dangerHoverColor": "#f6a7bd",
+    "dangerPressedColor": "#f38ba8",
+    "backgroundColor": "#1e1e2e",
+    "surfaceColor": "#181825",
+    "surfaceHoverColor": "#313244",
+    "textPrimaryColor": "#cdd6f4",
+    "textSecondaryColor": "#a6adc8",
+    "warningColor": "#f9e2af",
+    "warningHoverColor": "#fbeccb",
+    "accentColor": "#cba6f7",
+    "systemAccentColor": "#cba6f7",
+    "systemAccentColorDark1": "#b581f4",
+    "systemAccentColorDark2": "#b581f4",
+    "systemAccentColorDark3": "#b581f4",
+    "systemAccentColorLight1": "#dbc2fa",
+    "systemAccentColorLight2": "#dbc2fa",
+    "systemAccentColorLight3": "#dbc2fa",
+    "textOnPrimaryColor": "#1e1e2e",
+    "textOnSuccessColor": "#1e1e2e",
+    "textOnDangerColor": "#1e1e2e",
+    "textOnWarningColor": "#1e1e2e"
+  }
+}

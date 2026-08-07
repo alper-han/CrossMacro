@@ -20,18 +20,18 @@ public sealed class ThemeContrastComplianceTests
     [InlineData("SurfaceColor", "TextSecondaryColor", 3.0)]
     public void ThemeColors_ShouldMeetContrastTargets(string backgroundKey, string foregroundKey, double minRatio)
     {
-        var themeFiles = ThemeTestFileHelper.GetThemeFiles();
-        _ = themeFiles.Should().NotBeEmpty();
+        var themes = ThemeTestFileHelper.GetBuiltInThemes();
+        _ = themes.Should().NotBeEmpty();
 
-        foreach (var themeFile in themeFiles)
+        foreach (var theme in themes)
         {
-            var background = ThemeTestFileHelper.ReadColorValue(themeFile, backgroundKey);
-            var foreground = ThemeTestFileHelper.ReadColorValue(themeFile, foregroundKey);
+            var background = ThemeTestFileHelper.ReadColorValue(theme, backgroundKey);
+            var foreground = ThemeTestFileHelper.ReadColorValue(theme, foregroundKey);
             var ratio = ContrastRatio(background, foreground);
             _ = ratio.Should().BeGreaterThanOrEqualTo(
                 minRatio,
                 because:
-                $"{Path.GetFileName(themeFile)} must satisfy contrast for {foregroundKey} on {backgroundKey}");
+                $"{theme.Name} must satisfy contrast for {foregroundKey} on {backgroundKey}");
         }
     }
 

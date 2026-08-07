@@ -35,54 +35,6 @@
   
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Classic">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Classic.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Latte">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Latte.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Mocha">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Mocha.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Dracula">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Dracula.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Nord">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Nord.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Everforest">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Everforest.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Gruvbox">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Gruvbox.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Solarized">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Solarized.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary x:Key="Theme.Crimson">
-                <ResourceDictionary.MergedDictionaries>
-                    <ResourceInclude Source="/Themes/Crimson.axaml" />
-                </ResourceDictionary.MergedDictionaries>
-            </ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="/Themes/Mocha.axaml" />
-            </ResourceDictionary.MergedDictionaries>
             <FontFamily x:Key="StandardFont">Inter, Segoe UI, DejaVu Sans, Noto Sans, Liberation Sans, sans-serif</FontFamily>
         </ResourceDictionary>
     </Application.Resources>

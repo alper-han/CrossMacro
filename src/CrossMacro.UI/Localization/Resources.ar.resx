@@ -114,6 +114,12 @@
   <data name="Settings_ThemeDescription" xml:space="preserve">
     <value>اختر المظهر المرئي للتطبيق</value>
   </data>
+  <data name="Settings_OpenThemesFolder" xml:space="preserve">
+    <value>فتح مجلد السمات</value>
+  </data>
+  <data name="Settings_RefreshThemes" xml:space="preserve">
+    <value>تحديث السمات</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>لغة</value>
   </data>

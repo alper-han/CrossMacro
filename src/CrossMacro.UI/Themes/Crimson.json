@@ -1,0 +1,33 @@
+{
+  "name": "Crimson",
+  "palette": {
+    "primaryColor": "#e11d48",
+    "primaryHoverColor": "#D92249",
+    "primaryPressedColor": "#bd183c",
+    "successColor": "#22c55e",
+    "successHoverColor": "#2bda6c",
+    "successPressedColor": "#22c55e",
+    "dangerColor": "#f43f5e",
+    "dangerHoverColor": "#f65c76",
+    "dangerPressedColor": "#f43f5e",
+    "backgroundColor": "#140a0f",
+    "surfaceColor": "#241019",
+    "surfaceHoverColor": "#341726",
+    "textPrimaryColor": "#ffe4ec",
+    "textSecondaryColor": "#d4a6b8",
+    "warningColor": "#f59e0b",
+    "warningHoverColor": "#f6aa28",
+    "accentColor": "#fb7185",
+    "systemAccentColor": "#e11d48",
+    "systemAccentColorDark1": "#bd183c",
+    "systemAccentColorDark2": "#bd183c",
+    "systemAccentColorDark3": "#bd183c",
+    "systemAccentColorLight1": "#D92249",
+    "systemAccentColorLight2": "#D92249",
+    "systemAccentColorLight3": "#D92249",
+    "textOnPrimaryColor": "#ffffff",
+    "textOnSuccessColor": "#140a0f",
+    "textOnDangerColor": "#140a0f",
+    "textOnWarningColor": "#140a0f"
+  }
+}

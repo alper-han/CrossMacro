@@ -114,6 +114,12 @@
   <data name="Settings_ThemeDescription" xml:space="preserve">
     <value>Uygulamanın görsel temasını seçin</value>
   </data>
+  <data name="Settings_OpenThemesFolder" xml:space="preserve">
+    <value>Tema klasörünü aç</value>
+  </data>
+  <data name="Settings_RefreshThemes" xml:space="preserve">
+    <value>Temaları yenile</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>Dil</value>
   </data>

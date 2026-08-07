@@ -1,0 +1,33 @@
+{
+  "name": "Everforest",
+  "palette": {
+    "primaryColor": "#a7c080",
+    "primaryHoverColor": "#b5ca94",
+    "primaryPressedColor": "#94b265",
+    "successColor": "#7fbbb3",
+    "successHoverColor": "#93c6bf",
+    "successPressedColor": "#7fbbb3",
+    "dangerColor": "#e67e80",
+    "dangerHoverColor": "#eb9899",
+    "dangerPressedColor": "#e67e80",
+    "backgroundColor": "#232a2e",
+    "surfaceColor": "#2d353b",
+    "surfaceHoverColor": "#374145",
+    "textPrimaryColor": "#d3c6aa",
+    "textSecondaryColor": "#9da9a0",
+    "warningColor": "#dbbc7f",
+    "warningHoverColor": "#e2c997",
+    "accentColor": "#d699b6",
+    "systemAccentColor": "#a7c080",
+    "systemAccentColorDark1": "#94b265",
+    "systemAccentColorDark2": "#94b265",
+    "systemAccentColorDark3": "#94b265",
+    "systemAccentColorLight1": "#b5ca94",
+    "systemAccentColorLight2": "#b5ca94",
+    "systemAccentColorLight3": "#b5ca94",
+    "textOnPrimaryColor": "#1e2326",
+    "textOnSuccessColor": "#1e2326",
+    "textOnDangerColor": "#1e2326",
+    "textOnWarningColor": "#1e2326"
+  }
+}

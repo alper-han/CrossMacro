@@ -114,6 +114,12 @@
   <data name="Settings_ThemeDescription" xml:space="preserve">
     <value>Выберите визуальную тему приложения</value>
   </data>
+  <data name="Settings_OpenThemesFolder" xml:space="preserve">
+    <value>Открыть папку тем</value>
+  </data>
+  <data name="Settings_RefreshThemes" xml:space="preserve">
+    <value>Обновить темы</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>Язык</value>
   </data>

@@ -1,5 +1,5 @@
 
-namespace CrossMacro.Infrastructure.Helpers;
+namespace CrossMacro.Core;
 
 /// <summary>
 /// Helper for resolving application paths following platform-specific conventions:
@@ -49,7 +49,7 @@ public static class PathHelper
     /// </summary>
     public static string GetProfilesDirectory()
     {
-        return Path.Combine(GetConfigDirectory(), ConfigFileNames.ProfilesDirectory);
+        return Path.Combine(GetConfigDirectory(), AppConstants.ProfilesDirectory);
     }
 
     /// <summary>

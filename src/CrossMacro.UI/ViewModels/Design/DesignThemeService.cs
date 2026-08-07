@@ -20,4 +20,10 @@ internal sealed class DesignThemeService : IThemeService
         themeError = string.Empty;
         return true;
     }
+
+    public bool TryRefreshThemes(out string themeError)
+    {
+        themeError = string.Empty;
+        return true;
+    }
 }

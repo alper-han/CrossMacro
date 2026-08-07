@@ -29,6 +29,7 @@ global using CrossMacro.UI.Localization;
 global using CrossMacro.UI.Models;
 global using CrossMacro.UI.Services;
 global using CrossMacro.UI.Startup;
+global using CrossMacro.UI.Themes;
 global using CrossMacro.UI.Tests.Localization;
 global using CrossMacro.UI.ViewModels;
 global using CrossMacro.UI.ViewModels.Design;

@@ -40,6 +40,13 @@ public sealed class SettingsViewModelTests : IDisposable
                 callInfo[1] = string.Empty;
                 return true;
             });
+        _ = _themeService
+            .TryRefreshThemes(out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[0] = string.Empty;
+                return true;
+            });
 
         // Setup initial settings
         _ = _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, StartMinimized = false, EnableTextExpansion = false, Theme = "Classic" });
@@ -526,6 +533,85 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _viewModel.SelectedTheme.Should().Be("Classic");
         _ = _settingsService.Current.Theme.Should().Be("Classic");
         _ = _settingsService.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public void RefreshThemesCommand_WhenThemeChangesDuringRefresh_PersistsCurrentTheme()
+    {
+        _ = _themeService.CurrentTheme.Returns("Classic");
+        _ = _themeService
+            .TryRefreshThemes(out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                _ = _themeService.CurrentTheme.Returns("Nord");
+                callInfo[0] = string.Empty;
+                return true;
+            });
+
+        _viewModel.RefreshThemesCommand.Execute(null);
+
+        _ = _viewModel.SelectedTheme.Should().Be("Nord");
+        _ = _settingsService.Current.Theme.Should().Be("Nord");
+        _themeService.Received(1).TryRefreshThemes(out Arg.Any<string>());
+        _ = _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task RefreshThemesCommand_WhenSaveFailsAfterRemovedTheme_KeepsActualFallbackThemeSelected()
+    {
+        var settings = new AppSettings
+        {
+            EnableTrayIcon = false,
+            StartMinimized = false,
+            EnableTextExpansion = false,
+            Theme = "Aurora",
+        };
+        var currentTheme = "Aurora";
+
+        _ = _settingsService.Current.Returns(settings);
+        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _themeService.AvailableThemes.Returns(["Aurora", "Classic"]);
+        _ = _themeService.CurrentTheme.Returns(_ => currentTheme);
+        _ = _themeService
+            .TryRefreshThemes(out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                currentTheme = "Classic";
+                callInfo[0] = "Current theme 'Aurora' is no longer available.";
+                return false;
+            });
+        _ = _themeService
+            .TryApplyTheme("Aurora", out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                currentTheme = "Classic";
+                callInfo[1] = "Unknown theme 'Aurora'. Fallback to Classic applied.";
+                return false;
+            });
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            _runtimeContext);
+
+        try
+        {
+            vm.RefreshThemesCommand.Execute(null);
+            await Task.Delay(25);
+
+            _ = vm.SelectedTheme.Should().Be("Classic");
+            _ = settings.Theme.Should().Be("Classic");
+            _themeService.Received(1).TryApplyTheme("Aurora", out Arg.Any<string>());
+        }
+        finally
+        {
+            vm.Dispose();
+        }
     }
 
     [Fact]

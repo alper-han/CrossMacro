@@ -32,6 +32,13 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <!-- Built-in themes and the user-facing sample/template are embedded resources:
+       the runtime catalog and the theme-folder provisioner stream them from the assembly. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Themes\*.json" />
+    <EmbeddedResource Include="Themes\UserThemes.README.md" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Update="Localization\Resources.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>

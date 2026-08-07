@@ -114,6 +114,12 @@
   <data name="Settings_ThemeDescription" xml:space="preserve">
     <value>Escolha o tema visual do aplicativo</value>
   </data>
+  <data name="Settings_OpenThemesFolder" xml:space="preserve">
+    <value>Abrir a pasta de temas</value>
+  </data>
+  <data name="Settings_RefreshThemes" xml:space="preserve">
+    <value>Atualizar temas</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>Idioma</value>
   </data>

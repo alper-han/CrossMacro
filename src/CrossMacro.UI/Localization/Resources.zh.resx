@@ -114,6 +114,12 @@
   <data name="Settings_ThemeDescription" xml:space="preserve">
     <value>选择应用程序视觉主题</value>
   </data>
+  <data name="Settings_OpenThemesFolder" xml:space="preserve">
+    <value>打开主题文件夹</value>
+  </data>
+  <data name="Settings_RefreshThemes" xml:space="preserve">
+    <value>刷新主题</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>语言</value>
   </data>

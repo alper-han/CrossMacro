@@ -114,6 +114,12 @@
   <data name="Settings_ThemeDescription" xml:space="preserve">
     <value>アプリケーションのビジュアルテーマを選択してください</value>
   </data>
+  <data name="Settings_OpenThemesFolder" xml:space="preserve">
+    <value>テーマフォルダーを開く</value>
+  </data>
+  <data name="Settings_RefreshThemes" xml:space="preserve">
+    <value>テーマを再読み込み</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>言語</value>
   </data>

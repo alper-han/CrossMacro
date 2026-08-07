@@ -1,0 +1,33 @@
+{
+  "name": "Classic",
+  "palette": {
+    "primaryColor": "#6265EC",
+    "primaryHoverColor": "#5D60E0",
+    "primaryPressedColor": "#3E41E8",
+    "successColor": "#10B981",
+    "successHoverColor": "#12D595",
+    "successPressedColor": "#10B981",
+    "dangerColor": "#EF4444",
+    "dangerHoverColor": "#F16060",
+    "dangerPressedColor": "#EF4444",
+    "backgroundColor": "#0F172A",
+    "surfaceColor": "#1E293B",
+    "surfaceHoverColor": "#334155",
+    "textPrimaryColor": "#F1F5F9",
+    "textSecondaryColor": "#94A3B8",
+    "warningColor": "#F59E0B",
+    "warningHoverColor": "#F6AA28",
+    "accentColor": "#8B5CF6",
+    "systemAccentColor": "#6265EC",
+    "systemAccentColorDark1": "#3E41E8",
+    "systemAccentColorDark2": "#3E41E8",
+    "systemAccentColorDark3": "#3E41E8",
+    "systemAccentColorLight1": "#5D60E0",
+    "systemAccentColorLight2": "#5D60E0",
+    "systemAccentColorLight3": "#5D60E0",
+    "textOnPrimaryColor": "#ffffff",
+    "textOnSuccessColor": "#020617",
+    "textOnDangerColor": "#020617",
+    "textOnWarningColor": "#020617"
+  }
+}

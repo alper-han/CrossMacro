@@ -31,6 +31,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
+    private readonly IThemeDirectoryResolver? _themeDirectoryResolver;
+    private readonly IDirectoryOpener? _directoryOpener;
     private readonly IProfileManager? _profileManager;
     private readonly IDialogService? _dialogService;
     private readonly IManageProfile? _manageProfile;
@@ -109,7 +111,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         ILocalizationService? localizationService = null,
         IProfileManager? profileManager = null,
         IDialogService? dialogService = null,
-        IManageProfile? manageProfile = null)
+        IManageProfile? manageProfile = null,
+        IThemeDirectoryResolver? themeDirectoryResolver = null,
+        IDirectoryOpener? directoryOpener = null)
     {
         ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
         ArgumentNullException.ThrowIfNull(themeService);
@@ -126,6 +130,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _profileManager = profileManager;
         _dialogService = dialogService;
         _manageProfile = manageProfile;
+        _themeDirectoryResolver = themeDirectoryResolver;
+        _directoryOpener = directoryOpener;
 
         AvailableProfiles = [];
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
@@ -496,6 +502,58 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     }
 
     public IEnumerable<string> AvailableThemes => _themeService.AvailableThemes;
+
+    [RelayCommand]
+    private void RefreshThemes()
+    {
+        var previousTheme = _selectedTheme;
+        if (!_themeService.TryRefreshThemes(out var refreshError))
+        {
+            Log.Warning("Theme refresh completed with warnings: {Error}", refreshError);
+        }
+
+        OnPropertyChanged(nameof(AvailableThemes));
+        if (string.Equals(_selectedTheme, _themeService.CurrentTheme, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _selectedTheme = _themeService.CurrentTheme;
+        _settingsService.Current.Theme = _selectedTheme;
+        OnPropertyChanged(nameof(SelectedTheme));
+
+        _ = TryPersistSettings(
+            () =>
+            {
+                if (!_themeService.TryApplyTheme(previousTheme, out var revertError))
+                {
+                    Log.Warning("Theme rollback after refresh failed for '{Theme}': {Error}", previousTheme, revertError);
+                }
+
+                _selectedTheme = _themeService.CurrentTheme;
+                _settingsService.Current.Theme = _selectedTheme;
+            },
+            nameof(SelectedTheme));
+    }
+
+    [RelayCommand]
+    private async Task OpenThemesFolderAsync()
+    {
+        // Design-time and minimal compositions may omit these optional dependencies.
+        if (_themeDirectoryResolver is null || _directoryOpener is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _directoryOpener.OpenAsync(_themeDirectoryResolver.GetThemeDirectoryPath()).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning("Failed to open themes folder: {Error}", ex.Message);
+        }
+    }
 
     public async Task CreateProfileAsync()
     {

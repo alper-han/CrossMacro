@@ -16,17 +16,21 @@ public sealed class ResourceCoverageTests
         var dynamicKeys = ThemeTestFileHelper.ExtractDynamicResourceKeys(axamlFiles);
         _ = dynamicKeys.Should().NotBeEmpty();
 
-        var classicThemeFile = Path.Combine(uiRoot, "Themes", "Classic.axaml");
-        var themeKeys = ThemeTestFileHelper.ReadResourceKeys(classicThemeFile);
+        var themeKeys = ThemeResourceDictionaryFactory.ResourceKeys.ToHashSet(StringComparer.Ordinal);
 
         var appResourceFile = Path.Combine(uiRoot, "App.axaml");
-        var appKeys = ThemeTestFileHelper.ReadResourceKeys(appResourceFile);
+        var appKeys = File.ReadAllText(appResourceFile)
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .SelectMany(line => Regex.Matches(line, "x:Key=\"(?<key>[^\"]+)\"")
+                .Select(match => match.Groups["key"].Value))
+            .ToHashSet(StringComparer.Ordinal);
         var styleFiles = Directory
             .GetFiles(Path.Combine(uiRoot, "Styles"), "*.axaml", SearchOption.AllDirectories)
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var styleKeys = styleFiles
-            .SelectMany(ThemeTestFileHelper.ReadResourceKeys)
+            .SelectMany(path => Regex.Matches(File.ReadAllText(path), "x:Key=\"(?<key>[^\"]+)\"")
+                .Select(match => match.Groups["key"].Value))
             .ToHashSet(StringComparer.Ordinal);
 
         var missingKeys = dynamicKeys

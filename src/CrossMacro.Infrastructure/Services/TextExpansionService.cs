@@ -28,6 +28,7 @@ public sealed class TextExpansionService : ITextExpansionService
     private long _startupGeneration;
     private readonly InputCaptureLifecycle _captureLifecycle;
     private int _lastCharacterKeyCode;
+    private int _restartInProgress;
 
     public bool IsRunning { get; private set; }
 
@@ -80,19 +81,8 @@ public sealed class TextExpansionService : ITextExpansionService
                 {
                     _ = _storageService.Load();
                 }
-                IsRunning = true;
-                _captureLifecycle.Start(
-                    _inputCaptureFactory,
-                    captureMouse: false,
-                    captureKeyboard: true,
-                    OnInputReceived,
-                    OnInputCaptureError,
-                    OnCaptureStarted,
-                    OnCaptureFaulted);
 
-                // Reset State
-                _inputProcessor.Reset();
-                _bufferState.Clear();
+                StartCaptureSession_NoLock();
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -101,6 +91,26 @@ public sealed class TextExpansionService : ITextExpansionService
                 IsRunning = false;
             }
         }
+    }
+
+    /// <summary>
+    /// Starts the capture session and resets input-processing state. Caller must hold <see cref="_lock"/>.
+    /// </summary>
+    private void StartCaptureSession_NoLock()
+    {
+        IsRunning = true;
+        _captureLifecycle.Start(
+            _inputCaptureFactory,
+            captureMouse: false,
+            captureKeyboard: true,
+            OnInputReceived,
+            OnInputCaptureError,
+            OnCaptureStarted,
+            OnCaptureFaulted);
+
+        // Reset State
+        _inputProcessor.Reset();
+        _bufferState.Clear();
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -353,7 +363,14 @@ public sealed class TextExpansionService : ITextExpansionService
     private void OnInputCaptureError(object? sender, InputCaptureErrorEventArgs e)
     {
         var error = e.Message;
-        Log.LogError("[TextExpansionService] Capture error: {Error}", error);
+        if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error))
+        {
+            Log.Warning("[TextExpansionService] Input capture unavailable: {Error}", error);
+        }
+        else
+        {
+            Log.LogError("[TextExpansionService] Capture error: {Error}", error);
+        }
 
         lock (_lock)
         {
@@ -363,10 +380,50 @@ public sealed class TextExpansionService : ITextExpansionService
             {
                 return;
             }
+        }
 
-            CleanupCapture_NoLock();
-            IsRunning = false;
-            Log.Information("[TextExpansionService] Stopped");
+        // Daemon/transport loss is transient: the IPC layer reconnects on its own,
+        // so restart the capture instead of leaving expansion dead until a manual toggle.
+        _ = TryRestartCaptureAsync(error);
+    }
+
+    private async Task TryRestartCaptureAsync(string cause)
+    {
+        if (Interlocked.CompareExchange(ref _restartInProgress, 1, 0) is not 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(250, CancellationToken.None).ConfigureAwait(false);
+
+            lock (_lock)
+            {
+                if (_disposed || !IsRunning)
+                {
+                    return;
+                }
+
+                Log.Warning("[TextExpansionService] Restarting input capture after error: {Cause}", cause);
+
+                try
+                {
+                    CleanupCapture_NoLock();
+                    IsRunning = false;
+                    StartCaptureSession_NoLock();
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    CleanupCapture_NoLock();
+                    IsRunning = false;
+                    Log.LogError(ex, "[TextExpansionService] Failed to restart input capture");
+                }
+            }
+        }
+        finally
+        {
+            _ = Interlocked.Exchange(ref _restartInProgress, 0);
         }
     }
 

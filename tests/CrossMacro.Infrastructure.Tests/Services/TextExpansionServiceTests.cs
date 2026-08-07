@@ -647,11 +647,53 @@ public sealed class TextExpansionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task OnInputCaptureError_AfterStartup_StopsServiceWithoutRestart()
+    public async Task OnInputCaptureError_AfterStartup_RestartsCapture()
     {
         var firstCapture = Substitute.For<IInputCapture>();
-        var cleanupObserved = new AsyncSignal();
         _ = firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        var secondCapture = Substitute.For<IInputCapture>();
+        var secondStarted = new AsyncSignal();
+        _ = secondCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            secondStarted.Signal();
+            return Task.CompletedTask;
+        });
+
+        var factoryCallCount = 0;
+        var service = new TextExpansionService(
+            _settingsService,
+            _storageService,
+            () =>
+            {
+                factoryCallCount++;
+                return factoryCallCount == 1 ? firstCapture : secondCapture;
+            },
+            _inputProcessor,
+            _bufferState,
+            _executor);
+
+        service.Start();
+        Assert.True(service.IsRunning);
+
+        firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(firstCapture, new InputCaptureErrorEventArgs("Connection lost: daemon went away"));
+
+        await secondStarted.WaitAsync(TestTimeout);
+
+        Assert.True(service.IsRunning);
+        Assert.Equal(2, factoryCallCount);
+        firstCapture.Received(1).StopCapture();
+        firstCapture.Received(1).Dispose();
+        _inputProcessor.Received(2).Reset();
+
+        service.Dispose();
+    }
+
+    [Fact]
+    public async Task OnInputCaptureError_WhenRestartFails_StopsService()
+    {
+        var firstCapture = Substitute.For<IInputCapture>();
+        _ = firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        var cleanupObserved = new AsyncSignal();
         firstCapture.When(x => x.Dispose()).Do(_ => cleanupObserved.Signal());
 
         var factoryCallCount = 0;
@@ -661,7 +703,9 @@ public sealed class TextExpansionServiceTests : IDisposable
             () =>
             {
                 factoryCallCount++;
-                return firstCapture;
+                return factoryCallCount > 1
+                    ? throw new InvalidOperationException("capture backend gone")
+                    : firstCapture;
             },
             _inputProcessor,
             _bufferState,
@@ -674,10 +718,15 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         await cleanupObserved.WaitAsync(TestTimeout);
 
+        // The restart attempt runs after a short delay; wait until it has failed.
+        var deadline = DateTime.UtcNow + TestTimeout;
+        while (service.IsRunning && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(25);
+        }
+
         Assert.False(service.IsRunning);
-        Assert.Equal(1, factoryCallCount);
-        firstCapture.Received(1).StopCapture();
-        firstCapture.Received(1).Dispose();
+        Assert.Equal(2, factoryCallCount);
 
         service.Dispose();
     }

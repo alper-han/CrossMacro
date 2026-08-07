@@ -316,12 +316,26 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
                 $"Daemon socket access denied: {IpcProtocol.DefaultSocketPath}",
                 ex);
         }
+        catch (IOException ex)
+        {
+            // FileNotFound/DirectoryNotFound from the probe mean the daemon is down
+            // (it unlinks the socket on stop and recreates it on start).
+            throw new IpcClientException(
+                IpcClientFailureReason.SocketNotFound,
+                SocketNotFoundMessage(),
+                ex);
+        }
 
         throw new IpcClientException(
             IpcClientFailureReason.SocketNotFound,
-            "Daemon socket not found. Checked:\n" +
+            SocketNotFoundMessage());
+    }
+
+    private static string SocketNotFoundMessage()
+    {
+        return "Daemon socket not found. Checked:\n" +
             $"  - {IpcProtocol.DefaultSocketPath}\n" +
-            "Is the CrossMacro daemon service running?");
+            "Is the CrossMacro daemon service running?";
     }
 
     private static void ProbeSocketPathAccess(string socketPath)

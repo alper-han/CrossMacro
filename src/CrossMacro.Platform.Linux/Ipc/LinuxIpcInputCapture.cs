@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Ipc;
 
 public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
 {
-    private readonly record struct StartupFailurePolicy(
+    internal readonly record struct StartupFailurePolicy(
         bool WaitForReconnect,
         string UserMessage);
 
@@ -265,27 +265,41 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         CaptureError?.Invoke(this, error);
     }
 
-    private static string GetStartupFailureMessage(Exception ex)
+    internal static string GetStartupFailureMessage(Exception ex)
     {
-        if (ex is IpcClientException ipcEx && ipcEx.Reason is IpcClientFailureReason.Timeout)
+        if (ex is not IpcClientException ipcEx)
         {
-            return "Timed out while waiting for daemon handshake. Check that crossmacro.service is running and responsive.";
+            return ex.Message;
         }
 
-        if (ex is System.IO.IOException ||
-            ex.InnerException is System.IO.IOException ||
-            ex.InnerException is System.Net.Sockets.SocketException)
+        return ipcEx.Reason switch
         {
-            return "Connection rejected by daemon. Polkit authorization was denied or timed out. (System details: " + ex.Message + ")";
-        }
-
-        return ex.Message;
+            IpcClientFailureReason.Timeout =>
+                "Timed out while waiting for daemon handshake. Check that crossmacro.service is running and responsive.",
+            IpcClientFailureReason.SocketNotFound =>
+                "CrossMacro daemon is not reachable (the service is stopped or restarting). The connection will be retried automatically.",
+            IpcClientFailureReason.PermissionDenied =>
+                "Permission denied while accessing the daemon socket. Check that your user is in the 'crossmacro' group.",
+            // The daemon supplies its own explanation here (protocol mismatch, uinput init, etc.).
+            IpcClientFailureReason.HandshakeFailed =>
+                $"Connection rejected by daemon. {ipcEx.Message}",
+            IpcClientFailureReason.ProtocolMismatch =>
+                ipcEx.Message,
+            IpcClientFailureReason.ConnectFailed =>
+                ipcEx.InnerException is not null
+                    ? $"{ipcEx.Message} (System details: {ipcEx.InnerException.Message})"
+                    : ipcEx.Message,
+            // Forward compatibility: unknown reasons fall back to the raw message.
+            _ => ex.Message,
+        };
     }
 
-    private StartupFailurePolicy ClassifyCaptureStartupFailure(Exception ex)
+    internal StartupFailurePolicy ClassifyCaptureStartupFailure(Exception ex)
     {
         var userMessage = GetStartupFailureMessage(ex);
-        var shouldWaitForReconnect = _client.AutoReconnectEnabled && ex is IpcClientException ipcEx && ipcEx.Reason is IpcClientFailureReason.ConnectFailed;
+        var shouldWaitForReconnect = _client.AutoReconnectEnabled
+            && ex is IpcClientException ipcEx
+            && ipcEx.Reason is IpcClientFailureReason.ConnectFailed or IpcClientFailureReason.SocketNotFound;
 
         return new StartupFailurePolicy(shouldWaitForReconnect, userMessage);
     }

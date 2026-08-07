@@ -685,6 +685,7 @@ internal sealed class IpcTransport(
     {
         var delay = TimeSpan.FromMilliseconds(250);
         var maxDelay = TimeSpan.FromSeconds(5);
+        var attempt = 0;
 
         try
         {
@@ -702,7 +703,8 @@ internal sealed class IpcTransport(
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
-                    Log.Warning(ex, "[IpcClient] Reconnect attempt failed");
+                    attempt++;
+                    LogReconnectAttempt(attempt, ex, delay);
                 }
 
                 await Task.Delay(delay, TimeProvider.System, token).ConfigureAwait(false);
@@ -719,6 +721,24 @@ internal sealed class IpcTransport(
             {
                 _reconnectTask = null;
             }
+        }
+    }
+
+    private static void LogReconnectAttempt(int attempt, Exception ex, TimeSpan nextDelay)
+    {
+        // A daemon restart is an expected transient: keep the first failure fully
+        // diagnosable, then stay quiet instead of flooding the log with stack traces.
+        // At steady state (5s backoff) every 20th attempt logs roughly once per 100s.
+        if (attempt is 1)
+        {
+            Log.Warning(ex, "[IpcClient] Daemon connection lost; attempting to reconnect");
+        }
+        else if (attempt is <= 6 || attempt % 20 is 0)
+        {
+            Log.Information(
+                "[IpcClient] Daemon unavailable ({Reason}); retrying in {DelaySeconds:0.#}s",
+                ex.Message,
+                nextDelay.TotalSeconds);
         }
     }
 

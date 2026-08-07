@@ -173,7 +173,11 @@ public sealed class MacroExecutionServiceTests
             Assert.True(result.Success);
             await _player.Received(1).PlayAsync(
                 macro,
-                Arg.Is<PlaybackOptions>(x => x.SpeedMultiplier == 2.0 && x.Loop && x.RepeatCount == 3 && x.RepeatDelayMs == 100),
+                Arg.Is<PlaybackOptions>(x => x != null
+                    && Math.Abs(x.SpeedMultiplier - 2.0) < 0.000001
+                    && x.Loop
+                    && x.RepeatCount == 3
+                    && x.RepeatDelayMs == 100),
                 Arg.Any<CancellationToken>());
         }
         finally

@@ -33,7 +33,7 @@ public sealed class PlayCommandHandlerTests
         Assert.True(result.Success);
         Assert.Equal((int)CliExitCode.Success, result.ExitCode);
         _ = await _executionService.Received(1).ExecuteAsync(
-            Arg.Is<MacroExecutionRequest>(x => x.DryRun && x.MacroFilePath == options.MacroFilePath),
+            Arg.Is<MacroExecutionRequest>(x => x != null && x.DryRun && x.MacroFilePath == options.MacroFilePath),
             Arg.Any<CancellationToken>());
     }
 
@@ -59,7 +59,7 @@ public sealed class PlayCommandHandlerTests
         Assert.True(result.Success);
         _ = await _preflightService.DidNotReceive().CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>());
         _ = await _executionService.Received(1).ExecuteAsync(
-            Arg.Is<MacroExecutionRequest>(x => x.DryRun && x.MacroFilePath == options.MacroFilePath),
+            Arg.Is<MacroExecutionRequest>(x => x != null && x.DryRun && x.MacroFilePath == options.MacroFilePath),
             Arg.Any<CancellationToken>());
     }
 
@@ -114,7 +114,7 @@ public sealed class PlayCommandHandlerTests
 
         Assert.True(result.Success);
         _ = await _executionService.Received(1).ExecuteAsync(
-            Arg.Is<MacroExecutionRequest>(x => x.Loop && x.RepeatCount == 50),
+            Arg.Is<MacroExecutionRequest>(x => x != null && x.Loop && x.RepeatCount == 50),
             Arg.Any<CancellationToken>());
     }
 }

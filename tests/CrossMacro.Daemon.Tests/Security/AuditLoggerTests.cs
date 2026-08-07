@@ -1,7 +1,6 @@
 namespace CrossMacro.Daemon.Tests.Security;
 
 
-[Collection(AuditEnvironmentCollection.Name)]
 public sealed class AuditLoggerTests
 {
     [Fact]

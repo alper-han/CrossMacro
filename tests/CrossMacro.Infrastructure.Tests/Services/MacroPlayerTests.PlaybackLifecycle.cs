@@ -68,7 +68,7 @@ public sealed partial class MacroPlayerTests
 
         async Task ActAsync() => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        await TestAssertions.ThrowsWithMessageAsync<InvalidOperationException>(ActAsync, "*injected validation failure*");
+        await FluentTestAssertions.ThrowsWithMessageAsync<InvalidOperationException>(ActAsync, "*injected validation failure*");
         TestAssertions.Verify(() => validator.Received(1).Validate(macro));
     }
 

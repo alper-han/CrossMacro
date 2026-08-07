@@ -1,6 +1,6 @@
 namespace CrossMacro.TestInfrastructure;
 
-internal static partial class TestAssertions
+internal static class TestAssertions
 {
     internal static void Throws<TException>(Action testCode)
         where TException : Exception

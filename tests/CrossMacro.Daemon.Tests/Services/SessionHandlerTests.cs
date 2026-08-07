@@ -376,7 +376,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
     }
 
-    private static void StartCapture(BinaryReader reader, BinaryWriter writer, int requestId)
+    private static void SendStartCaptureCommand(BinaryReader reader, BinaryWriter writer, int requestId)
     {
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Write(requestId);

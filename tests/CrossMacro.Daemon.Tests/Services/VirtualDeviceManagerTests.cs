@@ -79,7 +79,7 @@ public sealed class VirtualDeviceManagerTests
     {
         await using var manager = new VirtualDeviceManager();
 
-        var ex = await Record.ExceptionAsync(() => manager.SendEventAsync(type: 1, code: 2, value: 3));
+        var ex = await Record.ExceptionAsync(() => manager.SendEventAsync(type: 1, code: 2, value: 3, CancellationToken.None));
 
         Assert.Null(ex);
     }
@@ -89,7 +89,7 @@ public sealed class VirtualDeviceManagerTests
     {
         await using var manager = new VirtualDeviceManager();
 
-        var ex = await Record.ExceptionAsync(() => manager.ResetAsync());
+        var ex = await Record.ExceptionAsync(() => manager.ResetAsync(CancellationToken.None));
 
         Assert.Null(ex);
     }
@@ -115,7 +115,7 @@ public sealed class VirtualDeviceManagerTests
         await manager.DisposeAsync();
 
         await TestAssertions.ThrowsAsync<ObjectDisposedException>(
-            () => manager.SendEventAsync(type: 1, code: 2, value: 3));
+            () => manager.SendEventAsync(type: 1, code: 2, value: 3, CancellationToken.None));
     }
 
     [LinuxFact]

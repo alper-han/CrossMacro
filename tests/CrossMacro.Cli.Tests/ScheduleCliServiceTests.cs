@@ -175,12 +175,14 @@ public sealed class ScheduleCliServiceTests
         Assert.Equal(10, taskData.IntervalValue);
         Assert.Equal("Minutes", taskData.IntervalUnit);
         _ = await scheduler.Received(1).AddAsync(Arg.Is<ScheduledTask>(task =>
-            task.Name == "Daily"
+            task != null
+            && task.Name == "Daily"
             && task.MacroFilePath == "/tmp/demo.macro"
             && task.Type == ScheduleType.Interval
             && task.IntervalValue == 10
             && task.IntervalUnit == IntervalUnit.Minutes
-            && task.IsEnabled));
+            && task.IsEnabled),
+            CancellationToken.None);
     }
 
     [Fact]
@@ -203,11 +205,13 @@ public sealed class ScheduleCliServiceTests
 
         Assert.True(result.Success);
         _ = await scheduler.Received(1).UpdateAsync(Arg.Is<ScheduledTask>(updated =>
-            updated.Id == id
+            updated != null
+            && updated.Id == id
             && updated.Name == "New"
             && updated.Type == ScheduleType.Weekly
             && updated.WeeklyDays == (ScheduleDays.Monday | ScheduleDays.Wednesday)
-            && updated.WeeklyTime == new TimeSpan(9, 30, 0)));
+            && updated.WeeklyTime == new TimeSpan(9, 30, 0)),
+            CancellationToken.None);
     }
 
     [Fact]

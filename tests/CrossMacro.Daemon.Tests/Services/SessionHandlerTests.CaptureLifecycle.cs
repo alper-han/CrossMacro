@@ -42,7 +42,7 @@ public sealed partial class SessionHandlerTests
         writer.Flush();
         socketPair.Client.Shutdown(SocketShutdown.Send);
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
 
         Assert.Equal(1, captureManager.StartCaptureCalls);
         Assert.True(captureManager.StopCaptureCalls >= 1);
@@ -75,7 +75,7 @@ public sealed partial class SessionHandlerTests
         writer.Flush();
         socketPair.Client.Shutdown(SocketShutdown.Send);
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
 
         Assert.Equal([(0, 0)], virtualDevice.ConfigureCalls);
         Assert.Equal(0, captureManager.StartCaptureCalls);
@@ -102,7 +102,7 @@ public sealed partial class SessionHandlerTests
         using var writer = new BinaryWriter(stream);
 
         CompleteHandshake(reader, writer);
-        StartCapture(reader, writer, requestId: 2121);
+        SendStartCaptureCommand(reader, writer, requestId: 2121);
 
         cts.Cancel();
 
@@ -130,7 +130,7 @@ public sealed partial class SessionHandlerTests
         using var writer = new BinaryWriter(stream);
 
         CompleteHandshake(reader, writer);
-        StartCapture(reader, writer, requestId: 2222);
+        SendStartCaptureCommand(reader, writer, requestId: 2222);
 
         socketPair.Client.Shutdown(SocketShutdown.Send);
 

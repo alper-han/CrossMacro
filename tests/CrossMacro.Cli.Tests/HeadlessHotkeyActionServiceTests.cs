@@ -587,14 +587,9 @@ skipInitialZero: true,
 
     private sealed class ControlledDelay
     {
-        private readonly Lock _sync = new();
-        private readonly Queue<DelayRequest> _requests = new();
-        private readonly AsyncSignal _requestArrived = new();
-
         public Task DelayAsync(TimeSpan duration, CancellationToken cancellationToken)
         {
             var completionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var request = new DelayRequest(duration, completionSource);
 
             CancellationTokenRegistration cancellationRegistration = default;
             if (cancellationToken.CanBeCanceled)
@@ -612,47 +607,7 @@ skipInitialZero: true,
                     TaskScheduler.Default);
             }
 
-            lock (_sync)
-            {
-                _requests.Enqueue(request);
-                _requestArrived.Signal();
-            }
-
             return completionSource.Task;
-        }
-
-        public async Task<DelayRequest> WaitForNextRequestAsync(TimeSpan timeout)
-        {
-            while (true)
-            {
-                lock (_sync)
-                {
-                    if (_requests.Count > 0)
-                    {
-                        var request = _requests.Dequeue();
-                        if (_requests.Count is 0)
-                        {
-                            _requestArrived.Reset();
-                        }
-
-                        return request;
-                    }
-
-                    _requestArrived.Reset();
-                }
-
-                await _requestArrived.WaitAsync(timeout);
-            }
-        }
-    }
-
-    private sealed class DelayRequest(TimeSpan duration, TaskCompletionSource completionSource)
-    {
-        public TimeSpan Duration { get; } = duration;
-
-        public void Complete()
-        {
-            _ = completionSource.TrySetResult();
         }
     }
 

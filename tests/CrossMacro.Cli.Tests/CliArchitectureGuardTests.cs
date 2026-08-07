@@ -32,8 +32,8 @@ public sealed class CliArchitectureGuardTests
     {
         var constructorParameters = CreateInspector().FindConstructorParameterTypes("CrossMacro.Cli.CliCommandExecutor");
 
-        Assert.DoesNotContain("IServiceProvider", constructorParameters);
-        Assert.Contains("ICliCommandHandlerResolver", constructorParameters);
+        Assert.DoesNotContain("IServiceProvider", constructorParameters, StringComparer.Ordinal);
+        Assert.Contains("ICliCommandHandlerResolver", constructorParameters, StringComparer.Ordinal);
     }
 
     [Fact]

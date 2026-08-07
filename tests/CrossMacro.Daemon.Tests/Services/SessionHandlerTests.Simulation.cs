@@ -73,7 +73,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(4040, reader.ReadInt32());
         Assert.Contains("event count", reader.ReadString(), StringComparison.Ordinal);
 
-        StartCapture(reader, writer, requestId: 4041);
+        SendStartCaptureCommand(reader, writer, requestId: 4041);
 
         socketPair.Client.Dispose();
         await runTask.WaitAsync(TimeSpan.FromSeconds(2));
@@ -176,7 +176,7 @@ public sealed partial class SessionHandlerTests
         using var writer = new BinaryWriter(stream);
 
         CompleteHandshake(reader, writer);
-        StartCapture(reader, writer, requestId: 2020);
+        SendStartCaptureCommand(reader, writer, requestId: 2020);
 
         writer.Write((byte)IpcOpCode.SimulateEvent);
         writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);

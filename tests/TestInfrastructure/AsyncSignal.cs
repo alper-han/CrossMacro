@@ -35,7 +35,7 @@ internal sealed class AsyncSignal
 
         try
         {
-            await waitTask.WaitAsync(timeout, cancellationToken);
+            await waitTask.WaitAsync(timeout, TimeProvider.System, cancellationToken);
         }
         catch (TimeoutException exception)
         {

@@ -22,11 +22,11 @@ public sealed class CaptureForwardingCoordinatorTests
                 _ = firstWriteIssued.TrySetResult();
             }
         };
-        var firstWriter = await session.WriterGate.EnterAsync();
+        var firstWriter = await session.WriterGate.EnterAsync(CancellationToken.None);
 
         var forwarder = coordinator.CreateEventForwarder(generation, session);
-        var firstForward = Task.Run(() => forwarder(CreateEvent(1)));
-        await firstWriteIssued.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var firstForward = Task.Run(() => forwarder(CreateEvent(1)), CancellationToken.None);
+        await firstWriteIssued.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         forwarder(CreateEvent(2));
         forwarder(CreateEvent(3));
         forwarder(CreateEvent(4));

@@ -96,7 +96,7 @@ public sealed class RunCommandHandlerTests
         Assert.True(result.Success);
         _ = await _preflightService.DidNotReceive().CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>());
         _ = await _runService.Received(1).ExecuteAsync(
-            Arg.Is<CliRunExecutionRequest>(x => x.DryRun && x.Steps.Count == 1),
+            Arg.Is<CliRunExecutionRequest>(x => x != null && x.DryRun && x.Steps != null && x.Steps.Count == 1),
             Arg.Any<CancellationToken>());
     }
 

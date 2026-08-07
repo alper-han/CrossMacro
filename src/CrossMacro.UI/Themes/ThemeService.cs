@@ -75,7 +75,10 @@ public sealed class ThemeService : IThemeService
         ArgumentNullException.ThrowIfNull(action);
 
         var dispatcher = Avalonia.Threading.Dispatcher.UIThread;
-        return dispatcher.CheckAccess() ? action() : dispatcher.Invoke(action);
+        // No Avalonia app (unit tests) → no pumped UI thread → run inline; a blocking Invoke would deadlock.
+        return dispatcher.CheckAccess() || Avalonia.Application.Current is null
+            ? action()
+            : dispatcher.Invoke(action);
     }
 
     private bool RefreshCatalog(List<string> diagnostics)

@@ -113,6 +113,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 EditorActionType.SetVariable,
                 EditorActionType.IncrementVariable,
                 EditorActionType.DecrementVariable,
+                EditorActionType.MultiplyVariable,
+                EditorActionType.DivideVariable,
             }),
             ("Editor_ActionGroup_FlowControl", new[]
             {
@@ -237,6 +239,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 field.PropertyChanged += OnSelectedActionPropertyChanged;
                 NormalizeSelectedActionState(field);
             }
+
+            SyncScriptArithmeticStateFromModel(field);
 
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedAction));
@@ -656,6 +660,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.SetVariable => Localize("Editor_CurrentPositionUse"),
         EditorActionType.IncrementVariable => Localize("Editor_CurrentPositionUse"),
         EditorActionType.DecrementVariable => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.MultiplyVariable => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.DivideVariable => Localize("Editor_CurrentPositionUse"),
         EditorActionType.RepeatBlockStart => Localize("Editor_CurrentPositionUse"),
         EditorActionType.IfBlockStart => Localize("Editor_CurrentPositionUse"),
         EditorActionType.ElseBlockStart => Localize("Editor_CurrentPositionUse"),
@@ -769,7 +775,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool ShowWindowWorkspaceField => ShowWindowCommandFields
         && SelectedAction?.WindowCommandMode is WindowCommandMode.WorkspaceSwitch or WindowCommandMode.WorkspaceMoveActive or WindowCommandMode.WorkspaceMoveWindow;
     public bool ShowWindowAddressField => ShowWindowCommandFields && (SelectedAction?.WindowCommandMode) is WindowCommandMode.WorkspaceMoveWindow;
-    public bool ShowIncDecFields => SelectedAction?.Type is EditorActionType.IncrementVariable or EditorActionType.DecrementVariable;
+    public bool ShowIncDecFields => SelectedAction?.Type is EditorActionType.IncrementVariable or EditorActionType.DecrementVariable or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable;
     public bool ShowRepeatFields => (SelectedAction?.Type) is EditorActionType.RepeatBlockStart;
     public bool ShowConditionFields => SelectedAction?.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart;
     public bool ShowForFields => (SelectedAction?.Type) is EditorActionType.ForBlockStart;
@@ -795,6 +801,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.SetVariable => Localize("Editor_TextToType"),
         EditorActionType.IncrementVariable => Localize("Editor_TextToType"),
         EditorActionType.DecrementVariable => Localize("Editor_TextToType"),
+        EditorActionType.MultiplyVariable => Localize("Editor_TextToType"),
+        EditorActionType.DivideVariable => Localize("Editor_TextToType"),
         EditorActionType.RepeatBlockStart => Localize("Editor_TextToType"),
         EditorActionType.IfBlockStart => Localize("Editor_TextToType"),
         EditorActionType.ElseBlockStart => Localize("Editor_TextToType"),
@@ -835,6 +843,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.SetVariable => Localize("Editor_EnterTextToType"),
         EditorActionType.IncrementVariable => Localize("Editor_EnterTextToType"),
         EditorActionType.DecrementVariable => Localize("Editor_EnterTextToType"),
+        EditorActionType.MultiplyVariable => Localize("Editor_EnterTextToType"),
+        EditorActionType.DivideVariable => Localize("Editor_EnterTextToType"),
         EditorActionType.RepeatBlockStart => Localize("Editor_EnterTextToType"),
         EditorActionType.IfBlockStart => Localize("Editor_EnterTextToType"),
         EditorActionType.ElseBlockStart => Localize("Editor_EnterTextToType"),
@@ -877,6 +887,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.SetVariable => Localize("Editor_TextToTypeHint"),
         EditorActionType.IncrementVariable => Localize("Editor_TextToTypeHint"),
         EditorActionType.DecrementVariable => Localize("Editor_TextToTypeHint"),
+        EditorActionType.MultiplyVariable => Localize("Editor_TextToTypeHint"),
+        EditorActionType.DivideVariable => Localize("Editor_TextToTypeHint"),
         EditorActionType.RepeatBlockStart => Localize("Editor_TextToTypeHint"),
         EditorActionType.IfBlockStart => Localize("Editor_TextToTypeHint"),
         EditorActionType.ElseBlockStart => Localize("Editor_TextToTypeHint"),

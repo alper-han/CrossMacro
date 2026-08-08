@@ -28,7 +28,8 @@ public partial class EditorViewModel
         get => _selectedIncDecVariableSuggestion;
         set => ApplyVariableSuggestion(ref _selectedIncDecVariableSuggestion, value, nameof(SelectedIncDecVariableSuggestion), suggestion =>
         {
-            if (SelectedAction?.Type is EditorActionType.IncrementVariable or EditorActionType.DecrementVariable)
+            if (SelectedAction?.Type is EditorActionType.IncrementVariable or EditorActionType.DecrementVariable
+                or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable)
             {
                 SelectedAction.ScriptVariableName = suggestion;
             }

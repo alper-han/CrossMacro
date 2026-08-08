@@ -142,6 +142,12 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             return parts.Length is 1 or 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
         }
 
+        if (step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase) || step.StartsWith("div ", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = step[4..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Length is 1 or 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
+        }
+
         return false;
     }
 

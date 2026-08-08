@@ -435,7 +435,7 @@ public sealed class CliCommandRouter
                 "  shell input \"<stdin text>\" \"<command>\" [retries] [backoff_ms] [timeout_ms]\n" +
                 "  shell capture-input \"<stdin text>\" \"<command>\" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\n" +
                 "  set <name> <value> | set <name>=<value>\n" +
-                "  inc <name> [amount] | dec <name> [amount]\n" +
+                "  inc <name> [amount] | dec <name> [amount] | mul <name> [amount] | div <name> [amount]\n" +
                 "  repeat <count> { ... }\n" +
                 "  if <left> <op> <right> { ... } else { ... }\n" +
                 "  while <left> <op> <right> { ... }\n" +

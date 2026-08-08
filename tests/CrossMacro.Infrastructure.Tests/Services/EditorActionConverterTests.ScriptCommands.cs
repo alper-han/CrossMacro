@@ -460,6 +460,107 @@ public sealed partial class EditorActionConverterTests
         _ = sequence.Events.Should().HaveCount(3);
     }
 
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "mul x 2", ScriptNumericSourceType.Number, "2")]
+    [InlineData(EditorActionType.DivideVariable, "div x $y", ScriptNumericSourceType.VariableReference, "y")]
+    public void ToAndFromMacroSequence_WhenMulDivActionUsed_RoundTripsLosslessly(
+        EditorActionType actionType,
+        string expectedStep,
+        ScriptNumericSourceType expectedAmountSourceType,
+        string expectedAmountValue)
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "x",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "1",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "y",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "3",
+            },
+            new EditorAction
+            {
+                Type = actionType,
+                ScriptVariableName = "x",
+                ScriptNumericSourceType = expectedAmountSourceType,
+                ScriptNumericValue = expectedAmountValue,
+            },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Mul Div Round Trip", isAbsolute: false);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        _ = sequence.ScriptSteps.Should().Equal("set x 1", "set y 3", expectedStep);
+        _ = restored.Should().HaveCount(3);
+        var restoredAction = restored[2];
+        _ = restoredAction.Type.Should().Be(actionType);
+        _ = restoredAction.ScriptVariableName.Should().Be("x");
+        _ = restoredAction.ScriptNumericSourceType.Should().Be(expectedAmountSourceType);
+        _ = restoredAction.ScriptNumericValue.Should().Be(expectedAmountValue);
+        _ = restoredAction.PreferLegacyScriptText.Should().BeFalse();
+    }
+
+    [Fact]
+    public void FromMacroSequence_WhenMulDivStepsAreMalformed_RestoresStructuredActionsWithLegacyText()
+    {
+        var sequence = new MacroSequence { Name = "Malformed Mul Div" };
+        sequence.ScriptSteps.Add("mul 1x 2");
+        sequence.ScriptSteps.Add("div x abc");
+
+        var restored = _converter.FromMacroSequence(sequence);
+
+        _ = restored.Should().HaveCount(2);
+        _ = restored[0].Type.Should().Be(EditorActionType.MultiplyVariable);
+        _ = restored[0].Text.Should().Be("1x 2");
+        _ = restored[0].PreferLegacyScriptText.Should().BeTrue();
+        _ = restored[1].Type.Should().Be(EditorActionType.DivideVariable);
+        _ = restored[1].Text.Should().Be("x abc");
+        _ = restored[1].PreferLegacyScriptText.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenStructuredMulDivUsed_ExpandsToExpectedResult()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "x",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "5",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MultiplyVariable,
+                ScriptVariableName = "x",
+                ScriptNumericSourceType = ScriptNumericSourceType.Number,
+                ScriptNumericValue = "2",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.DivideVariable,
+                ScriptVariableName = "x",
+                ScriptNumericSourceType = ScriptNumericSourceType.Number,
+                ScriptNumericValue = "4",
+            },
+            new EditorAction { Type = EditorActionType.MouseMove, IsAbsolute = false, X = 0, Y = 0, CoordinateXToken = "$x", CoordinateYToken = "0" },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Structured Mul Div", isAbsolute: false);
+
+        _ = sequence.ScriptSteps.Should().Equal("set x 5", "mul x 2", "div x 4", "move rel-logical $x 0");
+        _ = sequence.Events.Should().ContainSingle();
+        _ = sequence.Events[0].X.Should().Be(2); // (5 * 2) / 4
+    }
+
     [Fact]
     public void ToMacroSequence_WhenStructuredForBlockUsed_RepeatsExpectedCount()
     {

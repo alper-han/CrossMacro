@@ -23,6 +23,10 @@ internal sealed class RunScriptRuntimeExecutor(
     private readonly IPlaybackTimingService _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
     private readonly IPlaybackPauseToken _pauseToken = pauseToken ?? throw new ArgumentNullException(nameof(pauseToken));
     private readonly IDictionary<string, string> _runtimeVariables = runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables));
+
+    // Read-only live view for the Core evaluator (takes IReadOnlyDictionary).
+    private readonly IReadOnlyDictionary<string, string> _runtimeVariablesView =
+        new ReadOnlyDictionary<string, string>(runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables)));
     private readonly RunScriptScreenReadExecutor _screenReadExecutor = screenReadExecutor ?? throw new ArgumentNullException(nameof(screenReadExecutor));
     private readonly RunScriptWindowExecutor _windowExecutor = windowExecutor ?? throw new ArgumentNullException(nameof(windowExecutor));
     private readonly RunScriptClipboardExecutor _clipboardExecutor = clipboardExecutor ?? throw new ArgumentNullException(nameof(clipboardExecutor));
@@ -290,7 +294,25 @@ internal sealed class RunScriptRuntimeExecutor(
             }
 
             RunScriptRuntimeText.EnsureValidVariableName(variableName);
-            _runtimeVariables[variableName] = ResolveVariables(value);
+            var resolvedValue = ResolveVariables(value);
+
+            // Fixed divergence: evaluate numeric expressions like the compile-time path (`set x 5+3` stores 8). A surviving '$' is a '$$' escape; keep the raw fallback.
+            if (!resolvedValue.Contains('$', StringComparison.Ordinal)
+                && ScriptNumericExpression.TryParse(resolvedValue, out var numericExpression)
+                && numericExpression is not null)
+            {
+                if (!ScriptNumericExpression.Evaluate(numericExpression, _runtimeVariablesView, out var numericValue, out var expressionError))
+                {
+                    throw new InvalidOperationException(expressionError);
+                }
+
+                _runtimeVariables[variableName] = numericValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                _runtimeVariables[variableName] = resolvedValue;
+            }
+
             return true;
         }
 
@@ -320,6 +342,49 @@ internal sealed class RunScriptRuntimeExecutor(
             }
 
             _runtimeVariables[variableName] = (existingInt + (sign * amount)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        if (step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase)
+            || step.StartsWith("div ", StringComparison.OrdinalIgnoreCase))
+        {
+            var isDivide = step.StartsWith("div ", StringComparison.OrdinalIgnoreCase);
+            var command = isDivide ? "div" : "mul";
+            var payload = step[4..].Trim();
+            var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length is < 1 or > 2)
+            {
+                throw new InvalidOperationException($"Invalid {command} syntax. Expected: {command} <name> [amount].");
+            }
+
+            var variableName = parts[0];
+            RunScriptRuntimeText.EnsureValidVariableName(variableName);
+            if (!_runtimeVariables.TryGetValue(variableName, out var existingValue)
+                || !int.TryParse(existingValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var existingInt))
+            {
+                throw new InvalidOperationException($"variable '{variableName}' must exist and be an integer for mul/div.");
+            }
+
+            var amountToken = parts.Length is 2 ? ResolveVariables(parts[1]) : "1";
+            if (!int.TryParse(amountToken, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var amount))
+            {
+                throw new InvalidOperationException($"Invalid mul/div amount '{amountToken}'. Expected integer.");
+            }
+
+            if (isDivide && amount is 0)
+            {
+                throw new InvalidOperationException("Division by zero is not allowed in mul/div.");
+            }
+
+            var updated = isDivide
+                ? (long)existingInt / amount
+                : (long)existingInt * amount;
+            if (updated is < int.MinValue or > int.MaxValue)
+            {
+                throw new InvalidOperationException("Result is out of range for mul/div.");
+            }
+
+            _runtimeVariables[variableName] = ((int)updated).ToString(System.Globalization.CultureInfo.InvariantCulture);
             return true;
         }
 
@@ -383,13 +448,28 @@ internal sealed class RunScriptRuntimeExecutor(
     private bool TryParseRepeatHeader(string step, out int count)
     {
         count = 0;
-        if (!step.EndsWith('{') || !step.StartsWith("repeat ", StringComparison.OrdinalIgnoreCase))
+        if (!RunScriptHeaderParser.TryParseRepeatCountToken(step, out var countToken))
         {
             return false;
         }
 
-        var countToken = ResolveVariables(step[7..^1].Trim());
-        if (!int.TryParse(countToken, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out count) || count < 0)
+        // Core authority resolves; committed expressions fail loudly, plain tokens keep the legacy fallback (historical messages byte-identical).
+        var evaluation = ScriptNumericExpression.Evaluate(countToken, _runtimeVariablesView, "repeat count");
+        if (evaluation.Status is ScriptNumericExpressionStatus.Malformed or ScriptNumericExpressionStatus.EvaluationError)
+        {
+            throw new InvalidOperationException(evaluation.Error);
+        }
+
+        if (evaluation.Status is ScriptNumericExpressionStatus.Evaluated)
+        {
+            count = evaluation.Value;
+        }
+        else if (!int.TryParse(ResolveVariables(countToken), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out count))
+        {
+            throw new InvalidOperationException("Repeat count must be an integer >= 0.");
+        }
+
+        if (count < 0)
         {
             throw new InvalidOperationException("Repeat count must be an integer >= 0.");
         }
@@ -403,35 +483,22 @@ internal sealed class RunScriptRuntimeExecutor(
         start = 0;
         end = 0;
         stepValue = 0;
-        if (!step.EndsWith('{') || !step.StartsWith("for ", StringComparison.OrdinalIgnoreCase))
+        if (!RunScriptHeaderParser.TryParseForHeader(step, out var header, out var error))
         {
             return false;
         }
 
-        var parts = step[..^1].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length is not (6 or 8))
+        if (error is not null)
         {
-            throw new InvalidOperationException("Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {");
+            throw new InvalidOperationException(error);
         }
 
-        variableName = parts[1];
-        RunScriptRuntimeText.EnsureValidVariableName(variableName);
-        if (!string.Equals(parts[2], "from", StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(parts[4], "to", StringComparison.OrdinalIgnoreCase))
+        variableName = header!.VariableName;
+        start = EvaluateIntegerToken(header.StartToken, "for start");
+        end = EvaluateIntegerToken(header.EndToken, "for end");
+        if (header.HasExplicitStep)
         {
-            throw new InvalidOperationException("Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {");
-        }
-
-        start = ParseInteger(ResolveVariables(parts[3]), "for start");
-        end = ParseInteger(ResolveVariables(parts[5]), "for end");
-        if (parts.Length is 8)
-        {
-            if (!string.Equals(parts[6], "step", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException("Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {");
-            }
-
-            stepValue = ParseInteger(ResolveVariables(parts[7]), "for step");
+            stepValue = EvaluateIntegerToken(header.StepToken!, "for step");
         }
         else
         {
@@ -439,6 +506,23 @@ internal sealed class RunScriptRuntimeExecutor(
         }
 
         return true;
+    }
+
+    private int EvaluateIntegerToken(string token, string description)
+    {
+        // Core authority first; committed expressions fail loudly, plain tokens keep the legacy pipeline and its messages.
+        var evaluation = ScriptNumericExpression.Evaluate(token, _runtimeVariablesView, description);
+        if (evaluation.Status is ScriptNumericExpressionStatus.Malformed or ScriptNumericExpressionStatus.EvaluationError)
+        {
+            throw new InvalidOperationException(evaluation.Error);
+        }
+
+        if (evaluation.Status is ScriptNumericExpressionStatus.Evaluated)
+        {
+            return evaluation.Value;
+        }
+
+        return ParseInteger(ResolveVariables(token), description);
     }
 
     private static int ParseInteger(string value, string description)
@@ -489,20 +573,24 @@ internal sealed class RunScriptRuntimeExecutor(
             throw new InvalidOperationException(error ?? "Invalid condition syntax.");
         }
 
-        var left = ResolveOperand(parsedCondition.LeftToken);
-        var right = ResolveOperand(parsedCondition.RightToken);
         if (parsedCondition.OperatorToken is "==" or "!=")
         {
-            var equal = ValuesEqual(left, right);
+            // String/boolean/color comparison: no arithmetic on this path.
+            var leftText = ResolveOperand(parsedCondition.LeftToken);
+            var rightText = ResolveOperand(parsedCondition.RightToken);
+            var equal = ValuesEqual(leftText, rightText);
             return parsedCondition.OperatorToken is "==" ? equal : !equal;
         }
 
-        if (!int.TryParse(left, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var leftInt)
-            || !int.TryParse(right, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var rightInt))
+        // Numeric comparison: arithmetic operands evaluate via the Core authority; other operands keep the legacy path (messages byte-identical).
+        var left = ResolveNumericConditionOperand(parsedCondition.LeftToken);
+        var right = ResolveNumericConditionOperand(parsedCondition.RightToken);
+        if (left.Value is not { } leftInt || right.Value is not { } rightInt)
         {
-            throw new InvalidOperationException($"Operator '{parsedCondition.OperatorToken}' requires numeric operands. Got '{left}' and '{right}'.");
+            var leftDisplay = left.ResolvedValue ?? parsedCondition.LeftToken;
+            var rightDisplay = right.ResolvedValue ?? parsedCondition.RightToken;
+            throw new InvalidOperationException($"Operator '{parsedCondition.OperatorToken}' requires numeric operands. Got '{leftDisplay}' and '{rightDisplay}'.");
         }
-
         return parsedCondition.OperatorToken switch
         {
             ">" => leftInt > rightInt,
@@ -511,6 +599,25 @@ internal sealed class RunScriptRuntimeExecutor(
             "<=" => leftInt <= rightInt,
             _ => throw new InvalidOperationException($"Unsupported condition operator '{parsedCondition.OperatorToken}'."),
         };
+    }
+
+    private (int? Value, string? ResolvedValue) ResolveNumericConditionOperand(string token)
+    {
+        if (ScriptNumericExpression.TryParse(token, out var expression) && expression is { Op: not null })
+        {
+            var evaluation = ScriptNumericExpression.Evaluate(token, _runtimeVariablesView, "condition operand");
+            if (evaluation.Status is not ScriptNumericExpressionStatus.Evaluated)
+            {
+                throw new InvalidOperationException(evaluation.Error);
+            }
+
+            return (evaluation.Value, null);
+        }
+
+        var resolved = ResolveOperand(token);
+        return ScriptNumericExpression.TryEvaluate(resolved, _runtimeVariablesView, out var value, out _)
+            ? (value, resolved)
+            : (null, resolved);
     }
 
     private string ResolveOperand(string token)

@@ -123,6 +123,7 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowConditionRightOperandTextBox));
         OnPropertyChanged(nameof(ShowConditionRightColorPicker));
         OnPropertyChanged(nameof(ShowForVariablePicker));
+        NotifyScriptArithmeticPresentationChanged();
         NotifyScreenReadingComputedPropertiesChanged();
         ClearVariableSuggestionSelections();
     }
@@ -136,6 +137,12 @@ public partial class EditorViewModel
         SetSuggestionValue(ref _selectedForVariableSuggestion, nameof(SelectedForVariableSuggestion), value: null);
         SetSuggestionValue(ref _selectedClipboardVariableSuggestion, nameof(SelectedClipboardVariableSuggestion), value: null);
         SetSuggestionValue(ref _selectedScreenTargetColorVariableSuggestion, nameof(SelectedScreenTargetColorVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedRepeatCountExprRightVariableSuggestion, nameof(SelectedRepeatCountExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedForStartExprRightVariableSuggestion, nameof(SelectedForStartExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedForEndExprRightVariableSuggestion, nameof(SelectedForEndExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedForStepExprRightVariableSuggestion, nameof(SelectedForStepExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedConditionLeftExprRightVariableSuggestion, nameof(SelectedConditionLeftExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedConditionRightExprRightVariableSuggestion, nameof(SelectedConditionRightExprRightVariableSuggestion), value: null);
     }
 
     private void SetSuggestionValue(ref string? targetField, string propertyName, string? value)

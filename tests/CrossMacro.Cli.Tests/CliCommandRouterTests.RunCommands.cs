@@ -166,6 +166,53 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenRunWithInlineMulDiv_ReturnsRunOptions()
+    {
+        var result = CliCommandRouterAccessor.Parse([
+            "run",
+            "set", "x", "5",
+            "mul", "x", "2",
+            "div", "x", "$factor",
+            "mul", "y",
+            "click", "left",
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal("set x 5", options.Steps[0]);
+        Assert.Equal("mul x 2", options.Steps[1]);
+        Assert.Equal("div x $factor", options.Steps[2]);
+        Assert.Equal("mul y", options.Steps[3]);
+        Assert.Equal("click left", options.Steps[4]);
+    }
+
+    [Fact]
+    public void Parse_WhenRunWithStepMulDiv_ReturnsRunOptions()
+    {
+        var result = CliCommandRouterAccessor.Parse([
+            "run",
+            "--step", "set x 5",
+            "--step", "mul x 2",
+            "--step", "div x 2",
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.Equal(["set x 5", "mul x 2", "div x 2"], options.Steps);
+    }
+
+    [Theory]
+    [InlineData("mul")]
+    [InlineData("div")]
+    public void Parse_WhenRunWithBareMulDiv_ReturnsError(string command)
+    {
+        var result = CliCommandRouterAccessor.Parse(["run", command]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains($"Invalid inline step syntax for {command}. Expected: {command} <name> [amount]", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Parse_WhenRunWithInlineRepeatMissingBrace_ReturnsError()
     {
         var result = CliCommandRouterAccessor.Parse([
@@ -224,6 +271,14 @@ public sealed partial class CliCommandRouterTests
 
         Assert.True(result.ShowHelp);
         Assert.Equal("run", result.HelpTopic);
+    }
+
+    [Fact]
+    public void GetUsage_WhenRunHelp_IncludesArithmeticSteps()
+    {
+        var usage = CliCommandRouterAccessor.GetUsage("run");
+
+        Assert.Contains("inc <name> [amount] | dec <name> [amount] | mul <name> [amount] | div <name> [amount]", usage, StringComparison.Ordinal);
     }
 
     [Fact]

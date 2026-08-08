@@ -1634,7 +1634,7 @@
     <value>金額/変数</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>増減量には数値または変数参照を指定できます。</value>
+    <value>値には数値または変数参照を指定できます。</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>リピートブロック:</value>
@@ -1671,6 +1671,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>明示的なステップを使用する</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>高度な算術</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>右オペランド</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>マクロ実行時に値を2つ目のオペランドと結合します。演算子: + − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>ステップ</value>
@@ -1879,6 +1888,12 @@
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>変数を減らす</value>
   </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>変数を掛ける</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>変数を割る</value>
+  </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>繰り返す</value>
   </data>
@@ -1953,6 +1968,12 @@
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>変数をデクリメントする</value>
+  </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>変数の乗算</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>変数の除算</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>リピートブロックスタート</value>

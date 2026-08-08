@@ -507,7 +507,9 @@ internal static class RunCommandParser
         }
 
         if (string.Equals(token, "inc", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "dec", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(token, "dec", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "mul", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "div", StringComparison.OrdinalIgnoreCase))
         {
             if (index + 1 >= args.Length)
             {
@@ -738,6 +740,8 @@ internal static class RunCommandParser
             || string.Equals(token, "set", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "inc", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "dec", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "mul", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "div", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, RunScriptSyntax.ShellCommand, StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "repeat", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "if", StringComparison.OrdinalIgnoreCase)

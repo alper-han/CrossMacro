@@ -530,4 +530,214 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
         _ = variables.Should().Contain("c", "123456");
     }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeVariablesUseMulDiv_PreservesCaseInsensitiveDictionaryAndValues()
+    {
+        var activity = new List<string>();
+        var screenReader = new RecordingScreenPixelReader(activity);
+        var inputSimulator = new RecordingInputSimulator(activity);
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "set Count=5",
+                "mul count 2",
+                "set Divisor 4",
+                "div COUNT $Divisor",
+                "set combined $count",
+                "if $COUNT == 2 {",
+                "click left",
+                "}",
+            },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
+        _ = variables["COUNT"].Should().Be("2"); // (5 * 2) / 4
+        _ = variables["combined"].Should().Be("2");
+        _ = activity.Should().Equal(
+            "screen:pixelcolor:1,2",
+            "input:click:left");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeDivByZero_ThrowsCanonicalMessage()
+    {
+        var activity = new List<string>();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new RecordingScreenPixelReader(activity), new RecordingInputSimulator(activity));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "set x 5",
+                "div x 0",
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Division by zero is not allowed in mul/div.");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeDivByZeroThroughVariable_ThrowsCanonicalMessage()
+    {
+        var activity = new List<string>();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new RecordingScreenPixelReader(activity), new RecordingInputSimulator(activity));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "set x 5",
+                "set zero 0",
+                "div x $zero",
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Division by zero is not allowed in mul/div.");
+    }
+
+    [Theory]
+    [InlineData("mul missing 2")]
+    [InlineData("div missing 2")]
+    public async Task PlayAsync_WhenRuntimeMulDivReferenceUnknownVariable_ThrowsExactMessage(string step)
+    {
+        var activity = new List<string>();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new RecordingScreenPixelReader(activity), new RecordingInputSimulator(activity));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                step,
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("variable 'missing' must exist and be an integer for mul/div.");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeMulDivTargetIsNotInteger_ThrowsExactMessage()
+    {
+        var activity = new List<string>();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new RecordingScreenPixelReader(activity), new RecordingInputSimulator(activity));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "set name foo",
+                "mul name 2",
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("variable 'name' must exist and be an integer for mul/div.");
+    }
+
+    [Theory]
+    [InlineData("mul x abc", "Invalid mul/div amount 'abc'. Expected integer.")]
+    [InlineData("div x abc", "Invalid mul/div amount 'abc'. Expected integer.")]
+    [InlineData("mul x $missing", "Unknown variable '$missing'.")]
+    public async Task PlayAsync_WhenRuntimeMulDivAmountIsInvalid_ThrowsExactMessage(string step, string expectedMessage)
+    {
+        var activity = new List<string>();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new RecordingScreenPixelReader(activity), new RecordingInputSimulator(activity));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "set x 5",
+                step,
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage(expectedMessage);
+    }
+
+    [Theory]
+    [InlineData("mul x 1 1")]
+    [InlineData("div x 1 1")]
+    public async Task PlayAsync_WhenRuntimeMulDivSyntaxIsInvalid_ThrowsUnsupportedStepFromValidation(string step)
+    {
+        // Mirrors inc/dec: playback validation routes the 3-token form through the static
+        // single-step emit path, which rejects it before the executor's own guard runs.
+        var activity = new List<string>();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new RecordingScreenPixelReader(activity), new RecordingInputSimulator(activity));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "set x 5",
+                step,
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage($"*unsupported step syntax '{step}'*");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeMulOverflowsIntRange_ThrowsOutOfRange()
+    {
+        var activity = new List<string>();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new RecordingScreenPixelReader(activity), new RecordingInputSimulator(activity));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "set x 2000000000",
+                "mul x 3",
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Result is out of range for mul/div.");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeDivHitsIntMinOverMinusOne_ThrowsOutOfRangeInsteadOfOverflow()
+    {
+        var activity = new List<string>();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new RecordingScreenPixelReader(activity), new RecordingInputSimulator(activity));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "set x -2147483648",
+                "div x -1",
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Result is out of range for mul/div.");
+    }
 }

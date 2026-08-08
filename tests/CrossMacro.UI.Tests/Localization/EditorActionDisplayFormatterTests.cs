@@ -13,6 +13,8 @@ public sealed class EditorActionDisplayFormatterTests
     [InlineData(EditorActionType.ClipboardSet, "Editor_ActionType_ClipboardSet", "Clipboard Set")]
     [InlineData(EditorActionType.ShellCommand, "Editor_ActionType_ShellCommand", "Shell Command")]
     [InlineData(EditorActionType.Screenshot, "Editor_ActionType_Screenshot", "Screenshot")]
+    [InlineData(EditorActionType.MultiplyVariable, "Editor_ActionType_MultiplyVariable", "Multiply Variable")]
+    [InlineData(EditorActionType.DivideVariable, "Editor_ActionType_DivideVariable", "Divide Variable")]
     public void FormatActionType_UsesLocalizedLabels(
         EditorActionType actionType,
         string resourceKey,
@@ -306,6 +308,23 @@ public sealed class EditorActionDisplayFormatterTests
             WindowHeight = 600,
             WindowWorkspace = "2",
         };
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "Editor_Action_MultiplyVariableShort", "Multiply Variable")]
+    [InlineData(EditorActionType.DivideVariable, "Editor_Action_DivideVariableShort", "Divide Variable")]
+    public void Format_ForMulDivActions_UsesLocalizedShortLabels(EditorActionType actionType, string resourceKey, string expected)
+    {
+        var formatter = CreateFormatter(resourceKey, expected);
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+
+        _ = formatter.Format(action).Should().Be(expected);
     }
 
     private static EditorActionDisplayFormatter CreateFormatter(string resourceKey, string resourceValue)

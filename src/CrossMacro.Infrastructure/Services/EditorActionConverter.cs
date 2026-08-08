@@ -217,6 +217,8 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.SetVariable:
             case EditorActionType.IncrementVariable:
             case EditorActionType.DecrementVariable:
+            case EditorActionType.MultiplyVariable:
+            case EditorActionType.DivideVariable:
             case EditorActionType.RepeatBlockStart:
             case EditorActionType.IfBlockStart:
             case EditorActionType.ElseBlockStart:
@@ -805,6 +807,14 @@ public class EditorActionConverter : IEditorActionConverter
                 yield return BuildDecrementStep(action);
                 yield break;
 
+            case EditorActionType.MultiplyVariable:
+                yield return BuildMultiplyStep(action);
+                yield break;
+
+            case EditorActionType.DivideVariable:
+                yield return BuildDivideStep(action);
+                yield break;
+
             case EditorActionType.RepeatBlockStart:
                 yield return BuildRepeatStep(action);
                 yield break;
@@ -1170,6 +1180,30 @@ public class EditorActionConverter : IEditorActionConverter
         return $"dec {variableName} {amountToken}";
     }
 
+    private static string BuildMultiplyStep(EditorAction action)
+    {
+        if (ShouldSerializeLegacyNumericUpdateText(action))
+        {
+            return $"mul {action.Text}";
+        }
+
+        var variableName = EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName);
+        var amountToken = BuildNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue);
+        return $"mul {variableName} {amountToken}";
+    }
+
+    private static string BuildDivideStep(EditorAction action)
+    {
+        if (ShouldSerializeLegacyNumericUpdateText(action))
+        {
+            return $"div {action.Text}";
+        }
+
+        var variableName = EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName);
+        var amountToken = BuildNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue);
+        return $"div {variableName} {amountToken}";
+    }
+
     private static string BuildRepeatStep(EditorAction action)
     {
         if (ShouldSerializeLegacyRepeatText(action))
@@ -1215,11 +1249,24 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static string BuildNumericToken(ScriptNumericSourceType sourceType, string value)
     {
+        // Expression values are stored canonical; emit verbatim (sigil formatting would corrupt them).
+        if (ScriptNumericExpression.TryParse(value, out var expression) && expression is { Op: not null })
+        {
+            return value.Trim();
+        }
+
         return EditorActionScriptTokens.FormatNumericToken(sourceType, value, defaultValue: string.Empty);
     }
 
     private static string BuildOperandToken(ScriptOperandType operandType, string value)
     {
+        // Expression operands are stored canonical; emit verbatim (mirrors BuildNumericToken).
+        if (operandType is ScriptOperandType.Number or ScriptOperandType.VariableReference
+            && ScriptNumericExpression.TryParse(value, out var expression) && expression is { Op: not null })
+        {
+            return value.Trim();
+        }
+
         return EditorActionScriptTokens.FormatOperandToken(operandType, value);
     }
 
@@ -1716,6 +1763,18 @@ public class EditorActionConverter : IEditorActionConverter
             if (TryParseIncDecStep(step, "dec", EditorActionType.DecrementVariable, out var decrementAction))
             {
                 actions.Add(decrementAction);
+                continue;
+            }
+
+            if (TryParseIncDecStep(step, "mul", EditorActionType.MultiplyVariable, out var multiplyAction))
+            {
+                actions.Add(multiplyAction);
+                continue;
+            }
+
+            if (TryParseIncDecStep(step, "div", EditorActionType.DivideVariable, out var divideAction))
+            {
+                actions.Add(divideAction);
                 continue;
             }
 
@@ -3220,6 +3279,18 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
+        // Binary count: store the canonical Format() string; source type mirrors the left operand.
+        if (ScriptNumericExpression.TryParse(token, out var expression) && expression is { Op: not null })
+        {
+            action = new EditorAction
+            {
+                Type = EditorActionType.RepeatBlockStart,
+                ScriptNumericSourceType = expression.LeftSource,
+                ScriptNumericValue = ScriptNumericExpression.Format(expression),
+            };
+            return true;
+        }
+
         if (TryParseNumericToken(token, out var sourceType, out var tokenValue))
         {
             action = new EditorAction
@@ -3259,8 +3330,10 @@ public class EditorActionConverter : IEditorActionConverter
             && TryMapConditionOperatorToken(parsedCondition.OperatorToken, out var conditionOperator))
         {
             var preferColor = conditionOperator is ScriptConditionOperator.Equals or ScriptConditionOperator.NotEquals;
-            if (!TryParseOperandToken(parsedCondition.LeftToken, out var leftType, out var leftValue, preferColor)
-                || !TryParseOperandToken(parsedCondition.RightToken, out var rightType, out var rightValue, preferColor))
+            var allowArithmetic = conditionOperator is ScriptConditionOperator.GreaterThan or ScriptConditionOperator.GreaterThanOrEqual
+                or ScriptConditionOperator.LessThan or ScriptConditionOperator.LessThanOrEqual;
+            if (!TryParseConditionOperandToken(parsedCondition.LeftToken, allowArithmetic, preferColor, out var leftType, out var leftValue)
+                || !TryParseConditionOperandToken(parsedCondition.RightToken, allowArithmetic, preferColor, out var rightType, out var rightValue))
             {
                 return false;
             }
@@ -3317,9 +3390,10 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var tokens = body.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        // `from` is fixed after the loop variable; `to`/`step` float with segment lengths; unrecognized input keeps raw text.
         if (tokens.Length < 5
-            || !tokens[1].Equals("from", StringComparison.OrdinalIgnoreCase)
-            || !tokens[3].Equals("to", StringComparison.OrdinalIgnoreCase))
+            || !tokens[1].Equals("from", StringComparison.OrdinalIgnoreCase))
         {
             action = new EditorAction
             {
@@ -3329,7 +3403,8 @@ public class EditorActionConverter : IEditorActionConverter
             return true;
         }
 
-        if (tokens.Length is not (5 or 7))
+        var toIndex = IndexOfKeyword(tokens, "to", startIndex: 2);
+        if (toIndex < 0)
         {
             action = new EditorAction
             {
@@ -3339,9 +3414,10 @@ public class EditorActionConverter : IEditorActionConverter
             return true;
         }
 
+        var stepIndex = IndexOfKeyword(tokens, "step", toIndex + 1);
         if (!TryNormalizeVariableName(tokens[0], out var variableName)
-            || !TryParseNumericToken(tokens[2], out var startType, out var startValue)
-            || !TryParseNumericToken(tokens[4], out var endType, out var endValue))
+            || !TryParseNumericSegment(tokens, 2, toIndex, out var startType, out var startValue)
+            || !TryParseNumericSegment(tokens, toIndex + 1, stepIndex >= 0 ? stepIndex : tokens.Length, out var endType, out var endValue))
         {
             action = new EditorAction
             {
@@ -3354,10 +3430,9 @@ public class EditorActionConverter : IEditorActionConverter
         var hasStep = false;
         var stepType = ScriptNumericSourceType.Number;
         var stepValue = "1";
-        if (tokens.Length is 7)
+        if (stepIndex >= 0)
         {
-            if (!tokens[5].Equals("step", StringComparison.OrdinalIgnoreCase)
-                || !TryParseNumericToken(tokens[6], out stepType, out stepValue))
+            if (!TryParseNumericSegment(tokens, stepIndex + 1, tokens.Length, out stepType, out stepValue))
             {
                 action = new EditorAction
                 {
@@ -3383,6 +3458,50 @@ public class EditorActionConverter : IEditorActionConverter
             ForStepValue = stepValue,
         };
         return true;
+    }
+
+    private static int IndexOfKeyword(string[] tokens, string keyword, int startIndex)
+    {
+        for (var i = startIndex; i < tokens.Length; i++)
+        {
+            if (tokens[i].Equals(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool TryParseNumericSegment(
+        string[] tokens,
+        int startIndex,
+        int endIndex,
+        out ScriptNumericSourceType sourceType,
+        out string value)
+    {
+        sourceType = ScriptNumericSourceType.Number;
+        value = string.Empty;
+
+        var count = endIndex - startIndex;
+        if (count is 1)
+        {
+            return TryParseNumericToken(tokens[startIndex], out sourceType, out value);
+        }
+
+        // Segments are 1 or 3 tokens (longer falls back to raw text); expressions store canonical Format(), type mirrors the left operand.
+        if (count is 3)
+        {
+            var raw = string.Join(' ', tokens, startIndex, count);
+            if (ScriptNumericExpression.TryParse(raw, out var expression) && expression is { Op: not null })
+            {
+                sourceType = expression.LeftSource;
+                value = ScriptNumericExpression.Format(expression);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TryParseNumericToken(string rawToken, out ScriptNumericSourceType sourceType, out string tokenValue)
@@ -3455,6 +3574,28 @@ public class EditorActionConverter : IEditorActionConverter
         operandType = ScriptOperandType.Text;
         tokenValue = EditorActionScriptTokens.UnescapeLiteralDollar(token);
         return true;
+    }
+
+    private static bool TryParseConditionOperandToken(
+        string rawToken,
+        bool allowArithmetic,
+        bool preferColor,
+        out ScriptOperandType operandType,
+        out string tokenValue)
+    {
+        // Numeric comparisons restore arithmetic operands structured (canonical Format(), type mirrors left operand); equality/text/bool/color keep the plain path.
+        if (allowArithmetic
+            && ScriptNumericExpression.TryParse(rawToken, out var expression)
+            && expression is { Op: not null })
+        {
+            operandType = expression.LeftSource is ScriptNumericSourceType.VariableReference
+                ? ScriptOperandType.VariableReference
+                : ScriptOperandType.Number;
+            tokenValue = ScriptNumericExpression.Format(expression);
+            return true;
+        }
+
+        return TryParseOperandToken(rawToken, out operandType, out tokenValue, preferColor);
     }
 
     private static bool TryInferSetValue(string rawValue, out ScriptValueType valueType, out string value)

@@ -17,6 +17,8 @@ internal static class EditorActionValidationPolicy
             EditorActionType.SetVariable
             or EditorActionType.IncrementVariable
             or EditorActionType.DecrementVariable
+            or EditorActionType.MultiplyVariable
+            or EditorActionType.DivideVariable
             or EditorActionType.RepeatBlockStart
             or EditorActionType.IfBlockStart
             or EditorActionType.WhileBlockStart
@@ -51,7 +53,7 @@ internal static class EditorActionValidationPolicy
             EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp => ValidateCoordinateTokens(action),
             EditorActionType.TextInput => !string.IsNullOrEmpty(action.Text),
             EditorActionType.SetVariable => UsesLegacyScriptText(action) || ValidateSetVariableFields(action),
-            EditorActionType.IncrementVariable or EditorActionType.DecrementVariable => UsesLegacyScriptText(action) || ValidateIncDecFields(action),
+            EditorActionType.IncrementVariable or EditorActionType.DecrementVariable or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable => UsesLegacyScriptText(action) || ValidateIncDecFields(action),
             EditorActionType.RepeatBlockStart => UsesLegacyScriptText(action) || ValidateRepeatFields(action),
             EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart => UsesLegacyScriptText(action) || ValidateConditionFields(action),
             EditorActionType.ForBlockStart => UsesLegacyScriptText(action) || ValidateForFields(action),
@@ -105,7 +107,7 @@ internal static class EditorActionValidationPolicy
 
     private static bool ValidateRepeatFields(EditorAction action)
     {
-        return EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue);
+        return EditorActionScriptTokens.ValidateBlockNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue);
     }
 
     private static bool ValidateConditionFields(EditorAction action)
@@ -121,14 +123,14 @@ internal static class EditorActionValidationPolicy
             return false;
         }
 
-        if (!EditorActionScriptTokens.ValidateNumericToken(action.ForStartType, action.ForStartValue)
-            || !EditorActionScriptTokens.ValidateNumericToken(action.ForEndType, action.ForEndValue))
+        if (!EditorActionScriptTokens.ValidateBlockNumericToken(action.ForStartType, action.ForStartValue)
+            || !EditorActionScriptTokens.ValidateBlockNumericToken(action.ForEndType, action.ForEndValue))
         {
             return false;
         }
 
         return !action.ForHasStep
-            || EditorActionScriptTokens.ValidateNumericToken(action.ForStepType, action.ForStepValue);
+            || EditorActionScriptTokens.ValidateBlockNumericToken(action.ForStepType, action.ForStepValue);
     }
 
     private static bool ValidatePixelColorFields(EditorAction action)

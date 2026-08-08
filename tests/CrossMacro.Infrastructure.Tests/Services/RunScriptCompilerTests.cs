@@ -575,4 +575,279 @@ public sealed class RunScriptCompilerTests
         _ = result.Success.Should().BeFalse();
         _ = result.ErrorMessage.Should().Contain("Invalid delay value");
     }
+
+    [Theory]
+    [InlineData("mul x 2", 10)]
+    [InlineData("div x 2", 2)]
+    [InlineData("mul x 1", 5)]
+    [InlineData("div x 5", 1)]
+    [InlineData("mul x -3", -15)]
+    public void Compile_WhenMulDivUsed_ExpandsToExpectedValue(string step, int expectedX)
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set x 5"),
+            new RunScriptStep(step),
+            new RunScriptStep("move rel $x 0"),
+        ]);
+
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence.Events.Should().ContainSingle();
+        _ = result.Sequence.Events[0].X.Should().Be(expectedX);
+    }
+
+    [Fact]
+    public void Compile_WhenMulDivUseVariableAmounts_ExpandsToExpectedValue()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set x 5"),
+            new RunScriptStep("set factor 4"),
+            new RunScriptStep("mul x $factor"),
+            new RunScriptStep("set divisor 10"),
+            new RunScriptStep("div x $divisor"),
+            new RunScriptStep("move rel $x 0"),
+        ]);
+
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence.Events.Should().ContainSingle();
+        _ = result.Sequence.Events[0].X.Should().Be(2); // (5 * 4) / 10
+    }
+
+    [Fact]
+    public void Compile_WhenDivByZero_ReturnsCanonicalFailure()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set x 5"),
+            new RunScriptStep("div x 0"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: Division by zero is not allowed in mul/div.");
+    }
+
+    [Fact]
+    public void Compile_WhenDivByZeroThroughVariable_ReturnsCanonicalFailure()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set x 5"),
+            new RunScriptStep("set zero 0"),
+            new RunScriptStep("div x $zero"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: Division by zero is not allowed in mul/div.");
+    }
+
+    [Theory]
+    [InlineData("mul missing 2")]
+    [InlineData("div missing 2")]
+    public void Compile_WhenMulDivReferenceUnknownVariable_ReturnsFailure(string step)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: variable 'missing' must exist and be an integer for mul/div.");
+    }
+
+    [Fact]
+    public void Compile_WhenMulDivTargetIsNotInteger_ReturnsFailure()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set name foo"),
+            new RunScriptStep("mul name 2"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: variable 'name' must exist and be an integer for mul/div.");
+    }
+
+    [Theory]
+    [InlineData("mul x abc", "Step 1: Invalid mul/div amount 'abc'. Expected integer.")]
+    [InlineData("div x abc", "Step 1: Invalid mul/div amount 'abc'. Expected integer.")]
+    [InlineData("mul x $missing", "Step 1: Unknown variable '$missing'.")]
+    public void Compile_WhenMulDivAmountIsInvalid_ReturnsFailure(string step, string expectedError)
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set x 5"),
+            new RunScriptStep(step),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be(expectedError);
+    }
+
+    [Theory]
+    [InlineData("mul x 1 1", "mul")]
+    [InlineData("div x 1 1", "div")]
+    public void Compile_WhenMulDivSyntaxIsInvalid_ReturnsFailure(string step, string command)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be($"Step 1: Invalid {command} syntax. Expected: {command} <name> [amount].");
+    }
+
+    [Theory]
+    [InlineData("mul")]
+    [InlineData("div")]
+    public void Compile_WhenMulDivBare_FallsThroughToUnsupportedStep(string step)
+    {
+        // Mirrors bare inc/dec: "<cmd>" without a payload is not a variable command.
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be($"Step 1: unsupported step syntax '{step}'.");
+    }
+
+    [Fact]
+    public void Compile_WhenMulDivVariableNameIsInvalid_ReturnsFailure()
+    {
+        var result = _compiler.Compile([new RunScriptStep("mul 1x 2")]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: Invalid variable name '1x'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*");
+    }
+
+    [Fact]
+    public void Compile_WhenMulOverflowsIntRange_ReturnsOutOfRangeFailure()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set x 2000000000"),
+            new RunScriptStep("mul x 3"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: Result is out of range for mul/div.");
+    }
+
+    [Fact]
+    public void Compile_WhenDivHitsIntMinOverMinusOne_ReturnsOutOfRangeInsteadOfThrowing()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set x -2147483648"),
+            new RunScriptStep("div x -1"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: Result is out of range for mul/div.");
+    }
+
+    [Fact]
+    public void Compile_WhenRepeatCountIsSpacelessArithmetic_ExpandsEvaluatedCount()
+    {
+        // Regression pin for the closed divergence window: the runtime executor used to
+        // evaluate `repeat 5+3 {` while compile-time expansion rejected the header.
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("repeat 5+3 {"),
+            new RunScriptStep("click left"),
+            new RunScriptStep("}"),
+        ]);
+
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().HaveCount(8);
+        _ = result.Sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click);
+    }
+
+    [Fact]
+    public void Compile_WhenRepeatCountIsSpacedArithmetic_ExpandsEvaluatedCount()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set a 10"),
+            new RunScriptStep("repeat $a / 2 {"),
+            new RunScriptStep("click left"),
+            new RunScriptStep("}"),
+        ]);
+
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().HaveCount(5);
+    }
+
+    [Fact]
+    public void Compile_WhenRepeatCountIsMalformedExpression_FailsWithRepeatCountLabel()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("repeat $a / {"),
+            new RunScriptStep("click left"),
+            new RunScriptStep("}"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: '$a /' is not a valid numeric expression for repeat count.");
+    }
+
+    [Fact]
+    public void Compile_WhenRepeatCountEvaluatesNegative_KeepsLegacyWording()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("repeat 2 - 5 {"),
+            new RunScriptStep("click left"),
+            new RunScriptStep("}"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: repeat count must be >= 0.");
+    }
+
+    [Fact]
+    public void Compile_WhenForSegmentsAreArithmetic_ExpandsEvaluatedRange()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set n 3"),
+            new RunScriptStep("for i from $n - 2 to $n * 2 {"),
+            new RunScriptStep("click left"),
+            new RunScriptStep("}"),
+        ]);
+
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        // i runs 1..6 inclusive: six clicks.
+        _ = result.Sequence!.Events.Should().HaveCount(6);
+    }
+
+    [Fact]
+    public void Compile_WhenForStepIsArithmeticZero_KeepsLegacyZeroStepWording()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set a 1"),
+            new RunScriptStep("for i from $a to 3 step $a - 1 {"),
+            new RunScriptStep("click left"),
+            new RunScriptStep("}"),
+        ]);
+
+        _ = result.Success.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Step 1: for step cannot be 0.");
+    }
+
+    [Fact]
+    public void Compile_WhenConditionOperandIsArithmetic_EvaluatesNumericComparison()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("set x 5"),
+            new RunScriptStep("if $x + 1 > 5 {"),
+            new RunScriptStep("click left"),
+            new RunScriptStep("}"),
+        ]);
+
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().ContainSingle(ev => ev.Type == EventType.Click);
+    }
 }

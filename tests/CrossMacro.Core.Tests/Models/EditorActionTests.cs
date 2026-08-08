@@ -512,4 +512,329 @@ public sealed class EditorActionTests
         _ = action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
         _ = action.PreferLegacyScriptText.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable)]
+    [InlineData(EditorActionType.DivideVariable)]
+    public void IsValid_MulDivActionsUseStructuredFields(EditorActionType actionType)
+    {
+        var numberAmount = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+        var variableAmount = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$factor",
+        };
+
+        _ = numberAmount.IsValid().Should().BeTrue();
+        _ = variableAmount.IsValid().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "1bad")]
+    [InlineData(EditorActionType.DivideVariable, "$ x")]
+    public void IsValid_MulDivRejectInvalidVariableName(EditorActionType actionType, string variableName)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = variableName,
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, ScriptNumericSourceType.Number, "abc")]
+    [InlineData(EditorActionType.DivideVariable, ScriptNumericSourceType.Number, "")]
+    [InlineData(EditorActionType.MultiplyVariable, ScriptNumericSourceType.VariableReference, "1bad")]
+    [InlineData(EditorActionType.DivideVariable, ScriptNumericSourceType.VariableReference, "has space")]
+    public void IsValid_MulDivRejectNonNumericAmount(
+        EditorActionType actionType,
+        ScriptNumericSourceType sourceType,
+        string amount)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = sourceType,
+            ScriptNumericValue = amount,
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsScriptStateAction_ClassifiesMulDivAsStateActions()
+    {
+        _ = EditorActionScriptClassifier.IsScriptStateAction(EditorActionType.MultiplyVariable).Should().BeTrue();
+        _ = EditorActionScriptClassifier.IsScriptStateAction(EditorActionType.DivideVariable).Should().BeTrue();
+        _ = EditorActionScriptClassifier.IsScriptFlowControlAction(EditorActionType.MultiplyVariable).Should().BeFalse();
+        _ = EditorActionScriptClassifier.IsRuntimeEventAction(EditorActionType.DivideVariable).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "Mul x by 2")]
+    [InlineData(EditorActionType.DivideVariable, "Div x by 2")]
+    public void DisplayName_ForMulDivActions_UsesStructuredNumericToken(EditorActionType actionType, string expected)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+
+        _ = action.DisplayName.Should().Be(expected);
+    }
+
+    [Fact]
+    public void DisplayName_ForDivideVariableWithVariableAmount_RendersDollarToken()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.DivideVariable,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "factor",
+        };
+
+        _ = action.DisplayName.Should().Be("Div x by $factor");
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "x 2", "Mul x 2")]
+    [InlineData(EditorActionType.DivideVariable, "x 4", "Div x 4")]
+    public void DisplayName_ForLegacyMulDivText_UsesLegacyText(EditorActionType actionType, string text, string expected)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            Text = text,
+            PreferLegacyScriptText = true,
+        };
+
+        _ = action.DisplayName.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "Multiply Variable")]
+    [InlineData(EditorActionType.DivideVariable, "Divide Variable")]
+    public void DisplayName_ForMulDivWithInvalidVariableName_FallsBackToTypeLabel(EditorActionType actionType, string expected)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "1bad",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+
+        _ = action.DisplayName.Should().Be(expected);
+    }
+
+    [Fact]
+    public void IsValid_RepeatBlockAcceptsBinaryExpressionCount()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$count / 10",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("$count /")]
+    [InlineData("1 + 2 + 3")]
+    [InlineData("5 * - 3")]
+    public void IsValid_RepeatBlockRejectsMalformedExpressionCount(string value)
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = value,
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_ForBlockAcceptsBinaryExpressionSegments()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.VariableReference,
+            ForStartValue = "$a + 1",
+            ForEndType = ScriptNumericSourceType.VariableReference,
+            ForEndValue = "$n * 2",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.VariableReference,
+            ForStepValue = "$s - 1",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_ForBlockRejectsMalformedExpressionStep()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.Number,
+            ForStartValue = "0",
+            ForEndType = ScriptNumericSourceType.Number,
+            ForEndValue = "10",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.VariableReference,
+            ForStepValue = "$s +",
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_IncDecAmountStillRejectsArithmeticExpressions()
+    {
+        // Amount fields stay out of the arithmetic scope: only block arguments accept expressions.
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IncrementVariable,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "1 + 2",
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void DisplayName_WhenRepeatCountIsExpression_RendersCanonicalTextVerbatim()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$count / 10",
+        };
+
+        _ = action.DisplayName.Should().Be("Repeat ($count / 10)");
+    }
+
+    [Fact]
+    public void DisplayName_WhenRepeatCountExpressionStartsWithNumber_DoesNotPrependVariableSigil()
+    {
+        // The source type only mirrors the left operand by convention; a hand-edited
+        // number-left expression must not gain a stray sigil in the display.
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "5 + 2",
+        };
+
+        _ = action.DisplayName.Should().Be("Repeat (5 + 2)");
+    }
+
+    [Fact]
+    public void DisplayName_WhenForSegmentsAreExpressions_RendersCanonicalTextVerbatim()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.Number,
+            ForStartValue = "0",
+            ForEndType = ScriptNumericSourceType.VariableReference,
+            ForEndValue = "$n + 1",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.Number,
+            ForStepValue = "2",
+        };
+
+        _ = action.DisplayName.Should().Be("For (i: 0 -> $n + 1, step 2)");
+    }
+
+    [Fact]
+    public void DisplayName_WhenConditionOperandIsExpression_RendersCanonicalTextVerbatim()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "$x + 1",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "5",
+        };
+
+        _ = action.DisplayName.Should().Be("If ($x + 1 > 5)");
+    }
+
+    [Fact]
+    public void IsValid_WhenConditionOperandIsArithmeticExpression_Accepts()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "$x + 1",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "5",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_WhenConditionOperandExpressionIsMalformed_Rejects()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WhileBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "$x +",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "5",
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_TextConditionOperand_WithArithmeticShape_StaysPlainText()
+    {
+        // Text operands never take the arithmetic path; the value is an opaque literal.
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.Text,
+            ScriptLeftOperand = "5 + 3",
+            ScriptConditionOperator = ScriptConditionOperator.Equals,
+            ScriptRightOperandType = ScriptOperandType.Text,
+            ScriptRightOperand = "8",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
 }

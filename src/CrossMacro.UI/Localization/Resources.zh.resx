@@ -1634,7 +1634,7 @@
     <value>金额/变量</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>增量/减量可以是数字或变量引用。</value>
+    <value>数量可以是数字或变量引用。</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>重复块：</value>
@@ -1671,6 +1671,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>使用显式步骤</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>高级算术</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>右操作数</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>在宏运行时将值与第二个操作数组合。运算符：+ − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>步</value>
@@ -1879,6 +1888,12 @@
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>递减变量</value>
   </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>变量乘法</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>变量除法</value>
+  </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>重复</value>
   </data>
@@ -1953,6 +1968,12 @@
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>递减变量</value>
+  </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>变量乘法</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>变量除法</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>重复块开始</value>

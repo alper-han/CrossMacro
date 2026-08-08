@@ -425,7 +425,7 @@ public sealed class RunScriptCompiler
                 return ScriptNodeParseResult.Fail($"{source}: unexpected 'else' block.");
             }
 
-            if (TryParseRepeatHeader(trimmed, out var repeatCountToken))
+            if (RunScriptHeaderParser.TryParseRepeatCountToken(trimmed, out var repeatCountToken))
             {
                 var repeatSource = entry;
                 index++;
@@ -493,7 +493,7 @@ public sealed class RunScriptCompiler
                 continue;
             }
 
-            if (TryParseForHeader(trimmed, out var forHeader, out var forHeaderError))
+            if (RunScriptHeaderParser.TryParseForHeader(trimmed, out var forHeader, out var forHeaderError))
             {
                 if (forHeaderError is not null)
                 {
@@ -587,9 +587,13 @@ public sealed class RunScriptCompiler
                                 return ScriptExpansionResult.Fail($"{source}: {resolvedValueResult.ErrorMessage}");
                             }
 
-                            if (TryEvaluateNumericExpression(resolvedValueResult.Value!, out var numericValue, out var expressionError))
+                            // A surviving '$' is a '$$' escape; keep the raw-string fallback.
+                            var resolvedValue = resolvedValueResult.Value!;
+                            if (!resolvedValue.Contains('$', StringComparison.Ordinal)
+                                && ScriptNumericExpression.TryParse(resolvedValue, out var numericExpression)
+                                && numericExpression is not null)
                             {
-                                if (expressionError is not null)
+                                if (!ScriptNumericExpression.Evaluate(numericExpression, variables, out var numericValue, out var expressionError))
                                 {
                                     return ScriptExpansionResult.Fail($"{source}: {expressionError}");
                                 }
@@ -598,7 +602,7 @@ public sealed class RunScriptCompiler
                             }
                             else
                             {
-                                variables[variableName!] = resolvedValueResult.Value!;
+                                variables[variableName!] = resolvedValue;
                             }
 
                             break;
@@ -628,6 +632,42 @@ public sealed class RunScriptCompiler
                             break;
                         }
 
+                        if (TryParseMulDivCommand(step, out var mulDivVariableName, out var mulDivAmountToken, out var isDivide, out var mulDivError))
+                        {
+                            if (mulDivError is not null)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: {mulDivError}");
+                            }
+
+                            if (!variables.TryGetValue(mulDivVariableName!, out var mulDivExistingValue)
+                                || !int.TryParse(mulDivExistingValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mulDivExistingInt))
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: variable '{mulDivVariableName}' must exist and be an integer for mul/div.");
+                            }
+
+                            var mulDivAmountResult = ResolveIntegerToken(mulDivAmountToken!, variables, "mul/div amount");
+                            if (!mulDivAmountResult.Success)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: {mulDivAmountResult.ErrorMessage}");
+                            }
+
+                            if (isDivide && mulDivAmountResult.Value is 0)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: Division by zero is not allowed in mul/div.");
+                            }
+
+                            var mulDivResult = isDivide
+                                ? (long)mulDivExistingInt / mulDivAmountResult.Value
+                                : (long)mulDivExistingInt * mulDivAmountResult.Value;
+                            if (mulDivResult is < int.MinValue or > int.MaxValue)
+                            {
+                                return ScriptExpansionResult.Fail($"{source}: Result is out of range for mul/div.");
+                            }
+
+                            variables[mulDivVariableName!] = ((int)mulDivResult).ToString(CultureInfo.InvariantCulture);
+                            break;
+                        }
+
                         var resolvedStepResult = ResolveVariables(rawStep, variables);
                         if (!resolvedStepResult.Success)
                         {
@@ -640,7 +680,7 @@ public sealed class RunScriptCompiler
                 case RepeatNode repeat:
                     {
                         var source = BuildSourcePrefix(repeat.Source);
-                        var repeatCountResult = ResolveIntegerToken(repeat.CountToken, variables, "repeat count");
+                        var repeatCountResult = ResolveBlockArgumentToken(repeat.CountToken, variables, "repeat count");
                         if (!repeatCountResult.Success)
                         {
                             return ScriptExpansionResult.Fail($"{source}: {repeatCountResult.ErrorMessage}");
@@ -748,13 +788,13 @@ public sealed class RunScriptCompiler
                 case ForNode forNode:
                     {
                         var source = BuildSourcePrefix(forNode.Source);
-                        var startResult = ResolveIntegerToken(forNode.StartToken, variables, "for start");
+                        var startResult = ResolveBlockArgumentToken(forNode.StartToken, variables, "for start");
                         if (!startResult.Success)
                         {
                             return ScriptExpansionResult.Fail($"{source}: {startResult.ErrorMessage}");
                         }
 
-                        var endResult = ResolveIntegerToken(forNode.EndToken, variables, "for end");
+                        var endResult = ResolveBlockArgumentToken(forNode.EndToken, variables, "for end");
                         if (!endResult.Success)
                         {
                             return ScriptExpansionResult.Fail($"{source}: {endResult.ErrorMessage}");
@@ -763,7 +803,7 @@ public sealed class RunScriptCompiler
                         int stepValue;
                         if (forNode.HasExplicitStep)
                         {
-                            var stepResult = ResolveIntegerToken(forNode.StepToken!, variables, "for step");
+                            var stepResult = ResolveBlockArgumentToken(forNode.StepToken!, variables, "for step");
                             if (!stepResult.Success)
                             {
                                 return ScriptExpansionResult.Fail($"{source}: {stepResult.ErrorMessage}");
@@ -831,21 +871,6 @@ public sealed class RunScriptCompiler
         return true;
     }
 
-    private static bool TryParseRepeatHeader(string step, out string countToken)
-    {
-        countToken = string.Empty;
-        var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length is 3
-&& string.Equals(parts[0], "repeat", StringComparison.OrdinalIgnoreCase)
-&& string.Equals(parts[2], "{", StringComparison.Ordinal))
-        {
-            countToken = parts[1];
-            return true;
-        }
-
-        return false;
-    }
-
     private static bool TryParseIfHeader(string step, out ConditionExpression? condition, out string? error)
     {
         condition = null;
@@ -886,60 +911,6 @@ public sealed class RunScriptCompiler
         return true;
     }
 
-    private static bool TryParseForHeader(string step, out ForHeader? header, out string? error)
-    {
-        header = null;
-        error = null;
-
-        if (!step.EndsWith('{') || !step.StartsWith("for ", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var payload = step[..^1].Trim();
-        var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (parts.Length is not (6 or 8))
-        {
-            error = "Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {";
-            return true;
-        }
-
-        if (!string.Equals(parts[2], "from", StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(parts[4], "to", StringComparison.OrdinalIgnoreCase))
-        {
-            error = "Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {";
-            return true;
-        }
-
-        var variableName = parts[1];
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
-        {
-            error = $"Invalid loop variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
-            return true;
-        }
-
-        var startToken = parts[3];
-        var endToken = parts[5];
-        string? stepToken = null;
-        var hasExplicitStep = false;
-
-        if (parts.Length is 8)
-        {
-            if (!string.Equals(parts[6], "step", StringComparison.OrdinalIgnoreCase))
-            {
-                error = "Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {";
-                return true;
-            }
-
-            stepToken = parts[7];
-            hasExplicitStep = true;
-        }
-
-        header = new ForHeader(variableName, startToken, endToken, stepToken, hasExplicitStep);
-        return true;
-    }
-
     private static bool TryParseConditionExpression(string payload, out ConditionExpression? condition, out string? error)
     {
         condition = null;
@@ -959,32 +930,45 @@ public sealed class RunScriptCompiler
         ConditionExpression condition,
         IReadOnlyDictionary<string, string> variables)
     {
-        var leftResult = ResolveOperandValue(condition.LeftToken, variables);
-        if (!leftResult.Success)
-        {
-            return ConditionEvaluationResult.Fail(leftResult.ErrorMessage);
-        }
-
-        var rightResult = ResolveOperandValue(condition.RightToken, variables);
-        if (!rightResult.Success)
-        {
-            return ConditionEvaluationResult.Fail(rightResult.ErrorMessage);
-        }
-
-        var leftValue = leftResult.Value!;
-        var rightValue = rightResult.Value!;
-
         if (condition.OperatorToken is "==" or "!=")
         {
-            var equals = ValuesEqual(leftValue, rightValue);
+            // String/boolean/color comparison: no arithmetic on this path.
+            var leftEqualsResult = ResolveOperandValue(condition.LeftToken, variables);
+            if (!leftEqualsResult.Success)
+            {
+                return ConditionEvaluationResult.Fail(leftEqualsResult.ErrorMessage);
+            }
+
+            var rightEqualsResult = ResolveOperandValue(condition.RightToken, variables);
+            if (!rightEqualsResult.Success)
+            {
+                return ConditionEvaluationResult.Fail(rightEqualsResult.ErrorMessage);
+            }
+
+            var equals = ValuesEqual(leftEqualsResult.Value!, rightEqualsResult.Value!);
             return ConditionEvaluationResult.Ok(condition.OperatorToken is "==" ? equals : !equals);
         }
 
-        if (!int.TryParse(leftValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var leftInt)
-            || !int.TryParse(rightValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rightInt))
+        // Numeric comparison: arithmetic operands evaluate via the Core authority; other operands keep the legacy path (messages byte-identical).
+        var leftOperand = ResolveNumericConditionOperand(condition.LeftToken, variables);
+        if (!leftOperand.Success)
+        {
+            return ConditionEvaluationResult.Fail(leftOperand.ErrorMessage);
+        }
+
+        var rightOperand = ResolveNumericConditionOperand(condition.RightToken, variables);
+        if (!rightOperand.Success)
+        {
+            return ConditionEvaluationResult.Fail(rightOperand.ErrorMessage);
+        }
+
+        var leftDisplay = leftOperand.ResolvedValue ?? condition.LeftToken;
+        var rightDisplay = rightOperand.ResolvedValue ?? condition.RightToken;
+        if (!leftOperand.TryGetInteger(variables, out var leftInt)
+            || !rightOperand.TryGetInteger(variables, out var rightInt))
         {
             return ConditionEvaluationResult.Fail(
-                $"Operator '{condition.OperatorToken}' requires numeric operands. Got '{leftValue}' and '{rightValue}'.");
+                $"Operator '{condition.OperatorToken}' requires numeric operands. Got '{leftDisplay}' and '{rightDisplay}'.");
         }
 
         var result = condition.OperatorToken switch
@@ -997,6 +981,24 @@ public sealed class RunScriptCompiler
         };
 
         return ConditionEvaluationResult.Ok(result);
+    }
+
+    private static NumericConditionOperand ResolveNumericConditionOperand(
+        string token,
+        IReadOnlyDictionary<string, string> variables)
+    {
+        if (ScriptNumericExpression.TryParse(token, out var expression) && expression is { Op: not null })
+        {
+            var evaluation = ScriptNumericExpression.Evaluate(token, variables, "condition operand");
+            return evaluation.Status is ScriptNumericExpressionStatus.Evaluated
+                ? NumericConditionOperand.FromEvaluated(evaluation.Value)
+                : NumericConditionOperand.Fail(evaluation.Error!);
+        }
+
+        var resolved = ResolveOperandValue(token, variables);
+        return resolved.Success
+            ? NumericConditionOperand.FromResolved(resolved.Value!)
+            : NumericConditionOperand.Fail(resolved.ErrorMessage);
     }
 
     private static bool ValuesEqual(string left, string right)
@@ -1170,82 +1172,44 @@ public sealed class RunScriptCompiler
         return true;
     }
 
-    private static bool TryEvaluateNumericExpression(string expression, out int value, out string? error)
+    private static bool TryParseMulDivCommand(
+        string step,
+        out string? variableName,
+        out string? amountToken,
+        out bool isDivide,
+        out string? error)
     {
-        value = 0;
+        variableName = null;
+        amountToken = null;
+        isDivide = false;
         error = null;
-        var trimmed = expression.Trim();
-        if (trimmed.Length is 0)
+
+        if (!step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase)
+            && !step.StartsWith("div ", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        if (int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        isDivide = step.StartsWith("div ", StringComparison.OrdinalIgnoreCase);
+        var command = isDivide ? "div" : "mul";
+        var payload = step[4..].Trim();
+        var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts.Length is < 1 or > 2)
         {
+            error = $"Invalid {command} syntax. Expected: {command} <name> [amount].";
             return true;
         }
 
-        var operatorIndex = FindBinaryOperatorIndex(trimmed);
-        if (operatorIndex <= 0)
+        variableName = parts[0];
+        amountToken = parts.Length is 2 ? parts[1] : "1";
+        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
         {
-            return false;
+            error = $"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
+            return true;
         }
 
-        var op = trimmed[operatorIndex];
-        var leftToken = trimmed[..operatorIndex].Trim();
-        var rightToken = trimmed[(operatorIndex + 1)..].Trim();
-        if (!int.TryParse(leftToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var left)
-            || !int.TryParse(rightToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var right))
-        {
-            return false;
-        }
-
-        switch (op)
-        {
-            case '+':
-                value = left + right;
-                return true;
-            case '-':
-                value = left - right;
-                return true;
-            case '*':
-                value = left * right;
-                return true;
-            case '/':
-                if (right is 0)
-                {
-                    error = "Division by zero is not allowed in set expressions.";
-                    return true;
-                }
-
-                value = left / right;
-                return true;
-            case '%':
-                if (right is 0)
-                {
-                    error = "Modulo by zero is not allowed in set expressions.";
-                    return true;
-                }
-
-                value = left % right;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static int FindBinaryOperatorIndex(string expression)
-    {
-        for (var i = 1; i < expression.Length - 1; i++)
-        {
-            var ch = expression[i];
-            if (ch is '+' or '-' or '*' or '/' or '%')
-            {
-                return i;
-            }
-        }
-
-        return -1;
+        return true;
     }
 
     private static VariableResolutionResult ResolveVariables(string input, Dictionary<string, string> variables)
@@ -1300,6 +1264,22 @@ public sealed class RunScriptCompiler
         }
 
         return VariableResolutionResult.Ok(output.ToString());
+    }
+
+    private static IntegerResolutionResult ResolveBlockArgumentToken(
+        string token,
+        Dictionary<string, string> variables,
+        string description)
+    {
+        // Block arguments accept one binary expression via the Core authority; committed expressions fail loudly, plain tokens keep the legacy path.
+        var evaluation = ScriptNumericExpression.Evaluate(token, variables, description);
+        return evaluation.Status switch
+        {
+            ScriptNumericExpressionStatus.Evaluated => IntegerResolutionResult.Ok(evaluation.Value),
+            ScriptNumericExpressionStatus.NotExpression => ResolveIntegerToken(token, variables, description),
+            ScriptNumericExpressionStatus.Malformed or ScriptNumericExpressionStatus.EvaluationError => IntegerResolutionResult.Fail(evaluation.Error!),
+            _ => IntegerResolutionResult.Fail(evaluation.Error!),
+        };
     }
 
     private static IntegerResolutionResult ResolveIntegerToken(
@@ -1961,6 +1941,58 @@ public sealed class RunScriptCompiler
         }
     }
 
+    private sealed class NumericConditionOperand
+    {
+        private NumericConditionOperand()
+        {
+        }
+
+        public bool Success { get; private init; }
+        public string ErrorMessage { get; private init; } = string.Empty;
+        public string? ResolvedValue { get; private init; }
+        private int EvaluatedValue { get; init; }
+        private bool HasEvaluatedValue { get; init; }
+
+        public static NumericConditionOperand FromEvaluated(int value)
+        {
+            return new NumericConditionOperand
+            {
+                Success = true,
+                HasEvaluatedValue = true,
+                EvaluatedValue = value,
+            };
+        }
+
+        public static NumericConditionOperand FromResolved(string value)
+        {
+            return new NumericConditionOperand
+            {
+                Success = true,
+                ResolvedValue = value,
+            };
+        }
+
+        public static NumericConditionOperand Fail(string errorMessage)
+        {
+            return new NumericConditionOperand
+            {
+                Success = false,
+                ErrorMessage = errorMessage,
+            };
+        }
+
+        public bool TryGetInteger(IReadOnlyDictionary<string, string> variables, out int value)
+        {
+            if (HasEvaluatedValue)
+            {
+                value = EvaluatedValue;
+                return true;
+            }
+
+            return ScriptNumericExpression.TryEvaluate(ResolvedValue!, variables, out value, out _);
+        }
+    }
+
     private sealed class ConditionEvaluationResult
     {
         private ConditionEvaluationResult()
@@ -1989,12 +2021,4 @@ public sealed class RunScriptCompiler
             };
         }
     }
-
-    private sealed record ForHeader(
-        string VariableName,
-        string StartToken,
-        string EndToken,
-        string? StepToken,
-        bool HasExplicitStep);
-
 }

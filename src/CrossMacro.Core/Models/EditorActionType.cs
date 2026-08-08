@@ -78,6 +78,16 @@ public enum EditorActionType
     DecrementVariable,
 
     /// <summary>
+    /// Multiply numeric script variable. Payload example: "i 2" or "i $factor".
+    /// </summary>
+    MultiplyVariable,
+
+    /// <summary>
+    /// Divide numeric script variable. Payload example: "i 2" or "i $divisor".
+    /// </summary>
+    DivideVariable,
+
+    /// <summary>
     /// Repeat block start. Payload example: "5" or "$n".
     /// </summary>
     RepeatBlockStart,

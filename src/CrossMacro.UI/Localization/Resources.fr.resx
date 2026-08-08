@@ -1634,7 +1634,7 @@
     <value>Montant / variable</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>Le montant de l'incrément/décrément peut être un nombre ou une référence variable.</value>
+    <value>Le montant peut être un nombre ou une référence variable.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>Répéter le bloc :</value>
@@ -1671,6 +1671,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>Utiliser une étape explicite</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>Arithmétique avancée</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>Opérande droit</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>Combine la valeur avec un second opérande lors de l'exécution de la macro. Opérateurs : + − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>Étape</value>
@@ -1879,6 +1888,12 @@
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>Décrémenter la variable</value>
   </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>Multiplier la variable</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>Diviser la variable</value>
+  </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>Répéter</value>
   </data>
@@ -1953,6 +1968,12 @@
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>Décrémenter la variable</value>
+  </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>Multiplier la variable</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>Diviser la variable</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>Répéter le démarrage du bloc</value>

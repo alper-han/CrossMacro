@@ -1634,7 +1634,7 @@
     <value>المبلغ / متغير</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>يمكن أن يكون مقدار الزيادة/الإنقاص رقمًا أو مرجعًا متغيرًا.</value>
+    <value>يمكن أن يكون المقدار رقمًا أو مرجعًا متغيرًا.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>تكرار الكتلة:</value>
@@ -1671,6 +1671,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>استخدم خطوة صريحة</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>حساب متقدم</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>المعامل الأيمن</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>يدمج القيمة مع معامل ثانٍ عند تشغيل الماكرو. العوامل: + − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>خطوة</value>
@@ -1879,6 +1888,12 @@
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>إنقاص المتغير</value>
   </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>ضرب المتغير</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>قسمة المتغير</value>
+  </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>تكرار</value>
   </data>
@@ -1953,6 +1968,12 @@
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>إنقاص المتغير</value>
+  </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>ضرب المتغير</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>قسمة المتغير</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>كرر كتلة البداية</value>

@@ -1634,7 +1634,7 @@
     <value>Quantidade/variável</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>O valor do incremento/decremento pode ser um número ou uma referência de variável.</value>
+    <value>O valor pode ser um número ou uma referência de variável.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>Repetir bloco:</value>
@@ -1671,6 +1671,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>Usar passo explícito</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>Aritmética avançada</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>Operando direito</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>Combina o valor com um segundo operando quando a macro é executada. Operadores: + − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>Passo</value>
@@ -1879,6 +1888,12 @@
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>Diminuir variável</value>
   </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>Multiplicar variável</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>Dividir variável</value>
+  </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>Repetir</value>
   </data>
@@ -1953,6 +1968,12 @@
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>Variável de decremento</value>
+  </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>Variável de multiplicação</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>Variável de divisão</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>Repetir início do bloco</value>

@@ -1,0 +1,14 @@
+# Name: Forward Compat Fixture
+# Created: 2026-08-08T09:00:00.0000000Z
+# DurationMs: 0
+# IsAbsolute: True
+# SkipInitialZero: False
+# Format: CrossMacroFormatV3
+[Script]
+set a 10
+mul a 2
+div a 4
+repeat $a / 2 {
+click left
+}
+[Events]

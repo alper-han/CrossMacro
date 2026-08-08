@@ -28,6 +28,8 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             EditorActionType.SetVariable
                 or EditorActionType.IncrementVariable
                 or EditorActionType.DecrementVariable
+                or EditorActionType.MultiplyVariable
+                or EditorActionType.DivideVariable
                 or EditorActionType.RepeatBlockStart
                 or EditorActionType.IfBlockStart
                 or EditorActionType.WhileBlockStart
@@ -438,7 +440,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
         return action.Type switch
         {
             EditorActionType.SetVariable => ValidateSetVariable(action),
-            EditorActionType.IncrementVariable or EditorActionType.DecrementVariable => ValidateIncDec(action),
+            EditorActionType.IncrementVariable or EditorActionType.DecrementVariable or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable => ValidateIncDec(action),
             EditorActionType.RepeatBlockStart => ValidateRepeat(action),
             EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart => ValidateCondition(action),
             EditorActionType.ForBlockStart => ValidateFor(action),
@@ -520,7 +522,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
     private static (bool IsValid, string? Error) ValidateRepeat(EditorAction action)
     {
-        if (!EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
+        if (!EditorActionScriptTokens.ValidateBlockNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
         {
             if (action.ScriptNumericSourceType is ScriptNumericSourceType.VariableReference)
             {
@@ -562,7 +564,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             return (false, "For-loop variable name is invalid.");
         }
 
-        if (!EditorActionScriptTokens.ValidateNumericToken(action.ForStartType, action.ForStartValue))
+        if (!EditorActionScriptTokens.ValidateBlockNumericToken(action.ForStartType, action.ForStartValue))
         {
             if (action.ForStartType is ScriptNumericSourceType.VariableReference)
             {
@@ -572,7 +574,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             return (false, "For start must be an integer or a valid variable reference.");
         }
 
-        if (!EditorActionScriptTokens.ValidateNumericToken(action.ForEndType, action.ForEndValue))
+        if (!EditorActionScriptTokens.ValidateBlockNumericToken(action.ForEndType, action.ForEndValue))
         {
             if (action.ForEndType is ScriptNumericSourceType.VariableReference)
             {
@@ -582,7 +584,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             return (false, "For end must be an integer or a valid variable reference.");
         }
 
-        if (action.ForHasStep && !EditorActionScriptTokens.ValidateNumericToken(action.ForStepType, action.ForStepValue))
+        if (action.ForHasStep && !EditorActionScriptTokens.ValidateBlockNumericToken(action.ForStepType, action.ForStepValue))
         {
             if (action.ForStepType is ScriptNumericSourceType.VariableReference)
             {

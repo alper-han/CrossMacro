@@ -30,7 +30,9 @@ internal static class RunScriptRuntimeStepClassifier
     {
         return step.StartsWith("set ", StringComparison.OrdinalIgnoreCase)
             || step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase)
-            || step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase);
+            || step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase)
+            || step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase)
+            || step.StartsWith("div ", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsRuntimeBlockHeader(string step)

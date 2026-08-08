@@ -1226,6 +1226,8 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.SetVariable => GetSetVariableDisplayName(),
             EditorActionType.IncrementVariable => GetIncrementVariableDisplayName(),
             EditorActionType.DecrementVariable => GetDecrementVariableDisplayName(),
+            EditorActionType.MultiplyVariable => GetMultiplyVariableDisplayName(),
+            EditorActionType.DivideVariable => GetDivideVariableDisplayName(),
             EditorActionType.RepeatBlockStart => UseLegacyScriptTextDisplay
                 ? $"Repeat ({Text})"
                 : $"Repeat ({BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)})",
@@ -1298,6 +1300,28 @@ public class EditorAction : INotifyPropertyChanged
         return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
             ? $"Dec {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
             : "Decrement Variable";
+    }
+
+    private string GetMultiplyVariableDisplayName()
+    {
+        if (UseLegacyScriptTextDisplay)
+        {
+            return $"Mul {Text}";
+        }
+        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
+            ? $"Mul {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
+            : "Multiply Variable";
+    }
+
+    private string GetDivideVariableDisplayName()
+    {
+        if (UseLegacyScriptTextDisplay)
+        {
+            return $"Div {Text}";
+        }
+        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
+            ? $"Div {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
+            : "Divide Variable";
     }
 
     private string GetShellCommandDisplayName()
@@ -1541,11 +1565,24 @@ public class EditorAction : INotifyPropertyChanged
 
     private static string BuildNumericToken(ScriptNumericSourceType sourceType, string value)
     {
+        // Expression values are already stored in canonical form and render verbatim;
+        // the simple number and variable formatting path would corrupt them.
+        if (ScriptNumericExpression.TryParse(value, out var expression) && expression is { Op: not null })
+        {
+            return value.Trim();
+        }
+
         return EditorActionScriptTokens.FormatNumericToken(sourceType, value);
     }
 
     private static string BuildOperandToken(ScriptOperandType operandType, string value)
     {
+        if (operandType is ScriptOperandType.Number or ScriptOperandType.VariableReference
+            && ScriptNumericExpression.TryParse(value, out var expression) && expression is { Op: not null })
+        {
+            return value.Trim();
+        }
+
         return EditorActionScriptTokens.FormatOperandToken(operandType, value);
     }
 

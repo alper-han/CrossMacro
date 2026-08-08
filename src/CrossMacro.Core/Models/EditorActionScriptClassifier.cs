@@ -24,6 +24,8 @@ public static class EditorActionScriptClassifier
             EditorActionType.SetVariable
             or EditorActionType.IncrementVariable
             or EditorActionType.DecrementVariable
+            or EditorActionType.MultiplyVariable
+            or EditorActionType.DivideVariable
             or EditorActionType.PixelColor
             or EditorActionType.WaitColor
             or EditorActionType.PixelSearch

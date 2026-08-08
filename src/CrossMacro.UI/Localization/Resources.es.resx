@@ -1634,7 +1634,7 @@
     <value>Importe/variable</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>La cantidad de incremento/decremento puede ser un número o una referencia variable.</value>
+    <value>La cantidad puede ser un número o una referencia variable.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>Repetir bloque:</value>
@@ -1671,6 +1671,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>Usar paso explícito</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>Aritmética avanzada</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>Operando derecho</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>Combina el valor con un segundo operando cuando se ejecuta la macro. Operadores: + − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>Paso</value>
@@ -1879,6 +1888,12 @@
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>Decrementar variable</value>
   </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>Multiplicar variable</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>Dividir variable</value>
+  </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>Repetir</value>
   </data>
@@ -1953,6 +1968,12 @@
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>Variable de decremento</value>
+  </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>Variable de multiplicación</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>Variable de división</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>Repetir inicio de bloque</value>

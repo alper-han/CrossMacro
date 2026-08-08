@@ -461,6 +461,7 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(RequiresSkipInitialZeroZero));
         OnPropertyChanged(nameof(CanEditSkipInitialZeroZero));
         OnPropertyChanged(nameof(CanRemoveBlock));
+        NotifyScriptArithmeticPresentationChanged();
         NotifyScreenReadingComputedPropertiesChanged();
         RefreshAvailableVariableNames();
     }
@@ -543,6 +544,8 @@ public partial class EditorViewModel
                     action.WindowSelectorKind = WindowCloseSelectorKinds[0];
                 }
             }
+
+            NormalizeScriptArithmeticForAction(action);
         }
         finally
         {

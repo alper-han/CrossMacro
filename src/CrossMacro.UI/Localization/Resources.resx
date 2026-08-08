@@ -1543,7 +1543,7 @@
     <value>Amount / variable</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>Increment/Decrement amount can be a number or a variable reference.</value>
+    <value>Amount can be a number or a variable reference.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>Repeat Block:</value>
@@ -1640,6 +1640,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>Use explicit step</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>Advanced arithmetic</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>Right operand</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>Combines the value with a second operand when the macro runs. Operators: + − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>Step</value>
@@ -1848,6 +1857,12 @@
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>Decrement Variable</value>
   </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>Multiply Variable</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>Divide Variable</value>
+  </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>Repeat</value>
   </data>
@@ -1946,6 +1961,12 @@
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>Decrement Variable</value>
+  </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>Multiply Variable</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>Divide Variable</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>Repeat Block Start</value>

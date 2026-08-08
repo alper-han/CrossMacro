@@ -37,6 +37,22 @@ public static class EditorScriptDisplayConverters
         };
     }
 
+    /// <summary>
+    /// Maps an operation to its culture-invariant glyph (+ − × ÷); intentionally not localized.
+    /// </summary>
+    public static string FormatArithmeticOperation(ScriptArithmeticOperation operation)
+    {
+        return operation switch
+        {
+            ScriptArithmeticOperation.Add => "+",
+            ScriptArithmeticOperation.Subtract => "−",
+            ScriptArithmeticOperation.Multiply => "×",
+            ScriptArithmeticOperation.Divide => "÷",
+            ScriptArithmeticOperation.Modulo => "%",
+            _ => operation.ToString(),
+        };
+    }
+
     private static string Localize(string key, string fallback)
     {
         var localized = _localizationService?[key];

@@ -52,6 +52,21 @@ public static class EditorActionScriptTokens
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
     }
 
+    /// <summary>
+    /// Validates a block-argument numeric token (repeat count, for start/end/step): additionally
+    /// accepts one binary arithmetic expression via <see cref="ScriptNumericExpression.TryParse"/>;
+    /// everything else falls back to <see cref="ValidateNumericToken"/>.
+    /// </summary>
+    public static bool ValidateBlockNumericToken(ScriptNumericSourceType sourceType, string token)
+    {
+        if (ScriptNumericExpression.TryParse(token, out var expression) && expression is { Op: not null })
+        {
+            return true;
+        }
+
+        return ValidateNumericToken(sourceType, token);
+    }
+
     public static bool TryParseNumericToken(
         string? rawToken,
         out ScriptNumericSourceType sourceType,
@@ -88,9 +103,20 @@ public static class EditorActionScriptTokens
         return true;
     }
 
+    /// <summary>
+    /// Validates a condition operand token: Number/Variable operands additionally accept one binary
+    /// expression via <see cref="ScriptNumericExpression.TryParse"/> (mirrors <see cref="ValidateBlockNumericToken"/>);
+    /// text/bool/color never accept arithmetic.
+    /// </summary>
     public static bool ValidateOperandToken(ScriptOperandType operandType, string token)
     {
         ArgumentNullException.ThrowIfNull(token);
+
+        if (operandType is ScriptOperandType.Number or ScriptOperandType.VariableReference
+            && ScriptNumericExpression.TryParse(token, out var expression) && expression is { Op: not null })
+        {
+            return true;
+        }
 
         return operandType switch
         {

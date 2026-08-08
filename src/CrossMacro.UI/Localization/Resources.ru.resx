@@ -1634,7 +1634,7 @@
     <value>Величина / переменная</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>Величина приращения/уменьшения может быть числом или ссылкой на переменную.</value>
+    <value>Величина может быть числом или ссылкой на переменную.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>Блок repeat:</value>
@@ -1671,6 +1671,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>Использовать явный шаг</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>Расширенная арифметика</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>Правый операнд</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>Объединяет значение со вторым операндом при выполнении макроса. Операторы: + − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>Шаг</value>
@@ -1879,6 +1888,12 @@
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>Уменьшить переменную</value>
   </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>Умножить переменную</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>Разделить переменную</value>
+  </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>Повторить</value>
   </data>
@@ -1953,6 +1968,12 @@
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>Уменьшить переменную</value>
+  </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>Умножение переменной</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>Деление переменной</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>Повторить начало блока</value>

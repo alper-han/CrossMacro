@@ -88,6 +88,50 @@ public sealed class EditorViewModelIntegrationTests
         _ = viewModel.Actions[0].KeyName.Should().Be("E");
     }
 
+    [Fact]
+    public void AddAction_WhenMulDivAdded_RuntimeConverterEmitsMulDivScriptLines()
+    {
+        // Arrange
+        var keyCodeMapper = BuildKeyCodeMapper();
+        var converter = new EditorActionConverter(keyCodeMapper);
+        var validator = new EditorActionValidator(converter);
+        var localizationService = Substitute.For<ILocalizationService>();
+        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
+        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+        var viewModel = new EditorViewModel(
+            converter,
+            validator,
+            Substitute.For<ICoordinateCaptureService>(),
+            Substitute.For<IMacroFileManager>(),
+            Substitute.For<IDialogService>(),
+            keyCodeMapper,
+            Substitute.For<CrossMacro.Core.Services.IMacroPlayer>(),
+            localizationService,
+            new EditorActionDisplayFormatter(localizationService));
+
+        viewModel.NewActionType = EditorActionType.SetVariable;
+        viewModel.AddAction();
+        viewModel.SelectedAction!.ScriptVariableName = "x";
+        viewModel.SelectedAction.ScriptValueType = ScriptValueType.Number;
+        viewModel.SelectedAction.ScriptValue = "1";
+
+        viewModel.NewActionType = EditorActionType.MultiplyVariable;
+        viewModel.AddAction();
+        viewModel.SelectedAction!.ScriptVariableName = "x";
+        viewModel.SelectedAction.ScriptNumericValue = "2";
+
+        viewModel.NewActionType = EditorActionType.DivideVariable;
+        viewModel.AddAction();
+        viewModel.SelectedAction!.ScriptVariableName = "x";
+        viewModel.SelectedAction.ScriptNumericValue = "2";
+
+        // Act
+        var sequence = converter.ToMacroSequence(viewModel.Actions, "Mul Div Presentation", isAbsolute: false);
+
+        // Assert
+        _ = sequence.ScriptSteps.Should().Equal("set x 1", "mul x 2", "div x 2");
+    }
+
     private static IKeyCodeMapper BuildKeyCodeMapper()
     {
         var mapper = Substitute.For<IKeyCodeMapper>();

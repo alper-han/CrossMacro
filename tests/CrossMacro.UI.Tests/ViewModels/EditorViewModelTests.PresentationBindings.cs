@@ -127,8 +127,70 @@ public sealed partial class EditorViewModelTests
     {
         var windowGroup = _viewModel.AddableActionGroups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.WindowCommand));
-
         _ = windowGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.WindowCommand);
+    }
+
+    [Fact]
+    public void AddableActionGroups_IncludesMulDivInVariablesGroup()
+    {
+        var variablesGroup = _viewModel.AddableActionGroups.Single(group =>
+            group.Choices.Any(choice => choice.ActionType is EditorActionType.SetVariable));
+
+        _ = variablesGroup.Choices.Select(choice => choice.ActionType).Should().Equal(
+            EditorActionType.SetVariable,
+            EditorActionType.IncrementVariable,
+            EditorActionType.DecrementVariable,
+            EditorActionType.MultiplyVariable,
+            EditorActionType.DivideVariable);
+        var displayNames = variablesGroup.Choices.Select(choice => choice.DisplayName);
+        _ = displayNames.Should().Contain("MultiplyVariable");
+        _ = displayNames.Should().Contain("DivideVariable");
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable)]
+    [InlineData(EditorActionType.DivideVariable)]
+    public void AddAction_WhenMulDivAdded_UsesIncDecDefaultsAndShowsIncDecFields(EditorActionType actionType)
+    {
+        // Arrange
+        _viewModel.NewActionType = actionType;
+
+        // Act
+        _viewModel.AddAction();
+
+        // Assert
+        var action = _viewModel.SelectedAction!;
+        _ = action.Type.Should().Be(actionType);
+        _ = action.ScriptVariableName.Should().Be("i");
+        _ = action.ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.Number);
+        _ = action.ScriptNumericValue.Should().Be("1");
+        _ = _viewModel.ShowIncDecFields.Should().BeTrue();
+        _ = _viewModel.ShowSetVariableFields.Should().BeFalse();
+        _ = _viewModel.ShowTextInput.Should().BeFalse();
+        _ = _viewModel.ShowConditionFields.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable)]
+    [InlineData(EditorActionType.DivideVariable)]
+    public void SelectedIncDecVariableSuggestion_ForMulDiv_WritesBackToSelectedAction(EditorActionType actionType)
+    {
+        // Arrange
+        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.AddAction();
+        _viewModel.Actions[0].ScriptVariableName = "shared";
+
+        _viewModel.NewActionType = actionType;
+        _viewModel.AddAction();
+        var mathAction = _viewModel.Actions[1];
+
+        // Act
+        _ = _viewModel.ShowIncDecVariablePicker.Should().BeTrue();
+        _viewModel.SelectedIncDecVariableSuggestion = "shared";
+
+        // Assert
+        _ = _viewModel.SelectedAction.Should().BeSameAs(mathAction);
+        _ = mathAction.ScriptVariableName.Should().Be("shared");
     }
 
     [Fact]

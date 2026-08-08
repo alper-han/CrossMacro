@@ -453,6 +453,8 @@ public sealed class EditorActionValidatorTests
             EditorActionType.SetVariable => throw new NotSupportedException(),
             EditorActionType.IncrementVariable => throw new NotSupportedException(),
             EditorActionType.DecrementVariable => throw new NotSupportedException(),
+            EditorActionType.MultiplyVariable => throw new NotSupportedException(),
+            EditorActionType.DivideVariable => throw new NotSupportedException(),
             EditorActionType.RepeatBlockStart => throw new NotSupportedException(),
             EditorActionType.IfBlockStart => throw new NotSupportedException(),
             EditorActionType.ElseBlockStart => throw new NotSupportedException(),
@@ -1094,5 +1096,154 @@ public sealed class EditorActionValidatorTests
         _ = result.Errors.Should().Contain(error =>
             error.Contains("continue", StringComparison.OrdinalIgnoreCase)
             && error.Contains("inside repeat/while/for blocks", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validate_RepeatBlockWithExpressionCount_ReturnsValid()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$count / 10",
+        };
+
+        // Act
+        var result = _validator.Validate(action);
+
+        // Assert
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_RepeatBlockWithMalformedExpressionCount_ReturnsInvalid()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$count /",
+        };
+
+        // Act
+        var result = _validator.Validate(action);
+
+        // Assert
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void Validate_ForBlockWithExpressionSegments_ReturnsValid()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.Number,
+            ForStartValue = "0",
+            ForEndType = ScriptNumericSourceType.VariableReference,
+            ForEndValue = "$n + 1",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.VariableReference,
+            ForStepValue = "$s - 1",
+        };
+
+        // Act
+        var result = _validator.Validate(action);
+
+        // Assert
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_ForBlockWithMalformedStepExpression_ReturnsInvalid()
+    {
+        // Arrange
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.Number,
+            ForStartValue = "0",
+            ForEndType = ScriptNumericSourceType.Number,
+            ForEndValue = "10",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.VariableReference,
+            ForStepValue = "$s +",
+        };
+
+        // Act
+        var result = _validator.Validate(action);
+
+        // Assert
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void ValidateAll_WhenScriptUsesArithmeticBlockArguments_CompilesClean()
+    {
+        // Arrange: expression values flow through ToMacroSequence -> RunScriptCompiler
+        // (the plain validator compiles structured script actions during ValidateAll).
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "count",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "20",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.RepeatBlockStart,
+                ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+                ScriptNumericValue = "$count / 10",
+            },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.BlockEnd },
+            new EditorAction
+            {
+                Type = EditorActionType.ForBlockStart,
+                ForVariableName = "i",
+                ForStartType = ScriptNumericSourceType.Number,
+                ForStartValue = "0",
+                ForEndType = ScriptNumericSourceType.VariableReference,
+                ForEndValue = "$count / 10",
+            },
+            new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, IsAbsolute = false },
+            new EditorAction { Type = EditorActionType.BlockEnd },
+        };
+
+        // Act
+        var result = _validator.ValidateAll(actions);
+
+        // Assert
+        _ = result.IsValid.Should().BeTrue(string.Join(" | ", result.Errors));
+    }
+
+    [Fact]
+    public void ValidateAll_WhenScriptUsesMalformedRepeatExpression_ReportsCanonicalMessage()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.RawScriptStep, Text = "repeat $count / {" },
+            new EditorAction { Type = EditorActionType.RawScriptStep, Text = "click left" },
+            new EditorAction { Type = EditorActionType.RawScriptStep, Text = "}" },
+        };
+
+        // Act
+        var result = _scriptAwareValidator.ValidateAll(actions);
+
+        // Assert
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().Contain(error => error.Contains("is not a valid numeric expression for repeat count.", StringComparison.Ordinal));
     }
 }

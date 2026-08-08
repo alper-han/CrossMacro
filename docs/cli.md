@@ -604,6 +604,7 @@ Additional direct-run steps include:
 - `shell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]`
 - `set <name> <value>` or `set <name>=<value>`
 - `inc <name> [amount]` and `dec <name> [amount]`
+- `mul <name> [amount]` and `div <name> [amount]`
 - `repeat <count> { ... }`
 - `if <left> <op> <right> { ... } else { ... }`
 - `while <left> <op> <right> { ... }`
@@ -612,6 +613,15 @@ Additional direct-run steps include:
 
 The `screenshot [region ...] [output ...] [clipboard]` step is documented in
 the Runtime clipboard, window, and screen section above.
+
+Numeric arguments of `repeat`, `for` (`from`/`to`/`step`), `if`, and `while`
+accept one binary arithmetic expression, for example `repeat $count / 2 {`.
+Each operand is an integer literal or a `$variable`; operators are `+`, `-`,
+`*`, and `/`. Arithmetic is integer-only, division truncates, division by zero
+is an error, and expressions cannot be chained or parenthesized. For anything
+more complex, compute into a temporary variable first (`set tmp <value>`, then
+`inc`/`dec`/`mul`/`div` steps) and use `$tmp` as the block argument; this
+set-then-use form is always available.
 
 Move coordinates may be integer literals or `$variable` references. Variable
 coordinates are resolved immediately before the move executes, so screen-reading

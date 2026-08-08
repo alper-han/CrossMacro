@@ -348,6 +348,24 @@ public sealed class TextExpansionPrivacyTests
     }
 
     [Fact]
+    public async Task ExpandAsync_WhenClipboardGuaranteesImmediateReadback_SkipsVerification()
+    {
+        var clipboardService = new ImmediateReadbackClipboardService();
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        var inputSimulator = new UnicodeCapableTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        await executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"));
+
+        Assert.Equal(2, clipboardService.ReadCount);
+        Assert.Contains(InputEventCode.KEY_V, inputSimulator.PressedKeys);
+        Assert.Empty(inputSimulator.TypedText);
+    }
+
+    [Fact]
     public async Task TriggerDetection_ShouldNotLogTriggerOrReplacementText()
     {
         var trigger = $"trigger-{Guid.NewGuid():N}";
@@ -962,6 +980,30 @@ public sealed class TextExpansionPrivacyTests
             _ = cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(30));
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult<string?>("replacement");
+        }
+    }
+
+    private sealed class ImmediateReadbackClipboardService :
+        IClipboardService,
+        IClipboardWriteReadbackCapability
+    {
+        private int _readCount;
+
+        public bool IsSupported => true;
+
+        public bool GuaranteesImmediateReadback => true;
+
+        public int ReadCount => Volatile.Read(ref _readCount);
+
+        public Task SetTextAsync(string text, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
+        {
+            var readCount = Interlocked.Increment(ref _readCount);
+            return Task.FromResult<string?>(readCount is 1 ? "old-value" : "replacement");
         }
     }
 

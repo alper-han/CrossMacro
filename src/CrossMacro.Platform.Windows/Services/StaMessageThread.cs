@@ -171,14 +171,39 @@ internal sealed partial class StaMessageThread : IDisposable
         }
     }
 
-    public Task<T> InvokeAsync<T>(Func<T> action)
+    public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromCanceled<T>(cancellationToken);
+        }
+
         if (Volatile.Read(ref _isClosing) is not 0)
         {
             return Task.FromException<T>(new ObjectDisposedException(nameof(StaMessageThread)));
         }
 
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationTokenRegistration? cancellationRegistration = null;
+        if (cancellationToken.CanBeCanceled)
+        {
+            cancellationRegistration = cancellationToken.Register(
+                static state =>
+                {
+                    ArgumentNullException.ThrowIfNull(state);
+                    var (completion, token) = ((TaskCompletionSource<T>, CancellationToken))state;
+                    _ = completion.TrySetCanceled(token);
+                },
+                (tcs, cancellationToken));
+
+            _ = tcs.Task.ContinueWith(
+                _ => cancellationRegistration?.Dispose(),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
 
         _workQueue.Enqueue(failure =>
         {
@@ -193,9 +218,20 @@ internal sealed partial class StaMessageThread : IDisposable
                 return;
             }
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _ = tcs.TrySetCanceled(cancellationToken);
+                return;
+            }
+
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 _ = tcs.TrySetResult(action());
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                _ = tcs.TrySetCanceled(cancellationToken);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -211,13 +247,15 @@ internal sealed partial class StaMessageThread : IDisposable
         return tcs.Task;
     }
 
-    public Task InvokeAsync(Action action)
+    public Task InvokeAsync(Action action, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(action);
+
         return InvokeAsync<bool>(() =>
         {
             action();
             return true;
-        });
+        }, cancellationToken);
     }
 
     public void Dispose()

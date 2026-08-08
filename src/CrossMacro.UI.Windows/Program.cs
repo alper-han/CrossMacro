@@ -40,8 +40,7 @@ internal static class Program
     {
         ConfigurePlatformServices(services);
         GuiHostBootstrap.AddCommonGuiServices(services);
-        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
-        WindowsPlatformServiceRegistrar.RegisterGuiImageClipboardServices(services);
+        WindowsPlatformServiceRegistrar.RegisterGuiClipboardServices(services);
     }
 
     private static void ConfigureCliServices(IServiceCollection services, CliRuntimeProfile runtimeProfile)

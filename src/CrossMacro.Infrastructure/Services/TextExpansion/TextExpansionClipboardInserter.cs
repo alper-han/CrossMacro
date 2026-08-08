@@ -35,7 +35,11 @@ internal sealed class TextExpansionClipboardInserter
                 return null;
             }
 
-            if (!await VerifyClipboardContainsReplacementAsync(replacement).ConfigureAwait(false))
+            if (_clipboardService is not IClipboardWriteReadbackCapability
+                {
+                    GuaranteesImmediateReadback: true,
+                }
+                && !await VerifyClipboardContainsReplacementAsync(replacement).ConfigureAwait(false))
             {
                 if (oldClipboard is not null)
                 {
@@ -149,11 +153,7 @@ internal sealed class TextExpansionClipboardInserter
     private async Task<bool> ClipboardContainsReplacementAsync(string replacement, TimeSpan timeout)
     {
         var currentClipboard = await ReadClipboardWithTimeoutAsync(timeout).ConfigureAwait(false);
-        if (string.Equals(currentClipboard, replacement, StringComparison.Ordinal))
-        {
-            return true;
-        }
-        return false;
+        return string.Equals(currentClipboard, replacement, StringComparison.Ordinal);
     }
 
     private async Task RestoreClipboardAsync(string oldClipboard, string insertedText)
@@ -276,8 +276,8 @@ internal sealed class TextExpansionClipboardInserter
         Func<CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken)
     {
-        // Offload to the thread pool: some IClipboardService implementations block synchronously
-        // before returning a Task, which would bypass the timeout entirely.
+        // The timeout must also cover implementations that perform synchronous work
+        // before returning their Task (for example, lazy STA initialization).
         return Task.Run(() => operation(cancellationToken), cancellationToken);
     }
 

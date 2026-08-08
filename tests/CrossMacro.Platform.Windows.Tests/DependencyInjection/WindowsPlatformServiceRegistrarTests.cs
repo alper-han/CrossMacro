@@ -5,16 +5,23 @@ namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 public sealed class WindowsPlatformServiceRegistrarTests
 {
     [Fact]
-    public void RegisterGuiImageClipboardServices_RegistersStaMessageThreadFactory()
+    public void RegisterGuiClipboardServices_RegistersNativeClipboardServices()
     {
         var services = new ServiceCollection();
 
-        WindowsPlatformServiceRegistrar.RegisterGuiImageClipboardServices(services);
+        WindowsPlatformServiceRegistrar.RegisterGuiClipboardServices(services);
 
         var descriptor = Assert.Single(services, service => service.ServiceType == typeof(StaMessageThread));
         Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
         Assert.Null(descriptor.ImplementationType);
         Assert.NotNull(descriptor.ImplementationFactory);
+
+        Assert.Equal(
+            typeof(WindowsNativeClipboardService),
+            Assert.Single(services, service => service.ServiceType == typeof(IClipboardService)).ImplementationType);
+        Assert.Equal(
+            typeof(WindowsNativeImageClipboardService),
+            Assert.Single(services, service => service.ServiceType == typeof(IImageClipboardService)).ImplementationType);
     }
 
     [Fact]

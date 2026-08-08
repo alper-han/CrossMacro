@@ -18,7 +18,7 @@ public sealed class HostCompositionContractTests
         yield return [
             "src/CrossMacro.UI.Windows/Program.cs",
             "new WindowsPlatformServiceRegistrar().RegisterPlatformServices",
-            "WindowsPlatformServiceRegistrar.RegisterCliClipboardServices",
+            "WindowsPlatformServiceRegistrar.RegisterGuiClipboardServices",
             "RuntimeContext",
         ];
         yield return [

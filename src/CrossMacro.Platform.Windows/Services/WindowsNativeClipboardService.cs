@@ -2,14 +2,19 @@
 namespace CrossMacro.Platform.Windows.Services;
 
 [SupportedOSPlatform("windows")]
-internal sealed class WindowsCliClipboardService(Lazy<StaMessageThread> staThread) : IClipboardService
+internal sealed class WindowsNativeClipboardService(Lazy<StaMessageThread> staThread) :
+    IClipboardService,
+    IClipboardWriteReadbackCapability
 {
     private readonly Lazy<StaMessageThread> _staThread = staThread;
 
     public bool IsSupported => OperatingSystem.IsWindows();
 
+    public bool GuaranteesImmediateReadback => true;
+
     public Task SetTextAsync(string text, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrEmpty(text))
         {
             return ClearAsync(cancellationToken);
@@ -17,7 +22,7 @@ internal sealed class WindowsCliClipboardService(Lazy<StaMessageThread> staThrea
 
         var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal);
         var thread = _staThread.Value;
-        return thread.InvokeAsync(() => SetTextInternal(normalized, thread.MessageWindowHandle));
+        return thread.InvokeAsync(() => SetTextInternal(normalized, thread.MessageWindowHandle), cancellationToken);
     }
 
     private static void SetTextInternal(string text, IntPtr hwndOwner)
@@ -92,6 +97,7 @@ internal sealed class WindowsCliClipboardService(Lazy<StaMessageThread> staThrea
 
     public Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var thread = _staThread.Value;
         return thread.InvokeAsync(() =>
         {
@@ -123,7 +129,7 @@ internal sealed class WindowsCliClipboardService(Lazy<StaMessageThread> staThrea
             {
                 _ = User32.CloseClipboard();
             }
-        });
+        }, cancellationToken);
     }
 
     private static string? GetUnicodeTextFromClipboard()
@@ -176,22 +182,26 @@ internal sealed class WindowsCliClipboardService(Lazy<StaMessageThread> staThrea
 
     private async Task ClearAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var thread = _staThread.Value;
         await thread.InvokeAsync(() =>
         {
-            if (User32.OpenClipboard(thread.MessageWindowHandle))
+            if (!User32.OpenClipboard(thread.MessageWindowHandle))
             {
-                try
+                throw new InvalidOperationException("Failed to open Windows clipboard for clearing.");
+            }
+
+            try
+            {
+                if (!User32.EmptyClipboard())
                 {
-                    _ = User32.EmptyClipboard();
-                }
-                finally
-                {
-                    _ = User32.CloseClipboard();
+                    throw new InvalidOperationException("Failed to empty Windows clipboard.");
                 }
             }
-        }).ConfigureAwait(false);
-
-        await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+            finally
+            {
+                _ = User32.CloseClipboard();
+            }
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

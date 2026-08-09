@@ -17,7 +17,8 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
     {
     }
 
-    internal VirtualDeviceManager(Func<int, int, CancellationToken, Task<IUInputDevice>> deviceFactory)
+    internal VirtualDeviceManager(
+        Func<int, int, CancellationToken, Task<IUInputDevice>> deviceFactory)
     {
         ArgumentNullException.ThrowIfNull(deviceFactory);
         _deviceFactory = deviceFactory;
@@ -94,7 +95,8 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         try
         {
             ThrowIfDisposed();
-            _uInputDevice?.SendEvent(type, code, value);
+            var device = _uInputDevice ?? throw new InvalidOperationException("The virtual input device is not initialized.");
+            device.SendEvent(type, code, value);
         }
         finally
         {
@@ -114,19 +116,16 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         try
         {
             ThrowIfDisposed();
-            var device = _uInputDevice;
-            if (device is null)
-            {
-                return;
-            }
-
+            var device = _uInputDevice ?? throw new InvalidOperationException("The virtual input device is not initialized.");
             foreach (var inputEvent in events)
             {
                 linkedCts.Token.ThrowIfCancellationRequested();
                 device.SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
-                if (inputEvent.DelayAfterMs > 0)
+                if (inputEvent.DelayAfterMicroseconds > 0)
                 {
-                    await Task.Delay(inputEvent.DelayAfterMs, linkedCts.Token).ConfigureAwait(false);
+                    await DaemonPrecisionDelay.WaitAsync(
+                        inputEvent.DelayAfterMicroseconds,
+                        linkedCts.Token).ConfigureAwait(false);
                 }
             }
         }
@@ -147,9 +146,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         try
         {
-            _uInputDevice?.Dispose();
-            _uInputDevice = null;
-            _configuration = null;
+            DisposeDevice();
             Log.Information("[VirtualDeviceManager] Device reset");
         }
         finally

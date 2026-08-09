@@ -145,12 +145,15 @@ internal sealed class SessionCommandDispatcher
         try
         {
             var events = ReadSimulationBatchEvents();
+            var startedAt = Stopwatch.GetTimestamp();
             await _virtualDevice.SendEventsAsync(events, token).ConfigureAwait(false);
+            var elapsedMilliseconds = Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
 
             using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
             {
                 _session.Writer.Write((byte)IpcOpCode.SimulationBatchCompleted);
                 _session.Writer.Write(requestId);
+                _session.Writer.Write(events.Length);
             }
 
             await _session.Stream.FlushAsync(token).ConfigureAwait(false);
@@ -158,6 +161,15 @@ internal sealed class SessionCommandDispatcher
             foreach (var inputEvent in events)
             {
                 _security.LogSimulation(uid, pid, inputEvent.Type, inputEvent.Code, inputEvent.Value);
+            }
+
+            if (elapsedMilliseconds > 50)
+            {
+                Log.Warning(
+                    "[SessionHandler] Simulation batch acknowledgement was slow: RequestId={RequestId}, Events={EventCount}, ElapsedMs={ElapsedMs:F2}",
+                    requestId,
+                    events.Length,
+                    elapsedMilliseconds);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -189,7 +201,7 @@ internal sealed class SessionCommandDispatcher
         }
 
         var events = new IpcSimulationRequest[eventCount];
-        var totalDelayMs = 0;
+        long totalDelayMicroseconds = 0;
         for (var i = 0; i < events.Length; i++)
         {
             var inputEvent = new IpcSimulationRequest
@@ -197,22 +209,22 @@ internal sealed class SessionCommandDispatcher
                 Type = _session.Reader.ReadUInt16(),
                 Code = _session.Reader.ReadUInt16(),
                 Value = _session.Reader.ReadInt32(),
-                DelayAfterMs = _session.Reader.ReadInt32(),
+                DelayAfterMicroseconds = _session.Reader.ReadInt64(),
             };
 
-            if (inputEvent.DelayAfterMs is < 0 or > IpcProtocol.MaxSimulationBatchDelayMs)
+            if (inputEvent.DelayAfterMicroseconds is < 0 or > IpcProtocol.MaxSimulationBatchDelayMicroseconds)
             {
                 throw new InvalidDataException(
                     string.Create(CultureInfo.InvariantCulture,
-                        $"Simulation batch delay {inputEvent.DelayAfterMs}ms is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMs}ms."));
+                        $"Simulation batch delay {inputEvent.DelayAfterMicroseconds}us is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMicroseconds}us."));
             }
 
-            totalDelayMs += inputEvent.DelayAfterMs;
-            if (totalDelayMs > IpcProtocol.MaxSimulationBatchTotalDelayMs)
+            totalDelayMicroseconds += inputEvent.DelayAfterMicroseconds;
+            if (totalDelayMicroseconds > IpcProtocol.MaxSimulationBatchTotalDelayMicroseconds)
             {
                 throw new InvalidDataException(
                     string.Create(CultureInfo.InvariantCulture,
-                        $"Simulation batch total delay {totalDelayMs}ms exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMs}ms."));
+                        $"Simulation batch total delay {totalDelayMicroseconds}us exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMicroseconds}us."));
             }
 
             events[i] = inputEvent;
@@ -220,4 +232,5 @@ internal sealed class SessionCommandDispatcher
 
         return events;
     }
+
 }

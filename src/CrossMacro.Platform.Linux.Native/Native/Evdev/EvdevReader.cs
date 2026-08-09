@@ -40,6 +40,7 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
     public string DeviceName { get; }
 
     public event EventHandler<EvdevInputEventArgs>? EventReceived;
+    public event EventHandler<EvdevInputEventArgs>? SynchronizationLost;
     public event EventHandler<EvdevErrorEventArgs>? ErrorOccurred;
 
     public bool IsListening
@@ -237,10 +238,11 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
     private void ProcessInputEvent(ReaderSession session, IntPtr buffer, CancellationToken token)
     {
         var ev = Marshal.PtrToStructure<UInputNative.input_event>(buffer);
-        if (ev.type == UInputNative.EV_SYN && ev.code == UInputNative.SYN_DROPPED)
+        if (IsSynchronizationLost(ev))
         {
             _syncing = true;
             Log.Warning("[{Device}] SYN_DROPPED: Events lost, waiting for SYN_REPORT to resync", DeviceName);
+            SynchronizationLost?.Invoke(this, new EvdevInputEventArgs(ev));
             return;
         }
 
@@ -255,6 +257,9 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
             EventReceived?.Invoke(this, new EvdevInputEventArgs(ev));
         }
     }
+
+    internal static bool IsSynchronizationLost(UInputNative.input_event inputEvent) =>
+        inputEvent.type is UInputNative.EV_SYN && inputEvent.code is UInputNative.SYN_DROPPED;
 
     private async Task RunReadLoopOverrideAsync(ReaderSession session, Func<CancellationToken, Task> readLoopOverride)
     {

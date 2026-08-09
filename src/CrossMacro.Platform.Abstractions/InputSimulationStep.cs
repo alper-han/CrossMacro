@@ -5,4 +5,4 @@ public readonly record struct InputSimulationStep(
     ushort Type,
     ushort Code,
     int Value,
-    int DelayAfterMs = 0);
+    long DelayAfterMicroseconds = 0);

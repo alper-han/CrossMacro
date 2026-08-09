@@ -266,17 +266,17 @@ internal sealed class TextExpansionDirectTypingInserter
         TimeSpan delayAfter = default)
     {
         steps.Add(new InputSimulationStep(EV_KEY, (ushort)keyCode, pressed ? 1 : 0));
-        steps.Add(new InputSimulationStep(EV_SYN, SYN_REPORT, 0, ToDelayMilliseconds(delayAfter)));
+        steps.Add(new InputSimulationStep(EV_SYN, SYN_REPORT, 0, ToDelayMicroseconds(delayAfter)));
     }
 
     private static void AddDelayStep(List<InputSimulationStep> steps, TimeSpan delay)
     {
-        steps.Add(new InputSimulationStep(EV_SYN, SYN_REPORT, 0, ToDelayMilliseconds(delay)));
+        steps.Add(new InputSimulationStep(EV_SYN, SYN_REPORT, 0, ToDelayMicroseconds(delay)));
     }
 
-    private static int ToDelayMilliseconds(TimeSpan delay)
+    private static long ToDelayMicroseconds(TimeSpan delay)
     {
-        return delay <= TimeSpan.Zero ? 0 : (int)Math.Ceiling(delay.TotalMilliseconds);
+        return delay <= TimeSpan.Zero ? 0 : (long)Math.Ceiling(delay.TotalMicroseconds);
     }
 
     private async Task<bool> TryTypeWithKeyboardLayoutAsync(IInputSimulator inputSimulator, char character, CancellationToken cancellationToken)

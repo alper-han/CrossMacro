@@ -51,13 +51,13 @@ public enum IpcOpCode
 
     /// <summary>
     /// Request to simulate an ordered batch of input events (Client to Daemon).
-    /// Payload: int (Request Id), int (Event Count), repeated ushort (Type), ushort (Code), int (Value), int (Delay After Ms)
+    /// Payload: request ID, event count, and repeated type/code/value/delay tuples.
     /// </summary>
     SimulateEventBatch = 0x09,
 
     /// <summary>
     /// Simulation batch acknowledgement sent from Daemon to Client.
-    /// Payload: int (Request Id)
+    /// Payload: request ID and decoded event count.
     /// </summary>
     SimulationBatchCompleted = 0x0A,
 

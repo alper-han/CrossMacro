@@ -3,7 +3,6 @@ namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed partial class SessionHandlerTests
 {
-
     [LinuxFact]
     public async Task RunAsync_WhenSimulationBatchIsValid_ShouldDispatchEventsAndAcknowledge()
     {
@@ -28,15 +27,16 @@ public sealed partial class SessionHandlerTests
         writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
         writer.Write((ushort)InputEventCode.KEY_A);
         writer.Write(1);
-        writer.Write(0);
+        writer.Write(0L);
         writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_SYN);
         writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.SYN_REPORT);
         writer.Write(0);
-        writer.Write(0);
+        writer.Write(0L);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.SimulationBatchCompleted, (IpcOpCode)reader.ReadByte());
         Assert.Equal(3030, reader.ReadInt32());
+        Assert.Equal(2, reader.ReadInt32());
 
         socketPair.Client.Dispose();
         await runTask.WaitAsync(TimeSpan.FromSeconds(2));
@@ -105,7 +105,7 @@ public sealed partial class SessionHandlerTests
         writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
         writer.Write((ushort)InputEventCode.KEY_A);
         writer.Write(1);
-        writer.Write(-1);
+        writer.Write(-1L);
         writer.Flush();
 
         Assert.Equal(IpcOpCode.SimulationBatchFailed, (IpcOpCode)reader.ReadByte());
@@ -116,6 +116,49 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Empty(virtualDevice.SentEvents);
+    }
+
+    [LinuxFact]
+    public async Task RunAsync_WhenUInputWriteFailsInSimulationBatch_ReturnsFailureAndKeepsSessionAlive()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager
+        {
+            ThrowOnSendEvents = new IOException("uinput event write failed: Errno=5."),
+        };
+        var captureManager = new FakeInputCaptureManager();
+        var handler = new SessionHandler(security, virtualDevice, captureManager);
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1002, pid: 4322, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        CompleteHandshake(reader, writer);
+
+        writer.Write((byte)IpcOpCode.SimulateEventBatch);
+        writer.Write(5051);
+        writer.Write(1);
+        writer.Write(UInputNative.EV_ABS);
+        writer.Write(UInputNative.ABS_X);
+        writer.Write(777);
+        writer.Write(0L);
+        writer.Flush();
+
+        Assert.Equal(IpcOpCode.SimulationBatchFailed, (IpcOpCode)reader.ReadByte());
+        Assert.Equal(5051, reader.ReadInt32());
+        Assert.Contains("uinput event write failed", reader.ReadString(), StringComparison.Ordinal);
+
+        SendStartCaptureCommand(reader, writer, requestId: 5052);
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Empty(security.SimulationCalls);
+        _ = Assert.Single(virtualDevice.SentEvents);
     }
 
     [LinuxFact]
@@ -144,7 +187,7 @@ public sealed partial class SessionHandlerTests
             writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
             writer.Write((ushort)InputEventCode.KEY_A);
             writer.Write(i % 2);
-            writer.Write(1000);
+            writer.Write(1_000_000L);
         }
         writer.Flush();
 

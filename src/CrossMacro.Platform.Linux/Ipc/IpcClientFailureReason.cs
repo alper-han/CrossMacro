@@ -8,4 +8,6 @@ public enum IpcClientFailureReason
     HandshakeFailed = 3,
     ProtocolMismatch = 4,
     Timeout = 5,
+    SimulationRejected = 6,
+    IntegrityMismatch = 7,
 }

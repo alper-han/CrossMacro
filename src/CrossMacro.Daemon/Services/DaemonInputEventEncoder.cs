@@ -9,7 +9,7 @@ internal static class DaemonInputEventEncoder
         writer.Write(GetEventType(inputEvent.type, inputEvent.code));
         writer.Write((int)inputEvent.code);
         writer.Write(inputEvent.value);
-        writer.Write(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        writer.Write(GetMonotonicTimestampMicroseconds(inputEvent));
     }
 
     private static byte GetEventType(ushort type, ushort code)
@@ -48,5 +48,26 @@ internal static class DaemonInputEventEncoder
         }
 
         return (byte)InputEventType.Unknown;
+    }
+
+    private static long GetMonotonicTimestampMicroseconds(UInputNative.input_event inputEvent)
+    {
+        var seconds = inputEvent.time_sec.ToInt64();
+        var microseconds = inputEvent.time_usec.ToInt64();
+        if ((seconds > 0 || microseconds > 0)
+            && seconds >= 0
+            && (microseconds is >= 0 and < 1_000_000))
+        {
+            try
+            {
+                return checked((seconds * 1_000_000) + microseconds);
+            }
+            catch (OverflowException)
+            {
+                // Fall back to the process monotonic clock below.
+            }
+        }
+
+        return Math.Max(1, Stopwatch.GetTimestamp() * 1_000_000 / Stopwatch.Frequency);
     }
 }

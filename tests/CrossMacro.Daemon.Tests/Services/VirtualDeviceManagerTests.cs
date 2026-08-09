@@ -75,13 +75,14 @@ public sealed class VirtualDeviceManagerTests
     }
 
     [LinuxFact]
-    public async Task SendEvent_WhenNotConfigured_DoesNotThrow()
+    public async Task SendEvent_WhenNotConfigured_ThrowsInsteadOfSilentlyDroppingInput()
     {
         await using var manager = new VirtualDeviceManager();
 
-        var ex = await Record.ExceptionAsync(() => manager.SendEventAsync(type: 1, code: 2, value: 3, CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.SendEventAsync(type: 1, code: 2, value: 3, CancellationToken.None));
 
-        Assert.Null(ex);
+        Assert.Contains("not initialized", exception.Message, StringComparison.Ordinal);
     }
 
     [LinuxFact]
@@ -129,6 +130,28 @@ public sealed class VirtualDeviceManagerTests
             () => manager.ConfigureAsync(0, 0, cancellation.Token));
     }
 
+    [LinuxFact]
+    public async Task SendEvents_WhenUInputWriteFails_PropagatesFailureAndStopsTheBatch()
+    {
+        var devices = new List<FakeUInputDevice>();
+        await using var manager = CreateManager(devices);
+        await manager.ConfigureAsync(5120, 1440, CancellationToken.None);
+        var device = Assert.Single(devices);
+        device.ThrowOnSendEvent = new IOException("uinput event write failed: Errno=5.");
+
+        IpcSimulationRequest[] batch =
+        [
+            new() { Type = UInputNative.EV_ABS, Code = UInputNative.ABS_X, Value = 123 },
+            new() { Type = UInputNative.EV_ABS, Code = UInputNative.ABS_Y, Value = 456 },
+        ];
+
+        var exception = await Assert.ThrowsAsync<IOException>(
+            () => manager.SendEventsAsync(batch, CancellationToken.None));
+
+        Assert.Contains("Errno=5", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(1, device.SendEventCalls);
+    }
+
     private static VirtualDeviceManager CreateManager(ICollection<FakeUInputDevice> devices)
     {
         return new VirtualDeviceManager((_, _, _) =>
@@ -143,6 +166,8 @@ public sealed class VirtualDeviceManagerTests
     {
         public bool SupportsAbsoluteCoordinates => true;
         public bool IsDisposed { get; private set; }
+        public int SendEventCalls { get; private set; }
+        public Exception? ThrowOnSendEvent { get; set; }
 
         public void CreateVirtualInputDevice()
         {
@@ -166,6 +191,11 @@ public sealed class VirtualDeviceManagerTests
 
         public void SendEvent(ushort type, ushort code, int value)
         {
+            SendEventCalls++;
+            if (ThrowOnSendEvent is not null)
+            {
+                throw ThrowOnSendEvent;
+            }
         }
 
         public void Dispose()

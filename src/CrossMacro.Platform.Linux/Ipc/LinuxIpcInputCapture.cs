@@ -289,6 +289,10 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
                 ipcEx.InnerException is not null
                     ? $"{ipcEx.Message} (System details: {ipcEx.InnerException.Message})"
                     : ipcEx.Message,
+            IpcClientFailureReason.SimulationRejected =>
+                $"The daemon rejected an input simulation request. {ipcEx.Message}",
+            IpcClientFailureReason.IntegrityMismatch =>
+                $"Input delivery integrity verification failed. {ipcEx.Message}",
             // Forward compatibility: unknown reasons fall back to the raw message.
             _ => ex.Message,
         };

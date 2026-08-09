@@ -722,13 +722,13 @@ public sealed class TextExpansionPrivacyTests
         InputSimulationStep[] expected =
         [
             new(0x01, 30, 1),
-            new(0x00, 0, 0, 1),
+            new(0x00, 0, 0, 1_000),
             new(0x01, 30, 0),
             new(0x00, 0, 0),
             new(0x01, 42, 1),
             new(0x00, 0, 0),
             new(0x01, 48, 1),
-            new(0x00, 0, 0, 1),
+            new(0x00, 0, 0, 1_000),
             new(0x01, 48, 0),
             new(0x00, 0, 0),
             new(0x01, 42, 0),

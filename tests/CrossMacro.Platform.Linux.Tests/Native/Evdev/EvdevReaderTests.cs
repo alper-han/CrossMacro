@@ -2,6 +2,30 @@ namespace CrossMacro.Platform.Linux.Tests.Native.Evdev;
 
 public sealed class EvdevReaderTests
 {
+    [Fact]
+    public void IsSynchronizationLost_WhenEventIsSynDropped_ReturnsTrue()
+    {
+        var inputEvent = new UInputNative.input_event
+        {
+            type = UInputNative.EV_SYN,
+            code = UInputNative.SYN_DROPPED,
+        };
+
+        Assert.True(EvdevReader.IsSynchronizationLost(inputEvent));
+    }
+
+    [Fact]
+    public void IsSynchronizationLost_WhenEventIsNotSynDropped_ReturnsFalse()
+    {
+        var inputEvent = new UInputNative.input_event
+        {
+            type = UInputNative.EV_SYN,
+            code = UInputNative.SYN_REPORT,
+        };
+
+        Assert.False(EvdevReader.IsSynchronizationLost(inputEvent));
+    }
+
     [LinuxFact]
     public async Task StartStopStart_UsesFreshCancellationTokenPerSession()
     {

@@ -99,7 +99,9 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
                 break;
 
             case IpcOpCode.SimulationBatchCompleted:
-                _simulation.HandleBatchCompletedMessage(reader.ReadInt32());
+                _simulation.HandleBatchCompletedMessage(
+                    reader.ReadInt32(),
+                    reader.ReadInt32());
                 break;
 
             case IpcOpCode.SimulationBatchFailed:
@@ -150,7 +152,7 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
         var type = (InputEventType)reader.ReadByte();
         var code = reader.ReadInt32();
         var value = reader.ReadInt32();
-        var timestamp = reader.ReadInt64();
+        var timestampMicroseconds = reader.ReadInt64();
 
         Log.Debug("[IpcClient] RX: InputEvent Type={Type} Code={Code} Value={Value}", type, code, value);
 
@@ -159,7 +161,7 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
             Type = type,
             Code = code,
             Value = value,
-            Timestamp = timestamp,
+            TimestampMicroseconds = timestampMicroseconds,
             DeviceName = "Daemon Device",
         }));
     }

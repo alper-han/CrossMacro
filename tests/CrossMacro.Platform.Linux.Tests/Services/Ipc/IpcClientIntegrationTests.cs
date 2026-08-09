@@ -985,12 +985,13 @@ public sealed class IpcClientIntegrationTests
         var commands = daemon.GetCommandsSnapshot();
 
         Assert.Contains(commands, c => c.OpCode is IpcOpCode.ConfigureResolution && c.Width is 1920 && c.Height is 1080);
-        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x02 && c.Code is 0x00 && c.Value is 5);
-        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x02 && c.Code is 0x01 && c.Value == -3);
-        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x01 && c.Code is 1 && c.Value is 1);
-        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x02 && c.Code is 0x06 && c.Value == -2);
-        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x01 && c.Code is 30 && c.Value is 1);
-        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEvent && c.Type is 0x00 && c.Code is 0x00 && c.Value is 0);
+        Assert.DoesNotContain(commands, c => c.OpCode is IpcOpCode.SimulateEvent);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEventBatch && c.Type is 0x02 && c.Code is 0x00 && c.Value is 5);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEventBatch && c.Type is 0x02 && c.Code is 0x01 && c.Value == -3);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEventBatch && c.Type is 0x01 && c.Code is 1 && c.Value is 1);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEventBatch && c.Type is 0x02 && c.Code is 0x06 && c.Value == -2);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEventBatch && c.Type is 0x01 && c.Code is 30 && c.Value is 1);
+        Assert.Contains(commands, c => c.OpCode is IpcOpCode.SimulateEventBatch && c.Type is 0x00 && c.Code is 0x00 && c.Value is 0);
     }
 
     [LinuxFact]
@@ -1018,10 +1019,10 @@ public sealed class IpcClientIntegrationTests
         var commands = daemon.GetCommandsSnapshot();
 
         Assert.All(commands, command => Assert.Equal(IpcOpCode.SimulateEventBatch, command.OpCode));
-        Assert.Equal((0x01, 30, 1, 1), (commands[0].Type, commands[0].Code, commands[0].Value, commands[0].DelayAfterMs));
-        Assert.Equal((0x00, 0, 0, 2), (commands[1].Type, commands[1].Code, commands[1].Value, commands[1].DelayAfterMs));
-        Assert.Equal((0x01, 30, 0, 3), (commands[2].Type, commands[2].Code, commands[2].Value, commands[2].DelayAfterMs));
-        Assert.Equal((0x00, 0, 0, 4), (commands[3].Type, commands[3].Code, commands[3].Value, commands[3].DelayAfterMs));
+        Assert.Equal((0x01, 30, 1, 1L), (commands[0].Type, commands[0].Code, commands[0].Value, commands[0].DelayAfterMicroseconds));
+        Assert.Equal((0x00, 0, 0, 2L), (commands[1].Type, commands[1].Code, commands[1].Value, commands[1].DelayAfterMicroseconds));
+        Assert.Equal((0x01, 30, 0, 3L), (commands[2].Type, commands[2].Code, commands[2].Value, commands[2].DelayAfterMicroseconds));
+        Assert.Equal((0x00, 0, 0, 4L), (commands[3].Type, commands[3].Code, commands[3].Value, commands[3].DelayAfterMicroseconds));
     }
 
     [LinuxFact]
@@ -1041,13 +1042,44 @@ public sealed class IpcClientIntegrationTests
         var batchCommands = commands.Where(command => command.OpCode is IpcOpCode.SimulateEventBatch).ToArray();
 
         Assert.Equal(3, batchCommands.Length);
-        Assert.Equal((0x03, 0, 1775, 0), (batchCommands[0].Type, batchCommands[0].Code, batchCommands[0].Value, batchCommands[0].DelayAfterMs));
-        Assert.Equal((0x03, 1, 153, 0), (batchCommands[1].Type, batchCommands[1].Code, batchCommands[1].Value, batchCommands[1].DelayAfterMs));
-        Assert.Equal((0x00, 0, 0, 0), (batchCommands[2].Type, batchCommands[2].Code, batchCommands[2].Value, batchCommands[2].DelayAfterMs));
+        Assert.Equal((0x03, 0, 1775, 0L), (batchCommands[0].Type, batchCommands[0].Code, batchCommands[0].Value, batchCommands[0].DelayAfterMicroseconds));
+        Assert.Equal((0x03, 1, 153, 0L), (batchCommands[1].Type, batchCommands[1].Code, batchCommands[1].Value, batchCommands[1].DelayAfterMicroseconds));
+        Assert.Equal((0x00, 0, 0, 0L), (batchCommands[2].Type, batchCommands[2].Code, batchCommands[2].Value, batchCommands[2].DelayAfterMicroseconds));
     }
 
     [LinuxFact]
-    public async Task SimulateEventBatch_WhenDaemonReturnsFailure_ShouldThrowConnectFailed()
+    public async Task LinuxIpcInputSimulator_AbsoluteTrajectory_SendsAbsoluteSamplesAndMicrosecondDelaysInOneAcknowledgedBatch()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+        using var simulator = new LinuxIpcInputSimulator(client);
+        await simulator.InitializeAsync(screenWidth: 5120, screenHeight: 1440, CancellationToken.None);
+
+        await simulator.SimulateAbsoluteTrajectoryAsync(
+        [
+            new AbsoluteMotionTrajectorySample(1775, 153, 2_375),
+            new AbsoluteMotionTrajectorySample(1788, 160, 250),
+        ],
+        CancellationToken.None);
+
+        await daemon.WaitForCommandCountAsync(expected: 7, timeout: TimeSpan.FromSeconds(2));
+        var batchCommands = daemon.GetCommandsSnapshot()
+            .Where(command => command.OpCode is IpcOpCode.SimulateEventBatch)
+            .ToArray();
+
+        Assert.Equal(6, batchCommands.Length);
+        Assert.Equal((0x03, 0, 1775, 0L), (batchCommands[0].Type, batchCommands[0].Code, batchCommands[0].Value, batchCommands[0].DelayAfterMicroseconds));
+        Assert.Equal((0x03, 1, 153, 0L), (batchCommands[1].Type, batchCommands[1].Code, batchCommands[1].Value, batchCommands[1].DelayAfterMicroseconds));
+        Assert.Equal((0x00, 0, 0, 2_375L), (batchCommands[2].Type, batchCommands[2].Code, batchCommands[2].Value, batchCommands[2].DelayAfterMicroseconds));
+        Assert.Equal((0x03, 0, 1788, 0L), (batchCommands[3].Type, batchCommands[3].Code, batchCommands[3].Value, batchCommands[3].DelayAfterMicroseconds));
+        Assert.Equal((0x03, 1, 160, 0L), (batchCommands[4].Type, batchCommands[4].Code, batchCommands[4].Value, batchCommands[4].DelayAfterMicroseconds));
+        Assert.Equal((0x00, 0, 0, 250L), (batchCommands[5].Type, batchCommands[5].Code, batchCommands[5].Value, batchCommands[5].DelayAfterMicroseconds));
+    }
+
+    [LinuxFact]
+    public async Task SimulateEventBatch_WhenDaemonReturnsFailure_ShouldThrowSimulationRejected()
     {
         var socketPath = GetUniqueSocketPath();
         await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.FailSimulationBatch);
@@ -1058,8 +1090,24 @@ public sealed class IpcClientIntegrationTests
 
         var exception = Assert.Throws<IpcClientException>(() => client.SimulateEventBatch(steps));
 
-        Assert.Equal(IpcClientFailureReason.ConnectFailed, exception.Reason);
+        Assert.Equal(IpcClientFailureReason.SimulationRejected, exception.Reason);
         Assert.Contains("Simulation batch failed", exception.Message, StringComparison.Ordinal);
+    }
+
+    [LinuxFact]
+    public async Task SimulateEventBatch_WhenDaemonAcknowledgementCountDiffers_ShouldThrowIntegrityMismatch()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.CorruptSimulationBatchCount);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+
+        InputSimulationStep[] steps = [new(0x01, 30, 1, 2_500)];
+
+        var exception = Assert.Throws<IpcClientException>(() => client.SimulateEventBatch(steps));
+
+        Assert.Equal(IpcClientFailureReason.IntegrityMismatch, exception.Reason);
+        Assert.Contains("event-count mismatch", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [LinuxFact]
@@ -1116,6 +1164,7 @@ public sealed class IpcClientIntegrationTests
         FailSimulationBatch = 7,
         DropSimulationBatchBeforeAck = 8,
         HoldSimulationBatchWithoutAck = 9,
+        CorruptSimulationBatchCount = 10,
     }
 
     private readonly record struct CapturedCommand(
@@ -1126,7 +1175,7 @@ public sealed class IpcClientIntegrationTests
         ushort Type = 0,
         ushort Code = 0,
         int Value = 0,
-        int DelayAfterMs = 0,
+        long DelayAfterMicroseconds = 0,
         int Width = 0,
         int Height = 0);
 
@@ -1316,13 +1365,17 @@ public sealed class IpcClientIntegrationTests
                             var eventCount = reader.ReadInt32();
                             for (var i = 0; i < eventCount; i++)
                             {
+                                var type = reader.ReadUInt16();
+                                var code = reader.ReadUInt16();
+                                var value = reader.ReadInt32();
+                                var delayAfterMicroseconds = reader.ReadInt64();
                                 _commands.Enqueue(new CapturedCommand(
                                     OpCode: opCode,
                                     RequestId: simulationRequestId,
-                                    Type: reader.ReadUInt16(),
-                                    Code: reader.ReadUInt16(),
-                                    Value: reader.ReadInt32(),
-                                    DelayAfterMs: reader.ReadInt32()));
+                                    Type: type,
+                                    Code: code,
+                                    Value: value,
+                                    DelayAfterMicroseconds: delayAfterMicroseconds));
                                 _ = _commandSignal.Release();
                             }
 
@@ -1348,7 +1401,15 @@ public sealed class IpcClientIntegrationTests
                                 break;
                             }
 
-                            if (!TryWriteSimulationBatchCompleted(writer, stream, simulationRequestId))
+                            var acknowledgedEventCount = _handshakeBehavior is HandshakeBehavior.CorruptSimulationBatchCount
+                                ? eventCount + 1
+                                : eventCount;
+
+                            if (!TryWriteSimulationBatchCompleted(
+                                    writer,
+                                    stream,
+                                    simulationRequestId,
+                                    acknowledgedEventCount))
                             {
                                 return;
                             }
@@ -1425,12 +1486,17 @@ public sealed class IpcClientIntegrationTests
             }
         }
 
-        private static bool TryWriteSimulationBatchCompleted(BinaryWriter writer, Stream stream, int requestId)
+        private static bool TryWriteSimulationBatchCompleted(
+            BinaryWriter writer,
+            Stream stream,
+            int requestId,
+            int eventCount)
         {
             try
             {
                 writer.Write((byte)IpcOpCode.SimulationBatchCompleted);
                 writer.Write(requestId);
+                writer.Write(eventCount);
                 stream.Flush();
                 return true;
             }

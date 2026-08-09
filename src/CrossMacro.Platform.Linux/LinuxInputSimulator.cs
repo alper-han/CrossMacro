@@ -8,15 +8,19 @@ public sealed class LinuxInputSimulator :
     IBatchedInputSimulator
 {
     private readonly Func<int, int, IUInputDevice> _deviceFactory;
+    private readonly Action<long> _waitMicroseconds;
     private IUInputDevice? _device;
     private bool _disposed;
 
     public LinuxInputSimulator()
-        : this(static (width, height) => new UInputDevice(width, height)) { /* Empty */ }
+        : this(static (width, height) => new UInputDevice(width, height), LinuxHighResolutionWait.Wait) { /* Empty */ }
 
-    internal LinuxInputSimulator(Func<int, int, IUInputDevice> deviceFactory)
+    internal LinuxInputSimulator(
+        Func<int, int, IUInputDevice> deviceFactory,
+        Action<long>? waitMicroseconds = null)
     {
         _deviceFactory = deviceFactory ?? throw new ArgumentNullException(nameof(deviceFactory));
+        _waitMicroseconds = waitMicroseconds ?? LinuxHighResolutionWait.Wait;
     }
 
     public string ProviderName => "Linux UInput";
@@ -37,6 +41,7 @@ public sealed class LinuxInputSimulator :
     }
 
     public bool SupportsAbsoluteCoordinates => _device?.SupportsAbsoluteCoordinates ?? false;
+
 
     public bool UsesZeroBasedScreenBounds => true;
 
@@ -111,23 +116,23 @@ public sealed class LinuxInputSimulator :
         }
 
         var device = _device ?? throw new InvalidOperationException("Linux input simulator must be initialized before simulating batches.");
-        var totalDelayMs = 0;
+        long totalDelayMicroseconds = 0;
 
         foreach (var step in steps)
         {
-            if (step.DelayAfterMs is < 0 or > IpcProtocol.MaxSimulationBatchDelayMs)
+            if (step.DelayAfterMicroseconds is < 0 or > IpcProtocol.MaxSimulationBatchDelayMicroseconds)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(steps),
-                    $"Simulation batch delay {step.DelayAfterMs.ToString(CultureInfo.InvariantCulture)}ms is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMs.ToString(CultureInfo.InvariantCulture)}ms.");
+                    $"Simulation batch delay {step.DelayAfterMicroseconds.ToString(CultureInfo.InvariantCulture)}us is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMicroseconds.ToString(CultureInfo.InvariantCulture)}us.");
             }
 
-            totalDelayMs += step.DelayAfterMs;
-            if (totalDelayMs > IpcProtocol.MaxSimulationBatchTotalDelayMs)
+            totalDelayMicroseconds += step.DelayAfterMicroseconds;
+            if (totalDelayMicroseconds > IpcProtocol.MaxSimulationBatchTotalDelayMicroseconds)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(steps),
-                    $"Simulation batch total delay {totalDelayMs.ToString(CultureInfo.InvariantCulture)}ms exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMs.ToString(CultureInfo.InvariantCulture)}ms.");
+                    $"Simulation batch total delay {totalDelayMicroseconds.ToString(CultureInfo.InvariantCulture)}us exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMicroseconds.ToString(CultureInfo.InvariantCulture)}us.");
             }
 
         }
@@ -136,9 +141,9 @@ public sealed class LinuxInputSimulator :
         {
             device.SendEvent(step.Type, step.Code, step.Value);
 
-            if (step.DelayAfterMs > 0)
+            if (step.DelayAfterMicroseconds > 0)
             {
-                Thread.Sleep(step.DelayAfterMs);
+                _waitMicroseconds(step.DelayAfterMicroseconds);
             }
         }
     }

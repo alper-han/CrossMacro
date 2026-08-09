@@ -60,10 +60,28 @@ public sealed class LinuxInputSimulatorTests
         using var simulator = new LinuxInputSimulator((_, _) => device);
         simulator.Initialize();
 
-        InputSimulationStep[] steps = [new(UInputNative.EV_KEY, 30, 1, IpcProtocol.MaxSimulationBatchDelayMs + 1)];
+        InputSimulationStep[] steps = [new(UInputNative.EV_KEY, 30, 1, IpcProtocol.MaxSimulationBatchDelayMicroseconds + 1)];
 
         _ = Assert.Throws<ArgumentOutOfRangeException>(() => simulator.SimulateBatch(steps));
         Assert.Empty(device.SentEvents);
+    }
+
+    [LinuxFact]
+    public void SimulateBatch_ForwardsSubMillisecondDelayToHighResolutionWait()
+    {
+        var device = new FakeUInputDevice();
+        long observedDelayMicroseconds = 0;
+        using var simulator = new LinuxInputSimulator(
+            (_, _) => device,
+            delayMicroseconds => observedDelayMicroseconds = delayMicroseconds);
+        simulator.Initialize();
+
+        simulator.SimulateBatch(
+        [
+            new(UInputNative.EV_KEY, 30, 1, 500),
+        ]);
+
+        Assert.Equal(500, observedDelayMicroseconds);
     }
 
     [LinuxFact]
@@ -75,7 +93,7 @@ public sealed class LinuxInputSimulatorTests
 
         InputSimulationStep[] steps =
         [
-            new(UInputNative.EV_KEY, 30, 1, IpcProtocol.MaxSimulationBatchTotalDelayMs),
+            new(UInputNative.EV_KEY, 30, 1, IpcProtocol.MaxSimulationBatchTotalDelayMicroseconds),
             new(UInputNative.EV_KEY, 30, 0, 1),
         ];
 

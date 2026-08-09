@@ -6,7 +6,8 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
     IInputSimulatorCapabilities,
     IInputSimulatorAbsoluteBounds,
     IBatchedInputSimulator,
-    IAsyncBatchedInputSimulator
+    IAsyncBatchedInputSimulator,
+    IAbsoluteMotionTrajectorySimulator
 {
     private IpcClient Client { get; } = client;
     private readonly Func<bool> _isSupportedProbe = isSupportedProbe ?? (static () => true);
@@ -154,6 +155,43 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
         IReadOnlyList<InputSimulationStep> steps,
         CancellationToken cancellationToken = default) =>
         Client.SimulateEventBatchAsync(steps, cancellationToken);
+
+    public Task SimulateAbsoluteTrajectoryAsync(
+        IReadOnlyList<AbsoluteMotionTrajectorySample> samples,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(samples);
+        if (samples.Count is 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!SupportsAbsoluteCoordinates)
+        {
+            throw new InvalidOperationException("Absolute trajectory simulation requires configured absolute coordinates.");
+        }
+
+        if (samples.Count > IpcProtocol.MaxSimulationBatchEvents / 3)
+        {
+            throw new ArgumentOutOfRangeException(nameof(samples));
+        }
+
+        var steps = new InputSimulationStep[samples.Count * 3];
+        var index = 0;
+        foreach (var sample in samples)
+        {
+            if (sample.DelayAfterMicroseconds is < 0 or > IpcProtocol.MaxSimulationBatchDelayMicroseconds)
+            {
+                throw new ArgumentOutOfRangeException(nameof(samples));
+            }
+
+            steps[index++] = new InputSimulationStep(EV_ABS, ABS_X, sample.X);
+            steps[index++] = new InputSimulationStep(EV_ABS, ABS_Y, sample.Y);
+            steps[index++] = new InputSimulationStep(EV_SYN, SYN_REPORT, 0, sample.DelayAfterMicroseconds);
+        }
+
+        return Client.SimulateEventBatchAsync(steps, cancellationToken);
+    }
 
     public void Dispose()
     {

@@ -64,6 +64,7 @@ public sealed partial class SessionHandlerTests
         public Exception? ThrowOnInitialConfigure { get; set; }
         public Exception? ThrowOnReconfigure { get; set; }
         public Exception? ThrowOnSendEvent { get; set; }
+        public Exception? ThrowOnSendEvents { get; set; }
         public List<(int Width, int Height)> ConfigureCalls { get; } = [];
         public List<(ushort Type, ushort Code, int Value)> SentEvents { get; } = [];
 
@@ -104,6 +105,11 @@ public sealed partial class SessionHandlerTests
             foreach (var inputEvent in events)
             {
                 SentEvents.Add((inputEvent.Type, inputEvent.Code, inputEvent.Value));
+            }
+
+            if (ThrowOnSendEvents is not null)
+            {
+                throw ThrowOnSendEvents;
             }
 
             return Task.CompletedTask;

@@ -429,6 +429,8 @@ internal static class LinuxDaemonHandshakeTransport
                 IpcClientFailureReason.HandshakeFailed => LinuxDaemonHandshakeStatus.HandshakeRejected,
                 IpcClientFailureReason.ProtocolMismatch => LinuxDaemonHandshakeStatus.ProtocolMismatch,
                 IpcClientFailureReason.Timeout => LinuxDaemonHandshakeStatus.Timeout,
+                IpcClientFailureReason.SimulationRejected => LinuxDaemonHandshakeStatus.HandshakeRejected,
+                IpcClientFailureReason.IntegrityMismatch => LinuxDaemonHandshakeStatus.UnexpectedError,
                 _ => LinuxDaemonHandshakeStatus.UnexpectedError,
             };
         }

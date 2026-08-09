@@ -130,9 +130,12 @@ public sealed class CliCommandRouter
         {
             return
                 "Usage:\n" +
-                "  crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n\n" +
+                "  crossmacro play <macro-file> [--speed <value>] [--motion-mode precision|strict-speed] [--motion-rate <reports/s>] [--precision-motion-rate <reports/s>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]\n\n" +
                 "Options:\n" +
                 "  --speed <value>         Playback speed (0.1..10.0)\n" +
+                "  --motion-mode <mode>    Motion fidelity: precision (default) or strict-speed\n" +
+                "  --motion-rate <rate>    Strict-speed cap in reports/second (60..10000)\n" +
+                "  --precision-motion-rate <rate>  Precision quality cap in reports/second (60..10000)\n" +
                 "  --loop                  Enable loop mode (infinite if --repeat is omitted)\n" +
                 "  --repeat <n>            Repeat count (> 0 implies loop mode; 0 requires --loop)\n" +
                 "  --repeat-delay-ms <ms>  Delay between repeats in milliseconds (>= 0)\n" +
@@ -428,7 +431,7 @@ public sealed class CliCommandRouter
                 "  scroll <up|down|left|right> [count]\n" +
                 "  key down <key> | key up <key>\n" +
                 "  tap <combo>\n" +
-                "  delay <ms>\n" +
+                "  delay <duration>  (for example: 20, 2.375ms, 250us)\n" +
                 "  delay random <min> <max> | delay random <min>..<max>\n" +
                 "  shell \"<command>\" [retries] [backoff_ms] [timeout_ms]\n" +
                 "  shell capture \"<command>\" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\n" +
@@ -483,7 +486,7 @@ public sealed class CliCommandRouter
                 "  crossmacro key down|up <key> [--dry-run] [--json] [--log-level <level>]\n" +
                 "  crossmacro tap <combo> [--dry-run] [--json] [--log-level <level>]\n" +
                 "  crossmacro type <text> [--dry-run] [--json] [--log-level <level>]\n" +
-                "  crossmacro delay <ms> | delay random <min> <max> [--dry-run] [--json] [--log-level <level>]\n\n" +
+                "  crossmacro delay <duration> | delay random <min> <max> [--dry-run] [--json] [--log-level <level>]\n\n" +
                 "Description:\n" +
                 "  Executes one input primitive using the same script compiler and coordinate handling as run.\n" +
                 "  Use run for variables, conditions, loops, screen reads, window operations, or multiple steps.\n\n" +

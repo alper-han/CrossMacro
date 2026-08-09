@@ -225,10 +225,12 @@ public sealed class RunScriptExecutionService(IRunExecutionService runtimeServic
             stepCount,
             sequence.EventCount,
             sequence.TotalDurationMs,
+            result.InitialDelayMicroseconds,
             result.InitialDelayMs,
             result.InitialHasRandomDelay,
             result.InitialRandomDelayMinMs,
             result.InitialRandomDelayMaxMs,
+            sequence.TrailingDelayMicroseconds,
             sequence.TrailingDelayMs,
             coordinateMode,
             runtimeVariables ?? new Dictionary<string, string>(StringComparer.Ordinal));

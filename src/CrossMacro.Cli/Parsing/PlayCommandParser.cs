@@ -11,7 +11,7 @@ internal static class PlayCommandParser
                 args,
                 1,
                 "Missing <macro-file> argument for play",
-                "crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
+                "crossmacro play <macro-file> [--speed <value>] [--motion-mode precision|strict-speed] [--motion-rate <reports/s>] [--precision-motion-rate <reports/s>] [--motion-error-px <px>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
         }
 
         if (CliParseHelpers.IsHelpToken(args[1]))
@@ -33,7 +33,7 @@ internal static class PlayCommandParser
                 args,
                 1,
                 "Missing <macro-file> argument for play",
-                "crossmacro play <macro-file> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
+                "crossmacro play <macro-file> [--speed <value>] [--motion-mode precision|strict-speed] [--motion-rate <reports/s>] [--precision-motion-rate <reports/s>] [--motion-error-px <px>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
         }
 
         var speed = 1.0;
@@ -41,6 +41,10 @@ internal static class PlayCommandParser
         var repeat = 1;
         var repeatProvided = false;
         var repeatDelayMs = 0;
+        var motionMode = MotionPlaybackMode.Precision;
+        var motionRate = PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
+        var precisionMotionRate = PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
+        var maximumMotionErrorPixels = PlaybackOptions.DefaultMaximumMotionErrorPixels;
         var countdown = 0;
         var timeout = 0;
         var dryRun = false;
@@ -76,6 +80,56 @@ internal static class PlayCommandParser
             if (string.Equals(token, "--speed", StringComparison.OrdinalIgnoreCase))
             {
                 if (!CliParseHelpers.TryReadDouble(args, ref i, out speed, out var error))
+                {
+                    return CliParseHelpers.Error(error, jsonOutput);
+                }
+                continue;
+            }
+
+            if (string.Equals(token, "--motion-mode", StringComparison.OrdinalIgnoreCase))
+            {
+                if (++i >= args.Length)
+                {
+                    return CliParseHelpers.Error("Missing value for --motion-mode", jsonOutput);
+                }
+
+                motionMode = args[i].ToLowerInvariant() switch
+                {
+                    "precision" => MotionPlaybackMode.Precision,
+                    "strict-speed" or "strict" => MotionPlaybackMode.StrictSpeed,
+                    _ => (MotionPlaybackMode)(-1),
+                };
+                if (!Enum.IsDefined(motionMode))
+                {
+                    return CliParseHelpers.Error("--motion-mode must be precision or strict-speed", jsonOutput);
+                }
+
+                continue;
+            }
+
+            if (string.Equals(token, "--motion-rate", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!CliParseHelpers.TryReadInt(args, ref i, out motionRate, out var error))
+                {
+                    return CliParseHelpers.Error(error, jsonOutput);
+                }
+
+                continue;
+            }
+
+            if (string.Equals(token, "--precision-motion-rate", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!CliParseHelpers.TryReadInt(args, ref i, out precisionMotionRate, out var error))
+                {
+                    return CliParseHelpers.Error(error, jsonOutput);
+                }
+
+                continue;
+            }
+
+            if (string.Equals(token, "--motion-error-px", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!CliParseHelpers.TryReadDouble(args, ref i, out maximumMotionErrorPixels, out var error))
                 {
                     return CliParseHelpers.Error(error, jsonOutput);
                 }
@@ -132,6 +186,28 @@ internal static class PlayCommandParser
             return CliParseHelpers.Error("--repeat-delay-ms must be >= 0", jsonOutput);
         }
 
+        if (motionRate is < PlaybackOptions.MinStrictSpeedMotionEventsPerSecond or > PlaybackOptions.MaxStrictSpeedMotionEventsPerSecond)
+        {
+            return CliParseHelpers.Error(
+                $"--motion-rate must be {PlaybackOptions.MinStrictSpeedMotionEventsPerSecond}..{PlaybackOptions.MaxStrictSpeedMotionEventsPerSecond}",
+                jsonOutput);
+        }
+
+        if (precisionMotionRate is < PlaybackOptions.MinPrecisionMotionEventsPerSecond or > PlaybackOptions.MaxPrecisionMotionEventsPerSecond)
+        {
+            return CliParseHelpers.Error(
+                $"--precision-motion-rate must be {PlaybackOptions.MinPrecisionMotionEventsPerSecond}..{PlaybackOptions.MaxPrecisionMotionEventsPerSecond}",
+                jsonOutput);
+        }
+
+        if (!double.IsFinite(maximumMotionErrorPixels)
+            || maximumMotionErrorPixels is < PlaybackOptions.MinMaximumMotionErrorPixels or > PlaybackOptions.MaxMaximumMotionErrorPixels)
+        {
+            return CliParseHelpers.Error(
+                $"--motion-error-px must be {PlaybackOptions.MinMaximumMotionErrorPixels.ToString(CultureInfo.InvariantCulture)}..{PlaybackOptions.MaxMaximumMotionErrorPixels.ToString(CultureInfo.InvariantCulture)}",
+                jsonOutput);
+        }
+
         if (countdown < 0)
         {
             return CliParseHelpers.Error("--countdown must be >= 0", jsonOutput);
@@ -165,6 +241,10 @@ internal static class PlayCommandParser
             Loop: loop,
             RepeatCount: repeat,
             RepeatDelayMs: repeatDelayMs,
+            MotionMode: motionMode,
+            StrictSpeedMotionEventsPerSecond: motionRate,
+            PrecisionMotionEventsPerSecond: precisionMotionRate,
+            MaximumMotionErrorPixels: maximumMotionErrorPixels,
             CountdownSeconds: countdown,
             TimeoutSeconds: timeout,
             DryRun: dryRun,

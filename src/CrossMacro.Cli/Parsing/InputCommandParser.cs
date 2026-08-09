@@ -157,9 +157,10 @@ internal static class InputCommandParser
                 return true;
 
             case "delay":
-                if (operands.Count is 1 && int.TryParse(operands[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var delay) && delay >= 0)
+                if (operands.Count is 1
+                    && MacroTiming.TryParseDurationMicroseconds(operands[0], out var delayMicroseconds))
                 {
-                    step = $"delay {delay.ToString(CultureInfo.InvariantCulture)}";
+                    step = $"delay {MacroTiming.FormatScriptDuration(delayMicroseconds)}";
                     return true;
                 }
 
@@ -174,7 +175,7 @@ internal static class InputCommandParser
                     return true;
                 }
 
-                error = "Invalid delay syntax. Expected: delay <ms> or delay random <min> <max>.";
+                error = "Invalid delay syntax. Expected: delay <duration> (for example 20, 2.375ms, or 250us) or delay random <min> <max>.";
                 return false;
 
             default:

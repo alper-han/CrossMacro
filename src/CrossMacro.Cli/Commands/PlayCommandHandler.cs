@@ -34,6 +34,10 @@ public sealed class PlayCommandHandler(IMacroExecutionService macroExecutionServ
             Loop = effectiveLoop,
             RepeatCount = options.RepeatCount,
             RepeatDelayMs = options.RepeatDelayMs,
+            MotionMode = options.MotionMode,
+            StrictSpeedMotionEventsPerSecond = options.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = options.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = options.MaximumMotionErrorPixels,
             CountdownSeconds = options.CountdownSeconds,
             DryRun = options.DryRun,
         };

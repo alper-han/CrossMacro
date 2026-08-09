@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Views.Tabs;
 
 public partial class PlaybackTabView : UserControl

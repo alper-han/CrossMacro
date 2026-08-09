@@ -17,12 +17,16 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     private readonly Func<Func<Task>, Task> _executeOnUiThread;
 
     private double _playbackSpeed = 1.0;
+    private MotionPlaybackMode _motionPlaybackMode = MotionPlaybackMode.Precision;
+    private int? _precisionMotionEventsPerSecond = PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
+    private int? _strictSpeedMotionEventsPerSecond = PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
     private int? _loopDelayMs = 0;
     private int? _loopDelayMinMs = 0;
     private int? _loopDelayMaxMs = 0;
     private string _playbackStatus;
     private int _stopRequested;
     private int _settingsChangeVersion;
+    private double _maximumMotionErrorPixels = PlaybackOptions.DefaultMaximumMotionErrorPixels;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowFixedLoopDelayInput))]
@@ -102,6 +106,10 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
         // Initialize playback settings from saved settings
         _playbackSpeed = _settingsService.Current.PlaybackSpeed;
+        _motionPlaybackMode = _settingsService.Current.MotionMode;
+        _precisionMotionEventsPerSecond = _settingsService.Current.PrecisionMotionEventsPerSecond;
+        _strictSpeedMotionEventsPerSecond = _settingsService.Current.StrictSpeedMotionEventsPerSecond;
+        _maximumMotionErrorPixels = _settingsService.Current.MaximumMotionErrorPixels;
         _isLooping = _settingsService.Current.IsLooping;
         _loopCount = _settingsService.Current.LoopCount;
         _loopDelayMs = _settingsService.Current.LoopDelayMs;
@@ -134,6 +142,10 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         // Direct field writes: refreshing from settings must not re-persist via setter hooks.
 #pragma warning disable MVVMTK0034
         _playbackSpeed = _settingsService.Current.PlaybackSpeed;
+        _motionPlaybackMode = _settingsService.Current.MotionMode;
+        _precisionMotionEventsPerSecond = _settingsService.Current.PrecisionMotionEventsPerSecond;
+        _strictSpeedMotionEventsPerSecond = _settingsService.Current.StrictSpeedMotionEventsPerSecond;
+        _maximumMotionErrorPixels = _settingsService.Current.MaximumMotionErrorPixels;
         _isLooping = _settingsService.Current.IsLooping;
         _loopCount = _settingsService.Current.LoopCount;
         _loopDelayMs = _settingsService.Current.LoopDelayMs;
@@ -144,6 +156,14 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 #pragma warning restore MVVMTK0034
 
         OnPropertyChanged(nameof(PlaybackSpeed));
+        OnPropertyChanged(nameof(MotionPlaybackMode));
+        OnPropertyChanged(nameof(PrecisionMotionEventsPerSecond));
+        OnPropertyChanged(nameof(StrictSpeedMotionEventsPerSecond));
+        OnPropertyChanged(nameof(MaximumMotionErrorPixels));
+        OnPropertyChanged(nameof(IsPrecisionMotionMode));
+        OnPropertyChanged(nameof(IsStrictSpeedMotionMode));
+        OnPropertyChanged(nameof(ShowPrecisionMotionRate));
+        OnPropertyChanged(nameof(ShowStrictSpeedMotionRate));
         OnPropertyChanged(nameof(IsLooping));
         OnPropertyChanged(nameof(LoopCount));
         OnPropertyChanged(nameof(LoopDelayMs));
@@ -273,6 +293,142 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                     },
                     nameof(PlaybackSpeed));
             }
+        }
+    }
+
+    public MotionPlaybackMode MotionPlaybackMode
+    {
+        get => _motionPlaybackMode;
+        set
+        {
+            var normalized = Enum.IsDefined(value) ? value : MotionPlaybackMode.Precision;
+            if (_motionPlaybackMode == normalized)
+            {
+                return;
+            }
+
+            var previousValue = _motionPlaybackMode;
+            _motionPlaybackMode = normalized;
+            _settingsService.Current.MotionMode = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsPrecisionMotionMode));
+            OnPropertyChanged(nameof(IsStrictSpeedMotionMode));
+            OnPropertyChanged(nameof(ShowPrecisionMotionRate));
+            OnPropertyChanged(nameof(ShowStrictSpeedMotionRate));
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _motionPlaybackMode = previousValue;
+                    _settingsService.Current.MotionMode = previousValue;
+                },
+                nameof(MotionPlaybackMode),
+                nameof(IsPrecisionMotionMode),
+                nameof(IsStrictSpeedMotionMode),
+                nameof(ShowPrecisionMotionRate),
+                nameof(ShowStrictSpeedMotionRate));
+        }
+    }
+
+    public bool IsPrecisionMotionMode
+    {
+        get => MotionPlaybackMode is MotionPlaybackMode.Precision;
+        set
+        {
+            if (value)
+            {
+                MotionPlaybackMode = MotionPlaybackMode.Precision;
+            }
+        }
+    }
+
+    public bool IsStrictSpeedMotionMode
+    {
+        get => MotionPlaybackMode is MotionPlaybackMode.StrictSpeed;
+        set
+        {
+            if (value)
+            {
+                MotionPlaybackMode = MotionPlaybackMode.StrictSpeed;
+            }
+        }
+    }
+
+    public bool ShowPrecisionMotionRate => IsPrecisionMotionMode;
+
+    public bool ShowStrictSpeedMotionRate => IsStrictSpeedMotionMode;
+
+    public int? PrecisionMotionEventsPerSecond
+    {
+        get => _precisionMotionEventsPerSecond;
+        set
+        {
+            var normalized = PlaybackOptions.NormalizePrecisionMotionEventsPerSecond(value ?? 0);
+            if (_precisionMotionEventsPerSecond == normalized)
+            {
+                return;
+            }
+
+            var previousValue = _precisionMotionEventsPerSecond ?? PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
+            _precisionMotionEventsPerSecond = normalized;
+            _settingsService.Current.PrecisionMotionEventsPerSecond = normalized;
+            OnPropertyChanged();
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _precisionMotionEventsPerSecond = previousValue;
+                    _settingsService.Current.PrecisionMotionEventsPerSecond = previousValue;
+                },
+                nameof(PrecisionMotionEventsPerSecond));
+        }
+    }
+
+    public int? StrictSpeedMotionEventsPerSecond
+    {
+        get => _strictSpeedMotionEventsPerSecond;
+        set
+        {
+            var normalized = PlaybackOptions.NormalizeStrictSpeedMotionEventsPerSecond(value ?? 0);
+            if (_strictSpeedMotionEventsPerSecond == normalized)
+            {
+                return;
+            }
+
+            var previousValue = _strictSpeedMotionEventsPerSecond ?? PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
+            _strictSpeedMotionEventsPerSecond = normalized;
+            _settingsService.Current.StrictSpeedMotionEventsPerSecond = normalized;
+            OnPropertyChanged();
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _strictSpeedMotionEventsPerSecond = previousValue;
+                    _settingsService.Current.StrictSpeedMotionEventsPerSecond = previousValue;
+                },
+                nameof(StrictSpeedMotionEventsPerSecond));
+        }
+    }
+
+    public double MaximumMotionErrorPixels
+    {
+        get => _maximumMotionErrorPixels;
+        set
+        {
+            var normalized = PlaybackOptions.NormalizeMaximumMotionErrorPixels(value);
+            if (Math.Abs(_maximumMotionErrorPixels - normalized) < 0.001d)
+            {
+                return;
+            }
+
+            var previousValue = _maximumMotionErrorPixels;
+            _maximumMotionErrorPixels = normalized;
+            _settingsService.Current.MaximumMotionErrorPixels = normalized;
+            OnPropertyChanged();
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _maximumMotionErrorPixels = previousValue;
+                    _settingsService.Current.MaximumMotionErrorPixels = previousValue;
+                },
+                nameof(MaximumMotionErrorPixels));
         }
     }
 
@@ -710,6 +866,10 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             UseRandomRepeatDelay = UseRandomLoopDelay,
             RepeatDelayMinMs = LoopDelayMinMs ?? 0,
             RepeatDelayMaxMs = LoopDelayMaxMs ?? 0,
+            MotionMode = MotionPlaybackMode,
+            PrecisionMotionEventsPerSecond = PrecisionMotionEventsPerSecond ?? PlaybackOptions.DefaultPrecisionMotionEventsPerSecond,
+            StrictSpeedMotionEventsPerSecond = StrictSpeedMotionEventsPerSecond ?? PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond,
+            MaximumMotionErrorPixels = MaximumMotionErrorPixels,
         };
     }
 
@@ -726,6 +886,10 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             UseRandomRepeatDelay = false,
             RepeatDelayMinMs = 0,
             RepeatDelayMaxMs = 0,
+            MotionMode = MotionPlaybackMode,
+            PrecisionMotionEventsPerSecond = PrecisionMotionEventsPerSecond ?? PlaybackOptions.DefaultPrecisionMotionEventsPerSecond,
+            StrictSpeedMotionEventsPerSecond = StrictSpeedMotionEventsPerSecond ?? PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond,
+            MaximumMotionErrorPixels = MaximumMotionErrorPixels,
         };
     }
 

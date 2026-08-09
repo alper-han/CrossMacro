@@ -32,6 +32,101 @@
                             IsEnabled="{Binding !IsPlaying}"/>
                 </StackPanel>
 
+                <!-- Motion fidelity -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{localization:Loc Playback_MotionMode}"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="*,24,*">
+                            <RadioButton Grid.Column="0"
+                                         GroupName="MotionMode"
+                                         IsChecked="{Binding IsPrecisionMotionMode}"
+                                         IsEnabled="{Binding !IsPlaying}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{localization:Loc Playback_MotionModePrecision}"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{localization:Loc Playback_PrecisionMotionRateHint}"
+                                               Classes="caption"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+
+                            <RadioButton Grid.Column="2"
+                                         GroupName="MotionMode"
+                                         IsChecked="{Binding IsStrictSpeedMotionMode}"
+                                         IsEnabled="{Binding !IsPlaying}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{localization:Loc Playback_MotionModeStrictSpeed}"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{localization:Loc Playback_StrictSpeedMotionRateHint}"
+                                               Classes="caption"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,24,*">
+                            <Grid Grid.Column="0"
+                                  Margin="28,0,0,0"
+                                  ColumnDefinitions="Auto,12,132,8,Auto"
+                                  IsVisible="{Binding ShowPrecisionMotionRate}">
+                                <TextBlock Classes="label"
+                                           Text="{localization:Loc Playback_StrictSpeedMotionRate}"
+                                           VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Column="2"
+                                               Width="132"
+                                               Value="{Binding PrecisionMotionEventsPerSecond, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                               Minimum="60"
+                                               Maximum="10000"
+                                               Increment="50"
+                                               FormatString="0"
+                                               IsEnabled="{Binding !IsPlaying}"/>
+                                <TextBlock Grid.Column="4"
+                                           Text="/ s"
+                                           Classes="caption"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Grid Grid.Column="2"
+                                  Margin="28,0,0,0"
+                                  ColumnDefinitions="Auto,12,132,20,Auto,12,100,8,Auto"
+                                  IsVisible="{Binding ShowStrictSpeedMotionRate}">
+                                <TextBlock Classes="label"
+                                           Text="{localization:Loc Playback_StrictSpeedMotionRate}"
+                                           VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Column="2"
+                                               Width="132"
+                                               Value="{Binding StrictSpeedMotionEventsPerSecond, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                               Minimum="60"
+                                               Maximum="10000"
+                                               Increment="100"
+                                               FormatString="0"
+                                               IsEnabled="{Binding !IsPlaying}"/>
+                                <TextBlock Grid.Column="4"
+                                           Classes="label"
+                                           Text="{localization:Loc Playback_MaximumMotionPathError}"
+                                           VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Column="6"
+                                               Width="100"
+                                               Value="{Binding MaximumMotionErrorPixels, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                               Minimum="0.25"
+                                               Maximum="500"
+                                               Increment="0.25"
+                                               FormatString="0.##"
+                                               IsEnabled="{Binding !IsPlaying}"/>
+                                <TextBlock Grid.Column="8"
+                                           Text="px"
+                                           Classes="caption"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+
                 <!-- Loop Controls -->
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">

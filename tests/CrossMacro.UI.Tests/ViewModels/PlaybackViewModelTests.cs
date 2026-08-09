@@ -76,12 +76,58 @@ public sealed class PlaybackViewModelTests : IDisposable
     public void Constructor_InitializesPropertiesFromSettings()
     {
         _ = _viewModel.PlaybackSpeed.Should().Be(1.0);
+        _ = _viewModel.MotionPlaybackMode.Should().Be(MotionPlaybackMode.Precision);
+        _ = _viewModel.IsPrecisionMotionMode.Should().BeTrue();
+        _ = _viewModel.ShowPrecisionMotionRate.Should().BeTrue();
+        _ = _viewModel.PrecisionMotionEventsPerSecond.Should().Be(PlaybackOptions.DefaultPrecisionMotionEventsPerSecond);
+        _ = _viewModel.ShowStrictSpeedMotionRate.Should().BeFalse();
         _ = _viewModel.IsLooping.Should().BeFalse();
         _ = _viewModel.LoopCount.Should().Be(1);
         _ = _viewModel.LoopDelayMs.Should().Be(0);
         _ = _viewModel.UseRandomLoopDelay.Should().BeFalse();
         _ = _viewModel.LoopDelayMinMs.Should().Be(0);
         _ = _viewModel.LoopDelayMaxMs.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MotionMode_StrictSpeed_PersistsAndFlowsIntoPlaybackOptions()
+    {
+        var macro = CreateMacro();
+        _viewModel.MotionPlaybackMode = MotionPlaybackMode.StrictSpeed;
+        _viewModel.StrictSpeedMotionEventsPerSecond = 240;
+        _viewModel.SetMacro(macro);
+
+        await _viewModel.PlayMacroAsync();
+
+        _ = _viewModel.IsStrictSpeedMotionMode.Should().BeTrue();
+        _ = _viewModel.ShowStrictSpeedMotionRate.Should().BeTrue();
+        _ = _settings.MotionMode.Should().Be(MotionPlaybackMode.StrictSpeed);
+        _ = _settings.StrictSpeedMotionEventsPerSecond.Should().Be(240);
+        await _player.Received(1).PlayAsync(
+            macro,
+            Arg.Is<PlaybackOptions>(options =>
+                options.MotionMode == MotionPlaybackMode.StrictSpeed
+                && options.StrictSpeedMotionEventsPerSecond == 240),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task MotionMode_Precision_PersistsQualityCeilingAndFlowsIntoPlaybackOptions()
+    {
+        var macro = CreateMacro();
+        _viewModel.PrecisionMotionEventsPerSecond = 320;
+        _viewModel.SetMacro(macro);
+
+        await _viewModel.PlayMacroAsync();
+
+        _ = _viewModel.ShowPrecisionMotionRate.Should().BeTrue();
+        _ = _settings.PrecisionMotionEventsPerSecond.Should().Be(320);
+        await _player.Received(1).PlayAsync(
+            macro,
+            Arg.Is<PlaybackOptions>(options =>
+                options.MotionMode == MotionPlaybackMode.Precision
+                && options.PrecisionMotionEventsPerSecond == 320),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -26,6 +26,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.KeyDown => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_KeyDown"], action.KeyName ?? action.KeyCode.ToString(localizationService.CurrentCulture)),
             EditorActionType.KeyUp => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_KeyUp"], action.KeyName ?? action.KeyCode.ToString(localizationService.CurrentCulture)),
             EditorActionType.Delay when action.UseRandomDelay => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_DelayRandom"], action.RandomDelayMinMs, action.RandomDelayMaxMs),
+            EditorActionType.Delay when action.DelayMicroseconds % MacroTiming.MicrosecondsPerMillisecond is not 0 => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_DelayPrecise"], action.DelayDuration),
             EditorActionType.Delay => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_Delay"], action.DelayMs),
             EditorActionType.ScrollVertical when action.ScrollAmount > 0 => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ScrollUp"], action.ScrollAmount),
             EditorActionType.ScrollVertical => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ScrollDown"], Math.Abs(action.ScrollAmount)),

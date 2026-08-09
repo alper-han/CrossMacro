@@ -12,6 +12,14 @@ public sealed class MacroExecutionRequest
 
     public int RepeatDelayMs { get; init; }
 
+    public MotionPlaybackMode MotionMode { get; init; } = MotionPlaybackMode.Precision;
+
+    public int StrictSpeedMotionEventsPerSecond { get; init; } = PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
+
+    public int PrecisionMotionEventsPerSecond { get; init; } = PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
+
+    public double MaximumMotionErrorPixels { get; init; } = PlaybackOptions.DefaultMaximumMotionErrorPixels;
+
     public int CountdownSeconds { get; init; }
 
     public bool DryRun { get; init; }

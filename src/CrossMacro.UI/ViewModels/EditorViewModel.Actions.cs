@@ -40,7 +40,7 @@ public partial class EditorViewModel
             && left.CoordinateSpace == right.CoordinateSpace
             && left.Button == right.Button
             && left.KeyCode == right.KeyCode
-            && left.DelayMs == right.DelayMs
+            && left.DelayMicroseconds == right.DelayMicroseconds
             && left.UseRandomDelay == right.UseRandomDelay
             && left.RandomDelayMinMs == right.RandomDelayMinMs
             && left.RandomDelayMaxMs == right.RandomDelayMaxMs

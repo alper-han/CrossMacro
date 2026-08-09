@@ -273,6 +273,42 @@
   <data name="Playback_PlaybackSpeed" xml:space="preserve">
     <value>播放速度</value>
   </data>
+  <data name="Playback_MotionMode" xml:space="preserve">
+    <value>移动保真度</value>
+  </data>
+  <data name="Playback_MotionModeHint" xml:space="preserve">
+    <value>控制高速播放时如何发送密集的绝对鼠标轨迹。</value>
+  </data>
+  <data name="Playback_MotionModePrecision" xml:space="preserve">
+    <value>精确度（推荐）</value>
+  </data>
+  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
+    <value>保留每个捕获的点，并降低实际速度以保持在所选质量上限内。</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
+    <value>严格速度</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
+    <value>以固定报告速率上限重新采样异常密集的轨迹。</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
+    <value>报告上限</value>
+  </data>
+  <data name="Playback_PrecisionMotionRateHint" xml:space="preserve">
+    <value>优先保持最平滑的路径；实际速度可能降低。</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRateHint" xml:space="preserve">
+    <value>保持请求的时长；密集路径可能被简化。</value>
+  </data>
+  <data name="Playback_MaximumMotionPathError" xml:space="preserve">
+    <value>路径容差</value>
+  </data>
+  <data name="Editor_DelayDuration" xml:space="preserve">
+    <value>延迟（ms 或 us）</value>
+  </data>
+  <data name="Editor_DelayDurationPlaceholder" xml:space="preserve">
+    <value>例如：20ms 或 250us</value>
+  </data>
   <data name="Playback_LoopPlayback" xml:space="preserve">
     <value>循环播放</value>
   </data>
@@ -1860,6 +1896,9 @@
   </data>
   <data name="Editor_Action_Delay" xml:space="preserve">
     <value>等待 {0} 毫秒</value>
+  </data>
+  <data name="Editor_Action_DelayPrecise" xml:space="preserve">
+    <value>等待 {0}</value>
   </data>
   <data name="Editor_Action_ScrollUp" xml:space="preserve">
     <value>向上滚动{0}</value>

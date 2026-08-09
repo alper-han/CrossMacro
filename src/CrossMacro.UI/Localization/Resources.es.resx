@@ -273,6 +273,42 @@
   <data name="Playback_PlaybackSpeed" xml:space="preserve">
     <value>Velocidad de reproducción</value>
   </data>
+  <data name="Playback_MotionMode" xml:space="preserve">
+    <value>Fidelidad de movimiento</value>
+  </data>
+  <data name="Playback_MotionModeHint" xml:space="preserve">
+    <value>Controla cómo se entregan las rutas absolutas y densas del ratón a altas velocidades de reproducción.</value>
+  </data>
+  <data name="Playback_MotionModePrecision" xml:space="preserve">
+    <value>Precisión (recomendado)</value>
+  </data>
+  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
+    <value>Conserva cada punto capturado y reduce la velocidad efectiva para respetar el límite de calidad seleccionado.</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
+    <value>Velocidad estricta</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
+    <value>Remuestrea las rutas excepcionalmente densas con un límite fijo de informes.</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
+    <value>Límite de informes</value>
+  </data>
+  <data name="Playback_PrecisionMotionRateHint" xml:space="preserve">
+    <value>Trayectoria más suave; la velocidad efectiva puede reducirse.</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRateHint" xml:space="preserve">
+    <value>Mantiene la duración solicitada; las rutas densas pueden simplificarse.</value>
+  </data>
+  <data name="Playback_MaximumMotionPathError" xml:space="preserve">
+    <value>Tolerancia de trayectoria</value>
+  </data>
+  <data name="Editor_DelayDuration" xml:space="preserve">
+    <value>Retraso (ms o us)</value>
+  </data>
+  <data name="Editor_DelayDurationPlaceholder" xml:space="preserve">
+    <value>p. ej., 20ms o 250us</value>
+  </data>
   <data name="Playback_LoopPlayback" xml:space="preserve">
     <value>Reproducción en bucle</value>
   </data>
@@ -1860,6 +1896,9 @@
   </data>
   <data name="Editor_Action_Delay" xml:space="preserve">
     <value>Espere {0}ms</value>
+  </data>
+  <data name="Editor_Action_DelayPrecise" xml:space="preserve">
+    <value>Espere {0}</value>
   </data>
   <data name="Editor_Action_ScrollUp" xml:space="preserve">
     <value>Desplazarse hacia arriba {0}</value>

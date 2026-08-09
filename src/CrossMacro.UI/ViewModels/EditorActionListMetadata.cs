@@ -37,7 +37,7 @@ internal static class EditorActionListMetadata
         return action.Type switch
         {
             EditorActionType.MouseMove => false,
-            EditorActionType.Delay when !action.UseRandomDelay && action.DelayMs is 0 => false,
+            EditorActionType.Delay when !action.UseRandomDelay && action.DelayMicroseconds is 0 => false,
             EditorActionType.MouseClick => true,
             EditorActionType.MouseDown => true,
             EditorActionType.MouseUp => true,
@@ -100,7 +100,7 @@ internal static class EditorActionListMetadata
 
     public static bool IsShortWait(EditorAction action)
     {
-        return action is { Type: EditorActionType.Delay, UseRandomDelay: false, DelayMs: > 0 and < 10 };
+        return action is { Type: EditorActionType.Delay, UseRandomDelay: false, DelayMicroseconds: > 0 and < 10_000 };
     }
 
     public static void UpdateDragState(EditorAction action, ref bool isDragging)

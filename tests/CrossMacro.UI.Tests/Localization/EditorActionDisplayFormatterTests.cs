@@ -35,6 +35,15 @@ public sealed class EditorActionDisplayFormatterTests
     }
 
     [Fact]
+    public void Format_ForFractionalDelay_PreservesPreciseDuration()
+    {
+        var formatter = CreateFormatter("Editor_Action_DelayPrecise", "Wait {0}");
+        var action = new EditorAction { Type = EditorActionType.Delay, DelayMicroseconds = 2_375 };
+
+        _ = formatter.Format(action).Should().Be("Wait 2.375ms");
+    }
+
+    [Fact]
     public void Format_ForVariableMouseMove_ShowsStructuredCoordinateTokens()
     {
         var formatter = CreateFormatter("Editor_Action_MouseMoveAbsolute", "Move to ({0}, {1})");

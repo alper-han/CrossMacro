@@ -242,6 +242,10 @@ public sealed class HeadlessHotkeyActionService(
                     UseRandomRepeatDelay = settings.UseRandomLoopDelay,
                     RepeatDelayMinMs = settings.LoopDelayMinMs,
                     RepeatDelayMaxMs = settings.LoopDelayMaxMs,
+                    MotionMode = settings.MotionMode,
+                    StrictSpeedMotionEventsPerSecond = settings.StrictSpeedMotionEventsPerSecond,
+                    PrecisionMotionEventsPerSecond = settings.PrecisionMotionEventsPerSecond,
+                    MaximumMotionErrorPixels = settings.MaximumMotionErrorPixels,
                 };
 
                 _activePlayer = player;

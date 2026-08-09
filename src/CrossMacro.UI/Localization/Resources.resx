@@ -276,6 +276,42 @@
   <data name="Playback_PlaybackSpeed" xml:space="preserve">
     <value>Playback Speed</value>
   </data>
+  <data name="Playback_MotionMode" xml:space="preserve">
+    <value>Motion fidelity</value>
+  </data>
+  <data name="Playback_MotionModeHint" xml:space="preserve">
+    <value>Controls how dense absolute mouse paths are delivered at high playback speeds.</value>
+  </data>
+  <data name="Playback_MotionModePrecision" xml:space="preserve">
+    <value>Precision (recommended)</value>
+  </data>
+  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
+    <value>Preserves every captured point and lowers effective speed to stay within the selected quality ceiling.</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
+    <value>Strict speed</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
+    <value>Resamples exceptionally dense paths to a fixed report-rate ceiling.</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
+    <value>Report limit</value>
+  </data>
+  <data name="Playback_PrecisionMotionRateHint" xml:space="preserve">
+    <value>Smoothest route; effective speed may be reduced.</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRateHint" xml:space="preserve">
+    <value>Keeps requested duration; dense paths may be simplified.</value>
+  </data>
+  <data name="Playback_MaximumMotionPathError" xml:space="preserve">
+    <value>Path tolerance</value>
+  </data>
+  <data name="Editor_DelayDuration" xml:space="preserve">
+    <value>Delay (ms or us)</value>
+  </data>
+  <data name="Editor_DelayDurationPlaceholder" xml:space="preserve">
+    <value>e.g. 20ms or 250us</value>
+  </data>
   <data name="Playback_LoopPlayback" xml:space="preserve">
     <value>Loop Playback</value>
   </data>
@@ -1829,6 +1865,9 @@
   </data>
   <data name="Editor_Action_Delay" xml:space="preserve">
     <value>Wait {0}ms</value>
+  </data>
+  <data name="Editor_Action_DelayPrecise" xml:space="preserve">
+    <value>Wait {0}</value>
   </data>
   <data name="Editor_Action_ScrollUp" xml:space="preserve">
     <value>Scroll Up {0}</value>

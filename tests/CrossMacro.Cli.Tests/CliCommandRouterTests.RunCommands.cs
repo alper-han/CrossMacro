@@ -49,7 +49,7 @@ public sealed partial class CliCommandRouterTests
             "run",
             "move", "abs", "100", "200",
             "click", "left",
-            "delay", "40",
+            "delay", "2.375ms",
             "type", "hello",
         ]);
 
@@ -58,7 +58,7 @@ public sealed partial class CliCommandRouterTests
         Assert.Equal(4, options.Steps.Count);
         Assert.Equal("move abs 100 200", options.Steps[0]);
         Assert.Equal("click left", options.Steps[1]);
-        Assert.Equal("delay 40", options.Steps[2]);
+        Assert.Equal("delay 2.375ms", options.Steps[2]);
         Assert.Equal("type hello", options.Steps[3]);
     }
 

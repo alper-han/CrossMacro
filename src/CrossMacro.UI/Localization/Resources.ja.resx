@@ -273,6 +273,42 @@
   <data name="Playback_PlaybackSpeed" xml:space="preserve">
     <value>再生速度</value>
   </data>
+  <data name="Playback_MotionMode" xml:space="preserve">
+    <value>動作の忠実度</value>
+  </data>
+  <data name="Playback_MotionModeHint" xml:space="preserve">
+    <value>高速再生時に密な絶対マウス軌跡を送る方法を制御します。</value>
+  </data>
+  <data name="Playback_MotionModePrecision" xml:space="preserve">
+    <value>精度優先（推奨）</value>
+  </data>
+  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
+    <value>記録したすべてのポイントを保持し、選択した品質上限を守るため実効速度を下げます。</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
+    <value>速度優先</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
+    <value>非常に密な軌跡を固定のレポートレート上限で再サンプリングします。</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
+    <value>レポート上限</value>
+  </data>
+  <data name="Playback_PrecisionMotionRateHint" xml:space="preserve">
+    <value>最も滑らかな軌跡を優先し、実効速度を下げる場合があります。</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRateHint" xml:space="preserve">
+    <value>指定時間を維持し、密な軌跡は簡略化される場合があります。</value>
+  </data>
+  <data name="Playback_MaximumMotionPathError" xml:space="preserve">
+    <value>パス許容誤差</value>
+  </data>
+  <data name="Editor_DelayDuration" xml:space="preserve">
+    <value>待機時間（ms または us）</value>
+  </data>
+  <data name="Editor_DelayDurationPlaceholder" xml:space="preserve">
+    <value>例: 20ms または 250us</value>
+  </data>
   <data name="Playback_LoopPlayback" xml:space="preserve">
     <value>ループ再生</value>
   </data>
@@ -1860,6 +1896,9 @@
   </data>
   <data name="Editor_Action_Delay" xml:space="preserve">
     <value>{0}ミリ秒待ちます</value>
+  </data>
+  <data name="Editor_Action_DelayPrecise" xml:space="preserve">
+    <value>{0}待ちます</value>
   </data>
   <data name="Editor_Action_ScrollUp" xml:space="preserve">
     <value>上にスクロール {0}</value>

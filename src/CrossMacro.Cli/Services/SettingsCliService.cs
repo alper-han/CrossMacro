@@ -200,6 +200,10 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
             "playback.loop",
             "playback.loopCount",
             "playback.loopDelayMs",
+            "playback.motionMode",
+            "playback.strictSpeedMotionEventsPerSecond",
+            "playback.precisionMotionEventsPerSecond",
+            "playback.maximumMotionErrorPixels",
             "playback.countdownSeconds",
             "logging.level",
             "recording.mouse",
@@ -223,6 +227,10 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
             ["playback.loop"] = settings.IsLooping,
             ["playback.loopCount"] = settings.LoopCount,
             ["playback.loopDelayMs"] = settings.LoopDelayMs,
+            ["playback.motionMode"] = settings.MotionMode.ToString(),
+            ["playback.strictSpeedMotionEventsPerSecond"] = settings.StrictSpeedMotionEventsPerSecond,
+            ["playback.precisionMotionEventsPerSecond"] = settings.PrecisionMotionEventsPerSecond,
+            ["playback.maximumMotionErrorPixels"] = settings.MaximumMotionErrorPixels,
             ["playback.countdownSeconds"] = settings.CountdownSeconds,
             ["logging.level"] = settings.LogLevel,
             ["recording.mouse"] = settings.IsMouseRecordingEnabled,
@@ -254,6 +262,18 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
                 return true;
             case "playback.loopDelayMs":
                 value = settings.LoopDelayMs;
+                return true;
+            case "playback.motionMode":
+                value = settings.MotionMode.ToString();
+                return true;
+            case "playback.strictSpeedMotionEventsPerSecond":
+                value = settings.StrictSpeedMotionEventsPerSecond;
+                return true;
+            case "playback.precisionMotionEventsPerSecond":
+                value = settings.PrecisionMotionEventsPerSecond;
+                return true;
+            case "playback.maximumMotionErrorPixels":
+                value = settings.MaximumMotionErrorPixels;
                 return true;
             case "playback.countdownSeconds":
                 value = settings.CountdownSeconds;
@@ -341,6 +361,55 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
                     return false;
                 }
                 settings.LoopDelayMs = loopDelay;
+                errorMessage = string.Empty;
+                return true;
+
+            case "playback.motionMode":
+                settings.MotionMode = rawValue.Trim().ToLowerInvariant() switch
+                {
+                    "precision" => MotionPlaybackMode.Precision,
+                    "strict-speed" or "strictspeed" or "strict" => MotionPlaybackMode.StrictSpeed,
+                    _ => (MotionPlaybackMode)(-1),
+                };
+                if (!Enum.IsDefined(settings.MotionMode))
+                {
+                    errorMessage = $"Invalid value for {key}: {rawValue}. Allowed: precision, strict-speed.";
+                    return false;
+                }
+                errorMessage = string.Empty;
+                return true;
+
+            case "playback.strictSpeedMotionEventsPerSecond":
+                if (!int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var motionRate)
+                    || motionRate is < PlaybackOptions.MinStrictSpeedMotionEventsPerSecond or > PlaybackOptions.MaxStrictSpeedMotionEventsPerSecond)
+                {
+                    errorMessage = $"Invalid integer value for {key}: {rawValue}. Expected {PlaybackOptions.MinStrictSpeedMotionEventsPerSecond}..{PlaybackOptions.MaxStrictSpeedMotionEventsPerSecond}.";
+                    return false;
+                }
+                settings.StrictSpeedMotionEventsPerSecond = motionRate;
+                errorMessage = string.Empty;
+                return true;
+
+            case "playback.precisionMotionEventsPerSecond":
+                if (!int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var precisionMotionRate)
+                    || precisionMotionRate is < PlaybackOptions.MinPrecisionMotionEventsPerSecond or > PlaybackOptions.MaxPrecisionMotionEventsPerSecond)
+                {
+                    errorMessage = $"Invalid integer value for {key}: {rawValue}. Expected {PlaybackOptions.MinPrecisionMotionEventsPerSecond}..{PlaybackOptions.MaxPrecisionMotionEventsPerSecond}.";
+                    return false;
+                }
+                settings.PrecisionMotionEventsPerSecond = precisionMotionRate;
+                errorMessage = string.Empty;
+                return true;
+
+            case "playback.maximumMotionErrorPixels":
+                if (!double.TryParse(rawValue, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var maximumMotionErrorPixels)
+                    || !double.IsFinite(maximumMotionErrorPixels)
+                    || maximumMotionErrorPixels is < PlaybackOptions.MinMaximumMotionErrorPixels or > PlaybackOptions.MaxMaximumMotionErrorPixels)
+                {
+                    errorMessage = $"Invalid numeric value for {key}: {rawValue}. Expected {PlaybackOptions.MinMaximumMotionErrorPixels.ToString(CultureInfo.InvariantCulture)}..{PlaybackOptions.MaxMaximumMotionErrorPixels.ToString(CultureInfo.InvariantCulture)}.";
+                    return false;
+                }
+                settings.MaximumMotionErrorPixels = maximumMotionErrorPixels;
                 errorMessage = string.Empty;
                 return true;
 
@@ -492,6 +561,18 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
                 break;
             case "playback.loopDelayMs":
                 settings.LoopDelayMs = defaults.LoopDelayMs;
+                break;
+            case "playback.motionMode":
+                settings.MotionMode = defaults.MotionMode;
+                break;
+            case "playback.strictSpeedMotionEventsPerSecond":
+                settings.StrictSpeedMotionEventsPerSecond = defaults.StrictSpeedMotionEventsPerSecond;
+                break;
+            case "playback.precisionMotionEventsPerSecond":
+                settings.PrecisionMotionEventsPerSecond = defaults.PrecisionMotionEventsPerSecond;
+                break;
+            case "playback.maximumMotionErrorPixels":
+                settings.MaximumMotionErrorPixels = defaults.MaximumMotionErrorPixels;
                 break;
             case "playback.countdownSeconds":
                 settings.CountdownSeconds = defaults.CountdownSeconds;

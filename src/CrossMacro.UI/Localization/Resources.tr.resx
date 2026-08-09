@@ -273,6 +273,42 @@
   <data name="Playback_PlaybackSpeed" xml:space="preserve">
     <value>Oynatma Hızı</value>
   </data>
+  <data name="Playback_MotionMode" xml:space="preserve">
+    <value>Hareket doğruluğu</value>
+  </data>
+  <data name="Playback_MotionModeHint" xml:space="preserve">
+    <value>Yüksek oynatma hızlarında yoğun absolute fare yollarının nasıl gönderileceğini belirler.</value>
+  </data>
+  <data name="Playback_MotionModePrecision" xml:space="preserve">
+    <value>Hassasiyet (önerilen)</value>
+  </data>
+  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
+    <value>Kaydedilen her noktayı korur; seçilen kalite sınırını aşmamak için efektif hızı düşürür.</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
+    <value>Sıkı hız</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
+    <value>Çok yoğun yolları sabit bir rapor hızı tavanına yeniden örnekler.</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
+    <value>Rapor sınırı</value>
+  </data>
+  <data name="Playback_PrecisionMotionRateHint" xml:space="preserve">
+    <value>En düzgün yol için efektif hız düşürülebilir.</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRateHint" xml:space="preserve">
+    <value>İstenen süreyi korur; yoğun yollar sadeleştirilebilir.</value>
+  </data>
+  <data name="Playback_MaximumMotionPathError" xml:space="preserve">
+    <value>Yol toleransı</value>
+  </data>
+  <data name="Editor_DelayDuration" xml:space="preserve">
+    <value>Gecikme (ms veya us)</value>
+  </data>
+  <data name="Editor_DelayDurationPlaceholder" xml:space="preserve">
+    <value>Örn. 20ms veya 250us</value>
+  </data>
   <data name="Playback_LoopPlayback" xml:space="preserve">
     <value>Oynatmayı Döngüye Al</value>
   </data>
@@ -1860,6 +1896,9 @@
   </data>
   <data name="Editor_Action_Delay" xml:space="preserve">
     <value>{0} ms bekle</value>
+  </data>
+  <data name="Editor_Action_DelayPrecise" xml:space="preserve">
+    <value>{0} bekle</value>
   </data>
   <data name="Editor_Action_ScrollUp" xml:space="preserve">
     <value>{0} yukarı kaydır</value>

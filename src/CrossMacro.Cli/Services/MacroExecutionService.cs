@@ -95,6 +95,10 @@ public sealed class MacroExecutionService(
             Loop = request.Loop,
             RepeatCount = request.RepeatCount,
             RepeatDelayMs = request.RepeatDelayMs,
+            MotionMode = request.MotionMode,
+            StrictSpeedMotionEventsPerSecond = request.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = request.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = request.MaximumMotionErrorPixels,
         };
 
         return ExecuteCoreAsync(
@@ -311,6 +315,7 @@ public sealed class MacroExecutionService(
             coordinateMode,
             macro.IsAbsoluteCoordinates,
             macro.SkipInitialZeroZero,
+            macro.TrailingDelayMicroseconds,
             macro.TrailingDelayMs,
             macro.HasTrailingRandomDelay,
             macro.TrailingDelayMinMs,

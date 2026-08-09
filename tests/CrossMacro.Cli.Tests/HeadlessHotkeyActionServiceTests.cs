@@ -182,6 +182,10 @@ public sealed class HeadlessHotkeyActionServiceTests
             IsLooping = true,
             LoopCount = 3,
             LoopDelayMs = 10,
+            MotionMode = MotionPlaybackMode.StrictSpeed,
+            StrictSpeedMotionEventsPerSecond = 4_321,
+            PrecisionMotionEventsPerSecond = 987,
+            MaximumMotionErrorPixels = 7.5,
         });
 
         var isRecording = false;
@@ -255,6 +259,10 @@ public sealed class HeadlessHotkeyActionServiceTests
         Assert.True(capturedOptions.Loop);
         Assert.Equal(3, capturedOptions.RepeatCount);
         Assert.Equal(10, capturedOptions.RepeatDelayMs);
+        Assert.Equal(MotionPlaybackMode.StrictSpeed, capturedOptions.MotionMode);
+        Assert.Equal(4_321, capturedOptions.StrictSpeedMotionEventsPerSecond);
+        Assert.Equal(987, capturedOptions.PrecisionMotionEventsPerSecond);
+        Assert.Equal(7.5, capturedOptions.MaximumMotionErrorPixels);
 
         await service.DisposeAsync();
     }

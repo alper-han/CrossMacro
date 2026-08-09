@@ -143,4 +143,21 @@ public sealed class SettingsCliServiceTests
         Assert.Contains("ui.theme", keys);
         Assert.Contains("updates.checkForUpdates", keys);
     }
+
+    [Fact]
+    public async Task MaximumMotionErrorPixels_CanBeGetSetAndReset()
+    {
+        _current.MaximumMotionErrorPixels = 4d;
+
+        var setResult = await _service.SetAsync("playback.maximumMotionErrorPixels", "1.25", CancellationToken.None);
+        var getResult = await _service.GetAsync("playback.maximumMotionErrorPixels", CancellationToken.None);
+        var resetResult = await _service.ResetAsync("playback.maximumMotionErrorPixels", CancellationToken.None);
+
+        Assert.True(setResult.Success);
+        Assert.True(getResult.Success);
+        Assert.Equal(1.25d, Assert.IsType<double>(Assert.IsType<SettingsValueData>(getResult.Data).Value));
+        Assert.True(resetResult.Success);
+        Assert.Equal(PlaybackOptions.DefaultMaximumMotionErrorPixels, _current.MaximumMotionErrorPixels);
+        await _settingsService.Received(2).SaveAsync();
+    }
 }

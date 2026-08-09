@@ -369,6 +369,23 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             action => action.DelayMs = value);
     }
 
+    public string BatchDelayDuration
+    {
+        get => MacroTiming.FormatDuration(GetSelectedDelayActions().FirstOrDefault()?.DelayMicroseconds ?? 0);
+        set
+        {
+            if (!MacroTiming.TryParseDurationMicroseconds(value, out var microseconds))
+            {
+                return;
+            }
+
+            ApplyToSelectedDelayActions(
+                nameof(EditorAction.DelayMicroseconds),
+                action => action.DelayMicroseconds != microseconds,
+                action => action.DelayMicroseconds = microseconds);
+        }
+    }
+
     public int BatchRandomDelayMinMs
     {
         get => GetSelectedDelayActions().FirstOrDefault()?.RandomDelayMinMs ?? 0;
@@ -1237,11 +1254,12 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             NotifyFilterToggleAvailabilityChanged();
         }
 
-        if (string.Equals(e.PropertyName, nameof(EditorAction.DelayMs), StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.UseRandomDelay), StringComparison.Ordinal))
+        if (e.PropertyName is nameof(EditorAction.DelayMs) or nameof(EditorAction.DelayMicroseconds) or nameof(EditorAction.UseRandomDelay))
         {
             OnPropertyChanged(nameof(CanDeleteHiddenEvents));
             OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
             NotifyFilterToggleAvailabilityChanged();
+            OnPropertyChanged(nameof(BatchDelayDuration));
         }
 
         if (string.Equals(e.PropertyName, nameof(EditorAction.Text), StringComparison.Ordinal))
@@ -1576,6 +1594,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowBatchRandomDelayOptions));
         OnPropertyChanged(nameof(BatchDelayUseRandomDelay));
         OnPropertyChanged(nameof(BatchDelayMs));
+        OnPropertyChanged(nameof(BatchDelayDuration));
         OnPropertyChanged(nameof(BatchRandomDelayMinMs));
         OnPropertyChanged(nameof(BatchRandomDelayMaxMs));
         OnPropertyChanged(nameof(CanRemoveSelectedActions));
@@ -1644,7 +1663,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(propertyName switch
         {
             nameof(EditorAction.UseRandomDelay) => nameof(BatchDelayUseRandomDelay),
-            nameof(EditorAction.DelayMs) => nameof(BatchDelayMs),
+            nameof(EditorAction.DelayMs) or nameof(EditorAction.DelayMicroseconds) => nameof(BatchDelayDuration),
             nameof(EditorAction.RandomDelayMinMs) => nameof(BatchRandomDelayMinMs),
             nameof(EditorAction.RandomDelayMaxMs) => nameof(BatchRandomDelayMaxMs),
             _ => string.Empty,

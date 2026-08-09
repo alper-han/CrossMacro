@@ -183,13 +183,17 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenPlayWithOptions_ReturnsPlayOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["play", "/tmp/test.macro", "--speed", "1.5", "--loop", "--repeat", "3", "--repeat-delay-ms", "200", "--countdown", "1", "--timeout", "30", "--dry-run", "--json"]);
+        var result = CliCommandRouterAccessor.Parse(["play", "/tmp/test.macro", "--speed", "1.5", "--motion-mode", "strict-speed", "--motion-rate", "240", "--precision-motion-rate", "320", "--motion-error-px", "1.25", "--loop", "--repeat", "3", "--repeat-delay-ms", "200", "--countdown", "1", "--timeout", "30", "--dry-run", "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<PlayCliOptions>(result.Options);
         Assert.Equal("/tmp/test.macro", options.MacroFilePath);
         Assert.Equal(1.5, options.SpeedMultiplier);
+        Assert.Equal(MotionPlaybackMode.StrictSpeed, options.MotionMode);
+        Assert.Equal(240, options.StrictSpeedMotionEventsPerSecond);
+        Assert.Equal(320, options.PrecisionMotionEventsPerSecond);
+        Assert.Equal(1.25d, options.MaximumMotionErrorPixels);
         Assert.True(options.Loop);
         Assert.Equal(3, options.RepeatCount);
         Assert.Equal(200, options.RepeatDelayMs);

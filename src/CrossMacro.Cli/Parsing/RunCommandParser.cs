@@ -269,7 +269,7 @@ internal static class RunCommandParser
         {
             if (index + 1 >= args.Length)
             {
-                error = "Invalid inline step syntax for delay. Expected: delay <ms> or delay random <min> <max>";
+                error = "Invalid inline step syntax for delay. Expected: delay <duration> or delay random <min> <max>";
                 return false;
             }
 
@@ -295,7 +295,13 @@ internal static class RunCommandParser
                 return false;
             }
 
-            step = $"delay {args[index + 1]}";
+            if (!MacroTiming.TryParseDurationMicroseconds(args[index + 1], out var delayMicroseconds))
+            {
+                error = "Invalid inline step syntax for delay. Expected: delay <duration> or delay random <min> <max>";
+                return false;
+            }
+
+            step = $"delay {MacroTiming.FormatScriptDuration(delayMicroseconds)}";
             index++;
             return true;
         }

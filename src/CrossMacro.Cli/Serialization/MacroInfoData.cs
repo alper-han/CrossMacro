@@ -10,6 +10,7 @@ public sealed record MacroInfoData(
     [property: JsonPropertyName("coordinateMode")] string CoordinateMode,
     [property: JsonPropertyName("isAbsoluteCoordinates")] bool IsAbsoluteCoordinates,
     [property: JsonPropertyName("skipInitialZeroZero")] bool SkipInitialZeroZero,
+    [property: JsonPropertyName("trailingDelayMicroseconds")] long TrailingDelayMicroseconds,
     [property: JsonPropertyName("trailingDelayMs")] int TrailingDelayMs,
     [property: JsonPropertyName("hasTrailingRandomDelay")] bool HasTrailingRandomDelay,
     [property: JsonPropertyName("trailingDelayMinMs")] int TrailingDelayMinMs,

@@ -166,6 +166,7 @@ public sealed partial class CliCommandRouterTests
         var move = CliCommandRouterAccessor.Parse(["move", "abs", "10", "20", "--dry-run"]);
         var click = CliCommandRouterAccessor.Parse(["click", "current", "right", "--json"]);
         var type = CliCommandRouterAccessor.Parse(["type", "hello world", "--dry-run"]);
+        var preciseDelay = CliCommandRouterAccessor.Parse(["delay", "2.375ms"]);
         var delay = CliCommandRouterAccessor.Parse(["delay", "random", "10", "20"]);
 
         Assert.True(move.IsSuccess);
@@ -177,6 +178,8 @@ public sealed partial class CliCommandRouterTests
         Assert.True(Assert.IsType<InputCliOptions>(click.Options).JsonOutput);
         Assert.True(type.IsSuccess);
         Assert.Equal("type hello world", Assert.IsType<InputCliOptions>(type.Options).Step);
+        Assert.True(preciseDelay.IsSuccess);
+        Assert.Equal("delay 2.375ms", Assert.IsType<InputCliOptions>(preciseDelay.Options).Step);
         Assert.True(delay.IsSuccess);
         Assert.Equal("delay random 10 20", Assert.IsType<InputCliOptions>(delay.Options).Step);
     }

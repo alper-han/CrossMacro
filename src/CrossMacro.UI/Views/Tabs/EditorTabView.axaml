@@ -351,9 +351,9 @@
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                                 <StackPanel Spacing="4" IsVisible="{Binding ShowFixedDelayInput}">
-                                    <TextBlock Text="{localization:Loc Editor_DelayMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                    <TextBox Text="{Binding SelectedAction.DelayMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="{localization:Loc Editor_DelayPlaceholder}"
+                                    <TextBlock Text="{localization:Loc Editor_DelayDuration}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                    <TextBox Text="{Binding SelectedAction.DelayDuration, UpdateSourceTrigger=PropertyChanged}"
+                                             PlaceholderText="{localization:Loc Editor_DelayDurationPlaceholder}"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"
@@ -1427,9 +1427,9 @@
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                                 <StackPanel Spacing="4" IsVisible="{Binding ShowBatchFixedDelayInput}">
-                                    <TextBlock Text="{localization:Loc Editor_DelayMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                    <TextBox Text="{Binding BatchDelayMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                                             PlaceholderText="{localization:Loc Editor_DelayPlaceholder}"
+                                    <TextBlock Text="{localization:Loc Editor_DelayDuration}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                    <TextBox Text="{Binding BatchDelayDuration, UpdateSourceTrigger=PropertyChanged}"
+                                             PlaceholderText="{localization:Loc Editor_DelayDurationPlaceholder}"
                                              Background="{DynamicResource SurfaceHoverBrush}"
                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                              BorderThickness="0"

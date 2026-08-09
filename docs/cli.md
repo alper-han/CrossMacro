@@ -116,6 +116,7 @@ These commands do not open the editor:
 crossmacro macro validate ./demo.macro
 crossmacro macro info ./demo.macro --json
 crossmacro play ./demo.macro --speed 1.25 --repeat 3
+crossmacro play ./demo.macro --speed 10 --motion-mode strict-speed --motion-rate 600 --motion-error-px 2
 crossmacro play ./demo.macro --dry-run
 crossmacro record --output ./recorded.macro --mode auto --duration 10
 crossmacro doctor --verbose --json
@@ -125,8 +126,13 @@ crossmacro doctor --verbose --json
   it never sends input.
 - `macro info` reports metadata such as event count, duration, coordinate mode,
   and validation warnings. A validation error is returned with exit code `4`.
-- `play` supports `--speed`, `--loop`, `--repeat`, `--repeat-delay-ms`,
-  `--countdown`, `--timeout`, and `--dry-run`.
+- `play` supports `--speed`, `--motion-mode precision|strict-speed`,
+  `--motion-rate`, `--precision-motion-rate`, `--motion-error-px`, `--loop`,
+  `--repeat`, `--repeat-delay-ms`, `--countdown`, `--timeout`, and `--dry-run`.
+  Precision is the default and reduces effective speed to retain every captured
+  absolute point. Strict speed keeps the requested duration, uses the selected
+  report ceiling, and emits a warning when the requested pixel-error budget
+  cannot be achieved; `--motion-error-px` accepts `0.25..500` and defaults to `2`.
 - `run` supports repeatable `--step`, positional step commands, `--file`,
   repeatable `--asset <name> <png-path>` options for image steps, `--speed`,
   `--countdown`, `--timeout`, and `--dry-run`.

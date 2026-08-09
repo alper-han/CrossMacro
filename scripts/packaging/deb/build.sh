@@ -72,7 +72,7 @@ Version: $DEB_VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0, libicu74 | libicu72 | libicu76 | libicu70
+Depends: libc6, libstdc++6, adduser, passwd, udev, init-system-helpers, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0, libicu74 | libicu72 | libicu76 | libicu70
 Recommends: libx11-6, libice6, libsm6, libfontconfig1
 Maintainer: Zynix <crossmacro@zynix.net>
 Description: Mouse and keyboard macro recorder and automation
@@ -135,12 +135,16 @@ if [ "\$1" = "configure" ]; then
     fi
 
     if [ -n "\$installer_user" ] && getent passwd "\$installer_user" >/dev/null 2>&1; then
-        usermod -aG crossmacro "\$installer_user" 2>/dev/null || true
-        echo "Added '\$installer_user' to 'crossmacro' group."
-        echo "Re-login (or reboot) is required for group change to take effect."
+        if gpasswd -a "\$installer_user" crossmacro >/dev/null 2>&1; then
+            echo "Added '\$installer_user' to 'crossmacro' group."
+            echo "Re-login (or reboot) is required for group change to take effect."
+        else
+            echo "NOTE: Could not add '\$installer_user' to 'crossmacro' group automatically."
+            echo "      sudo gpasswd -a <your-username> crossmacro"
+        fi
     else
         echo "NOTE: Add your user to 'crossmacro' group to communicate with the daemon:"
-        echo "      sudo usermod -aG crossmacro <your-username>"
+        echo "      sudo gpasswd -a <your-username> crossmacro"
     fi
 fi
 EOF

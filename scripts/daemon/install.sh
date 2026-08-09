@@ -70,9 +70,14 @@ usermod -aG uinput crossmacro 2>/dev/null || echo "   Warning: Failed to add to 
 
 
 # Add the installing user to crossmacro group
+installer_user_group_status="not_attempted"
 if [ -n "${SUDO_USER:-}" ]; then
     echo "   Adding '$SUDO_USER' to 'crossmacro' group..."
-    usermod -aG crossmacro "$SUDO_USER"
+    if getent passwd "$SUDO_USER" >/dev/null 2>&1 && gpasswd -a "$SUDO_USER" crossmacro; then
+        installer_user_group_status="added"
+    else
+        installer_user_group_status="failed"
+    fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -195,9 +200,21 @@ echo ""
 echo "------------------------------------------------------------------------------"
 echo ""
 echo "Next steps:"
-echo "   1. Reboot your system for group changes to take effect."
+case "$installer_user_group_status" in
+    added)
+        echo "   1. User '$SUDO_USER' was added to the 'crossmacro' group."
+        echo "      Log out and log back in, or reboot, for the group change to take effect."
+        ;;
+    failed)
+        echo "   1. Warning: Could not add '$SUDO_USER' to the 'crossmacro' group automatically."
+        echo "      Run: sudo gpasswd -a <your-username> crossmacro"
+        echo "      Then log out and log back in, or reboot."
+        ;;
+    *)
+        echo "   1. Add your user to the 'crossmacro' group:"
+        echo "      sudo gpasswd -a \$USER crossmacro"
+        echo "      Then log out and log back in, or reboot."
+        ;;
+esac
 echo "   2. Run 'crossmacro' or start the UI from your application menu."
 echo ""
-if [ -n "${SUDO_USER:-}" ]; then
-    echo "User '$SUDO_USER' has been added to the 'crossmacro' group."
-fi

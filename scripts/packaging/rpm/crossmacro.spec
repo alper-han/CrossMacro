@@ -26,7 +26,10 @@ Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs, systemd-l
 BuildRequires:  checkpolicy, policycoreutils
 
 Requires(post): systemd
+Requires(post): systemd-udev
 Requires(post): policycoreutils
+Requires(post): shadow-utils
+Requires(pre): shadow-utils
 Requires(preun): systemd
 Requires(postun): systemd
 Requires(postun): policycoreutils
@@ -152,12 +155,16 @@ elif [ -n "${PKEXEC_UID:-}" ] && [ "${PKEXEC_UID}" != "0" ]; then
 fi
 
 if [ -n "$installer_user" ] && getent passwd "$installer_user" >/dev/null 2>&1; then
-    usermod -aG crossmacro "$installer_user" >/dev/null 2>&1 || :
-    echo "CrossMacro installed. Added '$installer_user' to 'crossmacro' group."
-    echo "Re-login (or reboot) is required for group change to take effect."
+    if gpasswd -a "$installer_user" crossmacro >/dev/null 2>&1; then
+        echo "CrossMacro installed. Added '$installer_user' to 'crossmacro' group."
+        echo "Re-login (or reboot) is required for group change to take effect."
+    else
+        echo "CrossMacro installed, but could not add '$installer_user' to 'crossmacro' group automatically." >&2
+        echo "Run: sudo gpasswd -a <your-username> crossmacro" >&2
+    fi
 else
     echo "CrossMacro installed. To use the daemon, add yourself to the 'crossmacro' group:"
-    echo "sudo usermod -aG crossmacro \$USER"
+    echo "sudo gpasswd -a \$USER crossmacro"
 fi
 
 %preun

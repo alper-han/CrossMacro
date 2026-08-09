@@ -528,7 +528,7 @@ or DisplayEnvironment.LinuxGnome;
 
         if (state.GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.UserNotMember)
         {
-            return "Run `sudo usermod -aG crossmacro $USER`, then log out and back in or reboot.";
+            return "Run `sudo gpasswd -a $USER crossmacro`, then log out and back in or reboot.";
         }
 
         if (state.GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.MissingGroup)

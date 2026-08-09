@@ -178,13 +178,35 @@ public sealed partial class LinuxPackagingStaticParityTests
     }
 
     [Fact]
+    public void LinuxPackages_ShouldDeclareToolsUsedByProvisioningHooks()
+    {
+        var rpmSpec = ReadRepoFile("scripts/packaging/rpm/crossmacro.spec");
+        var debScript = ReadRepoFile("scripts/packaging/deb/build.sh");
+        var archPkgbuild = ReadRepoFile("scripts/packaging/arch/PKGBUILD");
+
+        Assert.Contains("Requires(pre): shadow-utils", rpmSpec, StringComparison.Ordinal);
+        Assert.Contains("Requires(post): shadow-utils", rpmSpec, StringComparison.Ordinal);
+        Assert.Contains("Requires(post): systemd-udev", rpmSpec, StringComparison.Ordinal);
+
+        var debDepends = ExtractDebControlFieldValues(debScript, "Depends");
+        Assert.Contains("adduser", debDepends);
+        Assert.Contains("passwd", debDepends);
+        Assert.Contains("udev", debDepends);
+        Assert.Contains("init-system-helpers", debDepends);
+
+        var archDepends = ExtractArchDepends(archPkgbuild);
+        Assert.Contains("shadow", archDepends);
+        Assert.Contains("systemd", archDepends);
+    }
+
+    [Fact]
     public void ArchInstallHook_ShouldReportUserGroupChangesTruthfully()
     {
         var installHook = ReadRepoFile("scripts/packaging/arch/crossmacro.install");
 
         Assert.DoesNotContain("usermod -aG crossmacro \"$installer_user\" >/dev/null 2>&1 || true", installHook, StringComparison.Ordinal);
         Assert.DoesNotContain("was added to 'crossmacro' group (best effort)", installHook, StringComparison.Ordinal);
-        Assert.Contains("elif usermod -aG crossmacro \"$installer_user\" >/dev/null 2>&1; then", installHook, StringComparison.Ordinal);
+        Assert.Contains("elif gpasswd -a \"$installer_user\" crossmacro >/dev/null 2>&1; then", installHook, StringComparison.Ordinal);
         Assert.Contains("installer_user_group_status=\"already_member\"", installHook, StringComparison.Ordinal);
         Assert.Contains("installer_user_group_status=\"added\"", installHook, StringComparison.Ordinal);
         Assert.Contains("installer_user_group_status=\"failed\"", installHook, StringComparison.Ordinal);
@@ -193,8 +215,25 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Contains("'$installer_user' was added to the 'crossmacro' group.", installHook, StringComparison.Ordinal);
         Assert.Contains("Could not add '$installer_user' to the 'crossmacro' group automatically.", installHook, StringComparison.Ordinal);
         Assert.Contains("Could not determine the non-root user who launched the installer.", installHook, StringComparison.Ordinal);
-        Assert.Contains("sudo usermod -aG crossmacro \\$USER", installHook, StringComparison.Ordinal);
+        Assert.Contains("sudo gpasswd -a \\$USER crossmacro", installHook, StringComparison.Ordinal);
         Assert.Contains("log out and log back in, or reboot", installHook, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void DaemonInstaller_ShouldReportInstallerGroupMutationResult()
+    {
+        var installer = ReadRepoFile("scripts/daemon/install.sh");
+
+        Assert.Contains("installer_user_group_status=\"not_attempted\"", installer, StringComparison.Ordinal);
+        Assert.Contains(
+            "getent passwd \"$SUDO_USER\" >/dev/null 2>&1 && gpasswd -a \"$SUDO_USER\" crossmacro",
+            installer,
+            StringComparison.Ordinal);
+        Assert.Contains("installer_user_group_status=\"added\"", installer, StringComparison.Ordinal);
+        Assert.Contains("installer_user_group_status=\"failed\"", installer, StringComparison.Ordinal);
+        Assert.Contains("case \"$installer_user_group_status\" in", installer, StringComparison.Ordinal);
+        Assert.Contains("sudo gpasswd -a <your-username> crossmacro", installer, StringComparison.Ordinal);
+        Assert.Contains("sudo gpasswd -a \\$USER crossmacro", installer, StringComparison.Ordinal);
     }
 
     [Fact]

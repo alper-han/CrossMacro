@@ -740,7 +740,7 @@ public sealed class DoctorServiceTests
         var group = Assert.Single(report.Checks, x => x.Name is "linux-daemon-group");
         Assert.Equal(DoctorCheckStatus.Fail, group.Status);
         Assert.Equal("UserNotMember", GetDetailsString(group, "failureKind"));
-        Assert.Contains("usermod", GetDetailsString(group, "remediation"), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("gpasswd", GetDetailsString(group, "remediation"), StringComparison.OrdinalIgnoreCase);
         Assert.Equal(1000, GetDetailsInt(group, "currentUid"));
         Assert.Equal([1000, 4242], GetDetailsIntArray(group, "currentProcessGroups"));
 

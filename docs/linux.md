@@ -52,13 +52,21 @@ user belongs to the `crossmacro` group. That group grants access to the daemon
 socket, not to raw input devices:
 
 ```bash
-sudo usermod -aG crossmacro "$USER"
+sudo gpasswd -a "$USER" crossmacro
 # Log out and back in, or reboot, before starting CrossMacro again.
 ```
 
-Package scripts try to add the installing user to `crossmacro` when they can
-identify that user. If package output says auto-add could not be confirmed, run
-the command above manually.
+For an AD, LDAP, or SSSD identity, use its NSS-resolved login name with the
+same command. This adds a local `crossmacro` group membership; it does not alter
+the directory service:
+
+```bash
+sudo gpasswd -a 'directory-user' crossmacro
+```
+
+Package scripts try to add the installing identity to `crossmacro` when they can
+resolve it through NSS. If package output says auto-add could not be confirmed,
+run the command above manually.
 
 Daemon packages also install the daemon user, udev rules, polkit files, and
 uinput setup where supported by the package scripts.
@@ -213,7 +221,7 @@ sudo usermod -aG input "$USER"
 For NixOS, use the official nixpkgs module instead of installing only the UI
 package. The module provides the full daemon-backed setup: UI package, daemon
 package, uinput, udev rules, polkit files, `crossmacro` group and service user,
-configured desktop users, and `systemd.services.crossmacro`.
+configured desktop identities, and `systemd.services.crossmacro`.
 
 Minimal NixOS configuration:
 
@@ -235,6 +243,17 @@ Available module options include:
 
 After switching, log out and back in, or reboot, so your desktop session picks up
 the `crossmacro` group membership.
+
+The bundled CrossMacro flake exposes the equivalent
+`services.crossmacro.users` option. It grants group membership without creating
+local accounts, so it supports names resolved through NSS, including AD, LDAP,
+and SSSD identities. The module enables NixOS Userborn and passes these names as
+members of the local `crossmacro` group. Only identities explicitly declared in
+`users.users` become local accounts; directory names remain NSS-resolved group
+members and are never emitted as local users. Userborn also supports immutable
+user databases, so this setup does not require runtime `gpasswd` mutations. Do
+not enable `systemd.sysusers` alongside the module; NixOS does not allow both
+user managers at once.
 
 ## Wayland cursor positioning
 

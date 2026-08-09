@@ -583,6 +583,10 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         {
             throw;
         }
+        catch (InputInjectionFailedException)
+        {
+            throw;
+        }
         catch (ImageClickMovementUnsupportedException)
         {
             throw;

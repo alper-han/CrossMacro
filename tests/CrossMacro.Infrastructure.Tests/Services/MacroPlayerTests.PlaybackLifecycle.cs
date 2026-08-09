@@ -231,6 +231,32 @@ public sealed partial class MacroPlayerTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenInputInjectionFails_StopsImmediately()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        simulator
+            .When(input => input.MoveRelative(Arg.Any<int>(), Arg.Any<int>()))
+            .Do(_ => throw new InputInjectionFailedException("native failure", nativeErrorCode: 5));
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20 },
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InputInjectionFailedException>();
+        simulator.Received(1).MoveRelative(10, 10);
+        simulator.DidNotReceive().MoveRelative(20, 20);
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenWaitingBetweenLoops_ExposesCurrentLoopAndTotalLoops()
     {
         var simulator = Substitute.For<IInputSimulator>();

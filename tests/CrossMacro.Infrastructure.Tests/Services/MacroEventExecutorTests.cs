@@ -384,7 +384,7 @@ public sealed class MacroEventExecutorTests : IDisposable
     }
 
     [Fact]
-    public void Execute_MouseMove_Absolute_WhenTransportDoesNotDeclareZeroBasedBounds_PreservesCoordinates()
+    public void Execute_MouseMove_Absolute_WhenTransportDoesNotDeclareZeroBasedBounds_ClampsLogicalCoordinates()
     {
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
@@ -401,9 +401,9 @@ public sealed class MacroEventExecutorTests : IDisposable
             MouseCoordinateMode.Absolute,
             MouseCoordinateSpace.LogicalDesktop);
 
-        simulator.Received(1).MoveAbsolute(150, -20);
-        _ = coordinator.CurrentX.Should().Be(150);
-        _ = coordinator.CurrentY.Should().Be(-20);
+        simulator.Received(1).MoveAbsolute(99, 0);
+        _ = coordinator.CurrentX.Should().Be(99);
+        _ = coordinator.CurrentY.Should().Be(0);
     }
 
     [Fact]

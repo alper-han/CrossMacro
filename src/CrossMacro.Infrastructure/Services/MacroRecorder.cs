@@ -11,6 +11,7 @@ public sealed class MacroRecorder(
     private static readonly TimeSpan CornerResetSettleDelay = TimeSpan.FromMilliseconds(32);
 
     private MacroSequence? _currentSequence;
+    private ScreenRect? _recordingDesktopBounds;
     private Stopwatch? _stopwatch;
     private IInputCapture? _inputCapture;
     private readonly Lock _eventLock = new();
@@ -61,6 +62,7 @@ public sealed class MacroRecorder(
                 IsAbsoluteCoordinates = useAbsoluteCoordinates,
                 SkipInitialZeroZero = skipInitialZero,
             };
+            _recordingDesktopBounds = null;
             _stopwatch = Stopwatch.StartNew();
         }
 
@@ -105,6 +107,20 @@ public sealed class MacroRecorder(
             }
 
             await _currentStrategy.InitializeAsync(cancellationToken).ConfigureAwait(false);
+
+            if (useAbsoluteCoordinates)
+            {
+                _recordingDesktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
+                if (_recordingDesktopBounds is { } bounds)
+                {
+                    Log.Information(
+                        "[MacroRecorder] Absolute recording bounds: ({X},{Y}) {Width}x{Height}",
+                        bounds.X,
+                        bounds.Y,
+                        bounds.Width,
+                        bounds.Height);
+                }
+            }
 
             // 3. Initialize Capture
             _inputCapture = _inputCaptureFactory();
@@ -167,8 +183,7 @@ public sealed class MacroRecorder(
 
                 if (macroEvent is not null)
                 {
-                    AddMacroEvent(macroEvent.Value);
-                    recordedEvent = macroEvent.Value;
+                    recordedEvent = AddMacroEvent(macroEvent.Value);
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -198,8 +213,7 @@ public sealed class MacroRecorder(
                 var macroEvent = _currentProcessor.ProcessPositionSample(e.Sample, _stopwatch.ElapsedMilliseconds);
                 if (macroEvent is not null)
                 {
-                    AddMacroEvent(macroEvent.Value);
-                    recordedEvent = macroEvent.Value;
+                    recordedEvent = AddMacroEvent(macroEvent.Value);
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -214,27 +228,59 @@ public sealed class MacroRecorder(
         }
     }
 
-    private void AddMacroEvent(MacroEvent macroEvent)
+    private MacroEvent AddMacroEvent(MacroEvent macroEvent)
     {
-        if (_currentSequence is not null)
+        macroEvent = NormalizeRecordedCoordinate(macroEvent);
+
+        if (_currentSequence is null)
         {
-            if (_currentSequence.Events.Count > 0)
-            {
-                var lastEvent = _currentSequence.Events[^1];
-                macroEvent.DelayMs = (int)(macroEvent.Timestamp - lastEvent.Timestamp);
-            }
-            else
-            {
-                macroEvent.DelayMs = 0;
-            }
-
-            _currentSequence.Events.Add(macroEvent);
-
-            Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}ms",
-                _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
-                macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMs);
-
+            return macroEvent;
         }
+
+        if (_currentSequence.Events.Count > 0)
+        {
+            var lastEvent = _currentSequence.Events[^1];
+            macroEvent.DelayMs = (int)(macroEvent.Timestamp - lastEvent.Timestamp);
+        }
+        else
+        {
+            macroEvent.DelayMs = 0;
+        }
+
+        _currentSequence.Events.Add(macroEvent);
+
+        Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}ms",
+            _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
+            macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMs);
+
+        return macroEvent;
+    }
+
+    private MacroEvent NormalizeRecordedCoordinate(MacroEvent macroEvent)
+    {
+        if (_recordingDesktopBounds is not { } bounds
+            || _currentSequence is not { } sequence
+            || MacroPositionSemantics.ResolveCoordinateMode(macroEvent, sequence.IsAbsoluteCoordinates) is not MouseCoordinateMode.Absolute
+            || MacroPositionSemantics.ResolveCoordinateSpace(macroEvent, sequence.IsAbsoluteCoordinates) is not MouseCoordinateSpace.LogicalDesktop)
+        {
+            return macroEvent;
+        }
+
+        var normalized = bounds.Clamp(macroEvent.X, macroEvent.Y);
+        if (normalized.X == macroEvent.X && normalized.Y == macroEvent.Y)
+        {
+            return macroEvent;
+        }
+
+        Log.Debug(
+            "[MacroRecorder] Clamped absolute coordinate from ({OriginalX},{OriginalY}) to ({NormalizedX},{NormalizedY})",
+            macroEvent.X,
+            macroEvent.Y,
+            normalized.X,
+            normalized.Y);
+        macroEvent.X = normalized.X;
+        macroEvent.Y = normalized.Y;
+        return macroEvent;
     }
 
     private void PublishRecordedEvent(MacroEvent macroEvent)
@@ -351,6 +397,7 @@ public sealed class MacroRecorder(
             _currentStrategy = null;
         }
         _currentProcessor = null;
+        _recordingDesktopBounds = null;
     }
 
     public MacroSequence? GetCurrentRecording()
@@ -423,7 +470,7 @@ public sealed class MacroRecorder(
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Warning(ex, "[MacroRecorder] Failed to resolve desktop bounds for corner reset");
+            Log.Warning(ex, "[MacroRecorder] Failed to resolve desktop bounds");
             return null;
         }
     }

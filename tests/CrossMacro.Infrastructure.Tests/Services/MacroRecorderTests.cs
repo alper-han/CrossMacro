@@ -136,6 +136,45 @@ public sealed class MacroRecorderTests
     }
 
     [Fact]
+    public async Task StartRecordingAsync_AbsoluteCoordinates_ClampsRecordedCoordinatesToDesktopBounds()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.GetDesktopBoundsAsync()
+            .Returns(Task.FromResult<ScreenRect?>(new ScreenRect(0, 0, 100, 80)));
+        _ = _processor.Process(Arg.Any<CapturedInputEvent>(), Arg.Any<long>())
+            .Returns(new MacroEvent
+            {
+                Type = EventType.MouseMove,
+                X = 150,
+                Y = -20,
+                Timestamp = 10,
+                CoordinateMode = MouseCoordinateMode.Absolute,
+                CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+            });
+        var recorder = new MacroRecorder(
+            _captureFactory,
+            _strategyFactory,
+            _processorFactory,
+            positionProvider: positionProvider);
+        var publishedEvents = new List<MacroEvent>();
+        recorder.EventRecorded += (_, args) => publishedEvents.Add(args.MacroEvent);
+
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
+        _capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
+            this,
+            new CapturedInputEventArgs { Type = InputEventType.MouseMove });
+        var sequence = recorder.StopRecording();
+
+        _ = sequence.Events.Should().ContainSingle();
+        _ = sequence.Events[0].X.Should().Be(99);
+        _ = sequence.Events[0].Y.Should().Be(0);
+        _ = publishedEvents.Should().ContainSingle();
+        _ = publishedEvents[0].X.Should().Be(99);
+        _ = publishedEvents[0].Y.Should().Be(0);
+        await positionProvider.Received(1).GetDesktopBoundsAsync();
+    }
+
+    [Fact]
     public async Task StartRecordingAsync_InitializesStrategyAndProcessor()
     {
         // Arrange

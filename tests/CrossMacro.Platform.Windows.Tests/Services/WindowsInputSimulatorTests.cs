@@ -127,6 +127,31 @@ public sealed class WindowsInputSimulatorTests
         Assert.Equal(120u, input.U.mi.mouseData);
     }
 
+    [Fact]
+    public void EnsureInputWasAccepted_WhenNativeCallAcceptedAllInputs_DoesNotThrow()
+    {
+        static void Act() => WindowsInputSimulator.EnsureInputWasAccepted(
+            requestedInputs: 1,
+            injectedInputs: 1,
+            nativeErrorCode: 0);
+
+        Assert.Null(Record.Exception(Act));
+    }
+
+    [Fact]
+    public void EnsureInputWasAccepted_WhenNativeCallAcceptedNoInputs_ThrowsDiagnosticException()
+    {
+        var exception = Assert.Throws<InputInjectionFailedException>(() =>
+            WindowsInputSimulator.EnsureInputWasAccepted(
+                requestedInputs: 1,
+                injectedInputs: 0,
+                nativeErrorCode: 5));
+
+        Assert.Equal(5, exception.NativeErrorCode);
+        Assert.Contains("SendInput", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("0 of 1", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(-1920, -200, 0, 0)]
     [InlineData(2559, 1439, 65535, 65535)]

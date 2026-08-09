@@ -232,12 +232,13 @@ public sealed class MacroEventExecutor(
 
     private (int X, int Y) ClampLogicalPosition(long x, long y)
     {
-        if (!_usesZeroBasedScreenBounds || _desktopBounds is not { } bounds)
+        if (_desktopBounds is not { } bounds)
         {
             return ((int)Math.Clamp(x, int.MinValue, int.MaxValue), (int)Math.Clamp(y, int.MinValue, int.MaxValue));
         }
 
-        return ((int)Math.Clamp(x, bounds.X, bounds.Right - 1L), (int)Math.Clamp(y, bounds.Y, bounds.Bottom - 1L));
+        var clamped = bounds.Clamp(x, y);
+        return (clamped.X, clamped.Y);
     }
 
     private void SendAbsolute((int X, int Y) logicalPosition)

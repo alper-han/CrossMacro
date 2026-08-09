@@ -267,7 +267,33 @@ public sealed class WindowsInputSimulator :
     {
         var buffer = InputBuffer;
         buffer[0] = input;
-        _ = User32.SendInput(1, buffer, InputStruct.Size);
+        var injectedInputs = User32.SendInput(1, buffer, InputStruct.Size);
+        if (injectedInputs is not 1)
+        {
+            EnsureInputWasAccepted(1, injectedInputs, Marshal.GetLastWin32Error());
+        }
+    }
+
+    internal static void EnsureInputWasAccepted(uint requestedInputs, uint injectedInputs, int nativeErrorCode)
+    {
+        if (injectedInputs == requestedInputs)
+        {
+            return;
+        }
+
+        var nativeErrorMessage = nativeErrorCode is 0
+            ? "No Win32 error was reported."
+            : new Win32Exception(nativeErrorCode).Message;
+        var message = string.Create(
+            CultureInfo.InvariantCulture,
+            $"Windows SendInput accepted {injectedInputs} of {requestedInputs} requested input event(s). "
+            + $"Win32 error {nativeErrorCode}: {nativeErrorMessage}");
+        Log.Error(
+            "[WindowsInputSimulator] {Message}. The target application may require the same elevation level.",
+            message);
+        throw new InputInjectionFailedException(
+            $"{message} The target application may require the same elevation level.",
+            nativeErrorCode);
     }
 
     private static void SendUnicodeInput(char codeUnit, bool keyUp, long? marker)

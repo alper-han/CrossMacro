@@ -60,6 +60,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     private int _sequenceTotalCycles;
     private string _sequenceMacroName = string.Empty;
     private int _sequenceMacroRepeatCount = 1;
+    private readonly SettingsSaveRollbackTracker _saveRollbackTracker = new();
 
     private MacroSequence? _currentMacro;
     private CancellationTokenSource? _playbackCts;
@@ -1195,17 +1196,29 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     private async Task TryPersistSettingChangeAsync(int changeVersion, Action rollback, string[] propertyNames)
     {
+        Task? saveTask = null;
+
         try
         {
-            await _settingsService.SaveAsync().ConfigureAwait(false);
+            saveTask = _settingsService.SaveAfterIdleAsync();
+            _saveRollbackTracker.Track(saveTask, rollback, propertyNames);
+            await saveTask.ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
+            var isCoalescedSave = _saveRollbackTracker.TryTakeRollback(
+                saveTask,
+                propertyNames,
+                out var trackedRollback,
+                out var isTracked);
+            var coalescedRollback = isCoalescedSave ? trackedRollback : null;
+
+            if (coalescedRollback is not null
+                || (Volatile.Read(ref _settingsChangeVersion) == changeVersion && !isTracked))
             {
                 await RunOnUiThreadAsync(() =>
                 {
-                    rollback();
+                    (coalescedRollback ?? rollback)();
                     foreach (var propertyName in propertyNames)
                     {
                         OnPropertyChanged(propertyName);

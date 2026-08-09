@@ -57,7 +57,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
 
         _ = _settingsService.Current.Returns(_settings);
-        _ = _settingsService.SaveAsync().Returns(Task.CompletedTask);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
         _ = _player.CurrentLoop.Returns(1);
         _ = _player.TotalLoops.Returns(1);
         _ = _player.IsWaitingBetweenLoops.Returns(returnThis: false);
@@ -680,7 +680,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     [Fact]
     public void PlaybackSpeed_WhenSaveFails_RollsBackValue()
     {
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.PlaybackSpeed = 2.0;
 
@@ -693,7 +693,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     {
         _viewModel.IsLooping = true;
         _settingsService.ClearReceivedCalls();
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.UseRandomLoopDelay = true;
 
@@ -733,7 +733,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 _ => call.Arg<string>(),
             });
             _ = SettingsService.Current.Returns(settings);
-            _ = SettingsService.SaveAsync().Returns(Task.CompletedTask);
+            _ = SettingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
             _ = Player.CurrentLoop.Returns(1);
             _ = Player.TotalLoops.Returns(1);
             _ = Player.IsWaitingBetweenLoops.Returns(returnThis: false);

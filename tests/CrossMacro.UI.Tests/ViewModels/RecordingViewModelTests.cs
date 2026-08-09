@@ -31,7 +31,7 @@ public sealed class RecordingViewModelTests : IDisposable
             IsMouseRecordingEnabled = true,
             IsKeyboardRecordingEnabled = true,
         });
-        _ = _settingsService.SaveAsync().Returns(Task.CompletedTask);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
 
         _viewModel = new RecordingViewModel(
             _recorder,
@@ -692,7 +692,7 @@ public sealed class RecordingViewModelTests : IDisposable
     [Fact]
     public void IsMouseRecordingEnabled_WhenSaveFails_RollsBackValue()
     {
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.IsMouseRecordingEnabled = false;
 
@@ -703,7 +703,7 @@ public sealed class RecordingViewModelTests : IDisposable
     [Fact]
     public void IsKeyboardRecordingEnabled_WhenSaveFails_RollsBackValueAndCommandAvailability()
     {
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.IsKeyboardRecordingEnabled = false;
 

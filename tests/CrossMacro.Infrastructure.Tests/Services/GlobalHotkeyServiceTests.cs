@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 public sealed class GlobalHotkeyServiceTests : IDisposable
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
-    private static readonly string[] ExpectedUpdateHotkeys = ["F1", "F2", "F3"];
+    private static readonly string[] ExpectedUpdateHotkeys = ["F3"];
 
     private readonly IHotkeyConfigurationService _config;
     private readonly IHotkeyParser _parser;
@@ -263,7 +263,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     }
 
     [Fact]
-    public void UpdateHotkeys_QueuesSavesInUpdateOrder_AndDisposeFlushesQueue()
+    public void UpdateHotkeys_CoalescesPendingSaves_AndDisposeFlushesLatestState()
     {
         var saved = new List<string>();
         _ = _config.TrySaveAsync(Arg.Any<HotkeyConfigurationSaveRequest>())
@@ -276,6 +276,8 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _service.UpdateHotkeys("F1", "F10", "F11");
         _service.UpdateHotkeys("F2", "F10", "F11");
         _service.UpdateHotkeys("F3", "F10", "F11");
+
+        Assert.Empty(saved);
 
         _service.Dispose();
 

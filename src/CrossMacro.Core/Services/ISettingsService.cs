@@ -27,6 +27,17 @@ public interface ISettingsService
     public Task SaveAsync();
 
     /// <summary>
+    /// Schedules a settings save after the current burst of changes has settled.
+    /// Implementations may coalesce consecutive requests.
+    /// </summary>
+    public Task SaveAfterIdleAsync() => SaveAsync();
+
+    /// <summary>
+    /// Flushes a pending idle save before a profile switch or shutdown.
+    /// </summary>
+    public Task FlushPendingSaveAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    /// <summary>
     /// Reloads profile-specific settings from a profile configuration directory.
     /// </summary>
     public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;

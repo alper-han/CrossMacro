@@ -36,6 +36,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly IProfileManager? _profileManager;
     private readonly IDialogService? _dialogService;
     private readonly IManageProfile? _manageProfile;
+    private readonly SettingsSaveRollbackTracker _saveRollbackTracker = new();
     private int _settingsChangeVersion;
 
     private bool _enableTrayIcon;
@@ -899,9 +900,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private async Task TryPersistSettingsAsync(int changeVersion, Action rollback, Func<Task>? onSuccess, string[] propertyNames)
     {
+        Task? saveTask = null;
+        var saveCompleted = false;
+
         try
         {
-            await _settingsService.SaveAsync().ConfigureAwait(false);
+            saveTask = _settingsService.SaveAfterIdleAsync();
+            _saveRollbackTracker.Track(saveTask, rollback, propertyNames);
+            await saveTask.ConfigureAwait(false);
+            saveCompleted = true;
             if (onSuccess is not null)
             {
                 await onSuccess().ConfigureAwait(false);
@@ -909,11 +916,22 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
+            Action? trackedRollback = null;
+            var isTracked = false;
+            var isCoalescedSave = !saveCompleted
+                && _saveRollbackTracker.TryTakeRollback(
+                    saveTask,
+                    propertyNames,
+                    out trackedRollback,
+                    out isTracked);
+            var coalescedRollback = isCoalescedSave ? trackedRollback : null;
+
+            if (coalescedRollback is not null
+                || (Volatile.Read(ref _settingsChangeVersion) == changeVersion && !isTracked))
             {
                 await RunOnUiThreadAsync(() =>
                 {
-                    rollback();
+                    (coalescedRollback ?? rollback)();
                     foreach (var propertyName in propertyNames)
                     {
                         OnPropertyChanged(propertyName);

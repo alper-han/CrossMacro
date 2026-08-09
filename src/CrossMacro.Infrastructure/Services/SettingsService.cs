@@ -8,11 +8,13 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class SettingsService : ISettingsService, IDisposable
 {
+    private static readonly TimeSpan SettingsSaveDebounce = TimeSpan.FromSeconds(3);
     private readonly string _globalSettingsFilePath;
     private string _profileSettingsFilePath;
     private int _profileGeneration;
     private int _settingsLoaded;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
+    private readonly DebouncedSaveCoordinator _debouncedSave;
     private int _disposed;
 
     public AppSettings Current { get; private set; }
@@ -36,6 +38,7 @@ public class SettingsService : ISettingsService, IDisposable
             ConfigFileNames.Settings);
 
         Current = new AppSettings();
+        _debouncedSave = new DebouncedSaveCoordinator(SaveCoreAsync, SettingsSaveDebounce);
     }
 
     /// <summary>
@@ -133,6 +136,19 @@ public class SettingsService : ISettingsService, IDisposable
 
     public async Task SaveAsync()
     {
+        if (!await _debouncedSave.FlushAsync().ConfigureAwait(false))
+        {
+            await SaveCoreAsync().ConfigureAwait(false);
+        }
+    }
+
+    public Task SaveAfterIdleAsync() => _debouncedSave.RequestAsync();
+
+    public Task FlushPendingSaveAsync(CancellationToken cancellationToken = default) =>
+        _debouncedSave.FlushAsync(cancellationToken);
+
+    private async Task SaveCoreAsync()
+    {
         var snapshot = new SaveSnapshot(
             _globalSettingsFilePath,
             _profileSettingsFilePath,
@@ -140,13 +156,14 @@ public class SettingsService : ISettingsService, IDisposable
             SettingsPersistenceMapper.ToProfile(Current),
             _profileGeneration);
 
-        await _saveGate.WaitAsync().ConfigureAwait(false);
+        await _saveGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             await FileBackedJsonStorage.WriteAsync(
                     snapshot.GlobalPath,
                     snapshot.GlobalSettings,
-                    CrossMacroJsonContext.Default.PersistedGlobalSettings)
+                    CrossMacroJsonContext.Default.PersistedGlobalSettings,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
 
             if (snapshot.ProfileGeneration == _profileGeneration && snapshot.ProfileGeneration % 2 is 0)
@@ -154,7 +171,8 @@ public class SettingsService : ISettingsService, IDisposable
                 await FileBackedJsonStorage.WriteAsync(
                         snapshot.ProfilePath,
                         snapshot.ProfileSettings,
-                        CrossMacroJsonContext.Default.PersistedProfileSettings)
+                        CrossMacroJsonContext.Default.PersistedProfileSettings,
+                        CancellationToken.None)
                     .ConfigureAwait(false);
             }
 
@@ -173,35 +191,39 @@ public class SettingsService : ISettingsService, IDisposable
 
     public void Save()
     {
-        _saveGate.Wait();
-        try
+        if (!_debouncedSave.FlushAsync().GetAwaiter().GetResult())
         {
-            FileBackedJsonStorage.Write(
-                _globalSettingsFilePath,
-                SettingsPersistenceMapper.ToGlobal(Current),
-                CrossMacroJsonContext.Default.PersistedGlobalSettings);
+            _saveGate.Wait();
+            try
+            {
+                FileBackedJsonStorage.Write(
+                    _globalSettingsFilePath,
+                    SettingsPersistenceMapper.ToGlobal(Current),
+                    CrossMacroJsonContext.Default.PersistedGlobalSettings);
 
-            FileBackedJsonStorage.Write(
-                _profileSettingsFilePath,
-                SettingsPersistenceMapper.ToProfile(Current),
-                CrossMacroJsonContext.Default.PersistedProfileSettings);
+                FileBackedJsonStorage.Write(
+                    _profileSettingsFilePath,
+                    SettingsPersistenceMapper.ToProfile(Current),
+                    CrossMacroJsonContext.Default.PersistedProfileSettings);
 
-            Log.Information("Settings saved to {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.LogError(ex, "Failed to save settings");
-            throw;
-        }
-        finally
-        {
-            _ = _saveGate.Release();
+                Log.Information("Settings saved to {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, _profileSettingsFilePath);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.LogError(ex, "Failed to save settings");
+                throw;
+            }
+            finally
+            {
+                _ = _saveGate.Release();
+            }
         }
     }
 
     public async Task ReloadAsync(string profileConfigDirectory)
     {
-        await _saveGate.WaitAsync().ConfigureAwait(false);
+        _ = await _debouncedSave.FlushAsync().ConfigureAwait(false);
+        await _saveGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         _profileGeneration++;
         try
         {
@@ -249,6 +271,7 @@ public class SettingsService : ISettingsService, IDisposable
     {
         if (disposing && Interlocked.Exchange(ref _disposed, 1) is 0)
         {
+            _debouncedSave.Dispose();
             _saveGate.Dispose();
         }
     }

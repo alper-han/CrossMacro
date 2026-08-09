@@ -151,6 +151,28 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAfterIdleAsync_CoalescesRequests_AndPersistsLatestSettings()
+    {
+        using var service = new SettingsService(_tempPath);
+        _ = await service.LoadAsync();
+
+        service.Current.PlaybackSpeed = 2.0;
+        var firstSave = service.SaveAfterIdleAsync();
+        service.Current.PlaybackSpeed = 3.0;
+        var secondSave = service.SaveAfterIdleAsync();
+
+        _ = secondSave.Should().BeSameAs(firstSave);
+
+        await service.FlushPendingSaveAsync();
+        await firstSave;
+
+        using var reloadedService = new SettingsService(_tempPath);
+        var loaded = await reloadedService.LoadAsync();
+
+        _ = loaded.PlaybackSpeed.Should().Be(3.0);
+    }
+
+    [Fact]
     public void SaveAndLoad_RoundTrip_PreservesSettings()
     {
         // Arrange

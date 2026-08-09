@@ -50,7 +50,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         // Setup initial settings
         _ = _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, StartMinimized = false, EnableTextExpansion = false, Theme = "Classic" });
-        _ = _settingsService.SaveAsync().Returns(Task.CompletedTask);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
 
         _viewModel = new SettingsViewModel(
             _hotkeyService,
@@ -138,7 +138,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = vm.SelectedLanguage.Should().Be("ja");
         _ = _settingsService.Current.Language.Should().Be("ja");
         localizationService.Received(1).SetCulture("ja");
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -282,7 +282,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         // Assert
         _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
         _ = eventFired.Should().BeTrue();
     }
 
@@ -302,7 +302,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _viewModel.EnableTrayIcon.Should().BeTrue();
         _ = _settingsService.Current.StartMinimized.Should().BeTrue();
         _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
         _ = trayEventFired.Should().BeTrue();
     }
 
@@ -317,7 +317,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _viewModel.StartMinimized.Should().BeFalse();
         _ = _settingsService.Current.EnableTrayIcon.Should().BeFalse();
         _ = _settingsService.Current.StartMinimized.Should().BeFalse();
-        _ = _settingsService.Received(2).SaveAsync();
+        _ = _settingsService.Received(2).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public sealed class SettingsViewModelTests : IDisposable
     {
         _viewModel.StartMinimized = true;
         _settingsService.ClearReceivedCalls();
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.EnableTrayIcon = false;
 
@@ -338,7 +338,7 @@ public sealed class SettingsViewModelTests : IDisposable
     [Fact]
     public void StartMinimized_WhenSaveFails_RollsBackAndDoesNotEnableTray()
     {
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.StartMinimized = true;
 
@@ -378,7 +378,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = viewModel.EnableTrayIcon.Should().BeFalse();
         _ = _settingsService.Current.StartMinimized.Should().BeTrue();
         _ = _settingsService.Current.EnableTrayIcon.Should().BeFalse();
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         // Assert - Enable
         _ = _settingsService.Current.EnableTextExpansion.Should().BeTrue();
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
         _ = await startCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
         _textExpansionService.Received(1).Start();
 
@@ -467,16 +467,16 @@ public sealed class SettingsViewModelTests : IDisposable
         Received.InOrder(() =>
         {
             _runtimeLogLevelService.SetLogLevel("Warning");
-            _ = _settingsService.SaveAsync();
+            _ = _settingsService.SaveAfterIdleAsync();
         });
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
     public void SelectedLogLevel_WhenSaveFails_RollsBackAndRestoresRuntimeLevel()
     {
         _settingsService.Current.LogLevel = "Information";
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.SelectedLogLevel = "Warning";
 
@@ -485,7 +485,7 @@ public sealed class SettingsViewModelTests : IDisposable
         Received.InOrder(() =>
         {
             _runtimeLogLevelService.SetLogLevel("Warning");
-            _ = _settingsService.SaveAsync();
+            _ = _settingsService.SaveAfterIdleAsync();
             _runtimeLogLevelService.SetLogLevel("Information");
         });
     }
@@ -501,7 +501,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         // Assert
         _ = _settingsService.Current.CheckForUpdates.Should().BeFalse();
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -513,7 +513,7 @@ public sealed class SettingsViewModelTests : IDisposable
         // Assert
         _ = _settingsService.Current.Theme.Should().Be("Nord");
         _ = _themeService.Received(1).TryApplyTheme("Nord", out Arg.Any<string>());
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -532,7 +532,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         _ = _viewModel.SelectedTheme.Should().Be("Classic");
         _ = _settingsService.Current.Theme.Should().Be("Classic");
-        _ = _settingsService.DidNotReceive().SaveAsync();
+        _ = _settingsService.DidNotReceive().SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -553,7 +553,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _viewModel.SelectedTheme.Should().Be("Nord");
         _ = _settingsService.Current.Theme.Should().Be("Nord");
         _themeService.Received(1).TryRefreshThemes(out Arg.Any<string>());
-        _ = _settingsService.Received(1).SaveAsync();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -569,7 +569,7 @@ public sealed class SettingsViewModelTests : IDisposable
         var currentTheme = "Aurora";
 
         _ = _settingsService.Current.Returns(settings);
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
         _ = _themeService.AvailableThemes.Returns(["Aurora", "Classic"]);
         _ = _themeService.CurrentTheme.Returns(_ => currentTheme);
         _ = _themeService
@@ -617,7 +617,7 @@ public sealed class SettingsViewModelTests : IDisposable
     [Fact]
     public void EnableTextExpansion_WhenSaveFails_RollsBackAndDoesNotToggleService()
     {
-        _ = _settingsService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.EnableTextExpansion = true;
 
@@ -631,7 +631,7 @@ public sealed class SettingsViewModelTests : IDisposable
     {
         var firstSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = _settingsService.SaveAsync().Returns(firstSave.Task, secondSave.Task);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(firstSave.Task, secondSave.Task);
 
         _viewModel.EnableTextExpansion = true;
         _viewModel.CheckForUpdates = true;
@@ -639,10 +639,44 @@ public sealed class SettingsViewModelTests : IDisposable
         firstSave.SetException(new InvalidOperationException("disk full"));
         await Task.Yield();
         secondSave.SetResult(true);
-        await Task.Delay(25);
+        await Task.Delay(25, CancellationToken.None);
 
         _ = _viewModel.EnableTextExpansion.Should().BeTrue();
         _ = _viewModel.CheckForUpdates.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CoalescedFailedSave_RollsBackEverySettingChange()
+    {
+        var failedSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(failedSave.Task);
+
+        _viewModel.EnableTextExpansion = true;
+        _viewModel.CheckForUpdates = true;
+
+        failedSave.SetException(new InvalidOperationException("disk full"));
+        await Task.Delay(25, CancellationToken.None);
+
+        _ = _viewModel.EnableTextExpansion.Should().BeFalse();
+        _ = _viewModel.CheckForUpdates.Should().BeFalse();
+        _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
+        _ = _settingsService.Current.CheckForUpdates.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RepeatedCoalescedSettingChange_RollsBackToValueBeforeBurst()
+    {
+        var failedSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(failedSave.Task);
+
+        _viewModel.EnableTextExpansion = true;
+        _viewModel.EnableTextExpansion = false;
+
+        failedSave.SetException(new InvalidOperationException("disk full"));
+        await Task.Delay(25, CancellationToken.None);
+
+        _ = _viewModel.EnableTextExpansion.Should().BeFalse();
+        _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
     }
 
     [Fact]
@@ -651,7 +685,7 @@ public sealed class SettingsViewModelTests : IDisposable
         var firstSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var textExpansionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = _settingsService.SaveAsync().Returns(firstSave.Task, secondSave.Task);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(firstSave.Task, secondSave.Task);
         _textExpansionService.When(service => service.Start())
             .Do(_ => textExpansionStarted.TrySetResult());
 

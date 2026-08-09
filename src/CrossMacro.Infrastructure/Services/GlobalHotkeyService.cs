@@ -576,41 +576,93 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
 
     private sealed class HotkeyPersistenceQueue : IDisposable
     {
+        private static readonly TimeSpan SaveDebounce = TimeSpan.FromSeconds(3);
+        private readonly Lock _gate = new();
         private readonly IHotkeyConfigurationService _configService;
         private readonly Action<string> _reportFailure;
-        private readonly Channel<HotkeyConfigurationSaveRequest> _requests = Channel.CreateUnbounded<HotkeyConfigurationSaveRequest>();
-        private readonly Task _worker;
-        private int _disposed;
+        private readonly Dictionary<string, HotkeyConfigurationSaveRequest> _pending = new(StringComparer.Ordinal);
+        private readonly Timer _timer;
+        private Task _saveTask = Task.CompletedTask;
+        private bool _disposed;
 
         public HotkeyPersistenceQueue(IHotkeyConfigurationService configService, Action<string> reportFailure)
         {
             _configService = configService;
             _reportFailure = reportFailure;
-            _worker = Task.Run(ProcessAsync, CancellationToken.None);
+            _timer = new Timer(OnTimerElapsed, state: null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
         public void Enqueue(HotkeyConfigurationSaveRequest request)
         {
-            if (Volatile.Read(ref _disposed) is not 0 || !_requests.Writer.TryWrite(request))
+            ArgumentNullException.ThrowIfNull(request);
+
+            lock (_gate)
             {
-                _reportFailure("Hotkey configuration save was discarded because the service is shutting down.");
+                if (_disposed)
+                {
+                    _reportFailure("Hotkey configuration save was discarded because the service is shutting down.");
+                    return;
+                }
+
+                _pending[request.ConfigPath] = request;
+                _ = _timer.Change(SaveDebounce, Timeout.InfiniteTimeSpan);
             }
         }
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) is not 0)
+            Task saveTask;
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                _ = _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                QueuePendingSaves_NoLock();
+                saveTask = _saveTask;
+            }
+
+            saveTask.GetAwaiter().GetResult();
+            _timer.Dispose();
+        }
+
+        private void OnTimerElapsed(object? state)
+        {
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                QueuePendingSaves_NoLock();
+            }
+        }
+
+        private void QueuePendingSaves_NoLock()
+        {
+            if (_pending.Count is 0)
             {
                 return;
             }
 
-            _ = _requests.Writer.TryComplete();
-            _worker.GetAwaiter().GetResult();
+            var batch = _pending.Values.ToArray();
+            _pending.Clear();
+            _ = _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+
+            _saveTask = _saveTask.ContinueWith(
+                _ => Task.Run(() => SaveBatchAsync(batch), CancellationToken.None),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default).Unwrap();
         }
 
-        private async Task ProcessAsync()
+        private async Task SaveBatchAsync(IReadOnlyList<HotkeyConfigurationSaveRequest> batch)
         {
-            await foreach (var request in _requests.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false))
+            foreach (var request in batch)
             {
                 try
                 {

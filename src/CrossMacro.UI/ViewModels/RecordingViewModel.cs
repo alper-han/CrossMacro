@@ -27,6 +27,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private RecordingStatusKind _recordingStatusKind = RecordingStatusKind.Ready;
     private LiveCounterUpdateState? _activeCounterUpdateState;
     private long _nextCounterUpdateSessionId;
+    private readonly SettingsSaveRollbackTracker _saveRollbackTracker = new();
     private int _settingsChangeVersion;
 
     private sealed class LiveCounterUpdateState(long sessionId)
@@ -678,17 +679,29 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     private async Task TryPersistSettingChangeAsync(int changeVersion, Action rollback, string[] propertyNames)
     {
+        Task? saveTask = null;
+
         try
         {
-            await _settingsService.SaveAsync().ConfigureAwait(false);
+            saveTask = _settingsService.SaveAfterIdleAsync();
+            _saveRollbackTracker.Track(saveTask, rollback, propertyNames);
+            await saveTask.ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
+            var isCoalescedSave = _saveRollbackTracker.TryTakeRollback(
+                saveTask,
+                propertyNames,
+                out var trackedRollback,
+                out var isTracked);
+            var coalescedRollback = isCoalescedSave ? trackedRollback : null;
+
+            if (coalescedRollback is not null
+                || (Volatile.Read(ref _settingsChangeVersion) == changeVersion && !isTracked))
             {
                 await RunOnUiThreadAsync(() =>
                 {
-                    rollback();
+                    (coalescedRollback ?? rollback)();
                     foreach (var propertyName in propertyNames)
                     {
                         OnPropertyChanged(propertyName);

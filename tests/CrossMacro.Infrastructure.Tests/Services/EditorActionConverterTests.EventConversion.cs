@@ -173,6 +173,24 @@ public sealed partial class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToMacroSequence_WhenTrailingDelayUsesMicroseconds_PreservesItInBothEditorDirections()
+    {
+        var actions = new[]
+        {
+            new EditorAction { Type = EditorActionType.MouseMove, X = 10, Y = 20 },
+            new EditorAction { Type = EditorActionType.Delay, DelayMicroseconds = 2_375 },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Test", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        _ = sequence.TrailingDelayMicroseconds.Should().Be(2_375);
+        _ = restored.Where(action => action.Type is EditorActionType.Delay && action.DelayMicroseconds == 2_375)
+            .Should()
+            .ContainSingle();
+    }
+
+    [Fact]
     public void ToMacroSequence_WhenRandomDelayIsTrailing_SetsTrailingRandomDelay()
     {
         // Arrange

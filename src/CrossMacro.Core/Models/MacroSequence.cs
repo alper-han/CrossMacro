@@ -133,11 +133,21 @@ public class MacroSequence
     /// </summary>
     public bool SkipInitialZeroZero { get; set; }
 
-    /// <summary>
-    /// Delay in milliseconds to wait after the last event completes.
-    /// Useful for looped macros where you want a pause before the next iteration.
-    /// </summary>
-    public int TrailingDelayMs { get; set; }
+    private long _trailingDelayMicroseconds;
+
+    /// <summary>Precise delay after the final event, in microseconds.</summary>
+    public long TrailingDelayMicroseconds
+    {
+        get => _trailingDelayMicroseconds;
+        set => _trailingDelayMicroseconds = Math.Max(0, value);
+    }
+
+    /// <summary>Legacy millisecond projection of <see cref="TrailingDelayMicroseconds"/>.</summary>
+    public int TrailingDelayMs
+    {
+        get => MacroTiming.ToLegacyMilliseconds(_trailingDelayMicroseconds);
+        set => _trailingDelayMicroseconds = Math.Max(0, (long)value * MacroTiming.MicrosecondsPerMillisecond);
+    }
 
     /// <summary>
     /// Whether trailing delay includes a randomized component.
@@ -176,7 +186,7 @@ public class MacroSequence
 
     private static bool IsEventTimingValid(MacroEvent ev)
     {
-        if (ev.Timestamp < 0 || ev.DelayMs < 0)
+        if (ev.TimestampMicroseconds < 0 || ev.DelayMicroseconds < 0)
         {
             return false;
         }
@@ -205,7 +215,7 @@ public class MacroSequence
             return;
         }
 
-        TotalDurationMs = Events[^1].Timestamp;
+        TotalDurationMs = Events[^1].TimestampMicroseconds / MacroTiming.MicrosecondsPerMillisecond;
     }
 
     /// <summary>
@@ -226,7 +236,7 @@ public class MacroSequence
             EventsPerSecond = EventsPerSecond,
             IsAbsoluteCoordinates = IsAbsoluteCoordinates,
             SkipInitialZeroZero = SkipInitialZeroZero,
-            TrailingDelayMs = TrailingDelayMs,
+            TrailingDelayMicroseconds = TrailingDelayMicroseconds,
             HasTrailingRandomDelay = HasTrailingRandomDelay,
             TrailingDelayMinMs = TrailingDelayMinMs,
             TrailingDelayMaxMs = TrailingDelayMaxMs,

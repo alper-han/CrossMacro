@@ -20,7 +20,7 @@ internal sealed class RunSequenceExecutor
         Func<int, int, int> randomInclusive)
     {
         _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
-        _delayAsync = delayAsync ?? Task.Delay;
+        _delayAsync = delayAsync ?? HighResolutionDelay.WaitAsync;
         _randomInclusive = randomInclusive ?? throw new ArgumentNullException(nameof(randomInclusive));
     }
 
@@ -28,7 +28,7 @@ internal sealed class RunSequenceExecutor
         MacroSequence sequence,
         double speedMultiplier,
         int countdownSeconds,
-        int initialDelayMs,
+        long initialDelayMicroseconds,
         bool initialHasRandomDelay,
         int initialRandomDelayMinMs,
         int initialRandomDelayMaxMs,
@@ -42,17 +42,17 @@ internal sealed class RunSequenceExecutor
                 await _delayAsync(TimeSpan.FromSeconds(countdownSeconds), cancellationToken).ConfigureAwait(false);
             }
 
-            var resolvedInitialDelayMs = ResolveDelayMs(
-                initialDelayMs,
+            var resolvedInitialDelayMicroseconds = ResolveDelayMicroseconds(
+                initialDelayMicroseconds,
                 initialHasRandomDelay,
                 initialRandomDelayMinMs,
                 initialRandomDelayMaxMs);
-            if (resolvedInitialDelayMs > 0)
+            if (resolvedInitialDelayMicroseconds > 0)
             {
-                var adjustedInitialDelayMs = (int)Math.Floor(resolvedInitialDelayMs / normalizedSpeed);
-                if (adjustedInitialDelayMs > 0)
+                var adjustedInitialDelayMicroseconds = resolvedInitialDelayMicroseconds / normalizedSpeed;
+                if (adjustedInitialDelayMicroseconds > 0)
                 {
-                    await _delayAsync(TimeSpan.FromMilliseconds(adjustedInitialDelayMs), cancellationToken).ConfigureAwait(false);
+                    await _delayAsync(TimeSpan.FromMicroseconds(adjustedInitialDelayMicroseconds), cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -98,23 +98,18 @@ internal sealed class RunSequenceExecutor
         }
     }
 
-    private int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
+    private long ResolveDelayMicroseconds(long fixedDelayMicroseconds, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
     {
-        long totalDelayMs = Math.Max(0, fixedDelayMs);
+        long totalDelayMicroseconds = Math.Max(0, fixedDelayMicroseconds);
 
         if (hasRandomDelay)
         {
             var min = Math.Min(randomDelayMinMs, randomDelayMaxMs);
             var max = Math.Max(randomDelayMinMs, randomDelayMaxMs);
-            totalDelayMs += ResolveRandomDelay(min, max);
+            totalDelayMicroseconds += (long)ResolveRandomDelay(min, max) * MacroTiming.MicrosecondsPerMillisecond;
         }
 
-        if (totalDelayMs > int.MaxValue)
-        {
-            return int.MaxValue;
-        }
-
-        return (int)totalDelayMs;
+        return totalDelayMicroseconds;
     }
 
     private int ResolveRandomDelay(int min, int max)

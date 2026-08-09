@@ -7,7 +7,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class EditorActionConverter : IEditorActionConverter
 {
-    private const int DefaultKeyPressDelayMs = 10;
+    private const long DefaultKeyPressDelayMicroseconds = 10_000;
 
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly RunScriptCompiler _runScriptCompiler;
@@ -54,7 +54,7 @@ public class EditorActionConverter : IEditorActionConverter
                     Type = EventType.MouseMove,
                     X = x,
                     Y = y,
-                    DelayMs = action.DelayMs,
+                    DelayMicroseconds = action.DelayMicroseconds,
                     CoordinateMode = action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
                     CoordinateSpace = action.IsAbsolute
                         ? MouseCoordinateSpace.LogicalDesktop
@@ -69,7 +69,7 @@ public class EditorActionConverter : IEditorActionConverter
                     X = action.UseCurrentPosition ? 0 : x,
                     Y = action.UseCurrentPosition ? 0 : y,
                     Button = action.Button,
-                    DelayMs = action.DelayMs,
+                    DelayMicroseconds = action.DelayMicroseconds,
                     UseCurrentPosition = action.UseCurrentPosition,
                     CoordinateMode = GetCoordinateMode(action),
                     CoordinateSpace = GetCoordinateSpace(action),
@@ -83,7 +83,7 @@ public class EditorActionConverter : IEditorActionConverter
                     X = action.UseCurrentPosition ? 0 : x,
                     Y = action.UseCurrentPosition ? 0 : y,
                     Button = action.Button,
-                    DelayMs = action.DelayMs,
+                    DelayMicroseconds = action.DelayMicroseconds,
                     UseCurrentPosition = action.UseCurrentPosition,
                     CoordinateMode = GetCoordinateMode(action),
                     CoordinateSpace = GetCoordinateSpace(action),
@@ -97,7 +97,7 @@ public class EditorActionConverter : IEditorActionConverter
                     X = action.UseCurrentPosition ? 0 : x,
                     Y = action.UseCurrentPosition ? 0 : y,
                     Button = action.Button,
-                    DelayMs = action.DelayMs,
+                    DelayMicroseconds = action.DelayMicroseconds,
                     UseCurrentPosition = action.UseCurrentPosition,
                     CoordinateMode = GetCoordinateMode(action),
                     CoordinateSpace = GetCoordinateSpace(action),
@@ -110,13 +110,13 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     Type = EventType.KeyPress,
                     KeyCode = action.KeyCode,
-                    DelayMs = action.DelayMs,
+                    DelayMicroseconds = action.DelayMicroseconds,
                 });
                 events.Add(new MacroEvent
                 {
                     Type = EventType.KeyRelease,
                     KeyCode = action.KeyCode,
-                    DelayMs = DefaultKeyPressDelayMs,
+                    DelayMicroseconds = DefaultKeyPressDelayMicroseconds,
                 });
                 break;
 
@@ -125,7 +125,7 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     Type = EventType.KeyPress,
                     KeyCode = action.KeyCode,
-                    DelayMs = action.DelayMs,
+                    DelayMicroseconds = action.DelayMicroseconds,
                 });
                 break;
 
@@ -134,7 +134,7 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     Type = EventType.KeyRelease,
                     KeyCode = action.KeyCode,
-                    DelayMs = action.DelayMs,
+                    DelayMicroseconds = action.DelayMicroseconds,
                 });
                 break;
 
@@ -144,7 +144,7 @@ public class EditorActionConverter : IEditorActionConverter
                 events.Add(new MacroEvent
                 {
                     Type = EventType.None,
-                    DelayMs = action.UseRandomDelay ? 0 : action.DelayMs,
+                    DelayMicroseconds = action.UseRandomDelay ? 0 : action.DelayMicroseconds,
                     HasRandomDelay = action.UseRandomDelay,
                     RandomDelayMinMs = action.UseRandomDelay ? action.RandomDelayMinMs : 0,
                     RandomDelayMaxMs = action.UseRandomDelay ? action.RandomDelayMaxMs : 0,
@@ -159,7 +159,7 @@ public class EditorActionConverter : IEditorActionConverter
                     {
                         Type = EventType.Click,
                         Button = scrollButton,
-                        DelayMs = i is 0 ? action.DelayMs : 0,
+                        DelayMicroseconds = i is 0 ? action.DelayMicroseconds : 0,
                     });
                 }
                 break;
@@ -172,7 +172,7 @@ public class EditorActionConverter : IEditorActionConverter
                     {
                         Type = EventType.Click,
                         Button = hScrollButton,
-                        DelayMs = i is 0 ? action.DelayMs : 0,
+                        DelayMicroseconds = i is 0 ? action.DelayMicroseconds : 0,
                     });
                 }
                 break;
@@ -192,13 +192,13 @@ public class EditorActionConverter : IEditorActionConverter
                     if (c == '\r' && index + 1 < action.Text.Length && action.Text[index + 1] == '\n')
                     {
                         index++;
-                        AddKeyStroke(events, InputEventCode.KEY_ENTER, ref isFirst, action.DelayMs);
+                        AddKeyStroke(events, InputEventCode.KEY_ENTER, ref isFirst, action.DelayMicroseconds);
                         continue;
                     }
 
                     if (TryGetTextInputControlKeyCode(c, out var controlKeyCode))
                     {
-                        AddKeyStroke(events, controlKeyCode, ref isFirst, action.DelayMs);
+                        AddKeyStroke(events, controlKeyCode, ref isFirst, action.DelayMicroseconds);
                         continue;
                     }
 
@@ -210,7 +210,7 @@ public class EditorActionConverter : IEditorActionConverter
 
                     var needsShift = _keyCodeMapper.RequiresShift(c);
                     var needsAltGr = _keyCodeMapper.RequiresAltGr(c);
-                    AddKeyStroke(events, keyCode, ref isFirst, action.DelayMs, needsShift, needsAltGr);
+                    AddKeyStroke(events, keyCode, ref isFirst, action.DelayMicroseconds, needsShift, needsAltGr);
                 }
                 break;
 
@@ -253,7 +253,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         var firstEvent = events[0];
-        firstEvent.DelayMs = 0;
+        firstEvent.DelayMicroseconds = 0;
         firstEvent.HasRandomDelay = true;
         firstEvent.RandomDelayMinMs = action.RandomDelayMinMs;
         firstEvent.RandomDelayMaxMs = action.RandomDelayMaxMs;
@@ -284,7 +284,7 @@ public class EditorActionConverter : IEditorActionConverter
         List<MacroEvent> events,
         int keyCode,
         ref bool isFirst,
-        int initialDelayMs,
+        long initialDelayMicroseconds,
         bool needsShift = false,
         bool needsAltGr = false)
     {
@@ -294,7 +294,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EventType.KeyPress,
                 KeyCode = InputEventCode.KEY_LEFTSHIFT,
-                DelayMs = 0,
+                DelayMicroseconds = 0,
             });
         }
 
@@ -304,7 +304,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EventType.KeyPress,
                 KeyCode = InputEventCode.KEY_RIGHTALT,
-                DelayMs = 0,
+                DelayMicroseconds = 0,
             });
         }
 
@@ -312,13 +312,13 @@ public class EditorActionConverter : IEditorActionConverter
         {
             Type = EventType.KeyPress,
             KeyCode = keyCode,
-            DelayMs = isFirst ? initialDelayMs : DefaultKeyPressDelayMs,
+            DelayMicroseconds = isFirst ? initialDelayMicroseconds : DefaultKeyPressDelayMicroseconds,
         });
         events.Add(new MacroEvent
         {
             Type = EventType.KeyRelease,
             KeyCode = keyCode,
-            DelayMs = 0,
+            DelayMicroseconds = 0,
         });
 
         if (needsAltGr)
@@ -327,7 +327,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EventType.KeyRelease,
                 KeyCode = InputEventCode.KEY_RIGHTALT,
-                DelayMs = 0,
+                DelayMicroseconds = 0,
             });
         }
 
@@ -337,7 +337,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EventType.KeyRelease,
                 KeyCode = InputEventCode.KEY_LEFTSHIFT,
-                DelayMs = 0,
+                DelayMicroseconds = 0,
             });
         }
 
@@ -385,7 +385,7 @@ public class EditorActionConverter : IEditorActionConverter
     {
         var action = new EditorAction
         {
-            DelayMs = ev.DelayMs,
+            DelayMicroseconds = ev.DelayMicroseconds,
             UseRandomDelay = ev.HasRandomDelay,
             RandomDelayMinMs = ev.RandomDelayMinMs,
             RandomDelayMaxMs = ev.RandomDelayMaxMs,
@@ -532,8 +532,8 @@ public class EditorActionConverter : IEditorActionConverter
             CreatedAt = DateTime.UtcNow,
         };
 
-        long timestamp = 0;
-        int pendingDelay = 0;
+        long timestampMicroseconds = 0;
+        long pendingDelayMicroseconds = 0;
         bool hasPendingRandomDelay = false;
         int pendingRandomDelayMinMs = 0;
         int pendingRandomDelayMaxMs = 0;
@@ -549,7 +549,7 @@ public class EditorActionConverter : IEditorActionConverter
                 // Skip None type events but accumulate their delay
                 if (ev.Type is EventType.None)
                 {
-                    pendingDelay += ev.DelayMs;
+                    pendingDelayMicroseconds += ev.DelayMicroseconds;
                     if (ev.HasRandomDelay)
                     {
                         hasPendingRandomDelay = true;
@@ -560,21 +560,21 @@ public class EditorActionConverter : IEditorActionConverter
                 }
 
                 var eventToAdd = ev;
-                eventToAdd.DelayMs += pendingDelay;
+                eventToAdd.DelayMicroseconds += pendingDelayMicroseconds;
                 if (hasPendingRandomDelay)
                 {
                     eventToAdd.HasRandomDelay = true;
                     eventToAdd.RandomDelayMinMs += pendingRandomDelayMinMs;
                     eventToAdd.RandomDelayMaxMs += pendingRandomDelayMaxMs;
                 }
-                eventToAdd.Timestamp = timestamp;
+                eventToAdd.TimestampMicroseconds = timestampMicroseconds;
 
-                timestamp += eventToAdd.DelayMs;
+                timestampMicroseconds += eventToAdd.DelayMicroseconds;
                 if (eventToAdd.HasRandomDelay)
                 {
-                    timestamp += eventToAdd.RandomDelayMinMs;
+                    timestampMicroseconds += (long)eventToAdd.RandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond;
                 }
-                pendingDelay = 0;
+                pendingDelayMicroseconds = 0;
                 hasPendingRandomDelay = false;
                 pendingRandomDelayMinMs = 0;
                 pendingRandomDelayMaxMs = 0;
@@ -593,9 +593,9 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         // Preserve trailing delay for looped macros
-        if (pendingDelay > 0 || hasPendingRandomDelay)
+        if (pendingDelayMicroseconds > 0 || hasPendingRandomDelay)
         {
-            sequence.TrailingDelayMs = pendingDelay;
+            sequence.TrailingDelayMicroseconds = pendingDelayMicroseconds;
             sequence.HasTrailingRandomDelay = hasPendingRandomDelay;
             sequence.TrailingDelayMinMs = pendingRandomDelayMinMs;
             sequence.TrailingDelayMaxMs = pendingRandomDelayMaxMs;
@@ -636,10 +636,10 @@ public class EditorActionConverter : IEditorActionConverter
             .Where(step => !string.IsNullOrWhiteSpace(step))
             .ToList());
 
-        if (sequence.Events.Count > 0 && (compileResult.InitialDelayMs > 0 || compileResult.InitialHasRandomDelay))
+        if (sequence.Events.Count > 0 && (compileResult.InitialDelayMicroseconds > 0 || compileResult.InitialHasRandomDelay))
         {
             var firstEvent = sequence.Events[0];
-            firstEvent.DelayMs += compileResult.InitialDelayMs;
+            firstEvent.DelayMicroseconds += compileResult.InitialDelayMicroseconds;
             if (compileResult.InitialHasRandomDelay)
             {
                 firstEvent.HasRandomDelay = true;
@@ -659,15 +659,15 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static void RecalculateTimestamps(MacroSequence sequence)
     {
-        long timestamp = 0;
+        long timestampMicroseconds = 0;
         for (var i = 0; i < sequence.Events.Count; i++)
         {
             var ev = sequence.Events[i];
-            ev.Timestamp = timestamp;
-            timestamp += ev.DelayMs;
+            ev.TimestampMicroseconds = timestampMicroseconds;
+            timestampMicroseconds += ev.DelayMicroseconds;
             if (ev.HasRandomDelay)
             {
-                timestamp += ev.RandomDelayMinMs;
+                timestampMicroseconds += (long)ev.RandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond;
             }
 
             sequence.Events[i] = ev;
@@ -698,9 +698,9 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     delayStep = $"delay random {action.RandomDelayMinMs.ToString(CultureInfo.InvariantCulture)} {action.RandomDelayMaxMs.ToString(CultureInfo.InvariantCulture)}";
                 }
-                else if (action.DelayMs > 0)
+                else if (action.DelayMicroseconds > 0)
                 {
-                    delayStep = $"delay {action.DelayMs.ToString(CultureInfo.InvariantCulture)}";
+                    delayStep = $"delay {MacroTiming.FormatScriptDuration(action.DelayMicroseconds)}";
                 }
 
                 if (delayStep is not null)
@@ -776,7 +776,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.Delay:
                 yield return action.UseRandomDelay
                     ? $"delay random {action.RandomDelayMinMs.ToString(CultureInfo.InvariantCulture)} {action.RandomDelayMaxMs.ToString(CultureInfo.InvariantCulture)}"
-                    : $"delay {action.DelayMs.ToString(CultureInfo.InvariantCulture)}";
+                    : $"delay {MacroTiming.FormatScriptDuration(action.DelayMicroseconds)}";
                 yield break;
 
             case EditorActionType.ScrollVertical:
@@ -1379,7 +1379,7 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 AppendDelayActions(
                     actions,
-                    ev.DelayMs,
+                    ev.DelayMicroseconds,
                     ev.HasRandomDelay,
                     ev.RandomDelayMinMs,
                     ev.RandomDelayMaxMs);
@@ -1437,7 +1437,7 @@ public class EditorActionConverter : IEditorActionConverter
 
             if (action.Type is EditorActionType.Delay)
             {
-                if (action.DelayMs > 0 || action.UseRandomDelay)
+                if (action.DelayMicroseconds > 0 || action.UseRandomDelay)
                 {
                     actions.Add(action);
                 }
@@ -1446,11 +1446,11 @@ public class EditorActionConverter : IEditorActionConverter
 
             AppendDelayActions(
                 actions,
-                action.DelayMs,
+                action.DelayMicroseconds,
                 action.UseRandomDelay,
                 action.RandomDelayMinMs,
                 action.RandomDelayMaxMs);
-            action.DelayMs = 0;
+            action.DelayMicroseconds = 0;
             action.UseRandomDelay = false;
             action.RandomDelayMinMs = 0;
             action.RandomDelayMaxMs = 0;
@@ -1460,7 +1460,7 @@ public class EditorActionConverter : IEditorActionConverter
         // Add trailing delay as Delay action(s) if present.
         AppendDelayActions(
             actions,
-            sequence.TrailingDelayMs,
+            sequence.TrailingDelayMicroseconds,
             sequence.HasTrailingRandomDelay,
             sequence.TrailingDelayMinMs,
             sequence.TrailingDelayMaxMs);
@@ -1538,7 +1538,7 @@ public class EditorActionConverter : IEditorActionConverter
             var ev = events[startEventIndex + offset];
             if (offset is 0)
             {
-                ev.DelayMs = 0;
+                ev.DelayMicroseconds = 0;
                 ev.HasRandomDelay = false;
                 ev.RandomDelayMinMs = 0;
                 ev.RandomDelayMaxMs = 0;
@@ -1668,7 +1668,7 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     Type = EditorActionType.Delay,
                     UseRandomDelay = useRandomDelay,
-                    DelayMs = useRandomDelay ? 0 : fixedDelay,
+                DelayMicroseconds = useRandomDelay ? 0 : fixedDelay,
                     RandomDelayMinMs = useRandomDelay ? randomMin : 0,
                     RandomDelayMaxMs = useRandomDelay ? randomMax : 0,
                 });
@@ -2061,12 +2061,12 @@ public class EditorActionConverter : IEditorActionConverter
     private static bool TryParseDelayStep(
         string step,
         out bool useRandomDelay,
-        out int fixedDelayMs,
+        out long fixedDelayMicroseconds,
         out int randomMinDelayMs,
         out int randomMaxDelayMs)
     {
         useRandomDelay = false;
-        fixedDelayMs = 0;
+        fixedDelayMicroseconds = 0;
         randomMinDelayMs = 0;
         randomMaxDelayMs = 0;
 
@@ -2078,7 +2078,7 @@ public class EditorActionConverter : IEditorActionConverter
 
         if (tokens.Length is 2)
         {
-            return int.TryParse(tokens[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out fixedDelayMs);
+            return MacroTiming.TryParseDurationMicroseconds(tokens[1], out fixedDelayMicroseconds);
         }
 
         if (tokens.Length is 4 && tokens[1].Equals("random", StringComparison.OrdinalIgnoreCase))
@@ -3656,17 +3656,17 @@ public class EditorActionConverter : IEditorActionConverter
 
     private static void AppendDelayActions(
         List<EditorAction> actions,
-        int fixedDelayMs,
+        long fixedDelayMicroseconds,
         bool hasRandomDelay,
         int randomDelayMinMs,
         int randomDelayMaxMs)
     {
-        if (fixedDelayMs > 0)
+        if (fixedDelayMicroseconds > 0)
         {
             actions.Add(new EditorAction
             {
                 Type = EditorActionType.Delay,
-                DelayMs = fixedDelayMs,
+                DelayMicroseconds = fixedDelayMicroseconds,
                 UseRandomDelay = false,
             });
         }

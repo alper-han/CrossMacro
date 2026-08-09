@@ -136,6 +136,40 @@ public sealed class MacroRecorderTests
     }
 
     [Fact]
+    public async Task StartRecordingAsync_UsesMonotonicSourceTimestampsInsteadOfArrivalTiming()
+    {
+        var recorder = CreateRecorder();
+        _ = _processor.Process(Arg.Any<CapturedInputEvent>(), Arg.Any<long>())
+            .Returns(new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 });
+
+        await recorder.StartRecordingAsync(recordMouse: false, recordKeyboard: true);
+        _capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
+            this,
+            new CapturedInputEventArgs
+            {
+                Type = InputEventType.Key,
+                Code = 30,
+                Value = 1,
+                TimestampMicroseconds = 1_000_000,
+            });
+        _capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
+            this,
+            new CapturedInputEventArgs
+            {
+                Type = InputEventType.Key,
+                Code = 30,
+                Value = 0,
+                TimestampMicroseconds = 1_002_375,
+            });
+
+        var sequence = recorder.StopRecording();
+
+        _ = sequence.Events.Should().HaveCount(2);
+        _ = sequence.Events[1].TimestampMicroseconds.Should().Be(sequence.Events[0].TimestampMicroseconds + 2_375);
+        _ = sequence.Events[1].DelayMicroseconds.Should().Be(2_375);
+    }
+
+    [Fact]
     public async Task StartRecordingAsync_AbsoluteCoordinates_ClampsRecordedCoordinatesToDesktopBounds()
     {
         var positionProvider = Substitute.For<IMousePositionProvider>();

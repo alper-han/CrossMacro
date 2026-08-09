@@ -10,6 +10,7 @@ internal static class MacroFileLimits
     internal const int MaxMacroFileLines = 100_000;
     internal const int MaxMacroScriptSteps = 10_000;
     internal const int MaxMacroEvents = 1_000_000;
+    internal const string TrailingDelayMicrosecondsHeader = "# TrailingDelayUs: ";
     internal const string TrailingDelayHeader = "# TrailingDelayMs: ";
     internal const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
     internal const string TextInputBoundaryHeader = "# TextInputBoundaryBase64: ";

@@ -23,6 +23,58 @@ public sealed class MacroEventTests
         _ = ev.CoordinateMode.Should().BeNull();
     }
 
+    [Fact]
+    public void Timing_UsesMicrosecondsAsTheSingleMutableSourceOfTruth()
+    {
+        var ev = new MacroEvent
+        {
+            TimestampMicroseconds = 12_345,
+            DelayMicroseconds = 678,
+        };
+
+        _ = ev.Timestamp.Should().Be(12);
+        _ = ev.DelayMs.Should().Be(0);
+
+        ev.DelayMs = 7;
+        ev.Timestamp = 19;
+
+        _ = ev.DelayMicroseconds.Should().Be(7_000);
+        _ = ev.TimestampMicroseconds.Should().Be(19_000);
+    }
+
+    [Theory]
+    [InlineData("20", 20_000)]
+    [InlineData("2.375ms", 2_375)]
+    [InlineData("250us", 250)]
+    [InlineData("250µs", 250)]
+    public void MacroTiming_ParsesUserDurationsWithoutLosingMicroseconds(string input, long expectedMicroseconds)
+    {
+        _ = MacroTiming.TryParseDurationMicroseconds(input, out var actual).Should().BeTrue();
+        _ = actual.Should().Be(expectedMicroseconds);
+    }
+
+    [Fact]
+    public void MacroTiming_FormatsSubMillisecondDurationForEditorAndScriptRoundTrip()
+    {
+        _ = MacroTiming.FormatDuration(2_375).Should().Be("2.375ms");
+        _ = MacroTiming.FormatDuration(250).Should().Be("250us");
+        _ = MacroTiming.FormatScriptDuration(2_375).Should().Be("2.375ms");
+        _ = MacroTiming.FormatScriptDuration(2_000).Should().Be("2");
+    }
+
+    [Fact]
+    public void MacroTiming_RejectsMillisecondsThatOverflowMicrosecondTimeline()
+    {
+        bool parsed = true;
+
+        var action = () => parsed = MacroTiming.TryParseDurationMicroseconds(
+            "9223372036854776ms",
+            out _);
+
+        _ = action.Should().NotThrow();
+        _ = parsed.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData(EventType.ButtonPress)]
     [InlineData(EventType.ButtonRelease)]

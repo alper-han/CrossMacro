@@ -7,8 +7,8 @@ public class PersistedMacroEvent
     public int X { get; init; }
     public int Y { get; init; }
     public MacroMouseButton Button { get; init; }
-    public long Timestamp { get; init; }
-    public int DelayMs { get; init; }
+    public long TimestampMicroseconds { get; init; }
+    public long DelayMicroseconds { get; init; }
     public bool HasRandomDelay { get; init; }
     public int RandomDelayMinMs { get; init; }
     public int RandomDelayMaxMs { get; init; }
@@ -23,8 +23,8 @@ public class PersistedMacroEvent
         X = ev.X,
         Y = ev.Y,
         Button = ev.Button,
-        Timestamp = ev.Timestamp,
-        DelayMs = ev.DelayMs,
+        TimestampMicroseconds = ev.TimestampMicroseconds,
+        DelayMicroseconds = ev.DelayMicroseconds,
         HasRandomDelay = ev.HasRandomDelay,
         RandomDelayMinMs = ev.RandomDelayMinMs,
         RandomDelayMaxMs = ev.RandomDelayMaxMs,
@@ -40,8 +40,8 @@ public class PersistedMacroEvent
         X = X,
         Y = Y,
         Button = Button,
-        Timestamp = Timestamp,
-        DelayMs = DelayMs,
+        TimestampMicroseconds = TimestampMicroseconds,
+        DelayMicroseconds = DelayMicroseconds,
         HasRandomDelay = HasRandomDelay,
         RandomDelayMinMs = RandomDelayMinMs,
         RandomDelayMaxMs = RandomDelayMaxMs,

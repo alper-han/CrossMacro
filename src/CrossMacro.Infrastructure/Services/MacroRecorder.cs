@@ -16,6 +16,9 @@ public sealed class MacroRecorder(
     private IInputCapture? _inputCapture;
     private readonly Lock _eventLock = new();
     private bool _isRecording;
+    private long? _captureTimestampSourceEpochMicroseconds;
+    private long _timelineTimestampAtCaptureEpochMicroseconds;
+    private long _lastTimelineTimestampMicroseconds;
 
     private readonly Func<IInputCapture>? _inputCaptureFactory = inputCaptureFactory;
     private readonly ICoordinateStrategyFactory _coordinateStrategyFactory = coordinateStrategyFactory;
@@ -64,6 +67,9 @@ public sealed class MacroRecorder(
             };
             _recordingDesktopBounds = null;
             _stopwatch = Stopwatch.StartNew();
+            _captureTimestampSourceEpochMicroseconds = null;
+            _timelineTimestampAtCaptureEpochMicroseconds = 0;
+            _lastTimelineTimestampMicroseconds = 0;
         }
 
         try
@@ -179,11 +185,15 @@ public sealed class MacroRecorder(
 
             try
             {
-                var macroEvent = _currentProcessor.Process(e.Event, _stopwatch.ElapsedMilliseconds);
+                long timestampMicroseconds = ResolveCaptureTimestampMicroseconds(e.Event, _stopwatch);
+                var macroEvent = _currentProcessor.Process(
+                    e.Event,
+                    MacroTiming.ToLegacyTimestampMilliseconds(timestampMicroseconds));
 
-                if (macroEvent is not null)
+                if (macroEvent is { } currentEvent)
                 {
-                    recordedEvent = AddMacroEvent(macroEvent.Value);
+                    currentEvent.TimestampMicroseconds = timestampMicroseconds;
+                    recordedEvent = AddMacroEvent(currentEvent);
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -210,10 +220,15 @@ public sealed class MacroRecorder(
 
             try
             {
-                var macroEvent = _currentProcessor.ProcessPositionSample(e.Sample, _stopwatch.ElapsedMilliseconds);
-                if (macroEvent is not null)
+                long timestampMicroseconds = EnsureMonotonicTimelineTimestamp(GetElapsedMicroseconds(_stopwatch));
+                var macroEvent = _currentProcessor.ProcessPositionSample(
+                    e.Sample,
+                    MacroTiming.ToLegacyTimestampMilliseconds(timestampMicroseconds),
+                    e.CoordinateSpace);
+                if (macroEvent is { } currentEvent)
                 {
-                    recordedEvent = AddMacroEvent(macroEvent.Value);
+                    currentEvent.TimestampMicroseconds = timestampMicroseconds;
+                    recordedEvent = AddMacroEvent(currentEvent);
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -240,18 +255,21 @@ public sealed class MacroRecorder(
         if (_currentSequence.Events.Count > 0)
         {
             var lastEvent = _currentSequence.Events[^1];
-            macroEvent.DelayMs = (int)(macroEvent.Timestamp - lastEvent.Timestamp);
+            long delayMicroseconds = Math.Max(
+                0,
+                macroEvent.TimestampMicroseconds - lastEvent.TimestampMicroseconds);
+            macroEvent.DelayMicroseconds = delayMicroseconds;
         }
         else
         {
-            macroEvent.DelayMs = 0;
+            macroEvent.DelayMicroseconds = 0;
         }
 
         _currentSequence.Events.Add(macroEvent);
 
-        Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}ms",
+        Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}us",
             _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
-            macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMs);
+            macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMicroseconds);
 
         return macroEvent;
     }
@@ -281,6 +299,43 @@ public sealed class MacroRecorder(
         macroEvent.X = normalized.X;
         macroEvent.Y = normalized.Y;
         return macroEvent;
+    }
+
+    private static long GetElapsedMicroseconds(Stopwatch stopwatch) =>
+        stopwatch.Elapsed.Ticks / (TimeSpan.TicksPerMillisecond / MacroTiming.MicrosecondsPerMillisecond);
+
+    private long ResolveCaptureTimestampMicroseconds(CapturedInputEvent inputEvent, Stopwatch stopwatch)
+    {
+        var arrivalTimestampMicroseconds = GetElapsedMicroseconds(stopwatch);
+        if (inputEvent.TimestampMicroseconds <= 0)
+        {
+            return EnsureMonotonicTimelineTimestamp(arrivalTimestampMicroseconds);
+        }
+
+        if (_captureTimestampSourceEpochMicroseconds is null)
+        {
+            _captureTimestampSourceEpochMicroseconds = inputEvent.TimestampMicroseconds;
+            _timelineTimestampAtCaptureEpochMicroseconds = arrivalTimestampMicroseconds;
+        }
+
+        var sourceDeltaMicroseconds = inputEvent.TimestampMicroseconds - _captureTimestampSourceEpochMicroseconds.Value;
+        if (sourceDeltaMicroseconds < 0)
+        {
+            Log.Warning(
+                "[MacroRecorder] Capture timestamp regressed by {Delta}us; using arrival clock for this event.",
+                sourceDeltaMicroseconds);
+            return EnsureMonotonicTimelineTimestamp(arrivalTimestampMicroseconds);
+        }
+
+        return EnsureMonotonicTimelineTimestamp(checked(
+            _timelineTimestampAtCaptureEpochMicroseconds + sourceDeltaMicroseconds));
+    }
+
+    private long EnsureMonotonicTimelineTimestamp(long timestampMicroseconds)
+    {
+        var normalized = Math.Max(_lastTimelineTimestampMicroseconds, timestampMicroseconds);
+        _lastTimelineTimestampMicroseconds = normalized;
+        return normalized;
     }
 
     private void PublishRecordedEvent(MacroEvent macroEvent)

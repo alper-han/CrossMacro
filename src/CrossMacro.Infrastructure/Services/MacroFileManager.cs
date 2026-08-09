@@ -75,9 +75,9 @@ public class MacroFileManager(
                     await writer.WriteLineAsync($"# DurationMs: {macro.TotalDurationMs.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
                     await writer.WriteLineAsync($"# IsAbsolute: {macro.IsAbsoluteCoordinates}").ConfigureAwait(false);
                     await writer.WriteLineAsync($"# SkipInitialZero: {macro.SkipInitialZeroZero}").ConfigureAwait(false);
-                    if (macro.TrailingDelayMs > 0)
+                    if (macro.TrailingDelayMicroseconds > 0)
                     {
-                        await writer.WriteLineAsync($"{TrailingDelayHeader}{macro.TrailingDelayMs.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                        await writer.WriteLineAsync($"{TrailingDelayMicrosecondsHeader}{macro.TrailingDelayMicroseconds.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
                     }
                     if (macro.HasTrailingRandomDelay)
                     {
@@ -109,9 +109,9 @@ public class MacroFileManager(
                     await writer.WriteLineAsync(EventsSectionHeader).ConfigureAwait(false);
                     foreach (var ev in macro.Events)
                     {
-                        if (ev.DelayMs > 0)
+                        if (ev.DelayMicroseconds > 0)
                         {
-                            await writer.WriteLineAsync($"W,{ev.DelayMs.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                            await writer.WriteLineAsync($"WU,{ev.DelayMicroseconds.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
                         }
                         if (ev.HasRandomDelay)
                         {
@@ -267,7 +267,7 @@ public class MacroFileManager(
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 65536);
         var lineReader = new BoundedLineReader(reader, MaxMacroLineChars);
 
-        int currentDelay = 0;
+        long currentDelayMicroseconds = 0;
         bool currentHasRandomDelay = false;
         int currentRandomDelayMinMs = 0;
         int currentRandomDelayMaxMs = 0;
@@ -276,6 +276,14 @@ public class MacroFileManager(
         var totalEncodedImageChars = 0L;
         var lineNumber = 0;
         var scriptStepCount = 0;
+
+        void ResetPendingEventTiming()
+        {
+            currentDelayMicroseconds = 0;
+            currentHasRandomDelay = false;
+            currentRandomDelayMinMs = 0;
+            currentRandomDelayMaxMs = 0;
+        }
 
         void CommitPendingScriptStep()
         {
@@ -373,6 +381,12 @@ public class MacroFileManager(
                 {
                     macro.SkipInitialZeroZero = skipZero;
                 }
+                else if (line.StartsWith(TrailingDelayMicrosecondsHeader, StringComparison.Ordinal)
+                                    && long.TryParse(line.Substring(TrailingDelayMicrosecondsHeader.Length).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingDelayMicroseconds)
+                                    && trailingDelayMicroseconds >= 0)
+                {
+                    macro.TrailingDelayMicroseconds = trailingDelayMicroseconds;
+                }
                 else if (line.StartsWith(TrailingDelayHeader, StringComparison.Ordinal)
                                     && int.TryParse(line.Substring(TrailingDelayHeader.Length).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingDelay))
                 {
@@ -438,7 +452,17 @@ public class MacroFileManager(
             {
                 if (int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int delay))
                 {
-                    currentDelay += delay;
+                    currentDelayMicroseconds = checked(
+                        currentDelayMicroseconds + ((long)delay * MacroTiming.MicrosecondsPerMillisecond));
+                }
+                continue;
+            }
+            if ((type is "WU" or "WAITUS" or "WAITMICROSECONDS") && parts.Length >= 2)
+            {
+                if (long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long delayMicroseconds)
+                    && delayMicroseconds >= 0)
+                {
+                    currentDelayMicroseconds = checked(currentDelayMicroseconds + delayMicroseconds);
                 }
                 continue;
             }
@@ -457,7 +481,7 @@ public class MacroFileManager(
             {
                 var ev = new MacroEvent
                 {
-                    DelayMs = currentDelay,
+                    DelayMicroseconds = currentDelayMicroseconds,
                     HasRandomDelay = currentHasRandomDelay,
                     RandomDelayMinMs = currentRandomDelayMinMs,
                     RandomDelayMaxMs = currentRandomDelayMaxMs,
@@ -552,42 +576,34 @@ public class MacroFileManager(
                         throw new InvalidDataException($"Macro events exceed the maximum of {MaxMacroEvents} events at line {lineNumber.ToString(CultureInfo.InvariantCulture)}.");
                     }
 
-                    // Reconstruct timestamp
                     if (macro.Events.Count > 0)
                     {
-                        ev.Timestamp = macro.Events[^1].Timestamp + ev.DelayMs;
-                        if (ev.HasRandomDelay)
-                        {
-                            ev.Timestamp += ev.RandomDelayMinMs;
-                        }
+                        var lastEvent = macro.Events[^1];
+                        ev.TimestampMicroseconds = checked(
+                            lastEvent.TimestampMicroseconds
+                            + ev.DelayMicroseconds
+                            + (ev.HasRandomDelay
+                                ? (long)ev.RandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond
+                                : 0));
                     }
                     else
                     {
-                        ev.Timestamp = 0;
+                        ev.TimestampMicroseconds = 0;
                     }
 
                     macro.Events.Add(ev);
-                    currentDelay = 0; // Reset delay after consuming it
-                    currentHasRandomDelay = false;
-                    currentRandomDelayMinMs = 0;
-                    currentRandomDelayMaxMs = 0;
+                    ResetPendingEventTiming();
                 }
                 else
                 {
                     Log.Warning("Ignoring unsupported or malformed event line: {Line}", line);
-                    currentDelay = 0;
-                    currentHasRandomDelay = false;
-                    currentRandomDelayMinMs = 0;
-                    currentRandomDelayMaxMs = 0;
+                    ResetPendingEventTiming();
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "Error parsing line: {Line}", line);
-                currentDelay = 0;
-                currentHasRandomDelay = false;
-                currentRandomDelayMinMs = 0;
-                currentRandomDelayMaxMs = 0;
+                ResetPendingEventTiming();
             }
         }
 

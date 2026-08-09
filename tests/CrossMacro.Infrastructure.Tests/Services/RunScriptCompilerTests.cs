@@ -40,6 +40,20 @@ public sealed class RunScriptCompilerTests
     }
 
     [Fact]
+    public void Compile_WhenDelayUsesFractionalMilliseconds_PreservesExactTimelineAndTrailingDelay()
+    {
+        var result = _compiler.Compile(
+        [
+            new RunScriptStep("move abs 10 20"),
+            new RunScriptStep("delay 2.375ms"),
+        ]);
+
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence!.TrailingDelayMicroseconds.Should().Be(2_375);
+        _ = result.Sequence.Events.Should().ContainSingle();
+    }
+
+    [Fact]
     public void Compile_WhenAbsoluteAndRelativeMovesAreMixed_EmitsPerEventCoordinateModes()
     {
         var result = _compiler.Compile(
@@ -201,7 +215,7 @@ public sealed class RunScriptCompilerTests
         var result = _compiler.Compile([new RunScriptStep("delay nope")]);
 
         _ = result.Success.Should().BeFalse();
-        _ = result.ErrorMessage.Should().Be("Step 1: Invalid delay value. Expected: delay <ms> with ms >= 0.");
+        _ = result.ErrorMessage.Should().Be("Step 1: Invalid delay value. Expected: delay <ms|us> with a non-negative duration.");
         _ = result.ErrorMessage.Should().NotContain("Parameter 'step'");
     }
 
@@ -217,7 +231,7 @@ public sealed class RunScriptCompilerTests
     }
 
     [Theory]
-    [InlineData("delay nope", "Step 1: Invalid delay value. Expected: delay <ms> with ms >= 0.")]
+    [InlineData("delay nope", "Step 1: Invalid delay value. Expected: delay <ms|us> with a non-negative duration.")]
     [InlineData("move sideways 1 2", "Step 1: Invalid move mode. Expected: abs|absolute|rel|relative|rel-logical|rel-raw.")]
     [InlineData("click invalid", "Step 1: Unknown mouse button 'invalid'.")]
     [InlineData("key press Enter", "Step 1: Invalid key action. Expected: key down <key> | key up <key>.")]

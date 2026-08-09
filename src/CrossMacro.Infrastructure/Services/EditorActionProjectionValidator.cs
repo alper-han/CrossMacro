@@ -134,17 +134,17 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             return (true, null);
         }
 
-        if (action.DelayMs < 0)
+        if (action.DelayMicroseconds < 0)
         {
             return (false, ValidationMessages.DelayMustBeNonNegative);
         }
 
-        if (action.DelayMs is 0)
+        if (action.DelayMicroseconds is 0)
         {
             return (false, ValidationMessages.DelayMustBePositive);
         }
 
-        if (action.DelayMs > EditorActionValidationLimits.MaxDelayMs)
+        if (action.DelayMicroseconds > (long)EditorActionValidationLimits.MaxDelayMs * MacroTiming.MicrosecondsPerMillisecond)
         {
             return (false, ValidationMessages.DelayTooLong);
         }

@@ -12,7 +12,8 @@ public sealed class RunScriptCompileResult
 
     public bool Success { get; private init; }
     public MacroSequence? Sequence { get; private init; }
-    public int InitialDelayMs { get; private init; }
+    public long InitialDelayMicroseconds { get; private init; }
+    public int InitialDelayMs => MacroTiming.ToLegacyMilliseconds(InitialDelayMicroseconds);
     public bool InitialHasRandomDelay { get; private init; }
     public int InitialRandomDelayMinMs { get; private init; }
     public int InitialRandomDelayMaxMs { get; private init; }
@@ -20,7 +21,7 @@ public sealed class RunScriptCompileResult
 
     public static RunScriptCompileResult Ok(
         MacroSequence sequence,
-        int initialDelayMs,
+        long initialDelayMicroseconds,
         bool initialHasRandomDelay = false,
         int initialRandomDelayMinMs = 0,
         int initialRandomDelayMaxMs = 0)
@@ -29,7 +30,7 @@ public sealed class RunScriptCompileResult
         {
             Success = true,
             Sequence = sequence,
-            InitialDelayMs = initialDelayMs,
+            InitialDelayMicroseconds = initialDelayMicroseconds,
             InitialHasRandomDelay = initialHasRandomDelay,
             InitialRandomDelayMinMs = initialRandomDelayMinMs,
             InitialRandomDelayMaxMs = initialRandomDelayMaxMs,

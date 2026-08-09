@@ -46,7 +46,7 @@ internal static class EditorActionValidationPolicy
                 action.RandomDelayMinMs >= 0
                 && action.RandomDelayMaxMs >= action.RandomDelayMinMs
                 && !(action.RandomDelayMinMs is 0 && action.RandomDelayMaxMs is 0),
-            EditorActionType.Delay => action.DelayMs >= 0,
+            EditorActionType.Delay => action.DelayMicroseconds >= 0,
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => action.KeyCode > 0,
             EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => action.ScrollAmount is not 0,
             EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp when action.UseCurrentPosition => !action.IsAbsolute,

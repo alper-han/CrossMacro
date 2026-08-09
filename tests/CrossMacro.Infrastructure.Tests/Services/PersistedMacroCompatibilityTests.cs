@@ -6,9 +6,9 @@ public sealed class PersistedMacroCompatibilityTests
     [Fact]
     public void CanonicalSchema_UsesCurrentVersionAndFormat()
     {
-        _ = PersistedMacroDocument.CurrentSchemaVersion.Should().Be(3);
-        _ = PersistedMacroDocument.CurrentFormat.Should().Be("CrossMacroFormatV3");
-        _ = new PersistedMacroDocument().Format.Should().Be("CrossMacroFormatV3");
+        _ = PersistedMacroDocument.CurrentSchemaVersion.Should().Be(4);
+        _ = PersistedMacroDocument.CurrentFormat.Should().Be("CrossMacroFormatV4");
+        _ = new PersistedMacroDocument().Format.Should().Be("CrossMacroFormatV4");
     }
 
     [Fact]

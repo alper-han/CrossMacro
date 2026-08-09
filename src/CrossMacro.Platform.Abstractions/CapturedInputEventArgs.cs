@@ -13,6 +13,9 @@ public sealed class CapturedInputEventArgs : EventArgs
 
     public long Timestamp { get; init; }
 
+    /// <summary>Optional monotonic capture timestamp in microseconds.</summary>
+    public long TimestampMicroseconds { get; init; }
+
     public string? DeviceName { get; init; }
 
     public CapturedInputEvent Event => new()
@@ -21,6 +24,7 @@ public sealed class CapturedInputEventArgs : EventArgs
         Code = Code,
         Value = Value,
         Timestamp = Timestamp,
+        TimestampMicroseconds = TimestampMicroseconds,
         DeviceName = DeviceName,
     };
 
@@ -34,6 +38,7 @@ public sealed class CapturedInputEventArgs : EventArgs
         Code = inputEvent.Code;
         Value = inputEvent.Value;
         Timestamp = inputEvent.Timestamp;
+        TimestampMicroseconds = inputEvent.TimestampMicroseconds;
         DeviceName = inputEvent.DeviceName;
     }
 }

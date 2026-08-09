@@ -7,5 +7,8 @@ public interface IInputEventProcessor
 
     public MacroEvent? Process(CapturedInputEvent args, long timestamp);
 
-    public MacroEvent? ProcessPositionSample(CoordinateSample sample, long timestamp);
+    public MacroEvent? ProcessPositionSample(
+        CoordinateSample sample,
+        long timestamp,
+        CoordinateSampleSpace? coordinateSpace = null);
 }

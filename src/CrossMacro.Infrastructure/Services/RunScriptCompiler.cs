@@ -79,7 +79,7 @@ public sealed class RunScriptCompiler
             .Where(step => !string.IsNullOrWhiteSpace(step))
             .ToList());
 
-        return RunScriptCompileResult.Ok(sequence, initialDelayMs: 0);
+        return RunScriptCompileResult.Ok(sequence, initialDelayMicroseconds: 0);
     }
 
     private RunScriptCompileResult CompileStaticCommand(RunScriptStep step)
@@ -96,12 +96,12 @@ public sealed class RunScriptCompiler
             SkipInitialZeroZero = true,
         };
 
-        var timestampMs = 0L;
-        var pendingFixedDelayMs = 0;
+        var timestampMicroseconds = 0L;
+        long pendingFixedDelayMicroseconds = 0;
         var pendingHasRandomDelay = false;
         var pendingRandomDelayMinMs = 0;
         var pendingRandomDelayMaxMs = 0;
-        var initialFixedDelayMs = 0;
+        long initialFixedDelayMicroseconds = 0;
         var initialHasRandomDelay = false;
         var initialRandomDelayMinMs = 0;
         var initialRandomDelayMaxMs = 0;
@@ -129,7 +129,7 @@ public sealed class RunScriptCompiler
 
             var step = rawStep.Trim();
             var stepForType = rawStep.TrimStart();
-            if (TryParseDelay(step, out var hasRandomDelay, out var fixedDelayMs, out var randomDelayMinMs, out var randomDelayMaxMs, out var delayError))
+            if (TryParseDelay(step, out var hasRandomDelay, out var fixedDelayMicroseconds, out var randomDelayMinMs, out var randomDelayMaxMs, out var delayError))
             {
                 if (delayError is not null)
                 {
@@ -138,7 +138,7 @@ public sealed class RunScriptCompiler
 
                 if (!hasEvents)
                 {
-                    initialFixedDelayMs += fixedDelayMs;
+                    initialFixedDelayMicroseconds += fixedDelayMicroseconds;
                     if (hasRandomDelay)
                     {
                         initialHasRandomDelay = true;
@@ -148,7 +148,7 @@ public sealed class RunScriptCompiler
                 }
                 else
                 {
-                    pendingFixedDelayMs += fixedDelayMs;
+                    pendingFixedDelayMicroseconds += fixedDelayMicroseconds;
                     if (hasRandomDelay)
                     {
                         pendingHasRandomDelay = true;
@@ -300,7 +300,7 @@ public sealed class RunScriptCompiler
         }
 
         sequence.IsAbsoluteCoordinates = MacroPositionSemantics.GetCoordinateModeSummary(sequence) is CoordinateModeSummary.Absolute;
-        sequence.TrailingDelayMs = pendingFixedDelayMs;
+        sequence.TrailingDelayMicroseconds = pendingFixedDelayMicroseconds;
         sequence.HasTrailingRandomDelay = pendingHasRandomDelay;
         sequence.TrailingDelayMinMs = pendingRandomDelayMinMs;
         sequence.TrailingDelayMaxMs = pendingRandomDelayMaxMs;
@@ -310,25 +310,25 @@ public sealed class RunScriptCompiler
 
         return RunScriptCompileResult.Ok(
             sequence,
-            initialFixedDelayMs,
+            initialFixedDelayMicroseconds,
             initialHasRandomDelay,
             initialRandomDelayMinMs,
             initialRandomDelayMaxMs);
 
         void EmitEvent(MacroEvent ev)
         {
-            ev.DelayMs = pendingFixedDelayMs;
+            ev.DelayMicroseconds = pendingFixedDelayMicroseconds;
             ev.HasRandomDelay = pendingHasRandomDelay;
             ev.RandomDelayMinMs = pendingRandomDelayMinMs;
             ev.RandomDelayMaxMs = pendingRandomDelayMaxMs;
-            timestampMs += pendingFixedDelayMs;
+            timestampMicroseconds += pendingFixedDelayMicroseconds;
             if (pendingHasRandomDelay)
             {
-                timestampMs += pendingRandomDelayMinMs;
+                timestampMicroseconds += (long)pendingRandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond;
             }
 
-            ev.Timestamp = timestampMs;
-            pendingFixedDelayMs = 0;
+            ev.TimestampMicroseconds = timestampMicroseconds;
+            pendingFixedDelayMicroseconds = 0;
             pendingHasRandomDelay = false;
             pendingRandomDelayMinMs = 0;
             pendingRandomDelayMaxMs = 0;
@@ -1518,13 +1518,13 @@ public sealed class RunScriptCompiler
     private static bool TryParseDelay(
         string step,
         out bool hasRandomDelay,
-        out int fixedDelayMs,
+        out long fixedDelayMicroseconds,
         out int randomDelayMinMs,
         out int randomDelayMaxMs,
         out string? error)
     {
         hasRandomDelay = false;
-        fixedDelayMs = 0;
+        fixedDelayMicroseconds = 0;
         randomDelayMinMs = 0;
         randomDelayMaxMs = 0;
         error = null;
@@ -1572,9 +1572,9 @@ public sealed class RunScriptCompiler
             return true;
         }
 
-        if (!int.TryParse(payload, NumberStyles.Integer, CultureInfo.InvariantCulture, out fixedDelayMs) || fixedDelayMs < 0)
+        if (!MacroTiming.TryParseDurationMicroseconds(payload, out fixedDelayMicroseconds))
         {
-            error = "Invalid delay value. Expected: delay <ms> with ms >= 0.";
+            error = "Invalid delay value. Expected: delay <ms|us> with a non-negative duration.";
             return true;
         }
 

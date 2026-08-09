@@ -97,7 +97,10 @@ public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
         return null;
     }
 
-    public MacroEvent? ProcessPositionSample(CoordinateSample sample, long timestamp)
+    public MacroEvent? ProcessPositionSample(
+        CoordinateSample sample,
+        long timestamp,
+        CoordinateSampleSpace? coordinateSpace = null)
     {
         if (!_recordMouse || !sample.HasValue)
         {
@@ -127,7 +130,17 @@ public class StandardInputEventProcessor(ICoordinateStrategy coordinateStrategy)
             X = sample.X,
             Y = sample.Y,
             CoordinateMode = _isAbsoluteCoordinates ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
-            CoordinateSpace = _coordinateStrategy.ProducesLogicalCoordinates
+            CoordinateSpace = ResolveCoordinateSpace(coordinateSpace),
+        };
+    }
+
+    private MouseCoordinateSpace ResolveCoordinateSpace(CoordinateSampleSpace? coordinateSpace)
+    {
+        return coordinateSpace switch
+        {
+            CoordinateSampleSpace.LogicalDesktop => MouseCoordinateSpace.LogicalDesktop,
+            CoordinateSampleSpace.RawDevice => MouseCoordinateSpace.RawDevice,
+            _ => _coordinateStrategy.ProducesLogicalCoordinates
                 ? MouseCoordinateSpace.LogicalDesktop
                 : MouseCoordinateSpace.RawDevice,
         };

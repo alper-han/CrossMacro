@@ -2,13 +2,12 @@
 namespace CrossMacro.Infrastructure.Persistence.Macros;
 
 /// <summary>
-/// Persistence-owned snapshot of a macro. The text codec may carry legacy fields
-/// without making them part of the runtime model's ownership contract.
+/// Persistence-owned snapshot of a macro using the current V4 timing contract.
 /// </summary>
 public class PersistedMacroDocument
 {
-    public const int CurrentSchemaVersion = 3;
-    public const string CurrentFormat = "CrossMacroFormatV3";
+    public const int CurrentSchemaVersion = 4;
+    public const string CurrentFormat = "CrossMacroFormatV4";
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public string Format => $"CrossMacroFormatV{SchemaVersion.ToString(CultureInfo.InvariantCulture)}";
@@ -27,6 +26,7 @@ public class PersistedMacroDocument
     public double EventsPerSecond { get; init; }
     public bool IsAbsoluteCoordinates { get; init; }
     public bool SkipInitialZeroZero { get; init; }
+    public long TrailingDelayMicroseconds { get; init; }
     public int TrailingDelayMs { get; init; }
     public bool HasTrailingRandomDelay { get; init; }
     public int TrailingDelayMinMs { get; init; }
@@ -56,6 +56,7 @@ public class PersistedMacroDocument
             EventsPerSecond = macro.EventsPerSecond,
             IsAbsoluteCoordinates = macro.IsAbsoluteCoordinates,
             SkipInitialZeroZero = macro.SkipInitialZeroZero,
+            TrailingDelayMicroseconds = macro.TrailingDelayMicroseconds,
             TrailingDelayMs = macro.TrailingDelayMs,
             HasTrailingRandomDelay = macro.HasTrailingRandomDelay,
             TrailingDelayMinMs = macro.TrailingDelayMinMs,
@@ -78,7 +79,9 @@ public class PersistedMacroDocument
             EventsPerSecond = EventsPerSecond,
             IsAbsoluteCoordinates = IsAbsoluteCoordinates,
             SkipInitialZeroZero = SkipInitialZeroZero,
-            TrailingDelayMs = TrailingDelayMs,
+            TrailingDelayMicroseconds = TrailingDelayMicroseconds > 0
+                ? TrailingDelayMicroseconds
+                : (long)TrailingDelayMs * MacroTiming.MicrosecondsPerMillisecond,
             HasTrailingRandomDelay = HasTrailingRandomDelay,
             TrailingDelayMinMs = TrailingDelayMinMs,
             TrailingDelayMaxMs = TrailingDelayMaxMs,

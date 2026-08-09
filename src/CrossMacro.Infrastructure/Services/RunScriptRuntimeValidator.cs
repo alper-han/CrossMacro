@@ -57,7 +57,7 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             }
         }
 
-        return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+        return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
     }
 
     public static bool ContainsRuntimeBackedNode(IReadOnlyList<RunScriptNode> nodes) => ContainsCommandNode(nodes, IsRuntimeBackedCommand);
@@ -73,52 +73,52 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
         {
             return RunScriptScreenReadingStepParser.TryValidateStep(trimmed, out var screenReadingError) && screenReadingError is not null
                 ? RunScriptCompileResult.Fail($"{source}: {screenReadingError}")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
         if (RunScriptSyntax.IsWindowStep(trimmed))
         {
             var windowError = RunScriptWindowExecutor.Validate(trimmed);
-            return windowError is not null ? RunScriptCompileResult.Fail($"{source}: {windowError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+            return windowError is not null ? RunScriptCompileResult.Fail($"{source}: {windowError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
         if (RunScriptSyntax.IsClipboardStep(trimmed))
         {
             var clipboardError = RunScriptClipboardExecutor.Validate(trimmed);
-            return clipboardError is not null ? RunScriptCompileResult.Fail($"{source}: {clipboardError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+            return clipboardError is not null ? RunScriptCompileResult.Fail($"{source}: {clipboardError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
         if (RunScriptSyntax.IsShellStep(trimmed))
         {
             var shellError = RunScriptShellExecutor.Validate(trimmed);
-            return shellError is not null ? RunScriptCompileResult.Fail($"{source}: {shellError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+            return shellError is not null ? RunScriptCompileResult.Fail($"{source}: {shellError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
         if (RunScriptPlatformSyntax.IsScreenshotStep(trimmed))
         {
             var screenshotError = RunScriptPlatformSyntax.ValidateScreenshotStep(trimmed);
-            return screenshotError is not null ? RunScriptCompileResult.Fail($"{source}: {screenshotError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+            return screenshotError is not null ? RunScriptCompileResult.Fail($"{source}: {screenshotError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
         if (RunScriptSyntax.IsBreakCommand(trimmed) || RunScriptSyntax.IsContinueCommand(trimmed))
         {
             return loopDepth is 0
                 ? RunScriptCompileResult.Fail($"{source}: {trimmed} can only be used inside repeat/while/for blocks.")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
         if (IsRuntimeDelayCommand(trimmed) || IsRuntimeVariableCommand(trimmed))
         {
-            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
         if (IsRuntimeMoveCommand(trimmed))
         {
-            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0);
+            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
         var compileResult = _compileStaticCommand(step);
-        return compileResult.Success ? RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMs: 0) : RunScriptCompileResult.Fail(compileResult.ErrorMessage);
+        return compileResult.Success ? RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0) : RunScriptCompileResult.Fail(compileResult.ErrorMessage);
     }
 
     private static bool IsRuntimeVariableCommand(string step)
@@ -161,7 +161,9 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
 
         if (parts.Length is 2)
         {
-            return !parts[1].Contains("..", StringComparison.Ordinal) && IsRuntimeIntegerToken(parts[1]);
+            return !parts[1].Contains("..", StringComparison.Ordinal)
+                && (IsRuntimeIntegerToken(parts[1])
+                    || MacroTiming.TryParseDurationMicroseconds(parts[1], out _));
         }
 
         if (parts.Length is 3 or 4 && string.Equals(parts[1], "random", StringComparison.OrdinalIgnoreCase))

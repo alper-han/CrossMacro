@@ -7,6 +7,7 @@ public sealed class RunExecutionResult
     public bool Success => Status is RunExecutionStatus.Succeeded;
     public MacroSequence? Sequence { get; init; }
     public int StepCount { get; init; }
+    public long InitialDelayMicroseconds { get; init; }
     public int InitialDelayMs { get; init; }
     public bool InitialHasRandomDelay { get; init; }
     public int InitialRandomDelayMinMs { get; init; }

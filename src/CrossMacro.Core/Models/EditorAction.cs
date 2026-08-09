@@ -18,7 +18,7 @@ public class EditorAction : INotifyPropertyChanged
     private MouseCoordinateSpace _coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
     private MacroMouseButton _button = MacroMouseButton.Left;
     private int _keyCode;
-    private int _delayMs;
+    private long _delayMicroseconds;
     private bool _useRandomDelay;
     private int _randomDelayMinMs;
     private int _randomDelayMaxMs;
@@ -291,21 +291,43 @@ public class EditorAction : INotifyPropertyChanged
         }
     }
 
-    /// <summary>
-    /// Delay in milliseconds (for Delay action or timing between actions).
-    /// </summary>
-    public int DelayMs
+    /// <summary>Precise delay in microseconds.</summary>
+    public long DelayMicroseconds
     {
-        get => _delayMs;
+        get => _delayMicroseconds;
         set
         {
-            if (_delayMs != value)
+            if (_delayMicroseconds != value)
             {
-                _delayMs = value;
+                _delayMicroseconds = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(DelayMs));
+                OnPropertyChanged(nameof(DelayDuration));
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
+    }
+
+    /// <summary>User-facing delay text accepting legacy milliseconds or explicit ms/us units.</summary>
+    public string DelayDuration
+    {
+        get => DelayMicroseconds < 0
+            ? string.Create(CultureInfo.InvariantCulture, $"{DelayMicroseconds}us")
+            : MacroTiming.FormatDuration(DelayMicroseconds);
+        set
+        {
+            if (MacroTiming.TryParseDurationMicroseconds(value, out var microseconds))
+            {
+                DelayMicroseconds = microseconds;
+            }
+        }
+    }
+
+    /// <summary>Legacy millisecond projection of <see cref="DelayMicroseconds"/>.</summary>
+    public int DelayMs
+    {
+        get => MacroTiming.ToLegacyMilliseconds(DelayMicroseconds);
+        set => DelayMicroseconds = checked((long)value * MacroTiming.MicrosecondsPerMillisecond);
     }
 
     /// <summary>
@@ -1219,7 +1241,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.KeyDown => $"Hold '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
             EditorActionType.KeyUp => $"Release '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
             EditorActionType.Delay when UseRandomDelay => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait {RandomDelayMinMs}-{RandomDelayMaxMs}ms (random)"),
-            EditorActionType.Delay => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait {DelayMs}ms"),
+            EditorActionType.Delay => $"Wait {DelayDuration}",
             EditorActionType.ScrollVertical => ScrollAmount > 0 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Up {ScrollAmount}") : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Down {Math.Abs(ScrollAmount)}"),
             EditorActionType.ScrollHorizontal => ScrollAmount > 0 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Right {ScrollAmount}") : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Left {Math.Abs(ScrollAmount)}"),
             EditorActionType.TextInput => GetTextInputDisplayName(),
@@ -1455,7 +1477,7 @@ public class EditorAction : INotifyPropertyChanged
         clone._coordinateSpace = CoordinateSpace;
         clone._button = Button;
         clone._keyCode = KeyCode;
-        clone._delayMs = DelayMs;
+        clone._delayMicroseconds = DelayMicroseconds;
         clone._useRandomDelay = UseRandomDelay;
         clone._randomDelayMinMs = RandomDelayMinMs;
         clone._randomDelayMaxMs = RandomDelayMaxMs;

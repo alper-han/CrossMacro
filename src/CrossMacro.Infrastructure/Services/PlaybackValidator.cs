@@ -50,14 +50,15 @@ public class PlaybackValidator : IPlaybackValidator
             result.AddWarning($"Position provider '{_provider.ProviderName}' is not supported on this system");
         }
 
+        long longDelayMicroseconds = 10 * MacroTiming.MicrosecondsPerMillisecond * 1000;
         var longDelays = macro.Events
-            .Where(e => e.DelayMs > 10000)
+            .Where(e => e.DelayMicroseconds > longDelayMicroseconds)
             .ToList();
 
         if (longDelays.Count > 0)
         {
-            var maxDelay = longDelays.Max(e => e.DelayMs);
-            result.AddWarning($"Macro contains {longDelays.Count.ToString(CultureInfo.InvariantCulture)} delay(s) > 10 seconds (max: {(maxDelay / 1000f).ToString("F1", CultureInfo.InvariantCulture)}s)");
+            var maxDelayMicroseconds = longDelays.Max(e => e.DelayMicroseconds);
+            result.AddWarning($"Macro contains {longDelays.Count.ToString(CultureInfo.InvariantCulture)} delay(s) > 10 seconds (max: {(maxDelayMicroseconds / 1_000_000d).ToString("F1", CultureInfo.InvariantCulture)}s)");
         }
 
         if (macro.TotalDurationMs > 300000)

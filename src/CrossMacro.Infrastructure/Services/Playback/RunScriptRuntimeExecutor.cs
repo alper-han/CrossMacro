@@ -239,11 +239,14 @@ internal sealed class RunScriptRuntimeExecutor(
             return;
         }
 
-        if (TryParseDelayCommand(step, out var delayMs, request))
+        if (TryParseDelayCommand(step, out var delayMicroseconds, request))
         {
-            if (delayMs > 0)
+            if (delayMicroseconds > 0)
             {
-                await _timingService.WaitAsync((int)(delayMs / request.SpeedMultiplier), _pauseToken, cancellationToken).ConfigureAwait(false);
+                await _timingService.WaitAsync(
+                    delayMicroseconds / (double)MacroTiming.MicrosecondsPerMillisecond / request.SpeedMultiplier,
+                    _pauseToken,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             return;
@@ -391,18 +394,18 @@ internal sealed class RunScriptRuntimeExecutor(
         return false;
     }
 
-    private bool TryParseDelayCommand(string step, out int delayMs, RunScriptRuntimeExecutionRequest request)
+    private bool TryParseDelayCommand(string step, out long delayMicroseconds, RunScriptRuntimeExecutionRequest request)
     {
-        delayMs = 0;
+        delayMicroseconds = 0;
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2 || !string.Equals(parts[0], "delay", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        if (parts.Length is 2 && int.TryParse(ResolveVariables(parts[1]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var fixedDelay))
+        if (parts.Length is 2 && MacroTiming.TryParseDurationMicroseconds(ResolveVariables(parts[1]), out var fixedDelayMicroseconds))
         {
-            delayMs = Math.Max(0, fixedDelay);
+            delayMicroseconds = fixedDelayMicroseconds;
             return true;
         }
 
@@ -415,7 +418,8 @@ internal sealed class RunScriptRuntimeExecutor(
 && int.TryParse(range[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var rangeMin)
 && int.TryParse(range[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var rangeMax))
                 {
-                    delayMs = request.ResolveDelayMs(0, true, rangeMin, rangeMax);
+                    delayMicroseconds = (long)request.ResolveDelayMs(0, true, rangeMin, rangeMax)
+                        * MacroTiming.MicrosecondsPerMillisecond;
                     return true;
                 }
             }
@@ -424,7 +428,8 @@ internal sealed class RunScriptRuntimeExecutor(
 && int.TryParse(ResolveVariables(parts[2]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var min)
 && int.TryParse(ResolveVariables(parts[3]), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var max))
             {
-                delayMs = request.ResolveDelayMs(0, true, min, max);
+                delayMicroseconds = (long)request.ResolveDelayMs(0, true, min, max)
+                    * MacroTiming.MicrosecondsPerMillisecond;
                 return true;
             }
         }

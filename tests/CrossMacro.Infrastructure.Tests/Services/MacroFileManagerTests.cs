@@ -115,6 +115,14 @@ public sealed class MacroFileManagerTests : IDisposable
     public void PersistedMacroDocument_RoundTrip_MapsEveryRuntimeField()
     {
         var macro = CreateValidMacro("Document boundary");
+        var firstEvent = macro.Events[0];
+        firstEvent.TimestampMicroseconds = 0;
+        firstEvent.DelayMicroseconds = 0;
+        macro.Events[0] = firstEvent;
+        var secondEvent = macro.Events[1];
+        secondEvent.TimestampMicroseconds = 100_400;
+        secondEvent.DelayMicroseconds = 100_400;
+        macro.Events[1] = secondEvent;
         macro.Id = Guid.NewGuid();
         macro.ReplaceScriptSteps(["click left"]);
         macro.ReplaceTextInputBoundaries([new TextInputBoundary(0, 1, "hello")]);
@@ -200,11 +208,11 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("# DurationMs: 45");
         _ = saved.Should().Contain("# IsAbsolute: False");
         _ = saved.Should().Contain("# SkipInitialZero: True");
-        _ = saved.Should().Contain("# TrailingDelayMs: 17");
+        _ = saved.Should().Contain("# TrailingDelayUs: 17000");
         _ = saved.Should().Contain("# TrailingRandomDelayMs: 23,41");
         _ = saved.Should().Contain("# TextInputBoundaryBase64: ");
         _ = saved.Should().Contain($"# Image: Target = {TransparentPngBase64}");
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
 
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Name.Should().Be(macro.Name);
@@ -213,6 +221,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = loaded.IsAbsoluteCoordinates.Should().BeFalse();
         _ = loaded.SkipInitialZeroZero.Should().BeTrue();
         _ = loaded.TrailingDelayMs.Should().Be(17);
+        _ = loaded.TrailingDelayMicroseconds.Should().Be(17_000);
         _ = loaded.HasTrailingRandomDelay.Should().BeTrue();
         _ = loaded.TrailingDelayMinMs.Should().Be(23);
         _ = loaded.TrailingDelayMaxMs.Should().Be(41);
@@ -390,7 +399,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
         _ = saved.Should().Contain("[Events]");
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Events.Should().HaveCount(macro.Events.Count);
@@ -468,6 +477,56 @@ public sealed class MacroFileManagerTests : IDisposable
         // Assert
         _ = loaded!.Events[1].DelayMs.Should().Be(500);
         _ = loaded.Events[2].DelayMs.Should().Be(1000);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTrip_PreservesSubMillisecondDelays()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "Microsecond delay round trip",
+            Events =
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = 10,
+                    Timestamp = 0,
+                    DelayMs = 0,
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 20,
+                    Y = 20,
+                    Timestamp = 0,
+                    TimestampMicroseconds = 400,
+                    DelayMs = 0,
+                    DelayMicroseconds = 400,
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 30,
+                    Y = 30,
+                    Timestamp = 1,
+                    TimestampMicroseconds = 1_000,
+                    DelayMs = 0,
+                    DelayMicroseconds = 600,
+                },
+            },
+        };
+        var filePath = GetTempFilePath();
+
+        await _manager.SaveAsync(macro, filePath);
+        var saved = await File.ReadAllTextAsync(filePath, NonCancelableToken);
+        var loaded = await _manager.LoadAsync(filePath);
+
+        _ = saved.Should().Contain("WU,400");
+        _ = saved.Should().Contain("WU,600");
+        _ = loaded.Should().NotBeNull();
+        _ = loaded!.Events.Should().BeEquivalentTo(macro.Events);
     }
 
     [Fact]
@@ -750,7 +809,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
         _ = saved.Should().Contain("[Script]");
         _ = saved.Should().Contain("set i 0");
         _ = saved.Should().Contain("for i from 1 to 10 {");
@@ -819,7 +878,7 @@ public sealed class MacroFileManagerTests : IDisposable
         // Assert
         _ = saved.Should().Contain($"# Image: Target_1 = {TransparentPngBase64}");
         _ = saved.IndexOf("# Image: Target_1", StringComparison.Ordinal)
-            .Should().BeLessThan(saved.IndexOf("# Format: CrossMacroFormatV3", StringComparison.Ordinal));
+            .Should().BeLessThan(saved.IndexOf("# Format: CrossMacroFormatV4", StringComparison.Ordinal));
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Images.Should().Equal(macro.Images);
         _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
@@ -851,7 +910,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = savedLines.Should().ContainInOrder(
             $"# Image: Alpha_2 = {BlackPngBase64}",
             $"# Image: Zeta = {TransparentPngBase64}",
-            "# Format: CrossMacroFormatV3");
+            "# Format: CrossMacroFormatV4");
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Images.Should().Equal(macro.Images);
     }
@@ -912,7 +971,7 @@ public sealed class MacroFileManagerTests : IDisposable
             "# Image: MissingSeparator",
             "# Image: Invalid-Name = iVBORw0KGgo=",
             "# Image: ValidName = not-base64",
-            "# Format: CrossMacroFormatV3",
+            "# Format: CrossMacroFormatV4",
             "[Events]",
             "M,0,0",
         ], NonCancelableToken);
@@ -1059,7 +1118,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = savedLines.Should().ContainInOrder(
-            "# Format: CrossMacroFormatV3",
+            "# Format: CrossMacroFormatV4",
             "[Script]",
             "type first line",
             "| path C:\\Users\\me");
@@ -1088,7 +1147,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
         _ = saved.Should().Contain("[Script]");
         _ = saved.Should().Contain("pixelcolor 10 20 color");
         _ = saved.Should().Contain("pixelsearch 0 0 3 3 123456 x y");
@@ -1118,7 +1177,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = saved.Should().Contain("type [demo], #1, C:\\Temp\\macro.txt");
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Events.Should().BeEmpty();
         _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
@@ -1194,7 +1253,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = saved.Should().Contain("# Format: CrossMacroFormatV3");
+        _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
         _ = saved.Should().Contain("# TextInputBoundaryBase64:");
         _ = saved.Should().Contain("[Events]");
         _ = loaded.Should().NotBeNull();

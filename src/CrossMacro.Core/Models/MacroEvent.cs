@@ -30,15 +30,25 @@ public struct MacroEvent : IEquatable<MacroEvent>
     /// </summary>
     public MacroMouseButton Button { get; set; }
 
-    /// <summary>
-    /// Timestamp when the event was recorded (milliseconds since recording start)
-    /// </summary>
-    public long Timestamp { get; set; }
+    /// <summary>Monotonic timestamp since recording start, in microseconds.</summary>
+    public long TimestampMicroseconds { get; set; }
 
-    /// <summary>
-    /// Delay until next event (milliseconds)
-    /// </summary>
-    public int DelayMs { get; set; }
+    /// <summary>Monotonic delay since the preceding event, in microseconds.</summary>
+    public long DelayMicroseconds { get; set; }
+
+    /// <summary>Legacy millisecond projection of <see cref="TimestampMicroseconds"/>.</summary>
+    public long Timestamp
+    {
+        readonly get => MacroTiming.ToLegacyTimestampMilliseconds(TimestampMicroseconds);
+        set => TimestampMicroseconds = checked(value * MacroTiming.MicrosecondsPerMillisecond);
+    }
+
+    /// <summary>Legacy millisecond projection of <see cref="DelayMicroseconds"/>.</summary>
+    public int DelayMs
+    {
+        readonly get => MacroTiming.ToLegacyMilliseconds(DelayMicroseconds);
+        set => DelayMicroseconds = checked((long)value * MacroTiming.MicrosecondsPerMillisecond);
+    }
 
     /// <summary>
     /// Whether the delay includes a randomized component.
@@ -86,8 +96,8 @@ public struct MacroEvent : IEquatable<MacroEvent>
             && X == other.X
             && Y == other.Y
             && Button == other.Button
-            && Timestamp == other.Timestamp
-            && DelayMs == other.DelayMs
+            && TimestampMicroseconds == other.TimestampMicroseconds
+            && DelayMicroseconds == other.DelayMicroseconds
             && HasRandomDelay == other.HasRandomDelay
             && RandomDelayMinMs == other.RandomDelayMinMs
             && RandomDelayMaxMs == other.RandomDelayMaxMs
@@ -106,8 +116,8 @@ public struct MacroEvent : IEquatable<MacroEvent>
         hash.Add(X);
         hash.Add(Y);
         hash.Add(Button);
-        hash.Add(Timestamp);
-        hash.Add(DelayMs);
+        hash.Add(TimestampMicroseconds);
+        hash.Add(DelayMicroseconds);
         hash.Add(HasRandomDelay);
         hash.Add(RandomDelayMinMs);
         hash.Add(RandomDelayMaxMs);

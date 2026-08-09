@@ -348,7 +348,9 @@ public sealed class CompositorCoordinateStrategy(
             }
         }
 
-        SampleAvailable?.Invoke(this, new CoordinateSampleEventArgs(sample));
+        SampleAvailable?.Invoke(
+            this,
+            new CoordinateSampleEventArgs(sample, CoordinateSampleSpace.LogicalDesktop));
     }
 
     private void ActivateRawRelativeFallback()

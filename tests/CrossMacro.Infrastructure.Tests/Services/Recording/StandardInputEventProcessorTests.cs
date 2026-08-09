@@ -70,6 +70,20 @@ public sealed class StandardInputEventProcessorTests
     }
 
     [Fact]
+    public void ProcessPositionSample_WhenSampleCarriesProvenance_DoesNotReadStrategyState()
+    {
+        _ = _strategy.ProducesLogicalCoordinates.Returns(returnThis: false);
+
+        var result = _processor.ProcessPositionSample(
+            CoordinateSample.Create(10, 20),
+            timestamp: 1000,
+            CoordinateSampleSpace.LogicalDesktop);
+
+        _ = result.Should().NotBeNull();
+        _ = result.Value.CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
+    }
+
+    [Fact]
     public void Process_MouseMove_WhenAbsoluteSampleIsOrigin_EmitsOrigin()
     {
         _processor.Configure(recordMouse: true, recordKeyboard: true, ignoredKeys: null, isAbsoluteCoordinates: true);

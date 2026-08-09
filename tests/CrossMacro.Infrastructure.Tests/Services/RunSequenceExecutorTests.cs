@@ -25,7 +25,7 @@ public sealed class RunSequenceExecutorTests
             new MacroSequence { Events = { new MacroEvent() } },
             speedMultiplier: 1,
             countdownSeconds: 0,
-            initialDelayMs: 0,
+            initialDelayMicroseconds: 0,
             initialHasRandomDelay: true,
             initialRandomDelayMinMs: 2,
             initialRandomDelayMaxMs: int.MaxValue,
@@ -59,7 +59,7 @@ public sealed class RunSequenceExecutorTests
             new MacroSequence { Events = { new MacroEvent() } },
             speedMultiplier: 1,
             countdownSeconds: 0,
-            initialDelayMs: 0,
+            initialDelayMicroseconds: 0,
             initialHasRandomDelay: true,
             initialRandomDelayMinMs: int.MaxValue,
             initialRandomDelayMaxMs: int.MaxValue,
@@ -68,5 +68,32 @@ public sealed class RunSequenceExecutorTests
         _ = result.Success.Should().BeTrue();
         _ = invocationCount.Should().Be(0);
         _ = delays.Should().ContainSingle().Which.Should().Be(TimeSpan.FromMilliseconds(int.MaxValue));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PreservesSubMillisecondInitialDelay()
+    {
+        var player = Substitute.For<IMacroPlayer>();
+        var delays = new List<TimeSpan>();
+        var executor = new RunSequenceExecutor(
+            () => player,
+            (duration, _) =>
+            {
+                delays.Add(duration);
+                return Task.CompletedTask;
+            });
+
+        var result = await executor.ExecuteAsync(
+            new MacroSequence { Events = { new MacroEvent() } },
+            speedMultiplier: 1,
+            countdownSeconds: 0,
+            initialDelayMicroseconds: 500,
+            initialHasRandomDelay: false,
+            initialRandomDelayMinMs: 0,
+            initialRandomDelayMaxMs: 0,
+            CancellationToken.None);
+
+        _ = result.Success.Should().BeTrue();
+        _ = delays.Should().ContainSingle().Which.Should().Be(TimeSpan.FromMicroseconds(500));
     }
 }

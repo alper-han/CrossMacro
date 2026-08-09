@@ -269,6 +269,9 @@ public partial class EditorViewModel
         {
             nameof(EditorAction.X) or nameof(EditorAction.CoordinateXToken) => nameof(EditorAction.CoordinateXToken),
             nameof(EditorAction.Y) or nameof(EditorAction.CoordinateYToken) => nameof(EditorAction.CoordinateYToken),
+            nameof(EditorAction.DelayMicroseconds)
+                or nameof(EditorAction.DelayMs)
+                or nameof(EditorAction.DelayDuration) => nameof(EditorAction.DelayMicroseconds),
             _ => propertyName,
         };
     }

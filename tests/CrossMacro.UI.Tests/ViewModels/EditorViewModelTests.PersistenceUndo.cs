@@ -267,6 +267,22 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
+    public void Undo_AfterPreciseDelayEdit_RestoresPreviousValue()
+    {
+        // Arrange
+        _viewModel.AddAction();
+        var action = _viewModel.SelectedAction!;
+
+        // Act
+        action.DelayDuration = "500us";
+        _viewModel.Undo();
+
+        // Assert
+        _ = _viewModel.SelectedAction.Should().NotBeNull();
+        _ = _viewModel.SelectedAction!.DelayMicroseconds.Should().Be(0);
+    }
+
+    [Fact]
     public void Undo_AfterCoordinateVariableEdit_RestoresLiteralToken()
     {
         _viewModel.NewActionType = EditorActionType.MouseMove;

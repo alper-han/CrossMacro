@@ -1,4 +1,6 @@
 
+using System.Threading.Channels;
+
 namespace CrossMacro.Daemon;
 
 internal sealed class DaemonService(
@@ -7,7 +9,9 @@ internal sealed class DaemonService(
     ISessionHandlerFactory sessionHandlerFactory,
     string socketPath)
 {
-    private const int SingleClientListenBacklog = 1;
+    private const int ClientListenBacklog = 16;
+    private const int ClientQueueCapacity = 16;
+    private const int ClientWorkerCount = 4;
 
     private Socket? _socket;
     private int _shutdownRequested;
@@ -56,7 +60,7 @@ internal sealed class DaemonService(
         try
         {
             socket.Bind(new UnixDomainSocketEndPoint(socketPath));
-            socket.Listen(SingleClientListenBacklog);
+            socket.Listen(ClientListenBacklog);
             return socket;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -68,40 +72,101 @@ internal sealed class DaemonService(
 
     private async Task RunAcceptLoopAsync(Socket listeningSocket, CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
+        using var activeSessionGate = new SemaphoreSlim(1, 1);
+        // NSS may block on LDAP/SSSD; bounded workers keep the accept loop responsive.
+        var clientQueue = Channel.CreateBounded<Socket>(new BoundedChannelOptions(ClientQueueCapacity)
         {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false,
+            SingleWriter = true,
+        });
+        var workers = Enumerable.Range(0, ClientWorkerCount)
+            .Select(_ => ProcessClientQueueAsync(clientQueue.Reader, activeSessionGate, token))
+            .ToArray();
+
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    var client = await AcceptClientAsync(listeningSocket, token).ConfigureAwait(false);
+                    if (!clientQueue.Writer.TryWrite(client))
+                    {
+                        Log.Warning("Client queue is full; rejecting a new client connection");
+                        DisposeSocket(client);
+                    }
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException) when (token.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (SocketException ex) when (token.IsCancellationRequested)
+                {
+                    Log.Debug(ex, "Accept loop stopped during shutdown");
+                    break;
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    Log.LogError(ex, "Accept failed");
+                }
+            }
+        }
+        finally
+        {
+            CompleteClientQueue(clientQueue.Writer);
             try
             {
-                await AcceptAndRunSingleClientAsync(listeningSocket, token).ConfigureAwait(false);
+                await Task.WhenAll(workers).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            finally
             {
-                break;
-            }
-            catch (ObjectDisposedException) when (token.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (SocketException ex) when (token.IsCancellationRequested)
-            {
-                Log.Debug(ex, "Accept loop stopped during shutdown");
-                break;
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                Log.LogError(ex, "Accept failed");
+                DrainClientQueue(clientQueue.Reader);
+                activeSessionGate.Dispose();
             }
         }
     }
 
-    private async Task AcceptAndRunSingleClientAsync(Socket listeningSocket, CancellationToken token)
+    private async Task ProcessClientQueueAsync(
+        ChannelReader<Socket> clientQueue,
+        SemaphoreSlim activeSessionGate,
+        CancellationToken token)
     {
-        var client = await AcceptClientAsync(listeningSocket, token).ConfigureAwait(false);
         try
         {
-            await RunClientSessionAsync(client, token).ConfigureAwait(false);
+            await foreach (var client in clientQueue.ReadAllAsync(token).ConfigureAwait(false))
+            {
+                try
+                {
+                    await RunClientSessionAsync(client, activeSessionGate, token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    DisposeSocket(client);
+                }
+            }
         }
-        finally
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            Log.Debug("Client worker stopped during shutdown");
+        }
+    }
+
+    private static void CompleteClientQueue(ChannelWriter<Socket> clientQueue)
+    {
+        if (!clientQueue.TryComplete())
+        {
+            Log.Debug("Client queue was already completed");
+        }
+    }
+
+    private static void DrainClientQueue(ChannelReader<Socket> clientQueue)
+    {
+        while (clientQueue.TryRead(out var client))
         {
             DisposeSocket(client);
         }
@@ -112,7 +177,10 @@ internal sealed class DaemonService(
         return await listeningSocket.AcceptAsync(token).ConfigureAwait(false);
     }
 
-    private async Task RunClientSessionAsync(Socket client, CancellationToken token)
+    private async Task RunClientSessionAsync(
+        Socket client,
+        SemaphoreSlim activeSessionGate,
+        CancellationToken token)
     {
         var session = ClientSessionAudit.CreatePending();
 
@@ -126,8 +194,16 @@ internal sealed class DaemonService(
 
             session = session.MarkValidated(validationResult.Value.Uid, validationResult.Value.Pid);
 
-            var sessionHandler = _sessionHandlerFactory.Create();
-            await sessionHandler.RunAsync(client, session.Uid, session.Pid, token).ConfigureAwait(false);
+            await activeSessionGate.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                var sessionHandler = _sessionHandlerFactory.Create();
+                await sessionHandler.RunAsync(client, session.Uid, session.Pid, token).ConfigureAwait(false);
+            }
+            finally
+            {
+                ReleaseSessionGate(activeSessionGate);
+            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -144,6 +220,11 @@ internal sealed class DaemonService(
                 _security.LogDisconnect(session.Uid, session.Pid, session.GetDuration());
             }
         }
+    }
+
+    private static void ReleaseSessionGate(SemaphoreSlim activeSessionGate)
+    {
+        _ = activeSessionGate.Release();
     }
 
     private readonly record struct ClientSessionAudit(bool IsValidated, uint Uid, int Pid, DateTime SessionStart)

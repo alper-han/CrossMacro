@@ -49,6 +49,35 @@ public sealed class DaemonServiceTests
     }
 
     [LinuxFact]
+    public async Task RunAsync_WhenFirstClientAuthorizationBlocks_ContinuesAcceptingAnotherClient()
+    {
+        var security = new BlockingValidationSecurityService();
+        var permission = new FakeLinuxPermissionService();
+        var sessionHandlerFactory = new RecordingSessionHandlerFactory(new RecordingSessionHandler());
+        await using var socketPathScope = new TestSocketPath();
+        var service = new DaemonService(
+            security,
+            permission,
+            sessionHandlerFactory,
+            socketPathScope.Path);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var runTask = service.RunAsync(cts.Token);
+        var socketPath = await permission.WaitForConfiguredPathAsync(TimeSpan.FromSeconds(2));
+
+        using var firstClient = await ConnectAsync(socketPath);
+        await security.WaitForFirstValidationAsync(TimeSpan.FromSeconds(2));
+
+        using var secondClient = await ConnectAsync(socketPath);
+        await security.WaitForSecondValidationAsync(TimeSpan.FromSeconds(2));
+
+        cts.Cancel();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+
+        Assert.Equal(2, security.ValidationCalls);
+    }
+
+    [LinuxFact]
     public async Task RunAsync_WhenShuttingDown_RemovesSocketFileAndStopsAcceptingConnections()
     {
         var security = new FakeSecurityService();
@@ -484,6 +513,54 @@ public sealed class DaemonServiceTests
         public Task WaitForValidationAsync(TimeSpan timeout) => _validated.Task.WaitAsync(timeout);
 
         public Task WaitForDisconnectAsync(TimeSpan timeout) => _disconnected.Task.WaitAsync(timeout);
+    }
+
+    private sealed class BlockingValidationSecurityService : ISecurityService
+    {
+        private readonly TaskCompletionSource _firstValidationStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _secondValidationStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseFirstValidation = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _validationCalls;
+
+        public int ValidationCalls => Volatile.Read(ref _validationCalls);
+
+        public async Task<(uint Uid, int Pid)?> ValidateConnectionAsync(
+            Socket client,
+            CancellationToken cancellationToken = default)
+        {
+            var call = Interlocked.Increment(ref _validationCalls);
+            if (call is 1)
+            {
+                _ = _firstValidationStarted.TrySetResult();
+                await _releaseFirstValidation.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                _ = _secondValidationStarted.TrySetResult();
+            }
+
+            return null;
+        }
+
+        public void LogDisconnect(uint uid, int pid, TimeSpan duration)
+        {
+        }
+
+        public void LogCaptureStart(uint uid, int pid, bool mouse, bool kb)
+        {
+        }
+
+        public void LogCaptureStop(uint uid, int pid)
+        {
+        }
+
+        public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value)
+        {
+        }
+
+        public Task WaitForFirstValidationAsync(TimeSpan timeout) => _firstValidationStarted.Task.WaitAsync(timeout);
+
+        public Task WaitForSecondValidationAsync(TimeSpan timeout) => _secondValidationStarted.Task.WaitAsync(timeout);
     }
 
     private sealed class RecordingDisposable(string name, List<string> events, bool throwOnDispose = false) : IDisposable

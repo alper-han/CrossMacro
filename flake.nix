@@ -17,9 +17,6 @@
 
       perSystem =
         {
-          config,
-          self',
-          inputs',
           pkgs,
           system,
           ...
@@ -75,9 +72,9 @@
           ];
 
           # Runtime libraries
-          runtimeLibs = commonLibs ++ (if pkgs.stdenv.isLinux then linuxLibs else [ ]);
+          runtimeLibs = commonLibs ++ (if pkgs.stdenv.hostPlatform.isLinux then linuxLibs else [ ]);
           uiHostProject =
-            if pkgs.stdenv.isDarwin then
+            if pkgs.stdenv.hostPlatform.isDarwin then
               "src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj"
             else
               "src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj";
@@ -92,7 +89,7 @@
 
           # The daemon package (Native AOT) - Linux Only
           crossmacro-daemon =
-            if pkgs.stdenv.isLinux then
+            if pkgs.stdenv.hostPlatform.isLinux then
               pkgs.buildDotnetModule (
                 commonDotnetModule
                 // {
@@ -116,10 +113,11 @@
                   nativeBuildInputs = with pkgs; [
                     clang
                     autoPatchelfHook
+                    patchelf
                   ];
 
                   buildInputs = with pkgs; [
-                    systemd
+                    systemdLibs
                     zlib
                   ];
 
@@ -133,16 +131,17 @@
                     install -Dm644 scripts/assets/io.github.alper_han.crossmacro.policy $out/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
                     install -Dm644 scripts/assets/50-crossmacro.rules $out/share/polkit-1/rules.d/50-crossmacro.rules
 
-                    # Force dependency on libsystemd for runtime P/Invoke resolution
-                    # This tells autoPatchelfHook to link systemd even though it's not a build-time dep
+                    # Keep the Native AOT libsystemd dependency explicit.
                     patchelf --add-needed libsystemd.so.0 $out/lib/crossmacro-daemon/CrossMacro.Daemon
                   '';
 
                   meta = with pkgs.lib; {
-                    description = "Privileged Daemon for CrossMacro";
+                    description = "Privileged input daemon for CrossMacro";
+                    homepage = "https://github.com/alper-han/CrossMacro";
+                    license = licenses.gpl3Only;
                     platforms = platforms.linux;
                     mainProgram = "CrossMacro.Daemon";
-                    maintainers = with maintainers; [ ];
+                    maintainers = with maintainers; [ alper-han ];
                   };
                 }
               )
@@ -177,12 +176,12 @@
               # Runtime dependencies for Avalonia/SkiaSharp
               runtimeDeps = runtimeLibs;
 
-              buildInputs = pkgs.lib.optionals pkgs.stdenv.isLinux runtimeLibs;
+              buildInputs = pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux runtimeLibs;
 
               nativeBuildInputs = [
                 pkgs.installShellFiles
               ]
-              ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
                 pkgs.clang
                 pkgs.autoPatchelfHook
               ];
@@ -191,7 +190,7 @@
                 installManPage docs/man/crossmacro.1
               ''
               + (
-                if pkgs.stdenv.isLinux then
+                if pkgs.stdenv.hostPlatform.isLinux then
                   ''
                     install -Dm644 scripts/assets/io.github.alper_han.crossmacro.desktop $out/share/applications/io.github.alper_han.crossmacro.desktop
                     substituteInPlace $out/share/applications/io.github.alper_han.crossmacro.desktop \
@@ -223,7 +222,7 @@
 
               # Keep desktop Exec aligned with /proc/<pid>/exe for KWin's
               # restricted screenshot permission checks.
-              postFixup = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+              postFixup = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
                 # Align wrapper and ELF paths so KWin's strict /proc/<pid>/exe check grants Wayland permissions.
                 # Move the real ELF binary to .CrossMacro.UI-wrapped
                 mv $out/lib/crossmacro/CrossMacro.UI \
@@ -249,14 +248,13 @@
                 description = "Mouse and keyboard macro recorder and automation with a macro editor, hotkeys, scheduling, text expansion, screen recognition, and CLI control";
                 homepage = "https://github.com/alper-han/CrossMacro";
                 license = licenses.gpl3Only;
-                # Keep metadata aligned with the flake's evaluated systems.
                 platforms = [
                   "x86_64-linux"
                   "aarch64-linux"
                   "aarch64-darwin"
                 ];
                 mainProgram = "crossmacro";
-                maintainers = with maintainers; [ ];
+                maintainers = with maintainers; [ alper-han ];
               };
             }
           );
@@ -266,15 +264,15 @@
             default = crossmacro;
             crossmacro = crossmacro;
           }
-          // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-            daemon = crossmacro-daemon;
+          // (pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            crossmacro-daemon = crossmacro-daemon;
           });
 
           apps = {
             default = {
               type = "app";
               program = pkgs.lib.getExe crossmacro;
-              meta.description = "Mouse and keyboard macro recorder and automation with a macro editor, hotkeys, scheduling, text expansion, screen recognition, and CLI control";
+              meta.description = crossmacro.meta.description;
             };
           };
 
@@ -293,13 +291,55 @@
               echo "CrossMacro Development Environment"
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               echo "Dotnet SDK: $(dotnet --version)"
-              ${pkgs.lib.optionalString pkgs.stdenv.isLinux "echo \"Linux input can use either daemon-backed mode or direct device mode depending on how you launch CrossMacro.\""}
+              ${pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux "echo \"Linux input can use either daemon-backed mode or direct device mode depending on how you launch CrossMacro.\""}
               echo ""
               echo "Commands:"
               echo "  dotnet run --project ${uiHostProject}"
               echo "  dotnet build"
               echo ""
             '';
+          };
+
+          checks = pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            crossmacro-nixos-userborn-directory-identities =
+              let
+                testUiPackage = pkgs.writeShellScriptBin "crossmacro-test-ui" "exit 0";
+                testDaemonPackage = pkgs.runCommand "crossmacro-test-daemon-package" { } ''
+                  install -Dm755 ${pkgs.writeShellScript "crossmacro-test-daemon" "exit 0"} "$out/bin/crossmacro-test-daemon"
+                  install -Dm644 ${./scripts/assets/io.github.alper_han.crossmacro.policy} "$out/share/polkit-1/actions/io.github.alper_han.crossmacro.policy"
+                  install -Dm644 ${./scripts/assets/50-crossmacro.rules} "$out/share/polkit-1/rules.d/50-crossmacro.rules"
+                '';
+                testSystem = inputs.nixpkgs.lib.nixosSystem {
+                  inherit system;
+                  modules = [
+                    inputs.self.nixosModules.default
+                    {
+                      system.stateVersion = "25.11";
+                      users.users.local-user = {
+                        isSystemUser = true;
+                        group = "users";
+                      };
+                      services.crossmacro = {
+                        enable = true;
+                        package = testUiPackage;
+                        daemonPackage = testDaemonPackage;
+                        users = [
+                          "local-user"
+                          "directory-user"
+                        ];
+                      };
+                    }
+                  ];
+                };
+              in
+              assert testSystem.config.services.userborn.enable;
+              assert !testSystem.config.systemd.sysusers.enable;
+              assert !(testSystem.config.users.users ? "directory-user");
+              assert builtins.elem "local-user" testSystem.config.users.groups.crossmacro.members;
+              assert builtins.elem "directory-user" testSystem.config.users.groups.crossmacro.members;
+              pkgs.runCommand "crossmacro-nixos-userborn-directory-identities-check" { } ''
+                touch "$out"
+              '';
           };
 
           formatter = pkgs.nixfmt;
@@ -316,34 +356,36 @@
           }:
           with lib;
           let
-            cfg = config.programs.crossmacro;
-            # Safe access to daemon package, falls back to null if not available
-            daemonPkg =
-              if inputs.self.packages.${pkgs.stdenv.hostPlatform.system} ? daemon then
-                inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.daemon
-              else
-                null;
+            cfg = config.services.crossmacro;
+            daemonPkg = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.crossmacro-daemon;
           in
           {
-            options.programs.crossmacro = {
-              enable = mkEnableOption "CrossMacro mouse macro recorder";
+            # Replace nixpkgs' module to keep directory identities out of local users.
+            disabledModules = [ "services/desktops/crossmacro.nix" ];
+
+            options.services.crossmacro = {
+              enable = mkEnableOption "CrossMacro, a cross-platform mouse and keyboard macro application";
 
               package = mkOption {
                 type = types.package;
-                default = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.default;
-                description = "Specifies the CrossMacro UI package to be installed.";
+                default = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.crossmacro;
+                description = "CrossMacro UI package.";
               };
 
               daemonPackage = mkOption {
                 type = types.package;
                 default = daemonPkg;
-                description = "Specifies the CrossMacro Daemon package to be used for privileged operations.";
+                description = "CrossMacro input daemon package.";
               };
 
               users = mkOption {
                 type = types.listOf types.str;
                 default = [ ];
-                description = "List of users granted permission to interact with the CrossMacro daemon (adds them to the 'crossmacro' group).";
+                example = [
+                  "alice"
+                  "bob"
+                ];
+                description = "Local or directory-service identities granted access to CrossMacro.";
               };
             };
 
@@ -351,12 +393,11 @@
               assertions = [
                 {
                   assertion = cfg.users != [ ];
-                  message = "CrossMacro: You must configure at least one user to access the input daemon.\n       Please set `programs.crossmacro.users = [ \"yourusername\" ];` in your NixOS configuration.";
+                  message = "CrossMacro: configure at least one identity with `services.crossmacro.users`.";
                 }
-                # Ensure we are on Linux if enabling the NixOS module (redundant but safe)
                 {
-                  assertion = pkgs.stdenv.isLinux;
-                  message = "CrossMacro NixOS module is only supported on Linux.";
+                  assertion = config.services.userborn.enable && !config.systemd.sysusers.enable;
+                  message = "CrossMacro: Userborn is required and cannot be combined with systemd-sysusers.";
                 }
               ];
 
@@ -365,9 +406,10 @@
               # Enable uinput for virtual input device creation (required for playback)
               hardware.uinput.enable = true;
 
-              # Fix uinput permissions - NixOS default uses ACLs but group perms are ---
-              # This ensures the input group has read/write access
-              # Also disable mouse acceleration for CrossMacro virtual device (flat profile)
+              # Keep NSS identities out of the local user database.
+              services.userborn.enable = mkDefault true;
+
+              # Ensure uinput access and disable acceleration for the virtual pointer.
               services.udev.extraRules = ''
                 KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
                 ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="CrossMacro Virtual Input Device", ENV{LIBINPUT_ATTR_POINTER_ACCEL}="0"
@@ -381,32 +423,22 @@
               environment.etc."polkit-1/rules.d/50-crossmacro.rules".source =
                 "${cfg.daemonPackage}/share/polkit-1/rules.d/50-crossmacro.rules";
 
-              users.groups.crossmacro = { };
+              # Keep configured identities as group members instead of local users.
+              users.groups.crossmacro.members = cfg.users;
 
-              # Add specified users to the crossmacro group and define the daemon user
-              users.users =
-                builtins.listToAttrs (
-                  map (user: {
-                    name = user;
-                    value = {
-                      extraGroups = [ "crossmacro" ];
-                    };
-                  }) cfg.users
-                )
-                // {
-                  crossmacro = {
-                    isSystemUser = true;
-                    group = "crossmacro";
-                    extraGroups = [
-                      "input"
-                      "uinput"
-                    ];
-                    description = "CrossMacro Input Daemon User";
-                  };
-                };
+              users.users.crossmacro = {
+                isSystemUser = true;
+                group = "crossmacro";
+                extraGroups = [
+                  "input"
+                  "uinput"
+                ];
+                description = "CrossMacro Input Daemon User";
+              };
 
               systemd.services.crossmacro = {
                 description = "CrossMacro Input Daemon Service";
+                documentation = [ "https://github.com/alper-han/CrossMacro" ];
                 wantedBy = [ "multi-user.target" ];
                 after = [
                   "network.target"
@@ -442,6 +474,8 @@
                 };
               };
             };
+
+            meta.maintainers = with maintainers; [ alper-han ];
           };
       };
     };

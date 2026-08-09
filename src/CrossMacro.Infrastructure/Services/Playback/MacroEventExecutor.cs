@@ -42,8 +42,37 @@ public sealed class MacroEventExecutor(
 
     public void MoveAbsolute(int x, int y)
     {
-        var target = ClampLogicalPosition(x, y);
+        var target = ClampLogicalTarget(x, y);
         MoveLogicalTarget(target);
+    }
+
+    /// <summary>Normalizes a logical target before trajectory planning.</summary>
+    public (int X, int Y) ClampLogicalTarget(long x, long y) => ClampLogicalPosition(x, y);
+
+    /// <summary>Converts a logical target to backend coordinates without injecting it.</summary>
+    public AbsoluteMotionTrajectorySample CreateAbsoluteTrajectorySample(
+        int x,
+        int y,
+        long delayAfterMicroseconds)
+    {
+        if (!_supportsAbsoluteCoordinates)
+        {
+            throw new AbsolutePlaybackUnsupportedException(_simulator.ProviderName);
+        }
+
+        var target = ClampLogicalTarget(x, y);
+        var devicePosition = ToDevicePosition(target);
+        return new AbsoluteMotionTrajectorySample(
+            devicePosition.X,
+            devicePosition.Y,
+            delayAfterMicroseconds);
+    }
+
+    /// <summary>Commits the final target after an acknowledged trajectory slice.</summary>
+    public void CompleteAbsoluteTrajectory(int x, int y)
+    {
+        var target = ClampLogicalTarget(x, y);
+        _coordinator.UpdatePosition(target.X, target.Y);
     }
 
     public void MoveRelative(int dx, int dy)
@@ -172,7 +201,8 @@ public sealed class MacroEventExecutor(
                 return;
             }
 
-            MoveLogicalTarget(ClampLogicalPosition(ev.X, ev.Y));
+            var target = ClampLogicalTarget(ev.X, ev.Y);
+            MoveLogicalTarget(target);
         }
         else if (coordinateMode is MouseCoordinateMode.Relative)
         {
@@ -202,7 +232,7 @@ public sealed class MacroEventExecutor(
                 throw new LogicalRelativePositionUnavailableException();
             }
 
-            var target = ClampLogicalPosition(
+            var target = ClampLogicalTarget(
                 (long)_coordinator.CurrentX + deltaX,
                 (long)_coordinator.CurrentY + deltaY);
             MoveLogicalTarget(target);
@@ -220,7 +250,7 @@ public sealed class MacroEventExecutor(
             throw new AbsolutePlaybackUnsupportedException(_simulator.ProviderName);
         }
 
-        var target = ClampLogicalPosition(targetX, targetY);
+        var target = ClampLogicalTarget(targetX, targetY);
         MoveLogicalTarget(target);
     }
 
@@ -243,11 +273,14 @@ public sealed class MacroEventExecutor(
 
     private void SendAbsolute((int X, int Y) logicalPosition)
     {
-        var devicePosition = _usesZeroBasedScreenBounds
-            ? AbsoluteInputCoordinateMapper.ToDeviceCoordinates(_simulator, _desktopBounds, logicalPosition.X, logicalPosition.Y)
-            : logicalPosition;
+        var devicePosition = ToDevicePosition(logicalPosition);
         _simulator.MoveAbsolute(devicePosition.X, devicePosition.Y);
     }
+
+    private (int X, int Y) ToDevicePosition((int X, int Y) logicalPosition) =>
+        _usesZeroBasedScreenBounds
+            ? AbsoluteInputCoordinateMapper.ToDeviceCoordinates(_simulator, _desktopBounds, logicalPosition.X, logicalPosition.Y)
+            : logicalPosition;
 
     private void ExecuteClick(MacroEvent ev)
     {

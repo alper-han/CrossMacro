@@ -69,6 +69,7 @@ public interface IPlaybackCoordinator
     /// an injected move. Input injection acknowledgement only confirms that the
     /// event reached the virtual device; it does not guarantee that the
     /// compositor has applied the pointer update before a following click.
+    /// This verifies delivery but does not rebase the command position.
     /// </summary>
     public Task<bool> WaitForPositionAsync(int expectedX, int expectedY, CancellationToken cancellationToken);
 

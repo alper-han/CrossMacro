@@ -11,6 +11,15 @@ public class PlaybackOptions
     public const double DefaultSpeedMultiplier = 1.0;
     public const int MinDelayMs = 0;
     public const int DefaultDelayMs = 0;
+    public const int DefaultStrictSpeedMotionEventsPerSecond = 1_000;
+    public const int MinStrictSpeedMotionEventsPerSecond = 60;
+    public const int MaxStrictSpeedMotionEventsPerSecond = 10_000;
+    public const int DefaultPrecisionMotionEventsPerSecond = 300;
+    public const int MinPrecisionMotionEventsPerSecond = 60;
+    public const int MaxPrecisionMotionEventsPerSecond = 10_000;
+    public const double DefaultMaximumMotionErrorPixels = 2d;
+    public const double MinMaximumMotionErrorPixels = 0.25d;
+    public const double MaxMaximumMotionErrorPixels = 500d;
 
     /// <summary>
     /// Speed multiplier (1.0 = normal speed, 2.0 = double speed, 0.5 = half speed)
@@ -48,11 +57,29 @@ public class PlaybackOptions
     /// </summary>
     public int RepeatDelayMaxMs { get; set; } = DefaultDelayMs;
 
+    /// <summary>Controls the trade-off between pointer fidelity and requested duration.</summary>
+    public MotionPlaybackMode MotionMode { get; set; } = MotionPlaybackMode.Precision;
+
+    /// <summary>Maximum injected pointer reports per second in StrictSpeed mode; zero uses the default.</summary>
+    public int StrictSpeedMotionEventsPerSecond { get; set; } = DefaultStrictSpeedMotionEventsPerSecond;
+
+    /// <summary>Precision output ceiling; playback slows down instead of dropping positions.</summary>
+    public int PrecisionMotionEventsPerSecond { get; set; } = DefaultPrecisionMotionEventsPerSecond;
+
+    /// <summary>Maximum pixel error allowed when StrictSpeed simplifies a trajectory.</summary>
+    public double MaximumMotionErrorPixels { get; set; } = DefaultMaximumMotionErrorPixels;
+
     public void Normalize()
     {
         SpeedMultiplier = NormalizeSpeedMultiplier(SpeedMultiplier);
         RepeatDelayMs = NormalizeDelayMs(RepeatDelayMs);
         (RepeatDelayMinMs, RepeatDelayMaxMs) = NormalizeDelayRange(RepeatDelayMinMs, RepeatDelayMaxMs);
+        MotionMode = Enum.IsDefined(MotionMode)
+            ? MotionMode
+            : MotionPlaybackMode.Precision;
+        StrictSpeedMotionEventsPerSecond = NormalizeStrictSpeedMotionEventsPerSecond(StrictSpeedMotionEventsPerSecond);
+        PrecisionMotionEventsPerSecond = NormalizePrecisionMotionEventsPerSecond(PrecisionMotionEventsPerSecond);
+        MaximumMotionErrorPixels = NormalizeMaximumMotionErrorPixels(MaximumMotionErrorPixels);
     }
 
     public static double NormalizeSpeedMultiplier(double value)
@@ -81,5 +108,41 @@ public class PlaybackOptions
         }
 
         return (min, max);
+    }
+
+    public static int NormalizeStrictSpeedMotionEventsPerSecond(int value)
+    {
+        if (value <= 0)
+        {
+            return DefaultStrictSpeedMotionEventsPerSecond;
+        }
+
+        return Math.Clamp(
+            value,
+            MinStrictSpeedMotionEventsPerSecond,
+            MaxStrictSpeedMotionEventsPerSecond);
+    }
+
+    public static int NormalizePrecisionMotionEventsPerSecond(int value)
+    {
+        if (value <= 0)
+        {
+            return DefaultPrecisionMotionEventsPerSecond;
+        }
+
+        return Math.Clamp(
+            value,
+            MinPrecisionMotionEventsPerSecond,
+            MaxPrecisionMotionEventsPerSecond);
+    }
+
+    public static double NormalizeMaximumMotionErrorPixels(double value)
+    {
+        if (!double.IsFinite(value) || value <= 0d)
+        {
+            return DefaultMaximumMotionErrorPixels;
+        }
+
+        return Math.Clamp(value, MinMaximumMotionErrorPixels, MaxMaximumMotionErrorPixels);
     }
 }

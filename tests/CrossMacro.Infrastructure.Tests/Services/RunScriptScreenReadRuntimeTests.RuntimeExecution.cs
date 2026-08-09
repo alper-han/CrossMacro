@@ -209,6 +209,41 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenRuntimeRelativeScreenReadFollowsAbsoluteMove_UsesSettledCursorPosition()
+    {
+        var screenReader = new FakeScreenPixelReader();
+        var positionProvider = CreatePositionProvider((500, 400));
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var positions = new Queue<(int X, int Y)?>([
+            (500, 400),
+            (500, 400),
+            (500, 400),
+            (100, 200),
+            (100, 200),
+        ]);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            var position = positions.Count > 0 ? positions.Dequeue() : ((int X, int Y)?)(100, 200);
+            return Task.FromResult(position);
+        });
+        var inputSimulator = new RecordingInputSimulator([]);
+        using var player = CreatePlayer(positionProvider, screenReader, inputSimulator);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "move abs 100 200",
+                "pixelcolor rel 3 4 sampled",
+            },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = screenReader.GetPixelPoints.Should().ContainSingle().Which.Should().Be(new ScreenPoint(103, 204));
+        _ = await positionProvider.Received(5).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenRuntimeAbsoluteMoveDoesNotSettle_RefusesFollowingClick()
     {
         var activity = new List<string>();

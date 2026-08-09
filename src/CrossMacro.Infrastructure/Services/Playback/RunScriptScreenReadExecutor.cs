@@ -7,7 +7,8 @@ internal sealed class RunScriptScreenReadExecutor(
     Func<MacroEvent, CancellationToken, Task>? executeEventAsync = null,
     IImageClickMovementResolver? imageClickMovementResolver = null,
     IInputSimulator? inputSimulator = null,
-    IImageAssetCodec? imageAssetCodec = null)
+    IImageAssetCodec? imageAssetCodec = null,
+    Func<CancellationToken, Task>? flushPendingCursorMovementAsync = null)
 {
     private readonly IScreenPixelReader _screenPixelReader = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
     private readonly IMousePositionProvider? _mousePositionProvider = mousePositionProvider;
@@ -15,6 +16,7 @@ internal sealed class RunScriptScreenReadExecutor(
     private readonly IImageClickMovementResolver? _imageClickMovementResolver = imageClickMovementResolver;
     private readonly IInputSimulator? _inputSimulator = inputSimulator;
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
+    private readonly Func<CancellationToken, Task>? _flushPendingCursorMovementAsync = flushPendingCursorMovementAsync;
 
     public async Task ExecuteAsync(
         MacroSequence macro,
@@ -224,6 +226,11 @@ internal sealed class RunScriptScreenReadExecutor(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        if (_flushPendingCursorMovementAsync is not null)
+        {
+            await _flushPendingCursorMovementAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         var position = await _mousePositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false) ?? throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: pixelcolor rel failed: current mouse position is unavailable.");
         return new ScreenPoint(checked(position.X + dx), checked(position.Y + dy));
     }

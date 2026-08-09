@@ -85,11 +85,6 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             cancellationToken).ConfigureAwait(false);
         if (result.IsSettled)
         {
-            if (result.LastObservedPosition is { } observed)
-            {
-                UpdatePosition(observed.X, observed.Y);
-            }
-
             return true;
         }
 
@@ -232,7 +227,13 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
                 bool cannotValidateCorner = expectedPosition is null && _desktopBounds is null;
                 bool movedWithoutValidation = cannotValidateCorner
                     && (previousPosition is null || position != previousPosition);
-                if (reachedExpectedPosition || reachedRelativeFallbackCorner || movedWithoutValidation)
+                if (reachedExpectedPosition)
+                {
+                    UpdatePosition(position.Value.X, position.Value.Y);
+                    return;
+                }
+
+                if (reachedRelativeFallbackCorner || movedWithoutValidation)
                 {
                     UpdatePosition(position.Value.X, position.Value.Y);
                     return;

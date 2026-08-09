@@ -38,22 +38,25 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
     private int _errorCount;
     private readonly IDictionary<string, string> _runtimeVariables;
 
-    private const double MinEnforcedDelayMs = 1.0;
     private const int MaxPlaybackErrors = 10;
-    private const int StabilizationEventCount = 25;
-    private const double MaxInitialSpeedMultiplier = 3.0;
-    private const int YieldInterval = 50;
     private const double MinCatchUpResetDriftMs = 30.0;
     private const double CatchUpResetDelayMultiplier = 2.0;
+    private const int MaxDaemonTrajectorySamples = 128;
+    private const long MaxDaemonTrajectoryDurationMicroseconds = 20_000;
 
     private sealed class PlaybackRunState
     {
         public int EventCount;
-        public bool IsFirstEvent = true;
         public double ScheduledElapsedMs;
         public double TimelineAnchorElapsedMs;
         public bool HasTimelineAnchor;
         public int ObservedPauseResumeVersion;
+        // Logical desktop motion may be applied asynchronously; verify it before pointer-dependent work.
+        public bool HasPendingLogicalMove;
+        public int PendingLogicalX;
+        public int PendingLogicalY;
+        public int TrajectorySampleCount;
+        public int DirectLogicalMoveCount;
     }
 
     // Pause support
@@ -143,6 +146,21 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             Log.Warning("[MacroPlayer] Warning: {Warning}", warning);
         }
 
+        var requestedOptions = options ?? new PlaybackOptions();
+        requestedOptions.Normalize();
+        var precisionRatePlan = PrecisionMotionRateGovernor.CreatePlan(macro, requestedOptions);
+        var effectiveOptions = ClonePlaybackOptions(requestedOptions, precisionRatePlan.EffectiveSpeedMultiplier);
+
+        if (precisionRatePlan.IsQualityLimited)
+        {
+            Log.Information(
+                "[MacroPlayer] Precision quality lock: RequestedSpeed={RequestedSpeed:F3}x, EffectiveSpeed={EffectiveSpeed:F3}x, SourcePeakReportsPerSecond={SourcePeakReportsPerSecond:F1}, CapReportsPerSecond={CapReportsPerSecond}",
+                precisionRatePlan.RequestedSpeedMultiplier,
+                precisionRatePlan.EffectiveSpeedMultiplier,
+                precisionRatePlan.SourcePeakEventsPerSecond,
+                precisionRatePlan.OutputCapEventsPerSecond);
+        }
+
         var lifecycle = new MacroPlaybackLifecycle(
             BeginPlayback,
             () => _session.Token,
@@ -164,11 +182,29 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             PlayOnceAsync,
             PlayOnceRuntimeScriptAsync,
             WaitForStabilizationAsync,
-            ResolveTrailingDelayMs,
+            ResolveTrailingDelayMicroseconds,
             ResolveRepeatDelayMs,
             (delayMs, token) => _timingService.WaitAsync(delayMs, this, token));
 
-        await lifecycle.RunAsync(macro, options ?? new PlaybackOptions(), cancellationToken).ConfigureAwait(false);
+        await lifecycle.RunAsync(macro, effectiveOptions, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static PlaybackOptions ClonePlaybackOptions(PlaybackOptions source, double speedMultiplier)
+    {
+        return new PlaybackOptions
+        {
+            SpeedMultiplier = speedMultiplier,
+            Loop = source.Loop,
+            RepeatCount = source.RepeatCount,
+            RepeatDelayMs = source.RepeatDelayMs,
+            UseRandomRepeatDelay = source.UseRandomRepeatDelay,
+            RepeatDelayMinMs = source.RepeatDelayMinMs,
+            RepeatDelayMaxMs = source.RepeatDelayMaxMs,
+            MotionMode = source.MotionMode,
+            StrictSpeedMotionEventsPerSecond = source.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = source.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = source.MaximumMotionErrorPixels,
+        };
     }
 
     private void BeginPlayback(CancellationToken cancellationToken)
@@ -217,13 +253,16 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         return _playbackWaitAsync(TimeSpan.FromMilliseconds(50), cancellationToken);
     }
 
-    private int ResolveTrailingDelayMs(MacroSequence macro)
+    private long ResolveTrailingDelayMicroseconds(MacroSequence macro)
     {
-        return ResolveDelayMs(
-            macro.TrailingDelayMs,
-            macro.HasTrailingRandomDelay,
-            macro.TrailingDelayMinMs,
-            macro.TrailingDelayMaxMs);
+        var randomDelayMicroseconds = macro.HasTrailingRandomDelay
+            ? (long)ResolveDelayMs(
+                fixedDelayMs: 0,
+                hasRandomDelay: true,
+                randomDelayMinMs: macro.TrailingDelayMinMs,
+                randomDelayMaxMs: macro.TrailingDelayMaxMs) * MacroTiming.MicrosecondsPerMillisecond
+            : 0;
+        return checked(macro.TrailingDelayMicroseconds + randomDelayMicroseconds);
     }
 
     private async Task CacheResolutionAsync()
@@ -315,7 +354,6 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
     private async Task InitializePlaybackComponentsAsync(MacroSequence macro)
     {
-        // Create per-playback components
         var buttonTracker = _buttonTrackerFactory();
         var keyTracker = _keyTrackerFactory();
         _coordinator = _coordinatorFactory();
@@ -342,39 +380,307 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             && _coordinator.HasKnownPosition)
         {
             _eventExecutor.MoveAbsolute(_coordinator.CurrentX, _coordinator.CurrentY);
-            await EnsureAbsolutePositionSettledAsync(_coordinator, _session.Token).ConfigureAwait(false);
+            await EnsureAbsolutePositionSettledAsync(
+                _coordinator,
+                _coordinator.CurrentX,
+                _coordinator.CurrentY,
+                _session.Token).ConfigureAwait(false);
         }
     }
 
-    private async Task PlayOnceAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
+    private async Task PlayOnceAsync(
+        MacroSequence macro,
+        double speedMultiplier,
+        PlaybackOptions options,
+        CancellationToken cancellationToken)
     {
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         var state = new PlaybackRunState
         {
             ObservedPauseResumeVersion = _session.PauseResumeVersion,
         };
-        int totalEvents = macro.Events.Count;
+        var trajectoryPlan = MotionTrajectoryResampler.CreatePlan(macro, speedMultiplier, options);
+        int totalEvents = trajectoryPlan.Events.Count;
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
+
+        if (trajectoryPlan.ResampledSegmentCount > 0)
+        {
+            Log.Information(
+                "[MacroPlayer] Duration-first adaptive motion plan: OmittedSamples={OmittedSampleCount}, Segments={SegmentCount}, CurvatureAnchors={CurvatureAnchors}, MaximumGeometricErrorPx={MaximumGeometricErrorPx:F3}, ErrorBoundSatisfied={ErrorBoundSatisfied}",
+                trajectoryPlan.OmittedSampleCount,
+                trajectoryPlan.ResampledSegmentCount,
+                trajectoryPlan.AdaptiveAnchorReplacementCount,
+                trajectoryPlan.MaximumGeometricErrorPixels,
+                trajectoryPlan.IsErrorBoundSatisfied);
+        }
+
+        if (!trajectoryPlan.IsErrorBoundSatisfied)
+        {
+            Log.Warning(
+                "[MacroPlayer] Duration-first motion quality limit: RequestedSpeed={RequestedSpeed:F3}x, MaximumGeometricErrorPx={MaximumGeometricErrorPx:F3}, AllowedErrorPx={AllowedErrorPx:F3}. The selected report rate cannot meet the configured geometry budget; lower speed, raise the rate, or use Precision.",
+                speedMultiplier,
+                trajectoryPlan.MaximumGeometricErrorPixels,
+                options.MaximumMotionErrorPixels);
+        }
 
         Log.Debug("[MacroPlayer] Starting playback of {Total} events at {Speed}x speed", totalEvents, speedMultiplier);
 
-        await MacroPlaybackEventCoordinator.ExecuteAsync(
-            macro,
-            (ev, token) => ExecutePlaybackEventAsync(
+        var playbackStarted = Stopwatch.GetTimestamp();
+        try
+        {
+            await ExecutePlaybackEventsAsync(
+                trajectoryPlan.Events,
                 macro,
-                ev,
                 speedMultiplier,
                 playbackElapsedMilliseconds,
                 state,
                 useLegacyCurrentPositionInterpretation,
                 totalEvents,
-                token),
-            cancellationToken).ConfigureAwait(false);
+                cancellationToken).ConfigureAwait(false);
+
+            await FlushPendingCursorMovementAsync(state, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            var elapsed = Stopwatch.GetElapsedTime(playbackStarted);
+            LogMotionTransportSummary(
+                trajectoryPlan.Events,
+                macro,
+                options,
+                speedMultiplier,
+                state,
+                elapsed,
+                trajectoryPlan);
+        }
 
         Log.Debug("[MacroPlayer] Completed playback of {Total} events", totalEvents);
     }
 
-    private async Task PlayOnceRuntimeScriptAsync(MacroSequence macro, double speedMultiplier, CancellationToken cancellationToken)
+    private async Task ExecutePlaybackEventsAsync(
+        IList<MacroEvent> events,
+        MacroSequence macro,
+        double speedMultiplier,
+        Func<double> playbackElapsedMilliseconds,
+        PlaybackRunState state,
+        bool useLegacyCurrentPositionInterpretation,
+        int totalEvents,
+        CancellationToken cancellationToken)
+    {
+        for (var index = 0; index < events.Count;)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (TryCreateMotionTrajectorySlice(
+                    events,
+                    index,
+                    macro,
+                    speedMultiplier,
+                    out var samples,
+                    out var finalLogicalTarget)
+                && samples.Count > 1)
+            {
+                await WaitForEventScheduleAsync(
+                    events[index],
+                    speedMultiplier,
+                    playbackElapsedMilliseconds,
+                    state,
+                    cancellationToken).ConfigureAwait(false);
+
+                var trajectorySimulator = (IAbsoluteMotionTrajectorySimulator)_inputSimulator!;
+                await trajectorySimulator.SimulateAbsoluteTrajectoryAsync(samples, cancellationToken).ConfigureAwait(false);
+
+                var executor = _eventExecutor ?? throw new InvalidOperationException("Playback event executor is not initialized.");
+                executor.CompleteAbsoluteTrajectory(finalLogicalTarget.X, finalLogicalTarget.Y);
+                state.EventCount += samples.Count - 1;
+                state.TrajectorySampleCount += samples.Count;
+                state.HasPendingLogicalMove = true;
+                // Reuse the same bounds and endpoint rules for settlement checks.
+                state.PendingLogicalX = _coordinator?.CurrentX ?? finalLogicalTarget.X;
+                state.PendingLogicalY = _coordinator?.CurrentY ?? finalLogicalTarget.Y;
+
+                // Re-anchor after daemon pacing; never flood the next slice.
+                state.TimelineAnchorElapsedMs = playbackElapsedMilliseconds();
+                state.ScheduledElapsedMs = 0;
+                state.HasTimelineAnchor = true;
+
+                index += samples.Count;
+                continue;
+            }
+
+            await ExecutePlaybackEventAsync(
+                macro,
+                events[index],
+                speedMultiplier,
+                playbackElapsedMilliseconds,
+                state,
+                useLegacyCurrentPositionInterpretation,
+                totalEvents,
+                cancellationToken).ConfigureAwait(false);
+            index++;
+        }
+    }
+
+    private bool TryCreateMotionTrajectorySlice(
+        IList<MacroEvent> events,
+        int startIndex,
+        MacroSequence macro,
+        double speedMultiplier,
+        out List<AbsoluteMotionTrajectorySample> samples,
+        out (int X, int Y) finalLogicalTarget)
+    {
+        return TryCreateAbsoluteTrajectorySlice(
+                   events,
+                   startIndex,
+                   macro,
+                   speedMultiplier,
+                   out samples,
+                   out finalLogicalTarget)
+            || TryCreateLogicalRelativeTrajectorySlice(
+                events,
+                startIndex,
+                macro,
+                speedMultiplier,
+                out samples,
+                out finalLogicalTarget);
+    }
+
+    private bool TryCreateAbsoluteTrajectorySlice(
+        IList<MacroEvent> events,
+        int startIndex,
+        MacroSequence macro,
+        double speedMultiplier,
+        out List<AbsoluteMotionTrajectorySample> samples,
+        out (int X, int Y) finalLogicalTarget)
+    {
+        samples = [];
+        finalLogicalTarget = default;
+
+        if (_inputSimulator is not IAbsoluteMotionTrajectorySimulator
+            || _eventExecutor is not { IsMouseButtonPressed: true }
+            || startIndex >= events.Count)
+        {
+            return false;
+        }
+
+        long totalDelayMicroseconds = 0;
+        for (var index = startIndex; index < events.Count && samples.Count < MaxDaemonTrajectorySamples; index++)
+        {
+            var ev = events[index];
+            if (ev.Type is not EventType.MouseMove
+                || ev.HasRandomDelay
+                || MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is not MouseCoordinateMode.Absolute
+                || MacroPositionSemantics.ResolveCoordinateSpace(ev, macro.IsAbsoluteCoordinates) is not MouseCoordinateSpace.LogicalDesktop)
+            {
+                break;
+            }
+
+            if (!TryAppendTrajectoryDelay(
+                    samples,
+                    ev.DelayMicroseconds,
+                    speedMultiplier,
+                    ref totalDelayMicroseconds))
+            {
+                break;
+            }
+
+            var executor = _eventExecutor ?? throw new InvalidOperationException("Playback event executor is not initialized.");
+            samples.Add(executor.CreateAbsoluteTrajectorySample(ev.X, ev.Y, delayAfterMicroseconds: 0));
+            finalLogicalTarget = (ev.X, ev.Y);
+        }
+
+        return samples.Count > 1;
+    }
+
+    private bool TryCreateLogicalRelativeTrajectorySlice(
+        IList<MacroEvent> events,
+        int startIndex,
+        MacroSequence macro,
+        double speedMultiplier,
+        out List<AbsoluteMotionTrajectorySample> samples,
+        out (int X, int Y) finalLogicalTarget)
+    {
+        samples = [];
+        finalLogicalTarget = default;
+
+        var coordinator = _coordinator;
+        var executor = _eventExecutor;
+        if (_inputSimulator is not IAbsoluteMotionTrajectorySimulator
+            || coordinator is not { HasKnownPosition: true }
+            || executor is null
+            || startIndex >= events.Count)
+        {
+            return false;
+        }
+
+        (int X, int Y) target = (coordinator.CurrentX, coordinator.CurrentY);
+        long totalDelayMicroseconds = 0;
+        for (var index = startIndex; index < events.Count && samples.Count < MaxDaemonTrajectorySamples; index++)
+        {
+            var ev = events[index];
+            if (ev.Type is not EventType.MouseMove
+                || ev.HasRandomDelay
+                || MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is not MouseCoordinateMode.Relative
+                || MacroPositionSemantics.ResolveCoordinateSpace(ev, macro.IsAbsoluteCoordinates) is not MouseCoordinateSpace.LogicalDesktop)
+            {
+                break;
+            }
+
+            if (!TryAppendTrajectoryDelay(
+                    samples,
+                    ev.DelayMicroseconds,
+                    speedMultiplier,
+                    ref totalDelayMicroseconds))
+            {
+                break;
+            }
+
+            target = executor.ClampLogicalTarget((long)target.X + ev.X, (long)target.Y + ev.Y);
+            samples.Add(executor.CreateAbsoluteTrajectorySample(target.X, target.Y, delayAfterMicroseconds: 0));
+            finalLogicalTarget = target;
+        }
+
+        return samples.Count > 1;
+    }
+
+    private static bool TryAppendTrajectoryDelay(
+        List<AbsoluteMotionTrajectorySample> samples,
+        long sourceDelayMicroseconds,
+        double speedMultiplier,
+        ref long totalDelayMicroseconds)
+    {
+        if (samples.Count is 0)
+        {
+            return true;
+        }
+
+        long delayFromPreviousMicroseconds = ScaleDelayMicroseconds(sourceDelayMicroseconds, speedMultiplier);
+        if (totalDelayMicroseconds + delayFromPreviousMicroseconds > MaxDaemonTrajectoryDurationMicroseconds)
+        {
+            return false;
+        }
+
+        var previousSample = samples[^1];
+        samples[^1] = previousSample with { DelayAfterMicroseconds = delayFromPreviousMicroseconds };
+        totalDelayMicroseconds += delayFromPreviousMicroseconds;
+        return true;
+    }
+
+    private static long ScaleDelayMicroseconds(long sourceDelayMicroseconds, double speedMultiplier)
+    {
+        if (sourceDelayMicroseconds <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Max(0, Convert.ToInt64(Math.Round(
+            sourceDelayMicroseconds / speedMultiplier,
+            MidpointRounding.AwayFromZero)));
+    }
+
+    private async Task PlayOnceRuntimeScriptAsync(
+        MacroSequence macro,
+        double speedMultiplier,
+        PlaybackOptions options,
+        CancellationToken cancellationToken)
     {
         bool useLegacyCurrentPositionInterpretation = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro);
         var state = new PlaybackRunState
@@ -384,8 +690,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         var playbackElapsedMilliseconds = _playbackElapsedMillisecondsFactory();
         var screenReadExecutor = new RunScriptScreenReadExecutor(
             _screenPixelReader,
-                _positionProvider,
-                (ev, token) => ExecutePlaybackEventAsync(
+            _positionProvider,
+            executeEventAsync: (ev, token) => ExecutePlaybackEventAsync(
                 macro,
                 ev,
                 speedMultiplier,
@@ -393,10 +699,11 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                 state,
                 useLegacyCurrentPositionInterpretation,
                 macro.Events.Count,
-                    token),
-                _imageClickMovementResolver,
-                _inputSimulator,
-                _imageAssetCodec);
+                token),
+            imageClickMovementResolver: _imageClickMovementResolver,
+            inputSimulator: _inputSimulator,
+            imageAssetCodec: _imageAssetCodec,
+            flushPendingCursorMovementAsync: token => FlushPendingCursorMovementAsync(state, token));
         var windowExecutor = new RunScriptWindowExecutor(_windowManager);
         var clipboardExecutor = new RunScriptClipboardExecutor(_clipboardService);
         var shellExecutor = new RunScriptShellExecutor(_shellCommandRunner, _timingService, this);
@@ -428,23 +735,21 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
         var runtimeCoordinator = new RunScriptRuntimeCoordinator(runtimeExecutor);
         await runtimeCoordinator.ExecuteAsync(executionRequest, cancellationToken).ConfigureAwait(false);
+        await FlushPendingCursorMovementAsync(state, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task ExecutePlaybackEventAsync(
-        MacroSequence macro,
+    private async Task WaitForEventScheduleAsync(
         MacroEvent ev,
         double speedMultiplier,
         Func<double> playbackElapsedMilliseconds,
         PlaybackRunState state,
-        bool useLegacyCurrentPositionInterpretation,
-        int totalEvents,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         if (_session.IsPaused)
         {
-            Log.Debug("[MacroPlayer] Paused at event {Current}/{Total}", state.EventCount, totalEvents);
+            Log.Debug("[MacroPlayer] Paused before event {Current}", state.EventCount);
             var pausedStartMs = playbackElapsedMilliseconds();
             await _session.WaitIfPausedAsync(cancellationToken).ConfigureAwait(false);
             var pausedDurationMs = playbackElapsedMilliseconds() - pausedStartMs;
@@ -452,7 +757,6 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             {
                 state.TimelineAnchorElapsedMs += pausedDurationMs;
             }
-            Log.Debug("[MacroPlayer] Resumed playback");
         }
 
         int currentPauseResumeVersion = _session.PauseResumeVersion;
@@ -466,66 +770,54 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         }
 
         state.EventCount++;
-        if (state.EventCount % YieldInterval is 0)
+
+        double eventDelaySource = ResolveEventDelayMilliseconds(ev);
+        bool isMotionEvent = ev.Type is EventType.MouseMove;
+        if (eventDelaySource <= 0)
         {
-            await Task.Yield();
+            return;
         }
 
-        int eventDelaySource = ResolveDelayMs(
-            ev.DelayMs,
-            ev.HasRandomDelay,
-            ev.RandomDelayMinMs,
-            ev.RandomDelayMaxMs);
-
-        var waitedForDelay = false;
-        if (eventDelaySource > 0)
+        double adjustedDelay = eventDelaySource / speedMultiplier;
+        if (!state.HasTimelineAnchor)
         {
-            double effectiveSpeed = speedMultiplier;
-
-            if (state.EventCount <= StabilizationEventCount && speedMultiplier > MaxInitialSpeedMultiplier)
-            {
-                effectiveSpeed = MaxInitialSpeedMultiplier;
-            }
-
-            double adjustedDelay = eventDelaySource / effectiveSpeed;
-
-            if (_eventExecutor!.IsMouseButtonPressed && adjustedDelay < MinEnforcedDelayMs)
-            {
-                adjustedDelay = MinEnforcedDelayMs;
-            }
-
-            if (!state.HasTimelineAnchor)
-            {
-                state.TimelineAnchorElapsedMs = playbackElapsedMilliseconds();
-                state.HasTimelineAnchor = true;
-            }
-
-            state.ScheduledElapsedMs += adjustedDelay;
-            var elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
-            var remainingDelayMs = state.ScheduledElapsedMs - elapsedSinceAnchorMs;
-
-            if (remainingDelayMs > 0)
-            {
-                await _timingService.WaitAsync(remainingDelayMs, this, cancellationToken).ConfigureAwait(false);
-                waitedForDelay = true;
-
-                elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
-                remainingDelayMs = state.ScheduledElapsedMs - elapsedSinceAnchorMs;
-                if (ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay))
-                {
-                    state.ScheduledElapsedMs = elapsedSinceAnchorMs;
-                }
-            }
-            else if (ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay))
-            {
-                state.ScheduledElapsedMs = elapsedSinceAnchorMs;
-            }
+            state.TimelineAnchorElapsedMs = playbackElapsedMilliseconds();
+            state.HasTimelineAnchor = true;
         }
 
-        if (!waitedForDelay && speedMultiplier > 5.0 && !state.IsFirstEvent)
+        state.ScheduledElapsedMs += adjustedDelay;
+        var elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
+        var remainingDelayMs = state.ScheduledElapsedMs - elapsedSinceAnchorMs;
+        if (remainingDelayMs > 0)
         {
-            await Task.Yield();
+            await _timingService.WaitAsync(remainingDelayMs, this, cancellationToken).ConfigureAwait(false);
+            elapsedSinceAnchorMs = playbackElapsedMilliseconds() - state.TimelineAnchorElapsedMs;
+            remainingDelayMs = state.ScheduledElapsedMs - elapsedSinceAnchorMs;
         }
+
+        if (remainingDelayMs <= 0
+            && (isMotionEvent || ShouldResetPlaybackTimeline(remainingDelayMs, adjustedDelay)))
+        {
+            state.ScheduledElapsedMs = elapsedSinceAnchorMs;
+        }
+    }
+
+    private async Task ExecutePlaybackEventAsync(
+        MacroSequence macro,
+        MacroEvent ev,
+        double speedMultiplier,
+        Func<double> playbackElapsedMilliseconds,
+        PlaybackRunState state,
+        bool useLegacyCurrentPositionInterpretation,
+        int totalEvents,
+        CancellationToken cancellationToken)
+    {
+        await WaitForEventScheduleAsync(
+            ev,
+            speedMultiplier,
+            playbackElapsedMilliseconds,
+            state,
+            cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -552,23 +844,57 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
             var coordinator = _coordinator ?? throw new InvalidOperationException("Playback coordinator is not initialized.");
             var executor = _eventExecutor ?? throw new InvalidOperationException("Playback event executor is not initialized.");
-            if (coordinateMode is MouseCoordinateMode.Absolute
-                && MacroPositionSemantics.IsNonScrollMouseButtonEvent(eventToExecute)
-                && !eventToExecute.UseCurrentPosition)
+            bool isNonScrollMouseButtonEvent = MacroPositionSemantics.IsNonScrollMouseButtonEvent(eventToExecute);
+            bool isScrollMouseButtonEvent = IsScrollMouseButtonEvent(eventToExecute);
+            bool willResolveExplicitAbsoluteButtonPosition = coordinateMode is MouseCoordinateMode.Absolute
+                && isNonScrollMouseButtonEvent
+                && !eventToExecute.UseCurrentPosition;
+
+            bool shouldFlushPendingCursorMovement = !willResolveExplicitAbsoluteButtonPosition
+                && (isNonScrollMouseButtonEvent
+                    || isScrollMouseButtonEvent
+                    || (coordinateMode is MouseCoordinateMode.Relative
+                        && coordinateSpace is MouseCoordinateSpace.RawDevice));
+            if (shouldFlushPendingCursorMovement)
+            {
+                await FlushPendingCursorMovementAsync(state, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (willResolveExplicitAbsoluteButtonPosition)
             {
                 executor.MoveAbsolute(eventToExecute.X, eventToExecute.Y);
-                await EnsureAbsolutePositionSettledAsync(coordinator, cancellationToken).ConfigureAwait(false);
+                await EnsureAbsolutePositionSettledAsync(
+                    coordinator,
+                    coordinator.CurrentX,
+                    coordinator.CurrentY,
+                    cancellationToken).ConfigureAwait(false);
+                state.HasPendingLogicalMove = false;
                 eventToExecute.UseCurrentPosition = true;
                 eventToExecute.X = 0;
                 eventToExecute.Y = 0;
             }
 
             executor.Execute(eventToExecute, coordinateMode, coordinateSpace);
-            if (coordinateMode is MouseCoordinateMode.Absolute
-                && eventToExecute.Type is EventType.MouseMove
-                && MacroPositionSemantics.IsCoordinateBearing(eventToExecute))
+            // Do not serialize high-frequency movement on compositor feedback.
+            // Defer the safety check to the next pointer-dependent operation.
+            if (eventToExecute.Type is EventType.MouseMove)
             {
-                await EnsureAbsolutePositionSettledAsync(coordinator, cancellationToken).ConfigureAwait(false);
+                if (coordinateSpace is MouseCoordinateSpace.LogicalDesktop
+                    && coordinateMode is MouseCoordinateMode.Absolute or MouseCoordinateMode.Relative)
+                {
+                    state.DirectLogicalMoveCount++;
+                }
+
+                if (coordinateSpace is MouseCoordinateSpace.LogicalDesktop && coordinator.HasKnownPosition)
+                {
+                    state.HasPendingLogicalMove = true;
+                    state.PendingLogicalX = coordinator.CurrentX;
+                    state.PendingLogicalY = coordinator.CurrentY;
+                }
+                else
+                {
+                    state.HasPendingLogicalMove = false;
+                }
             }
         }
         catch (AbsolutePlaybackUnsupportedException)
@@ -609,20 +935,84 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             }
         }
 
-        state.IsFirstEvent = false;
+    }
+
+    private async Task FlushPendingCursorMovementAsync(
+        PlaybackRunState state,
+        CancellationToken cancellationToken)
+    {
+        var coordinator = _coordinator;
+        if (coordinator is null)
+        {
+            return;
+        }
+
+        if (state.HasPendingLogicalMove)
+        {
+            await EnsureAbsolutePositionSettledAsync(
+                coordinator,
+                state.PendingLogicalX,
+                state.PendingLogicalY,
+                cancellationToken).ConfigureAwait(false);
+            state.HasPendingLogicalMove = false;
+        }
+
+        if (!coordinator.HasKnownPosition)
+        {
+            _ = await coordinator.TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static void LogMotionTransportSummary(
+        IList<MacroEvent> events,
+        MacroSequence macro,
+        PlaybackOptions options,
+        double speedMultiplier,
+        PlaybackRunState state,
+        TimeSpan elapsed,
+        MotionTrajectoryResampler.Plan trajectoryPlan)
+    {
+        int inputLogicalMoveCount = events.Count(ev => ev.Type is EventType.MouseMove
+            && MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Absolute or MouseCoordinateMode.Relative
+            && MacroPositionSemantics.ResolveCoordinateSpace(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateSpace.LogicalDesktop);
+        if (inputLogicalMoveCount is 0)
+        {
+            return;
+        }
+
+        Log.Information(
+            "[MacroPlayer] Motion playback completed: Mode={Mode}, EffectiveSpeed={EffectiveSpeed:F3}x, LogicalMoves={LogicalMoves}, TrajectorySamples={TrajectorySamples}, DirectLogicalMoves={DirectLogicalMoves}, ResampledSegments={ResampledSegments}, OmittedSamples={OmittedSamples}, MaximumGeometricErrorPx={MaximumGeometricErrorPx:F3}, ErrorBoundSatisfied={ErrorBoundSatisfied}, PlaybackElapsedMs={PlaybackElapsedMs:F3}",
+            options.MotionMode,
+            speedMultiplier,
+            inputLogicalMoveCount,
+            state.TrajectorySampleCount,
+            state.DirectLogicalMoveCount,
+            trajectoryPlan.ResampledSegmentCount,
+            trajectoryPlan.OmittedSampleCount,
+            trajectoryPlan.MaximumGeometricErrorPixels,
+            trajectoryPlan.IsErrorBoundSatisfied,
+            elapsed.TotalMilliseconds);
+    }
+
+    private static bool IsScrollMouseButtonEvent(MacroEvent ev)
+    {
+        return ev.Type is EventType.ButtonPress or EventType.ButtonRelease or EventType.Click
+            && MacroPositionSemantics.IsScrollButton(ev.Button);
     }
 
     private static async Task EnsureAbsolutePositionSettledAsync(
         IPlaybackCoordinator coordinator,
+        int expectedX,
+        int expectedY,
         CancellationToken cancellationToken)
     {
         var settled = await coordinator.WaitForPositionAsync(
-            coordinator.CurrentX,
-            coordinator.CurrentY,
+            expectedX,
+            expectedY,
             cancellationToken).ConfigureAwait(false);
         if (!settled)
         {
-            throw new AbsoluteCursorMoveNotSettledException(coordinator.CurrentX, coordinator.CurrentY);
+            throw new AbsoluteCursorMoveNotSettledException(expectedX, expectedY);
         }
     }
 
@@ -739,6 +1129,22 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
     private int ResolveDelayMs(int fixedDelayMs, bool hasRandomDelay, int randomDelayMinMs, int randomDelayMaxMs)
     {
         return _delayResolver.Resolve(fixedDelayMs, hasRandomDelay, randomDelayMinMs, randomDelayMaxMs);
+    }
+
+    private double ResolveEventDelayMilliseconds(MacroEvent ev)
+    {
+        double fixedDelayMilliseconds = ev.DelayMicroseconds
+            / (double)MacroTiming.MicrosecondsPerMillisecond;
+        if (ev.HasRandomDelay)
+        {
+            return fixedDelayMilliseconds + ResolveDelayMs(
+                fixedDelayMs: 0,
+                hasRandomDelay: true,
+                randomDelayMinMs: ev.RandomDelayMinMs,
+                randomDelayMaxMs: ev.RandomDelayMaxMs);
+        }
+
+        return fixedDelayMilliseconds;
     }
 
     public void Pause()

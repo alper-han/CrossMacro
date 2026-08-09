@@ -1,18 +1,10 @@
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-/// <summary>
-/// Runtime-owned high precision playback timing implementation.
-/// </summary>
-/// <remarks>
-/// The timing contract remains in Core, while Stopwatch/Task.Delay/SpinWait
-/// orchestration belongs to the outer runtime. The legacy Core concrete type
-/// remains available for source compatibility and isolated Core tests.
-/// </remarks>
+/// <summary>Runtime-owned high-precision playback timing implementation.</summary>
 internal sealed class SystemPlaybackTimingService : IPlaybackTimingService
 {
     private const int MaxDelayChunkMs = 50;
     private const double FinalSpinWindowMs = 1.0;
-    private const int YieldSpinInterval = 8;
 
     public async Task WaitAsync(
         double delayMilliseconds,
@@ -84,10 +76,6 @@ internal sealed class SystemPlaybackTimingService : IPlaybackTimingService
             }
 
             spinner.SpinOnce(sleep1Threshold: -1);
-            if (spinner.Count % YieldSpinInterval is 0)
-            {
-                _ = Thread.Yield();
-            }
         }
     }
 

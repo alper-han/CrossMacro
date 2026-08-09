@@ -400,7 +400,7 @@ public sealed class RunScriptParityTests
         IKeyCodeMapper keyCodeMapper,
         List<string> activity)
     {
-        return new MacroPlayerDependencies(positionProvider, new PlaybackTimingService(), (_, _) => Task.CompletedTask,
+        return new MacroPlayerDependencies(positionProvider, new SystemPlaybackTimingService(), (_, _) => Task.CompletedTask,
             CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
             () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), () => new RecordingInputSimulator(activity), simulatorPool: null,
             new RecordingScreenPixelReader(activity), keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner: null,

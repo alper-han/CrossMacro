@@ -129,7 +129,42 @@ public sealed partial class MacroPlayerTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenSpeedProducesSubMillisecondDelay_PreservesFractionalWait()
+    public async Task PlayAsync_WhenRandomDelayHasSubMillisecondFixedComponent_PreservesTheFixedPrecision()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService();
+        var clock = new ManualPlaybackClock();
+        var player = CreatePlayer(
+            inputSimulatorFactory: () => simulator,
+            timingService: timing,
+            playbackElapsedMillisecondsFactory: clock.CreateElapsedMillisecondsProviderFactory());
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 20,
+                    Y = 20,
+                    DelayMicroseconds = 750,
+                    HasRandomDelay = true,
+                    RandomDelayMinMs = 20,
+                    RandomDelayMaxMs = 20,
+                },
+            },
+        };
+
+        await player.PlayAsync(macro);
+
+        _ = timing.WaitCalls.Should().ContainSingle();
+        _ = timing.WaitCalls[0].Should().BeApproximately(20.75, 0.001);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenHighResolutionTimingAndSpeedProduceSubMillisecondDelay_PreservesFractionalWait()
     {
         var simulator = Substitute.For<IInputSimulator>();
         _ = simulator.ProviderName.Returns("MockSimulator");
@@ -145,14 +180,21 @@ public sealed partial class MacroPlayerTests
             Events =
             {
                 new() { Type = EventType.MouseMove, X = 1, Y = 1 },
-                new() { Type = EventType.MouseMove, X = 2, Y = 2, DelayMs = 1 },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 2,
+                    Y = 2,
+                    DelayMs = 0,
+                    DelayMicroseconds = 500,
+                },
             },
         };
 
         await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 2.0 });
 
         _ = timing.WaitCalls.Should().ContainSingle();
-        _ = timing.WaitCalls[0].Should().BeApproximately(0.5, 0.001);
+        _ = timing.WaitCalls[0].Should().BeApproximately(0.25, 0.001);
     }
 
     [Fact]
@@ -370,7 +412,7 @@ public sealed partial class MacroPlayerTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenHighSpeedPlaybackHasSmallDrift_ShouldPreserveCatchUpPacing()
+    public async Task PlayAsync_WhenHighSpeedPlaybackMissesAMotionDeadline_ShouldRebaseWithoutBursting()
     {
         // Arrange
         var simulator = Substitute.For<IInputSimulator>();
@@ -412,8 +454,8 @@ public sealed partial class MacroPlayerTests
 
         // Assert
         _ = timing.WaitCalls.Should().HaveCount(2);
-        _ = timing.WaitCalls[0].Should().BeApproximately(100d / 3d, 0.000_001);
-        _ = timing.WaitCalls[1].Should().BeApproximately((100d / 3d) - 12d, 0.000_001);
+        _ = timing.WaitCalls[0].Should().BeApproximately(100d / 5d, 0.000_001);
+        _ = timing.WaitCalls[1].Should().BeApproximately(100d / 5d, 0.000_001);
     }
 
     [Fact]

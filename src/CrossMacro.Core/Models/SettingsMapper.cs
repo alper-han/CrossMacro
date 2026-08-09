@@ -40,6 +40,10 @@ public static class SettingsMapper
             UseRandomLoopDelay = source.UseRandomLoopDelay,
             LoopDelayMinMs = source.LoopDelayMinMs,
             LoopDelayMaxMs = source.LoopDelayMaxMs,
+            MotionMode = source.MotionMode,
+            StrictSpeedMotionEventsPerSecond = source.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = source.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = source.MaximumMotionErrorPixels,
             CountdownSeconds = source.CountdownSeconds,
             IsMouseRecordingEnabled = source.IsMouseRecordingEnabled,
             IsKeyboardRecordingEnabled = source.IsKeyboardRecordingEnabled,
@@ -77,6 +81,10 @@ public static class SettingsMapper
             UseRandomLoopDelay = profile.UseRandomLoopDelay,
             LoopDelayMinMs = profile.LoopDelayMinMs,
             LoopDelayMaxMs = profile.LoopDelayMaxMs,
+            MotionMode = profile.MotionMode,
+            StrictSpeedMotionEventsPerSecond = profile.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = profile.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = profile.MaximumMotionErrorPixels,
             CountdownSeconds = profile.CountdownSeconds,
             IsMouseRecordingEnabled = profile.IsMouseRecordingEnabled,
             IsKeyboardRecordingEnabled = profile.IsKeyboardRecordingEnabled,
@@ -120,6 +128,10 @@ public static class SettingsMapper
         target.UseRandomLoopDelay = profile.UseRandomLoopDelay;
         target.LoopDelayMinMs = profile.LoopDelayMinMs;
         target.LoopDelayMaxMs = profile.LoopDelayMaxMs;
+        target.MotionMode = profile.MotionMode;
+        target.StrictSpeedMotionEventsPerSecond = profile.StrictSpeedMotionEventsPerSecond;
+        target.PrecisionMotionEventsPerSecond = profile.PrecisionMotionEventsPerSecond;
+        target.MaximumMotionErrorPixels = profile.MaximumMotionErrorPixels;
         target.CountdownSeconds = profile.CountdownSeconds;
         target.IsMouseRecordingEnabled = profile.IsMouseRecordingEnabled;
         target.IsKeyboardRecordingEnabled = profile.IsKeyboardRecordingEnabled;

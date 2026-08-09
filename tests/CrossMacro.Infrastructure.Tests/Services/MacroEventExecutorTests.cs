@@ -78,6 +78,32 @@ public sealed class MacroEventExecutorTests : IDisposable
     }
 
     [Fact]
+    public void Execute_MouseMove_Absolute_ButtonPressed_UsesAbsoluteTargetAndKeepsLogicalPosition()
+    {
+        var simulator = new TrackingSimulator(supportsAbsoluteCoordinates: true);
+        var coordinator = Substitute.For<IPlaybackCoordinator>();
+        _ = coordinator.HasKnownPosition.Returns(true);
+        _ = coordinator.CurrentX.Returns(60);
+        _ = coordinator.CurrentY.Returns(50);
+        _ = _buttonTracker.IsAnyPressed.Returns(true);
+        using var executor = new MacroEventExecutor(
+            simulator,
+            _buttonTracker,
+            _keyTracker,
+            _buttonMapper,
+            coordinator);
+        executor.Initialize(1920, 1080);
+
+        executor.Execute(
+            new MacroEvent { Type = EventType.MouseMove, X = 100, Y = 80 },
+            MouseCoordinateMode.Absolute);
+
+        _ = simulator.LastAbsoluteMove.Should().Be((100, 80));
+        _ = simulator.LastRelativeMove.Should().BeNull();
+        coordinator.Received(1).UpdatePosition(100, 80);
+    }
+
+    [Fact]
     public void Execute_ButtonPress_MapsButtonAndEmits()
     {
         // Arrange

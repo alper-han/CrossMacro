@@ -14,12 +14,12 @@ internal sealed class MacroPlaybackLifecycle(
     Func<int, MacroSequence, CancellationToken, Task> prepareIterationAsync,
     Action<int> logIterationStart,
     Action<PlaybackOptions, int, bool> logLoopSettings,
-    Func<MacroSequence, double, CancellationToken, Task> playOnceAsync,
-    Func<MacroSequence, double, CancellationToken, Task> playOnceRuntimeScriptAsync,
+    Func<MacroSequence, double, PlaybackOptions, CancellationToken, Task> playOnceAsync,
+    Func<MacroSequence, double, PlaybackOptions, CancellationToken, Task> playOnceRuntimeScriptAsync,
     Func<CancellationToken, Task> waitForStabilizationAsync,
-    Func<MacroSequence, int> resolveTrailingDelayMs,
+    Func<MacroSequence, long> resolveTrailingDelayMicroseconds,
     Func<PlaybackOptions, int> resolveRepeatDelayMs,
-    Func<int, CancellationToken, Task> waitAsync)
+    Func<double, CancellationToken, Task> waitAsync)
 {
     private const int IterationYieldInterval = 50;
 
@@ -65,11 +65,11 @@ internal sealed class MacroPlaybackLifecycle(
 
                 if (hasRuntimeScriptSteps(macro))
                 {
-                    await playOnceRuntimeScriptAsync(macro, normalizedSpeed, sessionToken).ConfigureAwait(false);
+                    await playOnceRuntimeScriptAsync(macro, normalizedSpeed, options, sessionToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await playOnceAsync(macro, normalizedSpeed, sessionToken).ConfigureAwait(false);
+                    await playOnceAsync(macro, normalizedSpeed, options, sessionToken).ConfigureAwait(false);
                 }
 
                 await WaitForNextIterationAsync(macro, options, normalizedSpeed, iteration, repeatCount, infiniteLoop, sessionToken).ConfigureAwait(false);
@@ -101,7 +101,7 @@ internal sealed class MacroPlaybackLifecycle(
         while ((infiniteLoop || iteration < repeatCount) && !cancellationToken.IsCancellationRequested)
         {
             setLoopProgress(infiniteLoop ? 0 : repeatCount, iteration + 1);
-            await playOnceRuntimeScriptAsync(macro, normalizedSpeed, cancellationToken).ConfigureAwait(false);
+            await playOnceRuntimeScriptAsync(macro, normalizedSpeed, options, cancellationToken).ConfigureAwait(false);
             await WaitForNextIterationAsync(macro, options, normalizedSpeed, iteration, repeatCount, infiniteLoop, cancellationToken).ConfigureAwait(false);
             iteration++;
         }
@@ -116,10 +116,10 @@ internal sealed class MacroPlaybackLifecycle(
         bool infiniteLoop,
         CancellationToken cancellationToken)
     {
-        int trailingDelaySource = resolveTrailingDelayMs(macro);
+        long trailingDelaySource = resolveTrailingDelayMicroseconds(macro);
         if (trailingDelaySource > 0 && !cancellationToken.IsCancellationRequested)
         {
-            int trailingDelay = (int)(trailingDelaySource / normalizedSpeed);
+            double trailingDelay = trailingDelaySource / (double)MacroTiming.MicrosecondsPerMillisecond / normalizedSpeed;
             if (trailingDelay > 0)
             {
                 await waitAsync(trailingDelay, cancellationToken).ConfigureAwait(false);

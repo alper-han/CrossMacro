@@ -50,7 +50,7 @@ public sealed partial class MacroPlayerTests
     {
         return new MacroPlayerDependencies(
             positionProvider,
-            timingService ?? new PlaybackTimingService(),
+            timingService ?? new SystemPlaybackTimingService(),
             playbackWaitAsync,
             playbackElapsedMillisecondsFactory ?? CreateElapsedMillisecondsProvider,
             () => new DefaultPlaybackCoordinator(positionProvider),
@@ -205,7 +205,7 @@ public sealed partial class MacroPlayerTests
         }
     }
 
-    private sealed class TrackingInputSimulator(bool forceRelativeOnly = false) : IInputSimulator, IInputSimulatorCapabilities
+    private class TrackingInputSimulator(bool forceRelativeOnly = false) : IInputSimulator, IInputSimulatorCapabilities
     {
         public string ProviderName => "Tracking";
         public bool IsSupported => true;
@@ -214,6 +214,7 @@ public sealed partial class MacroPlayerTests
         public int InitializedHeight { get; private set; }
         public List<(int X, int Y)> AbsoluteMoves { get; } = new();
         public List<(int Button, bool Pressed)> ButtonTransitions { get; } = new();
+        public List<(int Delta, bool IsHorizontal)> ScrollOperations { get; } = new();
         public List<string> Operations { get; } = new();
 
         public void Initialize(int screenWidth = 0, int screenHeight = 0)
@@ -248,6 +249,8 @@ public sealed partial class MacroPlayerTests
 
         public void Scroll(int delta, bool isHorizontal = false)
         {
+            ScrollOperations.Add((delta, isHorizontal));
+            Operations.Add($"scroll:{delta},{isHorizontal}");
         }
 
         public void KeyPress(int keyCode, bool pressed)
@@ -260,6 +263,20 @@ public sealed partial class MacroPlayerTests
 
         public void Dispose()
         {
+        }
+    }
+
+    private sealed class TrackingTrajectoryInputSimulator : TrackingInputSimulator, IAbsoluteMotionTrajectorySimulator
+    {
+        public List<IReadOnlyList<AbsoluteMotionTrajectorySample>> Trajectories { get; } = [];
+
+        public Task SimulateAbsoluteTrajectoryAsync(
+            IReadOnlyList<AbsoluteMotionTrajectorySample> samples,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Trajectories.Add(samples.ToArray());
+            return Task.CompletedTask;
         }
     }
 }

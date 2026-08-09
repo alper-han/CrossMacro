@@ -35,6 +35,10 @@ internal static class SettingsPersistenceMapper
             UseRandomLoopDelay = source.UseRandomLoopDelay,
             LoopDelayMinMs = source.LoopDelayMinMs,
             LoopDelayMaxMs = source.LoopDelayMaxMs,
+            MotionMode = source.MotionMode,
+            StrictSpeedMotionEventsPerSecond = source.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = source.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = source.MaximumMotionErrorPixels,
             CountdownSeconds = source.CountdownSeconds,
             IsMouseRecordingEnabled = source.IsMouseRecordingEnabled,
             IsKeyboardRecordingEnabled = source.IsKeyboardRecordingEnabled,
@@ -67,6 +71,10 @@ internal static class SettingsPersistenceMapper
             UseRandomLoopDelay = profile.UseRandomLoopDelay,
             LoopDelayMinMs = profile.LoopDelayMinMs,
             LoopDelayMaxMs = profile.LoopDelayMaxMs,
+            MotionMode = profile.MotionMode,
+            StrictSpeedMotionEventsPerSecond = profile.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = profile.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = profile.MaximumMotionErrorPixels,
             CountdownSeconds = profile.CountdownSeconds,
             IsMouseRecordingEnabled = profile.IsMouseRecordingEnabled,
             IsKeyboardRecordingEnabled = profile.IsKeyboardRecordingEnabled,
@@ -104,6 +112,10 @@ internal static class SettingsPersistenceMapper
         target.UseRandomLoopDelay = profile.UseRandomLoopDelay;
         target.LoopDelayMinMs = profile.LoopDelayMinMs;
         target.LoopDelayMaxMs = profile.LoopDelayMaxMs;
+        target.MotionMode = profile.MotionMode;
+        target.StrictSpeedMotionEventsPerSecond = profile.StrictSpeedMotionEventsPerSecond;
+        target.PrecisionMotionEventsPerSecond = profile.PrecisionMotionEventsPerSecond;
+        target.MaximumMotionErrorPixels = profile.MaximumMotionErrorPixels;
         target.CountdownSeconds = profile.CountdownSeconds;
         target.IsMouseRecordingEnabled = profile.IsMouseRecordingEnabled;
         target.IsKeyboardRecordingEnabled = profile.IsKeyboardRecordingEnabled;
@@ -121,5 +133,14 @@ internal static class SettingsPersistenceMapper
         (profile.LoopDelayMinMs, profile.LoopDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(
             profile.LoopDelayMinMs,
             profile.LoopDelayMaxMs);
+        profile.MotionMode = Enum.IsDefined(profile.MotionMode)
+            ? profile.MotionMode
+            : MotionPlaybackMode.Precision;
+        profile.StrictSpeedMotionEventsPerSecond = PlaybackOptions.NormalizeStrictSpeedMotionEventsPerSecond(
+            profile.StrictSpeedMotionEventsPerSecond);
+        profile.PrecisionMotionEventsPerSecond = PlaybackOptions.NormalizePrecisionMotionEventsPerSecond(
+            profile.PrecisionMotionEventsPerSecond);
+        profile.MaximumMotionErrorPixels = PlaybackOptions.NormalizeMaximumMotionErrorPixels(
+            profile.MaximumMotionErrorPixels);
     }
 }

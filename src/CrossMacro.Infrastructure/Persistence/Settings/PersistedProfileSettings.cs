@@ -22,6 +22,14 @@ public sealed class PersistedProfileSettings
 
     public int LoopDelayMaxMs { get; set; } = PlaybackOptions.DefaultDelayMs;
 
+    public MotionPlaybackMode MotionMode { get; set; } = MotionPlaybackMode.Precision;
+
+    public int StrictSpeedMotionEventsPerSecond { get; set; } = PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
+
+    public int PrecisionMotionEventsPerSecond { get; set; } = PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
+
+    public double MaximumMotionErrorPixels { get; set; } = PlaybackOptions.DefaultMaximumMotionErrorPixels;
+
     public int CountdownSeconds { get; set; }
 
     public bool IsMouseRecordingEnabled { get; set; } = true;

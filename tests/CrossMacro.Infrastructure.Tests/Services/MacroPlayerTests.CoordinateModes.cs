@@ -129,6 +129,176 @@ public sealed partial class MacroPlayerTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenAbsoluteMouseMovesCannotBeObserved_PerformsOnlyFinalSettlement()
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = _positionProvider.GetAbsolutePositionAsync()
+            .Returns(
+                Task.FromResult<(int X, int Y)?>((0, 0)),
+                Task.FromResult<(int X, int Y)?>((0, 0)),
+                Task.FromResult<(int X, int Y)?>((200, 300)));
+
+        var simulator = new TrackingInputSimulator();
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 100, Y = 200 },
+                new() { Type = EventType.MouseMove, X = 200, Y = 300 },
+            },
+        };
+
+        await player.PlayAsync(macro);
+
+        _ = simulator.Operations.Should().Equal("abs:0,0", "abs:100,200", "abs:200,300");
+        _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenScrollFollowsAbsoluteMove_SettlesBeforeScrolling()
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var simulator = new TrackingInputSimulator();
+        var positions = new Queue<(int X, int Y)?>([
+            (0, 0),
+            (0, 0),
+            (100, 200),
+        ]);
+        _ = _positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            var position = positions.Dequeue();
+            if (position is { X: 100, Y: 200 })
+            {
+                simulator.Operations.Add("settled");
+            }
+
+            return Task.FromResult(position);
+        });
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 100, Y = 200 },
+                new() { Type = EventType.Click, Button = MacroMouseButton.ScrollUp },
+            },
+        };
+
+        await player.PlayAsync(macro);
+
+        _ = simulator.Operations.Should().Equal("abs:0,0", "abs:100,200", "settled", "scroll:1,False");
+        _ = simulator.ScrollOperations.Should().ContainSingle().Which.Should().Be((1, false));
+        _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenAbsoluteMoveIsFollowedByRawRelativeMoveAndClick_PreservesMovementOrder()
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var simulator = new TrackingInputSimulator();
+        var positions = new Queue<(int X, int Y)?>([
+            (0, 0),
+            (0, 0),
+            (100, 200),
+            (105, 205),
+        ]);
+        _ = _positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            var position = positions.Dequeue();
+            if (position is { X: 100, Y: 200 })
+            {
+                simulator.Operations.Add("settled");
+            }
+
+            return Task.FromResult(position);
+        });
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 100, Y = 200 },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 5,
+                    Y = 5,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                },
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, UseCurrentPosition = true },
+            },
+        };
+
+        await player.PlayAsync(macro);
+
+        _ = simulator.Operations.Should().Equal("abs:0,0", "abs:100,200", "settled", "rel:5,5", "btn:down", "btn:up");
+        _ = await _positionProvider.Received(4).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenAbsoluteMoveIsFollowedByCurrentPositionClickAcrossLoop_SettlesBeforeNextIteration()
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var simulator = new TrackingInputSimulator();
+        var positions = new Queue<(int X, int Y)?>([
+            (0, 0),
+            (0, 0),
+            (100, 200),
+            (100, 200),
+        ]);
+        _ = _positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            var position = positions.Dequeue();
+            if (position is { X: 100, Y: 200 })
+            {
+                simulator.Operations.Add("settled");
+            }
+
+            return Task.FromResult(position);
+        });
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = true,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, UseCurrentPosition = true },
+                new() { Type = EventType.MouseMove, X = 100, Y = 200 },
+            },
+        };
+        var options = new PlaybackOptions
+        {
+            Loop = true,
+            RepeatCount = 2,
+            RepeatDelayMs = 0,
+        };
+
+        await player.PlayAsync(macro, options);
+
+        _ = simulator.Operations.Should().Equal(
+            "abs:0,0",
+            "btn:down",
+            "btn:up",
+            "abs:100,200",
+            "settled",
+            "btn:down",
+            "btn:up",
+            "abs:100,200",
+            "settled");
+        _ = simulator.ButtonTransitions.Should().HaveCount(4);
+        _ = await _positionProvider.Received(4).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenMacroCombinesCurrentAbsoluteAndRelativeEvents_UsesPerEventMovementSemantics()
     {
         var simulator = new TrackingInputSimulator();
@@ -425,7 +595,10 @@ public sealed partial class MacroPlayerTests
     {
         _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         _ = _positionProvider.GetAbsolutePositionAsync()
-            .Returns(Task.FromResult<(int X, int Y)?>((100, 200)));
+            .Returns(
+                Task.FromResult<(int X, int Y)?>((100, 200)),
+                Task.FromResult<(int X, int Y)?>((100, 200)),
+                Task.FromResult<(int X, int Y)?>((103, 195)));
         var simulator = new TrackingInputSimulator();
         var player = CreatePlayer(inputSimulatorFactory: () => simulator);
         var macro = new MacroSequence
@@ -451,6 +624,105 @@ public sealed partial class MacroPlayerTests
         _ = simulator.InitializedHeight.Should().Be(1080);
         _ = simulator.Operations.Should().Contain("abs:103,195");
         _ = simulator.Operations.Should().NotContain("rel:3,-5");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenLogicalRelativeFeedbackIsStale_PreservesDeterministicTargets()
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var simulator = new TrackingInputSimulator();
+        _ = _positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            (int X, int Y)? position = simulator.AbsoluteMoves.Count switch
+            {
+                0 => (100, 200),
+                1 => (100, 200),
+                2 => (102, 194),
+                _ => (106, 190),
+            };
+            return Task.FromResult(position);
+        });
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+            },
+        };
+
+        await player.PlayAsync(macro);
+
+        _ = simulator.Operations.Should().Equal("abs:100,200", "abs:103,195", "abs:106,190");
+        _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenLogicalRelativeMovesAreContiguous_UsesOneAbsoluteTrajectory()
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = _positionProvider.GetAbsolutePositionAsync().Returns(
+            Task.FromResult<(int X, int Y)?>((100, 200)),
+            Task.FromResult<(int X, int Y)?>((100, 200)),
+            Task.FromResult<(int X, int Y)?>((110, 189)));
+        var simulator = new TrackingTrajectoryInputSimulator();
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 4,
+                    Y = -3,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = -3,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+            },
+        };
+
+        await player.PlayAsync(macro);
+
+        _ = simulator.AbsoluteMoves.Should().Equal((100, 200));
+        _ = simulator.Trajectories.Should().ContainSingle().Which
+            .Select(static sample => (sample.X, sample.Y))
+            .Should().Equal((103, 195), (107, 192), (110, 189));
     }
 
     [Fact]
@@ -565,7 +837,8 @@ public sealed partial class MacroPlayerTests
         _ = _positionProvider.GetAbsolutePositionAsync().Returns(
             Task.FromResult<(int X, int Y)?>((100, 100)),
             Task.FromResult<(int X, int Y)?>((100, 100)),
-            Task.FromResult<(int X, int Y)?>((120, 110)));
+            Task.FromResult<(int X, int Y)?>((120, 110)),
+            Task.FromResult<(int X, int Y)?>((123, 108)));
         var simulator = new TrackingInputSimulator();
         var player = CreatePlayer(inputSimulatorFactory: () => simulator);
         var macro = new MacroSequence
@@ -596,7 +869,7 @@ public sealed partial class MacroPlayerTests
         await player.PlayAsync(macro);
 
         _ = simulator.Operations.Should().Equal("abs:100,100", "rel:5,5", "abs:123,108");
-        _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
+        _ = await _positionProvider.Received(4).GetAbsolutePositionAsync();
     }
 
     [Fact]
@@ -621,7 +894,10 @@ public sealed partial class MacroPlayerTests
     {
         _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         _ = _positionProvider.GetAbsolutePositionAsync()
-            .Returns(Task.FromResult<(int X, int Y)?>((100, 200)));
+            .Returns(
+                Task.FromResult<(int X, int Y)?>((100, 200)),
+                Task.FromResult<(int X, int Y)?>((100, 200)),
+                Task.FromResult<(int X, int Y)?>((103, 195)));
         var simulator = new TrackingInputSimulator();
         var player = CreatePlayer(inputSimulatorFactory: () => simulator);
         var macro = new MacroSequence

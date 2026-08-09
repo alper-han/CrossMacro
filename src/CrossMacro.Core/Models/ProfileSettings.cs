@@ -41,11 +41,26 @@ public class ProfileSettings
     /// </summary>
     public int LoopDelayMaxMs { get; set; } = PlaybackOptions.DefaultDelayMs;
 
+    /// <summary>Controls the trade-off between pointer fidelity and requested duration.</summary>
+    public MotionPlaybackMode MotionMode { get; set; } = MotionPlaybackMode.Precision;
+
+    /// <summary>Maximum injected pointer reports per second in StrictSpeed mode.</summary>
+    public int StrictSpeedMotionEventsPerSecond { get; set; } = PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
+
+    /// <summary>Precision output ceiling; playback slows down instead of dropping positions.</summary>
+    public int PrecisionMotionEventsPerSecond { get; set; } = PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
+
+    public double MaximumMotionErrorPixels { get; set; } = PlaybackOptions.DefaultMaximumMotionErrorPixels;
+
     public void Normalize()
     {
         PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed);
         LoopDelayMs = PlaybackOptions.NormalizeDelayMs(LoopDelayMs);
         (LoopDelayMinMs, LoopDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(LoopDelayMinMs, LoopDelayMaxMs);
+        MotionMode = Enum.IsDefined(MotionMode) ? MotionMode : MotionPlaybackMode.Precision;
+        StrictSpeedMotionEventsPerSecond = PlaybackOptions.NormalizeStrictSpeedMotionEventsPerSecond(StrictSpeedMotionEventsPerSecond);
+        PrecisionMotionEventsPerSecond = PlaybackOptions.NormalizePrecisionMotionEventsPerSecond(PrecisionMotionEventsPerSecond);
+        MaximumMotionErrorPixels = PlaybackOptions.NormalizeMaximumMotionErrorPixels(MaximumMotionErrorPixels);
     }
 
     /// <summary>

@@ -86,7 +86,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         IScreenPixelReader screenPixelReader,
         IClipboardService? clipboardService)
     {
-        return new MacroPlayerDependencies(positionProvider, timingService ?? new PlaybackTimingService(), (_, _) => Task.CompletedTask,
+        return new MacroPlayerDependencies(positionProvider, timingService ?? new SystemPlaybackTimingService(), (_, _) => Task.CompletedTask,
             CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
             () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
             screenPixelReader, keyCodeMapper, new NullWindowManager(), clipboardService, shellCommandRunner: null,

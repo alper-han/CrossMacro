@@ -127,6 +127,22 @@ public sealed class DefaultPlaybackCoordinatorTests
     }
 
     [Fact]
+    public async Task WaitForPositionAsync_WhenObservationIsWithinTolerance_PreservesCommandPosition()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((99, 199)));
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider);
+        coordinator.UpdatePosition(100, 200);
+
+        var settled = await coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+
+        _ = settled.Should().BeTrue();
+        _ = coordinator.CurrentX.Should().Be(100);
+        _ = coordinator.CurrentY.Should().Be(200);
+    }
+
+    [Fact]
     public async Task PrepareIterationAsync_AbsoluteMode_DoesNotPreMoveFirstEvent()
     {
         // Arrange

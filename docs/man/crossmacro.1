@@ -180,11 +180,11 @@ Providing \fB\-\-repeat\fR with value > 0 implies loop semantics for that playba
 .B window and screen
 \fBwindow wait --timeout-ms\fR must be >= 0. \fBscreen search-color --tolerance\fR must be between 0 and 255.
 \fBscreen search-color\fR bounds are end-exclusive and must produce a positive region.
-\fB\-\-poll-ms\fR must be positive and implies \fB\-\-poll\fR. Search commands are
-one-shot unless polling is explicitly requested; script searches use
-\fBpoll [interval_ms]\fR with a default interval of 50 ms.
+The repeated screen commands use a fixed 50 millisecond cadence and default to
+a total 5000 millisecond timeout. One-frame pixel and image searches keep an
+internal five-second capture safety deadline.
 Image command timeouts and regions must be non-negative and positive-sized respectively.
-Image similarity must be finite and between 0.0 and 1.0. Downsample must be at least 1.
+Image similarity must be finite and between 0.0 and 1.0.
 .TP
 .B screenshot
 At least one destination, \fB\-\-output\fR/\fB\-o\fR or \fB\-\-clipboard\fR, is required.
@@ -304,10 +304,9 @@ screen-reading steps \fBpixelcolor\fR, \fBwaitcolor\fR, \fBpixelsearch\fR,
 plus loop control with \fBbreak\fR and \fBcontinue\fR.
 Named image assets are supplied with repeatable
 \fB\-\-asset NAME PNG_PATH\fR options and are referenced by image-step name.
-Search steps are one-shot by default. Add script \fBpoll [interval_ms]\fR to
-retry until the step timeout; the default poll interval is 50 ms.
-Wait-color and wait-image already poll; the same poll form may override their
-50 millisecond interval.
+\fBpixelcolor\fR and \fBimagesearch\fR inspect one frame. \fBwaitcolor\fR,
+\fBpixelsearch\fR, \fBimageclick\fR, and \fBwaitimage\fR retry every 50
+milliseconds for a total five-second default budget.
 Randomized timing is supported with
 \fBdelay random <min> <max>\fR or \fBdelay random <min>..<max>\fR.
 .PP
@@ -332,7 +331,8 @@ and \fBscreen\fR command families. Use \fBclipboard get <var>\fR and
 active/search/wait/focus/close/move/resize/workspace operations, and
 \fBpixelcolor\fR, \fBwaitcolor\fR, or \fBpixelsearch\fR for screen color reads.
 Use \fBimagesearch\fR, \fBimageclick\fR, or \fBwaitimage\fR for native PNG
-template matching. Similarity defaults to 1.0, downsample defaults to 1, and
+template matching. Similarity defaults to 0.95, automatic matching is the
+default, and
 \fBimageclick\fR defaults to the left button; right and middle are optional.
 Image assets are native 8-bit PNG files only, not JPG files.
 Target colors use six-digit \fBRRGGBB\fR values or \fB$var\fR references to
@@ -383,20 +383,18 @@ Title and class selectors use case-insensitive substring matching. Unsupported w
 .TP
 .B screen
 Read screen pixels or match native PNG templates without writing a run script.
-Supported forms include \fBpixel <x> <y> [--timeout-ms <n>]\fR,
-\fBpixel --relative <dx> <dy> [--timeout-ms <n>]\fR,
-\fBwait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--poll] [--poll-ms <n>]\fR, and
-\fBsearch-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--poll] [--poll-ms <n>]\fR.
-Search-color and image-search/click are one-shot by default; polling is opt-in.
-Image forms are \fBsearch-image <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]\fR,
-\fBwait-image\fR with the same options, and
-\fBimage-click <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware]\fR.
-\fBwait-image\fR defaults to a 5000 millisecond timeout. Search and click have
-no timeout unless one is supplied. Image regions are end-exclusive.
-\fB\-\-matchmode first\fR is the deterministic row-major first-match mode;
-\fB\-\-matchmode best\fR scans the region and selects the best match.
-\fB\-\-scale-aware\fR is disabled by default and enables supported uniform-scale
- matching in addition to the requested template size.
+Supported forms include \fBpixel <x> <y>\fR,
+\fBpixel --relative <dx> <dy>\fR,
+\fBwait-color <x> <y> <RRGGBB> [--timeout-ms <n>]\fR, and
+\fBsearch-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>]\fR.
+\fBsearch-image <image-path> [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>]\fR
+inspects one frame. \fBwait-image\fR and
+\fBimage-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>]\fR
+retry for 5000 milliseconds by default. Image regions are end-exclusive.
+\fB\-\-matchmode auto\fR is the default with 0.95 confidence; wait-image and
+image-click require two consistent frames before success.
+\fB\-\-matchmode first\fR and \fB\-\-matchmode best\fR select advanced
+deterministic modes; automatic matching remains the default.
 When a Wayland capture provider is available, a region may be stitched from
 intersecting monitor outputs. Gaps outside real outputs are voids and are
 ignored by matching; image-click will not click a template that crosses one.

@@ -42,8 +42,9 @@ CrossMacro needs two macOS privacy permissions for normal macro use:
 Macros that read pixels from the screen also need **Screen Recording**. This is
 required for commands such as `pixelcolor`, `waitcolor`, `pixelsearch`,
 `imagesearch`, `imageclick`, and `waitimage`. Image recognition imports native
-8-bit PNG templates only. Similarity defaults to `1.0`, downsample defaults to
-`1`, and `imageclick` uses the left button unless another supported button is
+8-bit PNG templates only. New image commands default to automatic matching at
+`0.95` confidence; `first` and `best` are explicit advanced modes.
+`imageclick` uses the left button unless another supported button is
 selected.
 
 CrossMacro opens the relevant System Settings page when possible and asks macOS

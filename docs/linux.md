@@ -166,14 +166,13 @@ for KWin screen capture. If doctor reports KWin ScreenShot2 permission denied,
 verify the installed CrossMacro `.desktop` file and restart CrossMacro from the
 packaged launcher.
 
-Image matching uses deterministic `FirstThresholdMatch` by default: it searches
-row-major bands and stops at the first band containing a threshold match.
-`BestMatch` is opt-in through the CLI `--matchmode best` option or script
-`matchmode best` token and scans the complete region for the best SAD score.
-Scale-aware matching is also opt-in (`--scale-aware` for CLI image commands;
-`scaleaware` for `imagesearch`) and tries only the supported uniform scales. The
-existing `downsample` setting remains an independent sampling factor and keeps
-its prior meaning. A no-match is not a monitor-gap match: CLI JSON reports a
+Image matching now defaults to automatic matching with `0.95` confidence. It
+starts at native scale and uses bounded correlation/pyramid and scale refinement
+only when the native result is insufficient. `--matchmode first` and
+`--matchmode best` (or script `matchmode first|best`) are explicit advanced
+paths. Automatic matching remains the default.
+A no-match is not a
+monitor-gap match: CLI JSON reports a
 successful `Found: false` result, while script result variables use `false` and
 `-1, -1` where the command's result-variable form supports it.
 
@@ -299,6 +298,13 @@ The native Wayland cursor connection is recreated automatically when outputs,
 scale, transform, seat capabilities, or relevant protocol globals change. On
 X11, root-window coordinates provide the same logical path reconstruction
 without compositor-specific helpers.
+
+Absolute playback treats the daemon acknowledgement and compositor observation
+as separate steps. The daemon waits for a newly created uinput event node before
+the first batch, and playback waits up to 250 ms for Wayland/X11 to publish the
+requested logical position. The normal path returns on the first matching
+observation; the bound only protects a click from racing a delayed compositor
+update and does not add a fixed delay to every move.
 
 On GNOME releases without the native cursor protocol, the bundled Shell
 Extension supplies absolute mouse position. It supports GNOME Shell 45 through

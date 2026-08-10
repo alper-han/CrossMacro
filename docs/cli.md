@@ -206,56 +206,48 @@ The first-class screen command is an ergonomic wrapper for pixel/color reads:
 
 ```bash
 crossmacro screen pixel 500 300
-crossmacro screen pixel 500 300 --timeout-ms 5000
 crossmacro screen pixel --relative 0 0 --json
-crossmacro screen wait-color 500 300 00FF00 --timeout-ms 5000 --poll-ms 100
-crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26 --timeout-ms 5000 --poll --poll-ms 100 --json
-crossmacro screen search-image ./button.png --similarity 0.95 --poll --poll-ms 100
-crossmacro screen wait-image ./ready.png --timeout-ms 10000 --downsample 2
+crossmacro screen wait-color 500 300 00FF00
+crossmacro screen search-color 0 0 1920 1080 FF0000 --tolerance 26 --json
+crossmacro screen search-image ./button.png --similarity 0.95
+crossmacro screen wait-image ./ready.png --timeout-ms 10000
 crossmacro screen image-click ./button.png --button right
 ```
 
-- `screen pixel <x> <y> [--timeout-ms <n>]` prints one pixel color and includes
-  coordinates/color in JSON `data`.
+- `screen pixel <x> <y>` reads one pixel and includes coordinates/color in JSON
+  `data`.
 - `screen pixel --relative <dx> <dy>` samples relative to the current cursor; it
   returns an unsupported error if no mouse position provider is available.
-- `screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--poll] [--poll-ms <n>]` waits for a color. `--poll-ms` overrides the default 50 ms interval; `--poll` is accepted for symmetry and keeps the default interval.
-- `screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--poll] [--poll-ms <n>]`
-  searches the end-exclusive region `[x1, x2) x [y1, y2)`. It is one-shot by
-  default. Add `--poll` to retry until the timeout; `--poll-ms` selects the
-  positive interval and implies `--poll`.
-- `screen search-image <image-path>` accepts these optional options:
-  `--timeout-ms <n>`, `--region <x> <y> <width> <height>`,
-  `--similarity <0..1>`, `--downsample <n>`,
-  `--matchmode <first|best>`, `--scale-aware`, `--poll`, and `--poll-ms <n>`;
-  it performs a one-shot search by default and retries until the timeout when
-  polling is requested.
-- `screen wait-image <image-path>` accepts the same optional options and polls
-  until the template appears.
-- `screen image-click <image-path>` accepts `--timeout-ms <n>`, `--poll`,
-  and `--poll-ms <n>`,
-  `--button <left|right|middle>`, `--region <x> <y> <width> <height>`,
-  `--similarity <0..1>`, `--downsample <n>`,
-  `--matchmode <first|best>`, and `--scale-aware`.
-  It performs one search and clicks the template center. The default button is
-  `left`; `right` and `middle` are optional.
+- `screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>]` retries a point
+  read every 50 ms until the color appears or its total five-second default
+  budget expires.
+- `screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>]`
+  retries the end-exclusive region `[x1, x2) x [y1, y2)` on the same schedule.
+- `screen search-image <image-path>` is a one-frame PNG search. It accepts
+  `--region <x> <y> <width> <height>`, `--similarity <0..1>`, and
+  `--matchmode <auto|first|best>`.
+- `screen wait-image <image-path>` and `screen image-click <image-path>` retry
+  for five seconds by default and accept `--timeout-ms <n>`; image-click also
+  accepts `--button <left|right|middle>`. The default button is `left`.
 - Image commands accept finite similarity values from `0.0` to `1.0`, defaulting
-  to `1.0`, and a downsample factor of at least `1`, defaulting to `1`.
-- Image matching defaults to `first`: it scans
-  deterministic row-major bands and returns the first band containing a match.
-  `--matchmode best` scans the complete region and selects the best SAD score
-  (sum of absolute per-channel differences), with deterministic Y/X tie-breaking.
-  `--matchmode first` makes the default explicit.
-- `--scale-aware` is disabled by default. When enabled, matching tries the
-  supported uniform scales `0.7`, `0.75`, `0.8`, `0.85`, `0.9`, `0.95`, `1.0`,
-  `1.05`, `1.1`, `1.15`, `1.2`, `1.25`, `1.3`, `1.35`, `1.4`, `1.45`, and
-  `1.5`; it does not change the meaning of `--downsample`.
+  to `0.95`. New commands use automatic matching: native weighted-SAD is tried
+  first, then a bounded pyramid/correlation and scale search when needed.
+  `--matchmode auto` makes that default explicit.
+- `--matchmode first` and `--matchmode best` select deterministic row-major or
+  complete-region SAD behavior while it fits the work budget. On a larger search,
+  they transparently use the bounded automatic candidate pipeline instead of
+  failing with a resource-limit error. They are optional advanced modes;
+  automatic is the default.
+- `search-image` returns after its one match attempt. `wait-image` and
+  `image-click` require two consecutive compatible matches (centre within 2
+  logical pixels and size within 1 pixel); a no-match or changed target resets
+  the consensus. `--timeout-ms 0` performs one immediate check instead.
 - Image files must be native 8-bit PNG files. Other formats, including JPG, are
   not imported.
 
-`wait-color` and `wait-image` are the polling forms. Their complete timing,
-timeout, and no-match behavior is defined in the [Detailed CLI and Runtime
-Reference](#detailed-cli-and-runtime-reference) below.
+The wait and repeated-search forms use the same 50 ms cadence. Their complete
+timing, timeout, and no-match behavior is defined in the [Detailed CLI and
+Runtime Reference](#detailed-cli-and-runtime-reference) below.
 
 On macOS, screen capture requires Screen Recording permission. On Wayland,
 capture and coordinates depend on the compositor/provider and use the global
@@ -451,7 +443,7 @@ crossmacro run \
 crossmacro run --step 'shell "notify-send done" 1 250 5000'
 crossmacro run --file ./steps.txt --json
 crossmacro run move rel 100 0 delay 40 click left
-crossmacro run --asset button ./button.png --step 'imagesearch button found x y timeout 5000 poll 100'
+crossmacro run --asset button ./button.png --step 'waitimage button found x y timeout 5000'
 ```
 
 The examples above use Bash/Zsh quoting. Single quotes preserve `$variables`
@@ -509,7 +501,6 @@ Linux backend details are in [`docs/linux.md`](linux.md).
 
 ```bash
 pixelcolor 500 300 mycolor
-pixelcolor 500 300 mycolor timeout 1000
 pixelcolor rel 0 0 underCursor
 clipboard get clipText
 clipboard set "new clipboard text"
@@ -529,27 +520,20 @@ window setdesktopforwindow address 0x1234 2
 waitcolor 500 300 00FF00 5000 wait_ok
 waitcolor 500 300 $mycolor 5000 wait_ok
 pixelsearch 0 0 1920 1080 FF0000 found found_x found_y timeout 5000 tolerance 26
-imagesearch button found found_x found_y similarity 0.95 downsample 2 timeout 5000
+imagesearch button found found_x found_y similarity 0.95
 imageclick button clicked click_x click_y button right similarity 0.95
 waitimage ready found found_x found_y timeout 10000
 ```
 
-- `pixelcolor <x> <y> [var] [timeout <milliseconds>]` samples one pixel at an
-  absolute position. `pixelcolor rel <dx> <dy> [var] [timeout <milliseconds>]`
-  samples relative to the current cursor position.
-- `waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var] [poll [interval_ms]]` waits for an exact
-  color match at a single point. `poll` keeps the existing wait behavior and
-  optionally overrides its 50 ms interval. When `result_var` is present,
-  timeout writes `false` and playback continues; without it, timeout keeps the
-  existing fail-fast behavior.
-- `pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [timeout <milliseconds>] [tolerance <0..255>] [poll [interval_ms]]`
-  captures one frame and searches the end-exclusive region `[x1, x2) x [y1, y2)`.
-  `timeout` limits capture/matching; it does not repeat the scan unless the
-  explicit `poll` option is present. `poll` retries until the timeout and may
-  take a positive interval in milliseconds (default 50). When
+- `pixelcolor <x> <y> [var]` samples one pixel at an absolute position.
+  `pixelcolor rel <dx> <dy> [var]` samples relative to the current cursor.
+- `waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]` retries the
+  point read every 50 ms. When `result_var` is present, timeout writes `false`
+  and playback continues; without it, timeout is fail-fast.
+- `pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [timeout <milliseconds>] [tolerance <0..255>]`
+  retries the end-exclusive region `[x1, x2) x [y1, y2)` every 50 ms. When
   `found_var` is present, a no-match/timeout writes `false` plus `-1, -1`
-  coordinates and playback continues; the legacy `var_x var_y` form keeps
-  fail-fast behavior.
+  coordinates and playback continues; the `var_x var_y` form is fail-fast.
 - `clipboard get <var>` stores current clipboard text in a runtime variable.
 - `clipboard set <text>` replaces clipboard text after variable substitution.
 - `screenshot [region <x> <y> <width> <height>] [output <path>] [clipboard]`
@@ -568,20 +552,15 @@ waitimage ready found found_x found_y timeout 10000
   mutate the active window.
 - `window getdesktop <var>`, `window setdesktop <workspace>`, and
   `window setdesktopforwindow active|address <addr> <workspace>` manage workspaces.
-- `imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [scaleaware] [timeout <milliseconds>] [poll [interval_ms]]`
-  searches a named PNG asset once by default. Add `poll` to retry until the
-  timeout. Region bounds are end-exclusive.
+- `imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [matchmode <auto|first|best>]`
+  searches a named PNG asset once. Region bounds are end-exclusive.
 - `<ImageName>` is the embedded macro asset name, not a filesystem path; for
   example, an imported `button.png` may be referenced as `button`.
-- `imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button <left|right|middle>] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [scaleaware] [timeout <milliseconds>] [poll [interval_ms]]`
-  searches once by default and clicks the center of a matching template. Add
-  `poll` to retry until the timeout. The default button is `left`.
-- `waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <milliseconds>] [poll [interval_ms]] [similarity <0..1>] [downsample <n>] [matchmode <first|best>] [scaleaware]`
-  waits until the template appears; `poll` optionally overrides its 50 ms
-  interval (waiting is already repeated by definition).
-
-Script image commands spell the scale option `scaleaware`; the first-class CLI
-commands use the equivalent `--scale-aware` spelling.
+- `imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button <left|right|middle>] [similarity <0..1>] [matchmode <auto|first|best>] [timeout <milliseconds>]`
+  waits for two compatible matches, then clicks the centre. The default button
+  is `left`.
+- `waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <milliseconds>] [similarity <0..1>] [matchmode <auto|first|best>]`
+  waits for two compatible image matches.
 
 Target colors can be a canonical six-digit `RRGGBB` value with no `#`, or a
 `$var` reference to a color previously written by `pixelcolor`; bare variable
@@ -783,22 +762,19 @@ is met or their total wait budget expires.
 
 | Operation | Behavior | Default timeout |
 | --- | --- | --- |
-| `screen pixel`, `pixelcolor` | One point read; timeout only bounds capture. | Not set |
-| `screen search-color`, `pixelsearch` | One frame, row-major scan by default; `--poll`/`poll` enables retries. | Not set (5 s when polling is enabled) |
-| `screen search-image`, `imagesearch` | One frame/template match by default; `--poll`/`poll` enables retries. | Not set (5 s when polling is enabled) |
-| `screen image-click`, `imageclick` | One image match, then click by default; `--poll`/`poll` enables retries. | Not set (5 s when polling is enabled) |
-| `screen wait-color`, `waitcolor` | Poll every 50 ms by default; CLI `--poll-ms` or script `poll [interval_ms]` overrides the interval. | 30 s |
-| `screen wait-image`, `waitimage` | Poll every 50 ms. | 5 s |
+| `screen pixel`, `pixelcolor` | One point read with an internal five-second capture safety deadline. | Not user-configurable |
+| `screen search-image`, `imagesearch` | One frame/template match with the same capture safety deadline. | Not user-configurable |
+| `screen wait-color`, `waitcolor` | Poll every 50 ms until a color matches. | 5 s |
+| `screen search-color`, `pixelsearch` | Poll every 50 ms until a region contains a match. | 5 s |
+| `screen wait-image`, `waitimage` | Poll every 50 ms and require two compatible image matches. | 5 s |
+| `screen image-click`, `imageclick` | Poll every 50 ms, require two compatible matches, then click once. | 5 s |
 | `window wait` (CLI or script) | Poll window state every 200 ms. | 5 s |
-
-`Not set` means the operation has no automatic timeout default.
 
 ### Result semantics
 
 The following table is the single no-match/timeout reference for screen search
-and wait operations. A one-shot `timeout`/`--timeout-ms` is a capture/matcher
-deadline, not a retry count. Search retries are opt-in: use CLI `--poll` (or
-`--poll-ms`) or script `poll [interval_ms]`.
+and wait operations. Repeating commands use a total timeout budget across all
+attempts; only a normal no-match is retried.
 
 | Surface | No match or timeout | Process/result behavior |
 | --- | --- | --- |
@@ -806,11 +782,11 @@ deadline, not a retry count. Search retries are opt-in: use CLI `--poll` (or
 | `screen search-image` | Normal result | Exit `0`; JSON contains `data.found: false` (text mode reports no match). |
 | `screen wait-color` | Error on total-budget expiry | Exit `6`; JSON uses the error envelope and text mode writes the failure to stderr. |
 | `screen wait-image` | Normal result on total-budget expiry | Exit `0`; JSON contains `data.found: false` (text mode reports no match). |
-| `screen image-click` | Error | Exit `6`; no click is sent when the template is not found. |
+| `screen image-click` | Error on total-budget expiry | Exit `6`; no click is sent when the template is not found. |
 | Script search/wait with result variables | Continue with `false` and `-1,-1` for coordinate results; `waitcolor` stores only `false`. | The step itself is not a failure; later steps still run. |
 | Script search/wait without result variables | Error (fail-fast) | Playback stops and `run` reports a runtime error. |
 
-Use a wait command, explicit `poll`, or an external loop when the screen may
+Use `waitcolor`, `pixelsearch`, `waitimage`, or `imageclick` when the screen may
 change after the command starts.
 
 ### Timeout units and defaults
@@ -820,17 +796,18 @@ Use the unit encoded by the option name or command:
 | Scope | Syntax | Unit and default |
 | --- | --- | --- |
 | Whole `play`/`run` command | `--timeout <n>` | Seconds; `0` means no command deadline. |
-| CLI screen/window operation | `--timeout-ms <n>` | Milliseconds; wait defaults above. |
-| Script screen operation | `timeout <n>` or positional wait timeout | Milliseconds; one-shot operations have no polling default. `poll [interval_ms]` opts into retries (default interval 50 ms). |
+| CLI repeating screen operation | `--timeout-ms <n>` | Milliseconds; the four repeating screen commands default to 5000. |
+| Script repeating screen operation | `timeout <n>` or positional wait timeout | Milliseconds; the four repeating screen commands default to 5000. |
 | Shell step | `[timeout_ms]` | Milliseconds per attempt; `0` means no per-attempt limit. |
 | Shell retry | `[retries] [backoff_ms]` | Extra attempts after the first, with millisecond backoff. |
 | Schedule interval | `--interval 10s|5m|2h` | Seconds, minutes, or hours. |
 | Recording/schedule countdown | `--duration`, `--countdown` | Seconds. |
 | Trigger debounce/cooldown | `--debounce-ms`, `--cooldown-ms` | Milliseconds. |
 
-`waitcolor`/`waitimage` timeouts are total budgets across all polls. A value of
-`0` performs an immediate check and does not mean infinite waiting. Use Ctrl+C
-or an outer command timeout to cancel an operation explicitly.
+`waitcolor`, `pixelsearch`, `waitimage`, and `imageclick` timeouts are total
+budgets across all polls. A value of `0` performs one immediate check; for image
+operations it accepts that one successful frame without a second-frame wait.
+Use Ctrl+C or an outer command timeout to cancel an operation explicitly.
 
 `window wait` has one compatibility detail: the CLI form treats
 `--timeout-ms 0` as one immediate poll, while the script form treats a missing

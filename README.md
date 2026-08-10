@@ -203,7 +203,7 @@ crossmacro settings set playback.speed 1.25
 crossmacro schedule list
 crossmacro shortcut list
 crossmacro run --step "move abs 800 400" --step "click left" --dry-run
-crossmacro screen pixel 500 300 --timeout-ms 5000
+crossmacro screen pixel 500 300
 crossmacro screen search-color 0 0 1920 1080 FF0000 --timeout-ms 5000
 crossmacro screen search-image ./button.png --similarity 0.95
 crossmacro screen wait-image ./ready.png --timeout-ms 10000
@@ -214,9 +214,13 @@ For command syntax, direct-run steps, log levels, and GUI-less desktop runtime
 notes, see [docs/cli.md](docs/cli.md). The `headless` commands still require a
 desktop session; they are not intended for display-less server automation.
 
-Image recognition reads native 8-bit PNG templates. Similarity defaults to `1.0`
-and accepts finite values from `0.0` to `1.0`; `downsample` defaults to `1` and
-must be at least `1`. `imageclick` uses the left mouse button unless `right` or
+Image recognition reads native 8-bit PNG templates. New image commands use the
+automatic profile with similarity (confidence) `0.95` by default; it chooses
+native and bounded scale-aware matching internally. `first` and `best` are
+explicit advanced modes; oversized searches use the same bounded pipeline rather
+than failing with a resource-limit error. `waitimage` and `imageclick` require
+two consistent frames before reporting or clicking a match; `imageclick` uses
+the left mouse button unless `right` or
 `middle` is selected. When a Wayland capture provider is available, image searches
 can span intersecting monitors, but gaps outside real monitor outputs are not
 valid pixels and cannot produce a match or click.

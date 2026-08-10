@@ -49,7 +49,9 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
                     captured.LogicalBounds,
                     captured.Stride,
                     captured.PixelFormat,
-                    captured.Pixels);
+                    captured.Pixels,
+                    validPixelMask: captured.ValidPixelMask ?? [],
+                    alphaMode: ScreenAlphaMode.Opaque);
                 var result = ScreenReadResultFactory.Success(frame);
                 frame = null; // ownership transferred to result
                 return result;

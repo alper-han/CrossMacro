@@ -410,7 +410,7 @@ public sealed class GnomePositionProvider :
         return queryResult.Resolution;
     }
 
-    public async Task<(byte[] Pixels, int Stride, ScreenPixelFormat Format)?> CaptureAreaAsync(ScreenRect region)
+    public async Task<(byte[] Pixels, int Stride, ScreenPixelFormat Format, ScreenAlphaMode AlphaMode)?> CaptureAreaAsync(ScreenRect region)
     {
         if (!IsSupported || !await EnsureInitializedAsync().ConfigureAwait(false) || _trackerClient is null)
         {
@@ -422,7 +422,7 @@ public sealed class GnomePositionProvider :
             var (base64, stride, hasAlpha) = await _trackerClient.CaptureAreaAsync(region.X, region.Y, region.Width, region.Height).ConfigureAwait(false);
             var pixels = Convert.FromBase64String(base64);
             var format = hasAlpha ? ScreenPixelFormat.Abgr8888 : ScreenPixelFormat.Rgb24;
-            return (pixels, stride, format);
+            return (pixels, stride, format, hasAlpha ? ScreenAlphaMode.Straight : ScreenAlphaMode.Opaque);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

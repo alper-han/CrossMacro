@@ -59,7 +59,8 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
                     captured.LogicalBounds,
                     captured.Stride,
                     captured.PixelFormat,
-                    captured.Pixels);
+                    captured.Pixels,
+                    alphaMode: ScreenAlphaMode.Opaque);
                 return ScreenReadResultFactory.Success(frame);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)

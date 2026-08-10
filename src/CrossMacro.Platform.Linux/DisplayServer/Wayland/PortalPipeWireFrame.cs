@@ -6,7 +6,13 @@ public sealed class PortalPipeWireFrame : IDisposable
     private readonly IDisposable? _owner;
     private bool _disposed;
 
-    public PortalPipeWireFrame(ScreenRect logicalBounds, int stride, ScreenPixelFormat pixelFormat, ReadOnlyMemory<byte> pixels, IDisposable? owner = null)
+    public PortalPipeWireFrame(
+        ScreenRect logicalBounds,
+        int stride,
+        ScreenPixelFormat pixelFormat,
+        ReadOnlyMemory<byte> pixels,
+        IDisposable? owner = null,
+        ReadOnlyMemory<byte> validPixelMask = default)
     {
         var bytesPerPixel = ScreenFrame.GetBytesPerPixel(pixelFormat);
         var minimumStride = checked(logicalBounds.Width * bytesPerPixel);
@@ -21,10 +27,17 @@ public sealed class PortalPipeWireFrame : IDisposable
             throw new ArgumentException("Portal PipeWire frame pixel memory is smaller than the declared frame dimensions.", nameof(pixels));
         }
 
+        var pixelCount = checked(logicalBounds.Width * logicalBounds.Height);
+        if (!validPixelMask.IsEmpty && validPixelMask.Length < pixelCount)
+        {
+            throw new ArgumentException("Portal PipeWire valid-pixel mask is smaller than the declared frame dimensions.", nameof(validPixelMask));
+        }
+
         LogicalBounds = logicalBounds;
         Stride = stride;
         PixelFormat = pixelFormat;
         Pixels = pixels;
+        ValidPixelMask = validPixelMask.IsEmpty ? ReadOnlyMemory<byte>.Empty : validPixelMask.Slice(0, pixelCount);
         _owner = owner;
     }
 
@@ -35,6 +48,8 @@ public sealed class PortalPipeWireFrame : IDisposable
     public ScreenPixelFormat PixelFormat { get; }
 
     public ReadOnlyMemory<byte> Pixels { get; }
+
+    public ReadOnlyMemory<byte> ValidPixelMask { get; }
 
     public void Dispose()
     {

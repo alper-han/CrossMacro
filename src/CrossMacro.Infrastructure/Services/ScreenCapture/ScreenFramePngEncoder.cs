@@ -9,9 +9,10 @@ public static class ScreenFramePngEncoder
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(output);
+        ValidateFrame(frame);
 
         output.Write(PngSignature);
-        WriteIhdr(output, frame.Width, frame.Height);
+        WriteIhdr(output, frame.Width, frame.Height, UsesAlpha(frame));
         WriteIdat(output, frame);
         WriteIend(output);
     }
@@ -20,33 +21,34 @@ public static class ScreenFramePngEncoder
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(output);
+        ValidateFrame(frame);
 
         await output.WriteAsync(PngSignature, cancellationToken).ConfigureAwait(false);
-        await WriteIhdrAsync(output, frame.Width, frame.Height, cancellationToken).ConfigureAwait(false);
+        await WriteIhdrAsync(output, frame.Width, frame.Height, UsesAlpha(frame), cancellationToken).ConfigureAwait(false);
         await WriteIdatAsync(output, frame, cancellationToken).ConfigureAwait(false);
         await WriteIendAsync(output, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task WriteIhdrAsync(Stream output, int width, int height, CancellationToken cancellationToken)
+    private static async Task WriteIhdrAsync(Stream output, int width, int height, bool hasAlpha, CancellationToken cancellationToken)
     {
         var data = new byte[13];
         BinaryPrimitives.WriteInt32BigEndian(data.AsSpan(), width);
         BinaryPrimitives.WriteInt32BigEndian(data.AsSpan(4), height);
         data[8] = 8;
-        data[9] = 2;
+        data[9] = hasAlpha ? (byte)6 : (byte)2;
         data[10] = 0;
         data[11] = 0;
         data[12] = 0;
         await WriteChunkAsync(output, "IHDR"u8.ToArray(), data, cancellationToken).ConfigureAwait(false);
     }
 
-    private static void WriteIhdr(Stream output, int width, int height)
+    private static void WriteIhdr(Stream output, int width, int height, bool hasAlpha)
     {
         Span<byte> data = stackalloc byte[13];
         BinaryPrimitives.WriteInt32BigEndian(data, width);
         BinaryPrimitives.WriteInt32BigEndian(data[4..], height);
         data[8] = 8;
-        data[9] = 2;
+        data[9] = hasAlpha ? (byte)6 : (byte)2;
         data[10] = 0;
         data[11] = 0;
         data[12] = 0;
@@ -106,7 +108,8 @@ public static class ScreenFramePngEncoder
         uint a = 1, b = 0;
         var pixels = frame.Pixels.ToArray();
         var bpp = ScreenFrame.GetBytesPerPixel(frame.PixelFormat);
-        var rgbRow = new byte[frame.Width * 3];
+        var hasAlpha = UsesAlpha(frame);
+        var row = new byte[checked(frame.Width * (hasAlpha ? 4 : 3))];
         var filterByte = new byte[1];
 
         for (var y = 0; y < frame.Height; y++)
@@ -115,10 +118,10 @@ public static class ScreenFramePngEncoder
             UpdateAdler(ref a, ref b, 0);
 
             var rowOffset = y * frame.Stride;
-            ConvertRowToRgb(pixels, rowOffset, frame.Width, bpp, frame.PixelFormat, rgbRow);
-            await deflate.WriteAsync(rgbRow, cancellationToken).ConfigureAwait(false);
+            ConvertRowToPng(pixels, rowOffset, frame.Width, bpp, frame.PixelFormat, frame.AlphaMode, row);
+            await deflate.WriteAsync(row, cancellationToken).ConfigureAwait(false);
 
-            foreach (var value in rgbRow)
+            foreach (var value in row)
             {
                 UpdateAdler(ref a, ref b, value);
             }
@@ -132,16 +135,17 @@ public static class ScreenFramePngEncoder
         uint a = 1, b = 0;
         var pixels = frame.Pixels.Span;
         var bpp = ScreenFrame.GetBytesPerPixel(frame.PixelFormat);
-        var rgbRow = new byte[frame.Width * 3];
+        var hasAlpha = UsesAlpha(frame);
+        var row = new byte[checked(frame.Width * (hasAlpha ? 4 : 3))];
 
         for (var y = 0; y < frame.Height; y++)
         {
             deflate.WriteByte(0);
             UpdateAdler(ref a, ref b, 0);
             var rowOffset = y * frame.Stride;
-            ConvertRowToRgb(pixels, rowOffset, frame.Width, bpp, frame.PixelFormat, rgbRow);
-            deflate.Write(rgbRow, 0, rgbRow.Length);
-            foreach (var value in rgbRow)
+            ConvertRowToPng(pixels, rowOffset, frame.Width, bpp, frame.PixelFormat, frame.AlphaMode, row);
+            deflate.Write(row, 0, row.Length);
+            foreach (var value in row)
             {
                 UpdateAdler(ref a, ref b, value);
             }
@@ -150,34 +154,78 @@ public static class ScreenFramePngEncoder
         return (b << 16) | a;
     }
 
-    private static void ConvertRowToRgb(ReadOnlySpan<byte> pixels, int rowOffset, int width, int bpp, ScreenPixelFormat format, byte[] rgb)
+    private static void ConvertRowToPng(
+        ReadOnlySpan<byte> pixels,
+        int rowOffset,
+        int width,
+        int bpp,
+        ScreenPixelFormat format,
+        ScreenAlphaMode alphaMode,
+        byte[] target)
     {
+        var hasAlpha = target.Length == checked(width * 4);
         for (var x = 0; x < width; x++)
         {
             var srcOffset = rowOffset + (x * bpp);
-            var dstOffset = x * 3;
+            var dstOffset = x * (hasAlpha ? 4 : 3);
+            byte red;
+            byte green;
+            byte blue;
 
             switch (format)
             {
                 case ScreenPixelFormat.Rgb24:
                 case ScreenPixelFormat.Abgr8888:
                 case ScreenPixelFormat.Xbgr8888:
-                    rgb[dstOffset] = pixels[srcOffset];
-                    rgb[dstOffset + 1] = pixels[srcOffset + 1];
-                    rgb[dstOffset + 2] = pixels[srcOffset + 2];
+                    red = pixels[srcOffset];
+                    green = pixels[srcOffset + 1];
+                    blue = pixels[srcOffset + 2];
                     break;
                 case ScreenPixelFormat.Bgr24:
                 case ScreenPixelFormat.Xrgb8888:
                 case ScreenPixelFormat.Bgra8888:
-                    rgb[dstOffset] = pixels[srcOffset + 2];
-                    rgb[dstOffset + 1] = pixels[srcOffset + 1];
-                    rgb[dstOffset + 2] = pixels[srcOffset];
+                    red = pixels[srcOffset + 2];
+                    green = pixels[srcOffset + 1];
+                    blue = pixels[srcOffset];
                     break;
                 default:
                     throw new NotSupportedException($"Unsupported pixel format: {format}");
             }
+
+            if (hasAlpha && alphaMode is ScreenAlphaMode.Premultiplied)
+            {
+                var alpha = pixels[srcOffset + 3];
+                red = Unpremultiply(red, alpha);
+                green = Unpremultiply(green, alpha);
+                blue = Unpremultiply(blue, alpha);
+            }
+
+            target[dstOffset] = red;
+            target[dstOffset + 1] = green;
+            target[dstOffset + 2] = blue;
+            if (hasAlpha)
+            {
+                target[dstOffset + 3] = pixels[srcOffset + 3];
+            }
         }
     }
+
+    private static bool UsesAlpha(ScreenFrame frame) =>
+        frame.HasAlphaChannel
+        && (frame.AlphaMode is ScreenAlphaMode.Straight or ScreenAlphaMode.Premultiplied);
+
+    private static void ValidateFrame(ScreenFrame frame)
+    {
+        ScreenImageAssetPolicy.ValidateDimensions(frame.Width, frame.Height);
+        var bytesPerPixel = UsesAlpha(frame) ? 4 : 3;
+        var pixelBytes = checked((long)frame.Width * frame.Height * bytesPerPixel);
+        if (pixelBytes > ScreenImageAssetPolicy.MaxPixelBytes)
+        {
+            throw new InvalidDataException($"PNG pixel data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxPixelBytes} bytes.");
+        }
+    }
+
+    private static byte Unpremultiply(byte value, byte alpha) => alpha is 0 ? (byte)0 : (byte)Math.Min(byte.MaxValue, ((value * 255) + (alpha / 2)) / alpha);
 
     private static void UpdateAdler(ref uint a, ref uint b, byte value)
     {

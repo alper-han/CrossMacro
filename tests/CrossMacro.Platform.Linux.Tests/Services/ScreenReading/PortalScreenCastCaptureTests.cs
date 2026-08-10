@@ -249,6 +249,49 @@ public sealed class PortalScreenCastCaptureTests
     }
 
     [Fact]
+    public async Task PortalCapture_WhenStreamsHaveGap_MarksGapAsInvalid()
+    {
+        var streams = new[]
+        {
+            Stream(42, id: "left", x: 0, y: 0, width: 1, height: 1),
+            Stream(43, id: "right", x: 2, y: 0, width: 1, height: 1),
+        };
+        var session = FakePortalScreenCastSessionFactory.CreateSession(streams);
+        var leftCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+            new ScreenRect(0, 0, 1, 1),
+            [0x33, 0x22, 0x11, 0x00])));
+        var rightCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+            new ScreenRect(0, 0, 1, 1),
+            [0xCC, 0xBB, 0xAA, 0x00])));
+        var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
+        var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(new Dictionary<uint, FakePortalPipeWireFrameCapture>
+        {
+            [42] = leftCapture,
+            [43] = rightCapture,
+        });
+        using var capture = new PortalScreenCastCapture(
+            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            sessionFactory,
+            pipeWireFactory);
+
+        var result = await capture.CaptureAsync(ScreenReadOptions.Default);
+
+        Assert.True(result.IsSuccess);
+        using var resultFrame = Assert.IsType<PortalPipeWireFrame>(result.Frame);
+        using var screenFrame = new ScreenFrame(
+            resultFrame.LogicalBounds,
+            resultFrame.Stride,
+            resultFrame.PixelFormat,
+            resultFrame.Pixels,
+            validPixelMask: resultFrame.ValidPixelMask);
+
+        Assert.Equal([1, 0, 1], resultFrame.ValidPixelMask.ToArray());
+        Assert.True(screenFrame.TryGetPixel(new ScreenPoint(0, 0), out _));
+        Assert.False(screenFrame.TryGetPixel(new ScreenPoint(1, 0), out _));
+        Assert.True(screenFrame.TryGetPixel(new ScreenPoint(2, 0), out _));
+    }
+
+    [Fact]
     public async Task PortalCapture_WhenCapturingMultipleFrames_ReusesPortalSessionUntilDisposed()
     {
         var session = FakePortalScreenCastSessionFactory.CreateSession(width: 2, height: 1);

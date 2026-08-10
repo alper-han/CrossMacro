@@ -9,7 +9,8 @@ public static class ScreenImageAssetPolicy
     public const int MaxEncodedBytes = 48 * 1024 * 1024;
     public const int MaxBase64Chars = checked((MaxEncodedBytes + 2) / 3 * 4);
     public const int MaxInflatedBytes = 160 * 1024 * 1024;
-    public const int MaxRgbBytes = 128 * 1024 * 1024;
+    public const int MaxPixelBytes = 160 * 1024 * 1024;
+    public const int MaxRgbBytes = MaxPixelBytes;
     public const long MaxMacroEncodedBytes = 96L * 1024 * 1024;
 
     public static void ValidateFileLength(string filePath, string? assetName = null)

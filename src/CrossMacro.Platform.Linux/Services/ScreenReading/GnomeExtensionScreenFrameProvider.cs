@@ -83,14 +83,20 @@ public sealed class GnomeExtensionScreenFrameProvider : IScreenFrameProvider
                 "GNOME Shell extension capture returned no data.");
         }
 
-        var frame = new GnomeExtensionScreenFrame(bounds, captureResult.Value.Stride, captureResult.Value.Format, captureResult.Value.Pixels);
+        var frame = new GnomeExtensionScreenFrame(
+            bounds,
+            captureResult.Value.Stride,
+            captureResult.Value.Format,
+            captureResult.Value.Pixels,
+            captureResult.Value.AlphaMode);
 
         return LinuxScreenFrameProviderResults.CreateSharedFrame(
             frame.LogicalBounds,
             frame.Stride,
             frame.PixelFormat,
             frame.Pixels,
-            frame);
+            frame,
+            alphaMode: frame.AlphaMode);
     }
 
     private static GnomeExtensionSupportResult ProbeSupport(GnomePositionProvider provider)

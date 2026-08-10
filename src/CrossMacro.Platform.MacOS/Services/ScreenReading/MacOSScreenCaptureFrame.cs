@@ -5,4 +5,5 @@ internal sealed record MacOSScreenCaptureFrame(
     ScreenRect LogicalBounds,
     int Stride,
     ScreenPixelFormat PixelFormat,
-    byte[] Pixels);
+    byte[] Pixels,
+    byte[]? ValidPixelMask = null);

@@ -88,6 +88,119 @@ public sealed class ScreenFramePngEncoderTests
     }
 
     [Fact]
+    public async Task EncodeDecode_WhenFrameHasStraightAlpha_PreservesRgbaPixels()
+    {
+        using var source = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 8,
+            ScreenPixelFormat.Abgr8888,
+            new byte[]
+            {
+                0xFF, 0x00, 0x00, 0x00,
+                0x00, 0xFF, 0x00, 0x80,
+            },
+            alphaMode: ScreenAlphaMode.Straight);
+        using var png = new MemoryStream();
+
+        await ScreenFramePngEncoder.EncodeAsync(source, png, CancellationToken.None);
+        using var decoded = await ScreenFramePngDecoder.DecodeAsync(png.ToArray(), CancellationToken.None);
+
+        Assert.Equal(ScreenPixelFormat.Abgr8888, decoded.PixelFormat);
+        Assert.Equal(ScreenAlphaMode.Straight, decoded.AlphaMode);
+        Assert.True(decoded.TryGetAlpha(new ScreenPoint(0, 0), out var transparentAlpha));
+        Assert.True(decoded.TryGetAlpha(new ScreenPoint(1, 0), out var translucentAlpha));
+        Assert.Equal(0, transparentAlpha);
+        Assert.Equal(0x80, translucentAlpha);
+        Assert.Equal(new ScreenPixelColor(0xFF, 0x00, 0x00), decoded.GetPixel(new ScreenPoint(0, 0)));
+        Assert.Equal(new ScreenPixelColor(0x00, 0xFF, 0x00), decoded.GetPixel(new ScreenPoint(1, 0)));
+    }
+
+    [Fact]
+    public async Task Decode_WhenPngUsesGrayscaleAlpha_PreservesAlphaAndExpandsGrayChannel()
+    {
+        var png = CreatePng(
+            width: 2,
+            height: 1,
+            colorType: 4,
+            filteredScanlines: [0, 0x40, 0x80, 0xC0, 0xFF]);
+
+        using var decoded = await ScreenFramePngDecoder.DecodeAsync(png, CancellationToken.None);
+
+        Assert.Equal(ScreenPixelFormat.Abgr8888, decoded.PixelFormat);
+        Assert.Equal(ScreenAlphaMode.Straight, decoded.AlphaMode);
+        Assert.Equal(new ScreenPixelColor(0x40, 0x40, 0x40), decoded.GetPixel(new ScreenPoint(0, 0)));
+        Assert.Equal(new ScreenPixelColor(0xC0, 0xC0, 0xC0), decoded.GetPixel(new ScreenPoint(1, 0)));
+        Assert.True(decoded.TryGetAlpha(new ScreenPoint(0, 0), out var firstAlpha));
+        Assert.True(decoded.TryGetAlpha(new ScreenPoint(1, 0), out var secondAlpha));
+        Assert.Equal(0x80, firstAlpha);
+        Assert.Equal(0xFF, secondAlpha);
+    }
+
+    [Fact]
+    public async Task EncodeDecode_WhenFrameIsPremultiplied_PreservesStraightPngValues()
+    {
+        using var source = new ScreenFrame(
+            new ScreenRect(0, 0, 1, 1),
+            stride: 4,
+            ScreenPixelFormat.Bgra8888,
+            new byte[] { 20, 40, 80, 128 },
+            alphaMode: ScreenAlphaMode.Premultiplied);
+        using var png = new MemoryStream();
+
+        await ScreenFramePngEncoder.EncodeAsync(source, png, CancellationToken.None);
+        using var decoded = await ScreenFramePngDecoder.DecodeAsync(png.ToArray(), CancellationToken.None);
+
+        Assert.Equal(ScreenAlphaMode.Straight, decoded.AlphaMode);
+        Assert.Equal(new ScreenPixelColor(159, 80, 40), decoded.GetPixel(new ScreenPoint(0, 0)));
+        Assert.True(decoded.TryGetAlpha(new ScreenPoint(0, 0), out var alpha));
+        Assert.Equal(128, alpha);
+    }
+
+    [Fact]
+    public async Task Decode_WhenPngUsesTrnsTransparency_ReportsUnsupportedFormat()
+    {
+        var png = CreatePng(
+            width: 1,
+            height: 1,
+            colorType: 2,
+            filteredScanlines: [0, 0x10, 0x20, 0x30],
+            [ ("tRNS", new byte[] { 0x00, 0x10, 0x00, 0x20, 0x00, 0x30 }) ]);
+
+        var exception = await Assert.ThrowsAsync<NotSupportedException>(() => ScreenFramePngDecoder.DecodeAsync(png, CancellationToken.None));
+
+        Assert.Contains("tRNS", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Decode_WhenPngUsesUnknownCriticalChunk_ReportsUnsupportedFormat()
+    {
+        var png = CreatePng(
+            width: 1,
+            height: 1,
+            colorType: 2,
+            filteredScanlines: [0, 0x10, 0x20, 0x30],
+            [ ("ABCD", Array.Empty<byte>()) ]);
+
+        var exception = await Assert.ThrowsAsync<NotSupportedException>(() => ScreenFramePngDecoder.DecodeAsync(png, CancellationToken.None));
+
+        Assert.Contains("ABCD", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Decode_WhenInflatedScanlinesContainTrailingData_RejectsThePng()
+    {
+        var png = CreatePng(
+            width: 1,
+            height: 1,
+            colorType: 2,
+            filteredScanlines: [0, 0x10, 0x20, 0x30, 0xFF]);
+
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() => ScreenFramePngDecoder.DecodeAsync(png, CancellationToken.None));
+
+        Assert.Contains("does not match", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Decode_WhenBytesAreNotPng_ThrowsClearFailure()
     {
         static Task<ScreenFrame> act() => ScreenFramePngDecoder.DecodeAsync(new byte[] { 0x00, 0x01, 0x02 }, CancellationToken.None);
@@ -196,5 +309,85 @@ public sealed class ScreenFramePngEncoderTests
         }
 
         throw new InvalidOperationException("PNG chunk was not found.");
+    }
+
+    private static byte[] CreatePng(
+        int width,
+        int height,
+        byte colorType,
+        ReadOnlySpan<byte> filteredScanlines,
+        params (string Type, byte[] Data)[] chunksBeforeIdat)
+    {
+        Span<byte> header = stackalloc byte[13];
+        BinaryPrimitives.WriteInt32BigEndian(header, width);
+        BinaryPrimitives.WriteInt32BigEndian(header[4..], height);
+        header[8] = 8;
+        header[9] = colorType;
+
+        using var compressed = new MemoryStream();
+        using (var zlib = new ZLibStream(compressed, CompressionLevel.Fastest, leaveOpen: true))
+        {
+            zlib.Write(filteredScanlines);
+        }
+
+        using var png = new MemoryStream();
+        png.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        WriteChunk(png, "IHDR"u8, header);
+        foreach (var (type, data) in chunksBeforeIdat)
+        {
+            WriteChunk(png, System.Text.Encoding.ASCII.GetBytes(type), data);
+        }
+
+        WriteChunk(png, "IDAT"u8, compressed.ToArray());
+        WriteChunk(png, "IEND"u8, []);
+        return png.ToArray();
+    }
+
+    private static void WriteChunk(Stream output, ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
+    {
+        Span<byte> length = stackalloc byte[4];
+        BinaryPrimitives.WriteInt32BigEndian(length, data.Length);
+        output.Write(length);
+        output.Write(type);
+        output.Write(data);
+
+        Span<byte> crc = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(crc, ComputeCrc32(type, data));
+        output.Write(crc);
+    }
+
+    private static uint ComputeCrc32(ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
+    {
+        var crc = 0xFFFFFFFFu;
+        foreach (var value in type)
+        {
+            crc = (crc >> 8) ^ CrcTable[(crc ^ value) & 0xFF];
+        }
+
+        foreach (var value in data)
+        {
+            crc = (crc >> 8) ^ CrcTable[(crc ^ value) & 0xFF];
+        }
+
+        return crc ^ 0xFFFFFFFFu;
+    }
+
+    private static readonly uint[] CrcTable = CreateCrcTable();
+
+    private static uint[] CreateCrcTable()
+    {
+        var table = new uint[256];
+        for (uint value = 0; value < table.Length; value++)
+        {
+            var crc = value;
+            for (var bit = 0; bit < 8; bit++)
+            {
+                crc = (crc & 1) is not 0 ? 0xEDB88320u ^ (crc >> 1) : crc >> 1;
+            }
+
+            table[value] = crc;
+        }
+
+        return table;
     }
 }

@@ -14,7 +14,8 @@ public sealed class ScreenFrame : IDisposable
         ReadOnlyMemory<byte> pixels,
         IDisposable? owner = null,
         ReadOnlyMemory<byte> validPixelMask = default,
-        ScreenFrameValidityIndex? validityIndex = null)
+        ScreenFrameValidityIndex? validityIndex = null,
+        ScreenAlphaMode alphaMode = ScreenAlphaMode.Unknown)
     {
         var bytesPerPixel = GetBytesPerPixel(pixelFormat);
         var minimumStride = checked(logicalBounds.Width * bytesPerPixel);
@@ -36,11 +37,31 @@ public sealed class ScreenFrame : IDisposable
             throw new ArgumentException("Screen frame valid-pixel mask is smaller than the declared frame dimensions.", nameof(validPixelMask));
         }
 
+        if (bytesPerPixel is 3 && alphaMode is not (ScreenAlphaMode.Unknown or ScreenAlphaMode.Opaque))
+        {
+            throw new ArgumentException("RGB screen frames cannot declare an alpha channel.", nameof(alphaMode));
+        }
+
+        if (pixelFormat is ScreenPixelFormat.Xrgb8888 or ScreenPixelFormat.Xbgr8888
+            && alphaMode is not (ScreenAlphaMode.Unknown or ScreenAlphaMode.Opaque))
+        {
+            throw new ArgumentException("XRGB screen frames cannot declare an alpha channel.", nameof(alphaMode));
+        }
+
+        var normalizedValidPixelMask = validPixelMask.IsEmpty
+            || (validityIndex is null && validPixelMask.Span[..validPixelCount].IndexOf((byte)0) < 0)
+            ? ReadOnlyMemory<byte>.Empty
+            : validPixelMask.Slice(0, validPixelCount);
+
         LogicalBounds = logicalBounds;
         Stride = stride;
         PixelFormat = pixelFormat;
         Pixels = pixels;
-        ValidPixelMask = validPixelMask.IsEmpty ? ReadOnlyMemory<byte>.Empty : validPixelMask.Slice(0, validPixelCount);
+        ValidPixelMask = normalizedValidPixelMask;
+        AlphaMode = alphaMode is ScreenAlphaMode.Unknown
+            && pixelFormat is ScreenPixelFormat.Rgb24 or ScreenPixelFormat.Bgr24 or ScreenPixelFormat.Xrgb8888 or ScreenPixelFormat.Xbgr8888
+            ? ScreenAlphaMode.Opaque
+            : alphaMode;
         _owner = owner;
         _validityIndex = validityIndex;
     }
@@ -56,6 +77,10 @@ public sealed class ScreenFrame : IDisposable
     public ScreenPixelFormat PixelFormat { get; }
 
     public ReadOnlyMemory<byte> Pixels { get; }
+
+    public ScreenAlphaMode AlphaMode { get; }
+
+    public bool HasAlphaChannel => PixelFormat is ScreenPixelFormat.Bgra8888 or ScreenPixelFormat.Abgr8888;
 
     public ReadOnlyMemory<byte> ValidPixelMask { get; }
 
@@ -95,6 +120,20 @@ public sealed class ScreenFrame : IDisposable
         return LogicalBounds.Contains(point) && IsValidPixel(point);
     }
 
+    public bool TryGetAlpha(ScreenPoint point, out byte alpha)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (!LogicalBounds.Contains(point) || !IsValidPixel(point) || !HasAlphaChannel)
+        {
+            alpha = byte.MaxValue;
+            return false;
+        }
+
+        alpha = ReadAlpha(point);
+        return true;
+    }
+
     public bool ContainsAnyValidPixel(ScreenRect region)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -106,7 +145,7 @@ public sealed class ScreenFrame : IDisposable
 
         if (!HasValidPixelMask)
         {
-            return true;
+            return _validityIndex?.ContainsAnyValidPixel(region, LogicalBounds) ?? true;
         }
 
         var mask = ValidPixelMask.Span;
@@ -233,8 +272,25 @@ public sealed class ScreenFrame : IDisposable
         };
     }
 
+    private byte ReadAlpha(ScreenPoint point)
+    {
+        var localX = point.X - LogicalBounds.X;
+        var localY = point.Y - LogicalBounds.Y;
+        var offset = checked((localY * Stride) + (localX * GetBytesPerPixel(PixelFormat)));
+        var span = Pixels.Span;
+
+        return PixelFormat is ScreenPixelFormat.Bgra8888 or ScreenPixelFormat.Abgr8888
+            ? span[offset + 3]
+            : byte.MaxValue;
+    }
+
     private bool IsValidPixel(ScreenPoint point)
     {
+        if (_validityIndex is not null)
+        {
+            return _validityIndex.IsPixelValid(point, LogicalBounds);
+        }
+
         if (!HasValidPixelMask)
         {
             return true;

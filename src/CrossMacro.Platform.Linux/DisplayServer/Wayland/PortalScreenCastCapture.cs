@@ -176,6 +176,7 @@ public sealed class PortalScreenCastCapture(
     {
         ScreenPixelFormat? pixelFormat = null;
         byte[]? targetPixels = null;
+        byte[]? targetValidPixelMask = null;
         var targetStride = 0;
 
         foreach (var stream in streams)
@@ -194,6 +195,7 @@ public sealed class PortalScreenCastCapture(
                 pixelFormat = frame.PixelFormat;
                 targetStride = checked(targetBounds.Width * ScreenFrame.GetBytesPerPixel(frame.PixelFormat));
                 targetPixels = new byte[checked(targetStride * targetBounds.Height)];
+                targetValidPixelMask = new byte[checked(targetBounds.Width * targetBounds.Height)];
             }
             else if (pixelFormat.Value != frame.PixelFormat)
             {
@@ -202,15 +204,20 @@ public sealed class PortalScreenCastCapture(
                     $"XDG Desktop Portal returned mixed PipeWire pixel formats '{pixelFormat.Value}' and '{frame.PixelFormat}'.");
             }
 
-            CopyFrameIntersection(frame, targetBounds, targetPixels ?? throw new InvalidOperationException("Portal composition buffer was not initialized."), targetStride);
+            CopyFrameIntersection(
+                frame,
+                targetBounds,
+                targetPixels ?? throw new InvalidOperationException("Portal composition buffer was not initialized."),
+                targetValidPixelMask ?? throw new InvalidOperationException("Portal validity buffer was not initialized."),
+                targetStride);
         }
 
-        if (pixelFormat is null || targetPixels is null)
+        if (pixelFormat is null || targetPixels is null || targetValidPixelMask is null)
         {
             return PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "XDG Desktop Portal did not provide any monitor streams to capture.");
         }
 
-        return PortalScreenCastCaptureResult.Success(new PortalPipeWireFrame(targetBounds, targetStride, pixelFormat.Value, targetPixels));
+        return PortalScreenCastCaptureResult.Success(new PortalPipeWireFrame(targetBounds, targetStride, pixelFormat.Value, targetPixels, validPixelMask: targetValidPixelMask));
     }
 
     private async Task<PortalPipeWireFrameResult> CaptureStreamFrameAsync(PortalScreenCastSession session, PortalMonitorStream stream, ScreenReadOptions options)
@@ -229,10 +236,15 @@ public sealed class PortalScreenCastCapture(
         var frame = frameResult.Frame ?? throw new InvalidOperationException("Successful PipeWire capture did not include a frame.");
         return frame.LogicalBounds == stream.Bounds
             ? frameResult
-            : PortalPipeWireFrameResult.Success(new PortalPipeWireFrame(stream.Bounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame));
+            : PortalPipeWireFrameResult.Success(new PortalPipeWireFrame(stream.Bounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask));
     }
 
-    private static void CopyFrameIntersection(PortalPipeWireFrame source, ScreenRect targetBounds, byte[] targetPixels, int targetStride)
+    private static void CopyFrameIntersection(
+        PortalPipeWireFrame source,
+        ScreenRect targetBounds,
+        byte[] targetPixels,
+        byte[] targetValidPixelMask,
+        int targetStride)
     {
         if (!PortalStreamGeometry.TryGetIntersection(source.LogicalBounds, targetBounds, out var intersection))
         {
@@ -246,12 +258,24 @@ public sealed class PortalScreenCastCapture(
         var targetY = checked(intersection.Y - targetBounds.Y);
         var rowBytes = checked(intersection.Width * bytesPerPixel);
         var sourcePixels = source.Pixels.Span;
+        var sourceMask = source.ValidPixelMask.Span;
 
         for (var row = 0; row < intersection.Height; row++)
         {
             var sourceOffset = checked(((sourceY + row) * source.Stride) + (sourceX * bytesPerPixel));
             var targetOffset = checked(((targetY + row) * targetStride) + (targetX * bytesPerPixel));
             sourcePixels.Slice(sourceOffset, rowBytes).CopyTo(targetPixels.AsSpan(targetOffset, rowBytes));
+
+            var targetMaskOffset = checked(((targetY + row) * targetBounds.Width) + targetX);
+            if (source.ValidPixelMask.IsEmpty)
+            {
+                targetValidPixelMask.AsSpan(targetMaskOffset, intersection.Width).Fill(1);
+            }
+            else
+            {
+                var sourceMaskOffset = checked(((sourceY + row) * source.LogicalBounds.Width) + sourceX);
+                sourceMask.Slice(sourceMaskOffset, intersection.Width).CopyTo(targetValidPixelMask.AsSpan(targetMaskOffset, intersection.Width));
+            }
         }
     }
 

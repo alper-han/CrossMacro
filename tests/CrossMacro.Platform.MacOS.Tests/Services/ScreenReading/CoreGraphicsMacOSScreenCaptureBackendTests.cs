@@ -36,6 +36,46 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
     }
 
     [Fact]
+    public void Capture_WhenDisplaysHaveGap_MarksGapAsInvalid()
+    {
+        var native = new FakeCoreGraphicsNative()
+            .AddDisplay(1, Rect(0, 0, 1, 1), SolidImage(1, 1, Pixel(10, 0, 0)))
+            .AddDisplay(2, Rect(2, 0, 1, 1), SolidImage(1, 1, Pixel(30, 0, 0)));
+        var backend = new CoreGraphicsMacOSScreenCaptureBackend(native);
+
+        var frame = backend.Capture(new ScreenRect(0, 0, 3, 1), CancellationToken.None);
+
+        Assert.Equal([1, 0, 1], frame.ValidPixelMask);
+    }
+
+    [Fact]
+    public void Capture_UnpremultipliesPremultipliedCoreGraphicsPixels()
+    {
+        var image = new MacOSCapturedImage(
+            1,
+            1,
+            8,
+            32,
+            4,
+            BgraBitmapInfo,
+            [20, 40, 80, 128]);
+        var native = new FakeCoreGraphicsNative().AddDisplay(1, Rect(0, 0, 1, 1), image);
+        var backend = new CoreGraphicsMacOSScreenCaptureBackend(native);
+
+        var frame = backend.Capture(new ScreenRect(0, 0, 1, 1), CancellationToken.None);
+
+        using var screenFrame = new ScreenFrame(
+            frame.LogicalBounds,
+            frame.Stride,
+            frame.PixelFormat,
+            frame.Pixels,
+            validPixelMask: frame.ValidPixelMask);
+        Assert.Equal(new ScreenPixelColor(159, 80, 40), screenFrame.GetPixel(new ScreenPoint(0, 0)));
+        Assert.True(screenFrame.TryGetAlpha(new ScreenPoint(0, 0), out var alpha));
+        Assert.Equal(byte.MaxValue, alpha);
+    }
+
+    [Fact]
     public void Capture_RespectsSourceBytesPerRowPadding()
     {
         var native = new FakeCoreGraphicsNative()

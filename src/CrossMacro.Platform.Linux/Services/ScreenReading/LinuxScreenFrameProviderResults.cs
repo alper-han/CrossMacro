@@ -30,11 +30,20 @@ internal static class LinuxScreenFrameProviderResults
         ReadOnlyMemory<byte> pixels,
         IDisposable owner,
         ReadOnlyMemory<byte> validPixelMask = default,
-        ScreenFrameValidityIndex? validityIndex = null)
+        ScreenFrameValidityIndex? validityIndex = null,
+        ScreenAlphaMode alphaMode = ScreenAlphaMode.Opaque)
     {
         try
         {
-            return ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(logicalBounds, stride, pixelFormat, pixels, owner, validPixelMask, validityIndex));
+            return ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(
+                logicalBounds,
+                stride,
+                pixelFormat,
+                pixels,
+                owner,
+                validPixelMask,
+                validityIndex,
+                alphaMode));
         }
         catch (Exception ex) when (ex is ArgumentException or OverflowException)
         {
@@ -75,6 +84,6 @@ internal static class LinuxScreenFrameProviderResults
         }
 
         var targetMask = targetValidPixelMask is null ? ReadOnlyMemory<byte>.Empty : targetValidPixelMask;
-        return new ScreenFrame(region, targetStride, pixelFormat, targetPixels, validPixelMask: targetMask);
+        return new ScreenFrame(region, targetStride, pixelFormat, targetPixels, validPixelMask: targetMask, alphaMode: ScreenAlphaMode.Opaque);
     }
 }

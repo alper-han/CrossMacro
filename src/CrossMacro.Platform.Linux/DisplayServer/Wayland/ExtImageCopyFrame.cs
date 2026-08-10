@@ -83,6 +83,7 @@ public sealed class ExtImageCopyFrame : IDisposable
         }
 
         _disposed = true;
+        ValidityIndex?.Dispose();
         _owner?.Dispose();
     }
 }

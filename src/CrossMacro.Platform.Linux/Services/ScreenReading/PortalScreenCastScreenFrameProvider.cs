@@ -58,7 +58,7 @@ public sealed class PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture
 
         if (region is null || region.Value == frame.LogicalBounds)
         {
-            return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame);
+            return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask);
         }
 
         try
@@ -85,7 +85,8 @@ public sealed class PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture
             frame.Stride,
             frame.PixelFormat,
             frame.Pixels,
-            region));
+            region,
+            frame.ValidPixelMask));
     }
 
     public void Dispose()

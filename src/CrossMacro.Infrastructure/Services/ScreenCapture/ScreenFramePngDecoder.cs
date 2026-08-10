@@ -6,6 +6,7 @@ public static class ScreenFramePngDecoder
     private const long ParallelPixelThreshold = 256_000;
     private const int MinimumParallelRowWidth = 256;
     private const int MinimumParallelRowCount = 4;
+    private const int MaximumParallelism = 4;
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     public static ScreenFrame Decode(ReadOnlySpan<byte> pngBytes)
@@ -59,17 +60,19 @@ public static class ScreenFramePngDecoder
 
     private static async Task<ScreenFrame> DecodeCoreAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken)
     {
-        var (header, compressedBytes) = ParsePng(pngBytes.Span);
+        var (header, compressedBytes) = ParsePng(pngBytes.Span, cancellationToken);
         return await DecodeImageDataAsync(header, compressedBytes, cancellationToken).ConfigureAwait(false);
     }
 
     private static ScreenFrame DecodeCore(ReadOnlySpan<byte> pngBytes)
     {
-        var (header, compressedBytes) = ParsePng(pngBytes);
+        var (header, compressedBytes) = ParsePng(pngBytes, CancellationToken.None);
         return DecodeImageData(header, compressedBytes);
     }
 
-    private static (PngHeader Header, byte[] CompressedBytes) ParsePng(ReadOnlySpan<byte> pngBytes)
+    private static (PngHeader Header, byte[] CompressedBytes) ParsePng(
+        ReadOnlySpan<byte> pngBytes,
+        CancellationToken cancellationToken = default)
     {
         if (pngBytes.Length < PngSignature.Length || !pngBytes[..PngSignature.Length].SequenceEqual(PngSignature))
         {
@@ -84,6 +87,7 @@ public static class ScreenFramePngDecoder
 
         while (offset < pngBytes.Length)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (pngBytes.Length - offset < 12)
             {
                 throw new InvalidDataException("PNG chunk is truncated.");
@@ -97,11 +101,18 @@ public static class ScreenFramePngDecoder
 
             var type = pngBytes.Slice(offset + 4, 4);
             var dataStart = offset + 8;
-            var nextOffset = checked(dataStart + length + 4);
-            if (nextOffset < dataStart || nextOffset > pngBytes.Length)
+            if (!IsValidChunkType(type))
+            {
+                throw new InvalidDataException("PNG chunk type is invalid.");
+            }
+
+            var chunkEnd = (long)dataStart + length + 4;
+            if (chunkEnd > pngBytes.Length)
             {
                 throw new InvalidDataException("PNG chunk data is truncated.");
             }
+
+            var nextOffset = (int)chunkEnd;
 
             var data = pngBytes.Slice(dataStart, length);
             var expectedCrc = BinaryPrimitives.ReadUInt32BigEndian(pngBytes[(nextOffset - 4)..nextOffset]);
@@ -129,6 +140,10 @@ public static class ScreenFramePngDecoder
                 sawIdat = true;
                 idat.Write(data);
             }
+            else if (type.SequenceEqual("tRNS"u8))
+            {
+                throw new NotSupportedException("PNG tRNS transparency is not supported; use an explicit RGBA or grayscale-alpha PNG instead.");
+            }
             else if (type.SequenceEqual("IEND"u8))
             {
                 if (length is not 0)
@@ -144,6 +159,10 @@ public static class ScreenFramePngDecoder
                 sawIend = true;
                 offset = nextOffset;
                 break;
+            }
+            else if (IsCriticalChunk(type))
+            {
+                throw new NotSupportedException($"Unsupported critical PNG chunk '{System.Text.Encoding.ASCII.GetString(type)}'.");
             }
 
             offset = nextOffset;
@@ -220,15 +239,15 @@ public static class ScreenFramePngDecoder
     {
         var rowBytes = checked(header.Width * header.ChannelCount);
         var expectedBytes = checked((rowBytes + 1) * header.Height);
-        var rgbBytes = checked(header.Width * header.Height * 3);
+        var pixelBytes = checked(header.Width * header.Height * header.OutputBytesPerPixel);
         if (expectedBytes > ScreenImageAssetPolicy.MaxInflatedBytes)
         {
             throw new InvalidDataException($"PNG decoded scanline data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxInflatedBytes} bytes.");
         }
 
-        if (rgbBytes > ScreenImageAssetPolicy.MaxRgbBytes)
+        if (pixelBytes > ScreenImageAssetPolicy.MaxPixelBytes)
         {
-            throw new InvalidDataException($"PNG decoded pixel data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxRgbBytes} bytes.");
+            throw new InvalidDataException($"PNG decoded pixel data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxPixelBytes} bytes.");
         }
 
         var decompressed = new byte[expectedBytes];
@@ -248,7 +267,8 @@ public static class ScreenFramePngDecoder
                 totalRead += read;
             }
 
-            if (totalRead != expectedBytes || (await zlib.ReadAsync(Memory<byte>.Empty, cancellationToken).ConfigureAwait(false)) is not 0)
+            var trailingData = new byte[1];
+            if (totalRead != expectedBytes || (await zlib.ReadAsync(trailingData, cancellationToken).ConfigureAwait(false)) is not 0)
             {
                 throw new InvalidDataException("PNG IDAT data length does not match IHDR dimensions.");
             }
@@ -262,28 +282,29 @@ public static class ScreenFramePngDecoder
             throw new InvalidDataException("PNG IDAT zlib data is invalid.", ex);
         }
 
-        var unfiltered = UnfilterScanlines(decompressed, header.Height, rowBytes, header.ChannelCount);
-        var pixels = ConvertToRgb(header, unfiltered, rowBytes);
+        var unfiltered = UnfilterScanlines(decompressed, header.Height, rowBytes, header.ChannelCount, cancellationToken);
+        var decoded = ConvertToPixels(header, unfiltered, rowBytes, cancellationToken);
         return new ScreenFrame(
             new ScreenRect(0, 0, header.Width, header.Height),
-            checked(header.Width * 3),
-            ScreenPixelFormat.Rgb24,
-            pixels);
+            checked(header.Width * decoded.BytesPerPixel),
+            decoded.PixelFormat,
+            decoded.Pixels,
+            alphaMode: decoded.AlphaMode);
     }
 
     private static ScreenFrame DecodeImageData(PngHeader header, byte[] compressedBytes)
     {
         var rowBytes = checked(header.Width * header.ChannelCount);
         var expectedBytes = checked((rowBytes + 1) * header.Height);
-        var rgbBytes = checked(header.Width * header.Height * 3);
+        var pixelBytes = checked(header.Width * header.Height * header.OutputBytesPerPixel);
         if (expectedBytes > ScreenImageAssetPolicy.MaxInflatedBytes)
         {
             throw new InvalidDataException($"PNG decoded scanline data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxInflatedBytes} bytes.");
         }
 
-        if (rgbBytes > ScreenImageAssetPolicy.MaxRgbBytes)
+        if (pixelBytes > ScreenImageAssetPolicy.MaxPixelBytes)
         {
-            throw new InvalidDataException($"PNG decoded pixel data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxRgbBytes} bytes.");
+            throw new InvalidDataException($"PNG decoded pixel data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxPixelBytes} bytes.");
         }
 
         var decompressed = new byte[expectedBytes];
@@ -317,13 +338,14 @@ public static class ScreenFramePngDecoder
             throw new InvalidDataException("PNG IDAT zlib data is invalid.", ex);
         }
 
-        var unfiltered = UnfilterScanlines(decompressed, header.Height, rowBytes, header.ChannelCount);
-        var pixels = ConvertToRgb(header, unfiltered, rowBytes);
+        var unfiltered = UnfilterScanlines(decompressed, header.Height, rowBytes, header.ChannelCount, CancellationToken.None);
+        var decoded = ConvertToPixels(header, unfiltered, rowBytes, CancellationToken.None);
         return new ScreenFrame(
             new ScreenRect(0, 0, header.Width, header.Height),
-            checked(header.Width * 3),
-            ScreenPixelFormat.Rgb24,
-            pixels);
+            checked(header.Width * decoded.BytesPerPixel),
+            decoded.PixelFormat,
+            decoded.Pixels,
+            alphaMode: decoded.AlphaMode);
     }
 
     public static bool TryReadDimensions(ReadOnlySpan<byte> pngBytes, out int width, out int height, out string? error)
@@ -345,12 +367,18 @@ public static class ScreenFramePngDecoder
         }
     }
 
-    private static byte[] UnfilterScanlines(byte[] source, int height, int rowBytes, int bytesPerPixel)
+    private static byte[] UnfilterScanlines(
+        byte[] source,
+        int height,
+        int rowBytes,
+        int bytesPerPixel,
+        CancellationToken cancellationToken = default)
     {
         var output = new byte[checked(height * rowBytes)];
         var sourceOffset = 0;
         for (var y = 0; y < height; y++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var filterType = source[sourceOffset++];
             var rowOffset = checked(y * rowBytes);
             var previousRowOffset = rowOffset - rowBytes;
@@ -375,31 +403,44 @@ public static class ScreenFramePngDecoder
         return output;
     }
 
-    private static byte[] ConvertToRgb(PngHeader header, byte[] source, int rowBytes)
+    private static DecodedPngPixels ConvertToPixels(
+        PngHeader header,
+        byte[] source,
+        int rowBytes,
+        CancellationToken cancellationToken = default)
     {
-        var pixels = new byte[checked(header.Width * header.Height * 3)];
+        var bytesPerPixel = header.OutputBytesPerPixel;
+        var pixels = new byte[checked(header.Width * header.Height * bytesPerPixel)];
 
         void ConvertRow(int y)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var sourceRowOffset = checked(y * rowBytes);
-            var targetRowOffset = checked(y * header.Width * 3);
+            var targetRowOffset = checked(y * header.Width * bytesPerPixel);
             for (var x = 0; x < header.Width; x++)
             {
                 var sourceOffset = sourceRowOffset + (x * header.ChannelCount);
-                var targetOffset = targetRowOffset + (x * 3);
+                var targetOffset = targetRowOffset + (x * bytesPerPixel);
                 switch (header.ColorType)
                 {
                     case 0:
-                    case 4:
                         pixels[targetOffset] = source[sourceOffset];
                         pixels[targetOffset + 1] = source[sourceOffset];
                         pixels[targetOffset + 2] = source[sourceOffset];
                         break;
+                    case 4:
+                        pixels[targetOffset] = source[sourceOffset];
+                        pixels[targetOffset + 1] = source[sourceOffset];
+                        pixels[targetOffset + 2] = source[sourceOffset];
+                        pixels[targetOffset + 3] = source[sourceOffset + 1];
+                        break;
                     case 2:
-                    case 6:
                         pixels[targetOffset] = source[sourceOffset];
                         pixels[targetOffset + 1] = source[sourceOffset + 1];
                         pixels[targetOffset + 2] = source[sourceOffset + 2];
+                        break;
+                    case 6:
+                        source.AsSpan(sourceOffset, 4).CopyTo(pixels.AsSpan(targetOffset, 4));
                         break;
                 }
             }
@@ -407,7 +448,15 @@ public static class ScreenFramePngDecoder
 
         if (ShouldParallelizeRows(header.Width, header.Height))
         {
-            _ = Parallel.For(0, header.Height, ConvertRow);
+            _ = Parallel.For(
+                0,
+                header.Height,
+                new ParallelOptions
+                {
+                    CancellationToken = cancellationToken,
+                    MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, MaximumParallelism),
+                },
+                ConvertRow);
         }
         else
         {
@@ -417,13 +466,39 @@ public static class ScreenFramePngDecoder
             }
         }
 
-        return pixels;
+        return new DecodedPngPixels(
+            pixels,
+            bytesPerPixel,
+            bytesPerPixel is 4 ? ScreenPixelFormat.Abgr8888 : ScreenPixelFormat.Rgb24,
+            bytesPerPixel is 4 ? ScreenAlphaMode.Straight : ScreenAlphaMode.Opaque);
     }
 
     private static bool ShouldParallelizeRows(int width, int height) =>
         width >= MinimumParallelRowWidth
         && height >= MinimumParallelRowCount
         && (long)width * height >= ParallelPixelThreshold;
+
+    private static bool IsCriticalChunk(ReadOnlySpan<byte> type) => type.Length > 0 && (type[0] & 0x20) is 0;
+
+    private static bool IsValidChunkType(ReadOnlySpan<byte> type)
+    {
+        if (type.Length is not 4)
+        {
+            return false;
+        }
+
+        foreach (var value in type)
+        {
+            var isUppercase = value is >= (byte)'A' and <= (byte)'Z';
+            var isLowercase = value is >= (byte)'a' and <= (byte)'z';
+            if (!isUppercase && !isLowercase)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private static int PaethPredictor(int left, int up, int upperLeft)
     {
@@ -475,5 +550,14 @@ public static class ScreenFramePngDecoder
     }
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private readonly record struct PngHeader(int Width, int Height, byte ColorType, int ChannelCount);
+    private readonly record struct PngHeader(int Width, int Height, byte ColorType, int ChannelCount)
+    {
+        public int OutputBytesPerPixel => ColorType is 4 or 6 ? 4 : 3;
+    }
+
+    private readonly record struct DecodedPngPixels(
+        byte[] Pixels,
+        int BytesPerPixel,
+        ScreenPixelFormat PixelFormat,
+        ScreenAlphaMode AlphaMode);
 }

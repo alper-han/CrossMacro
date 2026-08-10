@@ -49,6 +49,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
 
         var stride = checked(region.Width * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Bgra8888));
         var pixels = new byte[checked(stride * region.Height)];
+        var validPixelMask = new byte[checked(region.Width * region.Height)];
 
         foreach (var display in displays)
         {
@@ -67,10 +68,10 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
                 throw new InvalidOperationException($"CoreGraphics returned an empty image for display {display} and region {sourceRect}.");
             }
 
-            CopyImageToFrame(image, sourceRect, region, stride, pixels);
+            CopyImageToFrame(image, sourceRect, region, stride, pixels, validPixelMask);
         }
 
-        return new MacOSScreenCaptureFrame(region, stride, ScreenPixelFormat.Bgra8888, pixels);
+        return new MacOSScreenCaptureFrame(region, stride, ScreenPixelFormat.Bgra8888, pixels, validPixelMask);
     }
 
     private static uint[] GetActiveDisplays(IMacOSCoreGraphicsNative native)
@@ -84,7 +85,13 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
         return native.GetActiveDisplays(count);
     }
 
-    private static void CopyImageToFrame(MacOSCapturedImage image, ScreenRect sourceRect, ScreenRect targetRect, int targetStride, byte[] targetPixels)
+    private static void CopyImageToFrame(
+        MacOSCapturedImage image,
+        ScreenRect sourceRect,
+        ScreenRect targetRect,
+        int targetStride,
+        byte[] targetPixels,
+        byte[] targetValidPixelMask)
     {
         if (image.Width <= 0 || image.Height <= 0 || image.BytesPerRow <= 0)
         {
@@ -122,6 +129,8 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
                 var sourceOffset = checked((sourceY * image.BytesPerRow) + (sourceX * 4));
                 var targetOffset = checked((targetY * targetStride) + ((sourceRect.X - targetRect.X + logicalX) * 4));
                 WriteBgraPixel(image.Pixels, sourceOffset, sourceFormat, targetPixels, targetOffset);
+                var targetMaskOffset = checked((targetY * targetRect.Width) + sourceRect.X - targetRect.X + logicalX);
+                targetValidPixelMask[targetMaskOffset] = 1;
             }
         }
     }
@@ -134,32 +143,40 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
 
         return (byteOrder, alphaInfo) switch
         {
-            (CoreGraphics.kCGBitmapByteOrder32Little, (uint)CoreGraphics.CGBitmapInfo.AlphaPremultipliedFirst) => MacOSSourcePixelFormat.Bgra,
+            (CoreGraphics.kCGBitmapByteOrder32Little, (uint)CoreGraphics.CGBitmapInfo.AlphaPremultipliedFirst) => MacOSSourcePixelFormat.BgraPremultiplied,
             (CoreGraphics.kCGBitmapByteOrder32Little, (uint)CoreGraphics.CGBitmapInfo.AlphaFirst) => MacOSSourcePixelFormat.Bgra,
-            (CoreGraphics.kCGBitmapByteOrder32Little, (uint)CoreGraphics.CGBitmapInfo.AlphaNoneSkipFirst) => MacOSSourcePixelFormat.Bgra,
-            (CoreGraphics.kCGBitmapByteOrder32Big, (uint)CoreGraphics.CGBitmapInfo.AlphaPremultipliedLast) => MacOSSourcePixelFormat.Rgba,
+            (CoreGraphics.kCGBitmapByteOrder32Little, (uint)CoreGraphics.CGBitmapInfo.AlphaNoneSkipFirst) => MacOSSourcePixelFormat.BgraOpaque,
+            (CoreGraphics.kCGBitmapByteOrder32Big, (uint)CoreGraphics.CGBitmapInfo.AlphaPremultipliedLast) => MacOSSourcePixelFormat.RgbaPremultiplied,
             (CoreGraphics.kCGBitmapByteOrder32Big, (uint)CoreGraphics.CGBitmapInfo.AlphaLast) => MacOSSourcePixelFormat.Rgba,
-            (CoreGraphics.kCGBitmapByteOrder32Big, (uint)CoreGraphics.CGBitmapInfo.AlphaNoneSkipLast) => MacOSSourcePixelFormat.Rgba,
+            (CoreGraphics.kCGBitmapByteOrder32Big, (uint)CoreGraphics.CGBitmapInfo.AlphaNoneSkipLast) => MacOSSourcePixelFormat.RgbaOpaque,
             _ => throw new InvalidOperationException($"CoreGraphics returned unsupported bitmap info 0x{info:X}."),
         };
     }
 
     private static void WriteBgraPixel(byte[] sourcePixels, int sourceOffset, MacOSSourcePixelFormat sourceFormat, byte[] targetPixels, int targetOffset)
     {
-        if (sourceFormat is MacOSSourcePixelFormat.Bgra)
+        var isBgra = sourceFormat is MacOSSourcePixelFormat.Bgra or MacOSSourcePixelFormat.BgraPremultiplied or MacOSSourcePixelFormat.BgraOpaque;
+        var blue = sourcePixels[sourceOffset + (isBgra ? 0 : 2)];
+        var green = sourcePixels[sourceOffset + 1];
+        var red = sourcePixels[sourceOffset + (isBgra ? 2 : 0)];
+        var alpha = sourceFormat is MacOSSourcePixelFormat.BgraOpaque or MacOSSourcePixelFormat.RgbaOpaque
+            ? byte.MaxValue
+            : sourcePixels[sourceOffset + 3];
+
+        if (sourceFormat is MacOSSourcePixelFormat.BgraPremultiplied or MacOSSourcePixelFormat.RgbaPremultiplied)
         {
-            targetPixels[targetOffset] = sourcePixels[sourceOffset];
-            targetPixels[targetOffset + 1] = sourcePixels[sourceOffset + 1];
-            targetPixels[targetOffset + 2] = sourcePixels[sourceOffset + 2];
-            targetPixels[targetOffset + 3] = sourcePixels[sourceOffset + 3];
-            return;
+            blue = Unpremultiply(blue, alpha);
+            green = Unpremultiply(green, alpha);
+            red = Unpremultiply(red, alpha);
         }
 
-        targetPixels[targetOffset] = sourcePixels[sourceOffset + 2];
-        targetPixels[targetOffset + 1] = sourcePixels[sourceOffset + 1];
-        targetPixels[targetOffset + 2] = sourcePixels[sourceOffset];
-        targetPixels[targetOffset + 3] = sourcePixels[sourceOffset + 3];
+        targetPixels[targetOffset] = blue;
+        targetPixels[targetOffset + 1] = green;
+        targetPixels[targetOffset + 2] = red;
+        targetPixels[targetOffset + 3] = byte.MaxValue;
     }
+
+    private static byte Unpremultiply(byte value, byte alpha) => alpha is 0 ? (byte)0 : (byte)Math.Min(byte.MaxValue, ((value * 255) + (alpha / 2)) / alpha);
 
     private static ScreenRect? Intersect(ScreenRect left, ScreenRect right)
     {
@@ -196,6 +213,10 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
     private enum MacOSSourcePixelFormat
     {
         Bgra,
+        BgraPremultiplied,
+        BgraOpaque,
         Rgba,
+        RgbaPremultiplied,
+        RgbaOpaque,
     }
 }

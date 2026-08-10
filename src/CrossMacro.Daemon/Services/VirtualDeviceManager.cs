@@ -9,6 +9,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
     private readonly Lock _disposeLock = new();
     private IUInputDevice? _uInputDevice;
     private (int Width, int Height)? _configuration;
+    private (int X, int Y)? _lastAbsolutePosition;
     private bool _disposed;
     private Task? _disposeTask;
 
@@ -97,6 +98,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
             ThrowIfDisposed();
             var device = _uInputDevice ?? throw new InvalidOperationException("The virtual input device is not initialized.");
             device.SendEvent(type, code, value);
+            TrackAbsolutePosition(type, code, value);
         }
         finally
         {
@@ -117,7 +119,8 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         {
             ThrowIfDisposed();
             var device = _uInputDevice ?? throw new InvalidOperationException("The virtual input device is not initialized.");
-            foreach (var inputEvent in events)
+            var prepared = PrepareEvents(events, out var resultingAbsolutePosition);
+            foreach (var inputEvent in prepared)
             {
                 linkedCts.Token.ThrowIfCancellationRequested();
                 device.SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
@@ -128,6 +131,8 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
                         linkedCts.Token).ConfigureAwait(false);
                 }
             }
+
+            _lastAbsolutePosition = resultingAbsolutePosition;
         }
         finally
         {
@@ -208,6 +213,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         _uInputDevice?.Dispose();
         _uInputDevice = null;
         _configuration = null;
+        _lastAbsolutePosition = null;
     }
 
     private static async Task<IUInputDevice> CreateDeviceAsync(
@@ -248,6 +254,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         var previousDevice = _uInputDevice;
         _uInputDevice = newDevice;
         _configuration = (width, height);
+        _lastAbsolutePosition = width > 0 && height > 0 ? (0, 0) : null;
 
         try
         {
@@ -259,6 +266,169 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         }
 
         Log.Information("[VirtualDeviceManager] Reconfigured UInput device with resolution {W}x{H}", width, height);
+    }
+
+    private IReadOnlyList<IpcSimulationRequest> PrepareEvents(
+        IReadOnlyList<IpcSimulationRequest> events,
+        out (int X, int Y)? resultingAbsolutePosition)
+    {
+        var absolutePosition = _lastAbsolutePosition;
+        if (_configuration is not { } configuration || configuration.Width <= 0 || configuration.Height <= 0)
+        {
+            resultingAbsolutePosition = absolutePosition;
+            return events;
+        }
+
+        var width = configuration.Width;
+        var height = configuration.Height;
+
+        var prepared = new List<IpcSimulationRequest>(events.Count + 3);
+        var packetStart = 0;
+        for (var index = 0; index < events.Count; index++)
+        {
+            var inputEvent = events[index];
+            if (inputEvent.Type is not UInputNative.EV_SYN || inputEvent.Code is not UInputNative.SYN_REPORT)
+            {
+                continue;
+            }
+
+            if (TryGetAbsolutePacketTarget(events, packetStart, index, absolutePosition, out var target))
+            {
+                if (absolutePosition is { } previous
+                    && target == previous
+                    && TryGetReassertionPoint(target, width, height, out var reassertion))
+                {
+                    // Reassert repeated absolute targets through an adjacent point.
+                    prepared.Add(new IpcSimulationRequest { Type = UInputNative.EV_ABS, Code = UInputNative.ABS_X, Value = reassertion.X });
+                    prepared.Add(new IpcSimulationRequest { Type = UInputNative.EV_ABS, Code = UInputNative.ABS_Y, Value = reassertion.Y });
+                    prepared.Add(new IpcSimulationRequest { Type = UInputNative.EV_SYN, Code = UInputNative.SYN_REPORT, Value = 0 });
+                    prepared.Add(new IpcSimulationRequest { Type = UInputNative.EV_ABS, Code = UInputNative.ABS_X, Value = target.X });
+                    prepared.Add(new IpcSimulationRequest { Type = UInputNative.EV_ABS, Code = UInputNative.ABS_Y, Value = target.Y });
+                    prepared.Add(inputEvent);
+                }
+                else
+                {
+                    for (var packetIndex = packetStart; packetIndex <= index; packetIndex++)
+                    {
+                        prepared.Add(events[packetIndex]);
+                    }
+                }
+
+                absolutePosition = target;
+            }
+            else
+            {
+                for (var packetIndex = packetStart; packetIndex <= index; packetIndex++)
+                {
+                    prepared.Add(events[packetIndex]);
+                }
+
+                absolutePosition = ApplyAbsoluteEvents(events, packetStart, index, absolutePosition);
+            }
+
+            packetStart = index + 1;
+        }
+
+        for (var index = packetStart; index < events.Count; index++)
+        {
+            prepared.Add(events[index]);
+        }
+
+        resultingAbsolutePosition = ApplyAbsoluteEvents(events, packetStart, events.Count, absolutePosition);
+        return prepared;
+    }
+
+    private static bool TryGetAbsolutePacketTarget(
+        IReadOnlyList<IpcSimulationRequest> events,
+        int start,
+        int syncIndex,
+        (int X, int Y)? current,
+        out (int X, int Y) target)
+    {
+        if (current is not { } initial)
+        {
+            target = default;
+            return false;
+        }
+
+        target = initial;
+        var hasAbsoluteAxis = false;
+        for (var index = start; index < syncIndex; index++)
+        {
+            var inputEvent = events[index];
+            if (inputEvent.DelayAfterMicroseconds is not 0
+                || inputEvent.Type is not UInputNative.EV_ABS
+                || inputEvent.Code is not (UInputNative.ABS_X or UInputNative.ABS_Y))
+            {
+                return false;
+            }
+
+            target = inputEvent.Code is UInputNative.ABS_X
+                ? (inputEvent.Value, target.Y)
+                : (target.X, inputEvent.Value);
+            hasAbsoluteAxis = true;
+        }
+
+        return hasAbsoluteAxis;
+    }
+
+    private static (int X, int Y)? ApplyAbsoluteEvents(
+        IReadOnlyList<IpcSimulationRequest> events,
+        int start,
+        int endExclusive,
+        (int X, int Y)? current)
+    {
+        var position = current;
+        for (var index = start; index < endExclusive; index++)
+        {
+            var inputEvent = events[index];
+            if (position is not { } known || inputEvent.Type is not UInputNative.EV_ABS)
+            {
+                continue;
+            }
+
+            position = inputEvent.Code switch
+            {
+                UInputNative.ABS_X => (inputEvent.Value, known.Y),
+                UInputNative.ABS_Y => (known.X, inputEvent.Value),
+                _ => known,
+            };
+        }
+
+        return position;
+    }
+
+    private static bool TryGetReassertionPoint((int X, int Y) target, int width, int height, out (int X, int Y) point)
+    {
+        if (width > 1)
+        {
+            point = target.X < width - 1 ? (target.X + 1, target.Y) : (target.X - 1, target.Y);
+            return true;
+        }
+
+        if (height > 1)
+        {
+            point = target.Y < height - 1 ? (target.X, target.Y + 1) : (target.X, target.Y - 1);
+            return true;
+        }
+
+        point = default;
+        return false;
+    }
+
+    private void TrackAbsolutePosition(ushort type, ushort code, int value)
+    {
+        if (_lastAbsolutePosition is not { } position || type is not UInputNative.EV_ABS)
+        {
+            return;
+        }
+
+        _lastAbsolutePosition = code switch
+        {
+            UInputNative.ABS_X => (value, position.Y),
+            UInputNative.ABS_Y => (position.X, value),
+            _ => position,
+        };
     }
 
     private CancellationToken GetOperationToken()

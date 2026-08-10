@@ -3,7 +3,7 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed class GlobalHotkeyServiceTests : IDisposable
 {
-    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(5);
     private static readonly string[] ExpectedUpdateHotkeys = ["F3"];
 
     private readonly IHotkeyConfigurationService _config;

@@ -557,6 +557,42 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void RefreshThemesCommand_WhenBindingClearsSelection_DoesNotApplyFallback()
+    {
+        _ = _themeService.CurrentTheme.Returns("Classic");
+        _ = _themeService
+            .TryRefreshThemes(out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[0] = string.Empty;
+                return true;
+            });
+
+        void ClearSelectionAfterThemeListRefresh(object? sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName is nameof(SettingsViewModel.AvailableThemes))
+            {
+                _viewModel.SelectedTheme = string.Empty;
+            }
+        }
+
+        _viewModel.PropertyChanged += ClearSelectionAfterThemeListRefresh;
+        try
+        {
+            _viewModel.RefreshThemesCommand.Execute(null);
+        }
+        finally
+        {
+            _viewModel.PropertyChanged -= ClearSelectionAfterThemeListRefresh;
+        }
+
+        _ = _viewModel.SelectedTheme.Should().Be("Classic");
+        _ = _settingsService.Current.Theme.Should().Be("Classic");
+        _themeService.DidNotReceive().TryApplyTheme(Arg.Any<string>(), out Arg.Any<string>());
+        _settingsService.DidNotReceive().SaveAfterIdleAsync();
+    }
+
+    [Fact]
     public async Task RefreshThemesCommand_WhenSaveFailsAfterRemovedTheme_KeepsActualFallbackThemeSelected()
     {
         var settings = new AppSettings

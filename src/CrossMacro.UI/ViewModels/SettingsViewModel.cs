@@ -467,13 +467,19 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     }
 
     private string _selectedTheme;
+    private bool _isRefreshingThemes;
 
-    // Kept manual: setter rejects the new value entirely when the theme service fails to apply it.
+    // Kept manual: ignores transient refresh selections and rejects failed theme applications.
     public string SelectedTheme
     {
         get => _selectedTheme;
         set
         {
+            if (_isRefreshingThemes || string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
             if (!string.Equals(_selectedTheme, value, StringComparison.Ordinal))
             {
                 if (!_themeService.TryApplyTheme(value, out var applyError))
@@ -508,20 +514,32 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private void RefreshThemes()
     {
         var previousTheme = _selectedTheme;
-        if (!_themeService.TryRefreshThemes(out var refreshError))
-        {
-            Log.Warning("Theme refresh completed with warnings: {Error}", refreshError);
-        }
+        string refreshedTheme;
 
-        OnPropertyChanged(nameof(AvailableThemes));
-        if (string.Equals(_selectedTheme, _themeService.CurrentTheme, StringComparison.Ordinal))
+        _isRefreshingThemes = true;
+        try
         {
-            return;
-        }
+            if (!_themeService.TryRefreshThemes(out var refreshError))
+            {
+                Log.Warning("Theme refresh completed with warnings: {Error}", refreshError);
+            }
 
-        _selectedTheme = _themeService.CurrentTheme;
-        _settingsService.Current.Theme = _selectedTheme;
-        OnPropertyChanged(nameof(SelectedTheme));
+            refreshedTheme = _themeService.CurrentTheme;
+            OnPropertyChanged(nameof(AvailableThemes));
+            if (string.Equals(_selectedTheme, refreshedTheme, StringComparison.Ordinal))
+            {
+                OnPropertyChanged(nameof(SelectedTheme));
+                return;
+            }
+
+            _selectedTheme = refreshedTheme;
+            _settingsService.Current.Theme = refreshedTheme;
+            OnPropertyChanged(nameof(SelectedTheme));
+        }
+        finally
+        {
+            _isRefreshingThemes = false;
+        }
 
         _ = TryPersistSettings(
             () =>

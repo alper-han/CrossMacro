@@ -143,6 +143,50 @@ public sealed class DefaultPlaybackCoordinatorTests
     }
 
     [Fact]
+    public async Task WaitForPositionAsync_WhenCompositorPublishesAfterSeveralFrames_WaitsBeyondLegacyShortBudget()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+
+        var observations = new Queue<(int X, int Y)?>([
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (100, 200),
+        ]);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+            Task.FromResult(observations.Count > 0
+                ? observations.Dequeue()
+                : ((int X, int Y)?)(100, 200)));
+
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider);
+
+        var settled = await coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+
+        _ = settled.Should().BeTrue();
+        _ = await positionProvider.Received(9).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task WaitForPositionAsync_WhenPositionProviderDoesNotComplete_StopsAtSettleBudget()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(new TaskCompletionSource<(int X, int Y)?>(
+            TaskCreationOptions.RunContinuationsAsynchronously).Task);
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider);
+
+        var settled = await coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+
+        _ = settled.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task PrepareIterationAsync_AbsoluteMode_DoesNotPreMoveFirstEvent()
     {
         // Arrange

@@ -3,7 +3,8 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 internal static class AbsoluteCursorPositionSynchronizer
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(4);
-    private const int MaxAttempts = 8;
+    // Compositor feedback can lag an accepted uinput batch.
+    private static readonly TimeSpan SettleTimeout = TimeSpan.FromMilliseconds(250);
     private const int PositionTolerance = 1;
 
     public static async Task<AbsoluteCursorSettleResult> WaitAsync(
@@ -18,9 +19,20 @@ internal static class AbsoluteCursorPositionSynchronizer
         }
 
         (int X, int Y)? lastObservedPosition = null;
-        for (var attempt = 0; attempt < MaxAttempts; attempt++)
+        var startedAt = Stopwatch.GetTimestamp();
+
+        while (true)
         {
-            var position = await QueryPositionAsync(positionProvider, cancellationToken).ConfigureAwait(false);
+            var remaining = SettleTimeout - Stopwatch.GetElapsedTime(startedAt);
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            var position = await QueryPositionAsync(
+                positionProvider,
+                remaining,
+                cancellationToken).ConfigureAwait(false);
             lastObservedPosition = position;
             if (position is { } observed
                 && Math.Abs((long)observed.X - expectedX) <= PositionTolerance
@@ -29,10 +41,16 @@ internal static class AbsoluteCursorPositionSynchronizer
                 return new AbsoluteCursorSettleResult(IsSettled: true, observed);
             }
 
-            if (attempt + 1 < MaxAttempts)
+            remaining = SettleTimeout - Stopwatch.GetElapsedTime(startedAt);
+            if (remaining <= TimeSpan.Zero)
             {
-                await Task.Delay(PollInterval, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+                break;
             }
+
+            await Task.Delay(
+                remaining < PollInterval ? remaining : PollInterval,
+                TimeProvider.System,
+                cancellationToken).ConfigureAwait(false);
         }
 
         return new AbsoluteCursorSettleResult(IsSettled: false, lastObservedPosition);
@@ -40,13 +58,18 @@ internal static class AbsoluteCursorPositionSynchronizer
 
     private static async Task<(int X, int Y)?> QueryPositionAsync(
         IMousePositionProvider positionProvider,
+        TimeSpan timeout,
         CancellationToken cancellationToken)
     {
         try
         {
             return await positionProvider.GetAbsolutePositionAsync()
-                .WaitAsync(cancellationToken)
+                .WaitAsync(timeout, TimeProvider.System, cancellationToken)
                 .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            return null;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

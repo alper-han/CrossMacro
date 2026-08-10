@@ -71,7 +71,7 @@ public sealed class ScreenReadingWarmupService(
         {
             var result = await _frameProvider.CaptureFrameAsync(
                 WarmupRegion,
-                new ScreenReadOptions(WarmupTimeout, ScreenReadOptions.Default.PollInterval, cancellationToken)).ConfigureAwait(false);
+                new ScreenReadOptions(WarmupTimeout, ScreenReadOptions.DefaultPollInterval, cancellationToken)).ConfigureAwait(false);
 
             if (!result.IsSuccess)
             {

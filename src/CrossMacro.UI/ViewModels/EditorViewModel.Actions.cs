@@ -83,8 +83,6 @@ public partial class EditorViewModel
             && string.Equals(left.ScreenFoundYVariableName, right.ScreenFoundYVariableName, StringComparison.Ordinal)
             && string.Equals(left.ImageAssetName, right.ImageAssetName, StringComparison.Ordinal)
             && left.ImageSearchSimilarity.CompareTo(right.ImageSearchSimilarity) is 0
-            && left.ImageSearchDownsample == right.ImageSearchDownsample
-            && left.ImageSearchScaleAware == right.ImageSearchScaleAware
             && left.ImageSearchMatchMode == right.ImageSearchMatchMode
             && left.ImageSearchMatchModeWasExplicit == right.ImageSearchMatchModeWasExplicit
             && left.ShellCommandMode == right.ShellCommandMode
@@ -207,25 +205,6 @@ public partial class EditorViewModel
         _lastPropertyEditAction = null;
         _lastPropertyEditName = null;
         _lastPropertyEditUndoAt = DateTimeOffset.MinValue;
-    }
-
-    private void SetSelectedImageSearchScaleAware(bool value)
-    {
-        var action = SelectedAction;
-        if (action is null || action.ImageSearchScaleAware == value)
-        {
-            return;
-        }
-
-        if (!ShouldCoalescePropertyUndo(action, nameof(EditorAction.ImageSearchScaleAware)))
-        {
-            SaveUndoState(_lastKnownState);
-        }
-
-        action.SetImageSearchScaleAware(value);
-        RememberCurrentState();
-        UpdateActionListPresentation();
-        OnPropertyChanged(nameof(SelectedImageSearchScaleAware));
     }
 
     private void SetSelectedImageSearchMatchMode(EditorImageMatchMode value)
@@ -656,8 +635,6 @@ public partial class EditorViewModel
                     ? ImageAssetNames[0]
                     : string.Empty,
             ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
-            ImageSearchDownsample = EditorActionScreenReadingPayload.DefaultImageSearchDownsample,
-            ImageSearchScaleAware = EditorActionScreenReadingPayload.DefaultImageSearchScaleAware,
             Button = MacroMouseButton.Left,
         };
 

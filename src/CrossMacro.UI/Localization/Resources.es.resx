@@ -1500,10 +1500,6 @@
   <data name="Editor_ImageSearchSimilarity" xml:space="preserve">
     <value>Similarity (0-1)</value>
   </data>
-  <data name="Editor_ImageSearchDownsample" xml:space="preserve">
-    <value>Downsample</value>
-  </data>
-  <data name="Editor_ImageSearchScaleAware" xml:space="preserve"><value>Coincidencia con escala</value></data>
   <data name="Editor_ScreenPoint" xml:space="preserve">
     <value>Screen Point</value>
   </data>
@@ -1574,7 +1570,7 @@
     <value>pixelsearch: searches a region for RRGGBB or $variable; tolerance accepts 0-255 per RGB channel.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_ImageSearch" xml:space="preserve">
-    <value>imagesearch: searches for a named imported PNG asset; options include similarity and downsample.</value>
+    <value>imagesearch: searches for a named imported PNG asset; automatic matching defaults to 0.95 similarity. Optional explicit modes are first and best.</value>
   </data>
   <data name="Editor_RawScriptHint_Clipboard" xml:space="preserve">
     <value>clipboard: try 'clipboard set "hello"' or 'clipboard get clipText'.</value>
@@ -1631,7 +1627,7 @@
     <value>Pixel search {4} in ({0}, {1}, {2}x{3}) -&gt; {5}, {6}, {7}</value>
   </data>
   <data name="Editor_Action_ImageSearch" xml:space="preserve">
-    <value>Find image {0} in ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} sim {8} down {9}</value>
+    <value>Find image {0} in ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} sim {8}</value>
   </data>
   <data name="Editor_Action_ImageClick" xml:space="preserve">
     <value>Image click {0} in ({1}, {2}, {3}x{4})</value>
@@ -2300,6 +2296,7 @@
     <value>Move Target Window to Workspace</value>
   </data>
   <data name="Editor_ImageMatchMode" xml:space="preserve"><value>Modo de coincidencia de imagen</value></data>
+  <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>Automático (recomendado)</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>Primera coincidencia de umbral</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>Mejor coincidencia</value></data>
 </root>

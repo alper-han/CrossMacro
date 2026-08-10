@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed partial class EditorActionConverterTests
@@ -961,29 +960,6 @@ public sealed partial class EditorActionConverterTests
         _ = actions[2].IsAbsolute.Should().BeTrue();
         _ = actions[2].X.Should().Be(500);
         _ = actions[2].Y.Should().Be(300);
-    }
-
-    [Fact]
-    public void ToAndFromMacroSequence_WhenScaleAwareIsExplicit_PreservesScaleAwareOption()
-    {
-        var actions = new[]
-        {
-            new EditorAction
-            {
-                Type = EditorActionType.ImageSearch,
-                ImageAssetName = "Target_1",
-                ImageSearchScaleAware = true,
-            },
-        };
-
-        var sequence = _converter.ToMacroSequence(actions, "Image Search", isAbsolute: true);
-
-        _ = sequence.ScriptSteps.Should().ContainSingle()
-            .Which.Should().EndWith("scaleaware");
-        var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
-
-        _ = restored.Actions.Should().ContainSingle();
-        _ = restored.Actions[0].ImageSearchScaleAware.Should().BeTrue();
     }
 
     [Fact]

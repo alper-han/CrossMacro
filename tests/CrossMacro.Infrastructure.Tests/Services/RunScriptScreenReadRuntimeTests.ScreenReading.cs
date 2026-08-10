@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed partial class RunScriptScreenReadRuntimeTests
@@ -21,7 +20,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             {
                 "pixelcolor 10 20 sampled",
                 "pixelcolor rel 5 -3 relativeSampled",
-                "waitcolor 1 2 00FF00 123 poll 25",
+                "waitcolor 1 2 00FF00 123",
                 "pixelsearch 0 0 10 12 112233 found_x found_y tolerance 10",
             },
         };
@@ -33,7 +32,8 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             call.Point == new ScreenPoint(1, 2)
             && call.Expected == new ScreenPixelColor(0x00, 0xFF, 0x00)
             && call.Options.Timeout == TimeSpan.FromMilliseconds(123)
-            && call.Options.PollInterval == TimeSpan.FromMilliseconds(25));
+            && call.Options.PollUntilMatch
+            && call.Options.PollInterval == ScreenReadOptions.DefaultPollInterval);
         _ = screenReader.SearchCalls.Should().ContainSingle(call =>
             call.Region.X == 0
             && call.Region.Y == 0
@@ -515,7 +515,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
-    public async Task WaitForPixelAsync_WhenExpectedColorSeen_DisposesEachCapturedFrameOnce()
+    public async Task WaitForPixelAsync_WithDefaultOptions_RepeatsUntilExpectedColorIsSeen()
     {
         var provider = new DisposalTrackingFrameProvider(
             new ScreenPixelColor(0x00, 0x00, 0x00),
@@ -525,7 +525,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         var result = await reader.WaitForPixelAsync(
             new ScreenPoint(1, 2),
             new ScreenPixelColor(0x00, 0xFF, 0x00),
-            new ScreenReadOptions(timeout: TimeSpan.FromSeconds(1), pollInterval: TimeSpan.Zero));
+            ScreenReadOptions.Default);
 
         _ = result.IsSuccess.Should().BeTrue();
         _ = provider.CaptureCalls.Should().Be(2);
@@ -593,7 +593,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
-    public async Task SearchPixelAsync_WhenPollingIsEnabled_RepeatsUntilMatch()
+    public async Task SearchPixelAsync_WithDefaultOptions_RepeatsUntilMatch()
     {
         var provider = new DisposalTrackingFrameProvider(
             new ScreenPixelColor(0x00, 0x00, 0x00),
@@ -604,10 +604,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             new ScreenRect(1, 2, 1, 1),
             new ScreenPixelColor(0x00, 0xFF, 0x00),
             tolerance: 0,
-            new ScreenReadOptions(
-                timeout: TimeSpan.FromSeconds(1),
-                pollInterval: TimeSpan.Zero,
-                pollUntilMatch: true));
+            ScreenReadOptions.Default);
 
         _ = result.IsSuccess.Should().BeTrue();
         _ = result.Value.Point.Should().Be(new ScreenPoint(1, 2));

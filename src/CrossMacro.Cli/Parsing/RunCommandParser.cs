@@ -347,13 +347,6 @@ internal static class RunCommandParser
                 step += $" {variableName}";
             }
 
-            if (index + 2 < args.Length
-                && RunScriptSyntax.IsImageSearchTimeoutKeyword(args[index + 1]))
-            {
-                step += $" {args[index + 1]} {args[index + 2]}";
-                index += 2;
-            }
-
             return true;
         }
 
@@ -378,19 +371,6 @@ internal static class RunCommandParser
                 step += $" {resultVariableName}";
             }
 
-            if (index + 1 < args.Length
-                && RunScriptSyntax.IsScreenReadPollKeyword(args[index + 1]))
-            {
-                step += $" {args[index + 1]}";
-                index++;
-                if (index + 1 < args.Length
-                    && int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
-                {
-                    step += $" {args[index + 1]}";
-                    index++;
-                }
-            }
-
             return true;
         }
 
@@ -408,7 +388,8 @@ internal static class RunCommandParser
             var optionalVariables = new List<string>();
             while (optionalVariables.Count < 3 && TryConsumeOptionalInlineArgument(args, ref index, out var variableName))
             {
-                if (RunScriptSyntax.IsPixelSearchToleranceKeyword(variableName))
+                if (RunScriptSyntax.IsPixelSearchToleranceKeyword(variableName)
+                    || RunScriptSyntax.IsImageSearchTimeoutKeyword(variableName))
                 {
                     index--;
                     break;
@@ -443,20 +424,6 @@ internal static class RunCommandParser
 
                     _ = stepBuilder.Append(' ').Append(option).Append(' ').Append(args[index + 2]);
                     index += 2;
-                    continue;
-                }
-
-                if (RunScriptSyntax.IsScreenReadPollKeyword(option))
-                {
-                    _ = stepBuilder.Append(' ').Append(option);
-                    index++;
-                    if (index + 1 < args.Length
-                        && int.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
-                    {
-                        _ = stepBuilder.Append(' ').Append(args[index + 1]);
-                        index++;
-                    }
-
                     continue;
                 }
 
@@ -776,11 +743,8 @@ internal static class RunCommandParser
         return string.Equals(token, "timeout", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "tolerance", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "similarity", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "downsample", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "matchmode", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "scaleaware", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "button", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "poll", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(token, "button", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryParseInlineRuntimeStep(string[] args, ref int index, out string step, out string error)

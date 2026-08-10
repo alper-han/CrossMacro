@@ -8,26 +8,22 @@ public sealed record ScreenImageMatchOptions
     public static ScreenImageMatchOptions Create(
         ScreenRect? searchRegion,
         double minimumSimilarity,
-        int downsampleFactor,
-        ScreenImageMatchSelectionMode selectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch,
-        bool scaleAware = false) => new()
+        ScreenImageMatchSelectionMode selectionMode = ScreenImageMatchSelectionMode.Automatic) => new()
         {
             SearchRegion = searchRegion,
             MinimumSimilarity = minimumSimilarity,
-            DownsampleFactor = downsampleFactor,
             SelectionMode = selectionMode,
-            ScaleAware = scaleAware,
         };
 
     public ScreenRect? SearchRegion { get; init; }
 
-    public double MinimumSimilarity { get; init; } = 1.0;
+    public double MinimumSimilarity { get; init; } = 0.95;
 
-    public int DownsampleFactor { get; init; } = 1;
-
-    public ScreenImageMatchSelectionMode SelectionMode { get; init; } = ScreenImageMatchSelectionMode.FirstThresholdMatch;
-
-    public bool ScaleAware { get; init; }
+    public ScreenImageMatchSelectionMode SelectionMode { get; init; } = ScreenImageMatchSelectionMode.Automatic;
 
     public int AnchorPointCount { get; init; } = 8;
+
+    public byte AlphaThreshold { get; init; } = 1;
+
+    public bool UseTemplateAlphaMask { get; init; } = true;
 }

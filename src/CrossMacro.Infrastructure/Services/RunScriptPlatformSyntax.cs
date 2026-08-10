@@ -17,17 +17,20 @@ internal static class RunScriptPlatformSyntax
         {
             "FIRST" => EditorImageMatchMode.FirstThresholdMatch,
             "BEST" => EditorImageMatchMode.BestMatch,
+            "AUTO" => EditorImageMatchMode.Automatic,
             _ => default,
         };
 
         return string.Equals(token?.Trim(), "first", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token?.Trim(), "best", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(token?.Trim(), "best", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token?.Trim(), "auto", StringComparison.OrdinalIgnoreCase);
     }
 
     public static string ToImageMatchModeToken(EditorImageMatchMode mode) => mode switch
     {
         EditorImageMatchMode.FirstThresholdMatch => "first",
         EditorImageMatchMode.BestMatch => "best",
+        EditorImageMatchMode.Automatic => "auto",
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Image match mode is invalid."),
     };
 

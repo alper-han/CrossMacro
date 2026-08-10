@@ -3,9 +3,6 @@ namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
 public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScreenPixelReader, IScreenImageSearchReader
 {
-    private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(50);
-
     private readonly IScreenFrameProvider _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
     private readonly ScreenImageMatcher _imageMatcher = new();
     private bool _disposed;
@@ -44,44 +41,33 @@ public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScr
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        var timeout = options.Timeout ?? DefaultWaitTimeout;
-        var pollInterval = options.PollInterval ?? DefaultPollInterval;
-        var deadline = ScreenReadPolling.GetDeadline(timeout);
+        var timeout = options.Timeout ?? ScreenReadOptions.DefaultTimeout;
+        var pollInterval = options.PollInterval ?? ScreenReadOptions.DefaultPollInterval;
+        return await ScreenReadPolling.PollUntilMatchAsync(
+            (remaining, token) => WaitForPixelOnceAsync(
+                point,
+                expected,
+                new ScreenReadOptions(remaining, pollInterval, pollUntilMatch: false, token)),
+            timeout,
+            pollInterval,
+            "Screen pixel wait was canceled.",
+            () => ScreenReadResultFactory.Failure<ScreenPixelColor>(
+                ScreenReadErrorKind.CaptureTimeout,
+                $"Timed out waiting for pixel {point} to become {expected}."),
+            options.CancellationToken).ConfigureAwait(false);
+    }
 
-        while (true)
-        {
-            var result = await GetPixelAsync(point, options).ConfigureAwait(false);
-            if (!result.IsSuccess)
-            {
-                return result;
-            }
-
-            if (result.Value == expected)
-            {
-                return result;
-            }
-
-            if (ScreenReadPolling.HasExpired(deadline))
-            {
-                return ScreenReadResultFactory.Failure<ScreenPixelColor>(
-                    ScreenReadErrorKind.CaptureTimeout,
-                    $"Timed out waiting for pixel {point} to become {expected}.");
-            }
-
-            try
-            {
-                await Task.Delay(
-                    ScreenReadPolling.GetDelay(deadline, pollInterval),
-                    TimeProvider.System,
-                    options.CancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return ScreenReadResultFactory.Failure<ScreenPixelColor>(
-                    ScreenReadErrorKind.Canceled,
-                    "Screen pixel wait was canceled.");
-            }
-        }
+    private async Task<ScreenReadResult<ScreenPixelColor>> WaitForPixelOnceAsync(
+        ScreenPoint point,
+        ScreenPixelColor expected,
+        ScreenReadOptions options)
+    {
+        var result = await GetPixelAsync(point, options).ConfigureAwait(false);
+        return !result.IsSuccess || result.Value == expected
+            ? result
+            : ScreenReadResultFactory.Failure<ScreenPixelColor>(
+                ScreenReadErrorKind.CaptureTimeout,
+                $"Pixel {point} does not match {expected}.");
     }
 
     public async Task<ScreenReadResult<ScreenPixelSearchMatch>> SearchPixelAsync(
@@ -92,47 +78,19 @@ public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScr
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!options.PollUntilMatch)
-        {
-            return await SearchPixelOnceAsync(region, expected, tolerance, options).ConfigureAwait(false);
-        }
-
-        var timeout = options.Timeout ?? TimeSpan.FromSeconds(5);
-        var pollInterval = options.PollInterval ?? DefaultPollInterval;
-        var deadline = ScreenReadPolling.GetDeadline(timeout);
-        while (true)
-        {
-            var remaining = ScreenReadPolling.GetRemaining(deadline);
-
-            var result = await SearchPixelOnceAsync(
+        var timeout = options.Timeout ?? ScreenReadOptions.DefaultTimeout;
+        var pollInterval = options.PollInterval ?? ScreenReadOptions.DefaultPollInterval;
+        return await ScreenReadPolling.PollUntilMatchAsync(
+            (remaining, token) => SearchPixelOnceAsync(
                 region,
                 expected,
                 tolerance,
-                new ScreenReadOptions(remaining, pollInterval, pollUntilMatch: false, options.CancellationToken)).ConfigureAwait(false);
-            if (result.IsSuccess || result.ErrorKind is not ScreenReadErrorKind.CaptureTimeout)
-            {
-                return result;
-            }
-
-            if (ScreenReadPolling.HasExpired(deadline))
-            {
-                return result;
-            }
-
-            try
-            {
-                await Task.Delay(
-                    ScreenReadPolling.GetDelay(deadline, pollInterval),
-                    TimeProvider.System,
-                    options.CancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return ScreenReadResultFactory.Failure<ScreenPixelSearchMatch>(
-                    ScreenReadErrorKind.Canceled,
-                    "Screen pixel search was canceled.");
-            }
-        }
+                new ScreenReadOptions(remaining, pollInterval, pollUntilMatch: false, token)),
+            timeout,
+            pollInterval,
+            "Screen pixel search was canceled.",
+            timeoutFailure: null,
+            cancellationToken: options.CancellationToken).ConfigureAwait(false);
     }
 
     private async Task<ScreenReadResult<ScreenPixelSearchMatch>> SearchPixelOnceAsync(
@@ -187,42 +145,17 @@ public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScr
             return await SearchImageOnceAsync(region, imageTemplate, options, readOptions).ConfigureAwait(false);
         }
 
-        var timeout = readOptions.Timeout ?? TimeSpan.FromSeconds(5);
-        var pollInterval = readOptions.PollInterval ?? DefaultPollInterval;
-        var deadline = ScreenReadPolling.GetDeadline(timeout);
-        while (true)
-        {
-            var remaining = ScreenReadPolling.GetRemaining(deadline);
-
-            var result = await SearchImageOnceAsync(
+        var timeout = readOptions.Timeout ?? ScreenReadOptions.DefaultTimeout;
+        var pollInterval = readOptions.PollInterval ?? ScreenReadOptions.DefaultPollInterval;
+        return await ScreenReadPolling.PollImageUntilConsistentAsync(
+            (remaining, token) => SearchImageOnceAsync(
                 region,
                 imageTemplate,
                 options,
-                new ScreenReadOptions(remaining, pollInterval, pollUntilMatch: false, readOptions.CancellationToken)).ConfigureAwait(false);
-            if (result.IsSuccess || result.ErrorKind is not ScreenReadErrorKind.CaptureTimeout)
-            {
-                return result;
-            }
-
-            if (ScreenReadPolling.HasExpired(deadline))
-            {
-                return result;
-            }
-
-            try
-            {
-                await Task.Delay(
-                    ScreenReadPolling.GetDelay(deadline, pollInterval),
-                    TimeProvider.System,
-                    readOptions.CancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return ScreenReadResultFactory.Failure<ScreenImageMatch>(
-                    ScreenReadErrorKind.Canceled,
-                    "Screen image search was canceled.");
-            }
-        }
+                new ScreenReadOptions(remaining, pollInterval, pollUntilMatch: false, token)),
+            timeout,
+            pollInterval,
+            readOptions.CancellationToken).ConfigureAwait(false);
     }
 
     private async Task<ScreenReadResult<ScreenImageMatch>> SearchImageOnceAsync(
@@ -235,15 +168,21 @@ public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScr
         ArgumentNullException.ThrowIfNull(imageTemplate);
         ArgumentNullException.ThrowIfNull(options);
 
-        using var timeoutCancellation = readOptions.Timeout is { } timeout
+        using var timeoutCancellation = readOptions.Timeout is { } timeout && timeout > TimeSpan.Zero
             ? new CancellationTokenSource(timeout)
             : null;
         using var linkedCancellation = timeoutCancellation is null
             ? null
             : CancellationTokenSource.CreateLinkedTokenSource(readOptions.CancellationToken, timeoutCancellation.Token);
-        var effectiveOptions = linkedCancellation is null
-            ? readOptions
-            : new ScreenReadOptions(readOptions.Timeout, readOptions.PollInterval, linkedCancellation.Token);
+        ScreenReadOptions effectiveOptions;
+        if (linkedCancellation is not null)
+        {
+            effectiveOptions = new ScreenReadOptions(readOptions.Timeout, readOptions.PollInterval, linkedCancellation.Token);
+        }
+        else
+        {
+            effectiveOptions = readOptions;
+        }
 
         var capture = await CaptureFrameAsync(region, effectiveOptions).ConfigureAwait(false);
         if (!capture.IsSuccess)
@@ -315,8 +254,15 @@ public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScr
     {
         try
         {
-            options.CancellationToken.ThrowIfCancellationRequested();
-            return await _frameProvider.CaptureFrameAsync(region, options).ConfigureAwait(false);
+            var effectiveOptions = options.Timeout == TimeSpan.Zero
+                ? new ScreenReadOptions(
+                    ScreenReadOptions.DefaultTimeout,
+                    options.PollInterval,
+                    options.PollUntilMatch,
+                    options.CancellationToken)
+                : options;
+            effectiveOptions.CancellationToken.ThrowIfCancellationRequested();
+            return await _frameProvider.CaptureFrameAsync(region, effectiveOptions).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

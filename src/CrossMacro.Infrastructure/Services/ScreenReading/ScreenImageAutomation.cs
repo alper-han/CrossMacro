@@ -31,7 +31,7 @@ public sealed class ScreenImageAutomation(
 
         using (setup.Template)
         {
-            return ToResult(await SearchOnceAsync(setup, request.Timeout, request.PollUntilMatch, request.PollInterval, cancellationToken).ConfigureAwait(false));
+            return ToResult(await SearchOnceAsync(setup, ScreenReadOptions.DefaultTimeout, cancellationToken).ConfigureAwait(false));
         }
     }
 
@@ -46,34 +46,8 @@ public sealed class ScreenImageAutomation(
 
         using (setup.Template)
         {
-            var timeout = request.Timeout ?? TimeSpan.FromSeconds(5);
-            var deadline = ScreenReadPolling.GetDeadline(timeout);
-            var pollInterval = request.PollInterval ?? ScreenReadOptions.Default.PollInterval ?? TimeSpan.FromMilliseconds(50);
-            while (true)
-            {
-                var remaining = ScreenReadPolling.GetRemaining(deadline);
-
-                var result = await SearchOnceAsync(setup, remaining, pollUntilMatch: false, pollInterval: null, cancellationToken: cancellationToken).ConfigureAwait(false);
-                if (result.IsSuccess)
-                {
-                    return ToResult(result);
-                }
-
-                if (result.ErrorKind is not ScreenReadErrorKind.CaptureTimeout)
-                {
-                    return ToResult(result);
-                }
-
-                if (ScreenReadPolling.HasExpired(deadline))
-                {
-                    return ToResult(result);
-                }
-
-                await Task.Delay(
-                    ScreenReadPolling.GetDelay(deadline, pollInterval),
-                    TimeProvider.System,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            var timeout = request.Timeout ?? ScreenReadOptions.DefaultTimeout;
+            return ToResult(await SearchUntilConsistentAsync(setup, timeout, cancellationToken).ConfigureAwait(false));
         }
     }
 
@@ -118,7 +92,8 @@ public sealed class ScreenImageAutomation(
 
             using (setup.Template)
             {
-                var result = await SearchOnceAsync(setup, request.Timeout, request.PollUntilMatch, request.PollInterval, cancellationToken).ConfigureAwait(false);
+                var timeout = request.Timeout ?? ScreenReadOptions.DefaultTimeout;
+                var result = await SearchUntilConsistentAsync(setup, timeout, cancellationToken).ConfigureAwait(false);
                 if (!result.IsSuccess)
                 {
                     return ToResult(result);
@@ -210,9 +185,8 @@ public sealed class ScreenImageAutomation(
 
         if (!double.IsFinite(request.Similarity)
             || request.Similarity is < 0.0 or > 1.0
-            || request.Downsample < 1
-            || (request.Timeout is { } timeout && timeout < TimeSpan.Zero)
-            || (request.PollInterval is { } pollInterval && pollInterval < TimeSpan.Zero))
+            || !Enum.IsDefined(request.MatchMode)
+            || (request.Timeout is { } timeout && timeout < TimeSpan.Zero))
         {
             return ImageSearchSetup.Failure(ScreenImageAutomationResult.Failure(ScreenReadErrorKind.InvalidArguments, "Invalid image search options."));
         }
@@ -224,11 +198,13 @@ public sealed class ScreenImageAutomation(
             var options = ScreenImageMatchOptions.Create(
                 request.Region,
                 request.Similarity,
-                request.Downsample,
-                request.MatchMode is ScreenImageMatchMode.Best
-                    ? ScreenImageMatchSelectionMode.BestMatch
-                    : ScreenImageMatchSelectionMode.FirstThresholdMatch,
-                request.ScaleAware);
+                request.MatchMode switch
+                {
+                    ScreenImageMatchMode.Automatic => ScreenImageMatchSelectionMode.Automatic,
+                    ScreenImageMatchMode.Best => ScreenImageMatchSelectionMode.BestMatch,
+                    ScreenImageMatchMode.First => ScreenImageMatchSelectionMode.FirstThresholdMatch,
+                    _ => throw new InvalidOperationException("Image match mode is invalid."),
+                });
             return ImageSearchSetup.Success((IScreenImageSearchReader)_screenPixelReader, template, options);
         }
         catch (OperationCanceledException)
@@ -251,9 +227,7 @@ public sealed class ScreenImageAutomation(
 
     private static async Task<ScreenReadResult<ScreenImageMatch>> SearchOnceAsync(
         ImageSearchSetup setup,
-        TimeSpan? timeout,
-        bool pollUntilMatch,
-        TimeSpan? pollInterval,
+        TimeSpan timeout,
         CancellationToken cancellationToken)
     {
         var reader = setup.Reader ?? throw new InvalidOperationException("Reader is not initialized in a success setup.");
@@ -263,7 +237,23 @@ public sealed class ScreenImageAutomation(
             setup.Region,
             template,
             options,
-            new ScreenReadOptions(timeout, pollInterval ?? ScreenReadOptions.Default.PollInterval, pollUntilMatch, cancellationToken)).ConfigureAwait(false);
+            new ScreenReadOptions(
+                timeout,
+                pollInterval: null,
+                pollUntilMatch: false,
+                cancellationToken)).ConfigureAwait(false);
+    }
+
+    private static Task<ScreenReadResult<ScreenImageMatch>> SearchUntilConsistentAsync(
+        ImageSearchSetup setup,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        return ScreenReadPolling.PollImageUntilConsistentAsync(
+            (remaining, token) => SearchOnceAsync(setup, remaining, token),
+            timeout,
+            ScreenReadOptions.DefaultPollInterval,
+            cancellationToken);
     }
 
     private static ScreenImageAutomationResult ToResult(ScreenReadResult<ScreenImageMatch> result) =>

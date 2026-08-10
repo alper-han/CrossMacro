@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests
@@ -1197,10 +1196,10 @@ public sealed partial class EditorViewModelTests
     }
 
     [Theory]
-    [InlineData(EditorActionType.ImageSearch)]
-    [InlineData(EditorActionType.ImageClick)]
-    [InlineData(EditorActionType.WaitImage)]
-    public void SelectedAction_WhenImageActionSelected_ShowsImageOutputVariablesAndTimeout(EditorActionType actionType)
+    [InlineData(EditorActionType.ImageSearch, false)]
+    [InlineData(EditorActionType.ImageClick, true)]
+    [InlineData(EditorActionType.WaitImage, true)]
+    public void SelectedAction_WhenImageActionSelected_ShowsExpectedOutputAndTimeoutFields(EditorActionType actionType, bool showsTimeout)
     {
         var action = new EditorAction { Type = actionType };
         _viewModel.Actions.Add(action);
@@ -1209,7 +1208,7 @@ public sealed partial class EditorViewModelTests
 
         _ = _viewModel.ShowImageSearchFields.Should().BeTrue();
         _ = _viewModel.ShowImageOutputVariableFields.Should().BeTrue();
-        _ = _viewModel.ShowImageWaitTimeoutField.Should().BeTrue();
+        _ = _viewModel.ShowImageWaitTimeoutField.Should().Be(showsTimeout);
     }
 
     [Fact]

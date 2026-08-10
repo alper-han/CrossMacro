@@ -164,7 +164,6 @@ internal static class EditorActionValidationPolicy
             && EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundYVariableName)
             && double.IsFinite(action.ImageSearchSimilarity)
             && action.ImageSearchSimilarity is >= 0.0 and <= 1.0
-            && action.ImageSearchDownsample >= 1
             && (action.Type is not EditorActionType.ImageClick
                 || action.Button is MacroMouseButton.Left or MacroMouseButton.Right or MacroMouseButton.Middle);
     }

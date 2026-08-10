@@ -10,8 +10,6 @@ public sealed record ScreenImageClickData(
     int? RegionWidth,
     int? RegionHeight,
     double Similarity,
-    int Downsample,
     string MatchMode,
-    bool ScaleAware,
     string Button,
     string ProviderName);

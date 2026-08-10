@@ -16,13 +16,9 @@ public sealed record ScreenCliOptions(
     int? RegionY = null,
     int? RegionWidth = null,
     int? RegionHeight = null,
-    double Similarity = 1.0,
-    int Downsample = 1,
-    ScreenImageMatchMode MatchMode = ScreenImageMatchMode.First,
-    bool ScaleAware = false,
+    double Similarity = 0.95,
+    ScreenImageMatchMode MatchMode = ScreenImageMatchMode.Automatic,
     MacroMouseButton Button = MacroMouseButton.Left,
     bool JsonOutput = false,
-    string? LogLevel = null,
-    bool Poll = false,
-    int? PollIntervalMs = null)
+    string? LogLevel = null)
     : CliCommandOptions(JsonOutput, LogLevel);

@@ -13,11 +13,8 @@ public static class ScreenReadOptionGrammar
             "REGION" => ScreenReadOptionKind.Region,
             "TOLERANCE" => ScreenReadOptionKind.Tolerance,
             "SIMILARITY" => ScreenReadOptionKind.Similarity,
-            "DOWNSAMPLE" => ScreenReadOptionKind.Downsample,
             "MATCHMODE" => ScreenReadOptionKind.MatchMode,
-            "SCALEAWARE" => ScreenReadOptionKind.ScaleAware,
             "TIMEOUT" => ScreenReadOptionKind.Timeout,
-            "POLL" => ScreenReadOptionKind.Poll,
             "BUTTON" => ScreenReadOptionKind.Button,
             _ => ScreenReadOptionKind.Unknown,
         };
@@ -28,31 +25,24 @@ public static class ScreenReadOptionGrammar
             "--REGION" => ScreenReadOptionKind.Region,
             "--TOLERANCE" => ScreenReadOptionKind.Tolerance,
             "--SIMILARITY" => ScreenReadOptionKind.Similarity,
-            "--DOWNSAMPLE" => ScreenReadOptionKind.Downsample,
             "--MATCHMODE" => ScreenReadOptionKind.MatchMode,
-            "--SCALE-AWARE" => ScreenReadOptionKind.ScaleAware,
             "--TIMEOUT-MS" => ScreenReadOptionKind.Timeout,
-            "--POLL" => ScreenReadOptionKind.Poll,
-            "--POLL-MS" => ScreenReadOptionKind.PollInterval,
             "--BUTTON" => ScreenReadOptionKind.Button,
             _ => ScreenReadOptionKind.Unknown,
         };
 
     public static bool IsImageMatchOption(ScreenReadOptionKind kind) =>
         kind is ScreenReadOptionKind.Similarity
-            or ScreenReadOptionKind.Downsample
-            or ScreenReadOptionKind.MatchMode
-            or ScreenReadOptionKind.ScaleAware;
+            or ScreenReadOptionKind.MatchMode;
 
     public static bool IsImageSearchOption(ScreenReadOptionKind kind) =>
         IsImageMatchOption(kind)
-        || kind is ScreenReadOptionKind.Timeout or ScreenReadOptionKind.Poll;
+        || kind is ScreenReadOptionKind.Timeout;
 
     public static bool IsImageClickOption(ScreenReadOptionKind kind) =>
         IsImageSearchOption(kind) || kind is ScreenReadOptionKind.Button;
 
     public static bool IsPixelSearchOption(ScreenReadOptionKind kind) =>
         kind is ScreenReadOptionKind.Tolerance
-            or ScreenReadOptionKind.Timeout
-            or ScreenReadOptionKind.Poll;
+            or ScreenReadOptionKind.Timeout;
 }

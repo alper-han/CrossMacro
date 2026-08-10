@@ -267,9 +267,15 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
         public bool IsSupported => true;
 
+        public int CaptureCalls { get; private set; }
+
+        public ScreenReadOptions LastOptions { get; private set; }
+
         public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
         {
             options.CancellationToken.ThrowIfCancellationRequested();
+            CaptureCalls++;
+            LastOptions = options;
             return Task.FromResult(ScreenReadResultFactory.Success<ScreenFrame>(_frame));
         }
 

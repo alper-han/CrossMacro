@@ -816,7 +816,6 @@ public sealed class EditorActionValidatorTests
                 ScreenFoundYVariableName = "found_y",
                 ScreenTimeoutMs = 1500,
                 ImageSearchSimilarity = similarity,
-                ImageSearchDownsample = 1,
             };
 
             var result = _validator.Validate(action);
@@ -844,7 +843,6 @@ public sealed class EditorActionValidatorTests
                 ScreenFoundYVariableName = "found_y",
                 ScreenTimeoutMs = 1500,
                 ImageSearchSimilarity = similarity,
-                ImageSearchDownsample = 1,
             };
 
             var result = _validator.Validate(action);

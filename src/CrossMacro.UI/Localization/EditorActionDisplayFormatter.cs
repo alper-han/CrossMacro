@@ -233,8 +233,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             action.ScreenFoundVariableName,
             action.ScreenFoundXVariableName,
             action.ScreenFoundYVariableName,
-            action.ImageSearchSimilarity,
-            action.ImageSearchDownsample);
+            action.ImageSearchSimilarity);
     }
 
     private string FormatImageClick(EditorAction action)

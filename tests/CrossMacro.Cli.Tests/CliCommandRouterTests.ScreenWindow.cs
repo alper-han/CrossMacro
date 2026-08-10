@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.Cli.Tests;
 
 public sealed partial class CliCommandRouterTests
@@ -10,7 +9,7 @@ public sealed partial class CliCommandRouterTests
         var result = CliCommandRouterAccessor.Parse([
             "run",
             "pixelcolor", "1", "2", "sampled",
-            "waitcolor", "3", "4", "00FF00", "100", "wait_ok", "poll", "25",
+            "waitcolor", "3", "4", "00FF00", "100", "wait_ok",
             "pixelsearch", "0", "0", "10", "10", "FF0000", "found", "found_x", "found_y", "tolerance", "26",
             "click", "left",
         ]);
@@ -18,7 +17,7 @@ public sealed partial class CliCommandRouterTests
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
         Assert.Equal("pixelcolor 1 2 sampled", options.Steps[0]);
-        Assert.Equal("waitcolor 3 4 00FF00 100 wait_ok poll 25", options.Steps[1]);
+        Assert.Equal("waitcolor 3 4 00FF00 100 wait_ok", options.Steps[1]);
         Assert.Equal("pixelsearch 0 0 10 10 FF0000 found found_x found_y tolerance 26", options.Steps[2]);
         Assert.Equal("click left", options.Steps[3]);
     }
@@ -62,8 +61,8 @@ public sealed partial class CliCommandRouterTests
 
         Assert.Contains("pixelcolor <x> <y> [var]", usage, StringComparison.Ordinal);
         Assert.Contains("pixelcolor rel <dx> <dy> [var]", usage, StringComparison.Ordinal);
-        Assert.Contains("waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var] [poll [interval_ms]]", usage, StringComparison.Ordinal);
-        Assert.Contains("pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [timeout <ms>] [tolerance <0..255>] [poll [interval_ms]]", usage, StringComparison.Ordinal);
+        Assert.Contains("waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]", usage, StringComparison.Ordinal);
+        Assert.Contains("pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [timeout <ms>] [tolerance <0..255>]", usage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -99,25 +98,25 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenScreenCommands_ReturnTypedOptions()
     {
-        var pixel = CliCommandRouterAccessor.Parse(["screen", "pixel", "--relative", "-1", "2", "--timeout-ms", "400", "--json"]);
-        var wait = CliCommandRouterAccessor.Parse(["screen", "wait-color", "3", "4", "00ff00", "--timeout-ms", "500", "--poll-ms", "25"]);
+        var pixel = CliCommandRouterAccessor.Parse(["screen", "pixel", "--relative", "-1", "2", "--json"]);
+        var wait = CliCommandRouterAccessor.Parse(["screen", "wait-color", "3", "4", "00ff00", "--timeout-ms", "500"]);
         var search = CliCommandRouterAccessor.Parse(["screen", "search-color", "0", "0", "10", "20", "FF0000", "--timeout-ms", "450", "--tolerance", "26"]);
-        var imageSearch = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--timeout-ms", "600", "--region", "1", "2", "30", "40", "--similarity", "0.9", "--downsample", "2", "--json"]);
+        var imageSearch = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--region", "1", "2", "30", "40", "--similarity", "0.9", "--json"]);
+        var firstImageSearch = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--matchmode", "first"]);
         var bestImageSearch = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--matchmode", "best"]);
-        var waitImage = CliCommandRouterAccessor.Parse(["screen", "wait-image", "/tmp/template.png", "--timeout-ms", "750", "--region", "2", "3", "40", "50", "--similarity", "0.8", "--downsample", "3"]);
-        var imageClick = CliCommandRouterAccessor.Parse(["screen", "image-click", "/tmp/template.png", "--timeout-ms", "650", "--button", "right", "--region", "4", "5", "60", "70", "--similarity", "0.7", "--downsample", "4"]);
+        var automaticImageSearch = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png"]);
+        var waitImage = CliCommandRouterAccessor.Parse(["screen", "wait-image", "/tmp/template.png", "--timeout-ms", "750", "--region", "2", "3", "40", "50", "--similarity", "0.8"]);
+        var imageClick = CliCommandRouterAccessor.Parse(["screen", "image-click", "/tmp/template.png", "--timeout-ms", "650", "--button", "right", "--region", "4", "5", "60", "70", "--similarity", "0.7"]);
 
         Assert.True(pixel.IsSuccess);
         var pixelOptions = Assert.IsType<ScreenCliOptions>(pixel.Options);
         Assert.True(pixelOptions.Relative);
         Assert.Equal(-1, pixelOptions.X);
-        Assert.Equal(400, pixelOptions.TimeoutMs);
+        Assert.Null(pixelOptions.TimeoutMs);
         Assert.True(pixelOptions.JsonOutput);
         Assert.True(wait.IsSuccess);
         var waitOptions = Assert.IsType<ScreenCliOptions>(wait.Options);
         Assert.Equal(500, waitOptions.TimeoutMs);
-        Assert.True(waitOptions.Poll);
-        Assert.Equal(25, waitOptions.PollIntervalMs);
         Assert.True(search.IsSuccess);
         var searchOptions = Assert.IsType<ScreenCliOptions>(search.Options);
         Assert.Equal(26, searchOptions.Tolerance);
@@ -131,12 +130,17 @@ public sealed partial class CliCommandRouterTests
         Assert.Equal(30, imageSearchOptions.RegionWidth);
         Assert.Equal(40, imageSearchOptions.RegionHeight);
         Assert.Equal(0.9, imageSearchOptions.Similarity);
-        Assert.Equal(2, imageSearchOptions.Downsample);
-        Assert.Equal(600, imageSearchOptions.TimeoutMs);
+        Assert.Null(imageSearchOptions.TimeoutMs);
         Assert.True(imageSearchOptions.JsonOutput);
-        Assert.Equal(ScreenImageMatchMode.First, imageSearchOptions.MatchMode);
+        Assert.Equal(ScreenImageMatchMode.Automatic, imageSearchOptions.MatchMode);
+        Assert.True(firstImageSearch.IsSuccess);
+        Assert.Equal(ScreenImageMatchMode.First, Assert.IsType<ScreenCliOptions>(firstImageSearch.Options).MatchMode);
         Assert.True(bestImageSearch.IsSuccess);
         Assert.Equal(ScreenImageMatchMode.Best, Assert.IsType<ScreenCliOptions>(bestImageSearch.Options).MatchMode);
+        Assert.True(automaticImageSearch.IsSuccess);
+        var automaticImageSearchOptions = Assert.IsType<ScreenCliOptions>(automaticImageSearch.Options);
+        Assert.Equal(ScreenImageMatchMode.Automatic, automaticImageSearchOptions.MatchMode);
+        Assert.Equal(0.95, automaticImageSearchOptions.Similarity);
         Assert.True(waitImage.IsSuccess);
         var waitImageOptions = Assert.IsType<ScreenCliOptions>(waitImage.Options);
         Assert.Equal(ScreenCliAction.WaitImage, waitImageOptions.Action);
@@ -146,7 +150,6 @@ public sealed partial class CliCommandRouterTests
         Assert.Equal(40, waitImageOptions.RegionWidth);
         Assert.Equal(50, waitImageOptions.RegionHeight);
         Assert.Equal(0.8, waitImageOptions.Similarity);
-        Assert.Equal(3, waitImageOptions.Downsample);
         Assert.True(imageClick.IsSuccess);
         var imageClickOptions = Assert.IsType<ScreenCliOptions>(imageClick.Options);
         Assert.Equal(ScreenCliAction.ImageClick, imageClickOptions.Action);
@@ -156,7 +159,6 @@ public sealed partial class CliCommandRouterTests
         Assert.Equal(60, imageClickOptions.RegionWidth);
         Assert.Equal(70, imageClickOptions.RegionHeight);
         Assert.Equal(0.7, imageClickOptions.Similarity);
-        Assert.Equal(4, imageClickOptions.Downsample);
         Assert.Equal(650, imageClickOptions.TimeoutMs);
     }
 
@@ -185,12 +187,12 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
-    public void Parse_WhenRunHasImageAssetsAndPolling_PreservesBoth()
+    public void Parse_WhenRunHasImageAssetsAndPixelSearchTimeout_PreservesBoth()
     {
         var result = CliCommandRouterAccessor.Parse([
             "run",
             "--asset", "button", "/tmp/button.png",
-            "pixelsearch", "0", "0", "10", "10", "FF0000", "found", "x", "y", "timeout", "5000", "poll", "25", "tolerance", "5",
+            "pixelsearch", "0", "0", "10", "10", "FF0000", "found", "x", "y", "timeout", "5000", "tolerance", "5",
             "--dry-run",
         ]);
 
@@ -199,7 +201,7 @@ public sealed partial class CliCommandRouterTests
         Assert.True(options.DryRun);
         Assert.Equal("/tmp/button.png", Assert.Single(options.ImageAssets!).FilePath);
         Assert.Equal("button", options.ImageAssets![0].Name);
-        Assert.Equal("pixelsearch 0 0 10 10 FF0000 found x y timeout 5000 poll 25 tolerance 5", Assert.Single(options.Steps));
+        Assert.Equal("pixelsearch 0 0 10 10 FF0000 found x y timeout 5000 tolerance 5", Assert.Single(options.Steps));
     }
 
     [Fact]
@@ -222,17 +224,15 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
-    public void Parse_WhenScreenSearchPollingIsRequested_ReturnsPollingOptions()
+    public void Parse_WhenScreenPollingOptionsAreUsed_ReturnsErrors()
     {
         var color = CliCommandRouterAccessor.Parse(["screen", "search-color", "0", "0", "10", "10", "FF0000", "--timeout-ms", "5000", "--poll-ms", "25"]);
         var image = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/button.png", "--poll"]);
 
-        Assert.True(color.IsSuccess);
-        var colorOptions = Assert.IsType<ScreenCliOptions>(color.Options);
-        Assert.True(colorOptions.Poll);
-        Assert.Equal(25, colorOptions.PollIntervalMs);
-        Assert.True(image.IsSuccess);
-        Assert.True(Assert.IsType<ScreenCliOptions>(image.Options).Poll);
+        Assert.False(color.IsSuccess);
+        Assert.Contains("Unknown option for screen search-color: --poll-ms", color.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(image.IsSuccess);
+        Assert.Contains("Unknown option for screen search-image: --poll", image.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -261,13 +261,16 @@ public sealed partial class CliCommandRouterTests
         var badSimilarityNaN = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "NaN"]);
         var badSimilarityInfinity = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "Infinity"]);
         var badSimilarityNegativeInfinity = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--similarity", "-Infinity"]);
-        var badDownsample = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--downsample", "0"]);
+        var legacyDownsample = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--downsample", "2"]);
+        var legacyScaleAware = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--scale-aware"]);
         var badRegion = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--region", "1", "2", "0", "4"]);
         var badWaitTimeout = CliCommandRouterAccessor.Parse(["screen", "wait-image", "/tmp/template.png", "--timeout-ms", "-1"]);
         var badImageClickButton = CliCommandRouterAccessor.Parse(["screen", "image-click", "/tmp/template.png", "--button", "side"]);
         var badMatchMode = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--matchmode", "middle"]);
         var duplicateMatchMode = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--matchmode", "first", "--matchmode", "best"]);
-        var duplicatePoll = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--poll", "--poll"]);
+        var instantTimeout = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--timeout-ms", "1"]);
+        var instantPixelTimeout = CliCommandRouterAccessor.Parse(["screen", "pixel", "1", "2", "--timeout-ms", "1"]);
+        var retiredPoll = CliCommandRouterAccessor.Parse(["screen", "search-image", "/tmp/template.png", "--poll"]);
 
         Assert.False(badSimilarity.IsSuccess);
         Assert.Contains("--similarity", badSimilarity.ErrorMessage, StringComparison.Ordinal);
@@ -277,8 +280,10 @@ public sealed partial class CliCommandRouterTests
         Assert.Contains("--similarity", badSimilarityInfinity.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badSimilarityNegativeInfinity.IsSuccess);
         Assert.Contains("--similarity", badSimilarityNegativeInfinity.ErrorMessage, StringComparison.Ordinal);
-        Assert.False(badDownsample.IsSuccess);
-        Assert.Contains("--downsample", badDownsample.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(legacyDownsample.IsSuccess);
+        Assert.Contains("Unknown option for screen search-image: --downsample", legacyDownsample.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(legacyScaleAware.IsSuccess);
+        Assert.Contains("Unknown option for screen search-image: --scale-aware", legacyScaleAware.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badRegion.IsSuccess);
         Assert.Contains("--region", badRegion.ErrorMessage, StringComparison.Ordinal);
         Assert.False(badWaitTimeout.IsSuccess);
@@ -289,8 +294,12 @@ public sealed partial class CliCommandRouterTests
         Assert.Contains("--matchmode", badMatchMode.ErrorMessage, StringComparison.Ordinal);
         Assert.False(duplicateMatchMode.IsSuccess);
         Assert.Contains("Duplicate --matchmode", duplicateMatchMode.ErrorMessage, StringComparison.Ordinal);
-        Assert.False(duplicatePoll.IsSuccess);
-        Assert.Contains("Duplicate --poll", duplicatePoll.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(instantTimeout.IsSuccess);
+        Assert.Contains("Unknown option for screen search-image: --timeout-ms", instantTimeout.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(instantPixelTimeout.IsSuccess);
+        Assert.Contains("Unknown option for screen pixel: --timeout-ms", instantPixelTimeout.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(retiredPoll.IsSuccess);
+        Assert.Contains("Unknown option for screen search-image: --poll", retiredPoll.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]

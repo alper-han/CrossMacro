@@ -2,6 +2,7 @@ namespace CrossMacro.Platform.Abstractions;
 
 public enum ScreenImageMatchMode
 {
-    First,
-    Best,
+    First = 0,
+    Best = 1,
+    Automatic = 2,
 }

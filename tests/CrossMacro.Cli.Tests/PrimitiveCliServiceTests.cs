@@ -122,11 +122,11 @@ public sealed class PrimitiveCliServiceTests
         var reader = new FakeScreenPixelReader();
         var service = new ScreenCliService(reader, new FakeMousePositionProvider { Position = (100, 200) });
 
-        var result = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.Pixel, 5, -10, Relative: true, TimeoutMs: 125), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ScreenCliOptions(ScreenCliAction.Pixel, 5, -10, Relative: true), CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.Equal(new ScreenPoint(105, 190), reader.LastPoint);
-        Assert.Equal(TimeSpan.FromMilliseconds(125), reader.LastPixelOptions.Timeout);
+        Assert.Equal(ScreenReadOptions.DefaultTimeout, reader.LastPixelOptions.Timeout);
         var data = Assert.IsType<ScreenPixelData>(result.Data);
         Assert.Equal("123456", data.Color);
         Assert.True(data.Relative);
@@ -168,9 +168,7 @@ public sealed class PrimitiveCliServiceTests
                 RegionY: 2,
                 RegionWidth: 30,
                 RegionHeight: 40,
-                TimeoutMs: 123,
                 Similarity: 0.9,
-                Downsample: 2,
                 MatchMode: ScreenImageMatchMode.Best), CancellationToken.None);
 
             Assert.True(result.Success, string.Join("; ", result.Errors));
@@ -178,9 +176,8 @@ public sealed class PrimitiveCliServiceTests
             Assert.NotNull(reader.LastImageTemplate);
             Assert.Equal(1, reader.LastImageTemplate.Width);
             Assert.Equal(1, reader.LastImageTemplate.Height);
-            Assert.Equal(TimeSpan.FromMilliseconds(123), reader.LastImageReadOptions.Timeout);
+            Assert.Equal(ScreenReadOptions.DefaultTimeout, reader.LastImageReadOptions.Timeout);
             Assert.Equal(0.9, reader.LastImageOptions.MinimumSimilarity);
-            Assert.Equal(2, reader.LastImageOptions.DownsampleFactor);
             Assert.Equal(ScreenImageMatchSelectionMode.BestMatch, reader.LastImageOptions.SelectionMode);
             var data = Assert.IsType<ScreenSearchImageData>(result.Data);
             Assert.True(data.Found);
@@ -308,13 +305,11 @@ public sealed class PrimitiveCliServiceTests
                 RegionY: 4,
                 RegionWidth: 50,
                 RegionHeight: 60,
-                Similarity: 0.85,
-                Downsample: 2), CancellationToken.None);
+                Similarity: 0.85), CancellationToken.None);
 
             Assert.True(result.Success, string.Join("; ", result.Errors));
             Assert.Equal(new ScreenRect(3, 4, 50, 60), reader.LastImageRegion);
             Assert.Equal(0.85, reader.LastImageOptions.MinimumSimilarity);
-            Assert.Equal(2, reader.LastImageOptions.DownsampleFactor);
             var data = Assert.IsType<ScreenSearchImageData>(result.Data);
             Assert.True(data.Found);
             Assert.Equal(9, data.X);
@@ -779,11 +774,21 @@ public sealed class PrimitiveCliServiceTests
             {
                 return ScreenImageAutomationResult.Failure(ScreenReadErrorKind.InvalidArguments, $"Image file is not a supported PNG: {ex.Message}");
             }
-            var result = await SearchImageAsync(request.Region, template, ScreenImageMatchOptions.Create(request.Region, request.Similarity, request.Downsample, request.MatchMode is ScreenImageMatchMode.Best ? ScreenImageMatchSelectionMode.BestMatch : ScreenImageMatchSelectionMode.FirstThresholdMatch, request.ScaleAware), new ScreenReadOptions(request.Timeout, ScreenReadOptions.Default.PollInterval, cancellationToken));
+            var result = await SearchImageAsync(request.Region, template, ScreenImageMatchOptions.Create(request.Region, request.Similarity, request.MatchMode switch
+            {
+                ScreenImageMatchMode.Automatic => ScreenImageMatchSelectionMode.Automatic,
+                ScreenImageMatchMode.Best => ScreenImageMatchSelectionMode.BestMatch,
+                _ => ScreenImageMatchSelectionMode.FirstThresholdMatch,
+            }), new ScreenReadOptions(ScreenReadOptions.DefaultTimeout, cancellationToken: cancellationToken));
             return result.IsSuccess ? ScreenImageAutomationResult.FoundAt(result.Value.Point, result.Value.Score) : ScreenImageAutomationResult.Failure(result.ErrorKind!.Value, result.ErrorMessage!);
         }
 
-        public Task<ScreenImageAutomationResult> WaitAsync(ScreenImageAutomationRequest request, CancellationToken cancellationToken) => SearchAsync(request, cancellationToken);
+        public async Task<ScreenImageAutomationResult> WaitAsync(ScreenImageAutomationRequest request, CancellationToken cancellationToken)
+        {
+            var result = await SearchAsync(request, cancellationToken);
+            LastImageReadOptions = new ScreenReadOptions(request.Timeout, cancellationToken: cancellationToken);
+            return result;
+        }
 
         public async Task<ScreenImageAutomationResult> ClickAsync(ScreenImageAutomationRequest request, int buttonCode, CancellationToken cancellationToken)
         {

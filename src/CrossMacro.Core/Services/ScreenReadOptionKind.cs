@@ -6,11 +6,7 @@ public enum ScreenReadOptionKind
     Region,
     Tolerance,
     Similarity,
-    Downsample,
     MatchMode,
-    ScaleAware,
     Timeout,
-    Poll,
-    PollInterval,
     Button,
 }

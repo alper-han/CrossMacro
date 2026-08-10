@@ -4,6 +4,8 @@ namespace CrossMacro.Platform.Abstractions;
 public readonly record struct ScreenReadOptions
 {
     public static readonly ScreenReadOptions Default;
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(50);
 
     public ScreenReadOptions(
         TimeSpan? timeout = null,
@@ -43,7 +45,6 @@ public readonly record struct ScreenReadOptions
 
     /// <summary>
     /// Requests repeated matching attempts until <see cref="Timeout"/> expires.
-    /// The default is false so existing search commands remain one-shot.
     /// </summary>
     public bool PollUntilMatch { get; }
 }

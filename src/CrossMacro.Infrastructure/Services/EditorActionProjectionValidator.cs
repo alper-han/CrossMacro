@@ -714,11 +714,6 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             return (false, "Image search similarity must be between 0.0 and 1.0.");
         }
 
-        if (action.ImageSearchDownsample < 1)
-        {
-            return (false, "Image search downsample must be >= 1.");
-        }
-
         if (!Enum.IsDefined(action.ImageSearchMatchMode))
         {
             return (false, "Image search match mode is invalid.");

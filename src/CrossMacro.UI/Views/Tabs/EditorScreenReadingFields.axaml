@@ -75,14 +75,6 @@
                     <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
                 </StackPanel>
             </Button>
-            <TextBlock Text="{localization:Loc Editor_TimeoutMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
-            <TextBox Text="{Binding SelectedAction.ScreenTimeoutMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                     PlaceholderText="5000"
-                     Background="{DynamicResource SurfaceHoverBrush}"
-                     Foreground="{DynamicResource TextPrimaryBrush}"
-                     BorderThickness="0"
-                     CornerRadius="4"
-                     Padding="8,6"/>
             <TextBox Text="{Binding SelectedAction.ScreenColorVariableName, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="{localization:Loc Editor_ColorVariableNamePlaceholder}"
                      Background="{DynamicResource SurfaceHoverBrush}"
@@ -433,7 +425,8 @@
              <ComboBox ItemsSource="{Binding ImageMatchModes}"
                        SelectedItem="{Binding SelectedImageSearchMatchMode, Mode=TwoWay}"
                        Background="{DynamicResource SurfaceHoverBrush}"
-                       Foreground="{DynamicResource TextPrimaryBrush}">
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       HorizontalAlignment="Stretch">
                  <ComboBox.ItemTemplate>
                      <DataTemplate>
                          <TextBlock Text="{Binding Converter={x:Static conv:ImageMatchModeConverters.DisplayText}}"/>
@@ -605,31 +598,16 @@
                      CornerRadius="4"
                      Padding="8,6"
                      IsVisible="{Binding ShowImageWaitTimeoutField}"/>
-            <Grid ColumnDefinitions="*,8,*">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="{localization:Loc Editor_ImageSearchSimilarity}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
-                    <TextBox Text="{Binding SelectedAction.ImageSearchSimilarity, Converter={StaticResource NullableDoubleConverter}, UpdateSourceTrigger=PropertyChanged}"
-                             PlaceholderText="1.0"
-                             Background="{DynamicResource SurfaceHoverBrush}"
-                             Foreground="{DynamicResource TextPrimaryBrush}"
-                             BorderThickness="0"
-                             CornerRadius="4"
-                             Padding="8,6"/>
-                </StackPanel>
-                <StackPanel Grid.Column="2" Spacing="3">
-                    <TextBlock Text="{localization:Loc Editor_ImageSearchDownsample}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
-                    <TextBox Text="{Binding SelectedAction.ImageSearchDownsample, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
-                             PlaceholderText="1"
-                             Background="{DynamicResource SurfaceHoverBrush}"
-                             Foreground="{DynamicResource TextPrimaryBrush}"
-                             BorderThickness="0"
-                             CornerRadius="4"
-                             Padding="8,6"/>
-                </StackPanel>
-             </Grid>
-             <CheckBox IsChecked="{Binding SelectedImageSearchScaleAware, Mode=TwoWay}"
-                       Content="{localization:Loc Editor_ImageSearchScaleAware}"
-                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <StackPanel Spacing="3">
+                <TextBlock Text="{localization:Loc Editor_ImageSearchSimilarity}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+                <TextBox Text="{Binding SelectedAction.ImageSearchSimilarity, Converter={StaticResource NullableDoubleConverter}, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="0.95"
+                         Background="{DynamicResource SurfaceHoverBrush}"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         BorderThickness="0"
+                         CornerRadius="4"
+                         Padding="8,6"/>
+            </StackPanel>
          </StackPanel>
     </StackPanel>
 </UserControl>

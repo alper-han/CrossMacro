@@ -244,7 +244,6 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedAction));
-            OnPropertyChanged(nameof(SelectedImageSearchScaleAware));
             OnPropertyChanged(nameof(SelectedImageSearchMatchMode));
             OnPropertyChanged(nameof(SelectedActionIsAbsolute));
             OnPropertyChanged(nameof(SelectedActionIsRelative));
@@ -319,15 +318,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     public bool HasSelectedAction => SelectedAction is not null;
 
-    public bool SelectedImageSearchScaleAware
-    {
-        get => SelectedAction?.ImageSearchScaleAware ?? false;
-        set => SetSelectedImageSearchScaleAware(value);
-    }
-
     public EditorImageMatchMode SelectedImageSearchMatchMode
     {
-        get => SelectedAction?.ImageSearchMatchMode ?? EditorImageMatchMode.FirstThresholdMatch;
+        get => SelectedAction?.ImageSearchMatchMode ?? EditorImageMatchMode.Automatic;
         set => SetSelectedImageSearchMatchMode(value);
     }
 

@@ -19,11 +19,8 @@ public static class RunScriptSyntax
     public const string WaitImageCommand = "waitimage";
     public const string PixelSearchToleranceKeyword = "tolerance";
     public const string ImageSearchSimilarityKeyword = "similarity";
-    public const string ImageSearchDownsampleKeyword = "downsample";
     public const string ImageSearchTimeoutKeyword = "timeout";
     public const string ImageSearchMatchModeKeyword = "matchmode";
-    public const string ImageSearchScaleAwareKeyword = "scaleaware";
-    public const string ScreenReadPollKeyword = "poll";
     public const string WindowCommand = "window";
     public const string ClipboardCommand = "clipboard";
     public const string ShellCommand = "shell";
@@ -251,21 +248,10 @@ public static class RunScriptSyntax
         return ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Similarity;
     }
 
-    public static bool IsImageSearchDownsampleKeyword(string? token)
-    {
-        return ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Downsample;
-    }
-
     public static bool IsImageSearchTimeoutKeyword(string? token)
     {
         return ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Timeout;
     }
-
-    public static bool IsImageSearchScaleAwareKeyword(string? token) =>
-        ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.ScaleAware;
-
-    public static bool IsScreenReadPollKeyword(string? token) =>
-        ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.Poll;
 
     public static bool IsWindowStep(string? step)
     {

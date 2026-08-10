@@ -9,7 +9,7 @@ internal static class ScreenCommandParser
         {
             return args.Length >= 2 && CliParseHelpers.IsHelpToken(args[1])
                 ? CliParseResult.Help("screen")
-                : CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(args, 1, "screen requires pixel, wait-color, search-color, search-image, wait-image, or image-click.", "crossmacro screen pixel <x> <y> [--relative] [--timeout-ms <n>] [--json] [--log-level <level>]", "crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--json] [--log-level <level>]", "crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--poll] [--poll-ms <n>] [--json] [--log-level <level>]", "crossmacro screen search-image <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--json] [--log-level <level>]", "crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--json] [--log-level <level>]", "crossmacro screen image-click <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--json] [--log-level <level>]");
+                : CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(args, 1, "screen requires pixel, wait-color, search-color, search-image, wait-image, or image-click.", "crossmacro screen pixel <x> <y> [--relative] [--json] [--log-level <level>]", "crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--json] [--log-level <level>]", "crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--json] [--log-level <level>]", "crossmacro screen search-image <image-path> [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]", "crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]", "crossmacro screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]");
         }
 
         return args[1].ToLowerInvariant() switch
@@ -29,7 +29,6 @@ internal static class ScreenCommandParser
         var jsonOutput = false;
         string? logLevel = null;
         var relative = false;
-        int? timeoutMs = null;
         var coordinates = new System.Collections.Generic.List<int>();
         for (var i = 2; i < args.Length; i++)
         {
@@ -49,22 +48,6 @@ internal static class ScreenCommandParser
                 continue;
             }
 
-            if (string.Equals(args[i], "--timeout-ms", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!CliParseHelpers.TryReadInt(args, ref i, out var parsedTimeout, out var timeoutError))
-                {
-                    return CliParseHelpers.Error(timeoutError, jsonOutput);
-                }
-
-                if (parsedTimeout < 0)
-                {
-                    return CliParseHelpers.Error("--timeout-ms must be >= 0", jsonOutput);
-                }
-
-                timeoutMs = parsedTimeout;
-                continue;
-            }
-
             if (TryReadCoordinate(args[i], coordinates.Count is 0 ? "x" : "y", out var coordinate, out var error))
             {
                 coordinates.Add(coordinate);
@@ -79,7 +62,7 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error(relative ? "screen pixel --relative requires <dx> <dy>." : "screen pixel requires <x> <y>.", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.Pixel, coordinates[0], coordinates[1], Relative: relative, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.Pixel, coordinates[0], coordinates[1], Relative: relative, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseWaitColor(string[] args)
@@ -87,8 +70,6 @@ internal static class ScreenCommandParser
         var jsonOutput = false;
         string? logLevel = null;
         int? timeoutMs = null;
-        var poll = false;
-        int? pollIntervalMs = null;
         var operands = new System.Collections.Generic.List<string>();
         for (var i = 2; i < args.Length; i++)
         {
@@ -115,29 +96,6 @@ internal static class ScreenCommandParser
                 }
 
                 timeoutMs = parsedTimeout;
-                continue;
-            }
-
-            if (string.Equals(args[i], "--poll", StringComparison.OrdinalIgnoreCase))
-            {
-                poll = true;
-                continue;
-            }
-
-            if (string.Equals(args[i], "--poll-ms", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!CliParseHelpers.TryReadInt(args, ref i, out var parsedPollInterval, out var pollError))
-                {
-                    return CliParseHelpers.Error(pollError, jsonOutput);
-                }
-
-                if (parsedPollInterval <= 0)
-                {
-                    return CliParseHelpers.Error("--poll-ms must be > 0", jsonOutput);
-                }
-
-                poll = true;
-                pollIntervalMs = parsedPollInterval;
                 continue;
             }
 
@@ -169,7 +127,7 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error("Invalid color. Expected 6 hexadecimal RGB characters (RRGGBB).", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.WaitColor, x, y, color, Poll: poll, PollIntervalMs: pollIntervalMs, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.WaitColor, x, y, color, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseSearchColor(string[] args)
@@ -178,8 +136,6 @@ internal static class ScreenCommandParser
         string? logLevel = null;
         var tolerance = 0;
         int? timeoutMs = null;
-        var poll = false;
-        int? pollIntervalMs = null;
         var operands = new System.Collections.Generic.List<string>();
         for (var i = 2; i < args.Length; i++)
         {
@@ -221,29 +177,6 @@ internal static class ScreenCommandParser
                 }
 
                 timeoutMs = parsedTimeout;
-                continue;
-            }
-
-            if (string.Equals(args[i], "--poll", StringComparison.OrdinalIgnoreCase))
-            {
-                poll = true;
-                continue;
-            }
-
-            if (string.Equals(args[i], "--poll-ms", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!CliParseHelpers.TryReadInt(args, ref i, out var parsedPollInterval, out var pollError))
-                {
-                    return CliParseHelpers.Error(pollError, jsonOutput);
-                }
-
-                if (parsedPollInterval <= 0)
-                {
-                    return CliParseHelpers.Error("--poll-ms must be > 0", jsonOutput);
-                }
-
-                poll = true;
-                pollIntervalMs = parsedPollInterval;
                 continue;
             }
 
@@ -295,7 +228,7 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error("Invalid color. Expected 6 hexadecimal RGB characters (RRGGBB).", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.SearchColor, x1, y1, color, X2: x2, Y2: y2, Tolerance: tolerance, TimeoutMs: timeoutMs, Poll: poll, PollIntervalMs: pollIntervalMs, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.SearchColor, x1, y1, color, X2: x2, Y2: y2, Tolerance: tolerance, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseSearchImage(string[] args)
@@ -312,22 +245,14 @@ internal static class ScreenCommandParser
         int? regionY = null;
         int? regionWidth = null;
         int? regionHeight = null;
-        var similarity = 1.0;
-        var downsample = 1;
-        var matchMode = ScreenImageMatchMode.First;
-        var scaleAware = false;
+        var similarity = 0.95;
+        var matchMode = ScreenImageMatchMode.Automatic;
         int? timeoutMs = null;
-        var poll = false;
-        int? pollIntervalMs = null;
         var button = MacroMouseButton.Left;
         var hasRegion = false;
         var hasSimilarity = false;
-        var hasDownsample = false;
         var hasMatchMode = false;
-        var hasScaleAware = false;
         var hasTimeout = false;
-        var hasPollFlag = false;
-        var hasPollInterval = false;
         var hasButton = false;
 
         for (var i = 2; i < args.Length; i++)
@@ -380,27 +305,6 @@ internal static class ScreenCommandParser
                 continue;
             }
 
-            if (optionKind is ScreenReadOptionKind.Downsample)
-            {
-                if (hasDownsample)
-                {
-                    return CliParseHelpers.Error("Duplicate --downsample option.", jsonOutput);
-                }
-
-                if (!CliParseHelpers.TryReadInt(args, ref i, out downsample, out var downsampleError))
-                {
-                    return CliParseHelpers.Error(downsampleError, jsonOutput);
-                }
-
-                if (downsample < 1)
-                {
-                    return CliParseHelpers.Error("--downsample must be >= 1", jsonOutput);
-                }
-
-                hasDownsample = true;
-                continue;
-            }
-
             if (optionKind is ScreenReadOptionKind.MatchMode)
             {
                 if (hasMatchMode)
@@ -417,31 +321,25 @@ internal static class ScreenCommandParser
                 {
                     "first" => ScreenImageMatchMode.First,
                     "best" => ScreenImageMatchMode.Best,
+                    "auto" => ScreenImageMatchMode.Automatic,
                     _ => (ScreenImageMatchMode)(-1),
                 };
                 if (!Enum.IsDefined(matchMode))
                 {
-                    return CliParseHelpers.Error("--matchmode must be first or best", jsonOutput);
+                    return CliParseHelpers.Error("--matchmode must be auto, first, or best", jsonOutput);
                 }
 
                 hasMatchMode = true;
                 continue;
             }
 
-            if (optionKind is ScreenReadOptionKind.ScaleAware)
-            {
-                if (hasScaleAware)
-                {
-                    return CliParseHelpers.Error("Duplicate --scale-aware option.", jsonOutput);
-                }
-
-                hasScaleAware = true;
-                scaleAware = true;
-                continue;
-            }
-
             if (optionKind is ScreenReadOptionKind.Timeout)
             {
+                if (action is ScreenCliAction.SearchImage)
+                {
+                    return CliParseHelpers.Error($"Unknown option for screen {subcommand}: {args[i]}", jsonOutput);
+                }
+
                 if (hasTimeout)
                 {
                     return CliParseHelpers.Error("Duplicate --timeout-ms option.", jsonOutput);
@@ -459,41 +357,6 @@ internal static class ScreenCommandParser
 
                 timeoutMs = parsedTimeout;
                 hasTimeout = true;
-                continue;
-            }
-
-            if (optionKind is ScreenReadOptionKind.Poll)
-            {
-                if (hasPollFlag)
-                {
-                    return CliParseHelpers.Error("Duplicate --poll option.", jsonOutput);
-                }
-
-                hasPollFlag = true;
-                poll = true;
-                continue;
-            }
-
-            if (optionKind is ScreenReadOptionKind.PollInterval)
-            {
-                if (hasPollInterval)
-                {
-                    return CliParseHelpers.Error("Duplicate --poll-ms option.", jsonOutput);
-                }
-
-                if (!CliParseHelpers.TryReadInt(args, ref i, out var parsedPollInterval, out var pollError))
-                {
-                    return CliParseHelpers.Error(pollError, jsonOutput);
-                }
-
-                if (parsedPollInterval <= 0)
-                {
-                    return CliParseHelpers.Error("--poll-ms must be > 0", jsonOutput);
-                }
-
-                poll = true;
-                pollIntervalMs = parsedPollInterval;
-                hasPollInterval = true;
                 continue;
             }
 
@@ -549,11 +412,7 @@ internal static class ScreenCommandParser
             RegionWidth: regionWidth,
             RegionHeight: regionHeight,
             Similarity: similarity,
-            Downsample: downsample,
             MatchMode: matchMode,
-            ScaleAware: scaleAware,
-            Poll: poll,
-            PollIntervalMs: pollIntervalMs,
             TimeoutMs: timeoutMs,
             Button: button,
             JsonOutput: jsonOutput,

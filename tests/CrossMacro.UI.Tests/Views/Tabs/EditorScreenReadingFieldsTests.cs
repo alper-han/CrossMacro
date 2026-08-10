@@ -23,6 +23,9 @@ public sealed class EditorScreenReadingFieldsTests
         Assert.True(heightIndex > widthIndex, "Image search height should follow width.");
         Assert.True(previewIndex > assetIndex, "Image preview should follow the selected asset.");
         Assert.Contains("ShowSelectedImageAssetPreview", section, StringComparison.Ordinal);
+        Assert.Contains("ItemsSource=\"{Binding ImageMatchModes}\"", section, StringComparison.Ordinal);
+        Assert.Contains("SelectedItem=\"{Binding SelectedImageSearchMatchMode, Mode=TwoWay}\"", section, StringComparison.Ordinal);
+        Assert.Contains("HorizontalAlignment=\"Stretch\"", GetOpeningTag(section, "<ComboBox ItemsSource=\"{Binding ImageMatchModes}\""), StringComparison.Ordinal);
         Assert.Contains("Editor_ImageAssetPreview", section, StringComparison.Ordinal);
         Assert.Contains("Stretch=\"Uniform\"", section, StringComparison.Ordinal);
         Assert.Contains("MaxWidth=\"640\"", section, StringComparison.Ordinal);
@@ -37,6 +40,20 @@ public sealed class EditorScreenReadingFieldsTests
         Assert.Equal(1, CountOccurrences(section, "Editor_CaptureRegionTopLeft"));
         Assert.Equal(1, CountOccurrences(section, "Editor_CaptureRegionBottomRight"));
         Assert.Equal(2, CountOccurrences(section, "Editor_CancelCapture"));
+        Assert.Contains("IsVisible=\"{Binding ShowImageWaitTimeoutField}\"", section, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PixelColorSection_DoesNotExposeTimeout()
+    {
+        var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/EditorScreenReadingFields.axaml");
+        const string start = "<!-- Pixel color -->";
+        const string end = "<!-- Wait color -->";
+        var sectionStart = xaml.IndexOf(start, StringComparison.Ordinal);
+        var sectionEnd = xaml.IndexOf(end, StringComparison.Ordinal);
+
+        Assert.True(sectionStart >= 0 && sectionEnd > sectionStart, "Pixel color section should be bounded by the wait color section.");
+        Assert.DoesNotContain("SelectedAction.ScreenTimeoutMs", xaml[sectionStart..sectionEnd], StringComparison.Ordinal);
     }
 
     private static int CountOccurrences(string value, string search)
@@ -50,6 +67,15 @@ public sealed class EditorScreenReadingFieldsTests
         }
 
         return count;
+    }
+
+    private static string GetOpeningTag(string value, string startMarker)
+    {
+        var start = value.IndexOf(startMarker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"Could not find XAML opening tag starting with {startMarker}.");
+        var end = value.IndexOf('>', start);
+        Assert.True(end > start, "XAML opening tag should be complete.");
+        return value[start..(end + 1)];
     }
 
     private static string ReadRepoFile(string relativePath)

@@ -279,7 +279,6 @@ public sealed class EditorActionTests
             ScreenFoundYVariableName = "found_y",
             ScreenTimeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs,
             ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
-            ImageSearchDownsample = EditorActionScreenReadingPayload.DefaultImageSearchDownsample,
             Button = MacroMouseButton.Left,
         };
 
@@ -313,8 +312,7 @@ public sealed class EditorActionTests
         _ = EditorActionScreenReadingPayload.TryCreateDefault(actionType, out var defaults).Should().BeTrue();
         _ = defaults.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
         _ = defaults.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
-        _ = defaults.ImageSearchSimilarity.Should().Be(1.0);
-        _ = defaults.ImageSearchDownsample.Should().Be(1);
+        _ = defaults.ImageSearchSimilarity.Should().Be(0.95);
         _ = defaults.Button.Should().Be(MacroMouseButton.Left);
 
         var action = new EditorAction
@@ -504,10 +502,8 @@ public sealed class EditorActionTests
             Text = "legacy image search",
         };
 
-        action.SetImageSearchScaleAware(value: true);
         action.SetImageSearchMatchMode(EditorImageMatchMode.BestMatch);
 
-        _ = action.ImageSearchScaleAware.Should().BeTrue();
         _ = action.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
         _ = action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
         _ = action.PreferLegacyScriptText.Should().BeFalse();

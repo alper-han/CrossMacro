@@ -60,8 +60,8 @@ public class EditorAction : INotifyPropertyChanged
     private string _screenFoundXVariableName = "found_x";
     private string _screenFoundYVariableName = "found_y";
     private string _imageAssetName = string.Empty;
-    private double _imageSearchSimilarity = 1.0;
-    private int _imageSearchDownsample = 1;
+    private double _imageSearchSimilarity = 0.95;
+    private EditorImageMatchMode _imageSearchMatchMode = EditorImageMatchMode.Automatic;
     private ShellCommandMode _shellCommandMode = ShellCommandMode.Shell;
     private string _shellCommand = string.Empty;
     private string _shellStandardInput = string.Empty;
@@ -960,23 +960,13 @@ public class EditorAction : INotifyPropertyChanged
         set => SetScreenField(ref _imageSearchSimilarity, value);
     }
 
-    public int ImageSearchDownsample
+    public EditorImageMatchMode ImageSearchMatchMode
     {
-        get => _imageSearchDownsample;
-        set => SetScreenField(ref _imageSearchDownsample, value);
+        get => _imageSearchMatchMode;
+        set => SetScreenField(ref _imageSearchMatchMode, value);
     }
-
-    public bool ImageSearchScaleAware { get; set; }
-
-    public EditorImageMatchMode ImageSearchMatchMode { get; set; }
 
     public bool ImageSearchMatchModeWasExplicit { get; set; }
-
-    public void SetImageSearchScaleAware(bool value)
-    {
-        ImageSearchScaleAware = value;
-        MarkStructuredScriptEdited();
-    }
 
     public void SetImageSearchMatchMode(EditorImageMatchMode value, bool wasExplicit = true)
     {
@@ -1201,8 +1191,6 @@ public class EditorAction : INotifyPropertyChanged
         ScreenFoundYVariableName = payload.ScreenFoundYVariableName;
         ImageAssetName = payload.ImageAssetName;
         ImageSearchSimilarity = payload.ImageSearchSimilarity;
-        ImageSearchDownsample = payload.ImageSearchDownsample;
-        ImageSearchScaleAware = payload.ImageSearchScaleAware;
         ImageSearchMatchMode = payload.ImageSearchMatchMode;
         ImageSearchMatchModeWasExplicit = payload.ImageSearchMatchModeWasExplicit;
         Button = payload.Button;
@@ -1460,7 +1448,8 @@ public class EditorAction : INotifyPropertyChanged
             clone._screenFoundYVariableName = ScreenFoundYVariableName;
             clone._imageAssetName = ImageAssetName;
             clone._imageSearchSimilarity = ImageSearchSimilarity;
-            clone._imageSearchDownsample = ImageSearchDownsample;
+            clone._imageSearchMatchMode = ImageSearchMatchMode;
+            clone.ImageSearchMatchModeWasExplicit = ImageSearchMatchModeWasExplicit;
         }
 
         return clone;
@@ -1513,7 +1502,8 @@ public class EditorAction : INotifyPropertyChanged
     {
         clone._imageAssetName = ImageAssetName;
         clone._imageSearchSimilarity = ImageSearchSimilarity;
-        clone._imageSearchDownsample = ImageSearchDownsample;
+        clone._imageSearchMatchMode = ImageSearchMatchMode;
+        clone.ImageSearchMatchModeWasExplicit = ImageSearchMatchModeWasExplicit;
         clone._shellCommandMode = ShellCommandMode;
         clone._shellCommand = ShellCommand;
         clone._shellStandardInput = ShellStandardInput;

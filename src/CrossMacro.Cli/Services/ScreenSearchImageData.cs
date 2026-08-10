@@ -11,7 +11,5 @@ public sealed record ScreenSearchImageData(
     int? RegionWidth,
     int? RegionHeight,
     double Similarity,
-    int Downsample,
     string MatchMode,
-    bool ScaleAware,
     string ProviderName);

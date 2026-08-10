@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed partial class RunScriptScreenReadRuntimeTests
@@ -53,7 +52,7 @@ region: null,
         var result = await reader.SearchImageAsync(
 region: null,
             template,
-            ScreenImageMatchOptions.Create(searchRegion: null, 1.0, 1, ScreenImageMatchSelectionMode.BestMatch),
+            ScreenImageMatchOptions.Create(searchRegion: null, 1.0, ScreenImageMatchSelectionMode.BestMatch),
             new ScreenReadOptions(timeout: TimeSpan.FromMilliseconds(1)));
 
         _ = result.IsSuccess.Should().BeFalse();
@@ -138,6 +137,71 @@ region: null,
     }
 
     [Fact]
+    public async Task PlayAsync_WhenWaitImageImmediatelyFindsTemplate_StoresMatchVariables()
+    {
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        var screenReader = new FakeScreenPixelReader
+        {
+            ImageSearchResult = ScreenReadResultFactory.Success(new ScreenImageMatch(new ScreenPoint(17, 23), 1.0)),
+        };
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
+        var macro = new MacroSequence
+        {
+            ScriptSteps = { "waitimage Target found found_x found_y timeout 0" },
+            Images = { ["Target"] = await EncodePngBase64Async(template) },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = screenReader.LastImageReadOptions.Timeout.Should().Be(TimeSpan.Zero);
+        var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
+        _ = variables.Should().Contain("found", "true");
+        _ = variables.Should().Contain("found_x", "17");
+        _ = variables.Should().Contain("found_y", "23");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenWaitImageTimeoutIsOmitted_UsesTheFiveSecondDefaultBudget()
+    {
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        var screenReader = new FakeScreenPixelReader
+        {
+            ImageSearchResult = ScreenReadResultFactory.Success(new ScreenImageMatch(new ScreenPoint(17, 23), 1.0)),
+        };
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
+        var macro = new MacroSequence
+        {
+            ScriptSteps = { "waitimage Target found found_x found_y" },
+            Images = { ["Target"] = await EncodePngBase64Async(template) },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = screenReader.LastImageReadOptions.Timeout.Should().BeGreaterThan(TimeSpan.FromSeconds(4));
+        _ = screenReader.LastImageReadOptions.PollUntilMatch.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SearchImageAsync_WhenPollingTimeoutIsZero_CapturesOneImmediateFrame()
+    {
+        using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        var provider = new SingleFrameProvider(frame);
+        using var reader = new ScreenPixelReader(provider);
+
+        var result = await reader.SearchImageAsync(
+            region: null,
+            template,
+            ScreenImageMatchOptions.Default,
+            new ScreenReadOptions(TimeSpan.Zero, TimeSpan.Zero, pollUntilMatch: true));
+
+        _ = result.IsSuccess.Should().BeTrue();
+        _ = result.Value.Point.Should().Be(new ScreenPoint(0, 0));
+        _ = provider.CaptureCalls.Should().Be(1);
+        _ = provider.LastOptions.Timeout.Should().Be(ScreenReadOptions.DefaultTimeout);
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenImageSearchFindsTemplate_StoresFoundFlagAndCoordinates()
     {
         using var frame = CreateRgbFrame(
@@ -156,7 +220,7 @@ region: null,
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), new ScreenPixelReader(new SingleFrameProvider(frame)));
         var macro = new MacroSequence
         {
-            ScriptSteps = { "imagesearch 0 0 4 3 Target found found_x found_y similarity 1 downsample 1" },
+            ScriptSteps = { "imagesearch 0 0 4 3 Target found found_x found_y similarity 1" },
             Images = { ["Target"] = await EncodePngBase64Async(template) },
         };
 
@@ -168,21 +232,42 @@ region: null,
         _ = variables.Should().Contain("found_y", "1");
     }
 
-    [Fact]
-    public async Task PlayAsync_WhenImageSearchUsesBestMode_ForwardsSelectionMode()
+    [Theory]
+    [InlineData("auto", ScreenImageMatchSelectionMode.Automatic)]
+    [InlineData("first", ScreenImageMatchSelectionMode.FirstThresholdMatch)]
+    [InlineData("best", ScreenImageMatchSelectionMode.BestMatch)]
+    public async Task PlayAsync_WhenImageSearchUsesExplicitMatchMode_ForwardsSelectionMode(string modeToken, ScreenImageMatchSelectionMode expectedMode)
     {
         var screenReader = new FakeScreenPixelReader();
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
         var macro = new MacroSequence
         {
-            ScriptSteps = { "imagesearch Target found found_x found_y matchmode best" },
+            ScriptSteps = { $"imagesearch Target found found_x found_y matchmode {modeToken}" },
             Images = { ["Target"] = await EncodePngBase64Async(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        _ = screenReader.LastImageOptions.SelectionMode.Should().Be(ScreenImageMatchSelectionMode.BestMatch);
+        _ = screenReader.LastImageOptions.SelectionMode.Should().Be(expectedMode);
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenImageSearchUsesNoLegacyTuning_UsesAutomaticDefaults()
+    {
+        var screenReader = new FakeScreenPixelReader();
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        var macro = new MacroSequence
+        {
+            ScriptSteps = { "imagesearch Target found found_x found_y" },
+            Images = { ["Target"] = await EncodePngBase64Async(template) },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = screenReader.LastImageOptions.SelectionMode.Should().Be(ScreenImageMatchSelectionMode.Automatic);
+        _ = screenReader.LastImageOptions.MinimumSimilarity.Should().Be(0.95);
     }
 
     [Fact]
@@ -195,7 +280,7 @@ region: null,
         var result = await reader.SearchImageAsync(
 region: null,
             template,
-            ScreenImageMatchOptions.Create(searchRegion: null, 1.0, 1, ScreenImageMatchSelectionMode.FirstThresholdMatch),
+            ScreenImageMatchOptions.Create(searchRegion: null, 1.0, ScreenImageMatchSelectionMode.FirstThresholdMatch),
             new ScreenReadOptions(timeout: TimeSpan.FromMilliseconds(1)));
 
         _ = result.IsSuccess.Should().BeFalse($"{result.ErrorKind}: {result.ErrorMessage}");
@@ -333,19 +418,21 @@ region: null,
                 [Blue, White],
             ]);
         var inputSimulator = new RecordingInputSimulator(activity);
+        var provider = new SingleFrameProvider(frame);
         using var player = CreatePlayer(
             CreatePositionProvider((0, 0)),
-            new ScreenPixelReader(new SingleFrameProvider(frame)),
+            new ScreenPixelReader(provider),
             inputSimulator);
         var macro = new MacroSequence
         {
-            ScriptSteps = { "imageclick Target clicked click_x click_y button right similarity 1 downsample 1" },
+            ScriptSteps = { "imageclick Target clicked click_x click_y button right timeout 0 similarity 1" },
             Images = { ["Target"] = await EncodePngBase64Async(template) },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = activity.Should().Equal("input:move-abs:2,2", "input:click:right");
+        _ = provider.CaptureCalls.Should().Be(1);
         _ = inputSimulator.InitializedWidth.Should().Be(1920);
         _ = inputSimulator.InitializedHeight.Should().Be(1080);
         var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
@@ -379,7 +466,7 @@ region: null,
             inputSimulator);
         var macro = new MacroSequence
         {
-            ScriptSteps = { "imageclick Target clicked click_x click_y" },
+            ScriptSteps = { "imageclick Target clicked click_x click_y timeout 0" },
             Images = { ["Target"] = await EncodePngBase64Async(template) },
         };
 
@@ -405,7 +492,7 @@ region: null,
             inputSimulator);
         var macro = new MacroSequence
         {
-            ScriptSteps = { "imageclick MissingPixel clicked click_x click_y" },
+            ScriptSteps = { "imageclick MissingPixel clicked click_x click_y timeout 0" },
             Images = { ["MissingPixel"] = await EncodePngBase64Async(template) },
         };
 
@@ -422,7 +509,7 @@ region: null,
     public async Task PlayAsync_WhenWaitImageFindsTemplateAfterPolling_StoresFoundFlagAndCoordinates()
     {
         using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Red]]);
-        using var provider = new DisposalTrackingFrameProvider(Black, Red);
+        using var provider = new DisposalTrackingFrameProvider(Black, Red, Red);
         using var reader = new ScreenPixelReader(provider);
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), reader);
         var macro = new MacroSequence
@@ -433,7 +520,7 @@ region: null,
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        _ = provider.CaptureCalls.Should().Be(2);
+        _ = provider.CaptureCalls.Should().Be(3);
         _ = reader.TemplateNormalizationCount.Should().Be(1);
         var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
         _ = variables.Should().Contain("found", "true");

@@ -35,4 +35,6 @@ public sealed class ScreenImageMatcherResourceLimitException : InvalidOperationE
     public long RequestedWork { get; }
 
     public long MaximumWork { get; }
+
+    internal bool IsPreparationLimit { get; init; }
 }

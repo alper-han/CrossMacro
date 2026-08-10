@@ -33,15 +33,11 @@ public readonly record struct EditorActionScreenReadingPayload(
     public const int DefaultPointScreenHeight = 1;
     public const int DefaultSearchScreenWidth = 1920;
     public const int DefaultSearchScreenHeight = 1080;
-    public const double DefaultImageSearchSimilarity = 1.0;
-    public const int DefaultImageSearchDownsample = 1;
-    public const bool DefaultImageSearchScaleAware = false;
+    public const double DefaultImageSearchSimilarity = 0.95;
 
     public string ImageAssetName { get; init; } = string.Empty;
     public double ImageSearchSimilarity { get; init; } = DefaultImageSearchSimilarity;
-    public int ImageSearchDownsample { get; init; } = DefaultImageSearchDownsample;
-    public bool ImageSearchScaleAware { get; init; } = DefaultImageSearchScaleAware;
-    public EditorImageMatchMode ImageSearchMatchMode { get; init; } = EditorImageMatchMode.FirstThresholdMatch;
+    public EditorImageMatchMode ImageSearchMatchMode { get; init; } = EditorImageMatchMode.Automatic;
     public bool ImageSearchMatchModeWasExplicit { get; init; }
     public MacroMouseButton Button { get; init; } = MacroMouseButton.Left;
 
@@ -92,8 +88,6 @@ public readonly record struct EditorActionScreenReadingPayload(
         {
             ImageAssetName = action.ImageAssetName,
             ImageSearchSimilarity = action.ImageSearchSimilarity,
-            ImageSearchDownsample = action.ImageSearchDownsample,
-            ImageSearchScaleAware = action.ImageSearchScaleAware,
             ImageSearchMatchMode = action.ImageSearchMatchMode,
             ImageSearchMatchModeWasExplicit = action.ImageSearchMatchModeWasExplicit,
             Button = action.Button,
@@ -268,8 +262,6 @@ IsAbsolute: true,
             DefaultFoundYVariableName)
         {
             ImageSearchSimilarity = DefaultImageSearchSimilarity,
-            ImageSearchDownsample = DefaultImageSearchDownsample,
-            ImageSearchScaleAware = DefaultImageSearchScaleAware,
             Button = MacroMouseButton.Left,
         };
     }

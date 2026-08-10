@@ -447,11 +447,11 @@ public sealed class CliCommandRouter
                 "  type <text>\n" +
                 "  pixelcolor <x> <y> [var]\n" +
                 "  pixelcolor rel <dx> <dy> [var]\n" +
-                "  waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var] [poll [interval_ms]]\n" +
-                "  pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [timeout <ms>] [tolerance <0..255>] [poll [interval_ms]]\n\n" +
-                "  imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <ms>] [poll [interval_ms]] [similarity <0..1>] [downsample <n>] [matchmode first|best] [scaleaware]\n" +
-                "  imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button left|right|middle] [timeout <ms>] [poll [interval_ms]]\n" +
-                "  waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <ms>] [poll [interval_ms]]\n" +
+                "  waitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]\n" +
+                "  pixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [timeout <ms>] [tolerance <0..255>]\n\n" +
+                "  imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [matchmode auto|first|best]\n" +
+                "  imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button left|right|middle] [timeout <ms>] [similarity <0..1>] [matchmode auto|first|best]\n" +
+                "  waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <ms>] [similarity <0..1>] [matchmode auto|first|best]\n" +
                 "  window ... | clipboard ... | screenshot ...\n\n" +
                 "  --asset <name> <png-path>  Load a named PNG asset for image script steps; repeatable.\n\n" +
                 "Shell capture modes store exit/stdout/stderr variables; use _ to ignore a value. Capture modes do not fail on non-zero exits.\n" +
@@ -470,8 +470,8 @@ public sealed class CliCommandRouter
                 "  crossmacro run --step \"pixelcolor 500 300 sampled\"\n" +
                 "  crossmacro run --step \"waitcolor 500 300 00FF00 5000\"\n" +
                 "  crossmacro run --step 'pixelcolor 500 300 sampled' --step 'waitcolor 500 300 $sampled 5000'\n" +
-                "  crossmacro run --step \"pixelsearch 0 0 1920 1080 FF0000 found_x found_y timeout 5000 poll 100 tolerance 26\"\n" +
-                "  crossmacro run --asset button ./button.png --step \"imagesearch button found found_x found_y timeout 5000 poll 100\"\n" +
+                "  crossmacro run --step \"pixelsearch 0 0 1920 1080 FF0000 found_x found_y timeout 5000 tolerance 26\"\n" +
+                "  crossmacro run --asset button ./button.png --step \"waitimage button found found_x found_y timeout 5000\"\n" +
                 "  crossmacro run --file ./steps.txt --json\n";
         }
 
@@ -576,13 +576,13 @@ public sealed class CliCommandRouter
         {
             return
                 "Usage:\n" +
-                "  crossmacro screen pixel <x> <y> [--relative] [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
-                "  crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--json] [--log-level <level>]\n" +
-                "  crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--poll] [--poll-ms <n>] [--json] [--log-level <level>]\n" +
-    "  crossmacro screen search-image <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
-    "  crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n" +
-    "  crossmacro screen image-click <image-path> [--timeout-ms <n>] [--poll] [--poll-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--downsample <n>] [--matchmode <first|best>] [--scale-aware] [--json] [--log-level <level>]\n\n" +
-                "Colors are 6-character RGB hex values. search-color bounds are end-exclusive. image commands read 8-bit PNG templates.\n";
+                "  crossmacro screen pixel <x> <y> [--relative] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen search-image <image-path> [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]\n" +
+                "  crossmacro screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]\n\n" +
+                "Colors are 6-character RGB hex values. search-color bounds are end-exclusive. Wait commands use a five-second timeout unless overridden; image commands read 8-bit PNG templates.\n";
         }
 
         if (topic.StartsWith("screen.", StringComparison.OrdinalIgnoreCase))

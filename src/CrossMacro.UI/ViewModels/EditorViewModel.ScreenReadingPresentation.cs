@@ -8,7 +8,12 @@ public partial class EditorViewModel
             EditorActionScreenTargetColorSource.ManualHex,
             EditorActionScreenTargetColorSource.Variable,
         ];
-    public IReadOnlyList<EditorImageMatchMode> ImageMatchModes { get; } = Enum.GetValues<EditorImageMatchMode>();
+    public IReadOnlyList<EditorImageMatchMode> ImageMatchModes { get; } =
+    [
+        EditorImageMatchMode.Automatic,
+        EditorImageMatchMode.FirstThresholdMatch,
+        EditorImageMatchMode.BestMatch,
+    ];
     public bool ShowPixelColorFields => (SelectedAction?.Type) is EditorActionType.PixelColor;
     public bool ShowWaitColorFields => (SelectedAction?.Type) is EditorActionType.WaitColor;
     public bool ShowPixelSearchFields => (SelectedAction?.Type) is EditorActionType.PixelSearch;
@@ -16,7 +21,7 @@ public partial class EditorViewModel
     public WriteableBitmap? SelectedImageAssetPreview { get; private set; }
     public bool ShowSelectedImageAssetPreview => ShowImageSearchFields && SelectedImageAssetPreview is not null;
     public bool ShowImageOutputVariableFields => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
-    public bool ShowImageWaitTimeoutField => SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage;
+    public bool ShowImageWaitTimeoutField => SelectedAction?.Type is EditorActionType.ImageClick or EditorActionType.WaitImage;
     public bool ShowScreenReadingFields => ShowPixelColorFields || ShowWaitColorFields || ShowPixelSearchFields || ShowImageSearchFields;
     public bool ShowScreenReadingColorFields => ShowWaitColorFields || ShowPixelSearchFields;
     public bool ShowScreenReadingPointFields => ShowPixelColorFields || ShowWaitColorFields;

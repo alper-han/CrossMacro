@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests
@@ -101,8 +100,13 @@ public sealed partial class EditorViewModelTests
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
         _ = action.Type.Should().Be(actionType);
         _ = action.ImageAssetName.Should().Be("Target_1");
-        _ = action.ImageSearchSimilarity.Should().Be(1.0);
-        _ = action.ImageSearchDownsample.Should().Be(1);
+        _ = action.ImageSearchSimilarity.Should().Be(0.95);
+        _ = action.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.Automatic);
+        _ = action.ImageSearchMatchModeWasExplicit.Should().BeFalse();
+        _ = _viewModel.ImageMatchModes.Should().Equal(
+            EditorImageMatchMode.Automatic,
+            EditorImageMatchMode.FirstThresholdMatch,
+            EditorImageMatchMode.BestMatch);
         _ = action.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
         _ = action.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
         if (actionType is EditorActionType.ImageClick)
@@ -191,7 +195,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Undo();
 
         _ = _viewModel.SelectedAction.Should().NotBeNull();
-        _ = _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.FirstThresholdMatch);
+        _ = _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.Automatic);
         _ = _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeFalse();
 
         _viewModel.Redo();
@@ -828,7 +832,6 @@ public sealed partial class EditorViewModelTests
                 ScreenFoundXVariableName = "found_x",
                 ScreenFoundYVariableName = "found_y",
                 ImageSearchSimilarity = 1.0,
-                ImageSearchDownsample = 1,
             },
         };
         _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
@@ -858,7 +861,6 @@ public sealed partial class EditorViewModelTests
                 ScreenFoundXVariableName = "found_x",
                 ScreenFoundYVariableName = "found_y",
                 ImageSearchSimilarity = 1.0,
-                ImageSearchDownsample = 1,
             };
             _viewModel.Actions.Add(action);
             _viewModel.SelectedAction = action;

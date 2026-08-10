@@ -12,8 +12,7 @@ internal static class ScalarScreenImageMatcher
     {
         options ??= ScreenImageMatchOptions.Default;
         var region = options.SearchRegion ?? frame.LogicalBounds;
-        var sampleCount = GetSampleCount(template.Width, options.DownsampleFactor)
-            * GetSampleCount(template.Height, options.DownsampleFactor);
+        var sampleCount = template.Width * template.Height;
         var allowedSad = sampleCount * 3 * 255.0 * (1.0 - options.MinimumSimilarity);
         var maximumSad = sampleCount * 3 * 255.0;
         ScreenImageMatch? best = null;
@@ -30,7 +29,7 @@ internal static class ScalarScreenImageMatcher
                     continue;
                 }
 
-                var sad = ComputeSad(frame, template, x, y, options.DownsampleFactor, cancellationToken);
+                var sad = ComputeSad(frame, template, x, y, cancellationToken);
                 if (sad > allowedSad)
                 {
                     continue;
@@ -62,13 +61,12 @@ internal static class ScalarScreenImageMatcher
         ScreenFrame template,
         int candidateX,
         int candidateY,
-        int downsampleFactor,
         CancellationToken cancellationToken)
     {
         long sad = 0;
-        for (var templateY = 0; templateY < template.Height; templateY += downsampleFactor)
+        for (var templateY = 0; templateY < template.Height; templateY++)
         {
-            for (var templateX = 0; templateX < template.Width; templateX += downsampleFactor)
+            for (var templateX = 0; templateX < template.Width; templateX++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var frameColor = frame.GetPixel(new ScreenPoint(candidateX + templateX, candidateY + templateY));
@@ -97,6 +95,4 @@ internal static class ScalarScreenImageMatcher
 
         return true;
     }
-
-    private static int GetSampleCount(int length, int downsampleFactor) => ((length - 1) / downsampleFactor) + 1;
 }

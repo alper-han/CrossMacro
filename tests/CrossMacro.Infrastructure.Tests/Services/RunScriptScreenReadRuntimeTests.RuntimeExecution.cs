@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed partial class RunScriptScreenReadRuntimeTests
@@ -152,7 +151,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenPixelSearchPollingIsRequested_ForwardsPollingOptions()
+    public async Task PlayAsync_WhenPixelSearchUsesDefaultTimeout_UsesSharedPollingOptions()
     {
         var screenReader = new FakeScreenPixelReader
         {
@@ -164,14 +163,15 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
         var macro = new MacroSequence
         {
-            ScriptSteps = { "pixelsearch 0 0 10 10 FF0000 found x y timeout 1000 poll 25" },
+            ScriptSteps = { "pixelsearch 0 0 10 10 FF0000 found x y" },
         };
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = screenReader.SearchCalls.Should().ContainSingle();
         _ = screenReader.SearchCalls[0].Options.PollUntilMatch.Should().BeTrue();
-        _ = screenReader.SearchCalls[0].Options.PollInterval.Should().Be(TimeSpan.FromMilliseconds(25));
+        _ = screenReader.SearchCalls[0].Options.Timeout.Should().Be(ScreenReadOptions.DefaultTimeout);
+        _ = screenReader.SearchCalls[0].Options.PollInterval.Should().Be(ScreenReadOptions.DefaultPollInterval);
     }
 
     [Fact]

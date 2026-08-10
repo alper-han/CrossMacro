@@ -4,9 +4,7 @@ public sealed class ScreenReadOptionGrammarTests
 {
     [Theory]
     [InlineData("timeout", ScreenReadOptionKind.Timeout)]
-    [InlineData("poll", ScreenReadOptionKind.Poll)]
     [InlineData("matchmode", ScreenReadOptionKind.MatchMode)]
-    [InlineData("scaleaware", ScreenReadOptionKind.ScaleAware)]
     [InlineData("button", ScreenReadOptionKind.Button)]
     public void GetScriptOptionKind_MapsCanonicalScriptTokens(string token, ScreenReadOptionKind expected)
     {
@@ -15,9 +13,7 @@ public sealed class ScreenReadOptionGrammarTests
 
     [Theory]
     [InlineData("--timeout-ms", ScreenReadOptionKind.Timeout)]
-    [InlineData("--poll-ms", ScreenReadOptionKind.PollInterval)]
     [InlineData("--matchmode", ScreenReadOptionKind.MatchMode)]
-    [InlineData("--scale-aware", ScreenReadOptionKind.ScaleAware)]
     [InlineData("--button", ScreenReadOptionKind.Button)]
     public void GetCliOptionKind_MapsCanonicalCliTokens(string token, ScreenReadOptionKind expected)
     {
@@ -25,9 +21,27 @@ public sealed class ScreenReadOptionGrammarTests
     }
 
     [Fact]
-    public void Grammar_DoesNotTreatCliOnlyPollIntervalAsScriptPoll()
+    public void Grammar_RejectsRetiredPollingTokens()
     {
         Assert.Equal(ScreenReadOptionKind.Unknown, ScreenReadOptionGrammar.GetScriptOptionKind("poll-ms"));
-        Assert.Equal(ScreenReadOptionKind.PollInterval, ScreenReadOptionGrammar.GetCliOptionKind("--poll-ms"));
+        Assert.Equal(ScreenReadOptionKind.Unknown, ScreenReadOptionGrammar.GetScriptOptionKind("poll"));
+        Assert.Equal(ScreenReadOptionKind.Unknown, ScreenReadOptionGrammar.GetCliOptionKind("--poll"));
+        Assert.Equal(ScreenReadOptionKind.Unknown, ScreenReadOptionGrammar.GetCliOptionKind("--poll-ms"));
+    }
+
+    [Theory]
+    [InlineData("downsample")]
+    [InlineData("scaleaware")]
+    public void GetScriptOptionKind_LegacyTuningTokensAreUnknown(string token)
+    {
+        Assert.Equal(ScreenReadOptionKind.Unknown, ScreenReadOptionGrammar.GetScriptOptionKind(token));
+    }
+
+    [Theory]
+    [InlineData("--downsample")]
+    [InlineData("--scale-aware")]
+    public void GetCliOptionKind_LegacyTuningTokensAreUnknown(string token)
+    {
+        Assert.Equal(ScreenReadOptionKind.Unknown, ScreenReadOptionGrammar.GetCliOptionKind(token));
     }
 }

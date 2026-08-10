@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.Cli.Tests;
 
 public sealed partial class CliCommandRouterTests

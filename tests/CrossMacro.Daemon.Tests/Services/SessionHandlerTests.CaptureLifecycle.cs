@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed partial class SessionHandlerTests

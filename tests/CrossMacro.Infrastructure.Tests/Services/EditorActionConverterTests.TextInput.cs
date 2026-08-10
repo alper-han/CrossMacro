@@ -1,4 +1,3 @@
-// Behavioral cluster extracted from the fixture to keep test ownership explicit.
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed partial class EditorActionConverterTests

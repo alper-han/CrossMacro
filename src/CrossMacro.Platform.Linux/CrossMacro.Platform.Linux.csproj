@@ -24,6 +24,13 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="CrossMacro.Platform.Linux.Tests" />
+    <AssemblyAttribute Include="System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute">
+      <_Parameter1>System.Runtime.InteropServices.DllImportSearchPath.SafeDirectories</_Parameter1>
+      <_Parameter1_IsLiteral>true</_Parameter1_IsLiteral>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>linux</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>

@@ -20,6 +20,13 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="CrossMacro.Platform.Windows.Tests" />
+    <AssemblyAttribute Include="System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute">
+      <_Parameter1>System.Runtime.InteropServices.DllImportSearchPath.System32</_Parameter1>
+      <_Parameter1_IsLiteral>true</_Parameter1_IsLiteral>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>windows</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

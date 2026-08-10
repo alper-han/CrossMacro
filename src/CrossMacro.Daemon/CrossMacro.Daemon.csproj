@@ -50,6 +50,9 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="CrossMacro.Daemon.Tests" />
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>linux</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

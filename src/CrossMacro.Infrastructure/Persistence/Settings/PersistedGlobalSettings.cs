@@ -18,5 +18,4 @@ public sealed class PersistedGlobalSettings
 
     public string Language { get; set; } = "en";
 
-    public string? PortalScreenCastRestoreToken { get; set; }
 }

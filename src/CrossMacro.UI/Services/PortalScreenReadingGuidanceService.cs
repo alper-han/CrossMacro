@@ -3,14 +3,14 @@ namespace CrossMacro.UI.Services;
 
 internal sealed class PortalScreenReadingGuidanceService(
     IDialogService dialogService,
-    ISettingsService settingsService,
     IScreenReadingDiagnosticProvider? diagnosticProvider = null,
-    IScreenReadingCapabilityReadiness? capabilityReadiness = null) : IPortalScreenReadingGuidanceService
+    IScreenReadingCapabilityReadiness? capabilityReadiness = null,
+    IPortalScreenCastRestoreStateService? portalRestoreStateService = null) : IPortalScreenReadingGuidanceService
 {
     private readonly IDialogService _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-    private readonly ISettingsService _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
     private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider = diagnosticProvider;
     private readonly IScreenReadingCapabilityReadiness? _capabilityReadiness = capabilityReadiness;
+    private readonly IPortalScreenCastRestoreStateService? _portalRestoreStateService = portalRestoreStateService;
     private readonly Lock _lock = new();
     private bool _hasShown;
 
@@ -21,7 +21,7 @@ internal sealed class PortalScreenReadingGuidanceService(
             await _capabilityReadiness.EnsureReadyAsync().ConfigureAwait(false);
         }
 
-        if (!ShouldShowGuidance())
+        if (!await ShouldShowGuidanceAsync().ConfigureAwait(false))
         {
             return;
         }
@@ -32,7 +32,7 @@ internal sealed class PortalScreenReadingGuidanceService(
             UIStrings.ContinueButton).ConfigureAwait(false);
     }
 
-    private bool ShouldShowGuidance()
+    private async Task<bool> ShouldShowGuidanceAsync()
     {
         if (_diagnosticProvider is null)
         {
@@ -45,7 +45,7 @@ internal sealed class PortalScreenReadingGuidanceService(
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(_settingsService.Current.PortalScreenCastRestoreToken))
+        if (await HasPortalRestoreStateAsync().ConfigureAwait(false))
         {
             return false;
         }
@@ -72,6 +72,24 @@ internal sealed class PortalScreenReadingGuidanceService(
         {
             Log.Warning(ex, "[PortalScreenReadingGuidanceService] Screen-reading diagnostics failed; skipping Portal guidance");
             return null;
+        }
+    }
+
+    private async Task<bool> HasPortalRestoreStateAsync()
+    {
+        if (_portalRestoreStateService is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return await _portalRestoreStateService.HasRestoreStateAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            Log.Warning(ex, "[PortalScreenReadingGuidanceService] Could not read Portal restore state");
+            return false;
         }
     }
 }

@@ -57,12 +57,36 @@ public sealed class PortalScreenReadingGuidanceServiceTests
     }
 
     [Fact]
+    public async Task ShowBeforePortalWarmupAsync_WhenLegacyRestoreDataExists_DoesNotShowGuidance()
+    {
+        var dialog = new RecordingDialogService();
+        var service = CreateService(dialog, selectedBackend: "Portal", restoreToken: null, restoreData: "stored-data");
+
+        await service.ShowBeforePortalWarmupAsync();
+
+        Assert.Empty(dialog.MessageCalls);
+    }
+
+    [Fact]
+    public async Task ShowBeforePortalWarmupAsync_WhenRestoreStateReadFails_ShowsGuidance()
+    {
+        var dialog = new RecordingDialogService();
+        var service = new PortalScreenReadingGuidanceService(
+            dialog,
+            new StaticDiagnosticProvider("Portal"),
+            portalRestoreStateService: new ThrowingPortalRestoreStateService());
+
+        await service.ShowBeforePortalWarmupAsync();
+
+        _ = Assert.Single(dialog.MessageCalls);
+    }
+
+    [Fact]
     public async Task ShowBeforePortalWarmupAsync_WhenDiagnosticsFail_DoesNotShowGuidance()
     {
         var dialog = new RecordingDialogService();
         var service = new PortalScreenReadingGuidanceService(
             dialog,
-            new StaticSettingsService(restoreToken: null),
             new ThrowingDiagnosticProvider());
 
         await service.ShowBeforePortalWarmupAsync();
@@ -75,8 +99,7 @@ public sealed class PortalScreenReadingGuidanceServiceTests
     {
         var dialog = new RecordingDialogService();
         var service = new PortalScreenReadingGuidanceService(
-            dialog,
-            new StaticSettingsService(restoreToken: null));
+            dialog);
 
         await service.ShowBeforePortalWarmupAsync();
 
@@ -103,7 +126,6 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         var readiness = new RecordingCapabilityReadiness(() => diagnostics.SelectedBackend = "GnomeExtension");
         var service = new PortalScreenReadingGuidanceService(
             dialog,
-            new StaticSettingsService(restoreToken: null),
             diagnostics,
             readiness);
 
@@ -128,12 +150,14 @@ public sealed class PortalScreenReadingGuidanceServiceTests
     private static PortalScreenReadingGuidanceService CreateService(
         RecordingDialogService dialog,
         string? selectedBackend,
-        string? restoreToken)
+        string? restoreToken,
+        string? restoreData = null)
     {
         return new PortalScreenReadingGuidanceService(
             dialog,
-            new StaticSettingsService(restoreToken),
-            new StaticDiagnosticProvider(selectedBackend));
+            new StaticDiagnosticProvider(selectedBackend),
+            portalRestoreStateService: new StaticPortalRestoreStateService(
+                !string.IsNullOrWhiteSpace(restoreToken) || !string.IsNullOrWhiteSpace(restoreData)));
     }
 
     private sealed class RecordingDialogService : IDialogService
@@ -162,24 +186,18 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         }
     }
 
-    private sealed class StaticSettingsService : ISettingsService
+    private sealed class StaticPortalRestoreStateService(bool hasRestoreState) : IPortalScreenCastRestoreStateService
     {
-        public StaticSettingsService(string? restoreToken)
-        {
-            Current = new AppSettings { PortalScreenCastRestoreToken = restoreToken };
-        }
+        public Task<bool> HasRestoreStateAsync(CancellationToken cancellationToken) => Task.FromResult(hasRestoreState);
 
-        public AppSettings Current { get; }
+        public Task ClearRestoreStateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
 
-        public Task<AppSettings> LoadAsync() => Task.FromResult(Current);
+    private sealed class ThrowingPortalRestoreStateService : IPortalScreenCastRestoreStateService
+    {
+        public Task<bool> HasRestoreStateAsync(CancellationToken cancellationToken) => throw new IOException("restore state unavailable");
 
-        public AppSettings Load() => Current;
-
-        public Task SaveAsync() => Task.CompletedTask;
-
-        public void Save()
-        {
-        }
+        public Task ClearRestoreStateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class StaticDiagnosticProvider(string? selectedBackend) : IScreenReadingDiagnosticProvider

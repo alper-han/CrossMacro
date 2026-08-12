@@ -187,7 +187,6 @@ public sealed class SettingsServiceTests : IDisposable
         service.Current.LoopDelayMinMs = 100;
         service.Current.LoopDelayMaxMs = 250;
         service.Current.StartMinimized = true;
-        service.Current.PortalScreenCastRestoreToken = "portal-token-1";
 
         // Act
         service.Save();
@@ -204,7 +203,26 @@ public sealed class SettingsServiceTests : IDisposable
         _ = loaded.LoopDelayMinMs.Should().Be(100);
         _ = loaded.LoopDelayMaxMs.Should().Be(250);
         _ = loaded.StartMinimized.Should().BeTrue();
-        _ = loaded.PortalScreenCastRestoreToken.Should().Be("portal-token-1");
+    }
+
+    [Fact]
+    public async Task SaveAsync_DoesNotPersistRemovedPortalRestoreFields()
+    {
+        var globalSettingsPath = Path.Combine(_tempPath, ConfigFileNames.GlobalSettings);
+        await File.WriteAllTextAsync(
+            globalSettingsPath,
+            """
+            {"theme":"Nord","portalScreenCastRestoreToken":"legacy-token","portalScreenCastRestoreData":"legacy-data"}
+            """,
+            NonCancelableToken);
+
+        using var service = new SettingsService(_tempPath);
+        _ = await service.LoadAsync();
+        await service.SaveAsync();
+
+        var persisted = await File.ReadAllTextAsync(globalSettingsPath, NonCancelableToken);
+        Assert.DoesNotContain("portalScreenCastRestore", persisted, StringComparison.Ordinal);
+        Assert.Contains("\"theme\": \"Nord\"", persisted, StringComparison.Ordinal);
     }
 
     [Fact]

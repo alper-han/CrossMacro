@@ -32,8 +32,4 @@ public class GlobalSettings
     /// </summary>
     public string Language { get; set; } = "en";
 
-    /// <summary>
-    /// XDG Desktop Portal ScreenCast restore token shared across profiles.
-    /// </summary>
-    public string? PortalScreenCastRestoreToken { get; set; }
 }

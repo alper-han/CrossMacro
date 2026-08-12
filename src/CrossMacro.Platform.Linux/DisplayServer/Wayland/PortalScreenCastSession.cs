@@ -5,13 +5,15 @@ public sealed class PortalScreenCastSession : IDisposable
 {
     private readonly IDisposable? _owner;
     private bool _disposed;
+    private int _closed;
 
     public PortalScreenCastSession(
         string sessionHandle,
         IReadOnlyList<PortalStreamDescriptor> streams,
         SafeFileHandle pipeWireRemote,
         IDisposable? owner = null,
-        string? restoreToken = null)
+        string? restoreToken = null,
+        string? restoreData = null)
     {
         ArgumentNullException.ThrowIfNull(streams);
         if (string.IsNullOrWhiteSpace(sessionHandle))
@@ -28,6 +30,7 @@ public sealed class PortalScreenCastSession : IDisposable
         Streams = streams;
         PipeWireRemote = pipeWireRemote ?? throw new ArgumentNullException(nameof(pipeWireRemote));
         RestoreToken = string.IsNullOrWhiteSpace(restoreToken) ? null : restoreToken;
+        RestoreData = string.IsNullOrWhiteSpace(restoreData) ? null : restoreData;
         _owner = owner;
     }
 
@@ -39,7 +42,13 @@ public sealed class PortalScreenCastSession : IDisposable
 
     public string? RestoreToken { get; }
 
+    public string? RestoreData { get; }
+
+    public bool IsClosed => Volatile.Read(ref _closed) is not 0;
+
     public PortalStreamDescriptor PrimaryStream => Streams[0];
+
+    internal void MarkClosed() => Interlocked.Exchange(ref _closed, 1);
 
     public void Dispose()
     {
@@ -49,6 +58,7 @@ public sealed class PortalScreenCastSession : IDisposable
         }
 
         _disposed = true;
+        MarkClosed();
         PipeWireRemote.Dispose();
         _owner?.Dispose();
     }

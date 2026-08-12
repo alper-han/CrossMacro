@@ -6,10 +6,12 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
     private const string Service = "org.freedesktop.portal.Desktop";
     private const string DesktopPath = "/org/freedesktop/portal/desktop";
     private const string ScreenCastInterface = "org.freedesktop.portal.ScreenCast";
+    private const string SessionInterface = "org.freedesktop.portal.Session";
     private const string RequestInterface = "org.freedesktop.portal.Request";
 
     private readonly DBusConnection _connection;
     private readonly TimeProvider _timeProvider;
+    private IDisposable? _sessionClosedSubscription;
     private bool _ownedBySession;
 
     private PortalScreenCastClient(DBusConnection connection, TimeProvider timeProvider)
@@ -28,7 +30,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         return new PortalScreenCastClient(connection, timeProvider);
     }
 
-    public async Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null)
+    public async Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null, string? restoreData = null)
     {
         options.CancellationToken.ThrowIfCancellationRequested();
 
@@ -47,7 +49,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         var sessionHandle = GetResponseObjectPath(createResponse.Results, "session_handle");
 
         var selectHandleToken = $"crossmacro_select_{token}";
-        var selectOptions = BuildSelectSourcesOptions(selectHandleToken, restoreToken);
+        var selectOptions = BuildSelectSourcesOptions(selectHandleToken, restoreToken, restoreData);
 
         _ = await CallRequestAsync("SelectSources", "oa{sv}", selectHandleToken, options, (ref MessageWriter writer) =>
         {
@@ -68,14 +70,30 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
 
         var streams = ParseStreams(startResponse.Results);
         var refreshedRestoreToken = TryGetResponseString(startResponse.Results, "restore_token");
+        var refreshedRestoreData = TryGetResponseRestoreData(startResponse.Results);
         var remote = await OpenPipeWireRemoteAsync(sessionHandle)
             .WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken)
             .ConfigureAwait(false);
-        _ownedBySession = true;
-        return new PortalScreenCastSession(sessionHandle, streams, remote, this, refreshedRestoreToken);
+        var session = new PortalScreenCastSession(sessionHandle, streams, remote, this, refreshedRestoreToken, refreshedRestoreData);
+        try
+        {
+            _sessionClosedSubscription = await WatchSessionClosedAsync(sessionHandle, session).ConfigureAwait(false);
+            _ownedBySession = true;
+            return session;
+        }
+        catch
+        {
+            session.Dispose();
+            throw;
+        }
     }
 
-    public void Dispose() => _connection.Dispose();
+    public void Dispose()
+    {
+        _sessionClosedSubscription?.Dispose();
+        _sessionClosedSubscription = null;
+        _connection.Dispose();
+    }
 
     public void DisposeIfNotOwnedBySession()
     {
@@ -159,6 +177,19 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             state: null).ConfigureAwait(false);
     }
 
+    private async Task<IDisposable> WatchSessionClosedAsync(string sessionHandle, PortalScreenCastSession session)
+    {
+        return await _connection.WatchSignalAsync(
+            Service,
+            sessionHandle,
+            SessionInterface,
+            "Closed",
+            notification => session.MarkClosed(),
+            synchronizationContext: null,
+            flags: ObserverFlags.None,
+            state: null).ConfigureAwait(false);
+    }
+
     private string GetRequestPath(string handleToken)
     {
         var uniqueName = _connection.UniqueName ?? throw new PortalScreenCastException(ScreenReadErrorKind.BackendUnavailable, "D-Bus connection does not have a unique name.");
@@ -189,7 +220,10 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         return value.Type is VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
     }
 
-    internal static Dictionary<string, VariantValue> BuildSelectSourcesOptions(string handleToken, string? restoreToken)
+    internal static Dictionary<string, VariantValue> BuildSelectSourcesOptions(string handleToken, string? restoreToken) =>
+        BuildSelectSourcesOptions(handleToken, restoreToken, restoreData: null);
+
+    internal static Dictionary<string, VariantValue> BuildSelectSourcesOptions(string handleToken, string? restoreToken, string? restoreData)
     {
         var options = new Dictionary<string, VariantValue>(StringComparer.Ordinal)
         {
@@ -205,7 +239,36 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             options["restore_token"] = VariantValue.String(restoreToken);
         }
 
+        if (PortalScreenCastRestoreDataCodec.TryDeserialize(restoreData, out var restoredValue)
+            && PortalScreenCastRestoreDataCodec.IsSupportedEnvelope(restoredValue))
+        {
+            options["restore_data"] = UnwrapRestoreData(restoredValue);
+        }
+
         return options;
+    }
+
+    internal static string? TryGetResponseRestoreData(IReadOnlyDictionary<string, VariantValue> results)
+    {
+        if (!results.TryGetValue("restore_data", out var value))
+        {
+            return null;
+        }
+
+        var normalized = UnwrapRestoreData(value);
+        return PortalScreenCastRestoreDataCodec.IsSupportedEnvelope(normalized)
+            ? PortalScreenCastRestoreDataCodec.TrySerialize(normalized)
+            : null;
+    }
+
+    private static VariantValue UnwrapRestoreData(VariantValue value)
+    {
+        while (value.Type is VariantValueType.Variant)
+        {
+            value = value.GetVariantValue();
+        }
+
+        return value;
     }
 
     internal static string? TryGetResponseString(IReadOnlyDictionary<string, VariantValue> results, string key)

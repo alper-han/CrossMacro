@@ -4,7 +4,9 @@ internal static class CliManagementServiceRegistration
 {
     internal static void Register(IServiceCollection services)
     {
-        _ = services.AddSingleton<ISettingsCliService, SettingsCliService>();
+        _ = services.AddSingleton<ISettingsCliService>(sp => new SettingsCliService(
+            sp.GetRequiredService<ISettingsService>(),
+            sp.GetService<IPortalScreenCastRestoreStateService>()));
         _ = services.AddSingleton<IManageProfile, ManageProfile>();
         _ = services.AddSingleton<IManageTextExpansion, ManageTextExpansion>();
         _ = services.AddSingleton<IManageShortcut, ManageShortcut>();

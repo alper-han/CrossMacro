@@ -1,15 +1,23 @@
 
 namespace CrossMacro.Cli.Services;
 
-public sealed class SettingsCliService(ISettingsService settingsService) : ISettingsCliService
+public sealed class SettingsCliService(
+    ISettingsService settingsService,
+    IPortalScreenCastRestoreStateService? portalRestoreStateService = null) : ISettingsCliService
 {
     private static readonly string[] AllowedLogLevels = ["Debug", "Information", "Warning", "Error"];
 
     private readonly ISettingsService _settingsService = settingsService;
+    private readonly IPortalScreenCastRestoreStateService? _portalRestoreStateService = portalRestoreStateService;
 
     public async Task<SettingsCommandResult> GetAsync(string? key, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.Equals(key, "screen.portalRestoreToken", StringComparison.Ordinal))
+        {
+            return await GetPortalRestoreStateAsync(cancellationToken).ConfigureAwait(false);
+        }
 
         var settings = await _settingsService.LoadAsync().ConfigureAwait(false);
 
@@ -20,7 +28,7 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
                 Success = true,
                 ExitCode = CliExitCode.Success,
                 Message = "Settings loaded.",
-                Data = BuildSettingsDictionary(settings),
+                Data = await BuildSettingsDictionaryAsync(settings, cancellationToken).ConfigureAwait(false),
             };
         }
 
@@ -65,6 +73,17 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
                 Success = false,
                 ExitCode = CliExitCode.InvalidArguments,
                 Message = "Missing settings value.",
+            };
+        }
+
+        if (string.Equals(key, "screen.portalRestoreToken", StringComparison.Ordinal))
+        {
+            return new SettingsCommandResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.InvalidArguments,
+                Message = "Invalid settings value.",
+                Errors = ["screen.portalRestoreToken is status-only; use settings reset screen.portalRestoreToken to clear it."],
             };
         }
 
@@ -144,6 +163,11 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
             };
         }
 
+        if (string.Equals(key, "screen.portalRestoreToken", StringComparison.Ordinal))
+        {
+            return await ResetPortalRestoreStateAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         var settings = await _settingsService.LoadAsync().ConfigureAwait(false);
         if (!TryGetValue(settings, key, out var beforeValue))
         {
@@ -219,9 +243,9 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
             "screen.portalRestoreToken",
     ];
 
-    private static Dictionary<string, object?> BuildSettingsDictionary(AppSettings settings)
+    private async Task<Dictionary<string, object?>> BuildSettingsDictionaryAsync(AppSettings settings, CancellationToken cancellationToken)
     {
-        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        var values = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["playback.speed"] = settings.PlaybackSpeed,
             ["playback.loop"] = settings.IsLooping,
@@ -243,8 +267,10 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
             ["ui.trayIcon"] = settings.EnableTrayIcon,
             ["ui.startMinimized"] = settings.StartMinimized,
             ["updates.checkForUpdates"] = settings.CheckForUpdates,
-            ["screen.portalRestoreToken"] = string.IsNullOrEmpty(settings.PortalScreenCastRestoreToken) ? "empty" : "set",
         };
+
+        values["screen.portalRestoreToken"] = await GetPortalRestoreStateValueAsync(cancellationToken).ConfigureAwait(false);
+        return values;
     }
 
     private static bool TryGetValue(AppSettings settings, string key, out object? value)
@@ -310,9 +336,6 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
                 return true;
             case "updates.checkForUpdates":
                 value = settings.CheckForUpdates;
-                return true;
-            case "screen.portalRestoreToken":
-                value = string.IsNullOrEmpty(settings.PortalScreenCastRestoreToken) ? "empty" : "set";
                 return true;
             default:
                 value = null;
@@ -536,10 +559,6 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
                 errorMessage = string.Empty;
                 return true;
 
-            case "screen.portalRestoreToken":
-                errorMessage = "screen.portalRestoreToken is status-only; use settings reset screen.portalRestoreToken to clear it.";
-                return false;
-
             default:
                 errorMessage = $"Unknown key: {key}";
                 return false;
@@ -610,9 +629,6 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
             case "updates.checkForUpdates":
                 settings.CheckForUpdates = defaults.CheckForUpdates;
                 break;
-            case "screen.portalRestoreToken":
-                settings.PortalScreenCastRestoreToken = null;
-                break;
             default:
                 errorMessage = $"Unknown key: {key}";
                 return false;
@@ -621,6 +637,67 @@ public sealed class SettingsCliService(ISettingsService settingsService) : ISett
         errorMessage = string.Empty;
         return true;
     }
+
+    private async Task<SettingsCommandResult> GetPortalRestoreStateAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var value = await GetPortalRestoreStateValueAsync(cancellationToken).ConfigureAwait(false);
+            return new SettingsCommandResult
+            {
+                Success = true,
+                ExitCode = CliExitCode.Success,
+                Message = $"screen.portalRestoreToken={value}",
+                Data = new SettingsValueData("screen.portalRestoreToken", value),
+            };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return new SettingsCommandResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.RuntimeError,
+                Message = "Failed to read Portal restore state.",
+                Errors = [ex.Message],
+            };
+        }
+    }
+
+    private async Task<SettingsCommandResult> ResetPortalRestoreStateAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var beforeValue = await GetPortalRestoreStateValueAsync(cancellationToken).ConfigureAwait(false);
+            if (_portalRestoreStateService is not null)
+            {
+                await _portalRestoreStateService.ClearRestoreStateAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            var afterValue = await GetPortalRestoreStateValueAsync(cancellationToken).ConfigureAwait(false);
+            return new SettingsCommandResult
+            {
+                Success = true,
+                ExitCode = CliExitCode.Success,
+                Message = "screen.portalRestoreToken reset.",
+                Data = new SettingsMutationData("screen.portalRestoreToken", beforeValue, afterValue),
+            };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return new SettingsCommandResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.RuntimeError,
+                Message = "Failed to reset Portal restore state.",
+                Errors = [ex.Message],
+            };
+        }
+    }
+
+    private async Task<string> GetPortalRestoreStateValueAsync(CancellationToken cancellationToken) =>
+        _portalRestoreStateService is not null && await _portalRestoreStateService.HasRestoreStateAsync(cancellationToken).ConfigureAwait(false)
+            ? "set"
+            : "empty";
 
     private static bool TryParseBool(string value, out bool result)
     {

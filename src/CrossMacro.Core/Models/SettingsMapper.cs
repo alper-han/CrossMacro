@@ -20,7 +20,6 @@ public static class SettingsMapper
             LogLevel = source.LogLevel,
             Theme = source.Theme,
             Language = source.Language,
-            PortalScreenCastRestoreToken = source.PortalScreenCastRestoreToken,
         };
     }
 
@@ -72,7 +71,6 @@ public static class SettingsMapper
             LogLevel = global.LogLevel,
             Theme = global.Theme,
             Language = global.Language,
-            PortalScreenCastRestoreToken = global.PortalScreenCastRestoreToken,
             // Profile fields
             PlaybackSpeed = profile.PlaybackSpeed,
             IsLooping = profile.IsLooping,
@@ -110,7 +108,6 @@ public static class SettingsMapper
         target.LogLevel = global.LogLevel;
         target.Theme = global.Theme;
         target.Language = global.Language;
-        target.PortalScreenCastRestoreToken = global.PortalScreenCastRestoreToken;
     }
 
     /// <summary>

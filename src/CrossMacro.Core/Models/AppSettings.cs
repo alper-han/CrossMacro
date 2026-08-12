@@ -138,8 +138,4 @@ public class AppSettings
     /// </summary>
     public string Language { get; set; } = "en";
 
-    /// <summary>
-    /// XDG Desktop Portal ScreenCast restore token used to reduce repeat prompts on Wayland portal backends.
-    /// </summary>
-    public string? PortalScreenCastRestoreToken { get; set; }
 }

@@ -54,7 +54,9 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<IWlrScreencopySupportProbe, WlrScreencopyCapture>();
         _ = services.AddTransient<IWlrScreencopyCapture, WlrScreencopyCapture>();
         _ = services.AddSingleton<IPortalScreenCastSupportProbe>(_ => PortalScreenCastSupportProbe.Instance);
-        _ = services.AddSingleton<IPortalScreenCastRestoreTokenStore, PortalScreenCastRestoreTokenStore>();
+        _ = services.AddSingleton<PortalScreenCastRestoreTokenStore>();
+        _ = services.AddSingleton<IPortalScreenCastRestoreTokenStore>(sp => sp.GetRequiredService<PortalScreenCastRestoreTokenStore>());
+        _ = services.AddSingleton<IPortalScreenCastRestoreStateService>(sp => sp.GetRequiredService<PortalScreenCastRestoreTokenStore>());
         _ = services.AddSingleton<IPortalScreenCastSessionFactory>(sp =>
             new PortalScreenCastDbusSessionFactory(sp.GetRequiredService<IPortalScreenCastRestoreTokenStore>()));
         _ = services.AddSingleton<IPortalPipeWireFrameCaptureFactory>(_ => PortalPipeWireFrameCaptureFactory.Instance);

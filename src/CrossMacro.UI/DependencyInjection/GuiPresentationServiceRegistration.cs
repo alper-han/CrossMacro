@@ -12,9 +12,9 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<IDialogService, DialogService>();
         _ = services.AddSingleton<IPortalScreenReadingGuidanceService>(sp => new PortalScreenReadingGuidanceService(
             sp.GetRequiredService<IDialogService>(),
-            sp.GetRequiredService<ISettingsService>(),
             sp.GetService<IScreenReadingDiagnosticProvider>(),
-            sp.GetService<IScreenReadingCapabilityReadiness>()));
+            sp.GetService<IScreenReadingCapabilityReadiness>(),
+            sp.GetService<IPortalScreenCastRestoreStateService>()));
         _ = services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
         _ = services.AddSingleton<IDirectoryOpener, DirectoryOpener>();
         _ = services.AddSingleton<IThemeDirectoryResolver, ThemeDirectoryResolver>();

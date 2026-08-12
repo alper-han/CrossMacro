@@ -4,8 +4,10 @@ namespace CrossMacro.Cli.Tests;
 public sealed class SettingsCliServiceTests
 {
     private readonly ISettingsService _settingsService;
+    private readonly IPortalScreenCastRestoreStateService _portalRestoreStateService;
     private readonly AppSettings _current;
     private readonly ISettingsCliService _service;
+    private bool _hasPortalRestoreState = true;
 
     public SettingsCliServiceTests()
     {
@@ -28,12 +30,20 @@ public sealed class SettingsCliServiceTests
             EnableTrayIcon = false,
             StartMinimized = false,
             CheckForUpdates = false,
-            PortalScreenCastRestoreToken = "secret-token",
         };
         _ = _settingsService.Current.Returns(_current);
         _ = _settingsService.LoadAsync().Returns(Task.FromResult(_current));
+        _portalRestoreStateService = Substitute.For<IPortalScreenCastRestoreStateService>();
+        _ = _portalRestoreStateService.HasRestoreStateAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(_hasPortalRestoreState));
+        _ = _portalRestoreStateService.ClearRestoreStateAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                _hasPortalRestoreState = false;
+                return Task.CompletedTask;
+            });
 
-        _service = new SettingsCliService(_settingsService);
+        _service = new SettingsCliService(_settingsService, _portalRestoreStateService);
     }
 
     [Fact]
@@ -104,6 +114,17 @@ public sealed class SettingsCliServiceTests
     }
 
     [Fact]
+    public async Task GetAsync_WithPortalRestoreTokenAndNoPlatformService_ReturnsEmpty()
+    {
+        var service = new SettingsCliService(_settingsService);
+
+        var result = await service.GetAsync("screen.portalRestoreToken", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("empty", Assert.IsType<SettingsValueData>(result.Data).Value);
+    }
+
+    [Fact]
     public async Task SetAsync_WithUiTheme_UpdatesAndSaves()
     {
         var result = await _service.SetAsync("ui.theme", "Nord", CancellationToken.None);
@@ -129,8 +150,11 @@ public sealed class SettingsCliServiceTests
         var result = await _service.ResetAsync("screen.portalRestoreToken", CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Null(_current.PortalScreenCastRestoreToken);
-        await _settingsService.Received(1).SaveAsync();
+        await _portalRestoreStateService.Received(1).ClearRestoreStateAsync(CancellationToken.None);
+        await _settingsService.DidNotReceive().SaveAsync();
+        var data = Assert.IsType<SettingsMutationData>(result.Data);
+        Assert.Equal("set", data.OldValue);
+        Assert.Equal("empty", data.NewValue);
     }
 
     [Fact]

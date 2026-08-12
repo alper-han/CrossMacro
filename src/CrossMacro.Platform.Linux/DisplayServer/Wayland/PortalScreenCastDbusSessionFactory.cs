@@ -7,16 +7,19 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
 
     private readonly IPortalScreenCastRestoreTokenStore? _restoreTokenStore;
     private readonly IPortalScreenCastSessionClientFactory _clientFactory;
+    private readonly Func<CancellationToken, Task<IDisposable>> _acquireRestoreTokenLease;
 
     public PortalScreenCastDbusSessionFactory(IPortalScreenCastRestoreTokenStore? restoreTokenStore)
         : this(restoreTokenStore, PortalScreenCastSessionClientFactory.Instance) { /* Empty */ }
 
     internal PortalScreenCastDbusSessionFactory(
         IPortalScreenCastRestoreTokenStore? restoreTokenStore,
-        IPortalScreenCastSessionClientFactory clientFactory)
+        IPortalScreenCastSessionClientFactory clientFactory,
+        Func<CancellationToken, Task<IDisposable>>? acquireRestoreTokenLease = null)
     {
         _restoreTokenStore = restoreTokenStore;
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
+        _acquireRestoreTokenLease = acquireRestoreTokenLease ?? PortalScreenCastRestoreTokenLease.AcquireAsync;
     }
 
     public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options) =>
@@ -24,21 +27,28 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
 
     public async Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenRect? requestedRegion, ScreenReadOptions options)
     {
+        using var restoreTokenLease = _restoreTokenStore is null
+            ? null
+            : await _acquireRestoreTokenLease(options.CancellationToken).ConfigureAwait(false);
+
         var restoreToken = _restoreTokenStore is null
             ? null
             : await _restoreTokenStore.LoadRestoreTokenAsync(options.CancellationToken).ConfigureAwait(false);
-        var firstAttempt = await StartSessionAttemptAsync(requestedRegion, options, restoreToken).ConfigureAwait(false);
+        var restoreData = _restoreTokenStore is null
+            ? null
+            : await _restoreTokenStore.LoadRestoreDataAsync(options.CancellationToken).ConfigureAwait(false);
+        var firstAttempt = await StartSessionAttemptAsync(options, restoreToken, restoreData).ConfigureAwait(false);
         if (firstAttempt.Result.IsSuccess || !firstAttempt.CanRetryWithoutRestoreToken)
         {
             return firstAttempt.Result;
         }
 
-        await ClearRestoreTokenAsync().ConfigureAwait(false);
-        var retryAttempt = await StartSessionAttemptAsync(requestedRegion, options, restoreToken: null).ConfigureAwait(false);
+        await ClearRestoreStateAsync().ConfigureAwait(false);
+        var retryAttempt = await StartSessionAttemptAsync(options, restoreToken: null, restoreData: null).ConfigureAwait(false);
         return retryAttempt.Result;
     }
 
-    private async Task<StartSessionAttempt> StartSessionAttemptAsync(ScreenRect? requestedRegion, ScreenReadOptions options, string? restoreToken)
+    private async Task<StartSessionAttempt> StartSessionAttemptAsync(ScreenReadOptions options, string? restoreToken, string? restoreData)
     {
         IPortalScreenCastSessionClient? client = null;
         PortalScreenCastSession? session = null;
@@ -46,15 +56,16 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
         try
         {
             client = await _clientFactory.ConnectAsync().ConfigureAwait(false);
-            session = await client.StartAsync(options, restoreToken).ConfigureAwait(false);
-            var validation = PortalStreamGeometry.ValidateMonitorStreams(session.Streams, requestedRegion);
+            session = await client.StartAsync(options, restoreToken, restoreData).ConfigureAwait(false);
+            var validation = PortalStreamGeometry.ValidateMonitorStreams(session.Streams);
             if (!validation.IsSuccess)
             {
                 return new StartSessionAttempt(
                     PortalScreenCastSessionResult.Failure(
                         validation.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
                         validation.ErrorMessage ?? "XDG Desktop Portal ScreenCast returned unusable monitor metadata."),
-                    !string.IsNullOrWhiteSpace(restoreToken));
+                    CanRetryWithoutRestoreToken: HasRestoreState(restoreToken, restoreData)
+                        && validation.ErrorKind is ScreenReadErrorKind.CaptureFailed);
             }
 
             if (!string.IsNullOrWhiteSpace(session.RestoreToken))
@@ -62,12 +73,20 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
                 await SaveRestoreTokenAsync(session.RestoreToken).ConfigureAwait(false);
             }
 
+            if (!string.IsNullOrWhiteSpace(session.RestoreData))
+            {
+                await SaveRestoreDataAsync(session.RestoreData).ConfigureAwait(false);
+            }
+
             sessionTransferred = true;
             return new StartSessionAttempt(PortalScreenCastSessionResult.Success(session), CanRetryWithoutRestoreToken: false);
         }
         catch (PortalScreenCastException ex)
         {
-            return new StartSessionAttempt(PortalScreenCastSessionResult.Failure(ex.ErrorKind, ex.Message), CanRetryWithoutRestoreToken: false);
+            return new StartSessionAttempt(
+                PortalScreenCastSessionResult.Failure(ex.ErrorKind, ex.Message),
+                CanRetryWithoutRestoreToken: HasRestoreState(restoreToken, restoreData)
+                    && ex.ErrorKind is ScreenReadErrorKind.CaptureFailed);
         }
         catch (OperationCanceledException)
         {
@@ -112,7 +131,24 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
         }
     }
 
-    private async Task ClearRestoreTokenAsync()
+    private async Task SaveRestoreDataAsync(string restoreData)
+    {
+        if (_restoreTokenStore is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _restoreTokenStore.SaveRestoreDataAsync(restoreData).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            _ = ex;
+        }
+    }
+
+    private async Task ClearRestoreStateAsync()
     {
         if (_restoreTokenStore is null)
         {
@@ -128,6 +164,9 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
             // The stale token will be ignored for this retry; persistence failure should not block capture.
         }
     }
+
+    private static bool HasRestoreState(string? restoreToken, string? restoreData) =>
+        !string.IsNullOrWhiteSpace(restoreToken) || !string.IsNullOrWhiteSpace(restoreData);
 
     private readonly record struct StartSessionAttempt(PortalScreenCastSessionResult Result, bool CanRetryWithoutRestoreToken);
 }

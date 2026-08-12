@@ -24,7 +24,7 @@ public sealed class PortalStreamGeometryTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
         Assert.Contains("non-monitor", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Contains("cannot force GNOME portal", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("cannot force portal selections", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -91,6 +91,34 @@ public sealed class PortalStreamGeometryTests
         Assert.Contains("duplicate monitor stream bounds", result.ErrorMessage, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(123UL)]
+    [InlineData("123")]
+    public void PortalStreamDescriptor_WhenPipeWireSerialIsPresent_ParsesSerial(object serial)
+    {
+        var descriptor = new PortalStreamDescriptor(
+            42,
+            new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["pipewire-serial"] = serial,
+            });
+
+        Assert.Equal(123UL, descriptor.PipeWireSerial);
+    }
+
+    [Fact]
+    public void PortalStreamDescriptor_WhenPipeWireSerialIsMissingOrInvalid_UsesNodeIdFallback()
+    {
+        var descriptor = new PortalStreamDescriptor(
+            42,
+            new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["pipewire-serial"] = 0UL,
+            });
+
+        Assert.Null(descriptor.PipeWireSerial);
+    }
+
     [Fact]
     public void ValidateMonitorStreams_WhenRequestedRegionFallsInGap_ReturnsOutOfBounds()
     {
@@ -101,7 +129,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.OutOfBounds, result.ErrorKind);
-        Assert.Contains("cannot force GNOME portal", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("cannot force the portal to select", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     private static PortalStreamDescriptor Stream(

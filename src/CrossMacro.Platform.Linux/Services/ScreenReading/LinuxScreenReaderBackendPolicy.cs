@@ -21,10 +21,7 @@ internal static class LinuxScreenReaderBackendPolicy
 
     private static readonly LinuxScreenReaderBackend[] FlatpakWaylandOrder =
     [
-        LinuxScreenReaderBackend.GnomeExtension,
         LinuxScreenReaderBackend.Portal,
-        LinuxScreenReaderBackend.ExtImageCopy,
-        LinuxScreenReaderBackend.WlrScreencopy,
     ];
 
     public static IReadOnlyList<LinuxScreenReaderBackend> GetOrder(bool isFlatpak, CompositorType compositor)

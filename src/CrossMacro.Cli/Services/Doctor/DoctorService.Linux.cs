@@ -29,12 +29,14 @@ public sealed partial class DoctorService
                     ["failureKind"] = display.FailureKind,
                     ["failureMessage"] = display.FailureMessage,
                     ["remediation"] = display.Remediation,
+                    ["selectedBackendDetails"] = display.SelectedBackendDetails,
                     ["backends"] = new JsonArray(display.Backends.Select(backend => (JsonNode)new JsonObject
                     {
                         ["backend"] = backend.Backend,
                         ["available"] = backend.IsAvailable,
                         ["errorKind"] = backend.ErrorKind,
                         ["errorMessage"] = backend.ErrorMessage,
+                        ["details"] = backend.Details,
                     }).ToArray()),
                 }
                 : null,

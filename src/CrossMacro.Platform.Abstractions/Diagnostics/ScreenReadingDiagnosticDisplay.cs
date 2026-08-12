@@ -12,4 +12,5 @@ public sealed record ScreenReadingDiagnosticDisplay(
     string? FailureKind,
     string? FailureMessage,
     string? Remediation,
-    IReadOnlyList<ScreenReadingBackendDiagnosticDisplay> Backends);
+    IReadOnlyList<ScreenReadingBackendDiagnosticDisplay> Backends,
+    string? SelectedBackendDetails = null);

@@ -3,6 +3,28 @@ namespace CrossMacro.Infrastructure.Tests.Services.ScreenReading;
 public sealed class ScreenReadPollingTests
 {
     [Fact]
+    public async Task PollUntilMatchAsync_WhenTimeoutIsZeroEvaluatesOneAttempt()
+    {
+        var attempts = 0;
+        var result = await ScreenReadPolling.PollUntilMatchAsync(
+            (remaining, _) =>
+            {
+                attempts++;
+                remaining.Should().Be(TimeSpan.Zero);
+                return Task.FromResult(ScreenReadResultFactory.Success(42));
+            },
+            TimeSpan.Zero,
+            TimeSpan.Zero,
+            "polling canceled",
+            timeoutFailure: null,
+            CancellationToken.None);
+
+        _ = result.IsSuccess.Should().BeTrue();
+        _ = result.Value.Should().Be(42);
+        _ = attempts.Should().Be(1);
+    }
+
+    [Fact]
     public async Task PollImageUntilConsistentAsync_WhenTimeoutIsZero_ReturnsFirstSuccessfulMatch()
     {
         var match = new ScreenImageMatch(new ScreenPoint(7, 9), 0.95, 12, 8);

@@ -47,6 +47,11 @@ public sealed class PortalPipeWireStructLayoutTests
             (nameof(SpaChunk.Size), 4),
             (nameof(SpaChunk.Stride), 8),
             (nameof(SpaChunk.Flags), 12));
+        AssertLayout<SpaMeta>(
+            16,
+            (nameof(SpaMeta.Type), 0),
+            (nameof(SpaMeta.Size), 4),
+            (nameof(SpaMeta.Data), 8));
     }
 
     [Fact]

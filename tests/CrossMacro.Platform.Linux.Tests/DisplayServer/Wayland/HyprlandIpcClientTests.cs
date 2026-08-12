@@ -21,9 +21,7 @@ public sealed class HyprlandIpcClientTests
     [Fact]
     public void Constructor_UsesSocketForActiveInstanceSignature()
     {
-        var runtimeDirectory = Path.Combine(
-            Path.GetTempPath(),
-            $"crossmacro-hyprland-{Guid.NewGuid():N}");
+        var runtimeDirectory = Path.Combine("/tmp", $"crossmacro-hyprland-{Guid.NewGuid():N}");
         var activeInstanceDirectory = Path.Combine(runtimeDirectory, "hypr", "active-instance");
         var inactiveInstanceDirectory = Path.Combine(runtimeDirectory, "hypr", "inactive-instance");
 
@@ -57,9 +55,7 @@ public sealed class HyprlandIpcClientTests
     [Fact]
     public async Task SendCommandAsync_ReadsFragmentedResponseUntilPeerCloses()
     {
-        var runtimeDirectory = Path.Combine(
-            Path.GetTempPath(),
-            $"crossmacro-hyprland-{Guid.NewGuid():N}");
+        var runtimeDirectory = Path.Combine("/tmp", $"crossmacro-hyprland-{Guid.NewGuid():N}");
         var instanceDirectory = Path.Combine(runtimeDirectory, "hypr", "active-instance");
         _ = Directory.CreateDirectory(instanceDirectory);
         var socketPath = Path.Combine(instanceDirectory, ".socket.sock");

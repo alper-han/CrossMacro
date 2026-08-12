@@ -131,6 +131,13 @@ If setup or playback does not work, run:
 crossmacro doctor --json --verbose
 ```
 
+For GUI-less Flatpak/AppImage Wayland sessions, apply the same temporary input
+setup used by the GUI with:
+
+```bash
+crossmacro setup
+```
+
 ## Installation
 
 Download page for all release binaries:
@@ -159,7 +166,8 @@ Download page for all release binaries:
   `crossmacro.service` and the `crossmacro` group. Log out and back in, or
   reboot, if your user was added to that group.
 - **Flatpak/AppImage on Wayland:** CrossMacro may show a setup dialog and run
-  Quick Setup for temporary direct device permissions.
+  Quick Setup for temporary direct device permissions. From a terminal, use
+  `crossmacro setup` (or `crossmacro quick-setup`) without starting the GUI.
 - **NixOS:** use the nixpkgs module for a complete daemon-backed setup. Enable
   `services.crossmacro` and set `services.crossmacro.users` for your desktop
   users.

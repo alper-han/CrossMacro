@@ -59,6 +59,7 @@ public sealed class LinuxEnvironmentVariables : ILinuxEnvironmentVariables
             WindowButtons: _getEnvironmentVariable("CROSSMACRO_WINDOW_BUTTONS"),
             CrossMacroFlatpak: _getEnvironmentVariable("CROSSMACRO_FLATPAK"),
             FlatpakInfoExists: _fileExists("/.flatpak-info"),
-            NiriSocket: _getEnvironmentVariable("NIRI_SOCKET"));
+            NiriSocket: _getEnvironmentVariable("NIRI_SOCKET"),
+            XdgConfigHome: _getEnvironmentVariable("XDG_CONFIG_HOME"));
     }
 }

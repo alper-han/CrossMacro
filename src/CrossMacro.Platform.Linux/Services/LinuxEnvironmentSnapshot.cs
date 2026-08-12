@@ -16,7 +16,8 @@ public readonly record struct LinuxEnvironmentSnapshot(
     string? WindowButtons,
     string? CrossMacroFlatpak = null,
     bool FlatpakInfoExists = false,
-    string? NiriSocket = null)
+    string? NiriSocket = null,
+    string? XdgConfigHome = null)
 {
     public bool IsFlatpak =>
         !string.IsNullOrWhiteSpace(FlatpakId) ||

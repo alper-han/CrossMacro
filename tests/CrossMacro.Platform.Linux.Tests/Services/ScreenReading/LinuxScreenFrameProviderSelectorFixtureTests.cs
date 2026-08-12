@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 public sealed class LinuxScreenFrameProviderSelectorFixtureTests
 {
     [Fact]
-    public void Create_WhenFlatpakWaylandAndPortalAndExtUnavailable_FallsBackToWlr()
+    public void Create_WhenFlatpakWaylandAndPortalUnavailable_DoesNotUseDirectWaylandFallback()
     {
         var fixture = ScreenReadingSelectorFixture.Wayland(
             isFlatpak: true,
@@ -15,10 +15,10 @@ public sealed class LinuxScreenFrameProviderSelectorFixtureTests
 
         using var provider = factory.Create();
 
-        Assert.Equal("wlr", provider.ProviderName);
+        Assert.Equal("Linux Screen Reader (Unavailable)", provider.ProviderName);
         Assert.Equal(0, fixture.PortalCreateCount);
         Assert.Equal(0, fixture.ExtCreateCount);
-        Assert.Equal(1, fixture.WlrCreateCount);
+        Assert.Equal(0, fixture.WlrCreateCount);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class LinuxScreenFrameProviderSelectorFixtureTests
 
     [Theory]
     [InlineData(false, "ExtImageCopy: ext missing, WlrScreencopy: wlr missing, Portal: portal denied")]
-    [InlineData(true, "Portal: portal denied, ExtImageCopy: ext missing, WlrScreencopy: wlr missing")]
+    [InlineData(true, "Portal: portal denied")]
     public void Create_WhenNoBackendAvailable_ComposesAttemptedBackendsInPolicyOrder(bool isFlatpak, string expectedOrder)
     {
         var fixture = ScreenReadingSelectorFixture.Wayland(

@@ -53,6 +53,21 @@ public sealed class ScreenshotCaptureServiceTests
     }
 
     [Fact]
+    public async Task CaptureAsync_WhenFrameIsActuallyBlack_DoesNotRejectTheFrame()
+    {
+        var clipboard = new FakeImageClipboardService();
+        var service = new ScreenshotCaptureService(
+            new FakeScreenFrameProvider { Pixels = [0, 0, 0, 0, 0, 0] },
+            clipboard);
+
+        var result = await service.CaptureAsync(outputPath: null, copyToClipboard: true, region: null, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(clipboard.PngBytes);
+        Assert.Equal([0x89, 0x50, 0x4E, 0x47], clipboard.PngBytes[..4]);
+    }
+
+    [Fact]
     public async Task CaptureAsync_WhenProviderUnsupported_ReturnsSharedFailureShapeBeforeCapture()
     {
         var provider = new FakeScreenFrameProvider { IsSupported = false };
@@ -103,6 +118,7 @@ public sealed class ScreenshotCaptureServiceTests
         public string ProviderName => "fake-frame";
         public bool IsSupported { get; init; } = true;
         public ScreenReadResult<ScreenFrame>? Failure { get; init; }
+        public byte[] Pixels { get; init; } = [0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00];
         public ScreenRect? LastRegion { get; private set; }
         public int CaptureCalls { get; private set; }
 
@@ -116,12 +132,11 @@ public sealed class ScreenshotCaptureServiceTests
             }
 
             var bounds = region ?? new ScreenRect(0, 0, 2, 1);
-            byte[] pixels = [0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00];
             return Task.FromResult(ScreenReadResultFactory.Success<ScreenFrame>(new ScreenFrame(
                 bounds,
                 bounds.Width * 3,
                 ScreenPixelFormat.Rgb24,
-                pixels)));
+                Pixels)));
         }
 
         public void Dispose()

@@ -10,8 +10,14 @@ public sealed class PortalScreenCastCapture(
     private readonly IPortalScreenCastSessionFactory _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
     private readonly IPortalPipeWireFrameCaptureFactory _pipeWireFactory = pipeWireFactory ?? throw new ArgumentNullException(nameof(pipeWireFactory));
     private readonly SemaphoreSlim _sessionLock = new(1, 1);
+    private readonly SemaphoreSlim _captureLock = new(1, 1);
+    private readonly CancellationTokenSource _disposeCancellation = new();
+    private readonly Lock _captureAdmissionGate = new();
+    private readonly Dictionary<(uint NodeId, ulong? PipeWireSerial, ScreenRect Bounds), IPortalPipeWireFrameCapture> _pipeWireCaptures = [];
+    private TaskCompletionSource _captureAdmissionsDrained = CreateCompletedSource();
     private PortalScreenCastSession? _session;
-    private bool _disposed;
+    private int _captureAdmissions;
+    private int _disposeState;
 
     public PortalScreenCastCapture()
         : this(PortalScreenCastSupportProbe.Instance, PortalScreenCastDbusSessionFactory.Instance, PortalPipeWireFrameCaptureFactory.Instance) { /* Empty */ }
@@ -20,7 +26,7 @@ public sealed class PortalScreenCastCapture(
 
     public async Task<PortalScreenCastCaptureResult> CaptureAsync(ScreenReadOptions options)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) is not 0, this);
 
         var support = ProbeSupport();
         if (!support.IsSupported)
@@ -38,52 +44,136 @@ public sealed class PortalScreenCastCapture(
 
     public async Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) is not 0, this);
 
-        if (options.CancellationToken.IsCancellationRequested)
+        using var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            options.CancellationToken,
+            _disposeCancellation.Token);
+        var operationOptions = new ScreenReadOptions(
+            options.Timeout,
+            options.PollInterval,
+            options.PollUntilMatch,
+            operationCancellation.Token);
+
+        if (operationOptions.CancellationToken.IsCancellationRequested)
         {
             return PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal ScreenCast capture was canceled before it started.");
         }
 
+        var admitted = false;
+        var acquired = false;
         try
         {
-            var sessionResult = await GetOrStartSessionAsync(region, options).ConfigureAwait(false);
-            if (!sessionResult.IsSuccess)
+            await EnterCaptureAsync(operationOptions.CancellationToken).ConfigureAwait(false);
+            admitted = true;
+            await _captureLock.WaitAsync(operationOptions.CancellationToken).ConfigureAwait(false);
+            acquired = true;
+            try
             {
-                return PortalScreenCastCaptureResult.Failure(
-                    sessionResult.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
-                    sessionResult.ErrorMessage ?? "XDG Desktop Portal ScreenCast session failed.");
+                var sessionResult = await GetOrStartSessionAsync(region, operationOptions).ConfigureAwait(false);
+                if (!sessionResult.IsSuccess)
+                {
+                    return PortalScreenCastCaptureResult.Failure(
+                        sessionResult.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
+                        sessionResult.ErrorMessage ?? "XDG Desktop Portal ScreenCast session failed.");
+                }
+
+                return await CaptureSessionAsync(sessionResult.Session ?? throw new InvalidOperationException("Successful portal session did not include a session."), region, operationOptions).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal ScreenCast capture was canceled.");
+            }
+            catch (TimeoutException ex)
+            {
+                return PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or DllNotFoundException or EntryPointNotFoundException or ArgumentException or OverflowException)
+            {
+                DisposeCachedSession();
+                return PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
+            }
+        }
+        finally
+        {
+            if (acquired)
+            {
+                _ = _captureLock.Release();
             }
 
-            return await CaptureSessionAsync(sessionResult.Session ?? throw new InvalidOperationException("Successful portal session did not include a session."), region, options).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            DisposeCachedSession();
-            return PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal ScreenCast capture was canceled.");
-        }
-        catch (TimeoutException ex)
-        {
-            DisposeCachedSession();
-            return PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or DllNotFoundException or EntryPointNotFoundException or ArgumentException or OverflowException)
-        {
-            DisposeCachedSession();
-            return PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
+            if (admitted)
+            {
+                ExitCapture();
+            }
         }
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposeState, 1) is not 0)
         {
             return;
         }
 
-        _disposed = true;
-        DisposeCachedSession();
-        _sessionLock.Dispose();
+        _disposeCancellation.Cancel();
+        Task drained;
+        lock (_captureAdmissionGate)
+        {
+            drained = _captureAdmissionsDrained.Task;
+        }
+
+        drained.GetAwaiter().GetResult();
+        try
+        {
+            DisposeCachedSession();
+        }
+        finally
+        {
+            _captureLock.Dispose();
+            _sessionLock.Dispose();
+            _disposeCancellation.Dispose();
+        }
+    }
+
+    private Task EnterCaptureAsync(CancellationToken cancellationToken)
+    {
+        lock (_captureAdmissionGate)
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) is not 0, this);
+            if (_captureAdmissions++ is 0)
+            {
+                _captureAdmissionsDrained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+        }
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        }
+        catch
+        {
+            ExitCapture();
+            throw;
+        }
+    }
+
+    private void ExitCapture()
+    {
+        lock (_captureAdmissionGate)
+        {
+            if (--_captureAdmissions is 0)
+            {
+                _ = _captureAdmissionsDrained.TrySetResult();
+            }
+        }
+    }
+
+    private static TaskCompletionSource CreateCompletedSource()
+    {
+        var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = source.TrySetResult();
+        return source;
     }
 
     private async Task<PortalScreenCastSessionResult> GetOrStartSessionAsync(ScreenRect? region, ScreenReadOptions options)
@@ -91,7 +181,7 @@ public sealed class PortalScreenCastCapture(
         await _sessionLock.WaitAsync(options.CancellationToken).ConfigureAwait(false);
         try
         {
-            if (_session is not null)
+            if (_session is not null && !_session.IsClosed)
             {
                 var cachedValidation = PortalStreamGeometry.ValidateMonitorStreams(_session.Streams, region);
                 if (cachedValidation.IsSuccess)
@@ -99,13 +189,23 @@ public sealed class PortalScreenCastCapture(
                     return PortalScreenCastSessionResult.Success(_session);
                 }
 
-                DisposeCachedSession();
-                if (cachedValidation.ErrorKind is not ScreenReadErrorKind.OutOfBounds)
+                var cachedErrorKind = cachedValidation.ErrorKind.GetValueOrDefault(ScreenReadErrorKind.CaptureFailed);
+                if (cachedErrorKind is ScreenReadErrorKind.OutOfBounds)
                 {
                     return PortalScreenCastSessionResult.Failure(
-                        cachedValidation.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
+                        cachedErrorKind,
                         cachedValidation.ErrorMessage ?? "Cached XDG Desktop Portal ScreenCast session contained unusable monitor metadata.");
                 }
+
+                DisposeCachedSession();
+                return PortalScreenCastSessionResult.Failure(
+                    cachedErrorKind,
+                    cachedValidation.ErrorMessage ?? "Cached XDG Desktop Portal ScreenCast session contained unusable monitor metadata.");
+            }
+
+            if (_session is not null)
+            {
+                DisposeCachedSession();
             }
 
             var sessionResult = await _sessionFactory.StartSessionAsync(region, options).ConfigureAwait(false);
@@ -127,7 +227,11 @@ public sealed class PortalScreenCastCapture(
         var validation = PortalStreamGeometry.ValidateMonitorStreams(session.Streams, region);
         if (!validation.IsSuccess)
         {
-            DisposeCachedSession();
+            if (validation.ErrorKind is not ScreenReadErrorKind.OutOfBounds)
+            {
+                DisposeCachedSession();
+            }
+
             return PortalScreenCastCaptureResult.Failure(
                 validation.ErrorKind ?? ScreenReadErrorKind.CaptureFailed,
                 validation.ErrorMessage ?? "XDG Desktop Portal ScreenCast returned unusable monitor metadata.");
@@ -140,14 +244,14 @@ public sealed class PortalScreenCastCapture(
             DisposeCachedSession();
             return PortalScreenCastCaptureResult.Failure(
                 ScreenReadErrorKind.OutOfBounds,
-                "Requested region is outside validated XDG Desktop Portal monitor coverage. CrossMacro cannot force GNOME portal to select all monitors or a specific monitor; retry and select the monitor containing the requested coordinates.");
+                "Requested region is outside validated XDG Desktop Portal monitor coverage. CrossMacro cannot force the portal to select all monitors or a specific monitor; retry and select the monitor containing the requested coordinates.");
         }
 
         var result = streams.Count is 1 && streams[0].Bounds == targetBounds
-            ? await CaptureWholeStreamAsync(session, streams[0], options).ConfigureAwait(false)
+            ? await CaptureWholeStreamAsync(session, streams[0], targetBounds, options).ConfigureAwait(false)
             : await CaptureComposedFrameAsync(session, streams, targetBounds, options).ConfigureAwait(false);
 
-        if (!result.IsSuccess)
+        if (!result.IsSuccess && result.ErrorKind is not (ScreenReadErrorKind.CaptureTimeout or ScreenReadErrorKind.Canceled))
         {
             DisposeCachedSession();
         }
@@ -155,9 +259,13 @@ public sealed class PortalScreenCastCapture(
         return result;
     }
 
-    private async Task<PortalScreenCastCaptureResult> CaptureWholeStreamAsync(PortalScreenCastSession session, PortalMonitorStream stream, ScreenReadOptions options)
+    private async Task<PortalScreenCastCaptureResult> CaptureWholeStreamAsync(
+        PortalScreenCastSession session,
+        PortalMonitorStream stream,
+        ScreenRect targetBounds,
+        ScreenReadOptions options)
     {
-        var frameResult = await CaptureStreamFrameAsync(session, stream, options).ConfigureAwait(false);
+        var frameResult = await CaptureStreamFrameAsync(session, stream, targetBounds, options).ConfigureAwait(false);
         if (!frameResult.IsSuccess)
         {
             return PortalScreenCastCaptureResult.Failure(
@@ -181,7 +289,10 @@ public sealed class PortalScreenCastCapture(
 
         foreach (var stream in streams)
         {
-            var frameResult = await CaptureStreamFrameAsync(session, stream, options).ConfigureAwait(false);
+            var intersection = PortalStreamGeometry.TryGetIntersection(stream.Bounds, targetBounds, out var streamIntersection)
+                ? streamIntersection
+                : stream.Bounds;
+            var frameResult = await CaptureStreamFrameAsync(session, stream, intersection, options).ConfigureAwait(false);
             if (!frameResult.IsSuccess)
             {
                 return PortalScreenCastCaptureResult.Failure(
@@ -220,23 +331,59 @@ public sealed class PortalScreenCastCapture(
         return PortalScreenCastCaptureResult.Success(new PortalPipeWireFrame(targetBounds, targetStride, pixelFormat.Value, targetPixels, validPixelMask: targetValidPixelMask));
     }
 
-    private async Task<PortalPipeWireFrameResult> CaptureStreamFrameAsync(PortalScreenCastSession session, PortalMonitorStream stream, ScreenReadOptions options)
+    private async Task<PortalPipeWireFrameResult> CaptureStreamFrameAsync(
+        PortalScreenCastSession session,
+        PortalMonitorStream stream,
+        ScreenRect requestedRegion,
+        ScreenReadOptions options)
     {
-        using var pipeWire = _pipeWireFactory.Create(
-            session.PipeWireRemote,
-            stream.Stream.NodeId,
-            stream.Bounds.Width,
-            stream.Bounds.Height);
-        var frameResult = await pipeWire.CaptureFrameAsync(options).ConfigureAwait(false);
+        if (session.IsClosed)
+        {
+            return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "XDG Desktop Portal ScreenCast session closed before the PipeWire capture started.");
+        }
+
+        var target = PortalStreamGeometry.TryGetIntersection(stream.Bounds, requestedRegion, out var requestedIntersection)
+            ? requestedIntersection
+            : stream.Bounds;
+        var localRegion = new ScreenRect(
+            checked(target.X - stream.Bounds.X),
+            checked(target.Y - stream.Bounds.Y),
+            target.Width,
+            target.Height);
+        var pipeWire = GetPipeWireCapture(session, stream);
+        var frameResult = await pipeWire.CaptureFrameAsync(localRegion, options).ConfigureAwait(false);
         if (!frameResult.IsSuccess)
         {
             return frameResult;
         }
 
+        if (session.IsClosed)
+        {
+            return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "XDG Desktop Portal ScreenCast session closed while the PipeWire frame was being captured.");
+        }
+
         var frame = frameResult.Frame ?? throw new InvalidOperationException("Successful PipeWire capture did not include a frame.");
-        return frame.LogicalBounds == stream.Bounds
+        var globalBounds = target;
+        return globalBounds == frame.LogicalBounds
             ? frameResult
-            : PortalPipeWireFrameResult.Success(new PortalPipeWireFrame(stream.Bounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask));
+            : PortalPipeWireFrameResult.Success(new PortalPipeWireFrame(globalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask));
+    }
+
+    private IPortalPipeWireFrameCapture GetPipeWireCapture(PortalScreenCastSession session, PortalMonitorStream stream)
+    {
+        var key = (stream.Stream.NodeId, stream.Stream.PipeWireSerial, stream.Bounds);
+        if (_pipeWireCaptures.TryGetValue(key, out var existing))
+        {
+            return existing;
+        }
+
+        var capture = _pipeWireFactory.Create(
+            session.PipeWireRemote,
+            stream.Stream,
+            stream.Bounds.Width,
+            stream.Bounds.Height);
+        _pipeWireCaptures.Add(key, capture);
+        return capture;
     }
 
     private static void CopyFrameIntersection(
@@ -282,6 +429,12 @@ public sealed class PortalScreenCastCapture(
     private void DisposeCachedSession()
     {
         var session = Interlocked.Exchange(ref _session, value: null);
+        foreach (var capture in _pipeWireCaptures.Values)
+        {
+            capture.Dispose();
+        }
+
+        _pipeWireCaptures.Clear();
         session?.Dispose();
     }
 }

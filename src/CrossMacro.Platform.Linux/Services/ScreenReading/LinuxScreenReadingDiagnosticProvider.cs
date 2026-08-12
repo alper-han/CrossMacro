@@ -80,7 +80,8 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
             FailureBackend: failure?.Backend.ToString(),
             FailureKind: failure?.ErrorKind,
             FailureMessage: failure?.ErrorMessage,
-            Remediation: failure is null ? null : GetRemediation(failure.Value));
+            Remediation: failure is null ? null : GetRemediation(failure.Value, compositor),
+            SelectedBackendDetails: hasSelected ? selected.Details : null);
     }
 
     private static string[] FormatPolicyOrder(IReadOnlyList<LinuxScreenReaderBackend> order) =>
@@ -114,7 +115,8 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
             capability.Backend.ToString(),
             capability.IsAvailable,
             capability.ErrorKind,
-            capability.ErrorMessage);
+            capability.ErrorMessage,
+            capability.Details);
 
     private static LinuxScreenReaderBackendCapability? SelectFailure(IReadOnlyList<LinuxScreenReaderBackendCapability> orderedCapabilities)
     {
@@ -128,7 +130,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         return orderedCapabilities.LastOrDefault(static capability => !capability.IsAvailable);
     }
 
-    private static string? GetRemediation(LinuxScreenReaderBackendCapability failure)
+    private static string? GetRemediation(LinuxScreenReaderBackendCapability failure, CompositorType compositor)
     {
         if (failure.Backend is LinuxScreenReaderBackend.KWinScreenShot2)
         {
@@ -138,6 +140,11 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         if (failure.ErrorKind is ScreenReadErrorKind.PermissionDenied && failure.Backend is LinuxScreenReaderBackend.Portal)
         {
             return "Grant ScreenCast permission in the desktop portal prompt, or reset portal permissions and retry.";
+        }
+
+        if (failure.Backend is LinuxScreenReaderBackend.Portal && compositor is CompositorType.NIRI)
+        {
+            return "Niri's default ScreenCast producer may require PipeWire DmaBuf modifiers that this MemFd capture path does not consume; configure a MemFd-compatible wlroots portal backend or use a supported native capture backend.";
         }
 
         if (failure.ErrorKind is ScreenReadErrorKind.PermissionDenied)
@@ -150,7 +157,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
             LinuxScreenReaderBackend.GnomeExtension => "Install and enable the CrossMacro GNOME Shell extension, or allow fallback to another backend.",
             LinuxScreenReaderBackend.ExtImageCopy => "Use a compositor that exposes ext-image-copy-capture-v1, or allow fallback to another backend.",
             LinuxScreenReaderBackend.WlrScreencopy => "Use a compositor that exposes wlr-screencopy-unstable-v1, or allow fallback to another backend.",
-            LinuxScreenReaderBackend.Portal => "Install and enable XDG Desktop Portal ScreenCast with PipeWire, or use a native Wayland backend.",
+            LinuxScreenReaderBackend.Portal => "Install and enable XDG Desktop Portal ScreenCast with PipeWire. If more than one portal provider is installed, select the compositor's ScreenCast provider in its *-portals.conf; do not select GTK for ScreenCast.",
             LinuxScreenReaderBackend.KWinScreenShot2 => null,
             _ => null,
         };

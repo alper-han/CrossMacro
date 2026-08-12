@@ -5,6 +5,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
 {
     private readonly PipeWireLibrary _lib;
     private readonly uint _nodeId;
+    private readonly ulong? _pipeWireSerial;
     private readonly int _width;
     private readonly int _height;
     private readonly PipeWireLibrary.StreamStateChanged _stateChanged;
@@ -20,32 +21,34 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
     private readonly IntPtr _listener;
     private readonly IntPtr _events;
     private readonly IntPtr _formatParameter;
-    private readonly IntPtr _bufferParameter;
     private readonly IntPtr _connectParameters;
     private readonly bool _threadLoopStarted;
+    private readonly Lock _pendingGate = new();
+    private readonly Lock _streamGate = new();
+    private readonly PipeWireFrameSequence _frameSequence = new();
     private bool _disposed;
-    private PortalPipeWireFrame? _frame;
+    private bool _connected;
+    private PendingCapture? _pending;
     private string? _error;
-    private int _lastState;
-    private uint _lastParamId;
-    private int _processCallbacks;
-    private int _allocatedBuffers;
-    private int _nullBuffers;
-    private int _missingDataArrays;
-    private int _missingDataPointers;
-    private uint _lastDataCount;
-    private uint _lastDataType;
-    private uint _lastDataFlags;
-    private uint _lastMaxSize;
-    private uint _lastChunkOffset;
-    private uint _lastChunkSize;
-    private int _lastChunkStride;
+    private PipeWireVideoLayout? _negotiatedLayout;
 
-    public PortalPipeWireFrameCapture(SafeFileHandle pipeWireRemote, uint nodeId, int width, int height)
+    public PortalPipeWireFrameCapture(SafeFileHandle pipeWireRemote, uint nodeId, int width, int height, ulong? pipeWireSerial = null)
     {
+        ArgumentNullException.ThrowIfNull(pipeWireRemote);
+        if (width <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), width, "PipeWire stream width must be positive.");
+        }
+
+        if (height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(height), height, "PipeWire stream height must be positive.");
+        }
+
         try
         {
             _nodeId = nodeId;
+            _pipeWireSerial = pipeWireSerial;
             _width = width;
             _height = height;
             _lib = PipeWireLibrary.Load();
@@ -62,7 +65,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             {
                 _context = CreateContext(_lib, _threadLoop);
                 _core = ConnectCore(_lib, _context, pipeWireRemote);
-                _stream = CreateStream(_lib, _core);
+                _stream = CreateStream(_lib, _core, _pipeWireSerial);
                 (_listener, _events) = AddListener();
             }
             finally
@@ -71,10 +74,8 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             }
 
             _formatParameter = SpaFormatPodBuilder.CreateRawVideoEnumFormat(width, height);
-            _bufferParameter = SpaFormatPodBuilder.CreateCpuBufferParams(width, height);
-            _connectParameters = Marshal.AllocHGlobal(IntPtr.Size * 2);
+            _connectParameters = Marshal.AllocHGlobal(IntPtr.Size);
             Marshal.WriteIntPtr(_connectParameters, _formatParameter);
-            Marshal.WriteIntPtr(_connectParameters + IntPtr.Size, _bufferParameter);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -83,117 +84,273 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         }
     }
 
-    public Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenReadOptions options)
+    public Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenReadOptions options) =>
+        CaptureFrameAsync(new ScreenRect(0, 0, _width, _height), options);
+
+    public async Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenRect region, ScreenReadOptions options)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed), this);
+        ValidateRegion(region);
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return Task.FromResult(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was canceled before it started."));
+            return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was canceled before it started.");
         }
+
+        using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(options.CancellationToken);
+        var timing = PipeWireCaptureTiming.Create(
+            _lib.SupportsStreamActivation,
+            options.Timeout ?? TimeSpan.FromMinutes(2));
+        if (timing.Timeout != Timeout.InfiniteTimeSpan)
+        {
+            timeoutCancellation.CancelAfter(timing.Timeout);
+        }
+
+        PendingCapture pending;
+        lock (_pendingGate)
+        {
+            if (_disposed)
+            {
+                return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was disposed.");
+            }
+
+            if (_pending is not null)
+            {
+                return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "A PipeWire frame request is already pending for this stream.");
+            }
+
+            pending = new PendingCapture(
+                region,
+                _frameSequence.Snapshot(),
+                new PipeWireFrameAdmission(timing.RequiresSettlingFrame),
+                options.CancellationToken);
+            _pending = pending;
+        }
+
+        _ = timeoutCancellation.Token.Register(static state =>
+        {
+            var capture = (PortalPipeWireFrameCapture)state!;
+            capture.CancelPending();
+        }, this);
 
         try
         {
-            return Task.FromResult(CaptureOne(options));
-        }
-        catch (OperationCanceledException)
-        {
-            return Task.FromResult(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was canceled."));
-        }
-        catch (TimeoutException ex)
-        {
-            return Task.FromResult(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message));
+            if (!pending.Completion.Task.IsCompleted)
+            {
+                ConnectIfNeeded();
+            }
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or DllNotFoundException or EntryPointNotFoundException)
         {
-            return Task.FromResult(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message));
+            CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message));
         }
+
+        var result = await pending.Completion.Task.ConfigureAwait(false);
+        DeactivateIfIdle();
+        return result;
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_streamGate)
         {
-            return;
-        }
+            if (_disposed)
+            {
+                return;
+            }
 
-        _disposed = true;
-        if (_threadLoopStarted && _threadLoop != IntPtr.Zero)
-        {
-            _lib.ThreadLoopStop(_threadLoop);
-        }
+            lock (_pendingGate)
+            {
+                _disposed = true;
+            }
 
-        if (_stream != IntPtr.Zero)
-        {
-            _lib.StreamDestroy(_stream);
-        }
+            CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was disposed."));
+            if (_threadLoopStarted && _threadLoop != IntPtr.Zero)
+            {
+                _lib.ThreadLoopStop(_threadLoop);
+            }
 
-        if (_core != IntPtr.Zero)
-        {
-            _ = _lib.CoreDisconnect(_core);
-        }
+            if (_stream != IntPtr.Zero)
+            {
+                _lib.StreamDestroy(_stream);
+            }
 
-        if (_context != IntPtr.Zero)
-        {
-            _lib.ContextDestroy(_context);
-        }
+            if (_core != IntPtr.Zero)
+            {
+                _ = _lib.CoreDisconnect(_core);
+            }
 
-        if (_threadLoop != IntPtr.Zero)
-        {
-            _lib.ThreadLoopDestroy(_threadLoop);
-        }
+            if (_context != IntPtr.Zero)
+            {
+                _lib.ContextDestroy(_context);
+            }
 
-        Free(_listener);
-        Free(_events);
-        Free(_connectParameters);
-        Free(_formatParameter);
-        Free(_bufferParameter);
-         if (_selfHandle.IsAllocated)
-        {
-            _selfHandle.Free();
-        }
+            if (_threadLoop != IntPtr.Zero)
+            {
+                _lib.ThreadLoopDestroy(_threadLoop);
+            }
 
-        _frame?.Dispose();
-        _lib?.Dispose();
+            Free(_listener);
+            Free(_events);
+            Free(_connectParameters);
+            Free(_formatParameter);
+            if (_selfHandle.IsAllocated)
+            {
+                _selfHandle.Free();
+            }
+
+            _lib?.Dispose();
+        }
     }
 
-    private PortalPipeWireFrameResult CaptureOne(ScreenReadOptions options)
+    private void ConnectIfNeeded()
     {
-        var timeout = options.Timeout ?? TimeSpan.FromMinutes(2);
-        _lib.ThreadLoopLock(_threadLoop);
-        try
+        lock (_streamGate)
         {
-            var rc = _lib.StreamConnect(
-                _stream,
-                PipeWireDirection.Input,
-                _nodeId,
-                PipeWireStreamOption.Autoconnect | PipeWireStreamOption.MapBuffers | PipeWireStreamOption.AllocBuffers,
-                _connectParameters,
-                2);
-            if (rc < 0)
+            if (_disposed)
             {
-                return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, $"pw_stream_connect failed rc={rc.ToString(CultureInfo.InvariantCulture)}.");
+                return;
             }
 
-            var deadline = DateTimeOffset.UtcNow + timeout;
-            while (_frame is null && _error is null && DateTimeOffset.UtcNow < deadline)
+            if (_error is not null)
             {
-                options.CancellationToken.ThrowIfCancellationRequested();
-                _ = _lib.ThreadLoopTimedWait(_threadLoop, 1);
+                CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, _error));
+                return;
+            }
+
+            if (_connected)
+            {
+                _lib.ThreadLoopLock(_threadLoop);
+                try
+                {
+                    ActivateIfNeeded();
+                }
+                finally
+                {
+                    _lib.ThreadLoopUnlock(_threadLoop);
+                }
+
+                return;
+            }
+
+            _lib.ThreadLoopLock(_threadLoop);
+            try
+            {
+                var rc = _lib.StreamConnect(
+                    _stream,
+                    PipeWireDirection.Input,
+                    _pipeWireSerial is { } ? PipeWireConstants.PwIdAny : _nodeId,
+                    PipeWireStreamOption.Autoconnect
+                        | (_lib.SupportsStreamActivation ? PipeWireStreamOption.Inactive : PipeWireStreamOption.None)
+                        | PipeWireStreamOption.MapBuffers,
+                    _connectParameters,
+                    1);
+                if (rc < 0)
+                {
+                    CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, $"pw_stream_connect failed rc={rc.ToString(CultureInfo.InvariantCulture)}."));
+                    return;
+                }
+
+                _connected = true;
+                ActivateIfNeeded();
+            }
+            finally
+            {
+                _lib.ThreadLoopUnlock(_threadLoop);
             }
         }
-        finally
+    }
+
+    private void ActivateIfNeeded()
+    {
+        if (_lib.SupportsStreamActivation && _lib.StreamSetActive(_stream, active: true) < 0)
         {
-            _lib.ThreadLoopUnlock(_threadLoop);
+            CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "pw_stream_set_active(true) failed."));
+        }
+    }
+
+    private void DeactivateIfIdle()
+    {
+        lock (_streamGate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            lock (_pendingGate)
+            {
+                if (_pending is not null)
+                {
+                    return;
+                }
+            }
+
+            if (_connected && _lib.SupportsStreamActivation)
+            {
+                _lib.ThreadLoopLock(_threadLoop);
+                try
+                {
+                    _ = _lib.StreamSetActive(_stream, active: false);
+                }
+                finally
+                {
+                    _lib.ThreadLoopUnlock(_threadLoop);
+                }
+            }
+        }
+    }
+
+    private void CancelPending()
+    {
+        var errorKind = _pending is { } pending && pending.UserCancellationToken.IsCancellationRequested
+            ? ScreenReadErrorKind.Canceled
+            : ScreenReadErrorKind.CaptureTimeout;
+        CompletePending(PortalPipeWireFrameResult.Failure(errorKind, errorKind is ScreenReadErrorKind.Canceled
+            ? "XDG Desktop Portal PipeWire capture was canceled."
+            : "Timed out waiting for a PipeWire frame."));
+    }
+
+    private void CompletePending(PortalPipeWireFrameResult result)
+    {
+        PendingCapture? pending;
+        lock (_pendingGate)
+        {
+            pending = _pending;
+            _pending = null;
         }
 
-        if (_error is not null)
+        if (pending is not null)
         {
-            return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, _error);
+            _ = pending.Completion.TrySetResult(result);
+            if (_threadLoop != IntPtr.Zero)
+            {
+                _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
+            }
         }
+    }
 
-        return _frame is not null
-            ? PortalPipeWireFrameResult.Success(_frame)
-            : throw new TimeoutException(BuildTimeoutMessage());
+    private void ValidateRegion(ScreenRect region)
+    {
+        if (region.X < 0 || region.Y < 0 || region.Right > _width || region.Bottom > _height)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(region),
+                region,
+                $"PipeWire capture region must be inside the stream bounds 0,0 {_width.ToString(CultureInfo.InvariantCulture)}x{_height.ToString(CultureInfo.InvariantCulture)}.");
+        }
+    }
+
+    private sealed class PendingCapture(
+        ScreenRect region,
+        long startGeneration,
+        PipeWireFrameAdmission frameAdmission,
+        CancellationToken userCancellationToken)
+    {
+        public ScreenRect Region { get; } = region;
+        public CancellationToken UserCancellationToken { get; } = userCancellationToken;
+        public long StartGeneration { get; } = startGeneration;
+        public PipeWireFrameAdmission FrameAdmission { get; } = frameAdmission;
+        public TaskCompletionSource<PortalPipeWireFrameResult> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     private static IntPtr CreateThreadLoop(PipeWireLibrary lib)
@@ -238,11 +395,16 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         throw new InvalidOperationException("pw_context_connect_fd failed.");
     }
 
-    private static IntPtr CreateStream(PipeWireLibrary lib, IntPtr core)
+    private static IntPtr CreateStream(PipeWireLibrary lib, IntPtr core, ulong? pipeWireSerial)
     {
         var props = lib.PropertiesNew("media.type", "Video");
         _ = lib.PropertiesSet(props, "media.category", "Capture");
         _ = lib.PropertiesSet(props, "media.role", "Screen");
+        if (pipeWireSerial is { } serial)
+        {
+            _ = lib.PropertiesSet(props, "target.object", serial.ToString(CultureInfo.InvariantCulture));
+        }
+
         var stream = lib.StreamNew(core, "CrossMacro Portal Capture", props);
         return stream == IntPtr.Zero ? throw new InvalidOperationException("pw_stream_new failed.") : stream;
     }
@@ -255,20 +417,4 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         }
     }
 
-    private string BuildTimeoutMessage() =>
-        $"Timed out waiting for a PipeWire frame. state={GetStateName(_lastState)} lastParamId={_lastParamId.ToString(CultureInfo.InvariantCulture)} " +
-        $"processCallbacks={_processCallbacks.ToString(CultureInfo.InvariantCulture)} allocatedBuffers={_allocatedBuffers.ToString(CultureInfo.InvariantCulture)} nullBuffers={_nullBuffers.ToString(CultureInfo.InvariantCulture)} missingDataArrays={_missingDataArrays.ToString(CultureInfo.InvariantCulture)} " +
-        $"missingDataPointers={_missingDataPointers.ToString(CultureInfo.InvariantCulture)} lastDataCount={_lastDataCount.ToString(CultureInfo.InvariantCulture)} lastDataType={_lastDataType.ToString(CultureInfo.InvariantCulture)} " +
-        $"lastDataFlags={_lastDataFlags.ToString("X", CultureInfo.InvariantCulture)} lastMaxSize={_lastMaxSize.ToString(CultureInfo.InvariantCulture)} lastChunkOffset={_lastChunkOffset.ToString(CultureInfo.InvariantCulture)} " +
-        $"lastChunkSize={_lastChunkSize.ToString(CultureInfo.InvariantCulture)} lastChunkStride={_lastChunkStride.ToString(CultureInfo.InvariantCulture)}";
-
-    private static string GetStateName(int state) => state switch
-    {
-        -1 => "error",
-        0 => "unconnected",
-        1 => "connecting",
-        2 => "paused",
-        3 => "streaming",
-        _ => state.ToString(CultureInfo.InvariantCulture),
-    };
 }

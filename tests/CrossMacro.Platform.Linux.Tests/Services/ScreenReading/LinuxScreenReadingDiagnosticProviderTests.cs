@@ -48,8 +48,29 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         var snapshot = provider.GetSnapshot();
 
         Assert.Equal("Flatpak", snapshot.PolicyName);
-        Assert.Equal(["GnomeExtension", "Portal", "ExtImageCopy", "WlrScreencopy"], snapshot.PolicyOrder);
+        Assert.Equal(["Portal"], snapshot.PolicyOrder);
         Assert.Equal("Portal", snapshot.SelectedBackend);
+    }
+
+    [Fact]
+    public void GetSnapshot_WhenPortalHasProviderEvidence_PreservesItForDiagnostics()
+    {
+        var provider = CreateProvider(
+            isWayland: true,
+            isFlatpak: true,
+            compositor: CompositorType.HYPRLAND,
+            new LinuxScreenReaderCapabilitySnapshot(
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, ScreenReadErrorKind.BackendUnavailable, "not kde"),
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.ExtImageCopy, ScreenReadErrorKind.BackendUnavailable, "not used"),
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.WlrScreencopy, ScreenReadErrorKind.BackendUnavailable, "not used"),
+                LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal, "Portal ScreenCast provider override: hyprland (hyprland-portals.conf).")));
+
+        var snapshot = provider.GetSnapshot();
+        var display = snapshot.ToDisplay();
+
+        Assert.Equal("Portal ScreenCast provider override: hyprland (hyprland-portals.conf).", snapshot.SelectedBackendDetails);
+        Assert.Equal(snapshot.SelectedBackendDetails, display.SelectedBackendDetails);
+        Assert.Contains(display.Backends, backend => backend.Backend is "Portal" && backend.Details == snapshot.SelectedBackendDetails);
     }
 
     [Fact]
@@ -137,6 +158,44 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, snapshot.FailureKind);
         Assert.Equal("portal denied", snapshot.FailureMessage);
         Assert.Contains("ScreenCast permission", snapshot.Remediation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GetSnapshot_WhenNiriPortalIsUnavailable_ExplainsDmaBufCompatibilityBoundary()
+    {
+        var provider = CreateProvider(
+            isWayland: true,
+            isFlatpak: true,
+            compositor: CompositorType.NIRI,
+            new LinuxScreenReaderCapabilitySnapshot(
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, ScreenReadErrorKind.BackendUnavailable, "not kde"),
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.ExtImageCopy, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.WlrScreencopy, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable"),
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.Portal, ScreenReadErrorKind.BackendUnavailable, "portal unavailable")));
+
+        var snapshot = provider.GetSnapshot();
+
+        Assert.Contains("DmaBuf", snapshot.Remediation, StringComparison.Ordinal);
+        Assert.Contains("MemFd", snapshot.Remediation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GetSnapshot_WhenPortalBackendIsUnavailable_ExplainsExplicitProviderSelection()
+    {
+        var provider = CreateProvider(
+            isWayland: true,
+            isFlatpak: true,
+            compositor: CompositorType.Other,
+            new LinuxScreenReaderCapabilitySnapshot(
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, ScreenReadErrorKind.BackendUnavailable, "not kde"),
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.ExtImageCopy, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.WlrScreencopy, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable"),
+                LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.Portal, ScreenReadErrorKind.BackendUnavailable, "portal unavailable")));
+
+        var snapshot = provider.GetSnapshot();
+
+        Assert.Contains("*-portals.conf", snapshot.Remediation, StringComparison.Ordinal);
+        Assert.Contains("GTK", snapshot.Remediation, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -30,6 +30,7 @@ internal sealed class PipeWireLibrary : IDisposable
     private delegate void PwStreamDestroy(IntPtr stream);
     private delegate void PwStreamAddListener(IntPtr stream, IntPtr listener, IntPtr events, IntPtr data);
     private delegate int PwStreamConnect(IntPtr stream, PipeWireDirection direction, uint targetId, PipeWireStreamOption flags, IntPtr parameters, uint parameterCount);
+    private delegate int PwStreamSetActive(IntPtr stream, [MarshalAs(UnmanagedType.I1)] bool active);
     private delegate int PwStreamUpdateParams(IntPtr stream, IntPtr parameters, uint parameterCount);
     private delegate IntPtr PwStreamDequeueBuffer(IntPtr stream);
     private delegate int PwStreamQueueBuffer(IntPtr stream, IntPtr buffer);
@@ -54,6 +55,7 @@ internal sealed class PipeWireLibrary : IDisposable
     private readonly PwStreamDestroy _streamDestroy;
     private readonly PwStreamAddListener _streamAddListener;
     private readonly PwStreamConnect _streamConnect;
+    private readonly PwStreamSetActive? _streamSetActive;
     private readonly PwStreamUpdateParams _streamUpdateParams;
     private readonly PwStreamDequeueBuffer _streamDequeueBuffer;
     private readonly PwStreamQueueBuffer _streamQueueBuffer;
@@ -82,6 +84,7 @@ internal sealed class PipeWireLibrary : IDisposable
         _streamDestroy = Resolve<PwStreamDestroy>("pw_stream_destroy");
         _streamAddListener = Resolve<PwStreamAddListener>("pw_stream_add_listener");
         _streamConnect = Resolve<PwStreamConnect>("pw_stream_connect");
+        _streamSetActive = TryResolve<PwStreamSetActive>("pw_stream_set_active");
         _streamUpdateParams = Resolve<PwStreamUpdateParams>("pw_stream_update_params");
         _streamDequeueBuffer = Resolve<PwStreamDequeueBuffer>("pw_stream_dequeue_buffer");
         _streamQueueBuffer = Resolve<PwStreamQueueBuffer>("pw_stream_queue_buffer");
@@ -118,6 +121,8 @@ internal sealed class PipeWireLibrary : IDisposable
     public void StreamDestroy(IntPtr stream) => _streamDestroy(stream);
     public void StreamAddListener(IntPtr stream, IntPtr listener, IntPtr events, IntPtr data) => _streamAddListener(stream, listener, events, data);
     public int StreamConnect(IntPtr stream, PipeWireDirection direction, uint targetId, PipeWireStreamOption flags, IntPtr parameters, uint parameterCount) => _streamConnect(stream, direction, targetId, flags, parameters, parameterCount);
+    public bool SupportsStreamActivation => _streamSetActive is not null;
+    public int StreamSetActive(IntPtr stream, bool active) => _streamSetActive?.Invoke(stream, active) ?? 0;
     public int StreamUpdateParams(IntPtr stream, IntPtr parameters, uint parameterCount) => _streamUpdateParams(stream, parameters, parameterCount);
     public IntPtr StreamDequeueBuffer(IntPtr stream) => _streamDequeueBuffer(stream);
     public int StreamQueueBuffer(IntPtr stream, IntPtr buffer) => _streamQueueBuffer(stream, buffer);
@@ -134,4 +139,16 @@ internal sealed class PipeWireLibrary : IDisposable
     }
 
     private T Resolve<T>(string symbol) where T : Delegate => Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(_handle, symbol));
+
+    private T? TryResolve<T>(string symbol) where T : Delegate
+    {
+        try
+        {
+            return Resolve<T>(symbol);
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return null;
+        }
+    }
 }

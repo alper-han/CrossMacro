@@ -10,4 +10,5 @@ public sealed record ScreenReadingDiagnosticSnapshot(
     string? FailureBackend,
     ScreenReadErrorKind? FailureKind,
     string? FailureMessage,
-    string? Remediation);
+    string? Remediation,
+    string? SelectedBackendDetails = null);

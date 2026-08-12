@@ -215,6 +215,79 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     }
 
     [Fact]
+    public async Task CaptureFrameAsync_WhenNativeBackendBecomesUnavailable_UsesNextBackend()
+    {
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 1, 1),
+            4,
+            ScreenPixelFormat.Xrgb8888,
+            new byte[] { 0x11, 0x22, 0x33, 0x00 });
+        var extProvider = new RecordingScreenFrameProvider(
+            "ext",
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.BackendUnavailable, "ext disconnected"));
+        var wlrProvider = new RecordingScreenFrameProvider(
+            "wlr",
+            ScreenReadResultFactory.Success<ScreenFrame>(frame));
+        var factory = CreateFactoryWithProviders(
+            isFlatpak: false,
+            compositor: CompositorType.Other,
+            LinuxScreenReaderBackendCapability.Unavailable(
+                LinuxScreenReaderBackend.KWinScreenShot2,
+                ScreenReadErrorKind.BackendUnavailable,
+                "not kde"),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal),
+            extProvider: extProvider,
+            wlrProvider: wlrProvider);
+
+        using var provider = factory.Create();
+        var result = await provider.CaptureFrameAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, extProvider.CaptureCalls);
+        Assert.Equal(1, wlrProvider.CaptureCalls);
+    }
+
+    [Fact]
+    public async Task CaptureFrameAsync_WhenBackendSucceeds_PinsRouteForNextCapture()
+    {
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 1, 1),
+            4,
+            ScreenPixelFormat.Xrgb8888,
+            new byte[] { 0x11, 0x22, 0x33, 0x00 });
+        var extProvider = new RecordingScreenFrameProvider(
+            "ext",
+            ScreenReadResultFactory.Success<ScreenFrame>(frame));
+        var wlrProvider = new RecordingScreenFrameProvider(
+            "wlr",
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "wlr should not be selected"));
+        var factory = CreateFactoryWithProviders(
+            isFlatpak: false,
+            compositor: CompositorType.Other,
+            LinuxScreenReaderBackendCapability.Unavailable(
+                LinuxScreenReaderBackend.KWinScreenShot2,
+                ScreenReadErrorKind.BackendUnavailable,
+                "not kde"),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal),
+            extProvider: extProvider,
+            wlrProvider: wlrProvider);
+
+        using var provider = factory.Create();
+        var first = await provider.CaptureFrameAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+        var second = await provider.CaptureFrameAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(2, extProvider.CaptureCalls);
+        Assert.Equal(0, wlrProvider.CaptureCalls);
+        second.Value?.Dispose();
+    }
+
+    [Fact]
     public void Create_WhenNativeKdeAndKWinPermissionDenied_SelectsExtFallback()
     {
         var factory = CreateFactory(
@@ -250,7 +323,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     }
 
     [Fact]
-    public void Create_WhenFlatpakWaylandAndPortalUnavailable_FallsBackToExtThenWlr()
+    public void Create_WhenFlatpakWaylandAndPortalUnavailable_DoesNotUseDirectWaylandFallback()
     {
         var factory = CreateFactory(
             isFlatpak: true,
@@ -265,7 +338,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
 
         using var provider = factory.Create();
 
-        Assert.Equal("ext", provider.ProviderName);
+        Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
     }
 
     [Fact]

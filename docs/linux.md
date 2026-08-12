@@ -116,11 +116,25 @@ For Flatpak on Wayland, CrossMacro uses a hybrid startup path:
   device access is granted to the user session
 
 If required permissions are missing, app startup shows **Wayland Setup Required**
-and can run Quick Setup automatically. Quick Setup uses
-`flatpak-spawn --host pkexec` to apply session ACLs on the host:
+and can run Quick Setup automatically. Quick Setup uses `flatpak-spawn --host`
+with `pkexec`, or `run0` on hosts where the `pkexec` setuid wrapper is disabled,
+to apply session ACLs on the host:
 
 - `rw` access to `/dev/uinput` or `/dev/input/uinput`
 - `r` access to `/dev/input/event*`
+
+The same setup can be requested without starting the GUI:
+
+```bash
+crossmacro setup
+# Alias:
+crossmacro quick-setup
+```
+
+Inside Flatpak this command uses `flatpak-spawn --host`; outside Flatpak it is
+available for AppImage Wayland sessions. The command selects `run0` or a usable
+setuid `pkexec`, reports authorization failures, and returns exit code `5` when
+the current package/session does not support temporary setup.
 
 If Quick Setup is denied or fails, use doctor first. Manual ACL fallback, run on
 the Linux host rather than inside the Flatpak sandbox:
@@ -143,6 +157,14 @@ Screen-reading commands use native X11 or an available Wayland desktop capture
 provider. On Wayland, CrossMacro selects the best available capture path for the
 current session. Flatpak and other sandboxed runs may show a desktop capture
 permission prompt, and provider availability varies by compositor and session.
+
+If a Wayland portal route repeatedly selects the wrong backend, run
+`crossmacro doctor --json --verbose`. The screen-reading details include visible
+`*-portals.conf` provider evidence without opening a permission prompt. Select
+the compositor's ScreenCast provider explicitly; `xdg-desktop-portal-gtk` is not
+a ScreenCast provider. A persisted portal restore token reduces repeated prompts,
+but the desktop portal may still request a new selection after its own session or
+permission state changes.
 
 On portal-based desktops such as GNOME, select every monitor that contains pixels
 or regions the macro will read. The desktop portal owns this picker, so
@@ -186,7 +208,8 @@ timeouts, and permissions still determine whether a live Wayland search can run.
 AppImage does not install the packaged daemon-backed service. On X11, CrossMacro
 uses native X11 backends when available. On Wayland, AppImage relies on direct
 device fallback and may show **Linux Input Setup Required** with Quick Setup.
-Quick Setup uses `pkexec` to grant temporary direct device access for the current
+Quick Setup uses `pkexec`, or `run0` when the host provides it instead of a
+`pkexec` setuid wrapper, to grant temporary direct device access for the current
 user session:
 
 - `rw` access to `/dev/uinput` or `/dev/input/uinput`

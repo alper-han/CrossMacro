@@ -811,7 +811,7 @@ public sealed class DoctorServiceTests
                 IsSupportedSession: true,
                 SessionKind: "Other",
                 PolicyName: "Flatpak",
-                PolicyOrder: ["Portal", "ExtImageCopy", "WlrScreencopy"],
+                PolicyOrder: ["Portal"],
                 SelectedBackend: null,
                 Backends:
                 [

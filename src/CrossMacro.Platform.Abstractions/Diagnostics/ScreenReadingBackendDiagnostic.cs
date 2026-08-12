@@ -4,4 +4,5 @@ public sealed record ScreenReadingBackendDiagnostic(
     string Backend,
     bool IsAvailable,
     ScreenReadErrorKind? ErrorKind,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    string? Details = null);

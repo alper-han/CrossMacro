@@ -4,6 +4,18 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 public sealed class WaylandScreenFrameComposerTests
 {
     [Theory]
+    [InlineData(0, 3, 5, 0)]
+    [InlineData(1, 3, 5, 2)]
+    [InlineData(2, 3, 5, 4)]
+    [InlineData(0, 5, 3, 0)]
+    [InlineData(2, 5, 3, 1)]
+    [InlineData(4, 5, 3, 2)]
+    public void LogicalPhysicalMapper_MapsPixelCentersWithoutOutOfRange(int logicalPixel, int logicalExtent, int physicalExtent, int expected)
+    {
+        Assert.Equal(expected, WaylandLogicalPhysicalMapper.MapPixel(logicalPixel, logicalExtent, physicalExtent));
+    }
+
+    [Theory]
     [MemberData(nameof(PixelFormatCases))]
     public void CopySource_ConvertsSupportedFormatsToBgraExplicitly(
         ScreenPixelFormat sourceFormat,

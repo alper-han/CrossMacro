@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public readonly record struct PortalScreenCastSupportResult
 {
-    private PortalScreenCastSupportResult(bool isSupported, ScreenReadErrorKind? errorKind, string? errorMessage)
+    private PortalScreenCastSupportResult(bool isSupported, ScreenReadErrorKind? errorKind, string? errorMessage, string? diagnostic)
     {
         if (!isSupported && string.IsNullOrWhiteSpace(errorMessage))
         {
@@ -13,6 +13,7 @@ public readonly record struct PortalScreenCastSupportResult
         IsSupported = isSupported;
         ErrorKind = errorKind;
         ErrorMessage = errorMessage;
+        Diagnostic = diagnostic;
     }
 
     public bool IsSupported { get; }
@@ -21,7 +22,9 @@ public readonly record struct PortalScreenCastSupportResult
 
     public string? ErrorMessage { get; }
 
-    public static PortalScreenCastSupportResult Supported() => new(isSupported: true, errorKind: null, errorMessage: null);
-    public static PortalScreenCastSupportResult Unsupported(string errorMessage) => new(isSupported: false, ScreenReadErrorKind.BackendUnavailable, errorMessage);
-    public static PortalScreenCastSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage) => new(isSupported: false, errorKind, errorMessage);
+    public string? Diagnostic { get; }
+
+    public static PortalScreenCastSupportResult Supported(string? diagnostic = null) => new(isSupported: true, errorKind: null, errorMessage: null, diagnostic);
+    public static PortalScreenCastSupportResult Unsupported(string errorMessage, string? diagnostic = null) => new(isSupported: false, ScreenReadErrorKind.BackendUnavailable, errorMessage, diagnostic);
+    public static PortalScreenCastSupportResult Failure(ScreenReadErrorKind errorKind, string errorMessage, string? diagnostic = null) => new(isSupported: false, errorKind, errorMessage, diagnostic);
 }

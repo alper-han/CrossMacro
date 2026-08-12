@@ -23,6 +23,9 @@ crossmacro \- keyboard and mouse macro automation CLI
 \fBdoctor\fR [\fB\-\-verbose\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
+\fBsetup\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
 \fBsettings get\fR [\fIKEY\fR|\fB\-\-all\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
@@ -214,6 +217,13 @@ Run environment and input capability diagnostics. On Linux, daemon-backed checks
 device checks are reported separately. With \fB--json\fR, inspect daemon-specific details such as
 socket status, required group, current process groups, session membership, and remediation.
 Direct input readiness can pass while daemon IPC still warns or fails.
+.TP
+.B setup
+Grant temporary direct input access for the current Flatpak or AppImage Wayland session without
+starting the GUI. Flatpak uses \fBflatpak-spawn\fR and the host's \fBrun0\fR or usable setuid
+\fBpkexec\fR; AppImage uses the same authorization selection directly. The alias
+\fBquick-setup\fR is accepted. Returns environment error code 5 when the current session is not
+applicable.
 .TP
 .B settings get|set|list-keys|reset
 Read, update, list, or reset scriptable settings keys.

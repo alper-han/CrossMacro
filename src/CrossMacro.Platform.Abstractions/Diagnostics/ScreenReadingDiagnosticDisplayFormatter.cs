@@ -13,6 +13,7 @@ public static class ScreenReadingDiagnosticDisplayFormatter
         var failureMessage = Sanitize(snapshot.FailureMessage);
         var remediation = Sanitize(snapshot.Remediation);
         var policyName = Sanitize(snapshot.PolicyName);
+        var selectedBackendDetails = Sanitize(snapshot.SelectedBackendDetails);
 
         return new ScreenReadingDiagnosticDisplay(
             HasSelectedBackend: selectedBackend is not null,
@@ -26,7 +27,8 @@ public static class ScreenReadingDiagnosticDisplayFormatter
             FailureKind: snapshot.FailureKind?.ToString(),
             FailureMessage: failureMessage,
             Remediation: remediation,
-            Backends: snapshot.Backends.Select(ToDisplay).ToArray());
+            Backends: snapshot.Backends.Select(ToDisplay).ToArray(),
+            SelectedBackendDetails: selectedBackendDetails);
     }
 
     private static ScreenReadingBackendDiagnosticDisplay ToDisplay(ScreenReadingBackendDiagnostic backend) =>
@@ -34,7 +36,8 @@ public static class ScreenReadingDiagnosticDisplayFormatter
             Sanitize(backend.Backend),
             backend.IsAvailable,
             backend.ErrorKind?.ToString(),
-            Sanitize(backend.ErrorMessage));
+            Sanitize(backend.ErrorMessage),
+            Sanitize(backend.Details));
 
     private static string BuildMessage(
         ScreenReadingDiagnosticSnapshot snapshot,

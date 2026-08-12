@@ -144,19 +144,16 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
             throw new ArgumentException("Source pixel memory is smaller than the declared physical frame dimensions.", nameof(sourcePixels));
         }
 
-        var scaleX = sourcePhysicalWidth / (double)sourceLogicalBounds.Width;
-        var scaleY = sourcePhysicalHeight / (double)sourceLogicalBounds.Height;
-
         for (var logicalY = 0; logicalY < intersection.Height; logicalY++)
         {
             var sourceLogicalY = intersection.Y - sourceLogicalBounds.Y + logicalY;
-            var sourceY = Clamp((int)((sourceLogicalY + 0.5d) * scaleY), 0, sourcePhysicalHeight - 1);
+            var sourceY = WaylandLogicalPhysicalMapper.MapPixel(sourceLogicalY, sourceLogicalBounds.Height, sourcePhysicalHeight);
             var targetY = intersection.Y - LogicalBounds.Y + logicalY;
 
             for (var logicalX = 0; logicalX < intersection.Width; logicalX++)
             {
                 var sourceLogicalX = intersection.X - sourceLogicalBounds.X + logicalX;
-                var sourceX = Clamp((int)((sourceLogicalX + 0.5d) * scaleX), 0, sourcePhysicalWidth - 1);
+                var sourceX = WaylandLogicalPhysicalMapper.MapPixel(sourceLogicalX, sourceLogicalBounds.Width, sourcePhysicalWidth);
                 var targetX = intersection.X - LogicalBounds.X + logicalX;
 
                 var sourceOffset = checked((sourceY * sourceStride) + (sourceX * sourceBytesPerPixel));
@@ -226,8 +223,6 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
             _validPixelMask = null;
         }
     }
-
-    private static int Clamp(int value, int min, int max) => Math.Min(Math.Max(value, min), max);
 
     private static void WriteBgraPixel(ReadOnlySpan<byte> source, int sourceOffset, ScreenPixelFormat sourceFormat, byte[] target, int targetOffset)
     {

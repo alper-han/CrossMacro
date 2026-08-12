@@ -27,6 +27,8 @@ internal sealed class FakePortalPipeWireFrameCaptureFactory : IPortalPipeWireFra
 
     public int LastHeight { get; private set; }
 
+    public ulong? LastPipeWireSerial { get; private set; }
+
     public IPortalPipeWireFrameCapture Create(SafeFileHandle pipeWireRemote, uint nodeId, int width, int height)
     {
         CreateCalls++;
@@ -37,5 +39,11 @@ internal sealed class FakePortalPipeWireFrameCaptureFactory : IPortalPipeWireFra
         return _capturesByNodeId.TryGetValue(nodeId, out var capture)
             ? capture
             : _capture ?? throw new InvalidOperationException($"No fake PipeWire capture configured for node {nodeId}.");
+    }
+
+    public IPortalPipeWireFrameCapture Create(SafeFileHandle pipeWireRemote, PortalStreamDescriptor stream, int width, int height)
+    {
+        LastPipeWireSerial = stream.PipeWireSerial;
+        return Create(pipeWireRemote, stream.NodeId, width, height);
     }
 }

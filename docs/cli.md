@@ -25,7 +25,7 @@ means choose one, and `...` marks a repeatable argument.
 | Inline automation | [`run --step ...`](#direct-run-examples), positional [`run <step> ...`](#direct-run-examples), [`run --file ...`](#direct-run-examples), [direct input commands](#direct-input-commands) |
 | Runtime primitives | [`clipboard`](#clipboard-command), [`window`](#window-command), [`screen`](#screen-command), [`screenshot`](#screenshot-command) |
 | User data | [`settings`](#settings-command), [`profile`](#profile-command), [`text-expansion`](#text-expansion-command), [`schedule`](#schedule-and-shortcut-commands), [`shortcut`](#schedule-and-shortcut-commands), [`trigger`](#trigger-command) |
-| Diagnostics/runtime | [`doctor`](#macro-files-playback-recording-and-diagnostics), [`headless`](#gui-less-desktop-runtime), [`--headless`](#gui-less-desktop-runtime) |
+| Diagnostics/runtime | [`doctor`](#macro-files-playback-recording-and-diagnostics), [`setup`](#temporary-wayland-input-setup), [`headless`](#gui-less-desktop-runtime), [`--headless`](#gui-less-desktop-runtime) |
 
 Use the command-specific sections below for examples, option notes, and platform
 behavior.
@@ -51,6 +51,27 @@ crossmacro --headless
 
 This mode still requires a desktop session. It is not intended for display-less
 server automation.
+
+## Temporary Wayland input setup
+
+When a Flatpak or AppImage is running on Wayland without daemon access, grant
+the current session temporary access to `/dev/uinput` and
+`/dev/input/event*` without opening the GUI:
+
+```bash
+crossmacro setup
+```
+
+The command reuses the GUI Quick Setup flow. Flatpak invokes the host helper
+through `flatpak-spawn`; the host authorization command is selected as `run0`
+when available and otherwise a usable setuid `pkexec`. AppImage uses the same
+`run0`/`pkexec` selection directly. It never falls back to an unvalidated
+`sudo` shell command. Use `--json` for scripts. The setup is temporary and may
+need to be repeated after reboot or device re-enumeration.
+
+`quick-setup` is accepted as an alias. On daemon-backed packages or sessions
+where this setup is not applicable, the command returns environment error code
+`5`; use `crossmacro doctor --verbose --json` for the active backend details.
 
 ## Direct input commands
 

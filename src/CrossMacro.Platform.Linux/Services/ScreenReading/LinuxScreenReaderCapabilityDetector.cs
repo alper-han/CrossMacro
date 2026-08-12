@@ -142,11 +142,12 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
                     wlrSupport.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                     wlrSupport.ErrorMessage ?? "wlr-screencopy screen reading backend is unavailable."),
             portalSupport.IsSupported
-                ? LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal)
+                ? LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal, portalSupport.Diagnostic)
                 : LinuxScreenReaderBackendCapability.Unavailable(
                     LinuxScreenReaderBackend.Portal,
                     portalSupport.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-                    portalSupport.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable."),
+                    portalSupport.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable.",
+                    portalSupport.Diagnostic),
             isGnomeExtensionAvailable
                 ? LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.GnomeExtension)
                 : LinuxScreenReaderBackendCapability.Unavailable(

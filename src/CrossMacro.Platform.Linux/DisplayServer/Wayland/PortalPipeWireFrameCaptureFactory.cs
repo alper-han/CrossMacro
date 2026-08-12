@@ -13,4 +13,9 @@ internal sealed class PortalPipeWireFrameCaptureFactory : IPortalPipeWireFrameCa
     {
         return new PortalPipeWireFrameCapture(pipeWireRemote, nodeId, width, height);
     }
+
+    public IPortalPipeWireFrameCapture Create(SafeFileHandle pipeWireRemote, PortalStreamDescriptor stream, int width, int height)
+    {
+        return new PortalPipeWireFrameCapture(pipeWireRemote, stream.NodeId, width, height, stream.PipeWireSerial);
+    }
 }

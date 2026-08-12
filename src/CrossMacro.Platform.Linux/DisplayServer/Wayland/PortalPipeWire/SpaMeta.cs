@@ -1,11 +1,9 @@
-
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct SpaChunk
+internal struct SpaMeta
 {
-    public uint Offset;
+    public uint Type;
     public uint Size;
-    public int Stride;
-    public uint Flags;
+    public IntPtr Data;
 }

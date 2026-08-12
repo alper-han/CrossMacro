@@ -32,14 +32,14 @@ internal static class PortalStreamGeometry
             {
                 return PortalStreamValidationResult.Failure(
                     ScreenReadErrorKind.CaptureFailed,
-                    $"GNOME portal returned duplicate monitor stream id '{monitor.Id}'. CrossMacro rejects duplicate monitor metadata to avoid ambiguous coordinate routing.");
+                    $"ScreenCast portal returned duplicate monitor stream id '{monitor.Id}'. CrossMacro rejects duplicate monitor metadata to avoid ambiguous coordinate routing.");
             }
 
             if (!bounds.Add(monitor.Bounds))
             {
                 return PortalStreamValidationResult.Failure(
                     ScreenReadErrorKind.CaptureFailed,
-                    $"GNOME portal returned duplicate monitor stream bounds {FormatBounds(monitor.Bounds)}. CrossMacro rejects duplicate monitor metadata to avoid ambiguous coordinate routing.");
+                    $"ScreenCast portal returned duplicate monitor stream bounds {FormatBounds(monitor.Bounds)}. CrossMacro rejects duplicate monitor metadata to avoid ambiguous coordinate routing.");
             }
 
             monitors.Add(monitor);
@@ -49,7 +49,7 @@ internal static class PortalStreamGeometry
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.OutOfBounds,
-                $"Requested region {FormatBounds(requestedRegion.Value)} is outside validated XDG Desktop Portal monitor coverage {FormatBounds(monitors)}. CrossMacro cannot force GNOME portal to select all monitors or a specific monitor; retry and select the monitor containing the requested coordinates.");
+                $"Requested region {FormatBounds(requestedRegion.Value)} is outside validated XDG Desktop Portal monitor coverage {FormatBounds(monitors)}. CrossMacro cannot force the portal to select all monitors or a specific monitor; retry and select the monitor containing the requested coordinates.");
         }
 
         return PortalStreamValidationResult.Success(monitors, GetUnionBounds(monitors));
@@ -91,7 +91,7 @@ internal static class PortalStreamGeometry
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
-                $"GNOME portal returned a non-monitor stream with source_type={sourceType}. CrossMacro requests monitor sources only, but cannot force GNOME portal selections; select monitor sources only.");
+                $"ScreenCast portal returned a non-monitor stream with source_type={sourceType}. CrossMacro requests monitor sources only, but cannot force portal selections; select monitor sources only.");
         }
 
         if (!TryReadPosition(properties, out var x, out var y))

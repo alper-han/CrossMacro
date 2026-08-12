@@ -29,6 +29,7 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
     private readonly CancellationTokenSource _warmupCancellation = new();
     private readonly List<Task> _warmupTasks = [];
     private readonly TaskCompletionSource _startupCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private MainWindowViewModel? _createdMainWindowViewModel;
     private int _startupStarted;
     private int _stopped;
 
@@ -104,6 +105,7 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
             var startupResources = await _executeOnUiThread(() =>
             {
                 var mainWindowViewModel = _getMainWindowViewModel();
+                Volatile.Write(ref _createdMainWindowViewModel, mainWindowViewModel);
                 var mainWindow = _getMainWindow();
                 mainWindow.DataContext = mainWindowViewModel;
 
@@ -210,6 +212,11 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
         {
             throw new AggregateException("Desktop runtime shutdown failed.", errors);
         }
+    }
+
+    internal void DisposeCreatedMainWindowViewModel()
+    {
+        Interlocked.Exchange(ref _createdMainWindowViewModel, value: null)?.Dispose();
     }
 
     public ValueTask DisposeAsync() => new(StopAsync());

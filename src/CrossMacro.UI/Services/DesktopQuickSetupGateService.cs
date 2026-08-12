@@ -3,10 +3,12 @@ namespace CrossMacro.UI.Services;
 
 internal sealed class DesktopQuickSetupGateService(
     Func<IFlatpakQuickSetupService?> getFlatpakQuickSetupService,
-    Func<IAppImageQuickSetupService?> getAppImageQuickSetupService)
+    Func<IAppImageQuickSetupService?> getAppImageQuickSetupService,
+    Func<IDisplaySessionService?>? getDisplaySessionService = null)
 {
     private readonly Func<IFlatpakQuickSetupService?> _getFlatpakQuickSetupService = getFlatpakQuickSetupService ?? throw new ArgumentNullException(nameof(getFlatpakQuickSetupService));
     private readonly Func<IAppImageQuickSetupService?> _getAppImageQuickSetupService = getAppImageQuickSetupService ?? throw new ArgumentNullException(nameof(getAppImageQuickSetupService));
+    private readonly Func<IDisplaySessionService?> _getDisplaySessionService = getDisplaySessionService ?? (static () => null);
 
     public async Task<bool> TryHandleAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
@@ -60,18 +62,18 @@ internal sealed class DesktopQuickSetupGateService(
                 var promptMessage =
                     "CrossMacro cannot access host input devices in Flatpak on Wayland.\n\n" +
                     "Run Quick Setup now?\n\n" +
-                    "Quick Setup uses flatpak-spawn + pkexec to enable the direct device mode fallback for your user session.\n\n" +
+                    "Quick Setup uses flatpak-spawn to request host authorization and enable the direct device mode fallback for your user session.\n\n" +
                     $"Details: {initialReason}";
 
-                var setupDialog = DesktopPermissionGateService.CreateCenteredConfirmationDialog(
-                    "Wayland Setup Required",
-                    promptMessage,
-                    "Run Quick Setup",
-                    "Exit",
-                    dangerYes: false,
-                    dangerNo: true);
-
-                var shouldRunSetup = await setupDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
+                var shouldRunSetup = await DesktopPermissionGateService.ShowDialogAsync<bool>(
+                    bootstrapOwner,
+                    () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
+                        "Wayland Setup Required",
+                        promptMessage,
+                        "Run Quick Setup",
+                        "Exit",
+                        dangerYes: false,
+                        dangerNo: true)).ConfigureAwait(false);
                 if (!shouldRunSetup)
                 {
                     ShowUnsupportedSessionDialog(desktop, initialReason);
@@ -83,6 +85,17 @@ internal sealed class DesktopQuickSetupGateService(
                 {
                     ShowUnsupportedSessionDialog(desktop, $"{initialReason}\n\n{setupResult.Message}");
                     return;
+                }
+
+                var displaySessionService = _getDisplaySessionService();
+                if (displaySessionService is not null)
+                {
+                    var sessionSupport = await displaySessionService.IsSessionSupportedAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (!sessionSupport.Supported)
+                    {
+                        ShowUnsupportedSessionDialog(desktop, sessionSupport.Reason);
+                        return;
+                    }
                 }
 
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
@@ -114,31 +127,31 @@ internal sealed class DesktopQuickSetupGateService(
                 const string promptMessage =
                     "CrossMacro cannot access Linux input devices in this AppImage session.\n\n" +
                     "Run Quick Setup now?\n\n" +
-                    "Quick Setup uses pkexec to grant temporary direct device mode access to /dev/uinput and /dev/input/event* for your current user.\n\n" +
+                    "Quick Setup requests host authorization to grant temporary direct device mode access to /dev/uinput and /dev/input/event* for your current user.\n\n" +
                     "These permissions are temporary and may need to be applied again after reboot or device re-enumeration.";
 
-                var setupDialog = DesktopPermissionGateService.CreateCenteredConfirmationDialog(
-                    "Linux Input Setup Required",
-                    promptMessage,
-                    "Run Quick Setup",
-                    "Continue",
-                    dangerYes: false,
-                    dangerNo: false);
-
-                var shouldRunSetup = await setupDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
+                var shouldRunSetup = await DesktopPermissionGateService.ShowDialogAsync<bool>(
+                    bootstrapOwner,
+                    () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
+                        "Linux Input Setup Required",
+                        promptMessage,
+                        "Run Quick Setup",
+                        "Continue",
+                        dangerYes: false,
+                        dangerNo: false)).ConfigureAwait(false);
                 if (shouldRunSetup)
                 {
                     var setupResult = await quickSetupService.RunAsync(default).ConfigureAwait(false);
                     if (!setupResult.Success)
                     {
-                        var failureDialog = DesktopPermissionGateService.CreateCenteredConfirmationDialog(
-                            "Quick Setup Failed",
-                            $"{setupResult.Message}\n\nCrossMacro will continue without temporary device permissions.",
-                            "Continue",
-noText: null,
-                            dangerYes: false);
-
-                        _ = await failureDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
+                        _ = await DesktopPermissionGateService.ShowDialogAsync<bool>(
+                            bootstrapOwner,
+                            () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
+                                "Quick Setup Failed",
+                                $"{setupResult.Message}\n\nCrossMacro will continue without temporary device permissions.",
+                                "Continue",
+                                noText: null,
+                                dangerYes: false)).ConfigureAwait(false);
                     }
                 }
 
@@ -154,6 +167,15 @@ noText: null,
 
     internal static void ShowUnsupportedSessionDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason)
     {
+        ArgumentNullException.ThrowIfNull(desktop);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => ShowUnsupportedSessionDialog(desktop, reason), DispatcherPriority.Send);
+            return;
+        }
+
         desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
         var dialog = new ConfirmationDialog(

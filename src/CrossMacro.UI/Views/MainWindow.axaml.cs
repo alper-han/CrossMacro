@@ -1,4 +1,6 @@
 
+using Avalonia.Layout;
+
 namespace CrossMacro.UI.Views;
 
 public partial class MainWindow : Window
@@ -8,6 +10,26 @@ public partial class MainWindow : Window
         InitializeComponent();
         AddHandler(TextBox.CopyingToClipboardEvent, OnTextBoxCopyingToClipboard, RoutingStrategies.Bubble);
         AddHandler(TextBox.CuttingToClipboardEvent, OnTextBoxCuttingToClipboard, RoutingStrategies.Bubble);
+    }
+
+    private void OnWindowOpened(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(
+            static state =>
+            {
+                var window = (MainWindow)state!;
+                RefreshContentLayout(window.MainContentControl);
+            },
+            this,
+            DispatcherPriority.Render);
+    }
+
+    internal static void RefreshContentLayout(Layoutable content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        content.InvalidateMeasure();
+        content.InvalidateArrange();
+        content.InvalidateVisual();
     }
 
     private void OnTextBoxCopyingToClipboard(object? sender, RoutedEventArgs e)

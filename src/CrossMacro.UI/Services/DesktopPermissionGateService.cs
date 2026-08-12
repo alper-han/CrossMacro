@@ -123,9 +123,16 @@ internal sealed class DesktopPermissionGateService(
         IClassicDesktopStyleApplicationLifetime desktop,
         Func<Window, Task> action)
     {
-        var bootstrapOwner = CreateBootstrapOwnerWindow();
-        desktop.MainWindow = bootstrapOwner;
-        bootstrapOwner.Show();
+        ArgumentNullException.ThrowIfNull(desktop);
+        ArgumentNullException.ThrowIfNull(action);
+
+        var bootstrapOwner = await InvokeOnUiThreadAsync(() =>
+        {
+            var owner = CreateBootstrapOwnerWindow();
+            desktop.MainWindow = owner;
+            owner.Show();
+            return owner;
+        }).ConfigureAwait(false);
 
         try
         {
@@ -135,13 +142,27 @@ internal sealed class DesktopPermissionGateService(
         {
             try
             {
-                bootstrapOwner.Close();
+                await InvokeOnUiThreadAsync(bootstrapOwner.Close).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                // Ignore close races if owner was already disposed by the windowing backend.
+                Log.Debug(ex, "[DesktopStartupCoordinator] Bootstrap owner close was skipped.");
             }
         }
+    }
+
+    internal static async Task<T> ShowDialogAsync<T>(Window owner, Func<Window> createDialog)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        ArgumentNullException.ThrowIfNull(createDialog);
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            return await createDialog().ShowDialog<T>(owner).ConfigureAwait(false);
+        }
+
+        return await Dispatcher.UIThread
+            .InvokeAsync(async () => await createDialog().ShowDialog<T>(owner).ConfigureAwait(continueOnCapturedContext: false));
     }
 
     private static async Task<bool> HandleStartupPermissionGateAsync(
@@ -158,15 +179,15 @@ internal sealed class DesktopPermissionGateService(
                 var currentGateKind = gateKind;
                 while (currentGateKind is not StartupPermissionGateKind.None)
                 {
-                    var permissionDialog = CreateCenteredConfirmationDialog(
-                        UIStrings.PermissionRequiredTitle,
-                        GetStartupPermissionMessage(currentGateKind),
-                        UIStrings.OpenSettingsButton,
-                        UIStrings.ExitButton,
-                        dangerYes: false,
-                        dangerNo: true);
-
-                    var shouldOpenSettings = await permissionDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
+                    var shouldOpenSettings = await ShowDialogAsync<bool>(
+                        bootstrapOwner,
+                        () => CreateCenteredConfirmationDialog(
+                            UIStrings.PermissionRequiredTitle,
+                            GetStartupPermissionMessage(currentGateKind),
+                            UIStrings.OpenSettingsButton,
+                            UIStrings.ExitButton,
+                            dangerYes: false,
+                            dangerNo: true)).ConfigureAwait(false);
                     if (!shouldOpenSettings)
                     {
                         return;
@@ -174,15 +195,15 @@ internal sealed class DesktopPermissionGateService(
 
                     OpenStartupPermissionSettings(permissionChecker, currentGateKind);
 
-                    var recheckDialog = CreateCenteredConfirmationDialog(
-                        UIStrings.PermissionRequiredTitle,
-                        UIStrings.MacOSPermissionApprovalRecheckMessage,
-                        UIStrings.ContinueButton,
-                        UIStrings.ExitButton,
-                        dangerYes: false,
-                        dangerNo: true);
-
-                    var shouldRecheck = await recheckDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
+                    var shouldRecheck = await ShowDialogAsync<bool>(
+                        bootstrapOwner,
+                        () => CreateCenteredConfirmationDialog(
+                            UIStrings.PermissionRequiredTitle,
+                            UIStrings.MacOSPermissionApprovalRecheckMessage,
+                            UIStrings.ContinueButton,
+                            UIStrings.ExitButton,
+                            dangerYes: false,
+                            dangerNo: true)).ConfigureAwait(false);
                     if (!shouldRecheck)
                     {
                         return;
@@ -242,14 +263,39 @@ internal sealed class DesktopPermissionGateService(
 
     private static async Task ShowApprovalPendingDialogAsync(Window bootstrapOwner, StartupPermissionGateKind gateKind)
     {
-        var pendingDialog = CreateCenteredConfirmationDialog(
-            UIStrings.PermissionRequiredTitle,
-            GetApprovalPendingMessage(gateKind),
-            UIStrings.ExitButton,
-            noText: null,
-            dangerYes: true);
+        _ = await ShowDialogAsync<bool>(
+            bootstrapOwner,
+            () => CreateCenteredConfirmationDialog(
+                UIStrings.PermissionRequiredTitle,
+                GetApprovalPendingMessage(gateKind),
+                UIStrings.ExitButton,
+                noText: null,
+                dangerYes: true)).ConfigureAwait(false);
+    }
 
-        _ = await pendingDialog.ShowDialog<bool>(bootstrapOwner).ConfigureAwait(false);
+    private static async Task<T> InvokeOnUiThreadAsync<T>(Func<T> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            return action();
+        }
+
+        return await Dispatcher.UIThread.InvokeAsync(action);
+    }
+
+    private static async Task InvokeOnUiThreadAsync(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(action);
     }
 
     private static string GetApprovalPendingMessage(StartupPermissionGateKind gateKind)

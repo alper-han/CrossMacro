@@ -20,6 +20,7 @@
         ExtendClientAreaToDecorationsHint="True"
         WindowDecorations="None"
         CanResize="True"
+        Opened="OnWindowOpened"
         FontFamily="{StaticResource StandardFont}">
 
     <Design.DataContext>
@@ -181,7 +182,8 @@
 
                 <!-- Main Content Display -->
                 <!-- Added stretch alignment and adjusted margins -->
-                <TransitioningContentControl Grid.Row="2" 
+                <TransitioningContentControl Grid.Row="2"
+                                           x:Name="MainContentControl"
                                            Content="{Binding CurrentPage}" 
                                            Margin="16,0,16,16" 
                                            HorizontalAlignment="Stretch" 

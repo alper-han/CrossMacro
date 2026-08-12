@@ -61,6 +61,17 @@ public sealed class DesktopStartupRuntimeServiceTests
     }
 
     [Fact]
+    public void DisposeCreatedMainWindowViewModel_DoesNotResolveLazyViewModel()
+    {
+        var service = CreateService(
+            getMainWindowViewModel: () => throw new InvalidOperationException("The view model must not be resolved during cleanup."));
+
+        var exception = Record.Exception(service.DisposeCreatedMainWindowViewModel);
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
     public async Task CleanupAsync_AttemptsRuntimeViewModelAndProviderIndependently()
     {
         var events = new List<string>();

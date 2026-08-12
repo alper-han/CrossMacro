@@ -154,7 +154,7 @@ public class App : Avalonia.Application
         {
             var cleanupError = await CleanupAsync(
                 () => services.GetService<DesktopStartupRuntimeService>()?.StopAsync() ?? Task.CompletedTask,
-                () => services.GetService<MainWindowViewModel>()?.Dispose(),
+                () => services.GetService<DesktopStartupRuntimeService>()?.DisposeCreatedMainWindowViewModel(),
                 async () =>
                 {
                     if (services is IAsyncDisposable asyncDisposable)

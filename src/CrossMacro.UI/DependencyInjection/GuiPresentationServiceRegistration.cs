@@ -31,6 +31,7 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<Func<MainWindowViewModel>>(sp => () => sp.GetRequiredService<MainWindowViewModel>());
         _ = services.AddSingleton<Func<IFlatpakQuickSetupService?>>(sp => () => sp.GetService<IFlatpakQuickSetupService>());
         _ = services.AddSingleton<Func<IAppImageQuickSetupService?>>(sp => () => sp.GetService<IAppImageQuickSetupService>());
+        _ = services.AddSingleton<Func<IDisplaySessionService?>>(sp => () => sp.GetService<IDisplaySessionService>());
         _ = services.AddSingleton<Func<IPermissionChecker?>>(sp => () => sp.GetService<IPermissionChecker>());
         _ = services.AddSingleton<Func<IInputSimulatorPool?>>(sp => () => sp.GetService<IInputSimulatorPool>());
         _ = services.AddSingleton<Func<IMousePositionProvider?>>(sp => () => sp.GetService<IMousePositionProvider>());

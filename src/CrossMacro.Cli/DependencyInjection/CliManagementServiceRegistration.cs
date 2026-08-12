@@ -7,6 +7,7 @@ internal static class CliManagementServiceRegistration
         _ = services.AddSingleton<ISettingsCliService>(sp => new SettingsCliService(
             sp.GetRequiredService<ISettingsService>(),
             sp.GetService<IPortalScreenCastRestoreStateService>()));
+        _ = services.AddSingleton<IQuickSetupCliService, QuickSetupCliService>();
         _ = services.AddSingleton<IManageProfile, ManageProfile>();
         _ = services.AddSingleton<IManageTextExpansion, ManageTextExpansion>();
         _ = services.AddSingleton<IManageShortcut, ManageShortcut>();

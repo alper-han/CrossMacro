@@ -15,7 +15,7 @@ public sealed class CliCommandCatalogTests
         Assert.Equal(canonicalTokens.Length, canonicalTokens.Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(allTokens.Length, allTokens.Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(
-            CliCommandCatalog.RootCommands.Count + 2,
+            CliCommandCatalog.RootCommands.Count + CliCommandCatalog.RootCommands.Sum(command => command.Aliases.Length),
             CliCommandCatalog.RootCommandLookup.Count);
     }
 

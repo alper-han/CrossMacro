@@ -93,15 +93,16 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<LinuxQuickSetupIdentityResolver>();
         _ = services.AddSingleton<LinuxQuickSetupExecutor>();
         _ = services.AddSingleton<FlatpakHostCommandLauncher>();
-        _ = services.AddSingleton<DirectPkexecHostCommandLauncher>();
+        _ = services.AddSingleton<DirectPolkitHostCommandLauncher>();
         _ = services.AddSingleton<IFlatpakQuickSetupService>(sp => new FlatpakQuickSetupService(
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment,
             sp.GetRequiredService<LinuxQuickSetupExecutor>(),
-            sp.GetRequiredService<FlatpakHostCommandLauncher>()));
+            sp.GetRequiredService<FlatpakHostCommandLauncher>(),
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>()));
         _ = services.AddSingleton<IAppImageQuickSetupService>(sp => new AppImageQuickSetupService(
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
             sp.GetRequiredService<LinuxQuickSetupExecutor>(),
-            sp.GetRequiredService<DirectPkexecHostCommandLauncher>()));
+            sp.GetRequiredService<DirectPolkitHostCommandLauncher>()));
     }
 
     private static void AddLinuxWindowServices(IServiceCollection services)

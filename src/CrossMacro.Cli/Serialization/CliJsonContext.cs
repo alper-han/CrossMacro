@@ -2,6 +2,7 @@
 namespace CrossMacro.Cli.Serialization;
 
 [JsonSerializable(typeof(CliOutputEnvelope))]
+[JsonSerializable(typeof(QuickSetupCommandData))]
 [JsonSerializable(typeof(DoctorCommandData))]
 [JsonSerializable(typeof(DoctorCheckOutput))]
 [JsonSerializable(typeof(RunScriptExecutionData))]

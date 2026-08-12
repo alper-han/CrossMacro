@@ -12,6 +12,7 @@ global using CrossMacro.Core.Models;
 global using CrossMacro.Core.Services.Playback;
 global using CrossMacro.Core.Services;
 global using CrossMacro.Daemon.Contracts.Ipc;
+global using CrossMacro.Packaging.Abstractions;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
 global using CrossMacro.Platform.Abstractions;
 global using Microsoft.Extensions.DependencyInjection;

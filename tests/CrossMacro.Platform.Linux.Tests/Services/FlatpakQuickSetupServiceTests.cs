@@ -150,6 +150,44 @@ public sealed class FlatpakQuickSetupServiceTests
         Assert.Contains("setfacl is missing on host", result.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task RunAsync_WhenCommandSucceeds_InvalidatesCapabilitySnapshot()
+    {
+        var env = new LinuxEnvironmentSnapshot(
+            FlatpakId: "io.github.alper_han.crossmacro",
+            AppImage: null,
+            UseDaemon: null,
+            SessionType: "wayland",
+            WaylandDisplay: null,
+            Display: null,
+            CurrentDesktop: "Hyprland",
+            GdmSession: null,
+            HyprlandInstanceSignature: null,
+            RuntimeDir: null,
+            WayfireSocket: null,
+            SwaySocket: null,
+            WindowButtons: null,
+            CrossMacroFlatpak: null,
+            FlatpakInfoExists: true);
+        var snapshotProvider = Substitute.For<ILinuxCapabilitySnapshotProvider>();
+        var executor = new LinuxQuickSetupExecutor(
+            new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
+            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+        var service = new FlatpakQuickSetupService(
+            env,
+            executor,
+            new FlatpakHostCommandLauncher(
+                (_, _) => ValueTask.FromResult(true),
+                (_, _) => ValueTask.FromResult(true),
+                _ => ValueTask.FromResult(true)),
+            snapshotProvider);
+
+        var result = await service.RunAsync();
+
+        Assert.True(result.Success);
+        snapshotProvider.Received(1).InvalidateCache();
+    }
+
     private static FlatpakQuickSetupService CreateService(
         IReadOnlyDictionary<string, string?> env,
         string userName,
@@ -163,6 +201,9 @@ public sealed class FlatpakQuickSetupServiceTests
         return new FlatpakQuickSetupService(
             key => env.TryGetValue(key, out var value) ? value : null,
             executor,
-            new FlatpakHostCommandLauncher((_, _) => ValueTask.FromResult(true), (_, _) => ValueTask.FromResult(true)));
+            new FlatpakHostCommandLauncher(
+                (_, _) => ValueTask.FromResult(true),
+                (_, _) => ValueTask.FromResult(true),
+                _ => ValueTask.FromResult(true)));
     }
 }

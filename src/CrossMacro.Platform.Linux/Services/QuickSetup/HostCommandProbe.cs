@@ -3,6 +3,8 @@ namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
 internal static class HostCommandProbe
 {
+    private const string PkexecUsabilityCommand = "path=$(command -v pkexec) && test -x \"$path\" && test -u \"$path\"";
+
     public static async ValueTask<bool> CommandExistsAsync(string fileName, CancellationToken cancellationToken = default)
     {
         try
@@ -30,6 +32,44 @@ internal static class HostCommandProbe
             return await RunCommandSucceedsAsync(
                 "flatpak-spawn",
                 ["--host", "sh", "-c", $"command -v {fileName} >/dev/null 2>&1"],
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return false;
+        }
+    }
+
+    public static async ValueTask<bool> PkexecIsUsableAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await RunCommandSucceedsAsync(
+                "sh",
+                ["-c", PkexecUsabilityCommand],
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return false;
+        }
+    }
+
+    public static async ValueTask<bool> PkexecIsUsableOnHostViaFlatpakSpawnAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await RunCommandSucceedsAsync(
+                "flatpak-spawn",
+                ["--host", "sh", "-c", PkexecUsabilityCommand],
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

@@ -75,6 +75,7 @@ public sealed class CliCommandHandlerResolverTests
         yield return [new MacroInfoCliOptions("demo.macro"), typeof(MacroInfoCommandHandler)];
         yield return [new PlayCliOptions("demo.macro"), typeof(PlayCommandHandler)];
         yield return [new DoctorCliOptions(), typeof(DoctorCommandHandler)];
+        yield return [new QuickSetupCliOptions(), typeof(QuickSetupCommandHandler)];
         yield return [new SettingsGetCliOptions(), typeof(SettingsGetCommandHandler)];
         yield return [new SettingsSetCliOptions("playback.speed", "1.25"), typeof(SettingsSetCommandHandler)];
         yield return [new SettingsListKeysCliOptions(), typeof(SettingsListKeysCommandHandler)];
@@ -106,6 +107,7 @@ public sealed class CliCommandHandlerResolverTests
             new MacroInfoCommandHandler(Substitute.For<IMacroExecutionService>()),
             new PlayCommandHandler(Substitute.For<IMacroExecutionService>(), Substitute.For<ICliPreflightService>()),
             new DoctorCommandHandler(Substitute.For<IDoctorService>()),
+            new QuickSetupCommandHandler(Substitute.For<IQuickSetupCliService>()),
             new SettingsGetCommandHandler(Substitute.For<ISettingsCliService>()),
             new SettingsSetCommandHandler(Substitute.For<ISettingsCliService>()),
             new SettingsListKeysCommandHandler(Substitute.For<ISettingsCliService>()),
@@ -137,6 +139,7 @@ public sealed class CliCommandHandlerResolverTests
             new CliCommandHandlerRegistration(typeof(MacroInfoCliOptions), () => handlers.MacroInfo),
             new CliCommandHandlerRegistration(typeof(PlayCliOptions), () => handlers.Play),
             new CliCommandHandlerRegistration(typeof(DoctorCliOptions), () => handlers.Doctor),
+            new CliCommandHandlerRegistration(typeof(QuickSetupCliOptions), () => handlers.QuickSetup),
             new CliCommandHandlerRegistration(typeof(SettingsGetCliOptions), () => handlers.SettingsGet),
             new CliCommandHandlerRegistration(typeof(SettingsSetCliOptions), () => handlers.SettingsSet),
             new CliCommandHandlerRegistration(typeof(SettingsListKeysCliOptions), () => handlers.SettingsListKeys),
@@ -168,6 +171,7 @@ public sealed class CliCommandHandlerResolverTests
         MacroInfoCommandHandler MacroInfo,
         PlayCommandHandler Play,
         DoctorCommandHandler Doctor,
+        QuickSetupCommandHandler QuickSetup,
         SettingsGetCommandHandler SettingsGet,
         SettingsSetCommandHandler SettingsSet,
         SettingsListKeysCommandHandler SettingsListKeys,

@@ -25,10 +25,11 @@ public sealed class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupIdentityResolver) && d.ImplementationType == typeof(LinuxQuickSetupIdentityResolver));
         Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupExecutor) && d.ImplementationType == typeof(LinuxQuickSetupExecutor));
         Assert.Contains(services, d => d.ServiceType == typeof(FlatpakHostCommandLauncher) && d.ImplementationType == typeof(FlatpakHostCommandLauncher));
-        Assert.Contains(services, d => d.ServiceType == typeof(DirectPkexecHostCommandLauncher) && d.ImplementationType == typeof(DirectPkexecHostCommandLauncher));
+        Assert.Contains(services, d => d.ServiceType == typeof(DirectPolkitHostCommandLauncher) && d.ImplementationType == typeof(DirectPolkitHostCommandLauncher));
         Assert.Contains(services, d => d.ServiceType == typeof(IFlatpakQuickSetupService) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IAppImageQuickSetupService) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastRestoreTokenStore) && d.ImplementationType == typeof(PortalScreenCastRestoreTokenStore));
+        Assert.Contains(services, d => d.ServiceType == typeof(PortalScreenCastRestoreTokenStore) && d.ImplementationType == typeof(PortalScreenCastRestoreTokenStore));
+        Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastRestoreStateService) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCaptureSupportProbe) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCapture) && d.ImplementationType == typeof(X11ScreenCapture));

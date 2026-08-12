@@ -16,6 +16,7 @@ global using CrossMacro.Platform.Abstractions.Recording.Strategies;
 global using CrossMacro.Infrastructure.Services.ScreenCapture;
 global using CrossMacro.Infrastructure.Services.ScreenReading;
 global using CrossMacro.Platform.Abstractions;
+global using CrossMacro.Packaging.Abstractions;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
 global using CrossMacro.TestInfrastructure;
 global using FluentAssertions;

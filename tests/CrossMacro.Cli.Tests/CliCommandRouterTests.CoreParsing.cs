@@ -304,6 +304,25 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenSetupWithJson_ReturnsQuickSetupOptions()
+    {
+        var result = CliCommandRouterAccessor.Parse(["setup", "--json"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<QuickSetupCliOptions>(result.Options);
+        Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenQuickSetupAliasIsUsed_ReturnsQuickSetupOptions()
+    {
+        var result = CliCommandRouterAccessor.Parse(["quick-setup"]);
+
+        Assert.True(result.IsSuccess);
+        _ = Assert.IsType<QuickSetupCliOptions>(result.Options);
+    }
+
+    [Fact]
     public void Parse_WhenRecordWithAllOptions_ReturnsRecordOptions()
     {
         var result = CliCommandRouterAccessor.Parse([
@@ -382,6 +401,7 @@ public sealed partial class CliCommandRouterTests
         Assert.Contains("crossmacro screen pixel|wait-color|search-color|search-image|wait-image|image-click", usage, StringComparison.Ordinal);
         Assert.Contains("crossmacro screenshot", usage, StringComparison.Ordinal);
         Assert.Contains("crossmacro profile", usage, StringComparison.Ordinal);
+        Assert.Contains("crossmacro setup", usage, StringComparison.Ordinal);
         Assert.Contains("crossmacro text-expansion", usage, StringComparison.Ordinal);
         Assert.Contains("crossmacro --headless", usage, StringComparison.Ordinal);
     }

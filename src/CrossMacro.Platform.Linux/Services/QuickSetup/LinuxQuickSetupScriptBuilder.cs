@@ -16,6 +16,7 @@ internal static class LinuxQuickSetupScriptBuilder
     private static void AppendPreamble(StringBuilder script)
     {
         _ = script.Append("set -eu; ");
+        _ = script.Append("PATH='/run/wrappers/bin:/run/current-system/sw/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'; export PATH; ");
         _ = script.Append("TARGET_IDENTITY=\"$1\"; ");
         _ = script.Append("if ! command -v setfacl >/dev/null 2>&1; then ");
         _ = script.Append("echo 'setfacl is missing on host. Install ACL package and retry.' >&2; ");

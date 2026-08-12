@@ -8,6 +8,7 @@ internal static class CliCommandHandlerRegistrationModule
         _ = services.AddCliCommandHandler<MacroInfoCliOptions, MacroInfoCommandHandler>();
         _ = services.AddCliCommandHandler<PlayCliOptions, PlayCommandHandler>();
         _ = services.AddCliCommandHandler<DoctorCliOptions, DoctorCommandHandler>();
+        _ = services.AddCliCommandHandler<QuickSetupCliOptions, QuickSetupCommandHandler>();
         _ = services.AddCliCommandHandler<SettingsGetCliOptions, SettingsGetCommandHandler>();
         _ = services.AddCliCommandHandler<SettingsSetCliOptions, SettingsSetCommandHandler>();
         _ = services.AddCliCommandHandler<SettingsListKeysCliOptions, SettingsListKeysCommandHandler>();

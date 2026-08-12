@@ -36,6 +36,40 @@ public sealed class CliOutputFormatterTests
     }
 
     [Fact]
+    public async Task Write_WhenJsonOutputContainsQuickSetupData_UsesStablePropertyNames()
+    {
+        using var consoleLock = await ConsoleTestLock.AcquireAsync();
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        try
+        {
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
+
+            var result = CliCommandExecutionResult.Ok(
+                "quick setup completed",
+                new QuickSetupCommandData("flatpak", Applicable: true, Applied: true));
+
+            CliOutputFormatter.Write(result, jsonOutput: true);
+
+            var output = stdout.ToString();
+            Assert.Contains("\"provider\": \"flatpak\"", output, StringComparison.Ordinal);
+            Assert.Contains("\"applicable\": true", output, StringComparison.Ordinal);
+            Assert.Contains("\"applied\": true", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"Provider\"", output, StringComparison.Ordinal);
+            Assert.Equal(string.Empty, stderr.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    [Fact]
     public async Task Write_WhenJsonOutputContainsBackticks_WritesReadableBackticks()
     {
         using var consoleLock = await ConsoleTestLock.AcquireAsync();

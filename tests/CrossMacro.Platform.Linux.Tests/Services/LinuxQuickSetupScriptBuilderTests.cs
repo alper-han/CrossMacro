@@ -12,6 +12,7 @@ public sealed class LinuxQuickSetupScriptBuilderTests
         Assert.DoesNotContain("event_ok=0", script, StringComparison.Ordinal);
         Assert.Contains("uinput_count=0", script, StringComparison.Ordinal);
         Assert.Contains("event_count=0", script, StringComparison.Ordinal);
+        Assert.Contains("PATH='/run/wrappers/bin:/run/current-system/sw/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'; export PATH;", script, StringComparison.Ordinal);
         Assert.Contains("setfacl -m \"u:${TARGET_IDENTITY}:rw\"", script, StringComparison.Ordinal);
         Assert.Contains("setfacl -m \"u:${TARGET_IDENTITY}:r\"", script, StringComparison.Ordinal);
         Assert.Contains("Applied session ACLs for ${TARGET_IDENTITY}: uinput=${uinput_count}, input-events=${event_count}.", script, StringComparison.Ordinal);

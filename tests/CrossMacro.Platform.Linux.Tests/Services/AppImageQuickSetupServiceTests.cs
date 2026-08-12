@@ -68,7 +68,7 @@ public sealed class AppImageQuickSetupServiceTests
 
 
     [Fact]
-    public async Task RunAsync_WhenPkexecMissing_ShouldFailWithoutRunningCommand()
+    public async Task RunAsync_WhenNoPrivilegeCommandIsAvailable_ShouldFailWithoutRunningCommand()
     {
         var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -95,7 +95,7 @@ public sealed class AppImageQuickSetupServiceTests
 
         Assert.False(result.Success);
         Assert.False(commandWasRun);
-        Assert.Contains("pkexec is missing", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Neither pkexec nor systemd run0", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -122,7 +122,9 @@ public sealed class AppImageQuickSetupServiceTests
             detector,
             key => env.TryGetValue(key, out var value) ? value : null,
             executor,
-            new DirectPkexecHostCommandLauncher((_, _) => ValueTask.FromResult(true)));
+            new DirectPolkitHostCommandLauncher(
+                (_, _) => ValueTask.FromResult(true),
+                _ => ValueTask.FromResult(true)));
 
         var result = await service.RunAsync();
 
@@ -177,7 +179,9 @@ public sealed class AppImageQuickSetupServiceTests
             new FakeCapabilityDetector(mode, canReadInputEvents),
             key => env.TryGetValue(key, out var value) ? value : null,
             executor,
-            new DirectPkexecHostCommandLauncher(commandExists ?? ((_, _) => ValueTask.FromResult(true))));
+            new DirectPolkitHostCommandLauncher(
+                commandExists ?? ((_, _) => ValueTask.FromResult(true)),
+                _ => ValueTask.FromResult(true)));
     }
 
     private sealed class FakeCapabilityDetector(InputProviderMode mode, bool canReadInputEvents) : ILinuxInputCapabilityDetector

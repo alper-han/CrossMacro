@@ -162,6 +162,19 @@ public sealed class CliCommandRouter
                 "  crossmacro doctor --verbose --json\n";
         }
 
+        if (string.Equals(topic, "setup", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro setup [--json] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Grants temporary direct input access for the current Flatpak or AppImage Wayland session.\n" +
+                "  The command uses the same host authorization flow as the GUI Quick Setup.\n\n" +
+                "Examples:\n" +
+                "  crossmacro setup\n" +
+                "  crossmacro setup --json\n";
+        }
+
         if (string.Equals(topic, "settings", StringComparison.OrdinalIgnoreCase))
         {
             var keys = string.Join('\n', SettingsCliService.SupportedKeys.Select(k => $"  - {k}"));

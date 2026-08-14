@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 public sealed class ScreenReadingWarmupServiceTests
 {
     [Fact]
-    public async Task WarmUpPortalSessionAsync_WhenPortalSelected_CapturesOnePixelOnce()
+    public async Task WarmUpPortalSessionAsync_WhenPortalSelected_CapturesAllSelectedStreamsOnce()
     {
         using var frameProvider = new RecordingScreenFrameProvider();
         var service = new ScreenReadingWarmupService(frameProvider, new StaticScreenReadingDiagnosticProvider("Portal"));
@@ -13,7 +13,7 @@ public sealed class ScreenReadingWarmupServiceTests
         await service.WarmUpPortalSessionAsync();
 
         Assert.Equal(1, frameProvider.CaptureCalls);
-        Assert.Equal(new ScreenRect(0, 0, 1, 1), frameProvider.LastRegion);
+        Assert.Null(frameProvider.LastRegion);
         Assert.True(frameProvider.LastFrameOwner?.Disposed);
     }
 

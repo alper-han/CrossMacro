@@ -26,6 +26,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
     private readonly Lock _pendingGate = new();
     private readonly Lock _streamGate = new();
     private readonly PipeWireFrameSequence _frameSequence = new();
+    private readonly PortalPipeWireFrameCache _frameCache;
     private bool _disposed;
     private bool _connected;
     private PendingCapture? _pending;
@@ -51,6 +52,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             _pipeWireSerial = pipeWireSerial;
             _width = width;
             _height = height;
+            _frameCache = new PortalPipeWireFrameCache(width, height);
             _connectionLease = PortalPipeWireConnection.Acquire(pipeWireRemote);
             _connection = _connectionLease.Connection;
             _lib = _connection.Library;
@@ -117,6 +119,12 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             _pending = pending;
         }
 
+        if (_frameCache.TryCreateFrame(region, out var cachedFrame))
+        {
+            CompletePending(PortalPipeWireFrameResult.Success(cachedFrame!), pending);
+            return await pending.Completion.Task.ConfigureAwait(false);
+        }
+
         using var timeoutRegistration = timeoutCancellation.Token.Register(static state =>
         {
             var cancellation = (PendingCaptureCancellation)state!;
@@ -148,6 +156,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             }
 
             _disposed = true;
+            _frameCache.Clear();
             CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was disposed."));
             if (_stream != IntPtr.Zero)
             {
@@ -221,6 +230,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         }
 
         _error = message;
+        _frameCache.Clear();
         CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, message));
         _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
     }

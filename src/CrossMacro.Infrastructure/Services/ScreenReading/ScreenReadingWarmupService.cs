@@ -6,7 +6,6 @@ public sealed class ScreenReadingWarmupService(
     IScreenReadingDiagnosticProvider? diagnosticProvider = null,
     IScreenReadingCapabilityReadiness? capabilityReadiness = null) : IScreenReadingWarmupService
 {
-    private static readonly ScreenRect WarmupRegion = new(0, 0, 1, 1);
     private static readonly TimeSpan WarmupTimeout = TimeSpan.FromSeconds(15);
 
     private readonly IScreenFrameProvider _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
@@ -70,8 +69,8 @@ public sealed class ScreenReadingWarmupService(
         try
         {
             var result = await _frameProvider.CaptureFrameAsync(
-                WarmupRegion,
-                new ScreenReadOptions(WarmupTimeout, ScreenReadOptions.DefaultPollInterval, cancellationToken)).ConfigureAwait(false);
+                region: null,
+                options: new ScreenReadOptions(WarmupTimeout, ScreenReadOptions.DefaultPollInterval, cancellationToken)).ConfigureAwait(false);
 
             if (!result.IsSuccess)
             {

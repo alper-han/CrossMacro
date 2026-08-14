@@ -40,6 +40,7 @@ internal sealed partial class PortalPipeWireFrameCapture
         {
             var message = Marshal.PtrToStringAnsi(error) ?? "PipeWire stream entered error state.";
             capture._error = $"{message} nodeId={capture._nodeId.ToString(CultureInfo.InvariantCulture)} size={capture._width.ToString(CultureInfo.InvariantCulture)}x{capture._height.ToString(CultureInfo.InvariantCulture)}";
+            capture._frameCache.Clear();
             capture.CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, capture._error));
             capture._lib.ThreadLoopSignal(capture._threadLoop, waitForAccept: false);
         }
@@ -138,16 +139,19 @@ internal sealed partial class PortalPipeWireFrameCapture
 
     private void TryCopyFrame(IntPtr bufferPtr, long generation)
     {
+        if (Volatile.Read(ref _disposed))
+        {
+            return;
+        }
+
         PendingCapture? pending;
         lock (_pendingGate)
         {
             pending = _pending;
         }
 
-        if (pending is null || !PipeWireFrameSequence.IsNewerThan(generation, pending.StartGeneration))
-        {
-            return;
-        }
+        var completesPending = pending is not null && PipeWireFrameSequence.IsNewerThan(generation, pending.StartGeneration);
+        var region = completesPending ? pending!.Region : new ScreenRect(0, 0, _width, _height);
 
         var pwBuffer = Marshal.PtrToStructure<PipeWireBuffer>(bufferPtr);
         var spaBuffer = Marshal.PtrToStructure<SpaBuffer>(pwBuffer.Buffer);
@@ -179,15 +183,34 @@ internal sealed partial class PortalPipeWireFrameCapture
             return;
         }
 
-        var framePixels = CopyFramePixels(data0, layout, stride, offset, pending.Region);
-        if (framePixels is null)
+        if (!completesPending)
         {
+            using var cacheUpdate = _frameCache.BeginFullUpdate(generation);
+            if (!cacheUpdate.IsAccepted)
+            {
+                return;
+            }
+
+            CopyFramePixelsInto(
+                data0,
+                layout,
+                stride,
+                offset,
+                region,
+                cacheUpdate.Pixels,
+                _width,
+                _height,
+                _width * PipeWireConstants.Xrgb8888BytesPerPixel);
+            cacheUpdate.Commit();
             return;
         }
 
-        var targetStride = checked(pending.Region.Width * PipeWireConstants.Xrgb8888BytesPerPixel);
+        var framePixels = CopyFramePixels(data0, layout, stride, offset, region);
+        var targetStride = checked(region.Width * PipeWireConstants.Xrgb8888BytesPerPixel);
+        _frameCache.Update(region, framePixels, targetStride, generation);
+
         CompletePending(PortalPipeWireFrameResult.Success(new PortalPipeWireFrame(
-            new(0, 0, pending.Region.Width, pending.Region.Height),
+            new(0, 0, region.Width, region.Height),
             targetStride,
             CrossMacro.Platform.Abstractions.ScreenPixelFormat.Xrgb8888,
             framePixels)));
@@ -253,27 +276,47 @@ internal sealed partial class PortalPipeWireFrameCapture
         return true;
     }
 
-    private byte[]? CopyFramePixels(SpaData data0, PipeWireVideoLayout layout, int sourceStride, int sourceOffset, ScreenRect region)
+    private byte[] CopyFramePixels(SpaData data0, PipeWireVideoLayout layout, int sourceStride, int sourceOffset, ScreenRect region)
     {
         var targetStride = checked(region.Width * PipeWireConstants.Xrgb8888BytesPerPixel);
         var pixels = new byte[checked(targetStride * region.Height)];
-        var sourceRow = new byte[layout.MinimumStride];
-        var previousSourceY = -1;
-        for (var row = 0; row < region.Height; row++)
-        {
-            var sourceY = WaylandLogicalPhysicalMapper.MapPixel(region.Y + row, _height, layout.Height);
-            if (sourceY != previousSourceY)
-            {
-                var sourceRowOffset = checked((int)((long)sourceOffset + ((long)sourceY * sourceStride)));
-                Marshal.Copy(data0.Data + sourceRowOffset, sourceRow, 0, sourceRow.Length);
-                previousSourceY = sourceY;
-            }
-
-            var targetRow = pixels.AsSpan(row * targetStride, targetStride);
-            PipeWireFrameRowConverter.Convert(sourceRow, layout, _width, region.X, targetRow);
-        }
-
+        CopyFramePixelsInto(data0, layout, sourceStride, sourceOffset, region, pixels, _width, _height, targetStride);
         return pixels;
+    }
+
+    private static void CopyFramePixelsInto(
+        SpaData data0,
+        PipeWireVideoLayout layout,
+        int sourceStride,
+        int sourceOffset,
+        ScreenRect region,
+        Span<byte> pixels,
+        int sourceLogicalWidth,
+        int sourceLogicalHeight,
+        int targetStride)
+    {
+        var sourceRow = ArrayPool<byte>.Shared.Rent(layout.MinimumStride);
+        try
+        {
+            var previousSourceY = -1;
+            for (var row = 0; row < region.Height; row++)
+            {
+                var sourceY = WaylandLogicalPhysicalMapper.MapPixel(region.Y + row, sourceLogicalHeight, layout.Height);
+                if (sourceY != previousSourceY)
+                {
+                    var sourceRowOffset = checked((int)((long)sourceOffset + ((long)sourceY * sourceStride)));
+                    Marshal.Copy(data0.Data + sourceRowOffset, sourceRow, 0, layout.MinimumStride);
+                    previousSourceY = sourceY;
+                }
+
+                var targetRow = pixels.Slice(row * targetStride, targetStride);
+                PipeWireFrameRowConverter.Convert(sourceRow.AsSpan(0, layout.MinimumStride), layout, sourceLogicalWidth, region.X, targetRow);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(sourceRow);
+        }
     }
 
     private void HandleNegotiatedFormat(IntPtr parameter)
@@ -291,6 +334,7 @@ internal sealed partial class PortalPipeWireFrameCapture
 
         if (_negotiatedLayout is { } previous && previous != layout)
         {
+            _frameCache.Clear();
             FailCopy($"PipeWire video format changed from {previous.Width.ToString(CultureInfo.InvariantCulture)}x{previous.Height.ToString(CultureInfo.InvariantCulture)} ({previous.Format}) to {layout.Width.ToString(CultureInfo.InvariantCulture)}x{layout.Height.ToString(CultureInfo.InvariantCulture)} ({layout.Format}).");
             return;
         }
@@ -355,6 +399,7 @@ internal sealed partial class PortalPipeWireFrameCapture
     private void FailCopy(string message)
     {
         _error = message;
+        _frameCache.Clear();
         CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, message));
         _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
     }

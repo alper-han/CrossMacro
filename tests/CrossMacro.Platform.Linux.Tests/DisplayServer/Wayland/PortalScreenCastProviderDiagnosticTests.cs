@@ -53,7 +53,6 @@ public sealed class PortalScreenCastProviderDiagnosticTests
     private static LinuxEnvironmentSnapshot CreateEnvironment(string desktop) => new(
         FlatpakId: "io.github.alper_han.crossmacro",
         AppImage: null,
-        UseDaemon: null,
         SessionType: "wayland",
         WaylandDisplay: "wayland-1",
         Display: null,

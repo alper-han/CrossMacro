@@ -25,7 +25,7 @@ internal static class DocumentationContracts
     [
         "docs/man/crossmacro.1", "scripts/assets/CrossMacro.desktop", "scripts/assets/io.github.alper_han.crossmacro.desktop",
         "scripts/assets/io.github.alper_han.crossmacro.metainfo.xml",
-        "flatpak/crossmacro.sh", "flatpak/io.github.alper_han.crossmacro.desktop", "flatpak/io.github.alper_han.crossmacro.metainfo.xml",
+        "flatpak/io.github.alper_han.crossmacro.desktop", "flatpak/io.github.alper_han.crossmacro.metainfo.xml",
     ];
 
     private const string AppImageComponentId = "io.github.alper_han.crossmacro";

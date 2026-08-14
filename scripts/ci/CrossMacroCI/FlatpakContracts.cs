@@ -19,7 +19,7 @@ internal static class FlatpakContracts
     [
         "--socket=wayland", "--socket=fallback-x11", "--share=ipc", "--device=all",
         "--talk-name=org.kde.keyboard", "--talk-name=org.kde.KWin", "--talk-name=org.gnome.Shell",
-        "--talk-name=org.freedesktop.Flatpak", "--filesystem=xdg-run/hypr:ro", "--filesystem=/run/crossmacro:rw",
+        "--talk-name=org.freedesktop.Flatpak", "--filesystem=xdg-run/hypr:ro",
         "--filesystem=~/.local/share/gnome-shell/extensions:create", "--env=CROSSMACRO_FLATPAK=1",
     ];
 
@@ -36,6 +36,11 @@ internal static class FlatpakContracts
         foreach (var path in paths)
         {
             errors.AddRange(ValidateManifest(path));
+        }
+
+        foreach (var path in paths.Where(path => CISupport.ReadText(path).Contains("/run/crossmacro", StringComparison.Ordinal)))
+        {
+            errors.Add($"{path}: portable Flatpak package must not expose the host daemon socket");
         }
 
         if (errors.Count > 0)
@@ -86,6 +91,16 @@ internal static class FlatpakContracts
         if (!texts[1].Contains("tag: v", StringComparison.Ordinal))
         {
             errors.Add($"{paths[1]}: Flathub manifest must pin a release tag");
+        }
+
+        if (!texts.All(text => text.Contains("ln -s ../lib/crossmacro/CrossMacro.UI /app/bin/crossmacro", StringComparison.Ordinal)))
+        {
+            errors.Add("Flatpak manifests must install the direct CrossMacro.UI launcher symlink");
+        }
+
+        if (texts.Any(text => text.Contains("crossmacro.sh", StringComparison.Ordinal)))
+        {
+            errors.Add("Flatpak manifests must not install the removed hybrid daemon launcher");
         }
 
         return errors;

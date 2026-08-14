@@ -61,7 +61,8 @@ public sealed class DoctorServiceTests
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
         Func<string>? getConfigDirectory = null,
-        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null,
+        bool linuxDaemonDiagnosticsEnabled = true)
     {
         var simulatorInstance = simulator ?? CreateInputSimulator();
         var captureInstance = capture ?? CreateInputCapture();
@@ -90,7 +91,8 @@ public sealed class DoctorServiceTests
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
             getConfigDirectory,
-            screenReadingCapabilityReadiness);
+            screenReadingCapabilityReadiness,
+            linuxDaemonDiagnosticsEnabled);
     }
 
     [Fact]
@@ -593,6 +595,80 @@ public sealed class DoctorServiceTests
 
         var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
         Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenPortableDirectInputIsSelected_SkipsDaemonDiagnostics()
+    {
+        var socketProbeCount = 0;
+        var handshakeProbeCount = 0;
+        var diagnosticProbeCount = 0;
+
+        var service = CreateService(
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
+            path => path is "/dev/uinput" or "/dev/input/event0",
+            path => path is "/dev/uinput",
+            isLinux: () => true,
+            daemonHandshakeProbe: _ =>
+            {
+                handshakeProbeCount++;
+                return true;
+            },
+            daemonSocketAccessProbe: (socketPath, _) =>
+            {
+                socketProbeCount++;
+                return ValueTask.FromResult(LinuxDaemonSocketAccessResult.Accessible(socketPath));
+            },
+            daemonHandshakeDiagnosticProbe: (socketPath, timeout) =>
+            {
+                diagnosticProbeCount++;
+                return LinuxDaemonHandshakeProbeResult.Success(socketPath, timeout);
+            },
+            canOpenForRead: path => path is "/dev/input/event0",
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            linuxDaemonDiagnosticsEnabled: false);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        Assert.Equal(0, socketProbeCount);
+        Assert.Equal(0, handshakeProbeCount);
+        Assert.Equal(0, diagnosticProbeCount);
+        Assert.DoesNotContain(report.Checks, check => check.Name.StartsWith("linux-daemon-", StringComparison.Ordinal));
+        var readiness = Assert.Single(report.Checks, check => check.Name is "linux-input-readiness");
+        Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
+        Assert.Equal("Wayland input is ready via direct devices.", readiness.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenNativeDaemonDiagnosticsAreSelected_ProbesDaemon()
+    {
+        var socketProbeCount = 0;
+        var diagnosticProbeCount = 0;
+
+        var service = CreateService(
+            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
+            path => path is "/dev/uinput" or "/dev/input/event0",
+            path => path is "/dev/uinput",
+            isLinux: () => true,
+            daemonSocketAccessProbe: (socketPath, _) =>
+            {
+                socketProbeCount++;
+                return ValueTask.FromResult(LinuxDaemonSocketAccessResult.Accessible(socketPath));
+            },
+            daemonHandshakeDiagnosticProbe: (socketPath, timeout) =>
+            {
+                diagnosticProbeCount++;
+                return LinuxDaemonHandshakeProbeResult.Success(socketPath, timeout);
+            },
+            canOpenForRead: path => path is "/dev/input/event0",
+            getInputEventCandidates: () => ["/dev/input/event0"]);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        Assert.Equal(1, socketProbeCount);
+        Assert.Equal(1, diagnosticProbeCount);
+        _ = Assert.Single(report.Checks, check => check.Name is "linux-daemon-socket");
+        _ = Assert.Single(report.Checks, check => check.Name is "linux-daemon-handshake");
     }
 
     [Fact]

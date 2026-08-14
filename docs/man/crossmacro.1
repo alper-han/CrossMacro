@@ -119,8 +119,8 @@ readable \fI/dev/input/event*\fR devices.
 Direct device readiness does not fix daemon socket permission failures.
 On X11, CrossMacro tries native X11 capture and playback first; a supported native X11
 session does not require daemon-backed or direct device fallback.
-Flatpak Wayland is hybrid: it uses the exposed host daemon socket when available and
-falls back to direct device mode only when the needed device permissions are present.
+Flatpak and AppImage use direct device mode on Wayland and do not probe the host daemon.
+The required direct device permissions can be granted by Quick Setup.
 Arch and CachyOS package hooks provision the \fBcrossmacro\fR sysusers entry before service
 start or restart, and print manual remediation when they cannot confirm adding the
 installing user to the \fBcrossmacro\fR group automatically.

@@ -29,9 +29,6 @@ finish-args:
   # Filesystem: Compositor IPC
   - --filesystem=xdg-run/hypr:ro
 
-  # Filesystem: Daemon socket (hybrid mode)
-  - --filesystem=/run/crossmacro:rw
-
   # Filesystem: GNOME Shell extension (auto-install for Wayland support)
   - --filesystem=~/.local/share/gnome-shell/extensions:create
 
@@ -65,8 +62,8 @@ modules:
         find /app/lib/crossmacro -type f -name '*.pdb' -delete
         chmod +x /app/lib/crossmacro/CrossMacro.UI
 
-      # Install launcher script
-      - install -Dm755 crossmacro.sh /app/bin/crossmacro
+      # Install direct launcher
+      - install -d /app/bin && ln -s ../lib/crossmacro/CrossMacro.UI /app/bin/crossmacro
 
       # Desktop entry
       - install -Dm644 flatpak/io.github.alper_han.crossmacro.desktop /app/share/applications/io.github.alper_han.crossmacro.desktop
@@ -90,10 +87,6 @@ modules:
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$
-
-      # Launcher script
-      - type: file
-        path: crossmacro.sh
 
       # NuGet packages (offline)
       - nuget-sources.json

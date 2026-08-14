@@ -43,7 +43,6 @@ internal sealed class FlatpakQuickSetupService : IFlatpakQuickSetupService
         var environment = _environment ?? new LinuxEnvironmentSnapshot(
             FlatpakId: _getEnvironmentVariable("FLATPAK_ID"),
             AppImage: null,
-            UseDaemon: null,
             SessionType: _getEnvironmentVariable(SessionTypeKey),
             WaylandDisplay: null,
             Display: null,

@@ -13,7 +13,6 @@ public sealed class LinuxGuiCompositionTests
         var environment = new LinuxEnvironmentSnapshot(
             FlatpakId: null,
             AppImage: null,
-            UseDaemon: null,
             SessionType: "wayland",
             WaylandDisplay: "wayland-test",
             Display: null,

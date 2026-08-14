@@ -8,14 +8,15 @@ public sealed class LinuxPlatformServiceRegistrarTests
     {
         var services = new ServiceCollection();
 
-        var registrar = new LinuxPlatformServiceRegistrar();
-
-        registrar.RegisterPlatformServices(services);
+        LinuxPlatformServiceRegistrar.RegisterPlatformServices(
+            services,
+            CreateEnvironment(flatpakId: null, appImage: null));
 
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationFactory is null && d.ImplementationInstance is LinuxEnvironmentVariables);
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilityDetector) && d.ImplementationType == typeof(LinuxInputCapabilityDetector));
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilityDetector) && d.ImplementationInstance is LinuxInputCapabilityDetector);
         Assert.Contains(services, d => d.ServiceType == typeof(IPlatformStartupNotificationProvider) && d.ImplementationType == typeof(GsrCompatibilityService));
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonHandshakeProbe) && d.ImplementationType == typeof(LinuxDaemonHandshakeProbe));
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonSocketAccessProbe) && d.ImplementationType == typeof(LinuxDaemonSocketAccessProbe));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(LinuxInputProbeUtilities));
         Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationFactory is not null);
@@ -44,7 +45,6 @@ public sealed class LinuxPlatformServiceRegistrarTests
         var environment = new LinuxEnvironmentSnapshot(
             FlatpakId: "com.example.CrossMacro",
             AppImage: null,
-            UseDaemon: "1",
             SessionType: "wayland",
             WaylandDisplay: "wayland-test",
             Display: null,
@@ -63,6 +63,21 @@ public sealed class LinuxPlatformServiceRegistrarTests
         var variables = provider.GetRequiredService<ILinuxEnvironmentVariables>();
 
         Assert.Equal(environment, variables.CaptureSnapshot());
+    }
+
+    [Theory]
+    [InlineData("io.github.alper_han.crossmacro", null)]
+    [InlineData(null, "/tmp/CrossMacro.AppImage")]
+    public void RegisterPlatformServices_PortablePackagesDoNotRegisterDaemonDiagnostics(string? flatpakId, string? appImage)
+    {
+        var services = new ServiceCollection();
+
+        LinuxPlatformServiceRegistrar.RegisterPlatformServices(
+            services,
+            CreateEnvironment(flatpakId, appImage));
+
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonHandshakeProbe));
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonSocketAccessProbe));
     }
 
     [Fact]
@@ -89,6 +104,21 @@ public sealed class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(CosmicPositionProviderSelector));
         Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(SwayPositionProviderSelector));
     }
+
+    private static LinuxEnvironmentSnapshot CreateEnvironment(string? flatpakId, string? appImage) =>
+        new(
+            FlatpakId: flatpakId,
+            AppImage: appImage,
+            SessionType: "wayland",
+            WaylandDisplay: "wayland-test",
+            Display: null,
+            CurrentDesktop: "KDE",
+            GdmSession: null,
+            HyprlandInstanceSignature: null,
+            RuntimeDir: "/run/user/1000",
+            WayfireSocket: null,
+            SwaySocket: null,
+            WindowButtons: null);
 
     [Fact]
     public void RegisterPlatformServices_RegistersRuntimeInputServices()

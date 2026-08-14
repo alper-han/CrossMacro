@@ -3,14 +3,14 @@ namespace CrossMacro.Platform.Linux.Services;
 
 public class LinuxDisplaySessionService : IDisplaySessionService
 {
-    private static readonly TimeSpan DaemonHandshakeProbeTimeout = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan DaemonHandshakeStartupBudget = TimeSpan.FromSeconds(5);
-
     private readonly ILinuxInputCapabilitySnapshotProvider _snapshotProvider;
     private readonly LinuxEnvironmentVariables _environmentVariables;
 
     public LinuxDisplaySessionService()
-        : this(new LinuxInputCapabilitySnapshotProvider(), new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot())) { /* Empty */ }
+        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
+
+    private LinuxDisplaySessionService(LinuxEnvironmentSnapshot environment)
+        : this(new LinuxInputCapabilitySnapshotProvider(!environment.UsesPortableDirectInput), environment) { /* Empty */ }
 
     internal LinuxDisplaySessionService(
         ILinuxInputCapabilitySnapshotProvider snapshotProvider,
@@ -18,113 +18,6 @@ public class LinuxDisplaySessionService : IDisplaySessionService
     {
         _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
         _environmentVariables = new LinuxEnvironmentVariables(environment);
-    }
-
-    internal LinuxDisplaySessionService(
-        ILinuxInputCapabilitySnapshotProvider snapshotProvider,
-        ILinuxEnvironmentVariables environmentVariables)
-        : this(
-            snapshotProvider,
-            (environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot())
-    { /* Empty */ }
-
-    internal LinuxDisplaySessionService(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite)
-        : this(
-            new LinuxInputCapabilitySnapshotProvider(
-                fileExists,
-                canOpenForWrite,
-                LinuxInputProbeUtilities.CanOpenForRead,
-                LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
-                LinuxInputProbeUtilities.GetInputEventCandidates),
-            new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
-    { /* Empty */ }
-
-    internal LinuxDisplaySessionService(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        Func<string, bool> canOpenForRead,
-        Func<string, bool> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates)
-        : this(
-            new LinuxInputCapabilitySnapshotProvider(
-                fileExists,
-                canOpenForWrite,
-                canOpenForRead,
-                (socketPath, _) => daemonHandshakeProbe(socketPath)
-                    ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
-                    : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
-                getInputEventCandidates),
-            new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
-    { /* Empty */ }
-
-    internal LinuxDisplaySessionService(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        Func<string, bool> canOpenForRead,
-        Func<string, TimeSpan, DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates)
-        : this(
-            new LinuxInputCapabilitySnapshotProvider(
-                fileExists,
-                canOpenForWrite,
-                canOpenForRead,
-                (socketPath, timeout) => MapDisplayProbeResult(daemonHandshakeProbe(socketPath, timeout)),
-                getInputEventCandidates),
-            new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot()))
-    { /* Empty */ }
-
-    internal readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure, LinuxDaemonHandshakeStatus Status)
-    {
-        internal static DaemonHandshakeProbeResult Success()
-        {
-            return new(Succeeded: true, TimedOut: false, Failure: null, LinuxDaemonHandshakeStatus.Success);
-        }
-
-        internal static DaemonHandshakeProbeResult Failed(Exception? failure = null)
-        {
-            return new(Succeeded: false, TimedOut: false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
-        }
-
-        internal static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
-        {
-            if (status is LinuxDaemonHandshakeStatus.Success)
-            {
-                throw new ArgumentException("Use Success for successful daemon handshakes.", nameof(status));
-            }
-
-            return new(Succeeded: false, status is LinuxDaemonHandshakeStatus.Timeout, failure, status);
-        }
-
-        internal static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
-        {
-            return new(Succeeded: false, TimedOut: true, failure, LinuxDaemonHandshakeStatus.Timeout);
-        }
-    }
-
-    internal static DaemonHandshakeProbeResult ProbeDaemonHandshakeWithinBudget(string socketPath, TimeSpan timeout)
-    {
-        return MapProbeResult(LinuxDaemonHandshakeTransport.ProbeWithinBudget(socketPath, timeout));
-    }
-
-    private static LinuxInputCapabilityDetector.DaemonHandshakeProbeResult MapDisplayProbeResult(DaemonHandshakeProbeResult result)
-    {
-        return result.Succeeded
-            ? LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success()
-            : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(result.Status, result.Failure);
-    }
-
-    private static DaemonHandshakeProbeResult MapProbeResult(LinuxDaemonHandshakeTransport.ProbeResult result)
-    {
-        if (result.TimedOut)
-        {
-            return DaemonHandshakeProbeResult.Timeout(result.Failure);
-        }
-
-        return result.Succeeded
-            ? DaemonHandshakeProbeResult.Success()
-            : DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeTransport.MapFailure(result.Failure), result.Failure);
     }
 
     public bool IsSessionSupported(out string reason)
@@ -165,8 +58,6 @@ public class LinuxDisplaySessionService : IDisplaySessionService
     {
         reason = string.Empty;
 
-        bool hasDaemon = string.Equals(environment.UseDaemon, "1", StringComparison.Ordinal);
-
         var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
         bool isWaylandSession = string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
         bool isX11Session = string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
@@ -186,12 +77,6 @@ public class LinuxDisplaySessionService : IDisplaySessionService
         }
 
         LinuxInputCapabilitySnapshot? startupSnapshot = null;
-
-        if (hasDaemon)
-        {
-            return IsFlatpakWaylandDaemonSupported(ref startupSnapshot, out reason);
-        }
-
         return IsFlatpakWaylandDirectSupported(ref startupSnapshot, out reason);
     }
 
@@ -199,8 +84,6 @@ public class LinuxDisplaySessionService : IDisplaySessionService
         LinuxEnvironmentSnapshot environment,
         CancellationToken cancellationToken)
     {
-        bool hasDaemon = string.Equals(environment.UseDaemon, "1", StringComparison.Ordinal);
-
         var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
         bool isWaylandSession = string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
         bool isX11Session = string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
@@ -220,64 +103,7 @@ public class LinuxDisplaySessionService : IDisplaySessionService
         }
 
         LinuxInputCapabilitySnapshot? startupSnapshot = null;
-
-        if (hasDaemon)
-        {
-            return await IsFlatpakWaylandDaemonSupportedAsync(startupSnapshot, cancellationToken).ConfigureAwait(false);
-        }
-
         return await IsFlatpakWaylandDirectSupportedAsync(startupSnapshot, cancellationToken).ConfigureAwait(false);
-    }
-
-    private bool IsFlatpakWaylandDaemonSupported(ref LinuxInputCapabilitySnapshot? snapshot, out string reason)
-    {
-        if (HasDaemonHandshakeAccess(ref snapshot))
-        {
-            Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland with daemon handshake access. Supported (hybrid secure mode).");
-            reason = string.Empty;
-            return true;
-        }
-
-        if (HasDirectInputAccess(ref snapshot))
-        {
-            Log.Warning("[LinuxDisplaySessionService] Daemon handshake failed, but direct input fallback is ready. Continuing in direct mode.");
-            reason = string.Empty;
-            return true;
-        }
-
-        reason = "Daemon handshake failed and direct fallback is not ready (/dev/uinput write + readable /dev/input/event* required).";
-        Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
-        return false;
-    }
-
-    private async ValueTask<(bool Supported, string Reason)> IsFlatpakWaylandDaemonSupportedAsync(
-        LinuxInputCapabilitySnapshot? snapshot,
-        CancellationToken cancellationToken)
-    {
-        snapshot ??= await _snapshotProvider.CaptureSnapshotAsync(DaemonHandshakeStartupBudget, cancellationToken).ConfigureAwait(false);
-
-        if (snapshot.Value.DaemonHandshakeSucceeded)
-        {
-            Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland with daemon handshake access. Supported (hybrid secure mode).");
-            return (true, string.Empty);
-        }
-
-        if (snapshot.Value.DaemonHandshakeTimedOut)
-        {
-            Log.Warning(
-                "[LinuxDisplaySessionService] Daemon handshake probe exceeded startup budget ({BudgetMs}ms). Continuing without blocking UI thread.",
-                DaemonHandshakeStartupBudget.TotalMilliseconds);
-        }
-
-        if (snapshot.Value.HasDirectInputAccess)
-        {
-            Log.Warning("[LinuxDisplaySessionService] Daemon handshake failed, but direct input fallback is ready. Continuing in direct mode.");
-            return (true, string.Empty);
-        }
-
-        var reason = "Daemon handshake failed and direct fallback is not ready (/dev/uinput write + readable /dev/input/event* required).";
-        Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
-        return (false, reason);
     }
 
     private bool IsFlatpakWaylandDirectSupported(ref LinuxInputCapabilitySnapshot? snapshot, out string reason)
@@ -298,7 +124,7 @@ public class LinuxDisplaySessionService : IDisplaySessionService
         LinuxInputCapabilitySnapshot? snapshot,
         CancellationToken cancellationToken)
     {
-        snapshot ??= await _snapshotProvider.CaptureSnapshotAsync(DaemonHandshakeProbeTimeout, cancellationToken).ConfigureAwait(false);
+        snapshot ??= await _snapshotProvider.CaptureSnapshotAsync(TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
 
         if (snapshot.Value.HasDirectInputAccess)
         {
@@ -311,37 +137,11 @@ public class LinuxDisplaySessionService : IDisplaySessionService
         return (false, reason);
     }
 
-    private bool HasDaemonHandshakeAccess(ref LinuxInputCapabilitySnapshot? snapshot)
-    {
-        try
-        {
-            snapshot ??= _snapshotProvider.CaptureSnapshot(DaemonHandshakeStartupBudget);
-            if (snapshot.Value.DaemonHandshakeSucceeded)
-            {
-                return true;
-            }
-
-            if (snapshot.Value.DaemonHandshakeTimedOut)
-            {
-                Log.Warning(
-                    "[LinuxDisplaySessionService] Daemon handshake probe exceeded startup budget ({BudgetMs}ms). Continuing without blocking UI thread.",
-                    DaemonHandshakeStartupBudget.TotalMilliseconds);
-            }
-
-            return false;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Debug(ex, "[LinuxDisplaySessionService] Daemon handshake probe failed unexpectedly");
-            return false;
-        }
-    }
-
     private bool HasDirectInputAccess(ref LinuxInputCapabilitySnapshot? snapshot)
     {
         try
         {
-            snapshot ??= _snapshotProvider.CaptureSnapshot(DaemonHandshakeProbeTimeout);
+            snapshot ??= _snapshotProvider.CaptureSnapshot(TimeSpan.Zero);
             return snapshot.Value.HasDirectInputAccess;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)

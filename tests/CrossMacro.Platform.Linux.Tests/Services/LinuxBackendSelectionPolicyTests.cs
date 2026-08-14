@@ -33,12 +33,40 @@ public sealed class LinuxBackendSelectionPolicyTests
     [LinuxFact]
     public void SelectInput_SimulationKeepsDirectUInputWithoutReadableEvents()
     {
-        var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false);
+        var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false) with
+        {
+            Input = CreateSnapshotInput(
+                daemon: false,
+                directUInput: true,
+                canReadInputEvents: false,
+                daemonStatus: LinuxDaemonHandshakeStatus.MissingSocket,
+                resolvedMode: InputProviderMode.Legacy),
+        };
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: false);
 
         Assert.Equal(InputProviderMode.Legacy, result.Mode);
         Assert.True(result.IsSupported);
+    }
+
+    [LinuxFact]
+    public void SelectInput_ResolvedDirectModeWithoutReadableEvents_RejectsCapture()
+    {
+        var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false) with
+        {
+            Input = CreateSnapshotInput(
+                daemon: false,
+                directUInput: true,
+                canReadInputEvents: false,
+                daemonStatus: LinuxDaemonHandshakeStatus.MissingSocket,
+                resolvedMode: InputProviderMode.Legacy),
+        };
+
+        var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: true);
+
+        Assert.Equal(InputProviderMode.None, result.Mode);
+        Assert.False(result.IsSupported);
+        Assert.Equal("direct-input-events-unavailable", result.Reason);
     }
 
     [LinuxFact]
@@ -63,6 +91,33 @@ public sealed class LinuxBackendSelectionPolicyTests
 
         Assert.Equal(InputProviderMode.Daemon, result.Mode);
         Assert.True(result.IsSupported);
+    }
+
+    [Theory]
+    [InlineData("io.github.alper_han.crossmacro", null)]
+    [InlineData(null, "/tmp/CrossMacro.AppImage")]
+    public void SelectInput_PortablePackagesIgnoreDaemonAndUseDirectDevices(string? flatpakId, string? appImage)
+    {
+        var snapshot = CreateSnapshot(
+            CompositorType.KDE,
+            daemon: true,
+            directUInput: true,
+            canReadInputEvents: true) with
+        {
+            Environment = CreateEnvironment(flatpakId, appImage),
+            Input = CreateSnapshotInput(
+                daemon: true,
+                directUInput: true,
+                canReadInputEvents: true,
+                daemonStatus: LinuxDaemonHandshakeStatus.Success,
+                resolvedMode: InputProviderMode.Daemon),
+        };
+
+        var simulation = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: false);
+        var capture = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: true);
+
+        Assert.Equal(InputProviderMode.Legacy, simulation.Mode);
+        Assert.Equal(InputProviderMode.Legacy, capture.Mode);
     }
 
     [Theory]
@@ -119,7 +174,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         bool canReadInputEvents,
         LinuxDaemonHandshakeStatus daemonStatus = LinuxDaemonHandshakeStatus.MissingSocket) =>
         new(
-            new LinuxEnvironmentSnapshot(FlatpakId: null, AppImage: null, UseDaemon: null, SessionType: null, WaylandDisplay: null, Display: null, CurrentDesktop: null, GdmSession: null, HyprlandInstanceSignature: null, RuntimeDir: null, WayfireSocket: null, SwaySocket: null, WindowButtons: null),
+            CreateEnvironment(flatpakId: null, appImage: null),
             compositor,
             CreateSnapshotInput(
                 daemon,
@@ -149,4 +204,7 @@ ResolvedSocketPath: null,
                     ? LinuxDaemonHandshakeProbeResult.Success("/run/crossmacro.sock", TimeSpan.Zero)
                     : LinuxDaemonHandshakeProbeResult.Failed("/run/crossmacro.sock", TimeSpan.Zero, daemonStatus),
                 resolvedMode);
+
+    private static LinuxEnvironmentSnapshot CreateEnvironment(string? flatpakId, string? appImage) =>
+        new(FlatpakId: flatpakId, AppImage: appImage, SessionType: null, WaylandDisplay: null, Display: null, CurrentDesktop: null, GdmSession: null, HyprlandInstanceSignature: null, RuntimeDir: null, WayfireSocket: null, SwaySocket: null, WindowButtons: null);
 }

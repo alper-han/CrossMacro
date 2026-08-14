@@ -4,32 +4,35 @@ namespace CrossMacro.Platform.Linux.Tests.Packaging;
 public sealed partial class LinuxPackagingStaticParityTests
 {
     private const string CanonicalSocketPath = "/run/crossmacro/crossmacro.sock";
+    private const string NativeDesktopId = "CrossMacro.desktop";
+    private const string FlatpakDesktopId = "io.github.alper_han.crossmacro.desktop";
+    private const string KWinScreenShotPermission = "org.kde.KWin.ScreenShot2";
     private const string HostDaemonFilesystemArg = "--filesystem=/run/crossmacro:rw";
     private const string DeviceAllArg = "--device=all";
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void FlatpakWrapperAndDocs_ShouldReferenceCanonicalDaemonSocketPath()
+    public void PortablePackageLaunchers_ShouldNotReferenceDaemonSocket()
     {
         Assert.Equal(CanonicalSocketPath, IpcProtocol.DefaultSocketPath);
 
         var referencedFiles = new[]
         {
-            "flatpak/crossmacro.sh",
-            "README.md",
-            "docs/man/crossmacro.1",
+            "flatpak/io.github.alper_han.crossmacro.yml",
+            "flatpak/io.github.alper_han.crossmacro.flathub.yml",
+            "scripts/packaging/appimage/build.sh",
         };
 
         foreach (var relativePath in referencedFiles)
         {
             var text = ReadRepoFile(relativePath);
 
-            Assert.Contains(CanonicalSocketPath, text, StringComparison.Ordinal);
+            Assert.DoesNotContain(CanonicalSocketPath, text, StringComparison.Ordinal);
         }
     }
 
     [Fact]
-    public void FlatpakManifests_ShouldKeepMatchingHostDaemonExposureAndImportantFinishArgs()
+    public void FlatpakManifests_ShouldKeepMatchingDirectDevicePermissions()
     {
         var manifestPaths = new[]
         {
@@ -48,7 +51,6 @@ public sealed partial class LinuxPackagingStaticParityTests
             "--talk-name=org.gnome.Shell",
             "--talk-name=org.freedesktop.Flatpak",
             "--filesystem=xdg-run/hypr:ro",
-            HostDaemonFilesystemArg,
             "--filesystem=~/.local/share/gnome-shell/extensions:create",
             "--env=CROSSMACRO_FLATPAK=1",
         };
@@ -62,9 +64,75 @@ public sealed partial class LinuxPackagingStaticParityTests
             var finishArgs = ReadFinishArgs(manifestPath);
 
             Assert.Equal(firstManifestArgs, finishArgs);
-            Assert.Contains(HostDaemonFilesystemArg, finishArgs);
+            Assert.DoesNotContain(HostDaemonFilesystemArg, finishArgs);
             Assert.Contains(DeviceAllArg, finishArgs);
         }
+    }
+
+    [Fact]
+    public void NativeDesktopAsset_ShouldUseDistinctIdAndDeclareKWinPermission()
+    {
+        var desktop = ReadDesktopEntry($"scripts/assets/{NativeDesktopId}");
+
+        Assert.Equal("crossmacro", desktop["Exec"]);
+        Assert.Equal("CrossMacro.UI", desktop["StartupWMClass"]);
+        Assert.Equal(KWinScreenShotPermission, desktop["X-KDE-DBUS-Restricted-Interfaces"]);
+        Assert.NotEqual(NativeDesktopId, FlatpakDesktopId);
+    }
+
+    [Fact]
+    public void NativePackageDefinitions_ShouldLaunchTheirInstalledGuiElfDirectly()
+    {
+        var packageSources = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["scripts/packaging/deb/build.sh"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
+            ["scripts/packaging/rpm/crossmacro.spec"] = "Exec=\\/usr\\/lib\\/crossmacro\\/CrossMacro.UI",
+            ["scripts/packaging/arch/PKGBUILD"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
+        };
+
+        foreach (var (packageSource, desktopExec) in packageSources)
+        {
+            var text = ReadRepoFile(packageSource);
+
+            Assert.Contains(NativeDesktopId, text, StringComparison.Ordinal);
+            Assert.Contains(desktopExec, text, StringComparison.Ordinal);
+            Assert.DoesNotContain(FlatpakDesktopId, text, StringComparison.Ordinal);
+        }
+
+        Assert.Contains(NativeDesktopId, ReadRepoFile("scripts/packaging/rpm/build.sh"), StringComparison.Ordinal);
+        Assert.Contains("linux-desktop-identity.sh", ReadRepoFile("scripts/smoke/deb-package.sh"), StringComparison.Ordinal);
+        Assert.Contains("linux-desktop-identity.sh", ReadRepoFile("scripts/smoke/rpm-package.sh"), StringComparison.Ordinal);
+        Assert.Contains("file -L \"$executable\"", ReadRepoFile("scripts/smoke/linux-desktop-identity.sh"), StringComparison.Ordinal);
+
+        var releaseWorkflow = ReadRepoFile(".github/workflows/release.yml");
+        Assert.Contains($"usr/share/applications/{NativeDesktopId}", releaseWorkflow, StringComparison.Ordinal);
+        Assert.Contains("crossmacro_validate_native_desktop_identity /", releaseWorkflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SandboxAndAppImagePackages_ShouldKeepTheirDeliberateCaptureStrategies()
+    {
+        var flatpakDesktop = ReadDesktopEntry($"flatpak/{FlatpakDesktopId}");
+        var flatpakManifest = ReadRepoFile("flatpak/io.github.alper_han.crossmacro.yml");
+        var backendPolicy = ReadRepoFile("src/CrossMacro.Platform.Linux/Services/ScreenReading/LinuxScreenReaderBackendPolicy.cs");
+        var appImageBuild = ReadRepoFile("scripts/packaging/appimage/build.sh");
+        var kWinCapture = ReadRepoFile("src/CrossMacro.Platform.Linux/DisplayServer/Wayland/KWinScreenShotCapture.cs");
+
+        Assert.Equal("crossmacro", flatpakDesktop["Exec"]);
+        Assert.Equal("io.github.alper_han.crossmacro", flatpakDesktop["X-Flatpak"]);
+        Assert.DoesNotContain("X-KDE-DBUS-Restricted-Interfaces", flatpakDesktop.Keys);
+        Assert.Contains("ln -s ../lib/crossmacro/CrossMacro.UI /app/bin/crossmacro", flatpakManifest, StringComparison.Ordinal);
+        Assert.DoesNotContain("crossmacro.sh", flatpakManifest, StringComparison.Ordinal);
+
+        var flatpakPolicy = ExtractSection(backendPolicy, "FlatpakWaylandOrder =", "];", includeEndMarker: true);
+        Assert.Contains("LinuxScreenReaderBackend.Portal", flatpakPolicy, StringComparison.Ordinal);
+        Assert.DoesNotContain("LinuxScreenReaderBackend.KWinScreenShot2", flatpakPolicy, StringComparison.Ordinal);
+
+        Assert.Contains("Exec=AppRun", appImageBuild, StringComparison.Ordinal);
+        Assert.Contains("exec \"\\$HERE/usr/bin/CrossMacro.UI\"", appImageBuild, StringComparison.Ordinal);
+        Assert.Contains("File.ResolveLinkTarget(\"/proc/self/exe\"", kWinCapture, StringComparison.Ordinal);
+        Assert.Contains("Exec={canonicalExe}", kWinCapture, StringComparison.Ordinal);
+        Assert.Contains($"X-KDE-DBUS-Restricted-Interfaces={KWinScreenShotPermission}", kWinCapture, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -267,7 +335,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.True(firstIndex < lastIndex, $"Expected '{first}' before '{last}'.");
     }
 
-    private static string ExtractSection(string text, string startMarker, string endMarker)
+    private static string ExtractSection(string text, string startMarker, string endMarker, bool includeEndMarker = false)
     {
         var startIndex = text.IndexOf(startMarker, StringComparison.Ordinal);
         var endIndex = text.IndexOf(endMarker, startIndex + startMarker.Length, StringComparison.Ordinal);
@@ -275,7 +343,8 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.True(startIndex >= 0, $"Could not find '{startMarker}' in packaging hook.");
         Assert.True(endIndex >= 0, $"Could not find '{endMarker}' in packaging hook.");
 
-        return text.Substring(startIndex, endIndex - startIndex);
+        var length = endIndex - startIndex + (includeEndMarker ? endMarker.Length : 0);
+        return text.Substring(startIndex, length);
     }
 
     private static string[] ExtractRpmRequires(string spec)
@@ -368,6 +437,17 @@ public sealed partial class LinuxPackagingStaticParityTests
     private static string ReadRepoFile(string relativePath)
     {
         return File.ReadAllText(Path.Combine(RepoRoot, relativePath));
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadDesktopEntry(string relativePath)
+    {
+        return ReadRepoFile(relativePath)
+            .Split('\n')
+            .Select(line => line.Trim().TrimEnd('\r'))
+            .Where(line => line.Length > 0 && line[0] is not '#' and not '[')
+            .Select(line => line.Split('=', 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.Ordinal);
     }
 
     private static string FindRepoRoot()

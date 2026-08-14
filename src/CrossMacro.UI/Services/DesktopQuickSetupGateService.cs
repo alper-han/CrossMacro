@@ -62,7 +62,7 @@ internal sealed class DesktopQuickSetupGateService(
                 var promptMessage =
                     "CrossMacro cannot access host input devices in Flatpak on Wayland.\n\n" +
                     "Run Quick Setup now?\n\n" +
-                    "Quick Setup uses flatpak-spawn to request host authorization and enable the direct device mode fallback for your user session.\n\n" +
+                    "Quick Setup uses flatpak-spawn to request host authorization and enable direct device access for your user session.\n\n" +
                     $"Details: {initialReason}";
 
                 var shouldRunSetup = await DesktopPermissionGateService.ShowDialogAsync<bool>(

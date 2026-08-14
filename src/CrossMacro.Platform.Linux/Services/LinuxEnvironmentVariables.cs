@@ -46,7 +46,6 @@ public sealed class LinuxEnvironmentVariables : ILinuxEnvironmentVariables
         return new LinuxEnvironmentSnapshot(
             FlatpakId: _getEnvironmentVariable("FLATPAK_ID"),
             AppImage: _getEnvironmentVariable("APPIMAGE"),
-            UseDaemon: _getEnvironmentVariable("CROSSMACRO_USE_DAEMON"),
             SessionType: _getEnvironmentVariable("XDG_SESSION_TYPE"),
             WaylandDisplay: _getEnvironmentVariable("WAYLAND_DISPLAY"),
             Display: _getEnvironmentVariable("DISPLAY"),

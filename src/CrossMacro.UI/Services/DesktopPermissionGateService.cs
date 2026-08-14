@@ -162,7 +162,8 @@ internal sealed class DesktopPermissionGateService(
         }
 
         return await Dispatcher.UIThread
-            .InvokeAsync(async () => await createDialog().ShowDialog<T>(owner).ConfigureAwait(continueOnCapturedContext: false));
+            .InvokeAsync(async () => await createDialog().ShowDialog<T>(owner).ConfigureAwait(continueOnCapturedContext: false))
+            .ConfigureAwait(false);
     }
 
     private static async Task<bool> HandleStartupPermissionGateAsync(

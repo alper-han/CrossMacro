@@ -3,7 +3,6 @@ namespace CrossMacro.Platform.Linux.Services;
 public readonly record struct LinuxEnvironmentSnapshot(
     string? FlatpakId,
     string? AppImage,
-    string? UseDaemon,
     string? SessionType,
     string? WaylandDisplay,
     string? Display,
@@ -23,4 +22,6 @@ public readonly record struct LinuxEnvironmentSnapshot(
         !string.IsNullOrWhiteSpace(FlatpakId) ||
         string.Equals(CrossMacroFlatpak, "1", StringComparison.Ordinal) ||
         FlatpakInfoExists;
+
+    public bool UsesPortableDirectInput => IsFlatpak || !string.IsNullOrWhiteSpace(AppImage);
 }

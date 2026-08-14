@@ -17,9 +17,8 @@ not picked up `crossmacro` group membership.
 
 - **`.deb`, `.rpm`, AUR:** daemon-backed packages. Package scripts set up
   `crossmacro.service` and the `crossmacro` group.
-- **Flatpak on Wayland:** daemon-backed or direct device fallback. CrossMacro
-  uses the host daemon socket when exposed; Quick Setup can grant temporary
-  direct-device ACLs.
+- **Flatpak on Wayland:** direct device mode. Quick Setup can grant temporary
+  direct-device ACLs without exposing the host daemon socket to the sandbox.
 - **AppImage on X11:** native X11 backend using XInput2/XTest when available.
 - **AppImage on Wayland:** direct device fallback. Quick Setup may prompt for
   temporary input permissions.
@@ -108,12 +107,9 @@ normal setup.
 
 ## Flatpak on Wayland
 
-For Flatpak on Wayland, CrossMacro uses a hybrid startup path:
-
-- **Daemon-backed mode** when the host daemon socket is exposed at
-  `/run/crossmacro/crossmacro.sock`
-- **Direct device mode** when the daemon path is unavailable and temporary
-  device access is granted to the user session
+For Flatpak on Wayland, CrossMacro uses direct device mode. The portable package
+does not expose or probe the host daemon socket; temporary device access is
+granted to the user session when needed.
 
 If required permissions are missing, app startup shows **Wayland Setup Required**
 and can run Quick Setup automatically. Quick Setup uses `flatpak-spawn --host`

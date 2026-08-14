@@ -193,6 +193,10 @@ public sealed partial class DoctorService
         {
             message = "uinput is not writable; daemon mode should be used.";
         }
+        else if (!state.DaemonDiagnosticsEnabled)
+        {
+            message = "uinput is not writable in this direct-device package.";
+        }
         else if (state.DaemonSocketExists)
         {
             message = "uinput is not writable and daemon handshake failed.";
@@ -232,12 +236,19 @@ public sealed partial class DoctorService
             if (state.DirectFallbackAvailable)
             {
                 status = DoctorCheckStatus.Pass;
-                message = "Wayland input is ready via direct input fallback. Daemon is not required.";
+                message = state.DaemonDiagnosticsEnabled
+                    ? "Wayland input is ready via direct input fallback. Daemon is not required."
+                    : "Wayland input is ready via direct devices.";
             }
             else if (state.DaemonHandshakeOk)
             {
                 status = DoctorCheckStatus.Pass;
                 message = "Wayland input is ready via daemon socket.";
+            }
+            else if (!state.DaemonDiagnosticsEnabled)
+            {
+                status = DoctorCheckStatus.Fail;
+                message = "Wayland direct-device input requires writable uinput and readable input event devices.";
             }
             else if (state.DaemonSocketExists)
             {
@@ -360,7 +371,9 @@ public sealed partial class DoctorService
 
     private async Task<LinuxInputState> BuildLinuxInputStateAsync(CancellationToken cancellationToken)
     {
-        var socketAccess = await _daemonSocketAccessProbe(IpcProtocol.DefaultSocketPath, cancellationToken).ConfigureAwait(false);
+        var socketAccess = _linuxDaemonDiagnosticsEnabled
+            ? await _daemonSocketAccessProbe(IpcProtocol.DefaultSocketPath, cancellationToken).ConfigureAwait(false)
+            : LinuxDaemonSocketAccessResult.Missing(IpcProtocol.DefaultSocketPath);
         var resolvedSocketPath = socketAccess.Status is LinuxDaemonSocketAccessStatus.Missing
             ? null
             : socketAccess.SocketPath;
@@ -375,7 +388,7 @@ public sealed partial class DoctorService
         var canReadInputEvents = HasReadableInputEventAccess();
         var directFallback = LinuxDirectInputFallbackResult.FromAccess(uInputWritable, canReadInputEvents);
 
-        var handshake = daemonSocketExists && !string.IsNullOrWhiteSpace(resolvedSocketPath)
+        var handshake = _linuxDaemonDiagnosticsEnabled && daemonSocketExists && !string.IsNullOrWhiteSpace(resolvedSocketPath)
             ? _daemonHandshakeDiagnosticProbe(resolvedSocketPath, LinuxDaemonHandshakeTimeout)
             : LinuxDaemonHandshakeProbeResult.Failed(
                 IpcProtocol.DefaultSocketPath,
@@ -408,6 +421,7 @@ or DisplayEnvironment.LinuxGnome;
             IsWayland: isWayland,
             IsX11: isX11,
             IsFlatpak: isFlatpak,
+            DaemonDiagnosticsEnabled: _linuxDaemonDiagnosticsEnabled,
             DefaultSocketExists: defaultSocketExists,
             DaemonSocketExists: daemonSocketExists,
             ResolvedSocketPath: resolvedSocketPath,
@@ -561,6 +575,7 @@ or DisplayEnvironment.LinuxGnome;
         bool IsWayland,
         bool IsX11,
         bool IsFlatpak,
+        bool DaemonDiagnosticsEnabled,
         bool DefaultSocketExists,
         bool DaemonSocketExists,
         string? ResolvedSocketPath,

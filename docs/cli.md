@@ -54,8 +54,8 @@ server automation.
 
 ## Temporary Wayland input setup
 
-When a Flatpak or AppImage is running on Wayland without daemon access, grant
-the current session temporary access to `/dev/uinput` and
+Flatpak and AppImage use direct device access on Wayland. Grant the current
+session temporary access to `/dev/uinput` and
 `/dev/input/event*` without opening the GUI:
 
 ```bash

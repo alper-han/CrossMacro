@@ -156,7 +156,6 @@ public sealed class FlatpakQuickSetupServiceTests
         var env = new LinuxEnvironmentSnapshot(
             FlatpakId: "io.github.alper_han.crossmacro",
             AppImage: null,
-            UseDaemon: null,
             SessionType: "wayland",
             WaylandDisplay: null,
             Display: null,

@@ -140,7 +140,6 @@ public sealed class CompositorDetectorTests
         return new LinuxEnvironmentSnapshot(
             FlatpakId: null,
             AppImage: null,
-            UseDaemon: null,
             SessionType: sessionType,
             WaylandDisplay: waylandDisplay,
             Display: display,

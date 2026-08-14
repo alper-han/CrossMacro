@@ -13,6 +13,7 @@ internal static class CliPreflightServiceRegistration
             Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = linuxDaemonHandshakeProbe is null ? null : linuxDaemonHandshakeProbe.Probe;
             var linuxDaemonSocketAccessProbe = sp.GetService<ILinuxDaemonSocketAccessProbe>();
             Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>>? daemonSocketAccessProbe = linuxDaemonSocketAccessProbe is null ? null : (socketPath, cancellationToken) => linuxDaemonSocketAccessProbe.ProbeAsync(new LinuxDaemonSocketProbeOptions(socketPath, "crossmacro"), cancellationToken);
+            var linuxDaemonDiagnosticsEnabled = linuxDaemonHandshakeProbe is not null && linuxDaemonSocketAccessProbe is not null;
             return new DoctorService(
                 sp.GetRequiredService<IRuntimeContext>(),
                 sp.GetRequiredService<IDisplayEnvironmentDiagnostic>(),
@@ -27,7 +28,8 @@ internal static class CliPreflightServiceRegistration
                 daemonHandshakeDiagnosticProbe,
                 sp.GetService<IScreenReadingDiagnosticProvider>(),
                 sp.GetService<IMacOSScreenRecordingPermissionProbe>(),
-                screenReadingCapabilityReadiness: sp.GetService<IScreenReadingCapabilityReadiness>());
+                screenReadingCapabilityReadiness: sp.GetService<IScreenReadingCapabilityReadiness>(),
+                linuxDaemonDiagnosticsEnabled: linuxDaemonDiagnosticsEnabled);
         });
         _ = services.AddSingleton<ICliPreflightService>(sp => new CliPreflightService(sp.GetRequiredService<IRuntimeContext>(), sp.GetRequiredService<IDisplaySessionService>(), sp.GetRequiredService<Func<IInputSimulator>>(), sp.GetRequiredService<Func<IInputCapture>>()));
     }

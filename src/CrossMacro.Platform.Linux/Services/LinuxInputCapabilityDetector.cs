@@ -20,6 +20,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
     private readonly Func<string, TimeSpan, DaemonHandshakeProbeResult> _daemonHandshakeProbe;
     private readonly Func<DateTime> _utcNow;
+    private readonly bool _daemonEnabled;
     private readonly Lock _lock = new();
     private static readonly TimeSpan DaemonProbeTtl = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan ModeResolutionTtl = TimeSpan.FromSeconds(5);
@@ -33,7 +34,18 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             LinuxInputProbeUtilities.CanOpenForWrite,
             new LinuxInputDeviceAccessProbe(),
             ProbeDaemonHandshake,
-            static () => DateTime.UtcNow)
+            static () => DateTime.UtcNow,
+            daemonEnabled: true)
+    { /* Empty */ }
+
+    internal LinuxInputCapabilityDetector(bool daemonEnabled)
+        : this(
+            File.Exists,
+            LinuxInputProbeUtilities.CanOpenForWrite,
+            new LinuxInputDeviceAccessProbe(),
+            ProbeDaemonHandshake,
+            static () => DateTime.UtcNow,
+            daemonEnabled)
     { /* Empty */ }
 
     public LinuxInputCapabilityDetector(
@@ -50,7 +62,8 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             (socketPath, _) => daemonHandshakeProbe(socketPath)
                 ? DaemonHandshakeProbeResult.Success()
                 : DaemonHandshakeProbeResult.Failed(),
-            utcNow)
+            utcNow,
+            daemonEnabled: true)
     { /* Empty */ }
 
     internal LinuxInputCapabilityDetector(
@@ -65,7 +78,25 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             canOpenForWrite,
             new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
             daemonHandshakeProbe,
-            utcNow)
+            utcNow,
+            daemonEnabled: true)
+    { /* Empty */ }
+
+    internal LinuxInputCapabilityDetector(
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<string, bool> canOpenForRead,
+        Func<string, TimeSpan, DaemonHandshakeProbeResult> daemonHandshakeProbe,
+        Func<string[]> getInputEventCandidates,
+        Func<DateTime> utcNow,
+        bool daemonEnabled)
+        : this(
+            fileExists,
+            canOpenForWrite,
+            new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
+            daemonHandshakeProbe,
+            utcNow,
+            daemonEnabled)
     { /* Empty */ }
 
     internal LinuxInputCapabilityDetector(
@@ -79,7 +110,8 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             canOpenForWrite,
             new LinuxInputDeviceAccessProbe(hasUsableReadableInputDevices),
             daemonHandshakeProbe,
-            utcNow)
+            utcNow,
+            daemonEnabled: true)
     { /* Empty */ }
 
     internal LinuxInputCapabilityDetector(
@@ -87,13 +119,15 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         Func<string, bool> canOpenForWrite,
         ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
         Func<string, TimeSpan, DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<DateTime> utcNow)
+        Func<DateTime> utcNow,
+        bool daemonEnabled)
     {
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
         _inputDeviceAccessProbe = inputDeviceAccessProbe ?? throw new ArgumentNullException(nameof(inputDeviceAccessProbe));
         _daemonHandshakeProbe = daemonHandshakeProbe ?? throw new ArgumentNullException(nameof(daemonHandshakeProbe));
         _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
+        _daemonEnabled = daemonEnabled;
     }
 
     internal readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure, LinuxDaemonHandshakeStatus Status)
@@ -172,6 +206,11 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         get
         {
+            if (!_daemonEnabled)
+            {
+                return false;
+            }
+
             using (_lock.EnterScope())
             {
                 var now = _utcNow();
@@ -258,8 +297,8 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         {
             var now = _utcNow();
 
-            if (_lastDaemonProbeUtc == DateTime.MinValue ||
-                (now - _lastDaemonProbeUtc) > DaemonProbeTtl)
+            if (_daemonEnabled &&
+                (_lastDaemonProbeUtc == DateTime.MinValue || (now - _lastDaemonProbeUtc) > DaemonProbeTtl))
             {
                 RefreshDaemonConnectivity(now);
             }
@@ -310,8 +349,8 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         {
             var now = _utcNow();
 
-            if (_lastDaemonProbeUtc == DateTime.MinValue ||
-                (now - _lastDaemonProbeUtc) > DaemonProbeTtl)
+            if (_daemonEnabled &&
+                (_lastDaemonProbeUtc == DateTime.MinValue || (now - _lastDaemonProbeUtc) > DaemonProbeTtl))
             {
                 RefreshDaemonConnectivity(now);
             }

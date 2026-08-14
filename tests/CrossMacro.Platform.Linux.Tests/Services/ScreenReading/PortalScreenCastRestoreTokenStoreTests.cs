@@ -143,7 +143,6 @@ public sealed class PortalScreenCastRestoreTokenStoreTests : IDisposable
         new(
             FlatpakId: "io.github.alper_han.crossmacro",
             AppImage: null,
-            UseDaemon: null,
             SessionType: "wayland",
             WaylandDisplay: "wayland-1",
             Display: null,

@@ -17,10 +17,17 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<ILinuxEnvironmentVariables>(new LinuxEnvironmentVariables(environment));
         _ = services.AddSingleton<ILinuxEnvironmentDetector>(sp => new LinuxEnvironmentDetector(
             sp.GetRequiredService<ILinuxEnvironmentVariables>()));
-        _ = services.AddSingleton<ILinuxDaemonHandshakeProbe, LinuxDaemonHandshakeProbe>();
-        _ = services.AddSingleton<ILinuxDaemonSocketAccessProbe, LinuxDaemonSocketAccessProbe>();
-        _ = services.AddSingleton<ILinuxInputCapabilitySnapshotProvider, LinuxInputCapabilitySnapshotProvider>();
-        _ = services.AddSingleton<ILinuxInputCapabilityDetector, LinuxInputCapabilityDetector>();
+        var daemonEnabled = !environment.UsesPortableDirectInput;
+        if (daemonEnabled)
+        {
+            _ = services.AddSingleton<ILinuxDaemonHandshakeProbe, LinuxDaemonHandshakeProbe>();
+            _ = services.AddSingleton<ILinuxDaemonSocketAccessProbe, LinuxDaemonSocketAccessProbe>();
+        }
+
+        _ = services.AddSingleton<ILinuxInputCapabilitySnapshotProvider>(
+            new LinuxInputCapabilitySnapshotProvider(daemonEnabled));
+        _ = services.AddSingleton<ILinuxInputCapabilityDetector>(
+            new LinuxInputCapabilityDetector(daemonEnabled));
         AddLinuxCaptureServices(services, environment);
         _ = services.AddSingleton<IEnvironmentInfoProvider>(sp => new LinuxEnvironmentInfoProvider(
             sp.GetRequiredService<LinuxEnvironmentSnapshot>()));

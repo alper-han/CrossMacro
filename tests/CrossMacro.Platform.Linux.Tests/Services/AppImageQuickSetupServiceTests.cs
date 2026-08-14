@@ -66,6 +66,26 @@ public sealed class AppImageQuickSetupServiceTests
         Assert.True(service.ShouldPrompt());
     }
 
+    [Fact]
+    public void ShouldPrompt_WhenHostDaemonIsAvailableButDirectAccessIsMissing_ReturnsTrue()
+    {
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
+            ["FLATPAK_ID"] = null,
+            ["XDG_SESSION_TYPE"] = "wayland",
+        };
+        var service = CreateService(
+            env,
+            InputProviderMode.Daemon,
+            canReadInputEvents: false,
+            userName: "alice",
+            effectiveUid: 1000,
+            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+
+        Assert.True(service.ShouldPrompt());
+    }
+
 
     [Fact]
     public async Task RunAsync_WhenNoPrivilegeCommandIsAvailable_ShouldFailWithoutRunningCommand()
@@ -189,7 +209,7 @@ public sealed class AppImageQuickSetupServiceTests
         private readonly InputProviderMode _mode = mode;
 
         public bool CanConnectToDaemon => false;
-        public bool CanUseDirectUInput => false;
+        public bool CanUseDirectUInput => _mode is InputProviderMode.Legacy;
         public bool CanReadInputEvents { get; } = canReadInputEvents;
         public int InvalidateCallCount { get; private set; }
 

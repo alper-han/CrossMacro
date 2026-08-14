@@ -7,6 +7,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
     private readonly Func<string, bool> _canOpenForWrite;
     private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
     private readonly Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> _daemonHandshakeProbe;
+    private readonly bool _daemonEnabled;
 
     public LinuxInputCapabilitySnapshotProvider()
         : this(
@@ -14,7 +15,18 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             LinuxInputProbeUtilities.CanOpenForWrite,
             new LinuxInputDeviceAccessProbe(),
             LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
-            LinuxInputProbeUtilities.GetInputEventCandidates)
+            LinuxInputProbeUtilities.GetInputEventCandidates,
+            daemonEnabled: true)
+    { /* Empty */ }
+
+    internal LinuxInputCapabilitySnapshotProvider(bool daemonEnabled)
+        : this(
+            File.Exists,
+            LinuxInputProbeUtilities.CanOpenForWrite,
+            new LinuxInputDeviceAccessProbe(),
+            LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
+            LinuxInputProbeUtilities.GetInputEventCandidates,
+            daemonEnabled)
     { /* Empty */ }
 
     public LinuxInputCapabilitySnapshotProvider(
@@ -28,7 +40,24 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             canOpenForWrite,
             new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
             daemonHandshakeProbe,
-            getInputEventCandidates)
+            getInputEventCandidates,
+            daemonEnabled: true)
+    { /* Empty */ }
+
+    internal LinuxInputCapabilitySnapshotProvider(
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<string, bool> canOpenForRead,
+        Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
+        Func<string[]> getInputEventCandidates,
+        bool daemonEnabled)
+        : this(
+            fileExists,
+            canOpenForWrite,
+            new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
+            daemonHandshakeProbe,
+            getInputEventCandidates,
+            daemonEnabled)
     { /* Empty */ }
 
     internal LinuxInputCapabilitySnapshotProvider(
@@ -42,7 +71,8 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             canOpenForWrite,
             new LinuxInputDeviceAccessProbe(hasUsableReadableInputDevices),
             daemonHandshakeProbe,
-            getInputEventCandidates)
+            getInputEventCandidates,
+            daemonEnabled: true)
     { /* Empty */ }
 
     internal LinuxInputCapabilitySnapshotProvider(
@@ -50,18 +80,22 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         Func<string, bool> canOpenForWrite,
         ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
         Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates)
+        Func<string[]> getInputEventCandidates,
+        bool daemonEnabled)
     {
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
         _inputDeviceAccessProbe = inputDeviceAccessProbe ?? throw new ArgumentNullException(nameof(inputDeviceAccessProbe));
         _daemonHandshakeProbe = daemonHandshakeProbe ?? throw new ArgumentNullException(nameof(daemonHandshakeProbe));
+        _daemonEnabled = daemonEnabled;
         ArgumentNullException.ThrowIfNull(getInputEventCandidates);
     }
 
     public LinuxInputCapabilitySnapshot CaptureSnapshot(TimeSpan daemonHandshakeBudget)
     {
-        var resolvedSocketPath = LinuxInputProbeUtilities.ResolveAvailableSocketPath(_fileExists);
+        var resolvedSocketPath = _daemonEnabled
+            ? LinuxInputProbeUtilities.ResolveAvailableSocketPath(_fileExists)
+            : null;
         var daemonSocketExists = resolvedSocketPath is not null;
 
         var daemonProbeResult = daemonSocketExists
@@ -104,7 +138,9 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var resolvedSocketPath = await LinuxInputProbeUtilities.ResolveAvailableSocketPathAsync(_fileExists, cancellationToken).ConfigureAwait(false);
+        var resolvedSocketPath = _daemonEnabled
+            ? await LinuxInputProbeUtilities.ResolveAvailableSocketPathAsync(_fileExists, cancellationToken).ConfigureAwait(false)
+            : null;
         var daemonSocketExists = resolvedSocketPath is not null;
 
         var daemonProbeResult = daemonSocketExists

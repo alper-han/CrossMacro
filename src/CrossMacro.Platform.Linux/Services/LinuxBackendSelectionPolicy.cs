@@ -16,19 +16,15 @@ public static class LinuxBackendSelectionPolicy
             return new LinuxBackendSelection(InputProviderMode.None, CaptureSupported: true, "native-x11");
         }
 
-        if (snapshot.Input.ResolvedMode is not null)
-        {
-            return new LinuxBackendSelection(snapshot.Input.ResolvedMode.Value, snapshot.Input.ResolvedMode.Value is not InputProviderMode.None, snapshot.Input.ResolvedMode.Value switch
-            {
-                InputProviderMode.Daemon => "daemon",
-                InputProviderMode.Legacy => "direct-device",
-                InputProviderMode.None => "no-backend",
-                _ => "no-backend",
-            });
-        }
+        var daemonEnabled = !snapshot.Environment.UsesPortableDirectInput;
 
         InputProviderMode mode;
-        if (snapshot.Input.DaemonHandshakeSucceeded)
+        if (snapshot.Input.ResolvedMode is { } resolvedMode &&
+            (daemonEnabled || resolvedMode is not InputProviderMode.Daemon))
+        {
+            mode = resolvedMode;
+        }
+        else if (daemonEnabled && snapshot.Input.DaemonHandshakeSucceeded)
         {
             mode = InputProviderMode.Daemon;
         }

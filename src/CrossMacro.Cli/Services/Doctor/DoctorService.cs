@@ -27,6 +27,7 @@ public sealed partial class DoctorService : IDoctorService
     private readonly IScreenReadingDiagnosticProvider? _screenReadingDiagnosticProvider;
     private readonly IScreenReadingCapabilityReadiness? _screenReadingCapabilityReadiness;
     private readonly IMacOSScreenRecordingPermissionProbe? _macOSScreenRecordingPermissionProbe;
+    private readonly bool _linuxDaemonDiagnosticsEnabled;
 
     public DoctorService(
         IRuntimeContext runtimeContext,
@@ -43,7 +44,8 @@ public sealed partial class DoctorService : IDoctorService
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
         Func<string>? getConfigDirectory = null,
-        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null,
+        bool linuxDaemonDiagnosticsEnabled = true)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -57,7 +59,8 @@ public sealed partial class DoctorService : IDoctorService
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
             getConfigDirectory,
-            screenReadingCapabilityReadiness)
+            screenReadingCapabilityReadiness,
+            linuxDaemonDiagnosticsEnabled)
     {
         _displayEnvironmentDiagnostic = displayEnvironmentDiagnostic ?? throw new ArgumentNullException(nameof(displayEnvironmentDiagnostic));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
@@ -76,7 +79,8 @@ public sealed partial class DoctorService : IDoctorService
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
         Func<string>? getConfigDirectory = null,
-        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null,
+        bool linuxDaemonDiagnosticsEnabled = true)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -100,7 +104,8 @@ public sealed partial class DoctorService : IDoctorService
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
             getConfigDirectory,
-            screenReadingCapabilityReadiness)
+            screenReadingCapabilityReadiness,
+            linuxDaemonDiagnosticsEnabled)
     { /* Empty */ }
 
     public DoctorService(
@@ -126,7 +131,8 @@ public sealed partial class DoctorService : IDoctorService
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
         Func<string>? getConfigDirectory = null,
-        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null,
+        bool linuxDaemonDiagnosticsEnabled = true)
         : this(
             environmentInfoProvider,
             displaySessionService,
@@ -149,7 +155,8 @@ public sealed partial class DoctorService : IDoctorService
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
             getConfigDirectory,
-            screenReadingCapabilityReadiness)
+            screenReadingCapabilityReadiness,
+            linuxDaemonDiagnosticsEnabled)
     { /* Empty */ }
 
     internal DoctorService(
@@ -174,7 +181,8 @@ public sealed partial class DoctorService : IDoctorService
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
         Func<string>? getConfigDirectory = null,
-        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
+        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null,
+        bool linuxDaemonDiagnosticsEnabled = true)
     {
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
         _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
@@ -200,6 +208,7 @@ public sealed partial class DoctorService : IDoctorService
         _screenReadingDiagnosticProvider = screenReadingDiagnosticProvider;
         _screenReadingCapabilityReadiness = screenReadingCapabilityReadiness;
         _macOSScreenRecordingPermissionProbe = macOSScreenRecordingPermissionProbe;
+        _linuxDaemonDiagnosticsEnabled = linuxDaemonDiagnosticsEnabled;
     }
 
     private static bool HasReadableInputEventAccess(Func<string, bool> canOpenForRead, Func<string[]> getInputEventCandidates)
@@ -254,10 +263,14 @@ public sealed partial class DoctorService : IDoctorService
         {
             var linuxState = await BuildLinuxInputStateAsync(cancellationToken).ConfigureAwait(false);
             checks.Add(BuildLinuxDisplayVariablesCheck(verbose));
-            checks.Add(BuildLinuxDaemonSocketCheck(linuxState, verbose));
-            checks.Add(BuildLinuxDaemonAccessCheck(linuxState, verbose));
-            checks.Add(BuildLinuxDaemonGroupCheck(linuxState, verbose));
-            checks.Add(BuildLinuxDaemonHandshakeCheck(linuxState, verbose));
+            if (_linuxDaemonDiagnosticsEnabled)
+            {
+                checks.Add(BuildLinuxDaemonSocketCheck(linuxState, verbose));
+                checks.Add(BuildLinuxDaemonAccessCheck(linuxState, verbose));
+                checks.Add(BuildLinuxDaemonGroupCheck(linuxState, verbose));
+                checks.Add(BuildLinuxDaemonHandshakeCheck(linuxState, verbose));
+            }
+
             checks.Add(BuildLinuxUInputCheck(linuxState, verbose));
             checks.Add(BuildLinuxInputReadinessCheck(linuxState, verbose));
             checks.Add(BuildLinuxGsrCompatibilityCheck(linuxState, verbose));

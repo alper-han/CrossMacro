@@ -38,6 +38,38 @@ public sealed class LinuxInputCapabilityDetectorTests
     }
 
     [LinuxFact]
+    public void DetermineMode_WhenDaemonIsDisabled_SkipsSocketAndHandshakeProbes()
+    {
+        var socketProbeCount = 0;
+        var handshakeProbeCount = 0;
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: _ =>
+            {
+                socketProbeCount++;
+                return true;
+            },
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
+            daemonHandshakeProbe: (_, _) =>
+            {
+                handshakeProbeCount++;
+                return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success();
+            },
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            utcNow: () => DateTime.UtcNow,
+            daemonEnabled: false);
+
+        var mode = detector.DetermineMode();
+        var snapshot = detector.GetSnapshot();
+
+        Assert.Equal(InputProviderMode.Legacy, mode);
+        Assert.False(snapshot.DaemonSocketExists);
+        Assert.False(snapshot.DaemonHandshakeSucceeded);
+        Assert.Equal(0, socketProbeCount);
+        Assert.Equal(0, handshakeProbeCount);
+    }
+
+    [LinuxFact]
     public void DetermineMode_WhenOnlyAlternateUInputIsWritable_ReturnsLegacy()
     {
         // Arrange
@@ -444,6 +476,36 @@ string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal
         Assert.False(permissionDeniedSnapshot.DaemonHandshakeTimedOut);
         Assert.Equal(LinuxDaemonHandshakeStatus.Timeout, timeoutSnapshot.DaemonHandshake.Status);
         Assert.True(timeoutSnapshot.DaemonHandshakeTimedOut);
+    }
+
+    [LinuxFact]
+    public void SnapshotProvider_WhenDaemonIsDisabled_SkipsSocketAndHandshakeProbes()
+    {
+        var socketProbeCount = 0;
+        var handshakeProbeCount = 0;
+        var provider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: _ =>
+            {
+                socketProbeCount++;
+                return true;
+            },
+            canOpenForWrite: path => string.Equals(path, LinuxConstants.UInputDevicePath, StringComparison.Ordinal),
+            canOpenForRead: path => path is "/dev/input/event0",
+            daemonHandshakeProbe: (_, _) =>
+            {
+                handshakeProbeCount++;
+                return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success();
+            },
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            daemonEnabled: false);
+
+        var snapshot = provider.CaptureSnapshot(TimeSpan.FromSeconds(5));
+
+        Assert.False(snapshot.DaemonSocketExists);
+        Assert.False(snapshot.DaemonHandshakeSucceeded);
+        Assert.True(snapshot.HasDirectInputAccess);
+        Assert.Equal(0, socketProbeCount);
+        Assert.Equal(0, handshakeProbeCount);
     }
 
     [LinuxFact]

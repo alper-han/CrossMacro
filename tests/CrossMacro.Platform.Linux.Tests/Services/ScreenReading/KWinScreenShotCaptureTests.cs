@@ -122,7 +122,6 @@ public sealed class KWinScreenShotCaptureTests
         var environment = new LinuxEnvironmentSnapshot(
             FlatpakId: null,
             AppImage: null,
-            UseDaemon: null,
             SessionType: null,
             WaylandDisplay: null,
             Display: null,

@@ -17,7 +17,6 @@ public sealed class LinuxDisplaySessionClassifierTests
         var environment = new LinuxEnvironmentSnapshot(
             FlatpakId: null,
             AppImage: null,
-            UseDaemon: null,
             SessionType: sessionType,
             WaylandDisplay: waylandDisplay,
             Display: ":0",

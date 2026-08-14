@@ -59,7 +59,6 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
         var environment = _snapshotProvider?.GetSnapshot().Environment ?? new LinuxEnvironmentSnapshot(
             FlatpakId: _getEnvironmentVariable("FLATPAK_ID"),
             AppImage: _getEnvironmentVariable(AppImageKey),
-            UseDaemon: null,
             SessionType: _getEnvironmentVariable(SessionTypeKey),
             WaylandDisplay: null,
             Display: null,
@@ -98,14 +97,12 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
         if (_snapshotProvider is not null)
         {
             var input = _snapshotProvider.GetSnapshot().Input;
-            return !input.DaemonHandshakeSucceeded &&
-                   (!input.CanUseDirectUInput || !input.CanReadInputEvents);
+            return !input.CanUseDirectUInput || !input.CanReadInputEvents;
         }
 
         if (_capabilityDetector is not null)
         {
-            var mode = _capabilityDetector.DetermineMode();
-            return mode is InputProviderMode.None || (mode is InputProviderMode.Legacy && !_capabilityDetector.CanReadInputEvents);
+            return !_capabilityDetector.CanUseDirectUInput || !_capabilityDetector.CanReadInputEvents;
         }
 
         return false;

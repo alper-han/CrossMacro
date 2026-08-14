@@ -142,8 +142,20 @@ public sealed class PortalPipeWireFormatTests
             Assert.Equal(16U, ReadUInt32(damagePod, 76));
             Assert.Equal(64U, ReadUInt32(damagePod, 80));
 
-            Assert.Equal(4U, ReadUInt32(bufferPod, 152));
-            Assert.Equal(4U, ReadUInt32(bufferPod, 168));
+            var buffers = FindProperty(bufferPod, key: 1U);
+            Assert.Equal(19U, buffers.ValueType);
+            Assert.Equal(28U, buffers.ValueSize);
+            Assert.Equal(1U, ReadUInt32(bufferPod, buffers.ValueOffset));
+            Assert.Equal(4U, ReadUInt32(bufferPod, buffers.ValueOffset + 8));
+            Assert.Equal(4U, ReadUInt32(bufferPod, buffers.ValueOffset + 12));
+            Assert.Equal(3U, ReadUInt32(bufferPod, buffers.ValueOffset + 16));
+            Assert.Equal(2U, ReadUInt32(bufferPod, buffers.ValueOffset + 20));
+            Assert.Equal(4U, ReadUInt32(bufferPod, buffers.ValueOffset + 24));
+
+            var dataType = FindProperty(bufferPod, key: 6U);
+            Assert.Equal(19U, dataType.ValueType);
+            Assert.Equal(20U, dataType.ValueSize);
+            Assert.Equal(4U, ReadUInt32(bufferPod, dataType.ValueOffset));
         }
         finally
         {
@@ -205,6 +217,26 @@ public sealed class PortalPipeWireFormatTests
     };
 
     private static uint ReadUInt32(IntPtr address, int offset) => unchecked((uint)Marshal.ReadInt32(address, offset));
+
+    private static (uint ValueType, uint ValueSize, int ValueOffset) FindProperty(IntPtr pod, uint key)
+    {
+        var totalSize = checked((int)ReadUInt32(pod, 0) + 8);
+        for (var offset = 16; offset <= totalSize - 16;)
+        {
+            var propertyKey = ReadUInt32(pod, offset);
+            var valueSize = ReadUInt32(pod, offset + 8);
+            var valueType = ReadUInt32(pod, offset + 12);
+            var valueOffset = offset + 16;
+            if (propertyKey == key)
+            {
+                return (valueType, valueSize, valueOffset);
+            }
+
+            offset = checked(valueOffset + ((int)valueSize + 7 & ~7));
+        }
+
+        throw new Xunit.Sdk.XunitException($"SPA property {key} was not found.");
+    }
 
     private static IntPtr CreateChoiceSizeFormatPod(uint width, uint height)
     {

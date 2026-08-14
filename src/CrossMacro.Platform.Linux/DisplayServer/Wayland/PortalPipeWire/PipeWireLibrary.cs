@@ -9,8 +9,11 @@ internal sealed class PipeWireLibrary : IDisposable
     public delegate void StreamParamChanged(IntPtr data, uint id, IntPtr parameter);
     public delegate void StreamBufferChanged(IntPtr data, IntPtr buffer);
     public delegate void StreamProcess(IntPtr data);
+    public delegate void CoreDone(IntPtr data, uint id, int sequence);
+    public delegate void CoreError(IntPtr data, uint id, int sequence, int result, IntPtr message);
 
     private delegate void PwInit(IntPtr argc, IntPtr argv);
+    private delegate void PwDeinit();
     private delegate IntPtr PwThreadLoopNew(string name, IntPtr props);
     private delegate void PwThreadLoopDestroy(IntPtr loop);
     private delegate IntPtr PwThreadLoopGetLoop(IntPtr loop);
@@ -23,6 +26,8 @@ internal sealed class PipeWireLibrary : IDisposable
     private delegate IntPtr PwContextNew(IntPtr mainLoop, IntPtr props, UIntPtr userDataSize);
     private delegate void PwContextDestroy(IntPtr context);
     private delegate IntPtr PwContextConnectFd(IntPtr context, int fd, IntPtr props, UIntPtr userDataSize);
+    private delegate int PwCoreAddListener(IntPtr core, IntPtr listener, IntPtr events, IntPtr data);
+    private delegate int PwCoreSync(IntPtr core, uint id, int sequence);
     private delegate int PwCoreDisconnect(IntPtr core);
     private delegate IntPtr PwPropertiesNew(string key, string value, IntPtr sentinel);
     private delegate int PwPropertiesSet(IntPtr props, string key, string value);
@@ -30,12 +35,12 @@ internal sealed class PipeWireLibrary : IDisposable
     private delegate void PwStreamDestroy(IntPtr stream);
     private delegate void PwStreamAddListener(IntPtr stream, IntPtr listener, IntPtr events, IntPtr data);
     private delegate int PwStreamConnect(IntPtr stream, PipeWireDirection direction, uint targetId, PipeWireStreamOption flags, IntPtr parameters, uint parameterCount);
-    private delegate int PwStreamSetActive(IntPtr stream, [MarshalAs(UnmanagedType.I1)] bool active);
     private delegate int PwStreamUpdateParams(IntPtr stream, IntPtr parameters, uint parameterCount);
     private delegate IntPtr PwStreamDequeueBuffer(IntPtr stream);
     private delegate int PwStreamQueueBuffer(IntPtr stream, IntPtr buffer);
 
     private readonly IntPtr _handle;
+    private readonly PwDeinit _pwDeinit;
     private readonly PwThreadLoopNew _threadLoopNew;
     private readonly PwThreadLoopDestroy _threadLoopDestroy;
     private readonly PwThreadLoopGetLoop _threadLoopGetLoop;
@@ -48,6 +53,8 @@ internal sealed class PipeWireLibrary : IDisposable
     private readonly PwContextNew _contextNew;
     private readonly PwContextDestroy _contextDestroy;
     private readonly PwContextConnectFd _contextConnectFd;
+    private readonly PwCoreAddListener _coreAddListener;
+    private readonly PwCoreSync _coreSync;
     private readonly PwCoreDisconnect _coreDisconnect;
     private readonly PwPropertiesNew _propertiesNew;
     private readonly PwPropertiesSet _propertiesSet;
@@ -55,39 +62,52 @@ internal sealed class PipeWireLibrary : IDisposable
     private readonly PwStreamDestroy _streamDestroy;
     private readonly PwStreamAddListener _streamAddListener;
     private readonly PwStreamConnect _streamConnect;
-    private readonly PwStreamSetActive? _streamSetActive;
     private readonly PwStreamUpdateParams _streamUpdateParams;
     private readonly PwStreamDequeueBuffer _streamDequeueBuffer;
     private readonly PwStreamQueueBuffer _streamQueueBuffer;
     private bool _disposed;
+    private bool _initialized;
 
     private PipeWireLibrary(IntPtr handle)
     {
         _handle = handle;
-        Resolve<PwInit>("pw_init")(IntPtr.Zero, IntPtr.Zero);
-        _threadLoopNew = Resolve<PwThreadLoopNew>("pw_thread_loop_new");
-        _threadLoopDestroy = Resolve<PwThreadLoopDestroy>("pw_thread_loop_destroy");
-        _threadLoopGetLoop = Resolve<PwThreadLoopGetLoop>("pw_thread_loop_get_loop");
-        _threadLoopStart = Resolve<PwThreadLoopStart>("pw_thread_loop_start");
-        _threadLoopStop = Resolve<PwThreadLoopStop>("pw_thread_loop_stop");
-        _threadLoopLock = Resolve<PwThreadLoopLock>("pw_thread_loop_lock");
-        _threadLoopUnlock = Resolve<PwThreadLoopUnlock>("pw_thread_loop_unlock");
-        _threadLoopTimedWait = Resolve<PwThreadLoopTimedWait>("pw_thread_loop_timed_wait");
-        _threadLoopSignal = Resolve<PwThreadLoopSignal>("pw_thread_loop_signal");
-        _contextNew = Resolve<PwContextNew>("pw_context_new");
-        _contextDestroy = Resolve<PwContextDestroy>("pw_context_destroy");
-        _contextConnectFd = Resolve<PwContextConnectFd>("pw_context_connect_fd");
-        _coreDisconnect = Resolve<PwCoreDisconnect>("pw_core_disconnect");
-        _propertiesNew = Resolve<PwPropertiesNew>("pw_properties_new");
-        _propertiesSet = Resolve<PwPropertiesSet>("pw_properties_set");
-        _streamNew = Resolve<PwStreamNew>("pw_stream_new");
-        _streamDestroy = Resolve<PwStreamDestroy>("pw_stream_destroy");
-        _streamAddListener = Resolve<PwStreamAddListener>("pw_stream_add_listener");
-        _streamConnect = Resolve<PwStreamConnect>("pw_stream_connect");
-        _streamSetActive = TryResolve<PwStreamSetActive>("pw_stream_set_active");
-        _streamUpdateParams = Resolve<PwStreamUpdateParams>("pw_stream_update_params");
-        _streamDequeueBuffer = Resolve<PwStreamDequeueBuffer>("pw_stream_dequeue_buffer");
-        _streamQueueBuffer = Resolve<PwStreamQueueBuffer>("pw_stream_queue_buffer");
+        var init = Resolve<PwInit>("pw_init");
+        _pwDeinit = Resolve<PwDeinit>("pw_deinit");
+        init(IntPtr.Zero, IntPtr.Zero);
+        _initialized = true;
+        try
+        {
+            _threadLoopNew = Resolve<PwThreadLoopNew>("pw_thread_loop_new");
+            _threadLoopDestroy = Resolve<PwThreadLoopDestroy>("pw_thread_loop_destroy");
+            _threadLoopGetLoop = Resolve<PwThreadLoopGetLoop>("pw_thread_loop_get_loop");
+            _threadLoopStart = Resolve<PwThreadLoopStart>("pw_thread_loop_start");
+            _threadLoopStop = Resolve<PwThreadLoopStop>("pw_thread_loop_stop");
+            _threadLoopLock = Resolve<PwThreadLoopLock>("pw_thread_loop_lock");
+            _threadLoopUnlock = Resolve<PwThreadLoopUnlock>("pw_thread_loop_unlock");
+            _threadLoopTimedWait = Resolve<PwThreadLoopTimedWait>("pw_thread_loop_timed_wait");
+            _threadLoopSignal = Resolve<PwThreadLoopSignal>("pw_thread_loop_signal");
+            _contextNew = Resolve<PwContextNew>("pw_context_new");
+            _contextDestroy = Resolve<PwContextDestroy>("pw_context_destroy");
+            _contextConnectFd = Resolve<PwContextConnectFd>("pw_context_connect_fd");
+            _coreAddListener = Resolve<PwCoreAddListener>("pw_core_add_listener");
+            _coreSync = Resolve<PwCoreSync>("pw_core_sync");
+            _coreDisconnect = Resolve<PwCoreDisconnect>("pw_core_disconnect");
+            _propertiesNew = Resolve<PwPropertiesNew>("pw_properties_new");
+            _propertiesSet = Resolve<PwPropertiesSet>("pw_properties_set");
+            _streamNew = Resolve<PwStreamNew>("pw_stream_new");
+            _streamDestroy = Resolve<PwStreamDestroy>("pw_stream_destroy");
+            _streamAddListener = Resolve<PwStreamAddListener>("pw_stream_add_listener");
+            _streamConnect = Resolve<PwStreamConnect>("pw_stream_connect");
+            _streamUpdateParams = Resolve<PwStreamUpdateParams>("pw_stream_update_params");
+            _streamDequeueBuffer = Resolve<PwStreamDequeueBuffer>("pw_stream_dequeue_buffer");
+            _streamQueueBuffer = Resolve<PwStreamQueueBuffer>("pw_stream_queue_buffer");
+        }
+        catch
+        {
+            _pwDeinit();
+            _initialized = false;
+            throw;
+        }
     }
 
     public static bool CanLoad()
@@ -100,7 +120,19 @@ internal sealed class PipeWireLibrary : IDisposable
         NativeLibrary.Free(handle);
         return true;
     }
-    public static PipeWireLibrary Load() => new(NativeLibraryLoader.Load(LibraryNames, "libpipewire-0.3"));
+    public static PipeWireLibrary Load()
+    {
+        var handle = NativeLibraryLoader.Load(LibraryNames, "libpipewire-0.3");
+        try
+        {
+            return new PipeWireLibrary(handle);
+        }
+        catch
+        {
+            NativeLibrary.Free(handle);
+            throw;
+        }
+    }
 
     public IntPtr ThreadLoopNew(string name, IntPtr props) => _threadLoopNew(name, props);
     public void ThreadLoopDestroy(IntPtr loop) => _threadLoopDestroy(loop);
@@ -109,11 +141,13 @@ internal sealed class PipeWireLibrary : IDisposable
     public void ThreadLoopStop(IntPtr loop) => _threadLoopStop(loop);
     public void ThreadLoopLock(IntPtr loop) => _threadLoopLock(loop);
     public void ThreadLoopUnlock(IntPtr loop) => _threadLoopUnlock(loop);
-    public int ThreadLoopTimedWait(IntPtr loop, int waitMaxSec) => _threadLoopTimedWait(loop, waitMaxSec);
     public void ThreadLoopSignal(IntPtr loop, bool waitForAccept) => _threadLoopSignal(loop, waitForAccept);
+    public int ThreadLoopTimedWait(IntPtr loop, int waitMaxSec) => _threadLoopTimedWait(loop, waitMaxSec);
     public IntPtr ContextNew(IntPtr mainLoop, IntPtr props, UIntPtr userDataSize) => _contextNew(mainLoop, props, userDataSize);
     public void ContextDestroy(IntPtr context) => _contextDestroy(context);
     public IntPtr ContextConnectFd(IntPtr context, int fd, IntPtr props, UIntPtr userDataSize) => _contextConnectFd(context, fd, props, userDataSize);
+    public int CoreAddListener(IntPtr core, IntPtr listener, IntPtr events, IntPtr data) => _coreAddListener(core, listener, events, data);
+    public int CoreSync(IntPtr core, uint id, int sequence) => _coreSync(core, id, sequence);
     public int CoreDisconnect(IntPtr core) => _coreDisconnect(core);
     public IntPtr PropertiesNew(string key, string value) => _propertiesNew(key, value, IntPtr.Zero);
     public int PropertiesSet(IntPtr props, string key, string value) => _propertiesSet(props, key, value);
@@ -121,8 +155,6 @@ internal sealed class PipeWireLibrary : IDisposable
     public void StreamDestroy(IntPtr stream) => _streamDestroy(stream);
     public void StreamAddListener(IntPtr stream, IntPtr listener, IntPtr events, IntPtr data) => _streamAddListener(stream, listener, events, data);
     public int StreamConnect(IntPtr stream, PipeWireDirection direction, uint targetId, PipeWireStreamOption flags, IntPtr parameters, uint parameterCount) => _streamConnect(stream, direction, targetId, flags, parameters, parameterCount);
-    public bool SupportsStreamActivation => _streamSetActive is not null;
-    public int StreamSetActive(IntPtr stream, bool active) => _streamSetActive?.Invoke(stream, active) ?? 0;
     public int StreamUpdateParams(IntPtr stream, IntPtr parameters, uint parameterCount) => _streamUpdateParams(stream, parameters, parameterCount);
     public IntPtr StreamDequeueBuffer(IntPtr stream) => _streamDequeueBuffer(stream);
     public int StreamQueueBuffer(IntPtr stream, IntPtr buffer) => _streamQueueBuffer(stream, buffer);
@@ -135,20 +167,14 @@ internal sealed class PipeWireLibrary : IDisposable
         }
 
         _disposed = true;
+        if (_initialized)
+        {
+            _pwDeinit();
+            _initialized = false;
+        }
         NativeLibrary.Free(_handle);
     }
 
     private T Resolve<T>(string symbol) where T : Delegate => Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(_handle, symbol));
 
-    private T? TryResolve<T>(string symbol) where T : Delegate
-    {
-        try
-        {
-            return Resolve<T>(symbol);
-        }
-        catch (EntryPointNotFoundException)
-        {
-            return null;
-        }
-    }
 }

@@ -16,6 +16,7 @@ public sealed class ScreenshotCaptureServiceTests
 
             Assert.True(result.Success);
             Assert.Equal(new ScreenRect(1, 2, 2, 1), provider.LastRegion);
+            Assert.Equal(TimeSpan.FromSeconds(1), provider.LastOptions.Timeout);
             Assert.True(File.Exists(outputPath));
             var bytes = await File.ReadAllBytesAsync(outputPath);
             Assert.Equal([0x89, 0x50, 0x4E, 0x47], bytes[..4]);
@@ -120,12 +121,14 @@ public sealed class ScreenshotCaptureServiceTests
         public ScreenReadResult<ScreenFrame>? Failure { get; init; }
         public byte[] Pixels { get; init; } = [0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00];
         public ScreenRect? LastRegion { get; private set; }
+        public ScreenReadOptions LastOptions { get; private set; }
         public int CaptureCalls { get; private set; }
 
         public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
         {
             CaptureCalls++;
             LastRegion = region;
+            LastOptions = options;
             if (Failure is { } failure)
             {
                 return Task.FromResult(failure);

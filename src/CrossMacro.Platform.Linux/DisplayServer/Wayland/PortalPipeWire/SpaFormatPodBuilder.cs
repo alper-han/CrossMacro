@@ -63,7 +63,7 @@ internal static class SpaFormatPodBuilder
         writer.Write(SpaTypeObject);
         writer.Write(SpaTypeObjectParamBuffers);
         writer.Write(PipeWireConstants.SpaParamBuffers);
-        WriteIntProperty(writer, SpaParamBuffersBuffers, 4);
+        WriteChoiceRangeIntProperty(writer, SpaParamBuffersBuffers, defaultValue: 3, minimum: 2, maximum: 4);
         WriteIntProperty(writer, SpaParamBuffersBlocks, 1);
         WriteIntProperty(writer, SpaParamBuffersSize, size);
         WriteIntProperty(writer, SpaParamBuffersStride, stride);

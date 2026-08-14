@@ -3,30 +3,27 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 public sealed class PipeWireCaptureTimingTests
 {
     [Fact]
-    public void Create_WhenActivationSupportsSettlingAndTimeoutIsZero_UsesBoundedPriming()
+    public void Create_WhenTimeoutIsZero_UsesShortImmediateCaptureBudget()
     {
-        var timing = PipeWireCaptureTiming.Create(streamActivationSupported: true, TimeSpan.Zero);
+        var timing = PipeWireCaptureTiming.Create(TimeSpan.Zero);
 
-        Assert.Equal(PipeWireCaptureTiming.ImmediateCaptureSettleTimeout, timing.Timeout);
-        Assert.True(timing.RequiresSettlingFrame);
+        Assert.Equal(TimeSpan.FromMilliseconds(250), timing.Timeout);
     }
 
     [Fact]
-    public void Create_WhenActivationIsUnavailableAndTimeoutIsZero_PreservesImmediateTimeout()
+    public void Create_WhenTimeoutIsPositive_PreservesItWithinFrameBudget()
     {
-        var timing = PipeWireCaptureTiming.Create(streamActivationSupported: false, TimeSpan.Zero);
+        var timing = PipeWireCaptureTiming.Create(TimeSpan.FromMilliseconds(750));
 
-        Assert.Equal(TimeSpan.Zero, timing.Timeout);
-        Assert.False(timing.RequiresSettlingFrame);
+        Assert.Equal(TimeSpan.FromMilliseconds(750), timing.Timeout);
     }
 
     [Fact]
-    public void Create_WhenTimeoutIsPositive_PreservesRequestedTimeout()
+    public void Create_WhenTimeoutExceedsFrameBudget_UsesFrameBudget()
     {
         var requestedTimeout = TimeSpan.FromSeconds(5);
-        var timing = PipeWireCaptureTiming.Create(streamActivationSupported: true, requestedTimeout);
+        var timing = PipeWireCaptureTiming.Create(requestedTimeout);
 
-        Assert.Equal(requestedTimeout, timing.Timeout);
-        Assert.True(timing.RequiresSettlingFrame);
+        Assert.Equal(PipeWireCaptureTiming.MaximumFrameTimeout, timing.Timeout);
     }
 }

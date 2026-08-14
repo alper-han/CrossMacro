@@ -3,6 +3,8 @@ namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 
 public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFrameProvider, IImageClipboardService? imageClipboardService, IImageAssetCodec? imageAssetCodec = null) : IScreenshotCaptureService
 {
+    private static readonly TimeSpan CaptureTimeout = TimeSpan.FromSeconds(1);
+
     private readonly IScreenFrameProvider? _screenFrameProvider = screenFrameProvider;
     private readonly IImageClipboardService? _imageClipboardService = imageClipboardService;
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
@@ -79,7 +81,7 @@ public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFramePr
         ScreenRect? region,
         CancellationToken cancellationToken)
     {
-        var readOptions = new ScreenReadOptions(timeout: null, pollInterval: null, cancellationToken);
+        var readOptions = new ScreenReadOptions(CaptureTimeout, pollInterval: null, cancellationToken);
 
         ScreenReadResult<ScreenFrame> captureResult;
         try

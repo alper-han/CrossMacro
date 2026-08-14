@@ -179,11 +179,6 @@ internal sealed partial class PortalPipeWireFrameCapture
             return;
         }
 
-        if (!pending.FrameAdmission.AcceptsNextUsableFrame())
-        {
-            return;
-        }
-
         var framePixels = CopyFramePixels(data0, layout, stride, offset, pending.Region);
         if (framePixels is null)
         {
@@ -283,6 +278,11 @@ internal sealed partial class PortalPipeWireFrameCapture
 
     private void HandleNegotiatedFormat(IntPtr parameter)
     {
+        if (parameter == IntPtr.Zero)
+        {
+            return;
+        }
+
         if (!SpaFormatPodParser.TryReadFormat(parameter, out var layout, out var error))
         {
             FailCopy(error);

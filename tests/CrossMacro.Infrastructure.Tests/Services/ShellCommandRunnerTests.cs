@@ -6,6 +6,24 @@ public sealed class ShellCommandRunnerTests
     private static readonly string LargeStandardInput = new('x', 1_048_576);
 
     [Fact]
+    public async Task RunAsync_WhenCommandIsEmpty_ThrowsArgumentException()
+    {
+        var runner = new ShellCommandRunner();
+
+        _ = await Assert.ThrowsAsync<ArgumentException>(() =>
+            runner.RunAsync(new ShellCommandRequest(" "), timeout: null));
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenOutputLimitIsNegative_ThrowsArgumentOutOfRangeException()
+    {
+        var runner = new ShellCommandRunner();
+
+        _ = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            runner.RunAsync(new ShellCommandRequest("true", OutputLimitChars: -1), timeout: null));
+    }
+
+    [Fact]
     public async Task RunAsync_WhenCommandWritesOutput_CapturesStdout()
     {
         if (!OperatingSystem.IsLinux())

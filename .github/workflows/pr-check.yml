@@ -505,6 +505,10 @@ jobs:
         flatpak run io.github.alper_han.crossmacro --help | grep -F "Usage:"
         flatpak run io.github.alper_han.crossmacro settings get --json | grep -F '"status": "ok"'
         flatpak run io.github.alper_han.crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json | grep -F '"coordinateMode": "absolute"'
+        flatpak run io.github.alper_han.crossmacro run --step 'shell capture "printf sandbox-ok" shell_code shell_out shell_err' --json | grep -F '"shell_out": "sandbox-ok"'
+        boundary_output="$(flatpak run io.github.alper_han.crossmacro run --step 'shell capture "flatpak-spawn --host /usr/bin/true" escape_code escape_out escape_err' --step 'shell capture "test ! -e /dev/uinput && test ! -d /dev/input && ! env | grep -q DBUS_SESSION_BUS_ADDRESS" boundary_code boundary_out boundary_err' --json)"
+        ! grep -F '"escape_code": "0"' <<<"$boundary_output"
+        grep -F '"boundary_code": "0"' <<<"$boundary_output"
 
   build-windows:
     name: Build (Windows)

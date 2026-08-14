@@ -9,7 +9,7 @@ internal static class CommonRuntimeServiceRegistration
         _ = services.AddSingleton<HotkeySettings>(sp => sp.GetRequiredService<IHotkeyConfigurationService>().Load());
         _ = services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
         _ = services.AddSingleton(TimeProvider.System);
-        services.TryAddSingleton<IShellCommandRunner>(sp => sp.GetRequiredService<IRuntimeContext>().IsFlatpak ? new FlatpakDisabledShellCommandRunner() : new ShellCommandRunner());
+        services.TryAddSingleton<IShellCommandRunner>(sp => sp.GetRequiredService<IRuntimeContext>().IsFlatpak ? new FlatpakSandboxShellCommandRunner() : new ShellCommandRunner());
         _ = services.AddSingleton<Func<ICoordinateStrategy, IInputEventProcessor>>(_ => strategy => new StandardInputEventProcessor(strategy));
         _ = services.AddTransient<IMacroRecorder>(sp => new MacroRecorder(
             sp.GetService<Func<IInputCapture>>(), sp.GetRequiredService<ICoordinateStrategyFactory>(),

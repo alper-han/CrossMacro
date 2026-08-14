@@ -692,10 +692,6 @@
                                            Foreground="{DynamicResource WarningBrush}"
                                            FontSize="11"
                                            TextWrapping="Wrap"/>
-                                <TextBlock Text="{localization:Loc Editor_ShellFlatpakHint}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
-                                           TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Window command -->

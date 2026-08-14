@@ -469,7 +469,7 @@ public sealed class CliCommandRouter
                 "  --asset <name> <png-path>  Load a named PNG asset for image script steps; repeatable.\n\n" +
                 "Shell capture modes store exit/stdout/stderr variables; use _ to ignore a value. Capture modes do not fail on non-zero exits.\n" +
                 "Shell output captured into variables is capped at 65536 characters per stream.\n" +
-                "Shell steps execute arbitrary commands as the current OS user; only run trusted macros. Flatpak builds disable shell steps. Use $$NAME to pass $NAME to the shell.\n\n" +
+                "Shell steps execute arbitrary commands; only run trusted macros. Flatpak builds run them in a restricted nested sandbox without host permissions. Use $$NAME to pass $NAME to the shell.\n\n" +
                 "Examples:\n" +
                 "  crossmacro run --step \"move abs 500 300\" --step \"click left\" --dry-run\n" +
                 "  crossmacro run move rel 100 0 delay 40 click left\n" +

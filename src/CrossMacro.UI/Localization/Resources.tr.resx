@@ -1333,10 +1333,7 @@
     <value>timeout ms</value>
   </data>
   <data name="Editor_ShellWarning" xml:space="preserve">
-    <value>Shell actions run arbitrary commands as the current OS user. Review commands before saving or sharing macros.</value>
-  </data>
-  <data name="Editor_ShellFlatpakHint" xml:space="preserve">
-    <value>Shell command playback is disabled in Flatpak builds.</value>
+    <value>Shell işlemleri keyfi komutlar çalıştırır. Flatpak bunları kısıtlı bir alt sandbox içinde çalıştırır. Makro kaydetmeden veya paylaşmadan önce komutları inceleyin.</value>
   </data>
   <data name="Editor_ActionType_Screenshot" xml:space="preserve">
     <value>Screenshot</value>

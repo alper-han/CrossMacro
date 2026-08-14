@@ -292,7 +292,7 @@ public sealed partial class CliCommandRouterTests
         Assert.Contains("Capture modes do not fail on non-zero exits", usage, StringComparison.Ordinal);
         Assert.Contains("capped at 65536 characters", usage, StringComparison.Ordinal);
         Assert.Contains("only run trusted macros", usage, StringComparison.Ordinal);
-        Assert.Contains("Flatpak builds disable shell steps", usage, StringComparison.Ordinal);
+        Assert.Contains("Flatpak builds run them in a restricted nested sandbox", usage, StringComparison.Ordinal);
         Assert.Contains("Use $$NAME to pass $NAME to the shell", usage, StringComparison.Ordinal);
     }
 

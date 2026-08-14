@@ -45,7 +45,7 @@ public sealed class RuntimeServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddCrossMacroCommonRuntimeServices_DisablesShellCommandRunnerInFlatpak()
+    public void AddCrossMacroCommonRuntimeServices_ResolvesSandboxedShellCommandRunnerInFlatpak()
     {
         var services = new ServiceCollection();
         _ = services.AddSingleton<IRuntimeContext>(new TestRuntimeContext(isFlatpak: true));
@@ -54,7 +54,7 @@ public sealed class RuntimeServiceCollectionExtensionsTests
 
         var runner = ResolveShellRunnerFromDescriptor(services, new TestRuntimeContext(isFlatpak: true));
 
-        _ = Assert.IsType<FlatpakDisabledShellCommandRunner>(runner);
+        _ = Assert.IsType<FlatpakSandboxShellCommandRunner>(runner);
     }
 
     [Fact]

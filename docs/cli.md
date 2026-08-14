@@ -508,10 +508,12 @@ input` fail when the command exits non-zero after retries are exhausted. Capture
 modes store the exit code, stdout, and stderr variables and continue even when the
 exit code is non-zero, so scripts can branch on the captured code. Captured
 stdout/stderr are capped at 65536 characters per stream. Shell steps execute
-arbitrary commands as the current OS user, so only run trusted macros. They are
-disabled in Flatpak builds to prevent sandbox escapes; use a native or AppImage
-build when a macro needs shell execution. Use `$$NAME` when you want the shell to
-receive `$NAME` literally instead of resolving a CrossMacro variable.
+arbitrary commands, so only run trusted macros. Flatpak builds run each step in a
+stricter nested sandbox: runtime and `/app` tools remain available, while the
+parent application's host files, devices, D-Bus permissions, portals, and host
+command channel are not inherited. Native and AppImage builds use the normal
+platform shell. Use `$$NAME` when you want the shell to receive `$NAME` literally
+instead of resolving a CrossMacro variable.
 
 ## Runtime clipboard, window, and screen steps
 
@@ -909,5 +911,6 @@ timeout when an explicit window-wait budget is required.
   for the supported paths.
 - Window commands require a supported window manager/compositor. Unsupported
   backends return exit code `5`; they do not silently mutate another backend.
-- Shell steps execute as the current user and are disabled in Flatpak builds.
-  Treat shell-enabled macros as trusted code.
+- Shell steps execute as the current user. Flatpak confines each step to a stricter
+  nested sandbox; native and AppImage builds use the normal platform shell. Treat
+  every shell-enabled macro as trusted code.

@@ -330,9 +330,10 @@ Capture forms write exit code, stdout, and stderr variables; use \fB_\fR
 to ignore a captured value. Normal and input forms fail on final non-zero exits,
 while capture forms continue and let scripts branch on the captured exit code.
 Captured stdout/stderr are capped at 65536 characters per stream. Shell steps
-execute arbitrary commands as the current OS user, so only run trusted macros.
-They are disabled in Flatpak builds to prevent sandbox escapes; use a native or
-AppImage build when a macro needs shell execution. Use \fB$$NAME\fR when the shell
+execute arbitrary commands, so only run trusted macros. Flatpak builds execute
+them in a stricter nested sandbox without inheriting the parent application's host
+files, devices, D-Bus permissions, portals, or host command channel. Native and
+AppImage builds use the normal platform shell. Use \fB$$NAME\fR when the shell
 should receive \fB$NAME\fR literally instead of resolving a CrossMacro variable.
 .PP
 Runtime primitive steps mirror the first-class \fBclipboard\fR, \fBwindow\fR,

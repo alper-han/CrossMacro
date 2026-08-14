@@ -434,7 +434,7 @@ public sealed class PortalScreenCastCaptureTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
         Assert.Equal(1, leftCapture.CaptureCalls);
-        Assert.Equal(0, rightCapture.CaptureCalls);
+        Assert.Equal(1, rightCapture.CaptureCalls);
     }
 
     [Fact]

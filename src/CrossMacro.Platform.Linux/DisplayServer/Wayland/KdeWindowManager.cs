@@ -3,14 +3,16 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 {
+    private static readonly TimeSpan CallbackTimeout = TimeSpan.FromSeconds(5);
+
     private DBusConnection? _dbusConnection;
     private KdeTrackerServiceMethodHandler? _trackerHandler;
+    private string? _callbackDestination;
     private bool _initialized;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
     private readonly SemaphoreSlim _operationLock = new(1, 1);
     private readonly Lock _disposeStateLock = new();
     private Task? _disposeTask;
-    private bool _disposed;
+    private int _disposed;
 
     private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingRequests = new(StringComparer.Ordinal);
 
@@ -22,59 +24,40 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     private async Task EnsureInitializedAsync(CancellationToken ct)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         if (_initialized)
         {
             return;
         }
 
-        await _initLock.WaitAsync(ct).ConfigureAwait(false);
+        _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
         try
         {
-            if (_initialized)
+            await LinuxDbusTransportBoundary
+                .AwaitReplyAsync(_dbusConnection.ConnectAsync().AsTask(), KWinScriptLease.DefaultOperationTimeout, ct)
+                .ConfigureAwait(false);
+
+            var trackerService = new KdeTrackerService((_, _) => { }, (_, _) => { }, "/io/github/alper_han/crossmacro/WindowManager");
+            trackerService.OnWindowDataReceived += (corrId, json) =>
             {
-                return;
-            }
-
-            _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
-            try
-            {
-                await _dbusConnection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
-
-                var trackerService = new KdeTrackerService((_, _) => { }, (_, _) => { }, "/io/github/alper_han/crossmacro/WindowManager");
-                trackerService.OnWindowDataReceived += (corrId, json) =>
+                if (_pendingRequests.TryRemove(corrId, out var tcs))
                 {
-                    if (_pendingRequests.TryRemove(corrId, out var tcs))
-                    {
-                        _ = tcs.TrySetResult(json);
-                    }
-                };
-
-                _trackerHandler = new KdeTrackerServiceMethodHandler(trackerService);
-                _dbusConnection.AddMethodHandler(_trackerHandler);
-
-                try
-                {
-                    await _dbusConnection.RequestNameAsync("io.github.alper_han.crossmacro.WindowManager", RequestNameOptions.Default).ConfigureAwait(false);
+                    _ = tcs.TrySetResult(json);
                 }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    Log.Debug(ex, "[KdeWindowManager] RequestNameAsync failed (likely already owned).");
-                }
+            };
 
-                _initialized = true;
-            }
-            catch
-            {
-                _dbusConnection.Dispose();
-                _dbusConnection = null;
-                _trackerHandler = null;
-                throw;
-            }
+            _trackerHandler = new KdeTrackerServiceMethodHandler(trackerService);
+            _dbusConnection.AddMethodHandler(_trackerHandler);
+            _callbackDestination = LinuxDbusTransportBoundary.GetUniqueDestination(_dbusConnection);
+            _initialized = true;
         }
-        finally
+        catch
         {
-            _ = _initLock.Release();
+            _dbusConnection.Dispose();
+            _dbusConnection = null;
+            _trackerHandler = null;
+            _callbackDestination = null;
+            throw;
         }
     }
 
@@ -108,50 +91,73 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
 
     private static string GetSafeScriptPath(string fileName)
     {
-        if (!Directory.Exists(ScriptDirectory))
-        {
-            _ = Directory.CreateDirectory(ScriptDirectory);
-        }
+        _ = Directory.CreateDirectory(ScriptDirectory);
 
         return Path.Combine(ScriptDirectory, fileName);
     }
 
     private async Task<string?> ExecuteOneShotScriptAsync(string jsContent, bool expectsCallback, CancellationToken ct)
     {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         await _operationLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             await EnsureInitializedAsync(ct).ConfigureAwait(false);
 
             string correlationId = Guid.NewGuid().ToString("N");
+            string pluginName = CreateOneShotPluginName(correlationId);
             TaskCompletionSource<string>? tcs = null;
-
-            if (expectsCallback)
-            {
-                tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _pendingRequests[correlationId] = tcs;
-            }
-
-            string finalScript = jsContent.Replace("__CORRELATION_ID__", correlationId, StringComparison.Ordinal)
-                                          .Replace("__SERVICE_NAME__", "io.github.alper_han.crossmacro.WindowManager", StringComparison.Ordinal)
-                                          .Replace("__OBJECT_PATH__", "/io/github/alper_han/crossmacro/WindowManager", StringComparison.Ordinal)
-                                          .Replace("__INTERFACE__", KdeTrackerService.TrackerInterface, StringComparison.Ordinal);
-
-            string tempJsFile = GetSafeScriptPath($"kwin_wm_{correlationId}.js");
-            string? scriptId = null;
+            string? tempJsFile = null;
+            KWinScriptLease? scriptLease = null;
             try
             {
-                await File.WriteAllTextAsync(tempJsFile, finalScript, ct).ConfigureAwait(false);
+                var callbackDestination = _callbackDestination
+                    ?? throw new InvalidOperationException("KDE D-Bus callback endpoint is not initialized.");
+                string finalScript = BuildOneShotScriptContent(jsContent, correlationId, callbackDestination);
+                tempJsFile = GetSafeScriptPath($"kwin_wm_{correlationId}.js");
+                var connection = _dbusConnection
+                    ?? throw new InvalidOperationException("KDE D-Bus connection is not initialized.");
+                scriptLease = new KWinScriptLease(
+                    connection,
+                    pluginName,
+                    ex => Log.Debug(ex, "[KdeWindowManager] Failed to clean up KWin script {PluginName}", pluginName));
+                if (expectsCallback)
+                {
+                    tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    _pendingRequests[correlationId] = tcs;
+                }
 
-                var (result, loadedScriptId) = await RunOneShotScriptCoreAsync(tempJsFile, expectsCallback, tcs, ct).ConfigureAwait(false);
-                scriptId = loadedScriptId;
-                return result;
+                await File.WriteAllTextAsync(tempJsFile, finalScript, ct).ConfigureAwait(false);
+                await scriptLease.LoadAndRunAsync(tempJsFile, ct).ConfigureAwait(false);
+
+                return expectsCallback && tcs is not null
+                    ? await AwaitCallbackAsync(tcs.Task, CallbackTimeout, ct).ConfigureAwait(false)
+                    : "ok";
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException) { return null; }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                return null;
+            }
             finally
             {
-                await CleanupOneShotScriptAsync(scriptId, tempJsFile, expectsCallback, correlationId).ConfigureAwait(false);
+                if (scriptLease is not null)
+                {
+                    try
+                    {
+                        await scriptLease.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        Log.Debug(ex, "[KdeWindowManager] Unexpected KWin script lease disposal failure");
+                    }
+                }
+
+                CleanupOneShotArtifacts(tempJsFile, expectsCallback, correlationId);
             }
         }
         finally
@@ -160,52 +166,42 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         }
     }
 
-    private async Task<(string? Result, string? ScriptId)> RunOneShotScriptCoreAsync(
-        string tempJsFile, bool expectsCallback, TaskCompletionSource<string>? tcs, CancellationToken ct)
+    internal static string BuildOneShotScriptContent(string script, string correlationId, string callbackDestination)
     {
-        if (_dbusConnection is null)
-        {
-            return (null, null);
-        }
-
-        var scriptingProxy = new KWinScriptingClient(_dbusConnection);
-        var scriptIdInt = await scriptingProxy.LoadScriptAsync(tempJsFile).WaitAsync(ct).ConfigureAwait(false);
-        if (scriptIdInt < 0)
-        {
-            return (null, null);
-        }
-
-        string scriptId = scriptIdInt.ToString(CultureInfo.InvariantCulture);
-        var scriptProxy = new KWinScriptClient(_dbusConnection, scriptId);
-        await scriptProxy.RunAsync().WaitAsync(ct).ConfigureAwait(false);
-
-        if (expectsCallback && tcs is not null)
-        {
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(5000);
-            try { return (await tcs.Task.WaitAsync(timeoutCts.Token).ConfigureAwait(false), scriptId); }
-            catch (TimeoutException) { return (null, scriptId); }
-        }
-
-        return ("ok", scriptId);
+        ArgumentException.ThrowIfNullOrEmpty(script);
+        ArgumentException.ThrowIfNullOrEmpty(correlationId);
+        ArgumentException.ThrowIfNullOrEmpty(callbackDestination);
+        return script.Replace("__CORRELATION_ID__", correlationId, StringComparison.Ordinal)
+                     .Replace("__SERVICE_NAME__", callbackDestination, StringComparison.Ordinal)
+                     .Replace("__OBJECT_PATH__", "/io/github/alper_han/crossmacro/WindowManager", StringComparison.Ordinal)
+                     .Replace("__INTERFACE__", KdeTrackerService.TrackerInterface, StringComparison.Ordinal);
     }
 
-    private async Task CleanupOneShotScriptAsync(string? scriptId, string tempJsFile, bool expectsCallback, string correlationId)
+    internal static string CreateOneShotPluginName(string correlationId)
     {
-        if (scriptId is not null && _dbusConnection is not null)
-        {
-            try
-            {
-                var scriptingProxy = new KWinScriptingClient(_dbusConnection);
-                await scriptingProxy.UnloadScriptAsync(scriptId).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                // Ignore failures while trying to unload script during cleanup
-            }
-        }
+        ArgumentException.ThrowIfNullOrEmpty(correlationId);
+        return $"crossmacro-window-{correlationId}";
+    }
 
-        if (File.Exists(tempJsFile))
+    internal static async Task<string?> AwaitCallbackAsync(
+        Task<string> callbackTask,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(callbackTask);
+        try
+        {
+            return await callbackTask.WaitAsync(timeout, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            return null;
+        }
+    }
+
+    private void CleanupOneShotArtifacts(string? tempJsFile, bool expectsCallback, string correlationId)
+    {
+        if (tempJsFile is not null)
         {
             try
             {
@@ -213,7 +209,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                // Ignore file delete errors in temp clean up
+                Log.Debug(ex, "[KdeWindowManager] Failed to delete temporary KWin script {File}", tempJsFile);
             }
         }
 
@@ -376,38 +372,32 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
     {
         lock (_disposeStateLock)
         {
-            _disposeTask ??= DisposeCoreAsync();
+            if (_disposeTask is null)
+            {
+                Volatile.Write(ref _disposed, 1);
+                _disposeTask = DisposeCoreAsync();
+            }
+
             return new ValueTask(_disposeTask);
         }
     }
+
+    internal bool IsDisposed => Volatile.Read(ref _disposed) is not 0;
 
     private async Task DisposeCoreAsync()
     {
         await _operationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            if (_disposed)
+            if (_trackerHandler is not null && _dbusConnection is not null)
             {
-                return;
+                _dbusConnection.RemoveMethodHandler(_trackerHandler.Path);
             }
-
-            _disposed = true;
-            await _initLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-            try
-            {
-                if (_trackerHandler is not null && _dbusConnection is not null)
-                {
-                    _dbusConnection.RemoveMethodHandler(_trackerHandler.Path);
-                }
-                _dbusConnection?.Dispose();
-                _dbusConnection = null;
-                _trackerHandler = null;
-                _initialized = false;
-            }
-            finally
-            {
-                _ = _initLock.Release();
-            }
+            _dbusConnection?.Dispose();
+            _dbusConnection = null;
+            _trackerHandler = null;
+            _callbackDestination = null;
+            _initialized = false;
 
             foreach (var pending in _pendingRequests.Values)
             {
@@ -418,8 +408,6 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         finally
         {
             _ = _operationLock.Release();
-            _operationLock.Dispose();
-            _initLock.Dispose();
         }
     }
 }

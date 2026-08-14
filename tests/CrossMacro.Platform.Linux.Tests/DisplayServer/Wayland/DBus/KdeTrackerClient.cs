@@ -9,6 +9,11 @@ internal sealed class KdeTrackerClient : LinuxDbusClientBase
     {
     }
 
+    public KdeTrackerClient(DBusConnection connection, string destination)
+        : base(connection, destination, LinuxDbusTransportBoundary.TrackerObjectPath, Interface)
+    {
+    }
+
     public Task UpdatePositionAsync(int x, int y)
         => CallAsyncByRefAsync("UpdatePosition", "ii", (ref MessageWriter writer) =>
         {

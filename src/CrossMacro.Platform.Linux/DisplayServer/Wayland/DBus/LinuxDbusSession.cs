@@ -37,7 +37,7 @@ internal sealed class LinuxDbusSession : IDisposable
     public KWinScriptingClient CreateKWinScriptingClient()
         => new(_connection);
 
-    public KWinScriptClient CreateKWinScriptClient(string scriptId)
+    public KWinScriptClient CreateKWinScriptClient(int scriptId)
         => new(_connection, scriptId);
 
     public void Dispose()

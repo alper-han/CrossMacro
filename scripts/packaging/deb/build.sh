@@ -25,7 +25,6 @@ ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
 DEB_OUTPUT_DIR="${DEB_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/deb}"
 DEB_WORK_DIR="${DEB_WORK_DIR:-$ARTIFACT_ROOT/work/deb}"
 DEB_DIR="$DEB_WORK_DIR/content"
-ICON_PATH="$PROJECT_ROOT/src/CrossMacro.UI/Assets/mouse-icon.png"
 MANPAGE_SOURCE="$PROJECT_ROOT/docs/man/crossmacro.1"
 OUTPUT_DEB="$DEB_OUTPUT_DIR/${APP_NAME}-${DEB_VERSION}_${ARCH}.deb"
 
@@ -215,7 +214,7 @@ else
         -c Release \
         -r "$DAEMON_RID" \
         -p:CrossMacroPublishProfile=native-aot \
-        -p:Version=$VERSION \
+        -p:Version="$VERSION" \
         -o "$DEB_DIR/usr/lib/$APP_NAME/daemon"
 fi
 PACKAGED_DAEMON_BINARY="$DEB_DIR/usr/lib/$APP_NAME/daemon/CrossMacro.Daemon"
@@ -270,8 +269,9 @@ echo "Installing icons..."
 cp -r "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/"* "$DEB_DIR/usr/share/icons/hicolor/"
 
 # Copy Desktop File
-cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$DEB_DIR/usr/share/applications/CrossMacro.desktop"
-sed -i 's|Exec=crossmacro|Exec=/usr/lib/crossmacro/CrossMacro.UI|g' "$DEB_DIR/usr/share/applications/CrossMacro.desktop"
+DESKTOP_FILE="$DEB_DIR/usr/share/applications/CrossMacro.desktop"
+cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$DESKTOP_FILE"
+sed -i 's|Exec=crossmacro|Exec=/usr/lib/crossmacro/CrossMacro.UI|g' "$DESKTOP_FILE"
 
 # Install man page (Debian policy: compressed under /usr/share/man/man1)
 echo "Installing man page..."

@@ -81,8 +81,11 @@ run_container_smoke() {
     -v "$SCRIPT_DIR:/smoke:ro" \
     "$image" \
     sh -euxc '
+      dnf install -y file
       dnf install -y "/artifacts/$1"
       test -x /usr/bin/crossmacro
+      . /smoke/linux-desktop-identity.sh
+      crossmacro_validate_native_desktop_identity /
       /smoke/cli-smoke.sh --binary /usr/bin/crossmacro
     ' rpm-container-smoke "$package_name"
 }
@@ -140,6 +143,7 @@ assert_payload_path "$payload" "/usr/lib/crossmacro"
 assert_payload_path "$payload" "/usr/lib/crossmacro/CrossMacro.UI"
 assert_payload_path "$payload" "/usr/lib/crossmacro/daemon/CrossMacro.Daemon"
 assert_payload_path "$payload" "/usr/bin/crossmacro"
+assert_payload_path "$payload" "/usr/share/applications/CrossMacro.desktop"
 assert_payload_path "$payload" "/usr/lib/systemd/system/crossmacro.service"
 assert_payload_path "$payload" "/usr/lib/udev/rules.d/99-crossmacro.rules"
 assert_payload_path "$payload" "/usr/lib/modules-load.d/crossmacro.conf"

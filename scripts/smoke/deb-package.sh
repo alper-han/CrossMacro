@@ -4,6 +4,7 @@ set -euo pipefail
 APP_NAME="crossmacro"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_SMOKE="$SCRIPT_DIR/cli-smoke.sh"
+DESKTOP_IDENTITY_SMOKE="$SCRIPT_DIR/linux-desktop-identity.sh"
 DEFAULT_IMAGE="${DEB_SMOKE_IMAGE:-ubuntu:24.04}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
 
@@ -75,6 +76,8 @@ run_container_smoke() {
   local package_name
   package_name="$(basename "$package")"
 
+  # The positional parameter is expanded by the container's shell, not this shell.
+  # shellcheck disable=SC2016
   "$engine" run --rm \
     -v "$(cd "$(dirname "$package")" && pwd):/artifacts:ro" \
     -v "$SCRIPT_DIR:/smoke:ro" \
@@ -82,7 +85,7 @@ run_container_smoke() {
     sh -euxc '
       export DEBIAN_FRONTEND=noninteractive
       apt-get update
-      apt-get install -y --no-install-recommends ca-certificates dpkg apt-utils
+      apt-get install -y --no-install-recommends ca-certificates dpkg apt-utils file
       apt-get install -y --no-install-recommends "/artifacts/$1" || apt-get -f install -y --no-install-recommends
       test -x /usr/bin/crossmacro
       /smoke/cli-smoke.sh --binary /usr/bin/crossmacro
@@ -124,6 +127,15 @@ done
 
 require_command dpkg-deb
 [ -x "$CLI_SMOKE" ] || fail "shared CLI smoke helper not executable: $CLI_SMOKE"
+[ -f "$DESKTOP_IDENTITY_SMOKE" ] || fail "desktop identity smoke helper not found: $DESKTOP_IDENTITY_SMOKE"
+
+# shellcheck source=scripts/smoke/linux-desktop-identity.sh
+source "$DESKTOP_IDENTITY_SMOKE"
+
+work_dir="$(mktemp -d)"
+trap 'rm -rf "$work_dir"' EXIT
+dpkg-deb -x "$package" "$work_dir"
+crossmacro_validate_native_desktop_identity "$work_dir" || fail "native desktop executable identity is invalid"
 
 metadata="$(dpkg-deb -f "$package")"
 payload="$(dpkg-deb -c "$package")"
@@ -138,6 +150,7 @@ assert_contains "Package dependency" "$metadata" "libsystemd0"
 assert_payload_regex "UI binary" "$payload" '(^| )\.\/usr\/lib\/crossmacro\/CrossMacro\.UI$'
 assert_payload_regex "daemon binary" "$payload" '(^| )\.\/usr\/lib\/crossmacro\/daemon\/CrossMacro\.Daemon$'
 assert_payload_regex "CLI symlink" "$payload" '(^| )\.\/usr\/bin\/crossmacro($| -> )'
+assert_payload_regex "desktop entry" "$payload" '(^| )\.\/usr\/share\/applications\/CrossMacro\.desktop$'
 assert_payload_regex "systemd service" "$payload" '(^| )\.\/usr\/lib\/systemd\/system\/crossmacro\.service$'
 assert_payload_regex "udev rules" "$payload" '(^| )\.\/usr\/lib\/udev\/rules\.d\/99-crossmacro\.rules$'
 assert_payload_regex "modules-load config" "$payload" '(^| )\.\/usr\/lib\/modules-load\.d\/crossmacro\.conf$'

@@ -14,6 +14,7 @@ internal static class PackageContracts
         "usr/lib/systemd/system/crossmacro.service",
         "usr/lib/udev/rules.d/99-crossmacro.rules",
         "usr/lib/modules-load.d/crossmacro.conf",
+        "usr/share/applications/CrossMacro.desktop",
         "usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy",
         "usr/share/polkit-1/rules.d/50-crossmacro.rules",
     ];
@@ -24,6 +25,7 @@ internal static class PackageContracts
         "scripts/assets/99-crossmacro.rules",
         "scripts/assets/50-crossmacro.rules",
         "scripts/assets/crossmacro-modules.conf",
+        "scripts/assets/CrossMacro.desktop",
         "scripts/assets/io.github.alper_han.crossmacro.policy",
     };
 

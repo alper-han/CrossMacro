@@ -76,7 +76,7 @@ install -m 0644 %{_sourcedir}/50-crossmacro.rules %{buildroot}/usr/share/polkit-
 mkdir -p %{buildroot}/usr/lib/modules-load.d
 install -m 0644 %{_sourcedir}/crossmacro-modules.conf %{buildroot}/usr/lib/modules-load.d/crossmacro.conf
 
-ln -s ../lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
+ln -s /usr/lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
 # Copy icons
 cp -r %{_sourcedir}/icons/* %{buildroot}/usr/share/icons/hicolor/
 cp %{_sourcedir}/CrossMacro.desktop %{buildroot}/usr/share/applications/CrossMacro.desktop

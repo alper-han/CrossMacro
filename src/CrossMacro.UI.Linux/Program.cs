@@ -13,20 +13,10 @@ internal static class Program
             CrossMacro.UI.Program.BuildAvaloniaApp(),
             LinuxEnvironmentVariables.CaptureCurrentSnapshot());
 
-#pragma warning disable AVALONIA_WAYLAND_FORCE_CSD
-    private static AppBuilder ConfigureWaylandDecorationOptions(AppBuilder builder) =>
-        builder.With(new WaylandPlatformOptions { ForceDrawnDecorations = true });
-#pragma warning restore AVALONIA_WAYLAND_FORCE_CSD
-
     private static AppBuilder ConfigureLinuxGuiBuilder(
         AppBuilder builder,
         LinuxEnvironmentSnapshot environment)
     {
-        if (SelectLinuxWindowingBackend(environment) is "Wayland")
-        {
-            builder = ConfigureWaylandDecorationOptions(builder);
-        }
-
         return builder
             .UseLinuxWindowingSubsystem(environment)
             .UseSkia();

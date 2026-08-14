@@ -75,6 +75,57 @@ public sealed class PortalPipeWireFormatTests
         }
     }
 
+    [Theory]
+    [InlineData(4U)]
+    [InlineData(5U)]
+    [InlineData(7U)]
+    public void SpaFormatPodParser_AcceptsGnomeCompatibleSdrTransferFunction(uint transferFunction)
+    {
+        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(
+            3,
+            2,
+            (uint)PipeWireVideoFormat.Bgrx,
+            colorRange: 1,
+            colorMatrix: 1,
+            transferFunction: transferFunction,
+            colorPrimaries: 1);
+
+        try
+        {
+            Assert.True(SpaFormatPodParser.TryReadFormat(pod, out _, out var error), error);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pod);
+        }
+    }
+
+    [Fact]
+    public void SpaFormatPodParser_RejectsHdrColorMetadataWithEvidence()
+    {
+        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(
+            3,
+            2,
+            (uint)PipeWireVideoFormat.Bgrx,
+            colorRange: 1,
+            colorMatrix: 6,
+            transferFunction: 14,
+            colorPrimaries: 7);
+
+        try
+        {
+            Assert.False(SpaFormatPodParser.TryReadFormat(pod, out _, out var error));
+            Assert.Contains("color metadata", error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("matrix=6", error, StringComparison.Ordinal);
+            Assert.Contains("transfer=14", error, StringComparison.Ordinal);
+            Assert.Contains("primaries=7", error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pod);
+        }
+    }
+
     [Fact]
     public void SpaFormatPodParser_ReadsChoiceRectangleFromNegotiatedFormat()
     {

@@ -18,6 +18,10 @@ internal static class SpaFormatPodBuilder
     private const uint SpaFormatVideoFormat = 0x20001;
     private const uint SpaFormatVideoSize = 0x20003;
     private const uint SpaFormatVideoFramerate = 0x20004;
+    private const uint SpaFormatVideoColorRange = 0x2000C;
+    private const uint SpaFormatVideoColorMatrix = 0x2000D;
+    private const uint SpaFormatVideoTransferFunction = 0x2000E;
+    private const uint SpaFormatVideoColorPrimaries = 0x2000F;
     private const uint SpaVideoFormatBgrx = (uint)PipeWireVideoFormat.Bgrx;
     private const uint SpaParamBuffersBuffers = 1;
     private const uint SpaParamBuffersBlocks = 2;
@@ -29,7 +33,14 @@ internal static class SpaFormatPodBuilder
     public static IntPtr CreateRawVideoEnumFormat(int width, int height)
         => CreateRawVideoEnumFormat(width, height, SpaVideoFormatBgrx);
 
-    internal static IntPtr CreateRawVideoEnumFormat(int width, int height, uint videoFormat)
+    internal static IntPtr CreateRawVideoEnumFormat(
+        int width,
+        int height,
+        uint videoFormat,
+        uint? colorRange = null,
+        uint? colorMatrix = null,
+        uint? transferFunction = null,
+        uint? colorPrimaries = null)
     {
         ValidateDimensions(width, height);
         using var stream = new MemoryStream(256);
@@ -43,6 +54,10 @@ internal static class SpaFormatPodBuilder
         WriteIdProperty(writer, SpaFormatVideoFormat, videoFormat);
         WriteRectangleProperty(writer, SpaFormatVideoSize, (uint)width, (uint)height);
         WriteFractionProperty(writer, SpaFormatVideoFramerate, 0, 1);
+        WriteOptionalIdProperty(writer, SpaFormatVideoColorRange, colorRange);
+        WriteOptionalIdProperty(writer, SpaFormatVideoColorMatrix, colorMatrix);
+        WriteOptionalIdProperty(writer, SpaFormatVideoTransferFunction, transferFunction);
+        WriteOptionalIdProperty(writer, SpaFormatVideoColorPrimaries, colorPrimaries);
         return CopyToNative(stream);
     }
 
@@ -135,6 +150,14 @@ internal static class SpaFormatPodBuilder
         WritePropertyHeader(writer, key, 4, SpaTypeId);
         writer.Write(value);
         Align(writer);
+    }
+
+    private static void WriteOptionalIdProperty(BinaryWriter writer, uint key, uint? value)
+    {
+        if (value is { } id)
+        {
+            WriteIdProperty(writer, key, id);
+        }
     }
 
     private static void WriteIntProperty(BinaryWriter writer, uint key, int value)

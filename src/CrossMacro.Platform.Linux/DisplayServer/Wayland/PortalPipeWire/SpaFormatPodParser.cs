@@ -17,6 +17,16 @@ internal static class SpaFormatPodParser
     private const uint SpaFormatVideoColorMatrix = 0x2000D;
     private const uint SpaFormatVideoTransferFunction = 0x2000E;
     private const uint SpaFormatVideoColorPrimaries = 0x2000F;
+    private const uint SpaColorRangeUnknown = 0;
+    private const uint SpaColorRangeFull = 1;
+    private const uint SpaColorMatrixUnknown = 0;
+    private const uint SpaColorMatrixRgb = 1;
+    private const uint SpaTransferUnknown = 0;
+    private const uint SpaTransferGamma22 = 4;
+    private const uint SpaTransferBt709 = 5;
+    private const uint SpaTransferSrgb = 7;
+    private const uint SpaPrimariesUnknown = 0;
+    private const uint SpaPrimariesBt709 = 1;
     private const int HeaderSize = 8;
     private const int ObjectHeaderSize = 8;
     private const int PropertyHeaderSize = 16;
@@ -123,12 +133,6 @@ internal static class SpaFormatPodParser
             return false;
         }
 
-        if (colorRange is > 1 || colorMatrix is > 1 || transferFunction is not (null or 0 or 7) || colorPrimaries is not (null or 0 or 1))
-        {
-            error = "PipeWire negotiated video color metadata is not an 8-bit sRGB-compatible range.";
-            return false;
-        }
-
         if (!Enum.IsDefined((PipeWireVideoFormat)formatId))
         {
             error = $"PipeWire negotiated video format id {formatId.ToString(CultureInfo.InvariantCulture)} is unsupported.";
@@ -138,6 +142,12 @@ internal static class SpaFormatPodParser
         if (formatId is (uint)PipeWireVideoFormat.Rgba or (uint)PipeWireVideoFormat.Bgra or (uint)PipeWireVideoFormat.Argb or (uint)PipeWireVideoFormat.Abgr)
         {
             error = "PipeWire negotiated an alpha-bearing video format that this opaque screen frame path cannot represent safely.";
+            return false;
+        }
+
+        if (!IsSupportedSdrColorMetadata(colorRange, colorMatrix, transferFunction, colorPrimaries))
+        {
+            error = $"PipeWire negotiated video color metadata is unsupported for 8-bit SDR capture. range={DescribeMetadata(colorRange)} matrix={DescribeMetadata(colorMatrix)} transfer={DescribeMetadata(transferFunction)} primaries={DescribeMetadata(colorPrimaries)}.";
             return false;
         }
 
@@ -247,6 +257,14 @@ internal static class SpaFormatPodParser
     }
 
     private static int Align8(int value) => checked((value + 7) & ~7);
+
+    private static bool IsSupportedSdrColorMetadata(uint? colorRange, uint? colorMatrix, uint? transferFunction, uint? colorPrimaries) =>
+        (colorRange is null or SpaColorRangeUnknown or SpaColorRangeFull)
+        && (colorMatrix is null or SpaColorMatrixUnknown or SpaColorMatrixRgb)
+        && (transferFunction is null or SpaTransferUnknown or SpaTransferGamma22 or SpaTransferBt709 or SpaTransferSrgb)
+        && (colorPrimaries is null or SpaPrimariesUnknown or SpaPrimariesBt709);
+
+    private static string DescribeMetadata(uint? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "unknown";
 
     private static uint ReadUInt32(IntPtr address, int offset = 0) => unchecked((uint)Marshal.ReadInt32(address, offset));
 }

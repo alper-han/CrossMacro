@@ -3,16 +3,32 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 internal static class AbsoluteCursorPositionSynchronizer
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(4);
-    // Compositor feedback can lag an accepted uinput batch.
     private static readonly TimeSpan SettleTimeout = TimeSpan.FromMilliseconds(250);
     private const int PositionTolerance = 1;
 
-    public static async Task<AbsoluteCursorSettleResult> WaitAsync(
+    public static Task<AbsoluteCursorSettleResult> WaitAsync(
         IMousePositionProvider? positionProvider,
         int expectedX,
         int expectedY,
         CancellationToken cancellationToken)
     {
+        return WaitUntilAsync(
+            positionProvider,
+            position => Math.Abs((long)position.X - expectedX) <= PositionTolerance
+                && Math.Abs((long)position.Y - expectedY) <= PositionTolerance,
+            SettleTimeout,
+            cancellationToken);
+    }
+
+    public static async Task<AbsoluteCursorSettleResult> WaitUntilAsync(
+        IMousePositionProvider? positionProvider,
+        Func<(int X, int Y), bool> isSettled,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(isSettled);
+        ArgumentOutOfRangeException.ThrowIfLessThan(timeout, TimeSpan.Zero);
+
         if (positionProvider is null || !positionProvider.HasUsableAbsolutePosition())
         {
             return new AbsoluteCursorSettleResult(IsSettled: true, LastObservedPosition: null);
@@ -23,7 +39,7 @@ internal static class AbsoluteCursorPositionSynchronizer
 
         while (true)
         {
-            var remaining = SettleTimeout - Stopwatch.GetElapsedTime(startedAt);
+            var remaining = timeout - Stopwatch.GetElapsedTime(startedAt);
             if (remaining <= TimeSpan.Zero)
             {
                 break;
@@ -34,14 +50,12 @@ internal static class AbsoluteCursorPositionSynchronizer
                 remaining,
                 cancellationToken).ConfigureAwait(false);
             lastObservedPosition = position;
-            if (position is { } observed
-                && Math.Abs((long)observed.X - expectedX) <= PositionTolerance
-                && Math.Abs((long)observed.Y - expectedY) <= PositionTolerance)
+            if (position is { } observed && isSettled(observed))
             {
                 return new AbsoluteCursorSettleResult(IsSettled: true, observed);
             }
 
-            remaining = SettleTimeout - Stopwatch.GetElapsedTime(startedAt);
+            remaining = timeout - Stopwatch.GetElapsedTime(startedAt);
             if (remaining <= TimeSpan.Zero)
             {
                 break;

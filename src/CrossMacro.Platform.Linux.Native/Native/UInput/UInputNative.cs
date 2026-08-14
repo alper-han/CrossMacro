@@ -15,6 +15,7 @@ public static partial class UInputNative
     public const uint UI_DEV_CREATE = 0x5501;
     public const uint UI_DEV_DESTROY = 0x5502;
     public const uint UI_SET_PROPBIT = 0x4004556e;
+    public const uint UI_GET_SYSNAME_64 = 0x8040552c;
 
     public const ushort EV_SYN = 0x00;
     public const ushort EV_KEY = 0x01;
@@ -124,6 +125,9 @@ public static partial class UInputNative
 
     [LibraryImport(LibC, SetLastError = true)]
     public static partial int ioctl(int fd, uint request, IntPtr value);
+
+    [LibraryImport(LibC, SetLastError = true, EntryPoint = "ioctl")]
+    public static partial int ioctl(int fd, uint request, [Out] byte[] value);
 
     public static bool IsMouseButton(ushort code)
     {

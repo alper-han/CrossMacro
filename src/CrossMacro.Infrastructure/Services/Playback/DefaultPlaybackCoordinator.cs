@@ -7,9 +7,7 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// </summary>
 public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider = null) : IPlaybackCoordinator
 {
-    private static readonly TimeSpan CornerResetSettleDelay = TimeSpan.FromMilliseconds(32);
-    private static readonly TimeSpan CornerPositionRefreshInterval = TimeSpan.FromMilliseconds(4);
-    private const int CornerPositionRefreshAttempts = 8;
+    private static readonly TimeSpan CornerPositionSettleTimeout = TimeSpan.FromMilliseconds(64);
     private const int CornerPositionTolerance = 1;
     private static readonly TimeSpan RawMovementPositionRefreshInterval = TimeSpan.FromMilliseconds(4);
     private const int RawMovementPositionRefreshAttempts = 5;
@@ -147,7 +145,6 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             Log.Information("[PlaybackCoordinator] Relative mode: performing desktop corner reset...");
             var previousPosition = GetTrackedPosition();
             var expectedPosition = MouseCornerReset.MoveToDesktopOrigin(simulator, _desktopBounds);
-            await Task.Delay(CornerResetSettleDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
             await SynchronizeAfterCornerResetAsync(
                 previousPosition,
                 expectedPosition,
@@ -197,7 +194,6 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             Log.Information("[PlaybackCoordinator] Iteration {I}: performing desktop corner reset", iteration + 1);
             var previousPosition = GetTrackedPosition();
             var expectedPosition = MouseCornerReset.MoveToDesktopOrigin(simulator, _desktopBounds);
-            await Task.Delay(CornerResetSettleDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
             await SynchronizeAfterCornerResetAsync(
                 previousPosition,
                 expectedPosition,
@@ -212,52 +208,57 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
         CancellationToken cancellationToken)
     {
         InvalidatePosition();
-        (int X, int Y)? lastObservedPosition = null;
+        var result = await AbsoluteCursorPositionSynchronizer.WaitUntilAsync(
+            _positionProvider,
+            position => IsCornerResetPosition(position, previousPosition, expectedPosition),
+            CornerPositionSettleTimeout,
+            cancellationToken).ConfigureAwait(false);
 
-        for (var attempt = 0; attempt < CornerPositionRefreshAttempts; attempt++)
+        if (result.IsSettled)
         {
-            var position = await QueryPositionAsync(cancellationToken).ConfigureAwait(false);
-            if (position is not null)
+            if (result.LastObservedPosition is { } settledPosition)
             {
-                lastObservedPosition = position;
-                bool reachedExpectedPosition = expectedPosition is { } expected
-                    && IsWithinCornerTolerance(position.Value, expected);
-                bool reachedRelativeFallbackCorner = expectedPosition is null
-                    && IsPlausibleDesktopCorner(position.Value);
-                bool cannotValidateCorner = expectedPosition is null && _desktopBounds is null;
-                bool movedWithoutValidation = cannotValidateCorner
-                    && (previousPosition is null || position != previousPosition);
-                if (reachedExpectedPosition)
-                {
-                    UpdatePosition(position.Value.X, position.Value.Y);
-                    return;
-                }
-
-                if (reachedRelativeFallbackCorner || movedWithoutValidation)
-                {
-                    UpdatePosition(position.Value.X, position.Value.Y);
-                    return;
-                }
+                UpdatePosition(settledPosition.X, settledPosition.Y);
+            }
+            else
+            {
+                UpdateUnobservedCornerPosition(expectedPosition);
             }
 
-            if (attempt + 1 < CornerPositionRefreshAttempts)
-            {
-                await Task.Delay(
-                    CornerPositionRefreshInterval,
-                    TimeProvider.System,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            return;
         }
 
-        if (lastObservedPosition is { } settledPosition)
+        if (result.LastObservedPosition is { } observedPosition)
         {
             Log.Warning(
                 "[PlaybackCoordinator] Corner reset settled at ({X}, {Y}) instead of the requested desktop origin",
-                settledPosition.X,
-                settledPosition.Y);
-            UpdatePosition(settledPosition.X, settledPosition.Y);
+                observedPosition.X,
+                observedPosition.Y);
+            UpdatePosition(observedPosition.X, observedPosition.Y);
         }
-        else if (expectedPosition is { } expected)
+        else
+        {
+            UpdateUnobservedCornerPosition(expectedPosition);
+        }
+    }
+
+    private bool IsCornerResetPosition(
+        (int X, int Y) position,
+        (int X, int Y)? previousPosition,
+        (int X, int Y)? expectedPosition)
+    {
+        if (expectedPosition is { } expected)
+        {
+            return IsWithinCornerTolerance(position, expected);
+        }
+
+        return IsPlausibleDesktopCorner(position)
+            || (_desktopBounds is null && (previousPosition is null || position != previousPosition));
+    }
+
+    private void UpdateUnobservedCornerPosition((int X, int Y)? expectedPosition)
+    {
+        if (expectedPosition is { } expected)
         {
             UpdatePosition(expected.X, expected.Y);
         }

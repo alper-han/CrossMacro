@@ -6,11 +6,15 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
     private const int ErrnoNoEntry = 2;
     private const int ErrnoOperationNotPermitted = 1;
     private const int ErrnoPermissionDenied = 13;
+    private const string VirtualInputDevicesPath = "/sys/devices/virtual/input";
+    private static readonly TimeSpan DeviceReadyTimeout = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan DeviceReadyPollInterval = TimeSpan.FromMilliseconds(5);
 
     private int _fd = -1;
     private bool _disposed;
     private readonly int _width = width;
     private readonly int _height = height;
+    private readonly UInputAbsolutePacketState _absolutePacketState = new(width, height);
 
     public bool SupportsAbsoluteCoordinates => UInputDeviceCoordinatePolicy.SupportsAbsoluteCoordinates(_width, _height);
 
@@ -19,6 +23,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
         try
         {
             SetupDeviceInternal();
+            WaitForDeviceReady();
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -27,11 +32,13 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
         }
     }
 
-    public async Task CreateVirtualInputDeviceAsync()
+    public async Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             SetupDeviceInternal();
+            await WaitForDeviceReadyAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -46,6 +53,122 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
         {
             _ = UInputNative.close(_fd);
             _fd = -1;
+        }
+    }
+
+    private void WaitForDeviceReady()
+    {
+        var sysname = TryGetVirtualDeviceSysname();
+        if (sysname is null || !Directory.Exists(VirtualInputDevicesPath))
+        {
+            return;
+        }
+
+        var startedAt = Stopwatch.GetTimestamp();
+        while (Stopwatch.GetElapsedTime(startedAt) < DeviceReadyTimeout)
+        {
+            var node = TryFindEventNode(sysname, out var canInspect);
+            if (node is not null)
+            {
+                Log.Debug("[UInputDevice] Virtual device {Node} is ready", node);
+                return;
+            }
+
+            if (!canInspect)
+            {
+                return;
+            }
+
+            Thread.Sleep(DeviceReadyPollInterval);
+        }
+
+        Log.Debug("[UInputDevice] Virtual device event node was not visible before readiness timeout");
+    }
+
+    private async Task WaitForDeviceReadyAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var sysname = TryGetVirtualDeviceSysname();
+        if (sysname is null || !Directory.Exists(VirtualInputDevicesPath))
+        {
+            return;
+        }
+
+        var startedAt = Stopwatch.GetTimestamp();
+        while (Stopwatch.GetElapsedTime(startedAt) < DeviceReadyTimeout)
+        {
+            var node = TryFindEventNode(sysname, out var canInspect);
+            if (node is not null)
+            {
+                Log.Debug("[UInputDevice] Virtual device {Node} is ready", node);
+                return;
+            }
+
+            if (!canInspect)
+            {
+                return;
+            }
+
+            var remaining = DeviceReadyTimeout - Stopwatch.GetElapsedTime(startedAt);
+            if (remaining > TimeSpan.Zero)
+            {
+                await Task.Delay(
+                    remaining < DeviceReadyPollInterval ? remaining : DeviceReadyPollInterval,
+                    TimeProvider.System,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        Log.Debug("[UInputDevice] Virtual device event node was not visible before readiness timeout");
+    }
+
+    private string? TryGetVirtualDeviceSysname()
+    {
+        try
+        {
+            byte[] buffer = new byte[64];
+            if (UInputNative.ioctl(_fd, UInputNative.UI_GET_SYSNAME_64, buffer) < 0)
+            {
+                return null;
+            }
+
+            var sysname = Encoding.ASCII.GetString(buffer).TrimEnd('\0');
+            return string.IsNullOrWhiteSpace(sysname) ? null : sysname;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Debug(ex, "[UInputDevice] Unable to resolve virtual input sysname");
+            return null;
+        }
+    }
+
+    private static string? TryFindEventNode(string sysname, out bool canInspect)
+    {
+        try
+        {
+            var devicePath = Path.Combine(VirtualInputDevicesPath, sysname);
+            if (!Directory.Exists(devicePath))
+            {
+                canInspect = true;
+                return null;
+            }
+
+            var eventPath = Directory.EnumerateDirectories(devicePath, "event*").FirstOrDefault();
+            if (eventPath is null)
+            {
+                canInspect = true;
+                return null;
+            }
+
+            var eventNode = Path.GetFileName(eventPath);
+            canInspect = true;
+            return File.Exists(Path.Combine("/dev/input", eventNode)) ? eventNode : null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Debug(ex, "[UInputDevice] Unable to inspect virtual input device state");
+            canInspect = false;
+            return null;
         }
     }
 
@@ -194,6 +317,26 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
             throw new ObjectDisposedException(nameof(UInputDevice), "Cannot write an event after the uinput device has been disposed.");
         }
 
+        if (type is UInputNative.EV_SYN && code is UInputNative.SYN_REPORT)
+        {
+            var plan = _absolutePacketState.CompletePacket();
+            if (plan?.Reassertion is { } reassertion)
+            {
+                WriteAbsolutePosition(reassertion);
+                WriteAbsolutePosition(plan.Value.Target);
+                return;
+            }
+
+            WriteEvent(type, code, value);
+            return;
+        }
+
+        WriteEvent(type, code, value);
+        _absolutePacketState.Observe(type, code, value);
+    }
+
+    private void WriteEvent(ushort type, ushort code, int value)
+    {
         var ev = new UInputNative.input_event
         {
             type = type,
@@ -267,11 +410,17 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
             return;
         }
 
-        (x, y) = UInputDeviceCoordinatePolicy.ClampAbsoluteCoordinates(x, y, _width, _height);
-
-        Emit(UInputNative.EV_ABS, UInputNative.ABS_X, x);
-        Emit(UInputNative.EV_ABS, UInputNative.ABS_Y, y);
+        var target = UInputDeviceCoordinatePolicy.ClampAbsoluteCoordinates(x, y, _width, _height);
+        Emit(UInputNative.EV_ABS, UInputNative.ABS_X, target.X);
+        Emit(UInputNative.EV_ABS, UInputNative.ABS_Y, target.Y);
         Emit(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+    }
+
+    private void WriteAbsolutePosition((int X, int Y) position)
+    {
+        WriteEvent(UInputNative.EV_ABS, UInputNative.ABS_X, position.X);
+        WriteEvent(UInputNative.EV_ABS, UInputNative.ABS_Y, position.Y);
+        WriteEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
     }
 
     public void Click(int buttonCode, bool pressed)

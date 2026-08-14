@@ -7,7 +7,8 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
     IInputSimulatorAbsoluteBounds,
     IBatchedInputSimulator,
     IAsyncBatchedInputSimulator,
-    IAbsoluteMotionTrajectorySimulator
+    IAbsoluteMotionTrajectorySimulator,
+    IInputSimulatorLeaseRefresher
 {
     private IpcClient Client { get; } = client;
     private readonly Func<bool> _isSupportedProbe = isSupportedProbe ?? (static () => true);
@@ -86,6 +87,12 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
             SupportsAbsoluteCoordinates = true;
         }
     }
+
+    Task IInputSimulatorLeaseRefresher.RefreshLeaseAsync(
+        int screenWidth,
+        int screenHeight,
+        CancellationToken cancellationToken) =>
+        InitializeAsync(screenWidth, screenHeight, cancellationToken);
 
     public void MoveAbsolute(int x, int y)
     {

@@ -152,57 +152,6 @@ public sealed class VirtualDeviceManagerTests
         Assert.Equal(1, device.SendEventCalls);
     }
 
-    [LinuxFact]
-    public async Task SendEvents_WhenAbsoluteTargetRepeats_ReassertsThroughAnAdjacentAbsolutePoint()
-    {
-        var devices = new List<FakeUInputDevice>();
-        await using var manager = CreateManager(devices);
-        await manager.ConfigureAsync(5120, 1440, CancellationToken.None);
-        var device = Assert.Single(devices);
-
-        await manager.SendEventsAsync(AbsoluteMove(4245, 346), CancellationToken.None);
-        device.SentEvents.Clear();
-
-        await manager.SendEventsAsync(AbsoluteMove(4245, 346), CancellationToken.None);
-
-        Assert.Equal(
-        [
-            (UInputNative.EV_ABS, UInputNative.ABS_X, 4246),
-            (UInputNative.EV_ABS, UInputNative.ABS_Y, 346),
-            (UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0),
-            (UInputNative.EV_ABS, UInputNative.ABS_X, 4245),
-            (UInputNative.EV_ABS, UInputNative.ABS_Y, 346),
-            (UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0),
-        ],
-        device.SentEvents);
-    }
-
-    [LinuxFact]
-    public async Task SendEvents_WhenRepeatedAbsoluteTargetIsAtRightEdge_ReassertsThroughThePreviousPixel()
-    {
-        var devices = new List<FakeUInputDevice>();
-        await using var manager = CreateManager(devices);
-        await manager.ConfigureAsync(3, 2, CancellationToken.None);
-        var device = Assert.Single(devices);
-
-        await manager.SendEventsAsync(AbsoluteMove(2, 1), CancellationToken.None);
-        device.SentEvents.Clear();
-
-        await manager.SendEventsAsync(AbsoluteMove(2, 1), CancellationToken.None);
-
-        Assert.Equal((UInputNative.EV_ABS, UInputNative.ABS_X, 1), device.SentEvents[0]);
-        Assert.Equal((UInputNative.EV_ABS, UInputNative.ABS_Y, 1), device.SentEvents[1]);
-        Assert.Equal((UInputNative.EV_ABS, UInputNative.ABS_X, 2), device.SentEvents[3]);
-        Assert.Equal((UInputNative.EV_ABS, UInputNative.ABS_Y, 1), device.SentEvents[4]);
-    }
-
-    private static IpcSimulationRequest[] AbsoluteMove(int x, int y) =>
-    [
-        new() { Type = UInputNative.EV_ABS, Code = UInputNative.ABS_X, Value = x },
-        new() { Type = UInputNative.EV_ABS, Code = UInputNative.ABS_Y, Value = y },
-        new() { Type = UInputNative.EV_SYN, Code = UInputNative.SYN_REPORT, Value = 0 },
-    ];
-
     private static VirtualDeviceManager CreateManager(ICollection<FakeUInputDevice> devices)
     {
         return new VirtualDeviceManager((_, _, _) =>
@@ -224,6 +173,8 @@ public sealed class VirtualDeviceManagerTests
         public void CreateVirtualInputDevice()
         {
         }
+
+        public Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void Move(int dx, int dy)
         {

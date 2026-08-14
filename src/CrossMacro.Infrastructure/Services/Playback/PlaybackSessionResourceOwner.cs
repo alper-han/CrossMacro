@@ -5,11 +5,9 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// Owns resources whose lifetime is exactly one playback session.
 /// </summary>
 internal sealed class PlaybackSessionResourceOwner(
-    Func<TimeSpan, CancellationToken, Task> waitAsync,
     Func<IInputSimulator>? simulatorFactory,
     IInputSimulatorPool? simulatorPool) : IDisposable, IAsyncDisposable, IPlaybackPauseToken, IRunScriptRuntimeVariableSource
 {
-    private readonly Func<TimeSpan, CancellationToken, Task> _waitAsync = waitAsync ?? throw new ArgumentNullException(nameof(waitAsync));
     private readonly Func<IInputSimulator>? _simulatorFactory = simulatorFactory;
     private readonly IInputSimulatorPool? _simulatorPool = simulatorPool;
     private TaskCompletionSource<object?> _pauseCompletion = CreateCompletedPauseCompletion();
@@ -52,13 +50,11 @@ internal sealed class PlaybackSessionResourceOwner(
         if (_simulatorPool is not null)
         {
             Simulator = await _simulatorPool.AcquireAsync(width, height, cancellationToken).ConfigureAwait(false);
-            await _waitAsync(TimeSpan.FromMilliseconds(20), cancellationToken).ConfigureAwait(false);
         }
         else if (_simulatorFactory is not null)
         {
             Simulator = _simulatorFactory();
             await Simulator.InitializeAsync(width, height, cancellationToken).ConfigureAwait(false);
-            await _waitAsync(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
         }
         else
         {

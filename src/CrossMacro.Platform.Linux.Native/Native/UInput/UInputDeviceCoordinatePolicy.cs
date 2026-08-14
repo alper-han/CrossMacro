@@ -30,4 +30,30 @@ internal static class UInputDeviceCoordinatePolicy
             ? (width - 1, height - 1)
             : (0, 0);
     }
+
+    public static UInputAbsoluteMovePlan CreateAbsoluteMovePlan(
+        (int X, int Y)? current,
+        (int X, int Y) target,
+        int width,
+        int height)
+    {
+        if (current != target)
+        {
+            return new UInputAbsoluteMovePlan(target, Reassertion: null);
+        }
+
+        if (width > 1)
+        {
+            var x = target.X < width - 1 ? target.X + 1 : target.X - 1;
+            return new UInputAbsoluteMovePlan(target, (x, target.Y));
+        }
+
+        if (height > 1)
+        {
+            var y = target.Y < height - 1 ? target.Y + 1 : target.Y - 1;
+            return new UInputAbsoluteMovePlan(target, (target.X, y));
+        }
+
+        return new UInputAbsoluteMovePlan(target, Reassertion: null);
+    }
 }

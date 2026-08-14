@@ -42,36 +42,69 @@ public sealed class InputSimulatorPoolTests : IDisposable
     }
 
     [Fact]
-    public void Release_DisposesReturnedDevice()
+    public void Release_ReturnsCompatibleDeviceToWarmPool()
     {
-        // Arrange
         var acquired = (FakeInputSimulator)_pool.Acquire(0, 0);
 
-        // Act
+        _pool.Release(acquired);
+        var reused = _pool.Acquire(0, 0);
+
+        _ = reused.Should().BeSameAs(acquired);
+        _ = acquired.IsDisposed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ReleaseAsync_ReturnsCompatibleDeviceToWarmPool()
+    {
+        var acquired = await _pool.AcquireAsync(1920, 1080);
+        _pool.Release(acquired);
+        var reused = await _pool.AcquireAsync(1920, 1080);
+
+        _ = reused.Should().BeSameAs(acquired);
+    }
+
+    [Fact]
+    public async Task AcquireAsync_WhenReusingRefreshableDevice_RefreshesItsLease()
+    {
+        var acquired = (FakeInputSimulator)await _pool.AcquireAsync(1920, 1080);
         _pool.Release(acquired);
 
-        // Assert
+        var reused = await _pool.AcquireAsync(1920, 1080);
+
+        _ = reused.Should().BeSameAs(acquired);
+        _ = acquired.LeaseRefreshCalls.Should().ContainSingle().Which.Should().Be((1920, 1080));
+    }
+
+    [Fact]
+    public async Task AcquireAsync_WhenRefreshingWarmDeviceFails_DisposesIt()
+    {
+        var acquired = (FakeInputSimulator)await _pool.AcquireAsync(1920, 1080);
+        _pool.Release(acquired);
+        acquired.LeaseRefreshException = new InvalidOperationException("refresh failed");
+
+        var act = () => _pool.AcquireAsync(1920, 1080);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>();
         _ = acquired.IsDisposed.Should().BeTrue();
     }
 
     [Fact]
-    public async Task Release_TracksReplacementWorkUntilItSettles()
+    public void Release_WhenResolutionChanges_DisposesStaleAbsoluteDevice()
     {
-        var acquired = _pool.Acquire(0, 0);
+        var acquired = (FakeInputSimulator)_pool.Acquire(1920, 1080);
+
         _pool.Release(acquired);
+        _ = _pool.Acquire(2560, 1440);
 
-        await _pool.Completion.WaitAsync(TimeSpan.FromSeconds(2));
-
-        _ = _pool.Completion.IsCompletedSuccessfully.Should().BeTrue();
+        _ = acquired.DisposeCalls.Should().Be(1);
     }
 
     [Fact]
-    public void Release_WhenCalledTwice_DisposesTheLeaseOnlyOnce()
+    public void Dispose_DisposesLeasedDevice()
     {
         var acquired = (FakeInputSimulator)_pool.Acquire(0, 0);
 
-        _pool.Release(acquired);
-        _pool.Release(acquired);
+        _pool.Dispose();
 
         _ = acquired.DisposeCalls.Should().Be(1);
     }
@@ -124,9 +157,11 @@ public sealed class InputSimulatorPoolTests : IDisposable
         _ = _pool.HasWarmDevice.Should().BeFalse();
     }
 
-    private sealed class FakeInputSimulator : IInputSimulator
+    private sealed class FakeInputSimulator : IInputSimulator, IInputSimulatorLeaseRefresher
     {
         public List<(int Width, int Height)> InitializeCalls { get; } = [];
+        public List<(int Width, int Height)> LeaseRefreshCalls { get; } = [];
+        public Exception? LeaseRefreshException { get; set; }
         public bool IsDisposed { get; private set; }
         public int DisposeCalls { get; private set; }
 
@@ -143,6 +178,15 @@ public sealed class InputSimulatorPoolTests : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
             Initialize(screenWidth, screenHeight);
             return Task.CompletedTask;
+        }
+
+        public Task RefreshLeaseAsync(int screenWidth, int screenHeight, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LeaseRefreshCalls.Add((screenWidth, screenHeight));
+            return LeaseRefreshException is { } exception
+                ? Task.FromException(exception)
+                : Task.CompletedTask;
         }
 
         public void MoveAbsolute(int x, int y) { }

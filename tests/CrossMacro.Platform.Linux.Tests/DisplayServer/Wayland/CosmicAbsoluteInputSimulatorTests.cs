@@ -173,6 +173,53 @@ public sealed class CosmicAbsoluteInputSimulatorTests
         _ = Assert.Throws<InvalidOperationException>(() => simulator.MoveAbsolute(2400, 500));
     }
 
+    [Fact]
+    public async Task PoolReuse_RefreshesWrappedLeaseAndOutputTopology()
+    {
+        var backend = new RecordingInputSimulator();
+        using var provider = CreateProvider((175, 50),
+        [
+            new ScreenRect(0, 0, 100, 100),
+            new ScreenRect(100, 0, 100, 100),
+        ]);
+        var simulator = new CosmicAbsoluteInputSimulator(backend, provider, provider);
+        using var pool = new InputSimulatorPool(() => simulator);
+
+        var firstLease = await pool.AcquireAsync(200, 100, CancellationToken.None);
+        pool.Release(firstLease);
+        provider.Outputs =
+        [
+            new ScreenRect(0, 0, 150, 100),
+            new ScreenRect(150, 0, 50, 100),
+        ];
+
+        var secondLease = await pool.AcquireAsync(200, 100, CancellationToken.None);
+        secondLease.MoveAbsolute(175, 50);
+
+        Assert.Same(firstLease, secondLease);
+        Assert.Equal(1, backend.LeaseRefreshCalls);
+        Assert.Equal(2, provider.TopologyReadCalls);
+        Assert.Equal([new SimulationCall("absolute", 100, 50)], backend.Calls);
+    }
+
+    [Fact]
+    public async Task RefreshLease_WhenCanceled_DoesNotRefreshInnerOrTopology()
+    {
+        var backend = new RecordingInputSimulator();
+        using var provider = CreateProvider((100, 100), [new ScreenRect(0, 0, 1920, 1080)]);
+        using var simulator = new CosmicAbsoluteInputSimulator(backend, provider, provider);
+        await simulator.InitializeAsync(1920, 1080, CancellationToken.None);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var refresh = () => ((IInputSimulatorLeaseRefresher)simulator)
+            .RefreshLeaseAsync(1920, 1080, cancellation.Token);
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(refresh);
+        Assert.Equal(0, backend.LeaseRefreshCalls);
+        Assert.Equal(1, provider.TopologyReadCalls);
+    }
+
     private static FakeDesktopProvider CreateProvider(
         (int X, int Y) position,
         IReadOnlyList<ScreenRect> outputs) => new(position, outputs);
@@ -180,12 +227,16 @@ public sealed class CosmicAbsoluteInputSimulatorTests
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct SimulationCall(string Kind, int X, int Y);
 
-    private sealed class RecordingInputSimulator : IInputSimulator, IInputSimulatorCapabilities
+    private sealed class RecordingInputSimulator :
+        IInputSimulator,
+        IInputSimulatorCapabilities,
+        IInputSimulatorLeaseRefresher
     {
         public List<SimulationCall> Calls { get; } = [];
         public string ProviderName => "recording";
         public bool IsSupported => true;
         public bool SupportsAbsoluteCoordinates { get; private set; }
+        public int LeaseRefreshCalls { get; private set; }
 
         public void Initialize(int screenWidth = 0, int screenHeight = 0)
         {
@@ -198,6 +249,14 @@ public sealed class CosmicAbsoluteInputSimulatorTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            Initialize(screenWidth, screenHeight);
+            return Task.CompletedTask;
+        }
+
+        public Task RefreshLeaseAsync(int screenWidth, int screenHeight, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LeaseRefreshCalls++;
             Initialize(screenWidth, screenHeight);
             return Task.CompletedTask;
         }
@@ -217,12 +276,12 @@ public sealed class CosmicAbsoluteInputSimulatorTests
         IMousePositionProvider,
         IOutputTopologyProvider
     {
-        private readonly IReadOnlyList<ScreenRect> _outputs = outputs;
-
         public (int X, int Y) Position { get; set; } = position;
+        public IReadOnlyList<ScreenRect> Outputs { get; set; } = outputs;
         public string ProviderName => "fake desktop";
         public bool IsSupported => true;
         public bool SupportsAbsolutePosition { get; set; } = true;
+        public int TopologyReadCalls { get; private set; }
 
         public Task<(int X, int Y)?> GetAbsolutePositionAsync() =>
             Task.FromResult<(int X, int Y)?>(Position);
@@ -240,17 +299,18 @@ public sealed class CosmicAbsoluteInputSimulatorTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_outputs);
+            TopologyReadCalls++;
+            return Task.FromResult(Outputs);
         }
 
         public void Dispose() { }
 
         private ScreenRect ComputeBounds()
         {
-            int x = _outputs.Min(static output => output.X);
-            int y = _outputs.Min(static output => output.Y);
-            int right = _outputs.Max(static output => output.Right);
-            int bottom = _outputs.Max(static output => output.Bottom);
+            int x = Outputs.Min(static output => output.X);
+            int y = Outputs.Min(static output => output.Y);
+            int right = Outputs.Max(static output => output.Right);
+            int bottom = Outputs.Max(static output => output.Bottom);
             return new ScreenRect(x, y, right - x, bottom - y);
         }
     }

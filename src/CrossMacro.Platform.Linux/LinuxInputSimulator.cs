@@ -60,11 +60,28 @@ public sealed class LinuxInputSimulator :
         Log.Information("[LinuxInputSimulator] Initialized with resolution {Width}x{Height}", screenWidth, screenHeight);
     }
 
-    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
+    public async Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
-        return Task.CompletedTask;
+        if (_device is not null)
+        {
+            Log.Warning("[LinuxInputSimulator] Already initialized");
+            return;
+        }
+
+        var device = _deviceFactory(screenWidth, screenHeight);
+        try
+        {
+            await device.CreateVirtualInputDeviceAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            _device = device;
+            Log.Information("[LinuxInputSimulator] Initialized with resolution {Width}x{Height}", screenWidth, screenHeight);
+        }
+        catch
+        {
+            device.Dispose();
+            throw;
+        }
     }
 
     public void MoveAbsolute(int x, int y)

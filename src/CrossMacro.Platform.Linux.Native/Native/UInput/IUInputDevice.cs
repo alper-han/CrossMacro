@@ -7,6 +7,8 @@ public interface IUInputDevice : IDisposable
 
     public void CreateVirtualInputDevice();
 
+    public Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default);
+
     public void Move(int dx, int dy);
 
     public void MoveAbsolute(int x, int y);

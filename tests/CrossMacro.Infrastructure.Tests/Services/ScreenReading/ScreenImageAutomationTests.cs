@@ -7,7 +7,7 @@ public sealed class ScreenImageAutomationTests
     {
         var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
         _ = reader.ProviderName.Returns("test-screen");
-        _ = reader.IsSupported.Returns(true);
+        _ = reader.IsSupported.Returns(returnThis: true);
         _ = ((IScreenImageSearchReader)reader).SearchImageAsync(
                 Arg.Any<ScreenRect?>(),
                 Arg.Any<ScreenFrame>(),
@@ -113,6 +113,60 @@ public sealed class ScreenImageAutomationTests
     }
 
     [Fact]
+    public async Task ClickAsync_WithPooledSimulator_DoesNotReinitializeTheReadyLease()
+    {
+        var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
+        _ = reader.ProviderName.Returns("test-screen");
+        _ = reader.IsSupported.Returns(returnThis: true);
+        _ = ((IScreenImageSearchReader)reader).SearchImageAsync(
+                Arg.Any<ScreenRect?>(),
+                Arg.Any<ScreenFrame>(),
+                Arg.Any<ScreenImageMatchOptions>(),
+                Arg.Any<ScreenReadOptions>())
+            .Returns(Task.FromResult(ScreenReadResultFactory.Success(new ScreenImageMatch(
+                Point: new ScreenPoint(40, 50),
+                Score: 1.0,
+                MatchedWidth: 4,
+                MatchedHeight: 6))));
+
+        var codec = Substitute.For<IImageAssetCodec>();
+        using var template = new ScreenFrame(new ScreenRect(0, 0, 1, 1), 3, ScreenPixelFormat.Rgb24, new byte[3]);
+        _ = codec.DecodeFileAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(template);
+
+        var simulator = Substitute.For<IInputSimulator, IInputSimulatorCapabilities, IInputSimulatorAbsoluteBounds>();
+        _ = simulator.IsSupported.Returns(returnThis: true);
+        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(returnThis: true);
+        _ = ((IInputSimulatorAbsoluteBounds)simulator).UsesZeroBasedScreenBounds.Returns(returnThis: true);
+        var pool = Substitute.For<IInputSimulatorPool>();
+        _ = pool.AcquireAsync(1920, 1080, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IInputSimulator>(simulator));
+
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = positionProvider.GetDesktopBoundsAsync().Returns(Task.FromResult<ScreenRect?>(new ScreenRect(0, 0, 1920, 1080)));
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>(new(42, 53)));
+
+        var resolver = Substitute.For<IImageClickMovementResolver>();
+        _ = resolver.ResolveAsync(simulator, new ScreenPoint(42, 53), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ImageClickMovementResolution.Absolute(new ScreenPoint(42, 53))));
+
+        var automation = new ScreenImageAutomation(
+            screenPixelReader: reader,
+            imageAssetCodec: codec,
+            mousePositionProvider: positionProvider,
+            inputSimulatorFactory: null,
+            simulatorPool: pool,
+            movementResolver: resolver);
+
+        var result = await automation.ClickAsync(new ScreenImageAutomationRequest("button.png"), MouseButtonCode.Left, CancellationToken.None);
+
+        _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await pool.Received(1).AcquireAsync(1920, 1080, Arg.Any<CancellationToken>());
+        await simulator.DidNotReceive().InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        pool.Received(1).Release(simulator, 1920, 1080);
+    }
+
+    [Fact]
     public async Task ClickAsync_WhenPolling_RequiresTwoConsecutiveConsistentMatchesBeforeClicking()
     {
         var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
@@ -183,5 +237,59 @@ public sealed class ScreenImageAutomationTests
             Arg.Any<ScreenReadOptions>());
         simulator.Received(1).MouseButton(MouseButtonCode.Left, pressed: true);
         simulator.Received(1).MouseButton(MouseButtonCode.Left, pressed: false);
+    }
+
+    [Fact]
+    public async Task ClickAsync_WhenAbsoluteMoveDoesNotSettle_ReleasesLeaseWithoutClicking()
+    {
+        var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
+        _ = reader.ProviderName.Returns("test-screen");
+        _ = reader.IsSupported.Returns(returnThis: true);
+        _ = ((IScreenImageSearchReader)reader).SearchImageAsync(
+                Arg.Any<ScreenRect?>(),
+                Arg.Any<ScreenFrame>(),
+                Arg.Any<ScreenImageMatchOptions>(),
+                Arg.Any<ScreenReadOptions>())
+            .Returns(Task.FromResult(ScreenReadResultFactory.Success(new ScreenImageMatch(
+                Point: new ScreenPoint(40, 50),
+                Score: 1.0,
+                MatchedWidth: 4,
+                MatchedHeight: 6))));
+
+        var codec = Substitute.For<IImageAssetCodec>();
+        using var template = new ScreenFrame(new ScreenRect(0, 0, 1, 1), 3, ScreenPixelFormat.Rgb24, new byte[3]);
+        _ = codec.DecodeFileAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(template);
+
+        var simulator = Substitute.For<IInputSimulator, IInputSimulatorCapabilities, IInputSimulatorAbsoluteBounds>();
+        _ = simulator.IsSupported.Returns(returnThis: true);
+        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(returnThis: true);
+        _ = ((IInputSimulatorAbsoluteBounds)simulator).UsesZeroBasedScreenBounds.Returns(returnThis: true);
+        var pool = Substitute.For<IInputSimulatorPool>();
+        _ = pool.AcquireAsync(1920, 1080, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IInputSimulator>(simulator));
+
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = positionProvider.GetDesktopBoundsAsync().Returns(Task.FromResult<ScreenRect?>(new ScreenRect(0, 0, 1920, 1080)));
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>(new(900, 700)));
+
+        var resolver = Substitute.For<IImageClickMovementResolver>();
+        _ = resolver.ResolveAsync(simulator, new ScreenPoint(42, 53), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ImageClickMovementResolution.Absolute(new ScreenPoint(42, 53))));
+        var automation = new ScreenImageAutomation(
+            screenPixelReader: reader,
+            imageAssetCodec: codec,
+            mousePositionProvider: positionProvider,
+            inputSimulatorFactory: null,
+            simulatorPool: pool,
+            movementResolver: resolver);
+
+        var result = await automation.ClickAsync(new ScreenImageAutomationRequest("button.png"), MouseButtonCode.Left, CancellationToken.None);
+
+        _ = result.IsSuccess.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("Absolute cursor move did not settle at (42,53).");
+        simulator.Received(1).MoveAbsolute(42, 53);
+        simulator.DidNotReceive().MouseButton(Arg.Any<int>(), Arg.Any<bool>());
+        pool.Received(1).Release(simulator, 1920, 1080);
     }
 }

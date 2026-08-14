@@ -92,7 +92,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         _buttonMapper = dependencies.ButtonMapper;
         _keyCodeMapper = dependencies.KeyCodeMapper;
         _delayResolver = dependencies.DelayResolver;
-        _session = new PlaybackSessionResourceOwner(_playbackWaitAsync, dependencies.InputSimulatorFactory, dependencies.SimulatorPool);
+        _session = new PlaybackSessionResourceOwner(dependencies.InputSimulatorFactory, dependencies.SimulatorPool);
         _runtimeVariables = _session.Variables;
 
         if (_positionProvider is not null)

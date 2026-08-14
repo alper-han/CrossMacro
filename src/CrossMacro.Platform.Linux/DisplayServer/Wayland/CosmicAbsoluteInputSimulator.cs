@@ -14,7 +14,8 @@ internal sealed class CosmicAbsoluteInputSimulator(
     IInputSimulatorCapabilities,
     IInputSimulatorAbsoluteBounds,
     IBatchedInputSimulator,
-    IAsyncBatchedInputSimulator
+    IAsyncBatchedInputSimulator,
+    IInputSimulatorLeaseRefresher
 {
     private const int OutputCrossingDelta = 8;
 
@@ -58,12 +59,40 @@ internal sealed class CosmicAbsoluteInputSimulator(
             .InitializeAsync(screenWidth, screenHeight, cancellationToken)
             .ConfigureAwait(false);
 
+        await RefreshMappingAsync(screenWidth, screenHeight, cancellationToken).ConfigureAwait(false);
+    }
+
+    async Task IInputSimulatorLeaseRefresher.RefreshLeaseAsync(
+        int screenWidth,
+        int screenHeight,
+        CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_inner is IInputSimulatorLeaseRefresher refresher)
+        {
+            await refresher
+                .RefreshLeaseAsync(screenWidth, screenHeight, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        await RefreshMappingAsync(screenWidth, screenHeight, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task RefreshMappingAsync(
+        int screenWidth,
+        int screenHeight,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         _screenWidth = screenWidth;
         _screenHeight = screenHeight;
         _activeOutputIndex = -1;
         _absoluteMappingReady = false;
         if (screenWidth <= 0 || screenHeight <= 0)
         {
+            _outputs = [];
+            _desktopBounds = null;
             return;
         }
 

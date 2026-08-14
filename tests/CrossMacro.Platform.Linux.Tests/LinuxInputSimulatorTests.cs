@@ -22,6 +22,37 @@ public sealed class LinuxInputSimulatorTests
     }
 
     [LinuxFact]
+    public async Task InitializeAsync_UsesAsynchronousDeviceCreation()
+    {
+        var device = new FakeUInputDevice();
+        using var simulator = new LinuxInputSimulator((_, _) => device);
+
+        await simulator.InitializeAsync(cancellationToken: CancellationToken.None);
+
+        Assert.Equal(1, device.AsyncCreateCalls);
+        Assert.Equal(0, device.SyncCreateCalls);
+    }
+
+    [LinuxFact]
+    public async Task InitializeAsync_WhenCancelledDuringDeviceCreation_PropagatesCancellationAndDisposesDevice()
+    {
+        var device = new FakeUInputDevice
+        {
+            AsyncCreateHandler = static cancellationToken => Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, cancellationToken),
+        };
+        using var simulator = new LinuxInputSimulator((_, _) => device);
+        using var cancellationSource = new CancellationTokenSource();
+
+        var initialization = simulator.InitializeAsync(cancellationToken: cancellationSource.Token);
+        await cancellationSource.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => initialization);
+
+        Assert.Equal(cancellationSource.Token, device.AsyncCreateCancellationToken);
+        Assert.True(device.Disposed);
+    }
+
+    [LinuxFact]
     public void SimulateBatch_WhenInitialized_ShouldSendEventsInOrder()
     {
         var device = new FakeUInputDevice();
@@ -121,9 +152,21 @@ public sealed class LinuxInputSimulatorTests
         public bool SupportsAbsoluteCoordinates => false;
 
         public bool Disposed { get; private set; }
+        public int SyncCreateCalls { get; private set; }
+        public int AsyncCreateCalls { get; private set; }
+        public CancellationToken AsyncCreateCancellationToken { get; private set; }
+        public Func<CancellationToken, Task>? AsyncCreateHandler { get; init; }
 
         public void CreateVirtualInputDevice()
         {
+            SyncCreateCalls++;
+        }
+
+        public Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default)
+        {
+            AsyncCreateCalls++;
+            AsyncCreateCancellationToken = cancellationToken;
+            return AsyncCreateHandler?.Invoke(cancellationToken) ?? Task.CompletedTask;
         }
 
         public void Move(int dx, int dy)

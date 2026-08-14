@@ -995,6 +995,28 @@ public sealed class IpcClientIntegrationTests
     }
 
     [LinuxFact]
+    public async Task InputSimulatorPool_WhenReusingIpcLease_ReappliesDaemonConfiguration()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        using var pool = new InputSimulatorPool(() =>
+            new LinuxIpcInputSimulator(new IpcClient(() => socketPath, autoReconnect: false)));
+
+        var initial = await pool.AcquireAsync(1920, 1080);
+        pool.Release(initial);
+        var reused = await pool.AcquireAsync(1920, 1080);
+
+        Assert.Same(initial, reused);
+        await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
+        Assert.Equal(
+            2,
+            daemon.GetCommandsSnapshot().Count(command =>
+                command.OpCode is IpcOpCode.ConfigureResolution &&
+                command.Width is 1920 &&
+                command.Height is 1080));
+    }
+
+    [LinuxFact]
     public async Task LinuxIpcInputSimulator_WhenBatchSupported_ShouldSendBatchAndWaitForAck()
     {
         var socketPath = GetUniqueSocketPath();

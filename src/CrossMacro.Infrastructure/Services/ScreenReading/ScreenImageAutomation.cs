@@ -64,6 +64,7 @@ public sealed class ScreenImageAutomation(
         var height = geometry.Bounds?.Height ?? geometry.Height;
         var pool = _simulatorPool;
         var factory = _inputSimulatorFactory;
+        var leasedFromPool = pool is not null;
         IInputSimulator simulator;
         if (pool is not null)
         {
@@ -103,7 +104,10 @@ public sealed class ScreenImageAutomation(
                 var point = new ScreenPoint(
                     checked(result.Value.Point.X + ((result.Value.MatchedWidth > 0 ? result.Value.MatchedWidth : template.LogicalBounds.Width) / 2)),
                     checked(result.Value.Point.Y + ((result.Value.MatchedHeight > 0 ? result.Value.MatchedHeight : template.LogicalBounds.Height) / 2)));
-                await simulator.InitializeAsync(width, height, cancellationToken).ConfigureAwait(false);
+                if (!leasedFromPool)
+                {
+                    await simulator.InitializeAsync(width, height, cancellationToken).ConfigureAwait(false);
+                }
                 var movement = await _movementResolver.ResolveAsync(simulator, point, cancellationToken).ConfigureAwait(false);
                 if (!movement.IsSuccess)
                 {

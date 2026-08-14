@@ -6,10 +6,9 @@ public sealed class MacroRecorder(
     ICoordinateStrategyFactory coordinateStrategyFactory,
     Func<ICoordinateStrategy, IInputEventProcessor> processorFactory,
     Func<IInputSimulator>? inputSimulatorFactory = null,
-    IMousePositionProvider? positionProvider = null) : IMacroRecorder
+    IMousePositionProvider? positionProvider = null,
+    IInputSimulatorPool? inputSimulatorPool = null) : IMacroRecorder
 {
-    private static readonly TimeSpan CornerResetSettleDelay = TimeSpan.FromMilliseconds(32);
-
     private MacroSequence? _currentSequence;
     private ScreenRect? _recordingDesktopBounds;
     private Stopwatch? _stopwatch;
@@ -26,6 +25,7 @@ public sealed class MacroRecorder(
 
     private readonly Func<IInputSimulator>? _inputSimulatorFactory = inputSimulatorFactory;
     private readonly IMousePositionProvider? _positionProvider = positionProvider;
+    private readonly IInputSimulatorPool? _inputSimulatorPool = inputSimulatorPool;
 
     // Active components
     private ICoordinateStrategy? _currentStrategy;
@@ -472,26 +472,51 @@ public sealed class MacroRecorder(
 
     private async Task PerformCornerResetAsync(CancellationToken cancellationToken)
     {
-        if (_inputSimulatorFactory is null)
+        if (_inputSimulatorPool is null && _inputSimulatorFactory is null)
         {
             Log.Warning("[MacroRecorder] Relative recording requires corner reset, but no input simulator is available.");
             return;
         }
 
+        IInputSimulator? simulator = null;
+        ScreenRect? desktopBounds = null;
+        var pooled = false;
         try
         {
             Log.Information("[MacroRecorder] Performing desktop corner reset...");
-            var desktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
-            using var simulator = _inputSimulatorFactory();
-            await simulator.InitializeAsync(
-                desktopBounds?.Width ?? 0,
-                desktopBounds?.Height ?? 0,
-                cancellationToken).ConfigureAwait(false);
+            desktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
+            var width = desktopBounds?.Width ?? 0;
+            var height = desktopBounds?.Height ?? 0;
+            if (_inputSimulatorPool is not null)
+            {
+                simulator = await _inputSimulatorPool.AcquireAsync(width, height, cancellationToken).ConfigureAwait(false);
+                pooled = true;
+            }
+            else
+            {
+                simulator = _inputSimulatorFactory!();
+                await simulator.InitializeAsync(width, height, cancellationToken).ConfigureAwait(false);
+            }
+
             var expectedPosition = MouseCornerReset.MoveToDesktopOrigin(simulator, desktopBounds);
-            await Task.Delay(
-                CornerResetSettleDelay,
-                TimeProvider.System,
-                cancellationToken).ConfigureAwait(false);
+            if (expectedPosition is { } expected)
+            {
+                var settleResult = await AbsoluteCursorPositionSynchronizer.WaitAsync(
+                    _positionProvider,
+                    expected.X,
+                    expected.Y,
+                    cancellationToken).ConfigureAwait(false);
+                if (!settleResult.IsSettled)
+                {
+                    Log.Warning(
+                        "[MacroRecorder] Corner reset did not settle at ({ExpectedX},{ExpectedY}); last observed position is ({LastX},{LastY}).",
+                        expected.X,
+                        expected.Y,
+                        settleResult.LastObservedPosition?.X,
+                        settleResult.LastObservedPosition?.Y);
+                }
+            }
+
             Log.Information(
                 "[MacroRecorder] Corner Reset complete using {Mode} movement.",
                 expectedPosition is null ? "relative fallback" : "absolute desktop-origin");
@@ -503,6 +528,23 @@ public sealed class MacroRecorder(
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[MacroRecorder] Failed to perform Corner Reset");
+        }
+        finally
+        {
+            if (simulator is not null)
+            {
+                if (pooled)
+                {
+                    _inputSimulatorPool!.Release(
+                        simulator,
+                        desktopBounds?.Width ?? 0,
+                        desktopBounds?.Height ?? 0);
+                }
+                else
+                {
+                    simulator.Dispose();
+                }
+            }
         }
     }
 

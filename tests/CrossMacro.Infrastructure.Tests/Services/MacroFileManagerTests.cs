@@ -1384,7 +1384,7 @@ public sealed class MacroFileManagerTests : IDisposable
                     Y = 6,
                     Button = MacroMouseButton.Middle,
                     CoordinateMode = MouseCoordinateMode.Relative,
-                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
                 },
             },
         };
@@ -1398,7 +1398,7 @@ public sealed class MacroFileManagerTests : IDisposable
         // Assert
         _ = saved.Should().Contain("P,abs,1,2,Left");
         _ = saved.Should().Contain("R,rel-raw,3,4,Right");
-        _ = saved.Should().Contain("C,rel-raw,5,6,Middle");
+        _ = saved.Should().Contain("C,rel-logical,5,6,Middle");
         _ = loaded.Should().NotBeNull();
         _ = loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
             MouseCoordinateMode.Absolute,
@@ -1407,7 +1407,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = loaded.Events.Select(ev => ev.CoordinateSpace).Should().Equal(
             MouseCoordinateSpace.LogicalDesktop,
             MouseCoordinateSpace.RawDevice,
-            MouseCoordinateSpace.RawDevice);
+            MouseCoordinateSpace.LogicalDesktop);
     }
 
     [Fact]

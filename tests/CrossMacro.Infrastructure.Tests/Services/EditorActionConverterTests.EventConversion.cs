@@ -128,6 +128,33 @@ public sealed partial class EditorActionConverterTests
         _ = events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
     }
 
+    [Theory]
+    [InlineData(EditorActionType.MouseClick, EventType.Click)]
+    [InlineData(EditorActionType.MouseDown, EventType.ButtonPress)]
+    [InlineData(EditorActionType.MouseUp, EventType.ButtonRelease)]
+    public void ToMacroEvents_WhenMouseButtonActionIsLogicalRelative_PreservesRelativeCoordinateSemantics(
+        EditorActionType actionType,
+        EventType eventType)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            Button = MacroMouseButton.Left,
+            IsAbsolute = false,
+            X = 3,
+            Y = -5,
+        };
+
+        var events = _converter.ToMacroEvents(action);
+
+        _ = events.Should().ContainSingle();
+        _ = events[0].Type.Should().Be(eventType);
+        _ = events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
+        _ = events[0].CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
+        _ = events[0].X.Should().Be(3);
+        _ = events[0].Y.Should().Be(-5);
+    }
+
     [Fact]
     public void ToMacroEvents_DelayWithRandom_ProducesPlaceholderWithRandomMetadata()
     {

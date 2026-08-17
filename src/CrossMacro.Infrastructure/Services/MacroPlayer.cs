@@ -849,6 +849,11 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             bool willResolveExplicitAbsoluteButtonPosition = coordinateMode is MouseCoordinateMode.Absolute
                 && isNonScrollMouseButtonEvent
                 && !eventToExecute.UseCurrentPosition;
+            bool willResolveLogicalRelativeButtonPosition = coordinateMode is MouseCoordinateMode.Relative
+                && coordinateSpace is MouseCoordinateSpace.LogicalDesktop
+                && isNonScrollMouseButtonEvent
+                && !eventToExecute.UseCurrentPosition
+                && (eventToExecute.X is not 0 || eventToExecute.Y is not 0);
 
             bool shouldFlushPendingCursorMovement = !willResolveExplicitAbsoluteButtonPosition
                 && (isNonScrollMouseButtonEvent
@@ -870,6 +875,26 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                     cancellationToken).ConfigureAwait(false);
                 state.HasPendingLogicalMove = false;
                 eventToExecute.UseCurrentPosition = true;
+                eventToExecute.X = 0;
+                eventToExecute.Y = 0;
+            }
+            else if (willResolveLogicalRelativeButtonPosition)
+            {
+                if (!coordinator.HasKnownPosition)
+                {
+                    throw new LogicalRelativePositionUnavailableException();
+                }
+
+                var target = executor.ClampLogicalTarget(
+                    (long)coordinator.CurrentX + eventToExecute.X,
+                    (long)coordinator.CurrentY + eventToExecute.Y);
+                executor.MoveAbsolute(target.X, target.Y);
+                await EnsureAbsolutePositionSettledAsync(
+                    coordinator,
+                    target.X,
+                    target.Y,
+                    cancellationToken).ConfigureAwait(false);
+                state.HasPendingLogicalMove = false;
                 eventToExecute.X = 0;
                 eventToExecute.Y = 0;
             }

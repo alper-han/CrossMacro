@@ -621,8 +621,93 @@ public sealed partial class MacroPlayerTests
 
         _ = simulator.InitializedWidth.Should().Be(1920);
         _ = simulator.InitializedHeight.Should().Be(1080);
-        _ = simulator.Operations.Should().Contain("abs:103,195");
-        _ = simulator.Operations.Should().NotContain("rel:3,-5");
+        _ = simulator.Operations.Should().Equal("abs:100,200", "abs:103,195");
+    }
+
+    [Theory]
+    [InlineData(EventType.Click)]
+    [InlineData(EventType.ButtonPress)]
+    [InlineData(EventType.ButtonRelease)]
+    public async Task PlayAsync_WhenLogicalRelativeButtonEvent_SettlesTargetBeforeEmittingButton(EventType eventType)
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var simulator = new TrackingInputSimulator();
+        var positions = new Queue<(int X, int Y)?>([
+            (100, 200),
+            (100, 200),
+            (103, 195),
+        ]);
+        _ = _positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            var position = positions.Dequeue();
+            if (position is { X: 103, Y: 195 })
+            {
+                simulator.Operations.Add("settled");
+            }
+
+            return Task.FromResult(position);
+        });
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new()
+                {
+                    Type = eventType,
+                    Button = MacroMouseButton.Left,
+                    X = 3,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+            },
+        };
+
+        await player.PlayAsync(macro);
+
+        var expectedButtonOperation = eventType is EventType.ButtonRelease ? "btn:up" : "btn:down";
+        _ = simulator.Operations.Should().ContainInOrder(
+            "abs:100,200",
+            "abs:103,195",
+            "settled",
+            expectedButtonOperation);
+        _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenLogicalRelativeClickDoesNotSettle_RefusesButtonEvent()
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = _positionProvider.GetAbsolutePositionAsync()
+            .Returns(Task.FromResult<(int X, int Y)?>((100, 200)));
+        var simulator = new TrackingInputSimulator();
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new()
+                {
+                    Type = EventType.Click,
+                    Button = MacroMouseButton.Left,
+                    X = 3,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro);
+
+        _ = await act.Should().ThrowAsync<AbsoluteCursorMoveNotSettledException>();
+        _ = simulator.AbsoluteMoves.Should().Equal((100, 200), (103, 195));
+        _ = simulator.ButtonTransitions.Should().BeEmpty();
     }
 
     [Fact]

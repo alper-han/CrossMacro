@@ -53,8 +53,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private readonly IImageAssetPreviewDecoder? _imageAssetPreviewDecoder;
     private readonly IMacroPlayer _macroPlayer;
 
-    private readonly Stack<List<EditorAction>> _undoStack = new(UndoStackLimit);
-    private readonly Stack<List<EditorAction>> _redoStack = new(UndoStackLimit);
+    private readonly Stack<EditorStateSnapshot> _undoStack = new(UndoStackLimit);
+    private readonly Stack<EditorStateSnapshot> _redoStack = new(UndoStackLimit);
     private EditorActionListItem? _selectedActionListItem;
     [ObservableProperty]
     private string _macroName;
@@ -74,7 +74,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     private bool _usesDefaultMacroName = true;
     private bool _isApplyingStatusKind;
     private EditorStatusKind _statusKind = EditorStatusKind.Ready;
-    private List<EditorAction> _lastKnownState = new();
+    private EditorStateSnapshot _lastKnownState = new([], SkipInitialZeroZero: false);
     private readonly Dictionary<string, string> _imageAssets = new(StringComparer.Ordinal);
     private string? _selectedSetVariableSuggestion;
     private string? _selectedIncDecVariableSuggestion;

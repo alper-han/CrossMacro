@@ -648,6 +648,109 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
+    public async Task SaveMacroAsync_WhenMouseMoveIsSetRelative_PassesLiveCursorRelativeProjection()
+    {
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+        _viewModel.SelectedActionIsRelative = true;
+        _viewModel.SelectedAction!.X = 3;
+        _viewModel.SelectedAction.Y = -5;
+
+        _ = _dialogService
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns("/tmp/editor-viewmodel-relative.macro");
+        _ = _converter
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
+            .Returns(new MacroSequence { Name = "Generated" });
+
+        await _viewModel.SaveMacroAsync();
+
+        _ = _converter.Received(1).ToMacroSequence(
+            Arg.Is<EditorMacroProjection>(projection =>
+                !projection.IsAbsoluteCoordinates
+                && projection.Actions.Count == 1
+                && !projection.Actions[0].IsAbsolute
+                && projection.Actions[0].CoordinateSpace == MouseCoordinateSpace.LogicalDesktop
+                && projection.Actions[0].X == 3
+                && projection.Actions[0].Y == -5
+                && projection.SkipInitialZeroZero));
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenUnchangedLoadedRelativeMacroUsesOriginReset_PreservesItsRecordedStartMode()
+    {
+        var sequence = new MacroSequence
+        {
+            Name = "Recorded Relative Macro",
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = false,
+        };
+        var relativeAction = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            IsAbsolute = false,
+            X = 3,
+            Y = -5,
+        };
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult([relativeAction], [], restoredFromScriptSteps: false));
+        _viewModel.LoadMacroSequence(sequence);
+
+        _ = _dialogService
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns("/tmp/editor-recorded-relative.macro");
+        _ = _converter
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
+            .Returns(new MacroSequence { Name = "Generated" });
+
+        await _viewModel.SaveMacroAsync();
+
+        _ = _converter.Received(1).ToMacroSequence(
+            Arg.Is<EditorMacroProjection>(projection =>
+                projection.Actions.Count == 1
+                && !projection.Actions[0].IsAbsolute
+                && !projection.SkipInitialZeroZero));
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenLoadedRelativeMouseMoveIsExplicitlyReselected_PassesLiveCursorRelativeProjection()
+    {
+        var sequence = new MacroSequence
+        {
+            Name = "Recorded Relative Macro",
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = false,
+        };
+        var relativeAction = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            IsAbsolute = false,
+            X = 3,
+            Y = -5,
+        };
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult([relativeAction], [], restoredFromScriptSteps: false));
+        _viewModel.LoadMacroSequence(sequence);
+        _viewModel.SelectedActionIsAbsolute = true;
+        _viewModel.SelectedActionIsRelative = true;
+
+        _ = _dialogService
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns("/tmp/editor-reselected-relative.macro");
+        _ = _converter
+            .ToMacroSequence(Arg.Any<EditorMacroProjection>())
+            .Returns(new MacroSequence { Name = "Generated" });
+
+        await _viewModel.SaveMacroAsync();
+
+        _ = _converter.Received(1).ToMacroSequence(
+            Arg.Is<EditorMacroProjection>(projection =>
+                projection.Actions.Count == 1
+                && !projection.Actions[0].IsAbsolute
+                && projection.SkipInitialZeroZero));
+    }
+
+    [Fact]
     public async Task SaveMacroAsync_WhenActionsUseMixedCoordinateModes_PassesActionsPreservingPerActionModes()
     {
         // Arrange

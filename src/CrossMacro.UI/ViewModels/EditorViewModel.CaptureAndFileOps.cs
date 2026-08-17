@@ -550,7 +550,7 @@ public partial class EditorViewModel
             return null;
         }
 
-        var normalizedActions = CloneState(Actions);
+        var normalizedActions = CloneActions(Actions);
         NormalizeCurrentPositionMouseButtonActionSnapshot(normalizedActions);
 
         var (isValid, validationErrors) = _validator.ValidateAll(normalizedActions);

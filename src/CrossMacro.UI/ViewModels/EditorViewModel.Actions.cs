@@ -24,10 +24,16 @@ public partial class EditorViewModel
         }
     }
 
-    private static List<EditorAction> CloneState(IEnumerable<EditorAction> actions)
+    private sealed record EditorStateSnapshot(
+        List<EditorAction> Actions,
+        bool SkipInitialZeroZero);
+
+    private static List<EditorAction> CloneActions(IEnumerable<EditorAction> actions)
     {
         return actions.Select(action => action.Clone()).ToList();
     }
+
+    private EditorStateSnapshot CloneState() => new(CloneActions(Actions), _skipInitialZeroZero);
 
     private static bool AreActionsEquivalent(EditorAction left, EditorAction right)
     {
@@ -115,16 +121,17 @@ public partial class EditorViewModel
             && left.PreferLegacyScriptText == right.PreferLegacyScriptText;
     }
 
-    private static bool AreStatesEquivalent(List<EditorAction> left, IReadOnlyList<EditorAction> right)
+    private static bool AreStatesEquivalent(EditorStateSnapshot left, EditorStateSnapshot right)
     {
-        if (left.Count != right.Count)
+        if (left.SkipInitialZeroZero != right.SkipInitialZeroZero
+            || left.Actions.Count != right.Actions.Count)
         {
             return false;
         }
 
-        for (var index = 0; index < left.Count; index++)
+        for (var index = 0; index < left.Actions.Count; index++)
         {
-            if (!AreActionsEquivalent(left[index], right[index]))
+            if (!AreActionsEquivalent(left.Actions[index], right.Actions[index]))
             {
                 return false;
             }
@@ -197,7 +204,7 @@ public partial class EditorViewModel
 
     private void RememberCurrentState()
     {
-        _lastKnownState = CloneState(Actions);
+        _lastKnownState = CloneState();
     }
 
     private void ResetPropertyEditUndoCoalescing()
@@ -456,6 +463,11 @@ public partial class EditorViewModel
         }
 
         SelectedAction.IsAbsolute = isAbsolute;
+        if (!isAbsolute && SelectedAction.Type is EditorActionType.MouseMove)
+        {
+            SkipInitialZeroZero = true;
+            RememberCurrentState();
+        }
     }
 
     private void RefreshCurrentPositionConfiguration()
@@ -539,14 +551,14 @@ public partial class EditorViewModel
 
     private void SaveUndoState()
     {
-        SaveUndoState(CloneState(Actions));
+        SaveUndoState(CloneState());
     }
 
-    private void SaveUndoState(IReadOnlyList<EditorAction> state)
+    private void SaveUndoState(EditorStateSnapshot state)
     {
         if (_undoStack.Count is 0 || !AreStatesEquivalent(_undoStack.Peek(), state))
         {
-            _undoStack.Push(state.Select(action => action.Clone()).ToList());
+            _undoStack.Push(new EditorStateSnapshot(CloneActions(state.Actions), state.SkipInitialZeroZero));
             TrimUndoStack();
         }
 
@@ -1138,13 +1150,13 @@ public partial class EditorViewModel
         SyncSelectedActionListItem();
     }
 
-    private void RestoreActionSnapshot(IReadOnlyList<EditorAction> state)
+    private void RestoreStateSnapshot(EditorStateSnapshot state)
     {
         _isBatchUpdatingActions = true;
         try
         {
             Actions.Clear();
-            foreach (var action in state)
+            foreach (var action in state.Actions)
             {
                 Actions.Add(action);
             }
@@ -1153,6 +1165,8 @@ public partial class EditorViewModel
         {
             _isBatchUpdatingActions = false;
         }
+
+        SkipInitialZeroZero = state.SkipInitialZeroZero;
     }
 
     public void Undo()
@@ -1166,11 +1180,11 @@ public partial class EditorViewModel
         _isRestoringState = true;
         try
         {
-            var currentState = CloneState(Actions);
+            var currentState = CloneState();
             _redoStack.Push(currentState);
 
             var previousState = _undoStack.Pop();
-            RestoreActionSnapshot(previousState);
+            RestoreStateSnapshot(previousState);
 
             SelectedAction = Actions.FirstOrDefault();
             Status = Localize("Editor_StatusUndone");
@@ -1198,11 +1212,11 @@ public partial class EditorViewModel
         _isRestoringState = true;
         try
         {
-            var currentState = CloneState(Actions);
+            var currentState = CloneState();
             _undoStack.Push(currentState);
 
             var nextState = _redoStack.Pop();
-            RestoreActionSnapshot(nextState);
+            RestoreStateSnapshot(nextState);
 
             SelectedAction = Actions.FirstOrDefault();
             Status = Localize("Editor_StatusRedone");
@@ -1365,7 +1379,7 @@ public partial class EditorViewModel
 
     private bool CanApplyScriptStructureMutation(Action<List<EditorAction>> mutation)
     {
-        var candidate = CloneState(Actions);
+        var candidate = CloneActions(Actions);
         mutation(candidate);
         if (ScriptBlockStructureValidator.Validate(candidate).IsValid)
         {

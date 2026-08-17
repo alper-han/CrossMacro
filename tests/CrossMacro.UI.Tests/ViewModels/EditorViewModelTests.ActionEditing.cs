@@ -1292,6 +1292,32 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
+    public void SelectedActionCoordinateMode_WhenChangedToRelative_UsesLiveCursorStart()
+    {
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+
+        _viewModel.SelectedActionIsRelative = true;
+
+        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SkipInitialZeroZero.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Undo_WhenRelativeMouseMoveIsEdited_PreservesItsLiveCursorStartMode()
+    {
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+        _viewModel.SelectedActionIsRelative = true;
+        _viewModel.SelectedAction!.X = 3;
+
+        _viewModel.Undo();
+
+        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SkipInitialZeroZero.Should().BeTrue();
+    }
+
+    [Fact]
     public void AddCurrentPositionClick_AddsRelativeClickAndEnablesSkipInitialZeroZero()
     {
         // Act

@@ -174,6 +174,68 @@ public sealed class CosmicAbsoluteInputSimulatorTests
     }
 
     [Fact]
+    public async Task ResetToDesktopOrigin_WithResolutionOnlyProviderAndHorizontalOutputs_UsesLocalAbsoluteAndEdgeCrossings()
+    {
+        var backend = new RecordingInputSimulator();
+        using var provider = CreateProvider((3000, 100),
+        [
+            new ScreenRect(0, 0, 1920, 1080),
+            new ScreenRect(1920, 0, 1920, 1080),
+        ]);
+        provider.SupportsAbsolutePosition = false;
+        using var simulator = new CosmicAbsoluteInputSimulator(backend, provider, provider);
+        await simulator.InitializeAsync(3840, 1080, CancellationToken.None);
+
+        var reset = ((IDesktopOriginResetSimulator)simulator).TryResetToDesktopOrigin();
+
+        Assert.True(reset);
+        Assert.False(simulator.SupportsAbsoluteCoordinates);
+        Assert.Equal(
+        [
+            new SimulationCall("absolute", 0, 540),
+            new SimulationCall("relative", -8, 0),
+            new SimulationCall("absolute", 0, 0),
+        ], backend.Calls);
+    }
+
+    [Fact]
+    public async Task ResetToDesktopOrigin_WithNonContiguousOutputs_IsUnavailable()
+    {
+        var backend = new RecordingInputSimulator();
+        using var provider = CreateProvider((3000, 100),
+        [
+            new ScreenRect(0, 0, 1920, 1080),
+            new ScreenRect(1920, 100, 1920, 1080),
+        ]);
+        provider.SupportsAbsolutePosition = false;
+        using var simulator = new CosmicAbsoluteInputSimulator(backend, provider, provider);
+        await simulator.InitializeAsync(3840, 1180, CancellationToken.None);
+
+        var reset = ((IDesktopOriginResetSimulator)simulator).TryResetToDesktopOrigin();
+
+        Assert.False(reset);
+        Assert.Empty(backend.Calls);
+    }
+
+    [Fact]
+    public async Task ResetToDesktopOrigin_WhenDesktopWideMappingIsAvailable_LeavesTheNormalAbsolutePathUntouched()
+    {
+        var backend = new RecordingInputSimulator();
+        using var provider = CreateProvider((3000, 100),
+        [
+            new ScreenRect(0, 0, 1920, 1080),
+            new ScreenRect(1920, 0, 1920, 1080),
+        ]);
+        using var simulator = new CosmicAbsoluteInputSimulator(backend, provider, provider);
+        await simulator.InitializeAsync(3840, 1080, CancellationToken.None);
+
+        var reset = ((IDesktopOriginResetSimulator)simulator).TryResetToDesktopOrigin();
+
+        Assert.False(reset);
+        Assert.Empty(backend.Calls);
+    }
+
+    [Fact]
     public async Task PoolReuse_RefreshesWrappedLeaseAndOutputTopology()
     {
         var backend = new RecordingInputSimulator();

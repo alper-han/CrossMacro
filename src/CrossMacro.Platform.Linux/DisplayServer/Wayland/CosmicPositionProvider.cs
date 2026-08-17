@@ -13,14 +13,23 @@ public sealed partial class CosmicPositionProvider :
     private const int CommandTimeoutMs = 1000;
 
     private readonly Func<CancellationToken, Task<string?>> _readOutputTopologyAsync;
+    private readonly bool _useFlatpakHostCommand;
     private bool _disposed;
 
     public CosmicPositionProvider()
-        : this(ReadCosmicRandrKdlAsync) { /* Empty */ }
+        : this(
+            readOutputTopologyAsync: null,
+            useFlatpakHostCommand: LinuxEnvironmentVariables.CaptureCurrentSnapshot().IsFlatpak) { /* Empty */ }
 
     internal CosmicPositionProvider(Func<CancellationToken, Task<string?>> readOutputTopologyAsync)
+        : this(readOutputTopologyAsync, useFlatpakHostCommand: false) { /* Empty */ }
+
+    internal CosmicPositionProvider(
+        Func<CancellationToken, Task<string?>>? readOutputTopologyAsync,
+        bool useFlatpakHostCommand)
     {
-        _readOutputTopologyAsync = readOutputTopologyAsync ?? throw new ArgumentNullException(nameof(readOutputTopologyAsync));
+        _readOutputTopologyAsync = readOutputTopologyAsync ?? ReadCosmicRandrKdlAsync;
+        _useFlatpakHostCommand = useFlatpakHostCommand;
     }
 
     public string ProviderName => "COSMIC RandR (Resolution Only)";
@@ -296,20 +305,38 @@ public sealed partial class CosmicPositionProvider :
         return int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
     }
 
-    private static async Task<string?> ReadCosmicRandrKdlAsync(CancellationToken cancellationToken)
+    private Task<string?> ReadCosmicRandrKdlAsync(CancellationToken cancellationToken)
+        => ReadCosmicRandrKdlAsync(_useFlatpakHostCommand, cancellationToken);
+
+    internal static ProcessStartInfo CreateCosmicRandrStartInfo(bool useFlatpakHostCommand)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = CosmicRandrCommand,
+            FileName = useFlatpakHostCommand ? "flatpak-spawn" : CosmicRandrCommand,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+
+        if (useFlatpakHostCommand)
+        {
+            startInfo.ArgumentList.Add("--host");
+            startInfo.ArgumentList.Add("--watch-bus");
+            startInfo.ArgumentList.Add(CosmicRandrCommand);
+        }
+
         startInfo.ArgumentList.Add("list");
         startInfo.ArgumentList.Add("--kdl");
 
-        using var process = new Process { StartInfo = startInfo };
+        return startInfo;
+    }
+
+    private static async Task<string?> ReadCosmicRandrKdlAsync(
+        bool useFlatpakHostCommand,
+        CancellationToken cancellationToken)
+    {
+        using var process = new Process { StartInfo = CreateCosmicRandrStartInfo(useFlatpakHostCommand) };
 
         try
         {

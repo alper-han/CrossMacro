@@ -62,6 +62,11 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             return true;
         }
 
+        if (_positionProvider is null || !_positionProvider.SupportsAbsolutePosition)
+        {
+            return false;
+        }
+
         var position = _rawMovementMayBePending
             ? await SynchronizeAfterRawMovementAsync(cancellationToken).ConfigureAwait(false)
             : await QueryPositionAsync(cancellationToken).ConfigureAwait(false);

@@ -13,6 +13,7 @@ internal sealed class CosmicAbsoluteInputSimulator(
     IInputSimulator,
     IInputSimulatorCapabilities,
     IInputSimulatorAbsoluteBounds,
+    IDesktopOriginResetSimulator,
     IBatchedInputSimulator,
     IAsyncBatchedInputSimulator,
     IInputSimulatorLeaseRefresher
@@ -43,7 +44,6 @@ internal sealed class CosmicAbsoluteInputSimulator(
     public bool SupportsBatchedInput =>
         !_disposed &&
         _inner is IBatchedInputSimulator { SupportsBatchedInput: true };
-
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {
         InitializeAsync(screenWidth, screenHeight).GetAwaiter().GetResult();
@@ -109,8 +109,7 @@ internal sealed class CosmicAbsoluteInputSimulator(
         }
         else
         {
-            Log.Warning(
-                "[CosmicAbsoluteInputSimulator] COSMIC output topology is unavailable; absolute input is disabled");
+            LogAbsoluteMappingUnavailable();
         }
     }
 
@@ -150,6 +149,35 @@ internal sealed class CosmicAbsoluteInputSimulator(
         ObjectDisposedException.ThrowIf(_disposed, this);
         _inner.MoveRelative(dx, dy);
         _activeOutputIndex = -1;
+    }
+
+    public bool TryResetToDesktopOrigin()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_absoluteMappingReady ||
+            _inner is not IInputSimulatorCapabilities { SupportsAbsoluteCoordinates: true } ||
+            !IsHorizontallyContiguousOutputStrip())
+        {
+            return false;
+        }
+
+        // Traverse output edges to reach the left-most origin without general desktop-wide ABS playback.
+        var leftmost = _outputs.OrderBy(static output => output.X).First();
+        var localY = leftmost.Height / 2;
+        var deviceY = ScaleToDeviceAxis(localY, leftmost.Height, _screenHeight);
+        for (var crossings = _outputs.Count - 1; crossings > 0; crossings--)
+        {
+            _inner.MoveAbsolute(0, deviceY);
+            _inner.MoveRelative(-OutputCrossingDelta, 0);
+        }
+
+        _inner.MoveAbsolute(0, 0);
+
+        _activeOutputIndex = -1;
+        Log.Information(
+            "[CosmicAbsoluteInputSimulator] Reset the pointer to the left-most COSMIC output origin using {CrossingCount} output edge crossing(s)",
+            _outputs.Count - 1);
+        return true;
     }
 
     public void MouseButton(int button, bool pressed)
@@ -439,6 +467,50 @@ internal sealed class CosmicAbsoluteInputSimulator(
         int maxX = outputs.Max(static output => output.Right);
         int maxY = outputs.Max(static output => output.Bottom);
         return new ScreenRect(minX, minY, checked(maxX - minX), checked(maxY - minY));
+    }
+
+    private bool IsHorizontallyContiguousOutputStrip()
+    {
+        if (_outputs.Count is 0 || _screenWidth <= 0 || _screenHeight <= 0)
+        {
+            return false;
+        }
+
+        var orderedOutputs = _outputs.OrderBy(static output => output.X).ToArray();
+        int top = orderedOutputs[0].Y;
+        int bottom = orderedOutputs[0].Bottom;
+        int nextX = orderedOutputs[0].X;
+        foreach (var output in orderedOutputs)
+        {
+            if (output.Y != top || output.Bottom != bottom || output.X != nextX)
+            {
+                return false;
+            }
+
+            nextX = output.Right;
+        }
+
+        return true;
+    }
+
+    private void LogAbsoluteMappingUnavailable()
+    {
+        if (_outputs.Count is 0 || _desktopBounds is null)
+        {
+            Log.Warning(
+                "[CosmicAbsoluteInputSimulator] COSMIC output topology is unavailable; desktop-wide absolute input is disabled");
+            return;
+        }
+
+        if (_inner is not IInputSimulatorCapabilities { SupportsAbsoluteCoordinates: true })
+        {
+            Log.Warning(
+                "[CosmicAbsoluteInputSimulator] The input backend does not support absolute coordinates; desktop-wide absolute input is disabled");
+            return;
+        }
+
+        Log.Warning(
+            "[CosmicAbsoluteInputSimulator] Multiple COSMIC outputs are available, but the active output cannot be determined without a global cursor position; desktop-wide absolute input is disabled");
     }
 
     [StructLayout(LayoutKind.Auto)]

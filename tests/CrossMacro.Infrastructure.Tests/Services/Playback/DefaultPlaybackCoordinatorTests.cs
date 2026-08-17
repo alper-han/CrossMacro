@@ -112,6 +112,45 @@ public sealed class DefaultPlaybackCoordinatorTests
     }
 
     [Fact]
+    public async Task TrySynchronizePositionAsync_AfterRawMovementWithoutPositionCapability_DoesNotRetry()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider);
+        coordinator.InvalidatePosition(movementMayBePending: true);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var synchronized = await coordinator.TrySynchronizePositionAsync(cancellation.Token);
+
+        _ = synchronized.Should().BeFalse();
+        _ = coordinator.HasKnownPosition.Should().BeFalse();
+        _ = await positionProvider.DidNotReceive().GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task TrySynchronizePositionAsync_AfterRawMovementWaitsForTransientPositionAvailability()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider, IMousePositionAvailability>();
+        var availability = (IMousePositionAvailability)positionProvider;
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var availabilityChecks = 0;
+        _ = availability.IsPositionAvailable.Returns(_ => ++availabilityChecks > 1);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((75, 60)));
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider);
+        coordinator.UpdatePosition(50, 40);
+        coordinator.InvalidatePosition(movementMayBePending: true);
+
+        var synchronized = await coordinator.TrySynchronizePositionAsync(CancellationToken.None);
+
+        _ = synchronized.Should().BeTrue();
+        _ = coordinator.CurrentX.Should().Be(75);
+        _ = coordinator.CurrentY.Should().Be(60);
+        _ = availabilityChecks.Should().BeGreaterThan(1);
+        _ = await positionProvider.Received(1).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
     public async Task WaitForPositionAsync_WhenCallerIsCanceled_PropagatesCancellation()
     {
         var positionProvider = Substitute.For<IMousePositionProvider>();
@@ -690,6 +729,36 @@ public sealed class DefaultPlaybackCoordinatorTests
         simulator.Received(2).MoveRelative(-20000, 0);
         simulator.Received(2).MoveRelative(0, -20000);
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task InitializeAsync_RelativeMacro_UsesDesktopOriginResetCapabilityBeforeRelativeFallback()
+    {
+        var simulator = Substitute.For<IInputSimulator, IDesktopOriginResetSimulator>();
+        var originReset = (IDesktopOriginResetSimulator)simulator;
+        _ = originReset.TryResetToDesktopOrigin().Returns(true);
+        var coordinator = new DefaultPlaybackCoordinator();
+        coordinator.ConfigureDesktopBounds(new ScreenRect(0, 0, 3840, 1080));
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = false,
+            Events =
+            {
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = -5,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                },
+            },
+        };
+
+        await coordinator.InitializeAsync(macro, simulator, 3840, 1080, CancellationToken.None);
+
+        _ = originReset.Received(1).TryResetToDesktopOrigin();
+        simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
     }
 
     [Fact]

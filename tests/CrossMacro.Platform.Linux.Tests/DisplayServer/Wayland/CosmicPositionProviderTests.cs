@@ -182,6 +182,24 @@ public sealed class CosmicPositionProviderTests
         Assert.Null(resolution);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CreateCosmicRandrStartInfo_ShouldUseHostBridgeOnlyForFlatpak(
+        bool useFlatpakHostCommand)
+    {
+        var startInfo = CosmicPositionProvider.CreateCosmicRandrStartInfo(useFlatpakHostCommand);
+        var expectedArguments = useFlatpakHostCommand
+            ? new[] { "--host", "--watch-bus", "cosmic-randr", "list", "--kdl" }
+            : new[] { "list", "--kdl" };
+
+        Assert.Equal(useFlatpakHostCommand ? "flatpak-spawn" : "cosmic-randr", startInfo.FileName);
+        Assert.Equal(expectedArguments, startInfo.ArgumentList);
+        Assert.False(startInfo.UseShellExecute);
+        Assert.True(startInfo.RedirectStandardOutput);
+        Assert.True(startInfo.RedirectStandardError);
+    }
+
     private static string TwoMonitorKdl()
     {
         return "output \"DP-2\" enabled=#true {\n"

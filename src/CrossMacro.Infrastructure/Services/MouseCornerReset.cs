@@ -10,6 +10,13 @@ internal static class MouseCornerReset
     {
         ArgumentNullException.ThrowIfNull(simulator);
 
+        if (desktopBounds is { Width: > 0, Height: > 0 } resetBounds
+            && simulator is IDesktopOriginResetSimulator originResetSimulator
+            && originResetSimulator.TryResetToDesktopOrigin())
+        {
+            return (resetBounds.X, resetBounds.Y);
+        }
+
         if (desktopBounds is { Width: > 0, Height: > 0 } bounds
             && simulator is IInputSimulatorCapabilities { SupportsAbsoluteCoordinates: true })
         {

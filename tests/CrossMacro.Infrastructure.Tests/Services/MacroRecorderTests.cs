@@ -329,6 +329,37 @@ public sealed class MacroRecorderTests
     }
 
     [Fact]
+    public async Task StartRecordingAsync_WithForceRelative_UsesDesktopOriginResetCapabilityFromPooledSimulator()
+    {
+        var simulator = Substitute.For<IInputSimulator, IDesktopOriginResetSimulator>();
+        var originReset = (IDesktopOriginResetSimulator)simulator;
+        _ = originReset.TryResetToDesktopOrigin().Returns(true);
+        var pool = Substitute.For<IInputSimulatorPool>();
+        _ = pool.AcquireAsync(3840, 1080, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IInputSimulator>(simulator));
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.GetDesktopBoundsAsync().Returns(Task.FromResult<ScreenRect?>(new ScreenRect(0, 0, 3840, 1080)));
+        var recorder = new MacroRecorder(
+            _captureFactory,
+            _strategyFactory,
+            _processorFactory,
+            inputSimulatorFactory: () => throw new InvalidOperationException("The pool should be used."),
+            positionProvider: positionProvider,
+            inputSimulatorPool: pool);
+
+        await recorder.StartRecordingAsync(
+            recordMouse: true,
+            recordKeyboard: true,
+            forceRelative: true,
+            skipInitialZero: false);
+
+        _ = originReset.Received(1).TryResetToDesktopOrigin();
+        simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
+        simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
+        await pool.Received(1).AcquireAsync(3840, 1080, Arg.Any<CancellationToken>());
+        pool.Received(1).Release(simulator, 3840, 1080);
+    }
+
+    [Fact]
     public async Task StartRecordingAsync_WithSkippedCornerReset_DoesNotLeasePooledSimulator()
     {
         var pool = Substitute.For<IInputSimulatorPool>();

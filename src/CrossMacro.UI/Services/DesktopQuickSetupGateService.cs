@@ -62,7 +62,7 @@ internal sealed class DesktopQuickSetupGateService(
                 var promptMessage =
                     "CrossMacro cannot access host input devices in Flatpak on Wayland.\n\n" +
                     "Run Quick Setup now?\n\n" +
-                    "Quick Setup uses flatpak-spawn to request host authorization and enable direct device access for your user session.\n\n" +
+                    "Quick Setup uses flatpak-spawn and the host polkit authentication agent to request authorization and enable direct device access for your user session.\n\n" +
                     $"Details: {initialReason}";
 
                 var shouldRunSetup = await DesktopPermissionGateService.ShowDialogAsync<bool>(
@@ -83,7 +83,7 @@ internal sealed class DesktopQuickSetupGateService(
                 var setupResult = await quickSetupService.RunAsync(default).ConfigureAwait(false);
                 if (!setupResult.Success)
                 {
-                    ShowUnsupportedSessionDialog(desktop, $"{initialReason}\n\n{setupResult.Message}");
+                    ShowQuickSetupFailureDialog(desktop, $"{initialReason}\n\n{setupResult.Message}");
                     return;
                 }
 
@@ -103,7 +103,7 @@ internal sealed class DesktopQuickSetupGateService(
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[DesktopStartupCoordinator] Flatpak quick setup flow failed");
-                ShowUnsupportedSessionDialog(desktop, "Quick setup failed due to an unexpected error.");
+                ShowQuickSetupFailureDialog(desktop, "Quick setup failed due to an unexpected error.");
             }
         }).ConfigureAwait(false);
     }
@@ -166,20 +166,30 @@ internal sealed class DesktopQuickSetupGateService(
     }
 
     internal static void ShowUnsupportedSessionDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason)
+        => ShowSessionDialog(desktop, "Unsupported Session", reason);
+
+    internal static void ShowQuickSetupFailureDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason)
+        => ShowSessionDialog(desktop, "Quick Setup Failed", reason);
+
+    private static void ShowSessionDialog(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        string title,
+        string reason)
     {
         ArgumentNullException.ThrowIfNull(desktop);
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Post(() => ShowUnsupportedSessionDialog(desktop, reason), DispatcherPriority.Send);
+            Dispatcher.UIThread.Post(() => ShowSessionDialog(desktop, title, reason), DispatcherPriority.Send);
             return;
         }
 
         desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
         var dialog = new ConfirmationDialog(
-            "Unsupported Session",
+            title,
             reason,
             "Exit",
 noText: null);

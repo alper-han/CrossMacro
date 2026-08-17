@@ -47,6 +47,28 @@ public sealed class LinuxQuickSetupExecutorTests
         Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task RunAsync_WhenPolkitAgentIsUnavailable_ShouldReturnActionableMessage()
+    {
+        var executor = new LinuxQuickSetupExecutor(
+            new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
+            (_, _) => Task.FromResult((
+                127,
+                string.Empty,
+                "Error creating textual authentication agent: Error opening current controlling terminal for the process (`/dev/tty'): No such device or address")));
+
+        var result = await executor.RunAsync(
+            new FakeLauncher(),
+            LinuxQuickSetupScriptOptions.Strict,
+            "TestQuickSetup",
+            "unexpected");
+
+        Assert.False(result.Success);
+        Assert.Contains("No usable polkit authentication agent is available", result.Message, StringComparison.Ordinal);
+        Assert.Contains("pkexec can prompt there", result.Message, StringComparison.Ordinal);
+        Assert.Contains("/dev/tty", result.Message, StringComparison.Ordinal);
+    }
+
     private sealed class FakeLauncher(bool isAvailable = true, string failureMessage = "") : IPrivilegedHostCommandLauncher
     {
         private readonly bool _isAvailable = isAvailable;

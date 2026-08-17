@@ -81,4 +81,39 @@ public sealed class QuickSetupHostCommandLauncherTests
         Assert.Equal("pkexec", startInfo.ArgumentList[1]);
         Assert.Equal("/bin/sh", startInfo.ArgumentList[2]);
     }
+
+    [Fact]
+    public async Task FlatpakPkexecLauncher_WhenRun0IsUnavailableAndPkexecIsUsable_UsesPkexec()
+    {
+        var launcher = new FlatpakHostCommandLauncher(
+            (_, _) => ValueTask.FromResult(true),
+            (command, _) => ValueTask.FromResult(command is "pkexec"),
+            _ => ValueTask.FromResult(true));
+
+        var result = await launcher.IsAvailableAsync();
+        var startInfo = launcher.CreateStartInfo("true", new LinuxQuickSetupIdentity("1000", "uid:1000"));
+
+        Assert.True(result.IsAvailable);
+        Assert.Equal("flatpak-spawn", startInfo.FileName);
+        Assert.Equal(
+            new[] { "--host", "pkexec", "/bin/sh", "-c", "true", "crossmacro-session-helper", "1000" },
+            startInfo.ArgumentList);
+    }
+
+    [Fact]
+    public async Task DirectPolkitLauncher_WhenPkexecIsUsable_PrefersPkexec()
+    {
+        var launcher = new DirectPolkitHostCommandLauncher(
+            (command, _) => ValueTask.FromResult(command is "pkexec"),
+            _ => ValueTask.FromResult(true));
+
+        var result = await launcher.IsAvailableAsync();
+        var startInfo = launcher.CreateStartInfo("true", new LinuxQuickSetupIdentity("1000", "uid:1000"));
+
+        Assert.True(result.IsAvailable);
+        Assert.Equal("pkexec", startInfo.FileName);
+        Assert.Equal(
+            new[] { "/bin/sh", "-c", "true", "crossmacro-appimage-session-helper", "1000" },
+            startInfo.ArgumentList);
+    }
 }

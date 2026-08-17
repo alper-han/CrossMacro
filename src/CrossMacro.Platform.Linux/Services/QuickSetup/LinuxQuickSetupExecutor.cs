@@ -55,7 +55,7 @@ internal sealed class LinuxQuickSetupExecutor(
             Log.Warning("[{LogContext}] Session helper failed (ExitCode={ExitCode}): {Error}", logContext, exitCode, errorText);
             return new QuickSetupResult(
                 Success: false,
-                Message: $"Quick setup failed (exit code {exitCode.ToString(CultureInfo.InvariantCulture)}). {errorText}");
+                Message: BuildFailureMessage(exitCode, errorText));
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -88,6 +88,26 @@ internal sealed class LinuxQuickSetupExecutor(
         return detail.StartsWith("Quick setup", StringComparison.Ordinal)
             ? detail
             : $"Quick setup completed. {detail}";
+    }
+
+    private static string BuildFailureMessage(int exitCode, string errorText)
+    {
+        var formattedExitCode = exitCode.ToString(CultureInfo.InvariantCulture);
+        if (IsPolkitAuthenticationFailure(errorText))
+        {
+            return "Quick setup could not obtain host authorization "
+                + $"(exit code {formattedExitCode}). No usable polkit authentication agent is available "
+                + "for this desktop-launched process. Start a host graphical polkit authentication agent or run Quick Setup "
+                + $"from a terminal so pkexec can prompt there. Details: {errorText}";
+        }
+
+        return $"Quick setup failed (exit code {formattedExitCode}). {errorText}";
+    }
+
+    private static bool IsPolkitAuthenticationFailure(string errorText)
+    {
+        return errorText.Contains("authentication agent", StringComparison.OrdinalIgnoreCase)
+            || errorText.Contains("interactive authentication has not been enabled", StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> RunProcessAsync(

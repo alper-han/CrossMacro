@@ -129,8 +129,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private static string GetAppVersion()
     {
-        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-        return version != null ? $"v{version.Major.ToString(CultureInfo.InvariantCulture)}.{version.Minor.ToString(CultureInfo.InvariantCulture)}.{version.Build.ToString(CultureInfo.InvariantCulture)}" : "";
+        return Program.GetDisplayVersionString();
     }
 
     /// <summary>

@@ -688,6 +688,8 @@ crossmacro --version
 - `--help` and `--version` exit with code `0`. A standalone option such as
   `--json` without a command is an argument error.
 
+- `crossmacro-git` development builds append their short source revision to
+  `--version`; include that revision in bug reports.
 Example JSON shape:
 
 ```json

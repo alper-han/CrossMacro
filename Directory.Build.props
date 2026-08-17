@@ -18,6 +18,8 @@
     <Version Condition="'$(Version)' == ''">$(CrossMacroVersion)</Version>
     <FileVersion Condition="'$(FileVersion)' == ''">$(CrossMacroVersion).0</FileVersion>
     <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(CrossMacroVersion).0</AssemblyVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <InformationalVersion Condition="'$(InformationalVersion)' == '' and '$(CrossMacroSourceRevision)' != ''">$(Version)+$(CrossMacroSourceRevision)</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

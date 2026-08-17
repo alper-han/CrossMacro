@@ -249,3 +249,119 @@ jobs:
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
+
+  update-aur-git:
+    name: Update AUR Git Package
+    needs: [source-linux, source-windows, source-macos]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.source-linux.result == 'success' && needs.source-windows.result == 'success' && needs.source-macos.result == 'success' }}
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+
+    steps:
+    - name: Install dependencies
+      run: |
+        pacman -Syu --noconfirm --needed \
+          git \
+          openssh \
+          dotnet-sdk \
+          clang \
+          zlib \
+          fontconfig \
+          libx11 \
+          libxcursor \
+          libxrandr \
+          polkit \
+          libxtst \
+          systemd-libs \
+          libxkbcommon \
+          icu \
+          openssl \
+          libarchive
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        fetch-depth: 0
+
+    - name: Prepare AUR package files
+      run: |
+        set -euo pipefail
+        mkdir aur-package
+        sed \
+          -e "s/@PKGVER@/0/g" \
+          -e "s/@SOURCE_COMMIT@/${GITHUB_SHA}/g" \
+          scripts/packaging/arch/PKGBUILD-git.in > aur-package/PKGBUILD
+        cp scripts/packaging/arch/crossmacro.install aur-package/
+        cp scripts/packaging/arch/crossmacro.sysusers aur-package/
+        cp scripts/packaging/arch/crossmacro-modules.conf aur-package/
+
+    - name: Build and smoke AUR package
+      run: |
+        set -euo pipefail
+        useradd --create-home builduser
+        chown -R builduser:builduser aur-package
+        cd aur-package
+        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --verifysource --noconfirm"
+        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --printsrcinfo" > .SRCINFO
+        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --cleanbuild --force --noconfirm"
+
+        pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-git-*.pkg.tar.zst' -print -quit)"
+        test -n "$pkg_file"
+        bsdtar -tf "$pkg_file" | sort > package-files.txt
+        grep -Fx 'usr/bin/crossmacro' package-files.txt
+        grep -Fx 'usr/lib/crossmacro/CrossMacro.UI' package-files.txt
+        grep -Fx 'usr/lib/crossmacro/daemon/CrossMacro.Daemon' package-files.txt
+        grep -Fx 'usr/lib/systemd/system/crossmacro.service' package-files.txt
+        grep -Fx 'usr/lib/sysusers.d/crossmacro.conf' package-files.txt
+        grep -Fx 'usr/lib/modules-load.d/crossmacro.conf' package-files.txt
+        grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
+        grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
+        grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
+        grep -Fx 'usr/share/applications/CrossMacro.desktop' package-files.txt
+        grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
+        grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
+
+        pacman -U --noconfirm "$pkg_file"
+        ../scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
+        crossmacro --version | grep -F "${GITHUB_SHA:0:7}"
+
+    - name: Setup SSH for AUR
+      env:
+        AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+      run: |
+        umask 077
+        mkdir -p ~/.ssh
+        printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/id_aur
+        chmod 600 ~/.ssh/id_aur
+
+    - name: Add AUR host key
+      run: |
+        mkdir -p ~/.ssh
+        expected_fingerprint="SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
+        ssh-keyscan -t ed25519 aur.archlinux.org > ~/.ssh/known_hosts.raw
+        actual_fingerprint="$(ssh-keygen -lf ~/.ssh/known_hosts.raw | awk '{print $2}')"
+        test "$actual_fingerprint" = "$expected_fingerprint"
+        ssh-keygen -H -f ~/.ssh/known_hosts.raw
+        mv ~/.ssh/known_hosts.raw ~/.ssh/known_hosts
+        rm -f ~/.ssh/known_hosts.raw.old
+        chmod 600 ~/.ssh/known_hosts
+
+    - name: Update AUR repository
+      env:
+        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
+      run: |
+        set -euo pipefail
+        git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/crossmacro-git.git aur-repo
+        cp aur-package/PKGBUILD aur-package/.SRCINFO aur-package/crossmacro.install aur-package/crossmacro.sysusers aur-package/crossmacro-modules.conf aur-repo/
+        cd aur-repo
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
+        if ! git diff --quiet --cached; then
+          git commit -m "Update to ${GITHUB_SHA:0:7}"
+          git push origin master
+        fi
+
+    - name: Cleanup
+      if: always()
+      run: rm -rf ~/.ssh aur-package aur-repo

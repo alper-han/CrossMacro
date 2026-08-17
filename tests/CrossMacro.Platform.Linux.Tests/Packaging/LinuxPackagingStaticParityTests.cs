@@ -88,6 +88,7 @@ public sealed partial class LinuxPackagingStaticParityTests
             ["scripts/packaging/deb/build.sh"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
             ["scripts/packaging/rpm/crossmacro.spec"] = "Exec=\\/usr\\/lib\\/crossmacro\\/CrossMacro.UI",
             ["scripts/packaging/arch/PKGBUILD"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
+            ["scripts/packaging/arch/PKGBUILD-git.in"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
         };
 
         foreach (var (packageSource, desktopExec) in packageSources)
@@ -191,6 +192,14 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "scripts/assets/99-crossmacro.rules",
                 "crossmacro-modules.conf",
             ],
+            ["scripts/packaging/arch/PKGBUILD-git.in"] =
+            [
+                "scripts/daemon/crossmacro.service",
+                "scripts/assets/io.github.alper_han.crossmacro.policy",
+                "scripts/assets/50-crossmacro.rules",
+                "scripts/assets/99-crossmacro.rules",
+                "crossmacro-modules.conf",
+            ],
             ["scripts/packaging/rpm/crossmacro.spec"] =
             [
                 "crossmacro.service",
@@ -265,6 +274,20 @@ public sealed partial class LinuxPackagingStaticParityTests
         var archDepends = ExtractArchDepends(archPkgbuild);
         Assert.Contains("shadow", archDepends);
         Assert.Contains("systemd", archDepends);
+    }
+
+    [Fact]
+    public void ArchGitPackage_ShouldTrackGitAndConflictWithStablePackage()
+    {
+        var gitPkgbuild = ReadRepoFile("scripts/packaging/arch/PKGBUILD-git.in");
+
+        Assert.Contains("pkgname=crossmacro-git", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("git+https://github.com/alper-han/CrossMacro.git#commit=@SOURCE_COMMIT@", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("conflicts=('crossmacro')", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("provides=('crossmacro')", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("CrossMacroSourceRevision=\"$source_revision\"", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("cd \"$srcdir/crossmacro\"", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("pkgver()", gitPkgbuild, StringComparison.Ordinal);
     }
 
     [Fact]

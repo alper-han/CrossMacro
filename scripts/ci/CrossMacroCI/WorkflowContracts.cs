@@ -21,6 +21,7 @@ internal static class WorkflowContracts
     };
 
     private const string ReleaseWorkflow = "release.yml";
+    private const string CiWorkflow = "ci.yml";
     private const string PagesWorkflow = "pages.yml";
     private const string ReleaseWriteJob = "create-release";
     private const string AurFingerprint = "SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4";
@@ -249,7 +250,8 @@ internal static class WorkflowContracts
         }
 
         errors.AddRange(ActionReferenceErrors(text, path));
-        if (Path.GetFileName(path).Equals(ReleaseWorkflow, StringComparison.OrdinalIgnoreCase)
+        if ((Path.GetFileName(path).Equals(ReleaseWorkflow, StringComparison.OrdinalIgnoreCase)
+            || Path.GetFileName(path).Equals(CiWorkflow, StringComparison.OrdinalIgnoreCase))
             && text.Contains("ssh-keyscan", StringComparison.Ordinal)
             && !text.Contains(AurFingerprint, StringComparison.Ordinal))
         {
@@ -344,6 +346,17 @@ internal static class WorkflowContracts
 
     private static bool IsSecretPublishJob(string path, string jobName, string text, HashSet<string> triggers)
     {
+        if (Path.GetFileName(path).Equals(CiWorkflow, StringComparison.OrdinalIgnoreCase)
+            && jobName.Equals("update-aur-git", StringComparison.Ordinal)
+            && triggers.Contains("push"))
+        {
+            return text.Contains("github.event_name == 'push'", StringComparison.Ordinal)
+                && text.Contains("github.ref == 'refs/heads/dev'", StringComparison.Ordinal)
+                && text.Contains("needs.source-linux.result == 'success'", StringComparison.Ordinal)
+                && text.Contains("needs.source-windows.result == 'success'", StringComparison.Ordinal)
+                && text.Contains("needs.source-macos.result == 'success'", StringComparison.Ordinal);
+        }
+
         if (!Path.GetFileName(path).Equals(ReleaseWorkflow, StringComparison.OrdinalIgnoreCase) || !triggers.Contains("workflow_dispatch"))
         {
             return false;

@@ -17,6 +17,9 @@ not picked up `crossmacro` group membership.
 
 - **`.deb`, `.rpm`, AUR:** daemon-backed packages. Package scripts set up
   `crossmacro.service` and the `crossmacro` group.
+- **`crossmacro-git` AUR:** tracks successful `dev` snapshots and replaces the
+  stable `crossmacro` package. Use `crossmacro --version` to include its short
+  source revision in bug reports.
 - **Flatpak on Wayland:** direct device mode. Quick Setup can grant temporary
   direct-device ACLs without exposing the host daemon socket to the sandbox.
 - **AppImage on X11:** native X11 backend using XInput2/XTest when available.

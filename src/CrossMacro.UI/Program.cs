@@ -86,6 +86,27 @@ public static class Program
             return name.Name ?? "CrossMacro";
         }
 
-        return $"{name.Name} {version.Major.ToString(CultureInfo.InvariantCulture)}.{version.Minor.ToString(CultureInfo.InvariantCulture)}.{version.Build.ToString(CultureInfo.InvariantCulture)}";
+        return $"{name.Name} {GetDisplayVersionString(assembly, version)}";
+    }
+
+    public static string GetDisplayVersionString()
+    {
+        var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+        var version = assembly.GetName().Version;
+        return version is null ? string.Empty : GetDisplayVersionString(assembly, version);
+    }
+
+    private static string GetDisplayVersionString(Assembly assembly, Version version)
+    {
+        var versionText = $"v{version.Major.ToString(CultureInfo.InvariantCulture)}.{version.Minor.ToString(CultureInfo.InvariantCulture)}.{version.Build.ToString(CultureInfo.InvariantCulture)}";
+        var informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var revisionSeparator = informationalVersion?.IndexOf('+', StringComparison.Ordinal) ?? -1;
+        if (revisionSeparator < 0 || informationalVersion!.Length <= revisionSeparator + 1)
+        {
+            return versionText;
+        }
+
+        var revision = informationalVersion[(revisionSeparator + 1)..];
+        return $"{versionText} ({revision[..Math.Min(revision.Length, 7)]})";
     }
 }

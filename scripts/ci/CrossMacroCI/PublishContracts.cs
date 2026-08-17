@@ -16,6 +16,7 @@ internal static class PublishContracts
         "scripts/packaging/macos/build.sh",
         "scripts/packaging/msix/build-msix.ps1",
         "scripts/packaging/arch/PKGBUILD",
+        "scripts/packaging/arch/PKGBUILD-git.in",
         "flatpak/io.github.alper_han.crossmacro.yml",
         "flatpak/io.github.alper_han.crossmacro.flathub.yml",
         "flake.nix",

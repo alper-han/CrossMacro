@@ -272,10 +272,40 @@ public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
             Code = e.code,
             Value = e.value,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            TimestampMicroseconds = GetTimestampMicroseconds(e),
             DeviceName = reader.DeviceName,
         };
 
         InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+    }
+
+    private static long GetTimestampMicroseconds(UInputNative.input_event inputEvent)
+    {
+        var seconds = inputEvent.time_sec.ToInt64();
+        var microseconds = inputEvent.time_usec.ToInt64();
+        if ((seconds > 0 || microseconds > 0)
+            && seconds >= 0
+            && (microseconds is >= 0 and < 1_000_000))
+        {
+            try
+            {
+                return checked((seconds * 1_000_000) + microseconds);
+            }
+            catch (OverflowException)
+            {
+                // Fall back to the process clock.
+            }
+        }
+
+        return Math.Max(1, GetStopwatchMicroseconds());
+    }
+
+    private static long GetStopwatchMicroseconds()
+    {
+        var timestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+        return checked((timestamp / System.Diagnostics.Stopwatch.Frequency * 1_000_000)
+            + (timestamp % System.Diagnostics.Stopwatch.Frequency * 1_000_000
+                / System.Diagnostics.Stopwatch.Frequency));
     }
 
     private static InputEventType MapEventType(UInputNative.input_event e)

@@ -172,6 +172,97 @@ public sealed class LinuxInputCaptureTests
     }
 
     [LinuxFact]
+    public async Task StartAsync_WhenRelativeReportHasKernelTimestamp_ForwardsTimestampMicroseconds()
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-test",
+                Name = "Relative Mouse",
+                IsMouse = true,
+            },
+        };
+        var reader = new FakeLinuxInputReader();
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        var received = new List<CapturedInputEvent>();
+        capture.InputReceived += (_, args) => received.Add(args.Event);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        var timestampSeconds = (IntPtr)1_700_000_123L;
+        var timestampMicroseconds = (IntPtr)456_789;
+        reader.Emit(new UInputNative.input_event
+        {
+            time_sec = timestampSeconds,
+            time_usec = timestampMicroseconds,
+            type = UInputNative.EV_REL,
+            code = UInputNative.REL_X,
+            value = 4,
+        });
+        reader.Emit(new UInputNative.input_event
+        {
+            time_sec = timestampSeconds,
+            time_usec = timestampMicroseconds,
+            type = UInputNative.EV_REL,
+            code = UInputNative.REL_Y,
+            value = -2,
+        });
+        reader.Emit(new UInputNative.input_event
+        {
+            time_sec = timestampSeconds,
+            time_usec = timestampMicroseconds,
+            type = UInputNative.EV_SYN,
+            code = UInputNative.SYN_REPORT,
+        });
+
+        _ = received.Select(static inputEvent =>
+                (inputEvent.Type, inputEvent.Code, inputEvent.Value, inputEvent.TimestampMicroseconds))
+            .Should()
+            .Equal(
+                (InputEventType.MouseMove, (int)UInputNative.REL_X, 4, 1_700_000_123_456_789L),
+                (InputEventType.MouseMove, (int)UInputNative.REL_Y, -2, 1_700_000_123_456_789L),
+                (InputEventType.Sync, (int)UInputNative.SYN_REPORT, 0, 1_700_000_123_456_789L));
+    }
+
+    [LinuxFact]
+    public async Task StartAsync_WhenRelativeReportHasInvalidKernelTimestamp_UsesFallbackTimestamp()
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-test",
+                Name = "Relative Mouse",
+                IsMouse = true,
+            },
+        };
+        var reader = new FakeLinuxInputReader();
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        var received = new List<CapturedInputEvent>();
+        capture.InputReceived += (_, args) => received.Add(args.Event);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        reader.Emit(new UInputNative.input_event
+        {
+            type = UInputNative.EV_REL,
+            code = UInputNative.REL_X,
+            value = 4,
+        });
+        reader.Emit(new UInputNative.input_event
+        {
+            type = UInputNative.EV_SYN,
+            code = UInputNative.SYN_REPORT,
+        });
+
+        _ = received.Should().HaveCount(2);
+        _ = received.Should().OnlyContain(inputEvent => inputEvent.TimestampMicroseconds > 0);
+    }
+
+    [LinuxFact]
     public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsHorizontalWheelAsScrollEvent()
     {
         var devices = new[]

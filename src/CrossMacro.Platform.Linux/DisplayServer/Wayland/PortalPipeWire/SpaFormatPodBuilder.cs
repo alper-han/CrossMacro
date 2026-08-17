@@ -8,7 +8,6 @@ internal static class SpaFormatPodBuilder
     private const uint SpaTypeObject = 15;
     private const uint SpaTypeChoice = 19;
     private const uint SpaTypeRectangle = 10;
-    private const uint SpaTypeFraction = 11;
     private const uint SpaTypeObjectFormat = 0x40003;
     private const uint SpaTypeObjectParamBuffers = 0x40004;
     private const uint SpaMediaTypeVideo = 2;
@@ -17,12 +16,23 @@ internal static class SpaFormatPodBuilder
     private const uint SpaFormatMediaSubtype = 2;
     private const uint SpaFormatVideoFormat = 0x20001;
     private const uint SpaFormatVideoSize = 0x20003;
-    private const uint SpaFormatVideoFramerate = 0x20004;
     private const uint SpaFormatVideoColorRange = 0x2000C;
     private const uint SpaFormatVideoColorMatrix = 0x2000D;
     private const uint SpaFormatVideoTransferFunction = 0x2000E;
     private const uint SpaFormatVideoColorPrimaries = 0x2000F;
-    private const uint SpaVideoFormatBgrx = (uint)PipeWireVideoFormat.Bgrx;
+    private static readonly uint[] SupportedScreenFormats =
+    [
+        (uint)PipeWireVideoFormat.Rgbx,
+        (uint)PipeWireVideoFormat.Bgra,
+        (uint)PipeWireVideoFormat.Rgba,
+        (uint)PipeWireVideoFormat.Bgrx,
+        (uint)PipeWireVideoFormat.Xrgb,
+        (uint)PipeWireVideoFormat.Xbgr,
+        (uint)PipeWireVideoFormat.Argb,
+        (uint)PipeWireVideoFormat.Abgr,
+        (uint)PipeWireVideoFormat.Rgb,
+        (uint)PipeWireVideoFormat.Bgr,
+    ];
     private const uint SpaParamBuffersBuffers = 1;
     private const uint SpaParamBuffersBlocks = 2;
     private const uint SpaParamBuffersSize = 3;
@@ -31,7 +41,32 @@ internal static class SpaFormatPodBuilder
     private const uint SpaParamBuffersDataType = 6;
 
     public static IntPtr CreateRawVideoEnumFormat(int width, int height)
-        => CreateRawVideoEnumFormat(width, height, SpaVideoFormatBgrx);
+        => CreateRawVideoEnumFormatChoices(width, height, SupportedScreenFormats);
+
+    internal static IntPtr CreateRawVideoEnumFormatChoices(
+        int width,
+        int height,
+        IReadOnlyList<uint> videoFormats)
+    {
+        ArgumentNullException.ThrowIfNull(videoFormats);
+        if (videoFormats.Count is 0)
+        {
+            throw new ArgumentException("At least one PipeWire video format is required.", nameof(videoFormats));
+        }
+
+        ValidateDimensions(width, height);
+        using var stream = new MemoryStream(256);
+        using var writer = new BinaryWriter(stream);
+        writer.Write(0u);
+        writer.Write(SpaTypeObject);
+        writer.Write(SpaTypeObjectFormat);
+        writer.Write(PipeWireConstants.SpaParamEnumFormat);
+        WriteIdProperty(writer, SpaFormatMediaType, SpaMediaTypeVideo);
+        WriteIdProperty(writer, SpaFormatMediaSubtype, SpaMediaSubtypeRaw);
+        WriteChoiceEnumIdProperty(writer, SpaFormatVideoFormat, videoFormats);
+        WriteRectangleProperty(writer, SpaFormatVideoSize, (uint)width, (uint)height);
+        return CopyToNative(stream);
+    }
 
     internal static IntPtr CreateRawVideoEnumFormat(
         int width,
@@ -53,7 +88,6 @@ internal static class SpaFormatPodBuilder
         WriteIdProperty(writer, SpaFormatMediaSubtype, SpaMediaSubtypeRaw);
         WriteIdProperty(writer, SpaFormatVideoFormat, videoFormat);
         WriteRectangleProperty(writer, SpaFormatVideoSize, (uint)width, (uint)height);
-        WriteFractionProperty(writer, SpaFormatVideoFramerate, 0, 1);
         WriteOptionalIdProperty(writer, SpaFormatVideoColorRange, colorRange);
         WriteOptionalIdProperty(writer, SpaFormatVideoColorMatrix, colorMatrix);
         WriteOptionalIdProperty(writer, SpaFormatVideoTransferFunction, transferFunction);
@@ -152,6 +186,22 @@ internal static class SpaFormatPodBuilder
         Align(writer);
     }
 
+    private static void WriteChoiceEnumIdProperty(BinaryWriter writer, uint key, IReadOnlyList<uint> values)
+    {
+        var valueSize = checked((uint)(16 + (values.Count * sizeof(uint))));
+        WritePropertyHeader(writer, key, valueSize, SpaTypeChoice);
+        writer.Write(3u);
+        writer.Write(0u);
+        writer.Write(4u);
+        writer.Write(SpaTypeId);
+        foreach (var value in values)
+        {
+            writer.Write(value);
+        }
+
+        Align(writer);
+    }
+
     private static void WriteOptionalIdProperty(BinaryWriter writer, uint key, uint? value)
     {
         if (value is { } id)
@@ -196,14 +246,6 @@ internal static class SpaFormatPodBuilder
         WritePropertyHeader(writer, key, 8, SpaTypeRectangle);
         writer.Write(width);
         writer.Write(height);
-        Align(writer);
-    }
-
-    private static void WriteFractionProperty(BinaryWriter writer, uint key, uint numerator, uint denominator)
-    {
-        WritePropertyHeader(writer, key, 8, SpaTypeFraction);
-        writer.Write(numerator);
-        writer.Write(denominator);
         Align(writer);
     }
 

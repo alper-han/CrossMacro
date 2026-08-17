@@ -139,12 +139,6 @@ internal static class SpaFormatPodParser
             return false;
         }
 
-        if (formatId is (uint)PipeWireVideoFormat.Rgba or (uint)PipeWireVideoFormat.Bgra or (uint)PipeWireVideoFormat.Argb or (uint)PipeWireVideoFormat.Abgr)
-        {
-            error = "PipeWire negotiated an alpha-bearing video format that this opaque screen frame path cannot represent safely.";
-            return false;
-        }
-
         if (!IsSupportedSdrColorMetadata(colorRange, colorMatrix, transferFunction, colorPrimaries))
         {
             error = $"PipeWire negotiated video color metadata is unsupported for 8-bit SDR capture. range={DescribeMetadata(colorRange)} matrix={DescribeMetadata(colorMatrix)} transfer={DescribeMetadata(transferFunction)} primaries={DescribeMetadata(colorPrimaries)}.";

@@ -60,14 +60,90 @@ public sealed class PortalPipeWireFormatTests
         }
     }
 
-    [Fact]
-    public void SpaFormatPodParser_RejectsAlphaBearingFormatWithoutAlphaContract()
+    [Theory]
+    [InlineData((uint)PipeWireVideoFormat.Rgba)]
+    [InlineData((uint)PipeWireVideoFormat.Bgra)]
+    [InlineData((uint)PipeWireVideoFormat.Argb)]
+    [InlineData((uint)PipeWireVideoFormat.Abgr)]
+    public void SpaFormatPodParser_AcceptsAlphaBearingFormats(uint formatId)
     {
-        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(3, 2, videoFormat: (uint)PipeWireVideoFormat.Bgra);
+        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(3, 2, videoFormat: formatId);
         try
         {
-            Assert.False(SpaFormatPodParser.TryReadFormat(pod, out _, out var error));
-            Assert.Contains("alpha-bearing", error, StringComparison.OrdinalIgnoreCase);
+            Assert.True(SpaFormatPodParser.TryReadFormat(pod, out var layout, out var error), error);
+            Assert.Equal((PipeWireVideoFormat)formatId, layout.Format);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pod);
+        }
+    }
+
+    [Fact]
+    public void SpaFormatPodParser_AcceptsCosmicSixtyHertzBgraFormat()
+    {
+        var pod = CreateConcreteFormatPod(
+            width: 2560,
+            height: 1440,
+            format: (uint)PipeWireVideoFormat.Bgra,
+            framerateNumerator: 60,
+            framerateDenominator: 1);
+
+        try
+        {
+            Assert.True(SpaFormatPodParser.TryReadFormat(pod, out var layout, out var error), error);
+            Assert.Equal(2560, layout.Width);
+            Assert.Equal(1440, layout.Height);
+            Assert.Equal(PipeWireVideoFormat.Bgra, layout.Format);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pod);
+        }
+    }
+
+    [Fact]
+    public void SpaFormatPodBuilder_AdvertisesCompatibleFormatChoices()
+    {
+        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(3, 2);
+
+        try
+        {
+            var format = FindProperty(pod, key: 0x20001U);
+            Assert.Equal(19U, format.ValueType);
+            Assert.Equal(56U, format.ValueSize);
+            Assert.Equal(
+                new uint[]
+                {
+                    (uint)PipeWireVideoFormat.Rgbx,
+                    (uint)PipeWireVideoFormat.Bgra,
+                    (uint)PipeWireVideoFormat.Rgba,
+                    (uint)PipeWireVideoFormat.Bgrx,
+                    (uint)PipeWireVideoFormat.Xrgb,
+                    (uint)PipeWireVideoFormat.Xbgr,
+                    (uint)PipeWireVideoFormat.Argb,
+                    (uint)PipeWireVideoFormat.Abgr,
+                    (uint)PipeWireVideoFormat.Rgb,
+                    (uint)PipeWireVideoFormat.Bgr,
+                },
+                Enumerable.Range(0, 10)
+                    .Select(index => ReadUInt32(pod, format.ValueOffset + 16 + (index * sizeof(uint))))
+                    .ToArray());
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pod);
+        }
+    }
+
+    [Fact]
+    public void SpaFormatPodBuilder_DoesNotConstrainCaptureFramerate()
+    {
+        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(3, 2);
+
+        try
+        {
+            Assert.False(HasProperty(pod, key: 0x20004U));
         }
         finally
         {
@@ -289,6 +365,25 @@ public sealed class PortalPipeWireFormatTests
         throw new Xunit.Sdk.XunitException($"SPA property {key} was not found.");
     }
 
+    private static bool HasProperty(IntPtr pod, uint key)
+    {
+        var totalSize = checked((int)ReadUInt32(pod, 0) + 8);
+        for (var offset = 16; offset <= totalSize - 16;)
+        {
+            var propertyKey = ReadUInt32(pod, offset);
+            var valueSize = ReadUInt32(pod, offset + 8);
+            var valueOffset = offset + 16;
+            if (propertyKey == key)
+            {
+                return true;
+            }
+
+            offset = checked(valueOffset + ((int)valueSize + 7 & ~7));
+        }
+
+        return false;
+    }
+
     private static IntPtr CreateChoiceSizeFormatPod(uint width, uint height)
     {
         using var stream = new MemoryStream(256);
@@ -308,6 +403,35 @@ public sealed class PortalPipeWireFormatTests
         WriteRectangle(writer, width, height);
         WriteRectangle(writer, 1u, 1u);
         WriteRectangle(writer, 8192u, 4320u);
+        var data = stream.ToArray();
+        BitConverter.GetBytes((uint)(data.Length - 8)).CopyTo(data, 0);
+        var memory = Marshal.AllocHGlobal(data.Length);
+        Marshal.Copy(data, 0, memory, data.Length);
+        return memory;
+    }
+
+    private static IntPtr CreateConcreteFormatPod(
+        uint width,
+        uint height,
+        uint format,
+        uint framerateNumerator,
+        uint framerateDenominator)
+    {
+        using var stream = new MemoryStream(256);
+        using var writer = new BinaryWriter(stream);
+        writer.Write(0u);
+        writer.Write(15u);
+        writer.Write(0x40003u);
+        writer.Write(PipeWireConstants.SpaParamFormat);
+        WriteIdProperty(writer, 1u, 2u);
+        WriteIdProperty(writer, 2u, 1u);
+        WriteIdProperty(writer, 0x20001u, format);
+        WritePropertyHeader(writer, 0x20003u, 8u, 10u);
+        WriteRectangle(writer, width, height);
+        WritePropertyHeader(writer, 0x20004u, 8u, 11u);
+        writer.Write(framerateNumerator);
+        writer.Write(framerateDenominator);
+        Align(writer);
         var data = stream.ToArray();
         BitConverter.GetBytes((uint)(data.Length - 8)).CopyTo(data, 0);
         var memory = Marshal.AllocHGlobal(data.Length);

@@ -265,7 +265,7 @@
                             </Button>
                         </Grid>
                         <TextBlock Text="{localization:Loc Shortcut_WindowScopeHint}" Classes="caption" TextWrapping="Wrap"/>
-                        <ItemsControl ItemsSource="{Binding SelectedTask.WindowRules}">
+                        <ItemsControl ItemsSource="{Binding SelectedTask?.WindowRules}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ShortcutWindowRuleEditor">
                                     <Grid ColumnDefinitions="160,8,140,8,*,8,Auto" Margin="0,2">

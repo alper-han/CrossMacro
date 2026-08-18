@@ -252,8 +252,8 @@ jobs:
 
   update-aur-git:
     name: Update AUR Git Package
-    needs: [source-linux, source-windows, source-macos]
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.source-linux.result == 'success' && needs.source-windows.result == 'success' && needs.source-macos.result == 'success' }}
+    needs: source-linux
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.source-linux.result == 'success' }}
     runs-on: ubuntu-latest
     container: archlinux:base-devel
 

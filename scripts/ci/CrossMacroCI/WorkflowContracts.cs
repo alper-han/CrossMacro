@@ -352,9 +352,7 @@ internal static class WorkflowContracts
         {
             return text.Contains("github.event_name == 'push'", StringComparison.Ordinal)
                 && text.Contains("github.ref == 'refs/heads/dev'", StringComparison.Ordinal)
-                && text.Contains("needs.source-linux.result == 'success'", StringComparison.Ordinal)
-                && text.Contains("needs.source-windows.result == 'success'", StringComparison.Ordinal)
-                && text.Contains("needs.source-macos.result == 'success'", StringComparison.Ordinal);
+                && text.Contains("needs.source-linux.result == 'success'", StringComparison.Ordinal);
         }
 
         if (!Path.GetFileName(path).Equals(ReleaseWorkflow, StringComparison.OrdinalIgnoreCase) || !triggers.Contains("workflow_dispatch"))

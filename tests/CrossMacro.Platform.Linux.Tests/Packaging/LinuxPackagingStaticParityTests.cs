@@ -287,6 +287,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Contains("provides=('crossmacro')", gitPkgbuild, StringComparison.Ordinal);
         Assert.Contains("CrossMacroSourceRevision=\"$source_revision\"", gitPkgbuild, StringComparison.Ordinal);
         Assert.Contains("cd \"$srcdir/crossmacro\"", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("makedepends=('dotnet-sdk>=10.0'", gitPkgbuild, StringComparison.Ordinal);
         Assert.Contains("pkgver()", gitPkgbuild, StringComparison.Ordinal);
     }
 

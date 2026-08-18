@@ -23,6 +23,9 @@ USAGE
 
 fail() {
   echo "Flatpak smoke failed: $1" >&2
+  if [ "$#" -gt 1 ] && [ -n "$2" ]; then
+    echo "$2" >&2
+  fi
   exit 1
 }
 

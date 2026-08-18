@@ -336,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Astuce : Le nombre de boucles 0 signifie une boucle infinie</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>Avertissement de boucle rapide</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>Un délai de boucle inférieur à 100 ms peut répéter très rapidement les actions de la macro. Un nombre élevé de boucles ou une boucle infinie peut rendre temporairement les applications ou le bureau non réactifs. Les attentes internes à la macro peuvent réduire ce risque, mais leur comportement à l’exécution ne peut pas être prédit à l’avance.</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>Conserver le réglage</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>Lire quand même</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>Rétablir</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>Ne plus afficher cet avertissement</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>Impossible de démarrer la lecture</value>
   </data>

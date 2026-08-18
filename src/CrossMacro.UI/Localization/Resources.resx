@@ -339,6 +339,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Tip: Loop Count 0 means infinite loop</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>Fast Loop Warning</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>A loop delay below 100 ms can repeat macro actions very quickly. High loop counts or an infinite loop can temporarily make applications or your desktop unresponsive. Macro-internal waits can reduce this risk, but their runtime behavior cannot be predicted in advance.</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>Keep Setting</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>Play Anyway</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>Revert</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>Do not show this warning again</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>Playback Cannot Start</value>
   </data>

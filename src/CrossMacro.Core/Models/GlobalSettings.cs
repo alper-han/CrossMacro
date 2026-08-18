@@ -17,6 +17,11 @@ public class GlobalSettings
     public bool StartMinimized { get; set; }
 
     /// <summary>
+    /// Whether the user chose not to see the warning for fast loop playback again.
+    /// </summary>
+    public bool SuppressFastLoopWarning { get; set; }
+
+    /// <summary>
     /// Minimum log level for the application.
     /// Valid values: Debug, Information, Warning, Error
     /// </summary>

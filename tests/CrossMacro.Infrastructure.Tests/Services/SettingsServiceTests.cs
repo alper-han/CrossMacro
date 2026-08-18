@@ -187,6 +187,7 @@ public sealed class SettingsServiceTests : IDisposable
         service.Current.LoopDelayMinMs = 100;
         service.Current.LoopDelayMaxMs = 250;
         service.Current.StartMinimized = true;
+        service.Current.SuppressFastLoopWarning = true;
 
         // Act
         service.Save();
@@ -203,6 +204,7 @@ public sealed class SettingsServiceTests : IDisposable
         _ = loaded.LoopDelayMinMs.Should().Be(100);
         _ = loaded.LoopDelayMaxMs.Should().Be(250);
         _ = loaded.StartMinimized.Should().BeTrue();
+        _ = loaded.SuppressFastLoopWarning.Should().BeTrue();
     }
 
     [Fact]

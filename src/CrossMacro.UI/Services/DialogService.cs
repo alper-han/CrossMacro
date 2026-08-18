@@ -44,6 +44,29 @@ public class DialogService(IDesktopLifetimeContext desktopLifetimeContext, ILoca
         _ = await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
     }
 
+    public async Task<FastLoopWarningResult> ShowFastLoopWarningAsync(
+        string title,
+        string message,
+        string continueText,
+        string cancelText,
+        string suppressText)
+    {
+        var owner = _desktopLifetimeContext.MainWindow;
+        if (owner is null)
+        {
+            return FastLoopWarningResult.Cancelled;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                () => ShowFastLoopWarningAsync(title, message, continueText, cancelText, suppressText)).ConfigureAwait(false);
+        }
+
+        var dialog = new FastLoopWarningDialog(title, message, continueText, cancelText, suppressText);
+        return await dialog.ShowDialog<FastLoopWarningResult>(owner).ConfigureAwait(false);
+    }
+
     public async Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
     {
         var mainWindow = _desktopLifetimeContext.MainWindow;

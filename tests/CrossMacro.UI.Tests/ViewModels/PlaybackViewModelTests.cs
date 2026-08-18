@@ -41,6 +41,13 @@ public sealed class PlaybackViewModelTests : IDisposable
             "Playback_PermissionRequiredTitle" => "[Playback_PermissionRequiredTitle]",
             "Playback_PermissionRequiredMessage" => "[Playback_PermissionRequiredMessage]",
             "Playback_StatusPermissionRequired" => "[Playback_StatusPermissionRequired]",
+            "Playback_FastLoopWarningTitle" => "[Playback_FastLoopWarningTitle]",
+            "Playback_FastLoopWarningMessage" => "[Playback_FastLoopWarningMessage]",
+            "Playback_FastLoopWarningContinue" => "[Playback_FastLoopWarningContinue]",
+            "Playback_FastLoopWarningPlay" => "[Playback_FastLoopWarningPlay]",
+            "Playback_FastLoopWarningCancel" => "[Playback_FastLoopWarningCancel]",
+            "Playback_FastLoopWarningAbort" => "[Playback_FastLoopWarningAbort]",
+            "Playback_FastLoopWarningSuppress" => "[Playback_FastLoopWarningSuppress]",
             _ => call.Arg<string>(),
         });
         _settings = new AppSettings
@@ -58,6 +65,13 @@ public sealed class PlaybackViewModelTests : IDisposable
 
         _ = _settingsService.Current.Returns(_settings);
         _ = _settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
+        _ = _dialogService.ShowFastLoopWarningAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+            .Returns(Task.FromResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: false)));
         _ = _player.CurrentLoop.Returns(1);
         _ = _player.TotalLoops.Returns(1);
         _ = _player.IsWaitingBetweenLoops.Returns(returnThis: false);
@@ -294,6 +308,189 @@ public sealed class PlaybackViewModelTests : IDisposable
         _ = capturedOptions.UseRandomRepeatDelay.Should().BeTrue();
         _ = capturedOptions.RepeatDelayMinMs.Should().Be(120);
         _ = capturedOptions.RepeatDelayMaxMs.Should().Be(240);
+    }
+
+    [Fact]
+    public async Task LoopDelayMs_WhenRiskyLoopSettingIsCancelled_RevertsTheDelay()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 2;
+        _settings.LoopDelayMs = 100;
+        _viewModel.RefreshProfileSettings();
+        _dialogService.ClearReceivedCalls();
+        _ = _dialogService.ShowFastLoopWarningAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+            .Returns(Task.FromResult(FastLoopWarningResult.Cancelled));
+
+        _viewModel.LoopDelayMs = 99;
+
+        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+            "[Playback_FastLoopWarningTitle]",
+            "[Playback_FastLoopWarningMessage]",
+            "[Playback_FastLoopWarningContinue]",
+            "[Playback_FastLoopWarningCancel]",
+            "[Playback_FastLoopWarningSuppress]");
+        _ = _viewModel.LoopDelayMs.Should().Be(100);
+        _ = _settings.LoopDelayMs.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task LoopDelayMs_WhenRiskyLoopSettingIsAccepted_CanSuppressFutureWarnings()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 2;
+        _settings.LoopDelayMs = 100;
+        _viewModel.RefreshProfileSettings();
+        _dialogService.ClearReceivedCalls();
+        _ = _dialogService.ShowFastLoopWarningAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+            .Returns(Task.FromResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: true)));
+
+        _viewModel.LoopDelayMs = 99;
+
+        _ = _viewModel.LoopDelayMs.Should().Be(99);
+        _ = _settings.SuppressFastLoopWarning.Should().BeTrue();
+        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task LoopCount_WhenItCreatesAFastLoopAndIsCancelled_RevertsTheRepeatCount()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 1;
+        _settings.LoopDelayMs = 0;
+        _viewModel.RefreshProfileSettings();
+        _dialogService.ClearReceivedCalls();
+        _ = _dialogService.ShowFastLoopWarningAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+            .Returns(Task.FromResult(FastLoopWarningResult.Cancelled));
+
+        _viewModel.LoopCount = 9999;
+
+        _ = _viewModel.LoopCount.Should().Be(1);
+        _ = _settings.LoopCount.Should().Be(1);
+        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+            "[Playback_FastLoopWarningTitle]",
+            "[Playback_FastLoopWarningMessage]",
+            "[Playback_FastLoopWarningContinue]",
+            "[Playback_FastLoopWarningCancel]",
+            "[Playback_FastLoopWarningSuppress]");
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenRiskySavedLoopSettingIsCancelled_DoesNotStartPlayback()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 9999;
+        _settings.LoopDelayMs = 0;
+        _viewModel.RefreshProfileSettings();
+        _viewModel.SetMacro(CreateMacro());
+        _ = _dialogService.ShowFastLoopWarningAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+            .Returns(Task.FromResult(FastLoopWarningResult.Cancelled));
+
+        await _viewModel.PlayMacroAsync();
+
+        await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+            "[Playback_FastLoopWarningTitle]",
+            "[Playback_FastLoopWarningMessage]",
+            "[Playback_FastLoopWarningPlay]",
+            "[Playback_FastLoopWarningAbort]",
+            "[Playback_FastLoopWarningSuppress]");
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenRiskyRandomLoopCanSelectFastDelay_ShowsWarning()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 2;
+        _settings.UseRandomLoopDelay = true;
+        _settings.LoopDelayMinMs = 99;
+        _settings.LoopDelayMaxMs = 200;
+        _viewModel.RefreshProfileSettings();
+        _viewModel.SetMacro(CreateMacro());
+        _ = _dialogService.ShowFastLoopWarningAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>())
+            .Returns(Task.FromResult(FastLoopWarningResult.Cancelled));
+
+        await _viewModel.PlayMacroAsync();
+
+        await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            "[Playback_FastLoopWarningPlay]",
+            "[Playback_FastLoopWarningAbort]",
+            Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenLoopDelayIsAtLeastOneHundredMs_DoesNotShowWarning()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 9999;
+        _settings.LoopDelayMs = 100;
+        _viewModel.RefreshProfileSettings();
+        var macro = CreateMacro();
+        _viewModel.SetMacro(macro);
+
+        await _viewModel.PlayMacroAsync();
+
+        await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+        await _dialogService.DidNotReceive().ShowFastLoopWarningAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_WhenFastLoopWarningIsSuppressed_StartsWithoutShowingIt()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 9999;
+        _settings.LoopDelayMs = 0;
+        _settings.SuppressFastLoopWarning = true;
+        _viewModel.RefreshProfileSettings();
+        var macro = CreateMacro();
+        _viewModel.SetMacro(macro);
+
+        await _viewModel.PlayMacroAsync();
+
+        await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+        await _dialogService.DidNotReceive().ShowFastLoopWarningAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
     }
 
     [Fact]
@@ -716,6 +913,7 @@ public sealed class PlaybackViewModelTests : IDisposable
             Player = Substitute.For<IMacroPlayer>();
             SettingsService = Substitute.For<ISettingsService>();
             LocalizationService = Substitute.For<ILocalizationService>();
+            var dialogService = Substitute.For<IDialogService>();
             var settings = new AppSettings();
 
             _ = LocalizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
@@ -734,6 +932,13 @@ public sealed class PlaybackViewModelTests : IDisposable
             });
             _ = SettingsService.Current.Returns(settings);
             _ = SettingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
+            _ = dialogService.ShowFastLoopWarningAsync(
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<string>())
+                .Returns(Task.FromResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: false)));
             _ = Player.CurrentLoop.Returns(1);
             _ = Player.TotalLoops.Returns(1);
             _ = Player.IsWaitingBetweenLoops.Returns(returnThis: false);
@@ -755,7 +960,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 SettingsService,
                 LoadedMacroSession,
                 LocalizationService,
-                dialogService: null,
+                dialogService,
                 randomInclusive: (minimum, maximum) => minimum,
                 executeOnUiThread: operation => operation());
         }

@@ -24,6 +24,16 @@ public sealed class DialogServiceTests
     }
 
     [Fact(Timeout = 5000)]
+    public async Task ShowFastLoopWarningAsync_WhenNoDesktopLifetime_ReturnsCancelled()
+    {
+        var service = new DialogService(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>());
+
+        var result = await service.ShowFastLoopWarningAsync("Title", "Message", "Continue", "Cancel", "Suppress");
+
+        Assert.Equal(FastLoopWarningResult.Cancelled, result);
+    }
+
+    [Fact(Timeout = 5000)]
     public async Task ShowSaveFileDialogAsync_WhenNoMainWindow_ReturnsNull()
     {
         var service = new DialogService(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>());

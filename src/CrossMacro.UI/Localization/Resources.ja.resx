@@ -336,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>ヒント: ループ数 0 は無限ループを意味します</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>高速ループの警告</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>100 ミリ秒未満のループ遅延では、マクロの操作が非常に高速に繰り返されます。回数が多いループや無限ループは、アプリケーションやデスクトップが一時的に応答しなくなる原因になる場合があります。マクロ内の待機はこのリスクを下げますが、実行時の動作を事前に予測することはできません。</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>設定を維持</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>このまま再生</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>元に戻す</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>この警告を今後表示しない</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>再生を開始できません</value>
   </data>

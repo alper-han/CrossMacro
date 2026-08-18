@@ -336,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>提示：循环次数为 0 表示无限循环</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>快速循环警告</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>低于 100 毫秒的循环延迟会非常快速地重复宏操作。很高的循环次数或无限循环可能会使应用程序或桌面暂时失去响应。宏内等待可以降低此风险，但无法预先预测其运行时行为。</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>保留设置</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>仍要播放</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>还原</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>不再显示此警告</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>无法开始播放</value>
   </data>

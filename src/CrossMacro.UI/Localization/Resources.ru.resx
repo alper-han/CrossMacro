@@ -336,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Совет: Число циклов 0 означает бесконечный цикл.</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>Предупреждение о быстром цикле</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>Задержка цикла менее 100 мс может очень быстро повторять действия макроса. Большое число повторов или бесконечный цикл могут временно сделать приложения или рабочий стол неотзывчивыми. Ожидания внутри макроса могут снизить риск, но их поведение во время выполнения нельзя предсказать заранее.</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>Сохранить настройку</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>Всё равно воспроизвести</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>Отменить изменение</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>Больше не показывать это предупреждение</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>Не удалось запустить воспроизведение</value>
   </data>

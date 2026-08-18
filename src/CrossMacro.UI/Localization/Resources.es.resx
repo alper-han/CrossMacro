@@ -336,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Consejo: 0 bucles significa un bucle infinito</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>Advertencia de bucle rápido</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>Un retraso de bucle inferior a 100 ms puede repetir las acciones de la macro muy rápidamente. Un número alto de bucles o un bucle infinito puede hacer que las aplicaciones o el escritorio dejen de responder temporalmente. Las esperas dentro de la macro pueden reducir este riesgo, pero su comportamiento en tiempo de ejecución no puede predecirse de antemano.</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>Mantener configuración</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>Reproducir de todos modos</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>Revertir</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>Cancelar</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>No mostrar esta advertencia de nuevo</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>No se puede iniciar la reproducción</value>
   </data>

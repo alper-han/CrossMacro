@@ -336,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>Dica: contagem de loops igual a 0 significa loop infinito</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>Aviso de loop rápido</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>Um atraso de loop abaixo de 100 ms pode repetir as ações da macro muito rapidamente. Uma contagem alta de loops ou um loop infinito pode deixar aplicativos ou a área de trabalho temporariamente sem resposta. Esperas internas da macro podem reduzir esse risco, mas o comportamento em tempo de execução não pode ser previsto antecipadamente.</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>Manter configuração</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>Reproduzir mesmo assim</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>Reverter</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>Cancelar</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>Não mostrar este aviso novamente</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>Não é possível iniciar a reprodução</value>
   </data>

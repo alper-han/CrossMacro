@@ -17,6 +17,7 @@ public static class SettingsMapper
         {
             EnableTrayIcon = source.EnableTrayIcon,
             StartMinimized = source.StartMinimized,
+            SuppressFastLoopWarning = source.SuppressFastLoopWarning,
             LogLevel = source.LogLevel,
             Theme = source.Theme,
             Language = source.Language,
@@ -68,6 +69,7 @@ public static class SettingsMapper
             // Global fields
             EnableTrayIcon = global.EnableTrayIcon,
             StartMinimized = global.StartMinimized,
+            SuppressFastLoopWarning = global.SuppressFastLoopWarning,
             LogLevel = global.LogLevel,
             Theme = global.Theme,
             Language = global.Language,
@@ -105,6 +107,7 @@ public static class SettingsMapper
 
         target.EnableTrayIcon = global.EnableTrayIcon;
         target.StartMinimized = global.StartMinimized;
+        target.SuppressFastLoopWarning = global.SuppressFastLoopWarning;
         target.LogLevel = global.LogLevel;
         target.Theme = global.Theme;
         target.Language = global.Language;

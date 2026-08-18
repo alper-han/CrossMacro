@@ -336,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>İpucu: Döngü Sayısı 0 ise sonsuz döngü anlamına gelir</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>Hızlı Döngü Uyarısı</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>100 ms altındaki döngü gecikmesi macro eylemlerini çok hızlı tekrar edebilir. Yüksek döngü sayıları veya sonsuz döngü, uygulamaların ya da masaüstünün geçici olarak yanıt vermemesine neden olabilir. Macro içi beklemeler riski azaltabilir, ancak çalışma zamanındaki davranış önceden tahmin edilemez.</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>Ayarı Koru</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>Yine de Oynat</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>Geri Al</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>Vazgeç</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>Bu uyarıyı tekrar gösterme</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>Oynatma Başlatılamaz</value>
   </data>

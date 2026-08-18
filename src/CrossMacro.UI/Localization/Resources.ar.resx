@@ -336,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>نصيحة: عدد الحلقات 0 يعني حلقة لا نهائية</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>تحذير من الحلقة السريعة</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>يمكن أن يؤدي تأخير الحلقة الأقل من 100 مللي ثانية إلى تكرار إجراءات الماكرو بسرعة كبيرة. قد تجعل أعداد الحلقات العالية أو الحلقة اللانهائية التطبيقات أو سطح المكتب غير مستجيب مؤقتا. يمكن أن تقلل الانتظارات داخل الماكرو من هذا الخطر، لكن لا يمكن التنبؤ بسلوكها أثناء التشغيل مسبقا.</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>الاحتفاظ بالإعداد</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>التشغيل على أي حال</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>تراجع</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>لا تعرض هذا التحذير مرة أخرى</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>لا يمكن بدء التشغيل</value>
   </data>

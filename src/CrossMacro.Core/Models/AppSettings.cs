@@ -17,6 +17,11 @@ public class AppSettings
     /// </summary>
     public bool StartMinimized { get; set; }
 
+    /// <summary>
+    /// Whether the user chose not to see the warning for fast loop playback again.
+    /// </summary>
+    public bool SuppressFastLoopWarning { get; set; }
+
     // Playback Settings
 
     /// <summary>

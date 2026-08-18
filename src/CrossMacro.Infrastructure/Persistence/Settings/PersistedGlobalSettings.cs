@@ -12,6 +12,8 @@ public sealed class PersistedGlobalSettings
 
     public bool StartMinimized { get; set; }
 
+    public bool SuppressFastLoopWarning { get; set; }
+
     public string LogLevel { get; set; } = "Information";
 
     public string Theme { get; set; } = "Mocha";

@@ -10,6 +10,7 @@ public sealed class AppSettingsTests
 
         _ = settings.EnableTrayIcon.Should().BeFalse();
         _ = settings.StartMinimized.Should().BeFalse();
+        _ = settings.SuppressFastLoopWarning.Should().BeFalse();
 
         _ = settings.PlaybackSpeed.Should().Be(1.0);
         _ = settings.IsLooping.Should().BeFalse();

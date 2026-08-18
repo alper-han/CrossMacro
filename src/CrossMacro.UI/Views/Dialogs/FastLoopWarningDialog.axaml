@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="280"
+        x:Class="CrossMacro.UI.Views.Dialogs.FastLoopWarningDialog"
+        Title="Fast Loop Warning"
+        Width="460" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        WindowDecorations="BorderOnly"
+        Background="{DynamicResource BackgroundColor}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+    <Border BorderBrush="{DynamicResource SurfaceHoverColor}" BorderThickness="1">
+        <StackPanel Spacing="20" Margin="24">
+            <TextBlock Name="TitleText"
+                       Text="Fast Loop Warning"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+
+            <TextBlock Name="MessageText"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextSecondaryBrush}" />
+
+            <CheckBox Name="SuppressWarningCheckBox"
+                      HorizontalAlignment="Left"
+                      Foreground="{DynamicResource TextPrimaryBrush}" />
+
+            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Name="CancelButton"
+                        Classes="secondary"
+                        Click="CancelButton_Click"
+                        IsDefault="True"
+                        IsCancel="True"
+                        Padding="16,8" />
+
+                <Button Name="ContinueButton"
+                        Classes="primary"
+                        Click="ContinueButton_Click"
+                        Padding="16,8" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

@@ -6,6 +6,13 @@ public interface IDialogService
     public Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No");
     public Task ShowMessageAsync(string title, string message, string buttonText = "OK");
 
+    public Task<FastLoopWarningResult> ShowFastLoopWarningAsync(
+        string title,
+        string message,
+        string continueText,
+        string cancelText,
+        string suppressText) => Task.FromResult(FastLoopWarningResult.Cancelled);
+
     public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters);
     public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, ReadOnlyMemory<FileDialogFilter> filters) =>
         ShowSaveFileDialogAsync(title, defaultFileName, filters.ToArray());

@@ -6,6 +6,8 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 public partial class PlaybackViewModel : ViewModelBase, IDisposable
 {
+    private const int FastLoopWarningThresholdMs = 100;
+
     private bool _disposed;
 
     private readonly IMacroPlayer _player;
@@ -26,6 +28,8 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     private string _playbackStatus;
     private int _stopRequested;
     private int _settingsChangeVersion;
+    private bool _fastLoopWarningAcknowledged;
+    private Task? _fastLoopWarningTask;
     private double _maximumMotionErrorPixels = PlaybackOptions.DefaultMaximumMotionErrorPixels;
 
     [ObservableProperty]
@@ -436,7 +440,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     partial void OnIsLoopingChanged(bool oldValue, bool newValue)
     {
         _settingsService.Current.IsLooping = newValue;
-        _ = TryPersistSettingChange(
+        PersistLoopSettingChange(
             () =>
             {
                 _isLooping = oldValue;
@@ -450,7 +454,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     partial void OnLoopCountChanged(int oldValue, int newValue)
     {
         _settingsService.Current.LoopCount = newValue;
-        _ = TryPersistSettingChange(
+        PersistLoopSettingChange(
             () =>
             {
                 _loopCount = oldValue;
@@ -472,7 +476,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                 _loopDelayMs = normalized;
                 _settingsService.Current.LoopDelayMs = normalized;
                 OnPropertyChanged();
-                _ = TryPersistSettingChange(
+                PersistLoopSettingChange(
                     () =>
                     {
                         _loopDelayMs = previousValue;
@@ -496,7 +500,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
         _settingsService.Current.UseRandomLoopDelay = newValue;
 
-        _ = TryPersistSettingChange(
+        PersistLoopSettingChange(
             () =>
             {
                 _useRandomLoopDelay = oldValue;
@@ -534,7 +538,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(LoopDelayMaxMs));
             }
 
-            _ = TryPersistSettingChange(
+            PersistLoopSettingChange(
                 () => UpdateLoopDelayRange(previousMin, previousMax),
                 nameof(LoopDelayMinMs),
                 nameof(LoopDelayMaxMs));
@@ -565,7 +569,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(LoopDelayMinMs));
             }
 
-            _ = TryPersistSettingChange(
+            PersistLoopSettingChange(
                 () => UpdateLoopDelayRange(previousMin, previousMax),
                 nameof(LoopDelayMinMs),
                 nameof(LoopDelayMaxMs));
@@ -664,6 +668,11 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
 
         if (!PlaybackExecutionPlanner.HasPlayableEvents(executionPlan.ActiveMacro))
+        {
+            return;
+        }
+
+        if (!await ConfirmFastLoopPlaybackAsync(forPlayback: true).ConfigureAwait(false))
         {
             return;
         }
@@ -1185,6 +1194,109 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         var min = LoopDelayMinMs ?? 0;
         var max = LoopDelayMaxMs ?? 0;
         return min == max ? $"{min.ToString(CultureInfo.InvariantCulture)} ms" : $"{min.ToString(CultureInfo.InvariantCulture)}-{max.ToString(CultureInfo.InvariantCulture)} ms";
+    }
+
+    private void PersistLoopSettingChange(Action rollback, params string[] propertyNames)
+    {
+        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
+        _ = PersistLoopSettingChangeAsync(changeVersion, rollback, propertyNames);
+    }
+
+    private async Task PersistLoopSettingChangeAsync(int changeVersion, Action rollback, string[] propertyNames)
+    {
+        if (!IsFastLoopRisky())
+        {
+            _fastLoopWarningAcknowledged = false;
+        }
+
+        if (!await ConfirmFastLoopPlaybackAsync(forPlayback: false).ConfigureAwait(false))
+        {
+            await RunOnUiThreadAsync(() =>
+            {
+                if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
+                {
+                    rollback();
+                    foreach (var propertyName in propertyNames)
+                    {
+                        OnPropertyChanged(propertyName);
+                    }
+                }
+            }).ConfigureAwait(false);
+            return;
+        }
+
+        _ = TryPersistSettingChange(rollback, propertyNames);
+    }
+
+    private async Task<bool> ConfirmFastLoopPlaybackAsync(bool forPlayback)
+    {
+        if (!IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsService.Current.SuppressFastLoopWarning)
+        {
+            return true;
+        }
+
+        var dialogService = _dialogService;
+        if (dialogService is null)
+        {
+            return false;
+        }
+
+        var warningTask = _fastLoopWarningTask;
+        if (warningTask is not null)
+        {
+            await warningTask.ConfigureAwait(false);
+            return !IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsService.Current.SuppressFastLoopWarning;
+        }
+
+        warningTask = ShowFastLoopWarningAsync(dialogService, forPlayback);
+        _fastLoopWarningTask = warningTask;
+        try
+        {
+            await warningTask.ConfigureAwait(false);
+        }
+        finally
+        {
+            _fastLoopWarningTask = null;
+        }
+
+        return !IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsService.Current.SuppressFastLoopWarning;
+    }
+
+    private async Task ShowFastLoopWarningAsync(IDialogService dialogService, bool forPlayback)
+    {
+        var result = await dialogService.ShowFastLoopWarningAsync(
+            _localizationService["Playback_FastLoopWarningTitle"],
+            _localizationService["Playback_FastLoopWarningMessage"],
+            _localizationService[forPlayback ? "Playback_FastLoopWarningPlay" : "Playback_FastLoopWarningContinue"],
+            _localizationService[forPlayback ? "Playback_FastLoopWarningAbort" : "Playback_FastLoopWarningCancel"],
+            _localizationService["Playback_FastLoopWarningSuppress"]).ConfigureAwait(false);
+        if (!result.ContinuePlayback)
+        {
+            return;
+        }
+
+        _fastLoopWarningAcknowledged = true;
+        if (!result.SuppressFutureWarnings)
+        {
+            return;
+        }
+
+        _settingsService.Current.SuppressFastLoopWarning = true;
+        _ = TryPersistSettingChange(
+            () => _settingsService.Current.SuppressFastLoopWarning = false,
+            nameof(AppSettings.SuppressFastLoopWarning));
+    }
+
+    private bool IsFastLoopRisky()
+    {
+        if (!IsLooping || LoopCount is not 0 and <= 1)
+        {
+            return false;
+        }
+
+        return UseRandomLoopDelay
+            ? (LoopDelayMinMs ?? 0) < FastLoopWarningThresholdMs
+            : (LoopDelayMs ?? 0) < FastLoopWarningThresholdMs;
     }
 
     private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)

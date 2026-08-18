@@ -154,6 +154,7 @@ public class App : Avalonia.Application
         {
             var cleanupError = await CleanupAsync(
                 () => services.GetService<DesktopStartupRuntimeService>()?.StopAsync() ?? Task.CompletedTask,
+                () => services.GetService<ProfileLoadedMacroSessionPersistenceService>()?.FlushAsync(CancellationToken.None) ?? Task.CompletedTask,
                 () => services.GetService<DesktopStartupRuntimeService>()?.DisposeCreatedMainWindowViewModel(),
                 async () =>
                 {
@@ -180,10 +181,12 @@ public class App : Avalonia.Application
 
     internal static async Task<AggregateException?> CleanupAsync(
         Func<Task> stopRuntime,
+        Func<Task> flushProfileState,
         Action disposeViewModel,
         Func<Task> disposeProvider)
     {
         ArgumentNullException.ThrowIfNull(stopRuntime);
+        ArgumentNullException.ThrowIfNull(flushProfileState);
         ArgumentNullException.ThrowIfNull(disposeViewModel);
         ArgumentNullException.ThrowIfNull(disposeProvider);
 
@@ -191,6 +194,15 @@ public class App : Avalonia.Application
         try
         {
             await stopRuntime().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            errors.Add(ex);
+        }
+
+        try
+        {
+            await flushProfileState().ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

@@ -14,6 +14,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
     private readonly IScheduledTaskRepository _scheduledTaskRepository;
     private readonly ITextExpansionStorageService _textExpansionStorageService;
     private readonly ProfileRuntimeState? _runtimeState;
+    private readonly IReadOnlyList<IProfileRuntimeParticipant> _profileRuntimeParticipants;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private int _initialized;
     private int _disposed;
@@ -30,7 +31,8 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         ITriggerService triggerService,
         IScheduledTaskRepository scheduledTaskRepository,
         ITextExpansionStorageService textExpansionStorageService,
-        ProfileRuntimeState? runtimeState = null)
+        ProfileRuntimeState? runtimeState = null,
+        IEnumerable<IProfileRuntimeParticipant>? profileRuntimeParticipants = null)
     {
         _catalog = catalog;
         _settingsService = settingsService;
@@ -44,6 +46,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         _scheduledTaskRepository = scheduledTaskRepository;
         _textExpansionStorageService = textExpansionStorageService;
         _runtimeState = runtimeState;
+        _profileRuntimeParticipants = profileRuntimeParticipants?.ToArray() ?? [];
     }
 
     public ProfileInfo ActiveProfile => _catalog.ActiveProfile;
@@ -98,6 +101,8 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
             var textExpansionWasRunning = _textExpansionService?.IsRunning ?? false;
             var triggerWasMonitoring = _triggerService.IsMonitoring;
 
+            await FlushProfileRuntimeParticipantsAsync().ConfigureAwait(false);
+
             if (!await StopRuntimeServicesAsync().ConfigureAwait(false))
             {
                 await RestartRuntimeServicesAsync(
@@ -112,6 +117,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
             try
             {
                 await ReloadProfileServicesAsync(profileDir).ConfigureAwait(false);
+                await ReloadProfileRuntimeParticipantsAsync(profileDir).ConfigureAwait(false);
                 await _catalog.SetActiveProfileAsync(profile.Id).ConfigureAwait(false);
                 activeProfile = _catalog.ActiveProfile;
             }
@@ -119,6 +125,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
             {
                 _catalog.RestoreActiveProfile(previousProfile.Id);
                 await ReloadProfileServicesAsync(_catalog.GetProfileDirectory(previousProfile.Id)).ConfigureAwait(false);
+                await ReloadProfileRuntimeParticipantsAsync(_catalog.GetProfileDirectory(previousProfile.Id)).ConfigureAwait(false);
                 await RestartRuntimeServicesAsync(
                     hotkeyWasRunning,
                     shortcutWasListening,
@@ -245,6 +252,22 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         {
             try { await _textExpansionService.StartAsync(CancellationToken.None).ConfigureAwait(false); }
             catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to restart text expansion after profile switch"); }
+        }
+    }
+
+    private async Task FlushProfileRuntimeParticipantsAsync()
+    {
+        foreach (var participant in _profileRuntimeParticipants)
+        {
+            await participant.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ReloadProfileRuntimeParticipantsAsync(string profileConfigDirectory)
+    {
+        foreach (var participant in _profileRuntimeParticipants)
+        {
+            await participant.ReloadAsync(profileConfigDirectory, CancellationToken.None).ConfigureAwait(false);
         }
     }
 

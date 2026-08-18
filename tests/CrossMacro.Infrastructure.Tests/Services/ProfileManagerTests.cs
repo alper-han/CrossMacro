@@ -136,6 +136,8 @@ public sealed class ProfileManagerTests : IDisposable
         _ = shortcuts.Should().BeEmpty();
         _ = schedules.Should().BeEmpty();
         _ = expansions.Should().BeEmpty();
+        _ = Directory.Exists(Path.Combine(createdDirectory, ConfigFileNames.MacrosDirectory)).Should().BeTrue();
+        _ = Directory.Exists(Path.Combine(defaultDirectory, ConfigFileNames.MacrosDirectory)).Should().BeTrue();
     }
 
     [Fact]
@@ -298,6 +300,81 @@ public sealed class ProfileManagerTests : IDisposable
         _ = loadsAfterSwitch.Should().Be(loadsBeforeSwitch);
         schedulerService.DidNotReceive().Start();
         _ = unresolvedLifetime.TrySetResult();
+    }
+
+    [Fact]
+    public async Task SwitchProfileAsync_FlushesAndReloadsProfileRuntimeParticipants()
+    {
+        var settingsService = Substitute.For<ISettingsService>();
+        var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
+        var schedulerService = Substitute.For<ISchedulerService>();
+        var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
+        var textExpansionStorageService = Substitute.For<ITextExpansionStorageService>();
+        var participant = Substitute.For<IProfileRuntimeParticipant>();
+        _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
+        _ = schedulerService.Completion.Returns(Task.CompletedTask);
+
+        var manager = new ProfileRuntimeCoordinator(
+            new ProfileManager(_tempPath),
+            settingsService,
+            hotkeyConfigService,
+            new HotkeySettings(),
+            hotkeyService: null,
+            shortcutService: null,
+            schedulerService,
+            textExpansionService: null,
+            Substitute.For<ITriggerService>(),
+            scheduledTaskRepository,
+            textExpansionStorageService,
+            runtimeState: null,
+            profileRuntimeParticipants: [participant]);
+
+        await manager.InitializeAsync();
+        var profile = await manager.CreateProfileAsync("Second Profile");
+        await manager.SwitchProfileAsync(profile.Id);
+
+        await participant.Received(1).FlushAsync(CancellationToken.None);
+        await participant.Received(1).ReloadAsync(manager.GetProfileDirectory(profile.Id), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task SwitchProfileAsync_WhenParticipantReloadFails_RestoresPreviousProfileParticipantState()
+    {
+        var settingsService = Substitute.For<ISettingsService>();
+        var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
+        var schedulerService = Substitute.For<ISchedulerService>();
+        var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
+        var textExpansionStorageService = Substitute.For<ITextExpansionStorageService>();
+        var participant = Substitute.For<IProfileRuntimeParticipant>();
+        _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
+        _ = schedulerService.Completion.Returns(Task.CompletedTask);
+        var catalog = new ProfileManager(_tempPath);
+        var manager = new ProfileRuntimeCoordinator(
+            catalog,
+            settingsService,
+            hotkeyConfigService,
+            new HotkeySettings(),
+            hotkeyService: null,
+            shortcutService: null,
+            schedulerService,
+            textExpansionService: null,
+            Substitute.For<ITriggerService>(),
+            scheduledTaskRepository,
+            textExpansionStorageService,
+            runtimeState: null,
+            profileRuntimeParticipants: [participant]);
+
+        await manager.InitializeAsync();
+        var profile = await manager.CreateProfileAsync("Second Profile");
+        var previousProfileDirectory = manager.GetProfileDirectory(manager.ActiveProfile.Id);
+        _ = participant.ReloadAsync(manager.GetProfileDirectory(profile.Id), CancellationToken.None)
+            .Returns<Task>(_ => throw new InvalidDataException("Invalid loaded macro session."));
+
+        var switchProfile = () => manager.SwitchProfileAsync(profile.Id);
+
+        _ = await switchProfile.Should().ThrowAsync<InvalidDataException>();
+        _ = manager.ActiveProfile.Id.Should().Be("default");
+        await participant.Received(1).ReloadAsync(previousProfileDirectory, CancellationToken.None);
     }
 
     private static async Task WriteJsonAsync<T>(string filePath, T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)

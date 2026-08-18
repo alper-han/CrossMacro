@@ -20,6 +20,7 @@ internal static class WorkflowRuntimeServiceRegistration
         _ = services.AddSingleton<ITextExpansionStorageService, TextExpansionStorageService>();
         _ = services.AddSingleton<ITextExpansionStore>(sp => sp.GetRequiredService<ITextExpansionStorageService>());
         _ = services.AddSingleton<IProfileTextExpansionStore, ProfileTextExpansionStore>();
+        _ = services.AddSingleton<IProfileLoadedMacroSessionStore, ProfileLoadedMacroSessionStore>();
         _ = services.AddSingleton<IInputProcessor, InputProcessor>();
         _ = services.AddSingleton<ITextBufferState, TextBufferState>();
         _ = services.AddSingleton<ITextExpansionExecutor, TextExpansionExecutor>();
@@ -34,7 +35,7 @@ internal static class WorkflowRuntimeServiceRegistration
         {
             var hasKeyboardLayout = sp.GetService<IKeyboardLayoutService>() is not null;
             var hasInputCaptureFactory = sp.GetService<Func<IInputCapture>>() is not null;
-            var coordinator = new ProfileRuntimeCoordinator(sp.GetRequiredService<IProfileCatalog>(), sp.GetRequiredService<ISettingsService>(), sp.GetRequiredService<IHotkeyConfigurationService>(), sp.GetRequiredService<HotkeySettings>(), hasKeyboardLayout ? sp.GetRequiredService<IGlobalHotkeyService>() : null, hasKeyboardLayout ? sp.GetRequiredService<IShortcutService>() : null, sp.GetRequiredService<ISchedulerService>(), hasInputCaptureFactory ? sp.GetRequiredService<ITextExpansionService>() : null, sp.GetRequiredService<ITriggerService>(), sp.GetRequiredService<IScheduledTaskRepository>(), sp.GetRequiredService<ITextExpansionStorageService>(), sp.GetRequiredService<ProfileRuntimeState>());
+            var coordinator = new ProfileRuntimeCoordinator(sp.GetRequiredService<IProfileCatalog>(), sp.GetRequiredService<ISettingsService>(), sp.GetRequiredService<IHotkeyConfigurationService>(), sp.GetRequiredService<HotkeySettings>(), hasKeyboardLayout ? sp.GetRequiredService<IGlobalHotkeyService>() : null, hasKeyboardLayout ? sp.GetRequiredService<IShortcutService>() : null, sp.GetRequiredService<ISchedulerService>(), hasInputCaptureFactory ? sp.GetRequiredService<ITextExpansionService>() : null, sp.GetRequiredService<ITriggerService>(), sp.GetRequiredService<IScheduledTaskRepository>(), sp.GetRequiredService<ITextExpansionStorageService>(), sp.GetRequiredService<ProfileRuntimeState>(), sp.GetServices<IProfileRuntimeParticipant>());
             sp.GetRequiredService<ProfileSwitchRequestBridge>().SetHandler(coordinator);
             return coordinator;
         });

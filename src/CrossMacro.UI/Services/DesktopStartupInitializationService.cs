@@ -8,7 +8,8 @@ internal sealed class DesktopStartupInitializationService(
     Func<EditorActionDisplayFormatter> getEditorActionDisplayFormatter,
     IProfileManager profileManager,
     GuiStartupOptions startupOptions,
-    IProfileRuntimeState? profileRuntimeState = null)
+    IProfileRuntimeState? profileRuntimeState = null,
+    ProfileLoadedMacroSessionPersistenceService? loadedMacroSessionPersistenceService = null)
 {
     private readonly Func<ISettingsService> _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
     private readonly Func<IThemeService> _getThemeService = getThemeService ?? throw new ArgumentNullException(nameof(getThemeService));
@@ -17,6 +18,7 @@ internal sealed class DesktopStartupInitializationService(
     private readonly IProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
     private readonly GuiStartupOptions _startupOptions = startupOptions ?? throw new ArgumentNullException(nameof(startupOptions));
     private readonly IProfileRuntimeState? _profileRuntimeState = profileRuntimeState;
+    private readonly ProfileLoadedMacroSessionPersistenceService? _loadedMacroSessionPersistenceService = loadedMacroSessionPersistenceService;
 
     public async Task<DesktopStartupPreferences> InitializeAsync()
     {
@@ -31,6 +33,12 @@ internal sealed class DesktopStartupInitializationService(
         }
 
         InitializeLocalization(settingsService);
+        if (_loadedMacroSessionPersistenceService is not null)
+        {
+            await _loadedMacroSessionPersistenceService
+                .ReloadAsync(_profileManager.GetProfileDirectory(_profileManager.ActiveProfile.Id), CancellationToken.None)
+                .ConfigureAwait(false);
+        }
         await ApplyThemeAsync(settingsService).ConfigureAwait(false);
 
         return DesktopStartupPreferences.Resolve(settingsService.Current, _startupOptions);

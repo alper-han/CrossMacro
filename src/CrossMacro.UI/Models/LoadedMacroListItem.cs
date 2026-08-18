@@ -41,6 +41,7 @@ public sealed class LoadedMacroListItem : ObservableObject
             Macro.Name = normalized;
             OnPropertyChanged();
             OnPropertyChanged(nameof(Description));
+            StateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -58,8 +59,11 @@ public sealed class LoadedMacroListItem : ObservableObject
             field = normalized;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SequenceRepeatSummary));
+            StateChanged?.Invoke(this, EventArgs.Empty);
         }
     } = MinimumSequenceRepeatCount;
+
+    internal event EventHandler? StateChanged;
 
     public int EventCount => MacroPlayableActionCounter.CountPlayableActions(Macro);
 
@@ -90,6 +94,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         OnPropertyChanged(nameof(SourcePath));
         OnPropertyChanged(nameof(SourceDescription));
         OnPropertyChanged(nameof(Description));
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void UpdateMacro(MacroSequence macro, string? sourcePath = null)
@@ -117,6 +122,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         OnPropertyChanged(nameof(Macro));
         OnPropertyChanged(nameof(EventCount));
         OnPropertyChanged(nameof(Description));
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void RefreshLocalizedProperties()

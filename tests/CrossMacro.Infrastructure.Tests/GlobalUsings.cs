@@ -4,6 +4,7 @@ global using CrossMacro.Core.Services;
 global using CrossMacro.Core.Services.Playback;
 global using CrossMacro.Core.Services.TextExpansion;
 global using CrossMacro.Application.Automation;
+global using CrossMacro.Application.Runtime;
 global using CrossMacro.Infrastructure.DependencyInjection;
 global using CrossMacro.Infrastructure.Logging;
 global using CrossMacro.Infrastructure.Serialization;

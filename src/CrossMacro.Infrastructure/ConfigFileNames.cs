@@ -32,6 +32,13 @@ public static class ConfigFileNames
     public const string Triggers = "triggers.json";
 
     /// <summary>
+    /// Profile-scoped loaded macro session state.
+    /// </summary>
+    public const string LoadedMacros = "loaded-macros.json";
+
+    public const string MacrosDirectory = "macros";
+
+    /// <summary>
     /// Hotkey configuration file.
     /// </summary>
     public const string Hotkeys = "hotkeys.json";

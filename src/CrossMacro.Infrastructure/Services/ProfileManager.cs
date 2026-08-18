@@ -1,5 +1,6 @@
 
 using CrossMacro.Infrastructure.Persistence.Settings;
+using CrossMacro.Infrastructure.Persistence.Macros;
 
 namespace CrossMacro.Infrastructure.Services;
 
@@ -298,6 +299,7 @@ internal class ProfileManager : IProfileCatalog
     {
         var defaultProfileDirectory = GetProfileDirectory(DefaultProfileId);
         _ = Directory.CreateDirectory(defaultProfileDirectory);
+        _ = Directory.CreateDirectory(Path.Combine(defaultProfileDirectory, ConfigFileNames.MacrosDirectory));
 
         var oldSettings = await FileBackedJsonStorage.ReadAsync(
                 GetRootConfigPath(ConfigFileNames.Settings),
@@ -349,6 +351,7 @@ internal class ProfileManager : IProfileCatalog
     {
         var defaultProfileDirectory = GetProfileDirectory(DefaultProfileId);
         _ = Directory.CreateDirectory(defaultProfileDirectory);
+        _ = Directory.CreateDirectory(Path.Combine(defaultProfileDirectory, ConfigFileNames.MacrosDirectory));
 
         var defaultSettingsPath = Path.Combine(defaultProfileDirectory, ConfigFileNames.Settings);
         if (!File.Exists(defaultSettingsPath))
@@ -366,6 +369,7 @@ internal class ProfileManager : IProfileCatalog
     {
         var profileDirectory = GetProfileDirectory(profileId);
         _ = Directory.CreateDirectory(profileDirectory);
+        _ = Directory.CreateDirectory(Path.Combine(profileDirectory, ConfigFileNames.MacrosDirectory));
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.Settings),
@@ -399,6 +403,13 @@ internal class ProfileManager : IProfileCatalog
                 Path.Combine(profileDirectory, ConfigFileNames.TextExpansions),
                 new List<global::CrossMacro.Core.Models.TextExpansionEntry>(),
                 CrossMacroJsonContext.Default.ListTextExpansionEntry,
+                CancellationToken.None)
+            .ConfigureAwait(false);
+
+        await FileBackedJsonStorage.WriteAsync(
+                Path.Combine(profileDirectory, ConfigFileNames.LoadedMacros),
+                new PersistedLoadedMacroSession(),
+                CrossMacroJsonContext.Default.PersistedLoadedMacroSession,
                 CancellationToken.None)
             .ConfigureAwait(false);
     }

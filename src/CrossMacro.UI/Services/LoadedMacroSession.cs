@@ -26,6 +26,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
             field = value;
             SelectedMacroChanged?.Invoke(this, EventArgs.Empty);
+            SessionStateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -41,6 +42,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
             field = value;
             PlaybackModeChanged?.Invoke(this, EventArgs.Empty);
+            SessionStateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -54,9 +56,11 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
     public event EventHandler? PlaybackModeChanged;
 
+    public event EventHandler? SessionStateChanged;
+
     public LoadedMacroListItem AddMacro(MacroSequence macro, string? sourcePath = null)
     {
-        var item = new LoadedMacroListItem(macro, sourcePath, localizationService: _localizationService);
+        var item = CreateItem(macro, sourcePath, sessionId: null);
         _loadedMacros.Add(item);
         SelectedMacroItem = item;
         return item;
@@ -130,9 +134,11 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
         var wasSelected = ReferenceEquals(SelectedMacroItem, item);
         _loadedMacros.RemoveAt(index);
+        DetachItem(item);
 
         if (!wasSelected)
         {
+            SessionStateChanged?.Invoke(this, EventArgs.Empty);
             return true;
         }
 
@@ -189,4 +195,59 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
         SelectedMacroItem = _loadedMacros[(currentIndex + 1) % _loadedMacros.Count];
         return true;
     }
+
+    public LoadedMacroSessionSnapshot CreateSnapshot()
+    {
+        var items = _loadedMacros.Select(static item => new LoadedMacroSessionItemSnapshot(
+            item.SessionId,
+            item.Macro.Clone(),
+            item.SourcePath,
+            item.SequenceRepeatCount)).ToList();
+        return new LoadedMacroSessionSnapshot(items, SelectedMacroItem?.SessionId, (int)PlaybackMode);
+    }
+
+    public void RestoreSnapshot(LoadedMacroSessionSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        foreach (var item in _loadedMacros)
+        {
+            DetachItem(item);
+        }
+
+        _loadedMacros.Clear();
+        var sessionIds = new HashSet<Guid>();
+        foreach (var item in snapshot.Items)
+        {
+            if (item.SessionId == Guid.Empty || !sessionIds.Add(item.SessionId))
+            {
+                throw new InvalidDataException("The loaded macro session contains an empty or duplicate session id.");
+            }
+
+            var restoredItem = CreateItem(item.Macro.Clone(), item.SourcePath, item.SessionId);
+            restoredItem.SequenceRepeatCount = item.SequenceRepeatCount;
+            _loadedMacros.Add(restoredItem);
+        }
+
+        var selectedItem = snapshot.SelectedSessionId is { } selectedSessionId
+            ? _loadedMacros.FirstOrDefault(item => item.SessionId == selectedSessionId)
+            : null;
+        SelectedMacroItem = selectedItem;
+        PlaybackMode = Enum.IsDefined((LoadedMacroPlaybackMode)snapshot.PlaybackMode)
+            ? (LoadedMacroPlaybackMode)snapshot.PlaybackMode
+            : LoadedMacroPlaybackMode.SelectedOnly;
+        SelectedMacroChanged?.Invoke(this, EventArgs.Empty);
+        SessionStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private LoadedMacroListItem CreateItem(MacroSequence macro, string? sourcePath, Guid? sessionId)
+    {
+        var item = new LoadedMacroListItem(macro, sourcePath, sessionId, _localizationService);
+        item.StateChanged += OnItemStateChanged;
+        return item;
+    }
+
+    private void DetachItem(LoadedMacroListItem item) => item.StateChanged -= OnItemStateChanged;
+
+    private void OnItemStateChanged(object? sender, EventArgs e) => SessionStateChanged?.Invoke(this, EventArgs.Empty);
 }

@@ -84,6 +84,11 @@ public sealed class DesktopStartupRuntimeServiceTests
             },
             () =>
             {
+                events.Add("profile");
+                throw new InvalidOperationException("profile flush failed");
+            },
+            () =>
+            {
                 events.Add("view-model");
                 throw new InvalidOperationException("view-model dispose failed");
             },
@@ -93,9 +98,9 @@ public sealed class DesktopStartupRuntimeServiceTests
                 return Task.FromException(new InvalidOperationException("provider dispose failed"));
             });
 
-        Assert.Equal(["runtime", "view-model", "provider"], events);
+        Assert.Equal(["runtime", "profile", "view-model", "provider"], events);
         Assert.NotNull(error);
-        Assert.Equal(3, error!.InnerExceptions.Count);
+        Assert.Equal(4, error!.InnerExceptions.Count);
     }
 
     [Fact]
@@ -105,6 +110,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var providerDisposeCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var cleanup = App.CleanupAsync(
+            () => Task.CompletedTask,
             () => Task.CompletedTask,
             static () => { },
             async () =>

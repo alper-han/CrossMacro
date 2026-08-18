@@ -79,6 +79,41 @@ public sealed class LoadedMacroSessionTests
         _ = selectedMacroUpdated.Should().BeFalse();
     }
 
+    [Fact]
+    public void CreateAndRestoreSnapshot_PreservesSessionItemsSelectionAndPlaybackMode()
+    {
+        var localization = Substitute.For<ILocalizationService>();
+        var source = new LoadedMacroSession(localization);
+        var first = source.AddMacro(CreateMacro("First"), "/tmp/first.macro");
+        first.SequenceRepeatCount = 3;
+        var second = source.AddMacro(CreateMacro("Second"));
+        source.SelectedMacroItem = first;
+        source.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
+
+        var snapshot = source.CreateSnapshot();
+        var restored = new LoadedMacroSession(localization);
+        restored.RestoreSnapshot(snapshot);
+
+        _ = restored.LoadedMacros.Select(item => item.Name).Should().ContainInOrder("First", "Second");
+        _ = restored.LoadedMacros[0].SessionId.Should().Be(first.SessionId);
+        _ = restored.LoadedMacros[0].SourcePath.Should().Be("/tmp/first.macro");
+        _ = restored.LoadedMacros[0].SequenceRepeatCount.Should().Be(3);
+        _ = restored.SelectedMacroItem!.SessionId.Should().Be(first.SessionId);
+        _ = restored.PlaybackMode.Should().Be(LoadedMacroPlaybackMode.SequentialCycle);
+        _ = restored.LoadedMacros[1].Macro.Should().NotBeSameAs(second.Macro);
+        _ = restored.LoadedMacros[1].Macro.Should().BeEquivalentTo(second.Macro);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WhenPlaybackModeIsUnknown_UsesSelectedOnly()
+    {
+        var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
+
+        session.RestoreSnapshot(new LoadedMacroSessionSnapshot([], null, PlaybackMode: 99));
+
+        _ = session.PlaybackMode.Should().Be(LoadedMacroPlaybackMode.SelectedOnly);
+    }
+
     private static MacroSequence CreateMacro(string name)
     {
         return new MacroSequence

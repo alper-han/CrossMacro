@@ -96,6 +96,7 @@ public sealed class RuntimeServiceCollectionExtensionsTests
         AssertFactoryRegistration<IProfileManager>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextExpansionStorageService, TextExpansionStorageService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IProfileTextExpansionStore, ProfileTextExpansionStore>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<IProfileLoadedMacroSessionStore, ProfileLoadedMacroSessionStore>(services, ServiceLifetime.Singleton);
 
         AssertImplementationRegistration<IInputProcessor, InputProcessor>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextBufferState, TextBufferState>(services, ServiceLifetime.Singleton);

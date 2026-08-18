@@ -36,6 +36,8 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<Func<IInputSimulatorPool?>>(sp => () => sp.GetService<IInputSimulatorPool>());
         _ = services.AddSingleton<Func<IMousePositionProvider?>>(sp => () => sp.GetService<IMousePositionProvider>());
         _ = services.AddSingleton<DesktopStartupInitializationService>();
+        _ = services.AddSingleton<ProfileLoadedMacroSessionPersistenceService>();
+        _ = services.AddSingleton<IProfileRuntimeParticipant>(sp => sp.GetRequiredService<ProfileLoadedMacroSessionPersistenceService>());
         _ = services.AddSingleton<DesktopPermissionGateService>();
         _ = services.AddSingleton<DesktopQuickSetupGateService>();
         _ = services.AddSingleton<IRuntimeLifecycle>(sp => DesktopStartupRuntimeService.CreateLifecycle(() => sp.GetRequiredService<ITextExpansionService>()));

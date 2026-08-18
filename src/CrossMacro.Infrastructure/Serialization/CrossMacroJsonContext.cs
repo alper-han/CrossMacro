@@ -1,5 +1,6 @@
 
 using CrossMacro.Infrastructure.Persistence.Settings;
+using CrossMacro.Infrastructure.Persistence.Macros;
 
 namespace CrossMacro.Infrastructure.Serialization;
 
@@ -24,6 +25,8 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(ProfileInfo))]
 [JsonSerializable(typeof(List<ProfileInfo>))]
 [JsonSerializable(typeof(ProfileRegistry))]
+[JsonSerializable(typeof(PersistedMacroDocument))]
+[JsonSerializable(typeof(PersistedLoadedMacroSession))]
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

@@ -45,6 +45,8 @@ public sealed class ServiceCollectionExtensionsTests
         Assert.Contains(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IThemeService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IDesktopStartupCoordinator));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(ProfileLoadedMacroSessionPersistenceService));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(IProfileRuntimeParticipant));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IRuntimeLogLevelService));
     }
 

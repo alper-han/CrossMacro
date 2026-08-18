@@ -350,6 +350,265 @@ public sealed class InputCaptureManagerTests
         Assert.Equal(30, received[0].code);
     }
 
+    [Fact]
+    public async Task ActiveCapture_WhenDeviceIsAdded_StartsReaderWithoutRestartingCapture()
+    {
+        var devices = new List<InputDeviceHelper.InputDevice>
+        {
+            CreateKeyboard("/dev/input/event-initial"),
+        };
+        var deviceLock = new Lock();
+        var readers = new Dictionary<string, FakeLinuxCaptureReader>(StringComparer.Ordinal);
+        var keyboardAdded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var manager = new InputCaptureManager(
+            () =>
+            {
+                lock (deviceLock)
+                {
+                    return devices.ToArray();
+                }
+            },
+            device =>
+            {
+                var reader = new FakeLinuxCaptureReader();
+                readers.Add(device.Path, reader);
+                if (device.Path is "/dev/input/event-reconnected")
+                {
+                    _ = keyboardAdded.TrySetResult();
+                }
+
+                return reader;
+            },
+            rescanInterval: TimeSpan.FromMilliseconds(10));
+
+        using (manager)
+        {
+            var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, _ => { });
+            Assert.True(result.Success);
+
+            lock (deviceLock)
+            {
+                devices.Add(CreateKeyboard("/dev/input/event-reconnected"));
+            }
+            await keyboardAdded.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(1, readers["/dev/input/event-initial"].StartCalls);
+            Assert.Equal(1, readers["/dev/input/event-reconnected"].StartCalls);
+        }
+    }
+
+    [Fact]
+    public async Task ActiveCapture_UsesDedicatedEnumeratorForPeriodicRescans()
+    {
+        var device = CreateKeyboard("/dev/input/event-keyboard");
+        var initialEnumerationCalls = 0;
+        var rescanCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var manager = new InputCaptureManager(
+            () =>
+            {
+                initialEnumerationCalls++;
+                return [device];
+            },
+            _ => new FakeLinuxCaptureReader(),
+            () =>
+            {
+                _ = rescanCompleted.TrySetResult();
+                return [device];
+            },
+            rescanInterval: TimeSpan.FromMilliseconds(10));
+
+        using (manager)
+        {
+            var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, _ => { });
+
+            Assert.True(result.Success);
+            await rescanCompleted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Equal(1, initialEnumerationCalls);
+        }
+    }
+
+    [Fact]
+    public async Task ActiveCapture_WhenDeviceIsRemoved_DisposesOnlyItsReader()
+    {
+        var first = CreateKeyboard("/dev/input/event-first");
+        var second = CreateKeyboard("/dev/input/event-second");
+        var devices = new List<InputDeviceHelper.InputDevice> { first, second };
+        var deviceLock = new Lock();
+        var readers = new Dictionary<string, FakeLinuxCaptureReader>(StringComparer.Ordinal);
+        var firstDisposed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var manager = new InputCaptureManager(
+            () =>
+            {
+                lock (deviceLock)
+                {
+                    return devices.ToArray();
+                }
+            },
+            device =>
+            {
+                var reader = new FakeLinuxCaptureReader
+                {
+                    Disposed = () =>
+                    {
+                        if (device.Path is "/dev/input/event-first")
+                        {
+                            _ = firstDisposed.TrySetResult();
+                        }
+                    },
+                };
+                readers.Add(device.Path, reader);
+                return reader;
+            },
+            rescanInterval: TimeSpan.FromMilliseconds(10));
+
+        using (manager)
+        {
+            var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, _ => { });
+            Assert.True(result.Success);
+
+            lock (deviceLock)
+            {
+                _ = devices.Remove(first);
+            }
+            await firstDisposed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(1, readers[first.Path].DisposeCalls);
+            Assert.Equal(0, readers[second.Path].DisposeCalls);
+        }
+    }
+
+    [Fact]
+    public async Task ActiveCapture_WhenReaderStopsListening_ReopensItsCurrentDevicePath()
+    {
+        var device = CreateKeyboard("/dev/input/event-keyboard");
+        var readers = new List<FakeLinuxCaptureReader>();
+        var reopened = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var manager = new InputCaptureManager(
+            () => [device],
+            _device =>
+            {
+                var reader = new FakeLinuxCaptureReader();
+                readers.Add(reader);
+                if (readers.Count is 2)
+                {
+                    _ = reopened.TrySetResult();
+                }
+
+                return reader;
+            },
+            rescanInterval: TimeSpan.FromMilliseconds(10));
+
+        using (manager)
+        {
+            var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, _ => { });
+            Assert.True(result.Success);
+
+            readers[0].IsListening = false;
+            await reopened.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(1, readers[0].DisposeCalls);
+            Assert.Equal(1, readers[1].StartCalls);
+        }
+    }
+
+    [Fact]
+    public async Task ActiveCapture_WhenReconnectedDeviceFailsToOpen_RetriesOnTheNextRescan()
+    {
+        var initial = CreateKeyboard("/dev/input/event-initial");
+        var reconnected = CreateKeyboard("/dev/input/event-reconnected");
+        var devices = new List<InputDeviceHelper.InputDevice> { initial };
+        var deviceLock = new Lock();
+        var reconnectAttempts = 0;
+        var reopened = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var manager = new InputCaptureManager(
+            () =>
+            {
+                lock (deviceLock)
+                {
+                    return devices.ToArray();
+                }
+            },
+            device =>
+            {
+                if (device.Path is not "/dev/input/event-reconnected")
+                {
+                    return new FakeLinuxCaptureReader();
+                }
+
+                reconnectAttempts++;
+                if (reconnectAttempts is 1)
+                {
+                    return new FakeLinuxCaptureReader { ThrowOnStart = true };
+                }
+
+                _ = reopened.TrySetResult();
+                return new FakeLinuxCaptureReader();
+            },
+            rescanInterval: TimeSpan.FromMilliseconds(10));
+
+        using (manager)
+        {
+            var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, _ => { });
+            Assert.True(result.Success);
+
+            lock (deviceLock)
+            {
+                devices.Add(reconnected);
+            }
+            await reopened.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(2, reconnectAttempts);
+        }
+    }
+
+    [Fact]
+    public async Task StopCapture_PreventsRescanFromStartingNewReaders()
+    {
+        var devices = new List<InputDeviceHelper.InputDevice>
+        {
+            CreateKeyboard("/dev/input/event-initial"),
+        };
+        var deviceLock = new Lock();
+        var readerFactoryCalls = 0;
+        var manager = new InputCaptureManager(
+            () =>
+            {
+                lock (deviceLock)
+                {
+                    return devices.ToArray();
+                }
+            },
+            _ =>
+            {
+                readerFactoryCalls++;
+                return new FakeLinuxCaptureReader();
+            },
+            rescanInterval: TimeSpan.FromMilliseconds(10));
+
+        using (manager)
+        {
+            var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, _ => { });
+            Assert.True(result.Success);
+
+            manager.StopCapture();
+            lock (deviceLock)
+            {
+                devices.Add(CreateKeyboard("/dev/input/event-reconnected"));
+            }
+
+            await Task.Delay(100);
+
+            Assert.Equal(1, readerFactoryCalls);
+        }
+    }
+
+    private static InputDeviceHelper.InputDevice CreateKeyboard(string path) => new()
+    {
+        Path = path,
+        Name = "Test Keyboard",
+        IsKeyboard = true,
+    };
+
     private sealed class FakeLinuxCaptureReader : InputCaptureManager.ILinuxCaptureReader
     {
         private event Action<InputCaptureManager.ILinuxCaptureReader, CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event>? EventReceivedInternal;
@@ -358,7 +617,11 @@ public sealed class InputCaptureManagerTests
 
         public bool ThrowOnStart { get; init; }
 
+        public bool IsListening { get; set; }
+
         public int DisposeCalls { get; private set; }
+
+        public Action? Disposed { get; init; }
 
         public event Action<InputCaptureManager.ILinuxCaptureReader, CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event>? EventReceived
         {
@@ -373,11 +636,15 @@ public sealed class InputCaptureManagerTests
             {
                 throw new InvalidOperationException("reader start failed");
             }
+
+            IsListening = true;
         }
 
         public void Dispose()
         {
             DisposeCalls++;
+            IsListening = false;
+            Disposed?.Invoke();
         }
 
         public void Emit(CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event inputEvent)

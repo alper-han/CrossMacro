@@ -23,13 +23,21 @@ public static class InputDeviceHelper
 
     public static IReadOnlyList<InputDevice> GetAvailableDevices()
     {
+        return GetAvailableDevices(logSummary: true);
+    }
+
+    public static IReadOnlyList<InputDevice> GetAvailableDevices(bool logSummary)
+    {
         List<InputDevice> devices = [];
         List<InputDevice> skippedDevices = [];
         List<(InputDevice device, int errno)> inaccessibleDevices = [];
         var readErrors = 0;
         const string inputDir = "/dev/input";
 
-        Log.Information("[InputDeviceHelper] Scanning input devices in {InputDir}...", inputDir);
+        if (logSummary)
+        {
+            Log.Information("[InputDeviceHelper] Scanning input devices in {InputDir}...", inputDir);
+        }
 
         if (!Directory.Exists(inputDir))
         {
@@ -43,7 +51,10 @@ public static class InputDeviceHelper
         var procDevicesContent = ReadProcDevicesContent();
         ScanDeviceFiles(files, procDevicesContent, devices, skippedDevices, inaccessibleDevices, ref readErrors);
 
-        LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors);
+        if (logSummary)
+        {
+            LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors);
+        }
 
         return devices;
     }

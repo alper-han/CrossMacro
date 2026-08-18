@@ -17,6 +17,8 @@ namespace CrossMacro.Cli.Serialization;
 [JsonSerializable(typeof(TaskListData<TriggerTaskData>))]
 [JsonSerializable(typeof(ScheduleTaskData))]
 [JsonSerializable(typeof(ShortcutTaskData))]
+[JsonSerializable(typeof(ShortcutWindowRule))]
+[JsonSerializable(typeof(List<ShortcutWindowRule>))]
 [JsonSerializable(typeof(TriggerTaskData))]
 [JsonSerializable(typeof(ScheduleTaskRunData))]
 [JsonSerializable(typeof(ShortcutTaskRunData))]

@@ -287,13 +287,20 @@ Shortcut syntax:
 .br
 \fBshortcut run <task-id>\fR
 .br
-\fBshortcut add --name <name> --macro <path> --hotkey <keys> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>]\fR
+\fBshortcut add --name <name> --macro <path> --hotkey <keys> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--window-rule <field> <match-mode> <value>] [--enabled <bool>]\fR
 .br
-\fBshortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>]\fR
+\fBshortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>]\fR
 .br
 \fBshortcut remove|enable|disable <task-id>\fR
 .br
 \fBshortcut bind <task-id> <hotkey>\fR
+.PP
+Repeat \fB--window-rule <field> <match-mode> <value>\fR to limit a hotkey to
+focused windows. Fields are \fBWindowClass\fR, \fBWindowTitle\fR, and
+\fBProcessName\fR; match modes are \fBEquals\fR, \fBContains\fR, and
+\fBRegex\fR. Rules use OR semantics. Providing rules with \fBshortcut edit\fR
+replaces all existing rules; \fB--clear-window-rules\fR restores global behavior.
+Explicit \fBshortcut run\fR execution ignores window rules.
 .TP
 .B record
 Record input events and save a macro file.

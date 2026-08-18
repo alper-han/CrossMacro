@@ -333,7 +333,7 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
         {
             ct.ThrowIfCancellationRequested();
 
-            var matched = Matches(task, window, workspace, StringComparison.Ordinal);
+            var matched = Matches(task, window, workspace);
 
             bool shouldFire;
             lock (_lock)
@@ -420,8 +420,7 @@ or TriggerFireMode.OnEnter)
     private static bool Matches(
         TriggerTask task,
         WindowInfo? window,
-        string? workspace,
-        StringComparison comparison)
+        string? workspace)
     {
         // None matches unconditionally. Workspace matches the active workspace.
         string? actual;
@@ -452,23 +451,7 @@ or TriggerFireMode.OnEnter)
             return false;
         }
 
-        // Prevent ReDoS on user-defined pattern.
-        if (task.MatchMode is TriggerMatchMode.Regex)
-        {
-            try
-            {
-                return Regex.IsMatch(actual, task.Value, RegexOptions.NonBacktracking, TimeSpan.FromMilliseconds(200));
-            }
-            catch (ArgumentException)
-            {
-                // Invalid pattern — treat as non-match rather than crashing the poll loop.
-                return false;
-            }
-        }
-
-        return task.MatchMode is TriggerMatchMode.Equals
-            ? string.Equals(actual, task.Value, comparison)
-            : actual.Contains(task.Value, comparison);
+        return WindowRuleMatcher.IsMatch(task.MatchMode, task.Value, actual);
     }
 
     private async Task ExecuteActionAsync(TriggerTask task, CancellationToken ct)

@@ -20,6 +20,12 @@ public sealed class ShortcutTaskSerializationCompatibilityTests
             LastStatus = "Success",
             LastTriggeredTime = DateTime.UtcNow,
         };
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowTitle,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "Firefox",
+        });
 
         var json = JsonSerializer.Serialize(task, CrossMacroJsonContext.Default.ShortcutTask);
         var roundTrip = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ShortcutTask);
@@ -29,5 +35,18 @@ public sealed class ShortcutTaskSerializationCompatibilityTests
         _ = roundTrip.HotkeyString.Should().Be(task.HotkeyString);
         _ = roundTrip.RepeatDelayMaxMs.Should().Be(task.RepeatDelayMaxMs);
         _ = roundTrip.LastStatus.Should().Be(task.LastStatus);
+        _ = roundTrip.WindowRules.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(task.WindowRules.Single());
+    }
+
+    [Fact]
+    public void Deserialize_WhenWindowRulesIsMissing_UsesAnEmptyCollection()
+    {
+        const string json = "{}";
+
+        var task = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ShortcutTask);
+
+        _ = task.Should().NotBeNull();
+        _ = task!.WindowRules.Should().BeEmpty();
     }
 }

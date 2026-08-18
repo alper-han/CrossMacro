@@ -9,6 +9,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly IGlobalHotkeyService _hotkeyService;
+    private readonly IWindowManager? _windowManager;
     private SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
     private bool _disposed;
@@ -46,11 +47,13 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         IMacroFileManager fileManager,
         Func<IMacroPlayer> playerFactory,
         IGlobalHotkeyService hotkeyService,
-        string? shortcutsFilePath = null)
+        string? shortcutsFilePath = null,
+        IWindowManager? windowManager = null)
     {
         _fileManager = fileManager;
         _playerFactory = playerFactory;
         _hotkeyService = hotkeyService;
+        _windowManager = windowManager;
         _syncContext = SynchronizationContext.Current;
 
         _shortcutsFilePath = string.IsNullOrWhiteSpace(shortcutsFilePath)
@@ -112,10 +115,20 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 existing.RepeatDelayMinMs = task.RepeatDelayMinMs;
                 existing.RepeatDelayMaxMs = task.RepeatDelayMaxMs;
                 existing.RunWhileHeld = task.RunWhileHeld;
+                existing.WindowRules.Clear();
+                foreach (var rule in task.WindowRules.Where(rule => rule is not null))
+                {
+                    existing.WindowRules.Add(new ShortcutWindowRule
+                    {
+                        Field = rule.Field,
+                        MatchMode = rule.MatchMode,
+                        Value = rule.Value,
+                    });
+                }
                 existing.LastStatus = task.LastStatus;
                 existing.LastTriggeredTime = task.LastTriggeredTime;
                 existing.Normalize();
-                _ = existing.TrySetEnabled(task.IsEnabled);
+                _ = existing.TrySetEnabled(task.IsEnabled && task.CanBeEnabled);
             }
         }
     }
@@ -186,18 +199,58 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
     private void OnRawInputReceived(object? sender, RawHotkeyInputEventArgs e)
     {
-        ShortcutTask? matchingTask = null;
+        _ = HandleRawInputAsync(e);
+    }
+
+    internal async Task HandleRawInputAsync(RawHotkeyInputEventArgs e)
+    {
+        List<ShortcutCandidate> candidates;
+        lock (_lock)
+        {
+            candidates = Tasks
+                .Where(task => task.IsEnabled
+                    && task.CanBeEnabled
+                    && string.Equals(task.HotkeyString, e.HotkeyString, StringComparison.OrdinalIgnoreCase))
+                .Select(task => new ShortcutCandidate(task, task.WindowRules
+                    .Where(rule => rule is not null)
+                    .Select(rule => new ShortcutWindowRule
+                    {
+                        Field = rule.Field,
+                        MatchMode = rule.MatchMode,
+                        Value = rule.Value,
+                    })
+                    .ToArray()))
+                .ToList();
+        }
+
+        if (candidates.Count is 0)
+        {
+            return;
+        }
+
+        var activeTask = FindActiveToggleTask(candidates.Select(candidate => candidate.Task).ToArray());
+        if (activeTask is not null)
+        {
+            StopActiveTask(activeTask);
+            return;
+        }
+
+        var pendingHeldTaskIds = RegisterPendingHeldHotkeys(candidates, e);
+        var matchingTask = await ResolveMatchingTaskAsync(candidates).ConfigureAwait(false);
+        if (matchingTask is null)
+        {
+            RemovePendingHeldHotkeys(pendingHeldTaskIds);
+            return;
+        }
+
+        RemovePendingHeldHotkeys(pendingHeldTaskIds, matchingTask.RunWhileHeld ? matchingTask.Id : null);
+
         IMacroPlayer? playerToStop = null;
         bool shouldStart = false;
 
         lock (_lock)
         {
-            // Find matching enabled task
-            matchingTask = Tasks.FirstOrDefault(t =>
-                t.IsEnabled &&
-                string.Equals(t.HotkeyString, e.HotkeyString, StringComparison.OrdinalIgnoreCase));
-
-            if (matchingTask is null)
+            if (!Tasks.Contains(matchingTask) || !matchingTask.IsEnabled)
             {
                 return;
             }
@@ -207,9 +260,15 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 return;
             }
 
-            if (!matchingTask.RunWhileHeld && _activePlayers.TryGetValue(matchingTask.Id, out playerToStop))
+            if (matchingTask.RunWhileHeld
+                && (!pendingHeldTaskIds.Contains(matchingTask.Id)
+                    || !_activeHotkeyKeys.ContainsKey(matchingTask.Id)))
             {
-                Log.Information("[ShortcutService] Stopping {TaskName} - toggle triggered", matchingTask.Name);
+                return;
+            }
+
+            if (_activePlayers.TryGetValue(matchingTask.Id, out playerToStop))
+            {
                 _ = _activePlayers.Remove(matchingTask.Id);
             }
             else
@@ -225,7 +284,6 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             }
         }
 
-        // Stop player outside lock
         if (playerToStop is not null)
         {
             playerToStop.StopPlayback();
@@ -235,17 +293,111 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
         if (shouldStart)
         {
-            // For RunWhileHeld, track all keys that make up this hotkey
-            if (matchingTask.RunWhileHeld)
-            {
-                lock (_lock)
-                {
-                    _activeHotkeyKeys[matchingTask.Id] = new HashSet<int>(e.PressedModifiers) { e.KeyCode };
-                }
-            }
-            _ = ExecuteTaskAsync(matchingTask, CancellationToken.None);
+            _ = ExecuteTaskAsync(
+                matchingTask,
+                requiresHeldHotkey: matchingTask.RunWhileHeld,
+                cancellationToken: CancellationToken.None);
         }
     }
+
+    private HashSet<Guid> RegisterPendingHeldHotkeys(
+        IEnumerable<ShortcutCandidate> candidates,
+        RawHotkeyInputEventArgs input)
+    {
+        HashSet<Guid> registeredTaskIds = [];
+        lock (_lock)
+        {
+            foreach (var taskId in candidates
+                         .Select(candidate => candidate.Task)
+                         .Where(task => task.RunWhileHeld)
+                         .Select(task => task.Id))
+            {
+                if (_activePlayers.ContainsKey(taskId) || _activeHotkeyKeys.ContainsKey(taskId))
+                {
+                    continue;
+                }
+
+                _activeHotkeyKeys[taskId] = new HashSet<int>(input.PressedModifiers) { input.KeyCode };
+                _ = registeredTaskIds.Add(taskId);
+            }
+        }
+
+        return registeredTaskIds;
+    }
+
+    private void RemovePendingHeldHotkeys(IReadOnlySet<Guid> taskIds, Guid? taskIdToKeep = null)
+    {
+        lock (_lock)
+        {
+            foreach (var taskId in taskIds.Where(taskId => taskId != taskIdToKeep))
+            {
+                _ = _activeHotkeyKeys.Remove(taskId);
+            }
+        }
+    }
+
+    private ShortcutTask? FindActiveToggleTask(IReadOnlyList<ShortcutTask> candidates)
+    {
+        lock (_lock)
+        {
+            return candidates.FirstOrDefault(task => !task.RunWhileHeld && _activePlayers.ContainsKey(task.Id));
+        }
+    }
+
+    private void StopActiveTask(ShortcutTask task)
+    {
+        IMacroPlayer? player;
+        lock (_lock)
+        {
+            if (!_activePlayers.TryGetValue(task.Id, out player))
+            {
+                return;
+            }
+
+            _ = _activePlayers.Remove(task.Id);
+        }
+
+        Log.Information("[ShortcutService] Stopping {TaskName} - toggle triggered", task.Name);
+        player.StopPlayback();
+        SafeUpdate(() => task.LastStatus = "Stopped");
+    }
+
+    private async Task<ShortcutTask?> ResolveMatchingTaskAsync(IReadOnlyList<ShortcutCandidate> candidates)
+    {
+        var scopedCandidates = candidates.Where(candidate => candidate.Rules.Length is > 0).ToList();
+        if (scopedCandidates.Count is 0)
+        {
+            return candidates[0].Task;
+        }
+
+        if (_windowManager?.IsSupported is not true)
+        {
+            return candidates.FirstOrDefault(candidate => candidate.Rules.Length is 0)?.Task;
+        }
+
+        WindowInfo? window;
+        try
+        {
+            window = await _windowManager.GetActiveWindowAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "Failed to query the active window for scoped shortcut matching");
+            return candidates.FirstOrDefault(candidate => candidate.Rules.Length is 0)?.Task;
+        }
+
+        var scopedMatch = scopedCandidates.FirstOrDefault(candidate => candidate.Rules.Any(rule =>
+            WindowRuleMatcher.IsMatch(
+                rule.Field,
+                rule.MatchMode,
+                rule.Value,
+                window?.Title,
+                window?.Class,
+                window?.ProcessName)));
+        return scopedMatch?.Task ?? candidates.FirstOrDefault(candidate => candidate.Rules.Length is 0)?.Task;
+    }
+
+    private sealed record ShortcutCandidate(ShortcutTask Task, ShortcutWindowRule[] Rules);
 
     private void OnRawKeyReleased(object? sender, RawHotkeyInputEventArgs e)
     {
@@ -280,12 +432,28 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         }
     }
 
-    private async Task ExecuteTaskAsync(ShortcutTask task, CancellationToken cancellationToken = default)
+    private bool IsHeldHotkeyActive(Guid taskId)
+    {
+        lock (_lock)
+        {
+            return _activeHotkeyKeys.ContainsKey(taskId);
+        }
+    }
+
+    private async Task ExecuteTaskAsync(
+        ShortcutTask task,
+        bool requiresHeldHotkey = false,
+        CancellationToken cancellationToken = default)
     {
         IMacroPlayer? player = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (requiresHeldHotkey && !IsHeldHotkeyActive(task.Id))
+            {
+                return;
+            }
 
             if (string.IsNullOrEmpty(task.MacroFilePath) || !File.Exists(task.MacroFilePath))
             {
@@ -300,6 +468,10 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             }
 
             var macro = await _fileManager.LoadAsync(task.MacroFilePath).ConfigureAwait(false);
+            if (requiresHeldHotkey && !IsHeldHotkeyActive(task.Id))
+            {
+                return;
+            }
             if (macro is null)
             {
                 SafeUpdate(() =>
@@ -323,6 +495,11 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             // Register the player so it can be stopped via toggle
             lock (_lock)
             {
+                if (requiresHeldHotkey && !_activeHotkeyKeys.ContainsKey(task.Id))
+                {
+                    return;
+                }
+
                 _activePlayers[task.Id] = player;
             }
 
@@ -451,7 +628,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        await ExecuteTaskAsync(task, cancellationToken).ConfigureAwait(false);
+        await ExecuteTaskAsync(task, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     public async Task LoadAsync()

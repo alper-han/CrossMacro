@@ -171,6 +171,94 @@ public sealed class ShortcutCliServiceTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_EditWindowRules_ReplacesExistingRulesAndReturnsThem()
+    {
+        var id = Guid.NewGuid();
+        var task = new ShortcutTask
+        {
+            Id = id,
+            Name = "Browser Shortcut",
+            MacroFilePath = "/tmp/browser.macro",
+            HotkeyString = "F7",
+        };
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowTitle,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "Old",
+        });
+        var shortcuts = Substitute.For<IManageShortcut>();
+        _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask> { task }));
+        var service = new ShortcutCliService(shortcuts);
+
+        var result = await service.ExecuteAsync(
+            new ShortcutCliOptions(
+                ShortcutCliAction.Edit,
+                TaskId: id.ToString(),
+                WindowRules:
+                [
+                    new ShortcutWindowRule
+                    {
+                        Field = TriggerField.WindowClass,
+                        MatchMode = TriggerMatchMode.Equals,
+                        Value = "org.mozilla.firefox",
+                    },
+                ]),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var data = Assert.IsType<ShortcutTaskData>(result.Data);
+        Assert.Collection(
+            data.WindowRules,
+            rule =>
+            {
+                Assert.Equal(TriggerField.WindowClass, rule.Field);
+                Assert.Equal(TriggerMatchMode.Equals, rule.MatchMode);
+                Assert.Equal("org.mozilla.firefox", rule.Value);
+            });
+        _ = task.WindowRules.Should().ContainSingle()
+            .Which.Value.Should().Be("org.mozilla.firefox");
+        _ = await shortcuts.Received(1).UpdateAsync(
+            Arg.Is<ShortcutTask>(updated => updated.WindowRules.Count == 1
+                && updated.WindowRules.Single().Value == "org.mozilla.firefox"),
+            CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ClearWindowRules_RemovesExistingRules()
+    {
+        var id = Guid.NewGuid();
+        var task = new ShortcutTask
+        {
+            Id = id,
+            Name = "Browser Shortcut",
+            MacroFilePath = "/tmp/browser.macro",
+            HotkeyString = "F7",
+        };
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "firefox",
+        });
+        var shortcuts = Substitute.For<IManageShortcut>();
+        _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask> { task }));
+        var service = new ShortcutCliService(shortcuts);
+
+        var result = await service.ExecuteAsync(
+            new ShortcutCliOptions(ShortcutCliAction.Edit, TaskId: id.ToString(), ClearWindowRules: true),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var data = Assert.IsType<ShortcutTaskData>(result.Data);
+        Assert.Empty(data.WindowRules);
+        Assert.Empty(task.WindowRules);
+        _ = await shortcuts.Received(1).UpdateAsync(
+            Arg.Is<ShortcutTask>(updated => updated.WindowRules.Count == 0),
+            CancellationToken.None);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_Bind_UpdatesHotkeyAndSavesTask()
     {
         var id = new Guid(0x22222222, 0x2222, 0x2222, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22);

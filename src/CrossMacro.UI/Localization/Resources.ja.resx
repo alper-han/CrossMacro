@@ -738,6 +738,21 @@
   <data name="Shortcut_Browse" xml:space="preserve">
     <value>ブラウズ</value>
   </data>
+  <data name="Shortcut_WindowScope" xml:space="preserve">
+    <value>有効にするウィンドウ</value>
+  </data>
+  <data name="Shortcut_WindowScopeHint" xml:space="preserve">
+    <value>グローバルに実行する場合は空のままにします。ルールを追加すると、フォーカス中のウィンドウがいずれかのルールに一致した場合にショートカットが実行されます。</value>
+  </data>
+  <data name="Shortcut_AddWindowRule" xml:space="preserve">
+    <value>ウィンドウルールを追加</value>
+  </data>
+  <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
+    <value>ウィンドウルールを削除</value>
+  </data>
+  <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
+    <value>Firefox、org.mozilla.firefox、または正規表現</value>
+  </data>
   <data name="Shortcut_Status" xml:space="preserve">
     <value>状態</value>
   </data>

@@ -738,6 +738,21 @@
   <data name="Shortcut_Browse" xml:space="preserve">
     <value>浏览</value>
   </data>
+  <data name="Shortcut_WindowScope" xml:space="preserve">
+    <value>仅在以下窗口中启用</value>
+  </data>
+  <data name="Shortcut_WindowScopeHint" xml:space="preserve">
+    <value>留空可全局运行。添加规则后，当前焦点窗口匹配任一规则时快捷键才会运行。</value>
+  </data>
+  <data name="Shortcut_AddWindowRule" xml:space="preserve">
+    <value>添加窗口规则</value>
+  </data>
+  <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
+    <value>删除窗口规则</value>
+  </data>
+  <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
+    <value>Firefox、org.mozilla.firefox 或正则表达式</value>
+  </data>
   <data name="Shortcut_Status" xml:space="preserve">
     <value>状态</value>
   </data>

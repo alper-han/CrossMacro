@@ -10,6 +10,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     private readonly IDialogService _dialogService;
     private readonly IManageShortcut? _manageShortcut;
     private readonly IProfileRuntimeState? _profileRuntimeState;
+    private readonly IWindowManager? _windowManager;
     private bool _disposed;
     private readonly Dictionary<Guid, ShortcutTaskEditor> _editors = [];
 
@@ -102,13 +103,15 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         IDialogService dialogService,
         IGlobalHotkeyService hotkeyService,
         ILocalizationService localizationService,
-        IProfileRuntimeState? profileRuntimeState = null)
+        IProfileRuntimeState? profileRuntimeState = null,
+        IWindowManager? windowManager = null)
     {
         _shortcutService = shortcutService;
         _dialogService = dialogService;
         GlobalHotkeyService = hotkeyService;
         LocalizationService = localizationService;
         _profileRuntimeState = profileRuntimeState;
+        _windowManager = windowManager;
         LocalizationService.CultureChanged += OnCultureChanged;
 
         // Subscribe to shortcut execution events
@@ -127,8 +130,9 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         IDialogService dialogService,
         IGlobalHotkeyService hotkeyService,
         ILocalizationService localizationService,
-        IProfileRuntimeState? profileRuntimeState = null)
-        : this(shortcutService, dialogService, hotkeyService, localizationService, profileRuntimeState)
+        IProfileRuntimeState? profileRuntimeState = null,
+        IWindowManager? windowManager = null)
+        : this(shortcutService, dialogService, hotkeyService, localizationService, profileRuntimeState, windowManager)
     {
         _manageShortcut = manageShortcut;
     }
@@ -277,6 +281,63 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         if (!string.IsNullOrEmpty(filePath))
         {
             await RunOnUiThreadAsync(() => SelectedMacroFilePath = filePath).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand]
+    private void AddWindowRule()
+    {
+        SelectedTask?.AddWindowRule();
+    }
+
+    [RelayCommand]
+    private void RemoveWindowRule(ShortcutWindowRuleEditor? rule)
+    {
+        if (rule is not null)
+        {
+            SelectedTask?.RemoveWindowRule(rule);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshWindowRuleValuesAsync(ShortcutWindowRuleEditor? rule)
+    {
+        if (rule is null || _windowManager is null || rule.IsRefreshingWindows)
+        {
+            return;
+        }
+
+        rule.IsRefreshingWindows = true;
+        try
+        {
+            var windows = await _windowManager.GetWindowsAsync(CancellationToken.None).ConfigureAwait(true);
+            IEnumerable<string> values = rule.Field switch
+            {
+                TriggerField.WindowClass => windows.Select(window => window.Class),
+                TriggerField.WindowTitle => windows.Select(window => window.Title),
+                TriggerField.ProcessName => windows.Select(window => window.ProcessName),
+                TriggerField.Workspace or TriggerField.None => [],
+                _ => [],
+            };
+
+            var distinct = values
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.OrdinalIgnoreCase);
+
+            rule.AvailableWindowValues.Clear();
+            foreach (var value in distinct)
+            {
+                rule.AvailableWindowValues.Add(value);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[ShortcutViewModel] Failed to fetch window list");
+        }
+        finally
+        {
+            rule.IsRefreshingWindows = false;
         }
     }
 

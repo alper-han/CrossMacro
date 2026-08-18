@@ -70,6 +70,65 @@ public sealed class CliOutputFormatterTests
     }
 
     [Fact]
+    public async Task Write_WhenShortcutListContainsWindowRules_UsesStablePropertyNames()
+    {
+        using var consoleLock = await ConsoleTestLock.AcquireAsync();
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        try
+        {
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
+
+            var task = new ShortcutTaskData(
+                Guid.Empty,
+                "Browser shortcut",
+                Enabled: true,
+                Hotkey: "Ctrl+Alt+B",
+                MacroFilePath: "/tmp/browser.macro",
+                PlaybackSpeed: 1,
+                LoopEnabled: false,
+                RunWhileHeld: false,
+                RepeatCount: 0,
+                RepeatDelayMs: 0,
+                RandomRepeatDelay: false,
+                RepeatDelayMinMs: null,
+                RepeatDelayMaxMs: null,
+                WindowRules:
+                [
+                    new ShortcutWindowRule
+                    {
+                        Field = TriggerField.WindowClass,
+                        MatchMode = TriggerMatchMode.Equals,
+                        Value = "org.mozilla.firefox",
+                    },
+                ],
+                LastTriggeredTime: null,
+                LastStatus: null);
+            var result = CliCommandExecutionResult.Ok(
+                "shortcut list loaded",
+                new TaskListData<ShortcutTaskData>(1, [task]));
+
+            CliOutputFormatter.Write(result, jsonOutput: true);
+
+            var output = stdout.ToString();
+            Assert.Contains("\"windowRules\": [", output, StringComparison.Ordinal);
+            Assert.Contains("\"field\": 0", output, StringComparison.Ordinal);
+            Assert.Contains("\"matchMode\": 0", output, StringComparison.Ordinal);
+            Assert.Contains("\"value\": \"org.mozilla.firefox\"", output, StringComparison.Ordinal);
+            Assert.Equal(string.Empty, stderr.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    [Fact]
     public async Task Write_WhenJsonOutputContainsBackticks_WritesReadableBackticks()
     {
         using var consoleLock = await ConsoleTestLock.AcquireAsync();

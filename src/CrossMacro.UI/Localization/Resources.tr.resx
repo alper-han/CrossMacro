@@ -738,6 +738,21 @@
   <data name="Shortcut_Browse" xml:space="preserve">
     <value>Gözat</value>
   </data>
+  <data name="Shortcut_WindowScope" xml:space="preserve">
+    <value>Yalnızca Şu Pencerelerde Etkin</value>
+  </data>
+  <data name="Shortcut_WindowScopeHint" xml:space="preserve">
+    <value>Global çalışması için boş bırakın. Kural eklendiğinde, odaktaki pencere kurallardan herhangi biriyle eşleşirse kısayol çalışır.</value>
+  </data>
+  <data name="Shortcut_AddWindowRule" xml:space="preserve">
+    <value>Pencere Kuralı Ekle</value>
+  </data>
+  <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
+    <value>Pencere kuralını kaldır</value>
+  </data>
+  <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
+    <value>Firefox, org.mozilla.firefox veya bir regex</value>
+  </data>
   <data name="Shortcut_Status" xml:space="preserve">
     <value>DURUM</value>
   </data>

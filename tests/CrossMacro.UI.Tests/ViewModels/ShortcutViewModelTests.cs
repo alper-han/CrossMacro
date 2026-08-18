@@ -264,6 +264,86 @@ public sealed class ShortcutViewModelTests : IDisposable
     }
 
     [Fact]
+    public void AddAndRemoveWindowRule_UpdatesTheSelectedShortcutEditor()
+    {
+        var task = new ShortcutTaskEditor();
+        _viewModel.SelectedTask = task;
+
+        _viewModel.AddWindowRuleCommand.Execute(parameter: null);
+
+        var rule = task.WindowRules.Should().ContainSingle().Which;
+        _viewModel.RemoveWindowRuleCommand.Execute(rule);
+
+        _ = task.WindowRules.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RefreshWindowRuleValues_LoadsDistinctValuesForTheRuleField()
+    {
+        var windowManager = Substitute.For<IWindowManager>();
+        _ = windowManager.GetWindowsAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IReadOnlyList<WindowInfo>>(
+        [
+            new WindowInfo { Class = "org.mozilla.firefox", Title = "Firefox", ProcessName = "firefox" },
+            new WindowInfo { Class = "org.chromium.Chromium", Title = "Chromium", ProcessName = "chromium" },
+            new WindowInfo { Class = "org.mozilla.firefox", Title = "Firefox Private", ProcessName = "firefox" },
+        ]));
+        using var viewModel = new ShortcutViewModel(
+            _shortcutService,
+            _dialogService,
+            _hotkeyService,
+            _localizationService,
+            windowManager: windowManager);
+        var task = new ShortcutTaskEditor();
+        task.AddWindowRule();
+        var rule = task.WindowRules.Single();
+        viewModel.SelectedTask = task;
+
+        await viewModel.RefreshWindowRuleValuesCommand.ExecuteAsync(rule);
+
+        _ = rule.AvailableWindowValues.Should().Equal("org.chromium.Chromium", "org.mozilla.firefox");
+        await windowManager.Received(1).GetWindowsAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RefreshWindowRuleValues_UsesTheConfiguredFieldAndPickerUpdatesValue()
+    {
+        var windowManager = Substitute.For<IWindowManager>();
+        _ = windowManager.GetWindowsAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IReadOnlyList<WindowInfo>>(
+        [
+            new WindowInfo { Title = "Firefox - Work", ProcessName = "firefox" },
+            new WindowInfo { Title = "Chromium - Docs", ProcessName = "chromium" },
+        ]));
+        using var viewModel = new ShortcutViewModel(
+            _shortcutService,
+            _dialogService,
+            _hotkeyService,
+            _localizationService,
+            windowManager: windowManager);
+        var task = new ShortcutTaskEditor();
+        task.AddWindowRule();
+        var rule = task.WindowRules.Single();
+        rule.Field = TriggerField.ProcessName;
+        viewModel.SelectedTask = task;
+
+        await viewModel.RefreshWindowRuleValuesCommand.ExecuteAsync(rule);
+        rule.SelectedWindowValue = "chromium";
+
+        _ = rule.AvailableWindowValues.Should().Equal("chromium", "firefox");
+        _ = rule.Value.Should().Be("chromium");
+    }
+
+    [Fact]
+    public void WindowRuleFieldChange_ClearsPreviouslyFetchedValues()
+    {
+        var rule = new ShortcutWindowRuleEditor();
+        rule.AvailableWindowValues.Add("org.mozilla.firefox");
+
+        rule.Field = TriggerField.ProcessName;
+
+        _ = rule.AvailableWindowValues.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task TaskEnabledChangedCommand_WhenToggleChanges_PersistsTasks()
     {
         // Arrange

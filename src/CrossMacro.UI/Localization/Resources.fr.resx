@@ -738,6 +738,21 @@
   <data name="Shortcut_Browse" xml:space="preserve">
     <value>Parcourir</value>
   </data>
+  <data name="Shortcut_WindowScope" xml:space="preserve">
+    <value>Actif uniquement dans</value>
+  </data>
+  <data name="Shortcut_WindowScopeHint" xml:space="preserve">
+    <value>Laissez vide pour une exécution globale. Lorsque des règles sont ajoutées, le raccourci s’exécute si l’une d’elles correspond à la fenêtre active.</value>
+  </data>
+  <data name="Shortcut_AddWindowRule" xml:space="preserve">
+    <value>Ajouter une règle de fenêtre</value>
+  </data>
+  <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
+    <value>Supprimer la règle de fenêtre</value>
+  </data>
+  <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
+    <value>Firefox, org.mozilla.firefox ou une expression régulière</value>
+  </data>
   <data name="Shortcut_Status" xml:space="preserve">
     <value>STATUT</value>
   </data>

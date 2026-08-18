@@ -115,6 +115,12 @@ internal static class DesignPreviewSamples
             LastStatus = "Completed",
             IsEnabled = true,
         };
+        singleShortcut.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "libreoffice",
+        });
 
         return [loopShortcut, singleShortcut];
     }

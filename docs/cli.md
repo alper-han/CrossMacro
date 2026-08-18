@@ -380,8 +380,11 @@ crossmacro shortcut list --json
 crossmacro shortcut run <task-id>
 crossmacro shortcut add --name Demo --macro ./demo.macro --hotkey Ctrl+Alt+D
 crossmacro shortcut add --name Loop --macro ./loop.macro --hotkey F7 --loop --repeat 3
+crossmacro shortcut add --name Browser --macro ./browser.macro --hotkey Ctrl+Alt+B --window-rule WindowClass Equals org.mozilla.firefox
 crossmacro shortcut edit <task-id> --repeat-delay-ms 250
 crossmacro shortcut edit <task-id> --random-repeat-delay 100 300
+crossmacro shortcut edit <task-id> --window-rule ProcessName Contains chromium
+crossmacro shortcut edit <task-id> --clear-window-rules
 crossmacro shortcut bind <task-id> Ctrl+Shift+M
 crossmacro shortcut remove <task-id>
 crossmacro shortcut enable <task-id>
@@ -393,6 +396,12 @@ crossmacro shortcut disable <task-id>
 - `--speed`, `--loop`, `--repeat`, `--repeat-delay-ms`,
   `--random-repeat-delay`, `--run-while-held`, and `--enabled` mirror the GUI
   shortcut playback/task options.
+- Repeat `--window-rule <field> <match-mode> <value>` to limit the hotkey to
+  focused windows. Supported fields are `WindowClass`, `WindowTitle`, and
+  `ProcessName`; match modes are `Equals`, `Contains`, and `Regex`.
+- Rules use OR semantics. An edit with `--window-rule` replaces the shortcut's
+  complete rule list; `--clear-window-rules` removes all rules and restores
+  global shortcut behavior. Explicit `shortcut run` ignores window rules.
 
 ## Trigger command
 

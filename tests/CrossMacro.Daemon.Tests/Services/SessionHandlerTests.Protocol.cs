@@ -111,10 +111,6 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
 
         writer.Write(byte.MaxValue);
-        writer.Write((byte)IpcOpCode.StartCapture);
-        writer.Write(1016);
-        writer.Write(value: true);
-        writer.Write(value: true);
         writer.Flush();
 
         await runTask.WaitAsync(TimeSpan.FromSeconds(2));

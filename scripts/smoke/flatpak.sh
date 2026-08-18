@@ -96,6 +96,11 @@ printf '%s\n' "$permissions" | grep -Fq '/run/crossmacro' && fail "portable pack
 if [ "$skip_cli" -eq 0 ]; then
   "$CLI_SMOKE" -- "${run_prefix[@]}"
 
+  if [ "${CROSSMACRO_FLATPAK_SHELL_SMOKE_TESTS:-0}" != "1" ]; then
+    echo "Flatpak smoke: nested shell isolation skipped; set CROSSMACRO_FLATPAK_SHELL_SMOKE_TESTS=1 in a desktop session to enable it."
+    exit 0
+  fi
+
   shell_output="$("${run_prefix[@]}" run --step 'shell capture "printf sandbox-ok" shell_code shell_out shell_err' --json 2>&1)" ||
     fail "nested sandbox shell execution failed" "$shell_output"
   printf '%s\n' "$shell_output" | grep -Fq '"shell_code": "0"' || fail "nested sandbox shell exit code mismatch" "$shell_output"

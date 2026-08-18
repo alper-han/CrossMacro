@@ -741,6 +741,21 @@
   <data name="Shortcut_Browse" xml:space="preserve">
     <value>Browse</value>
   </data>
+  <data name="Shortcut_WindowScope" xml:space="preserve">
+    <value>Only Active In</value>
+  </data>
+  <data name="Shortcut_WindowScopeHint" xml:space="preserve">
+    <value>Leave empty to run globally. When rules are added, the shortcut runs if any focused-window rule matches.</value>
+  </data>
+  <data name="Shortcut_AddWindowRule" xml:space="preserve">
+    <value>Add Window Rule</value>
+  </data>
+  <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
+    <value>Remove window rule</value>
+  </data>
+  <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
+    <value>Firefox, org.mozilla.firefox, or a regex</value>
+  </data>
   <data name="Shortcut_Status" xml:space="preserve">
     <value>STATUS</value>
   </data>

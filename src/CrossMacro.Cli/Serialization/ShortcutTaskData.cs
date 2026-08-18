@@ -15,6 +15,7 @@ public sealed record ShortcutTaskData(
     [property: JsonPropertyName("randomRepeatDelay")] bool RandomRepeatDelay,
     [property: JsonPropertyName("repeatDelayMinMs"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RepeatDelayMinMs,
     [property: JsonPropertyName("repeatDelayMaxMs"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RepeatDelayMaxMs,
+    [property: JsonPropertyName("windowRules")] IReadOnlyList<ShortcutWindowRule> WindowRules,
     [property: JsonPropertyName("lastTriggeredTime")] DateTime? LastTriggeredTime,
     [property: JsonPropertyName("lastStatus")] string? LastStatus
 );

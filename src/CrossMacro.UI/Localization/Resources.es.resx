@@ -738,6 +738,21 @@
   <data name="Shortcut_Browse" xml:space="preserve">
     <value>Navegar</value>
   </data>
+  <data name="Shortcut_WindowScope" xml:space="preserve">
+    <value>Activo solo en</value>
+  </data>
+  <data name="Shortcut_WindowScopeHint" xml:space="preserve">
+    <value>Déjelo vacío para ejecutarlo globalmente. Al agregar reglas, el acceso directo se ejecuta si alguna regla coincide con la ventana enfocada.</value>
+  </data>
+  <data name="Shortcut_AddWindowRule" xml:space="preserve">
+    <value>Agregar regla de ventana</value>
+  </data>
+  <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
+    <value>Eliminar regla de ventana</value>
+  </data>
+  <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
+    <value>Firefox, org.mozilla.firefox o una expresión regular</value>
+  </data>
   <data name="Shortcut_Status" xml:space="preserve">
     <value>ESTADO</value>
   </data>

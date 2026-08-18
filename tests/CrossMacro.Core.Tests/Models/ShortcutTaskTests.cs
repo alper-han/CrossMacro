@@ -36,4 +36,42 @@ public sealed class ShortcutTaskTests
         _ = task.RepeatDelayMaxMs.Should().Be(500);
     }
 
+    [Fact]
+    public void TrySetEnabled_RejectsInvalidWindowRules()
+    {
+        var task = new ShortcutTask
+        {
+            MacroFilePath = "macro.macro",
+            HotkeyString = "F8",
+        };
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Regex,
+            Value = "[",
+        });
+
+        _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
+        _ = task.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CanBeEnabled_RejectsInvalidWindowRuleEntries()
+    {
+        var task = new ShortcutTask
+        {
+            MacroFilePath = "macro.macro",
+            HotkeyString = "F8",
+        };
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.Workspace,
+            MatchMode = TriggerMatchMode.Equals,
+            Value = "1",
+        });
+
+        _ = task.CanBeEnabled.Should().BeFalse();
+        _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
+    }
+
 }

@@ -738,6 +738,21 @@
   <data name="Shortcut_Browse" xml:space="preserve">
     <value>Обзор</value>
   </data>
+  <data name="Shortcut_WindowScope" xml:space="preserve">
+    <value>Активен только в</value>
+  </data>
+  <data name="Shortcut_WindowScopeHint" xml:space="preserve">
+    <value>Оставьте пустым для глобального запуска. При добавлении правил сочетание клавиш срабатывает, если хотя бы одно правило соответствует окну в фокусе.</value>
+  </data>
+  <data name="Shortcut_AddWindowRule" xml:space="preserve">
+    <value>Добавить правило окна</value>
+  </data>
+  <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
+    <value>Удалить правило окна</value>
+  </data>
+  <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
+    <value>Firefox, org.mozilla.firefox или регулярное выражение</value>
+  </data>
   <data name="Shortcut_Status" xml:space="preserve">
     <value>СТАТУС</value>
   </data>

@@ -13,8 +13,8 @@ internal static class ShortcutCommandParser
                 "shortcut requires list, run, add, edit, remove, enable, disable, or bind.",
                 "crossmacro shortcut list [--json] [--log-level <level>]",
                 "crossmacro shortcut run <task-id> [--json] [--log-level <level>]",
-                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--enabled <bool>] [--json] [--log-level <level>]",
-                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--enabled <bool>] [--json] [--log-level <level>]",
+                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--window-rule <field> <match-mode> <value>] [--enabled <bool>] [--json] [--log-level <level>]",
+                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]",
                 "crossmacro shortcut remove|enable|disable <task-id> [--json] [--log-level <level>]",
                 "crossmacro shortcut bind <task-id> <hotkey> [--json] [--log-level <level>]");
         }
@@ -69,7 +69,12 @@ internal static class ShortcutCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "shortcut add requires --name <name>, --macro <path>, and --hotkey <keys>.",
                 state.JsonOutput,
-                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--enabled <bool>] [--json] [--log-level <level>]");
+                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--window-rule <field> <match-mode> <value>] [--enabled <bool>] [--json] [--log-level <level>]");
+        }
+
+        if (state.ClearWindowRules)
+        {
+            return CliParseHelpers.Error("--clear-window-rules is only valid for shortcut edit.", state.JsonOutput);
         }
 
         return CliParseResult.Success(state.ToOptions(ShortcutCliAction.Add));
@@ -88,7 +93,7 @@ internal static class ShortcutCommandParser
                 args,
                 2,
                 "shortcut edit requires <task-id>.",
-                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--enabled <bool>] [--json] [--log-level <level>]");
+                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]");
         }
 
         var state = new ShortcutParseState { TaskId = args[2] };
@@ -105,6 +110,11 @@ internal static class ShortcutCommandParser
             }
 
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unexpected argument for shortcut edit: {args[i]}", state.JsonOutput);
+        }
+
+        if (state.ClearWindowRules && state.WindowRules.Count > 0)
+        {
+            return CliParseHelpers.Error("--clear-window-rules cannot be combined with --window-rule.", state.JsonOutput);
         }
 
         return CliParseResult.Success(state.ToOptions(ShortcutCliAction.Edit));
@@ -267,6 +277,18 @@ internal static class ShortcutCommandParser
             return true;
         }
 
+        if (string.Equals(token, "--window-rule", StringComparison.OrdinalIgnoreCase))
+        {
+            return TryReadWindowRule(args, ref index, state, out result);
+        }
+
+        if (string.Equals(token, "--clear-window-rules", StringComparison.OrdinalIgnoreCase))
+        {
+            state.ClearWindowRules = true;
+            result = null;
+            return true;
+        }
+
         if (string.Equals(token, "--enabled", StringComparison.OrdinalIgnoreCase))
         {
             if (!CliParseHelpers.TryReadBool(args, ref index, out var enabled, out var error))
@@ -326,6 +348,42 @@ internal static class ShortcutCommandParser
         return true;
     }
 
+    private static bool TryReadWindowRule(string[] args, ref int index, ShortcutParseState state, out CliParseResult? result)
+    {
+        if (index + 3 >= args.Length)
+        {
+            result = CliParseHelpers.Error("--window-rule requires <field> <match-mode> <value>.", state.JsonOutput);
+            return true;
+        }
+
+        var fieldText = args[++index];
+        var matchModeText = args[++index];
+        var value = args[++index];
+        if (!Enum.TryParse<TriggerField>(fieldText, ignoreCase: true, out var field)
+            || field is not (TriggerField.WindowClass or TriggerField.WindowTitle or TriggerField.ProcessName))
+        {
+            result = CliParseHelpers.Error("--window-rule field must be WindowClass, WindowTitle, or ProcessName.", state.JsonOutput);
+            return true;
+        }
+
+        if (!Enum.TryParse<TriggerMatchMode>(matchModeText, ignoreCase: true, out var matchMode))
+        {
+            result = CliParseHelpers.Error("--window-rule match mode must be Equals, Contains, or Regex.", state.JsonOutput);
+            return true;
+        }
+
+        var rule = new ShortcutWindowRule { Field = field, MatchMode = matchMode, Value = value };
+        if (!rule.IsValid())
+        {
+            result = CliParseHelpers.Error("--window-rule is invalid.", state.JsonOutput);
+            return true;
+        }
+
+        state.WindowRules.Add(rule);
+        result = null;
+        return true;
+    }
+
     private sealed class ShortcutParseState
     {
         public bool JsonOutput;
@@ -342,26 +400,30 @@ internal static class ShortcutCommandParser
         public int? RepeatDelayMinMs;
         public int? RepeatDelayMaxMs;
         public bool RunWhileHeld;
+        public List<ShortcutWindowRule> WindowRules { get; } = [];
+        public bool ClearWindowRules;
         public bool? Enabled;
 
         public ShortcutCliOptions ToOptions(ShortcutCliAction action)
         {
             return new ShortcutCliOptions(
-                action,
-                TaskId,
-                Name,
-                MacroFilePath,
-                Hotkey,
-                Speed,
-                Loop,
-                RepeatCount,
-                RepeatDelayMs,
-                RepeatDelayMinMs,
-                RepeatDelayMaxMs,
-                RunWhileHeld,
-                Enabled,
-                JsonOutput,
-                LogLevel);
+                Action: action,
+                TaskId: TaskId,
+                Name: Name,
+                MacroFilePath: MacroFilePath,
+                Hotkey: Hotkey,
+                Speed: Speed,
+                Loop: Loop,
+                RepeatCount: RepeatCount,
+                RepeatDelayMs: RepeatDelayMs,
+                RepeatDelayMinMs: RepeatDelayMinMs,
+                RepeatDelayMaxMs: RepeatDelayMaxMs,
+                RunWhileHeld: RunWhileHeld,
+                Enabled: Enabled,
+                JsonOutput: JsonOutput,
+                LogLevel: LogLevel,
+                WindowRules: WindowRules.Count > 0 ? WindowRules : null,
+                ClearWindowRules: ClearWindowRules);
         }
     }
 }

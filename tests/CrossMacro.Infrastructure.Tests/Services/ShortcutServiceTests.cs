@@ -7,6 +7,7 @@ public sealed class ShortcutServiceTests : IDisposable
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly IMacroPlayer _player;
     private readonly IGlobalHotkeyService _hotkeyService;
+    private readonly IWindowManager _windowManager;
     private readonly ShortcutService _service;
     private readonly string _testRootDirectory;
     private readonly string _shortcutsFilePath;
@@ -25,8 +26,9 @@ public sealed class ShortcutServiceTests : IDisposable
         _player = Substitute.For<IMacroPlayer>();
         _playerFactory = () => _player;
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
+        _windowManager = Substitute.For<IWindowManager>();
 
-        _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, shortcutsFilePath: _shortcutsFilePath);
+        _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, shortcutsFilePath: _shortcutsFilePath, windowManager: _windowManager);
     }
 
     public void Dispose()
@@ -164,6 +166,129 @@ public sealed class ShortcutServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task HandleRawInputAsync_ExecutesScopedTask_WhenFocusedWindowMatchesAnyRule()
+    {
+        var task = CreateScopedTask("F5");
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Equals,
+            Value = "org.mozilla.firefox",
+        });
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowTitle,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "CrossMacro",
+        });
+        _service.AddTask(task);
+        _ = _windowManager.IsSupported.Returns(true);
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<WindowInfo?>(new WindowInfo
+        {
+            Class = "org.mozilla.firefox",
+            Title = "Mozilla Firefox",
+        }));
+        _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        {
+            Events = { new MacroEvent() },
+        }));
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        var executed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _service.ShortcutExecuted += (_, _) => _ = executed.TrySetResult();
+
+        await _service.HandleRawInputAsync(new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5"));
+        await executed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await _windowManager.Received(1).GetActiveWindowAsync(CancellationToken.None);
+        await _player.Received(1).PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleRawInputAsync_DoesNotExecuteScopedTask_WhenFocusedWindowDoesNotMatch()
+    {
+        var task = CreateScopedTask("F5");
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "firefox",
+        });
+        _service.AddTask(task);
+        _ = _windowManager.IsSupported.Returns(true);
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<WindowInfo?>(new WindowInfo
+        {
+            Class = "org.kde.konsole",
+        }));
+
+        await _service.HandleRawInputAsync(new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5"));
+
+        await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleRawInputAsync_WhenScopedAndGlobalTasksShareHotkey_PrefersScopedMatch()
+    {
+        var globalTask = CreateScopedTask("F5", "global.macro");
+        var scopedTask = CreateScopedTask("F5", "scoped.macro");
+        scopedTask.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.ProcessName,
+            MatchMode = TriggerMatchMode.Equals,
+            Value = "firefox",
+        });
+        _service.AddTask(globalTask);
+        _service.AddTask(scopedTask);
+        _ = _windowManager.IsSupported.Returns(true);
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<WindowInfo?>(new WindowInfo
+        {
+            ProcessName = "firefox",
+        }));
+        _ = _fileManager.LoadAsync(scopedTask.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        {
+            Events = { new MacroEvent() },
+        }));
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        var executed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _service.ShortcutExecuted += (_, _) => _ = executed.TrySetResult();
+
+        await _service.HandleRawInputAsync(new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5"));
+        await executed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await _fileManager.Received(1).LoadAsync(scopedTask.MacroFilePath);
+        await _fileManager.DidNotReceive().LoadAsync(globalTask.MacroFilePath);
+    }
+
+    [Fact]
+    public async Task HandleRawInputAsync_WhenActiveWindowLookupIsUnavailable_UsesGlobalFallback()
+    {
+        var globalTask = CreateScopedTask("F5", "global.macro");
+        var scopedTask = CreateScopedTask("F5", "scoped.macro");
+        scopedTask.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Equals,
+            Value = "org.mozilla.firefox",
+        });
+        _service.AddTask(globalTask);
+        _service.AddTask(scopedTask);
+        _ = _windowManager.IsSupported.Returns(false);
+        _ = _fileManager.LoadAsync(globalTask.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        {
+            Events = { new MacroEvent() },
+        }));
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        var executed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _service.ShortcutExecuted += (_, _) => _ = executed.TrySetResult();
+
+        await _service.HandleRawInputAsync(new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5"));
+        await executed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await _windowManager.DidNotReceive().GetActiveWindowAsync(Arg.Any<CancellationToken>());
+        await _fileManager.Received(1).LoadAsync(globalTask.MacroFilePath);
+        await _fileManager.DidNotReceive().LoadAsync(scopedTask.MacroFilePath);
+    }
+
+    [Fact]
     public async Task OnRawKeyReleased_RunWhileHeldHotkey_DoesNotThrowAndStopsPlayer()
     {
         // Arrange
@@ -221,6 +346,126 @@ public sealed class ShortcutServiceTests : IDisposable
             {
                 File.Delete(tempFile);
             }
+        }
+    }
+
+    [Fact]
+    public async Task HandleRawInputAsync_WhenHeldScopedHotkeyIsReleasedDuringWindowLookup_DoesNotStartPlayback()
+    {
+        var task = new ShortcutTask
+        {
+            Name = "Held Browser Macro",
+            HotkeyString = "Ctrl+F5",
+            RunWhileHeld = true,
+            MacroFilePath = Path.GetTempFileName(),
+        };
+        task.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Equals,
+            Value = "org.mozilla.firefox",
+        });
+        task.IsEnabled = true;
+        _service.AddTask(task);
+        var windowLookup = new TaskCompletionSource<WindowInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var loadCalls = 0;
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(windowLookup.Task);
+        _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(_ =>
+        {
+            loadCalls++;
+            return Task.FromResult<MacroSequence?>(new MacroSequence { Events = { new MacroEvent() } });
+        });
+
+        try
+        {
+            _service.Start();
+            var inputTask = _service.HandleRawInputAsync(
+                new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, "Ctrl+F5"));
+
+            _hotkeyService.RawKeyReleased += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
+                this,
+                new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, string.Empty));
+            _ = windowLookup.TrySetResult(new WindowInfo { Class = "org.mozilla.firefox" });
+
+            await inputTask;
+
+            _ = loadCalls.Should().Be(0);
+        }
+        finally
+        {
+            File.Delete(task.MacroFilePath);
+        }
+    }
+
+    [Fact]
+    public async Task HandleRawInputAsync_WhenHeldHotkeyIsReleasedDuringMacroLoad_DoesNotStartPlayback()
+    {
+        var task = new ShortcutTask
+        {
+            Name = "Held Macro",
+            HotkeyString = "Ctrl+F5",
+            RunWhileHeld = true,
+            MacroFilePath = Path.GetTempFileName(),
+            IsEnabled = true,
+        };
+        _service.AddTask(task);
+        var macroLoad = new TaskCompletionSource<MacroSequence?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(macroLoad.Task);
+
+        try
+        {
+            _service.Start();
+            await _service.HandleRawInputAsync(new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, "Ctrl+F5"));
+
+            _hotkeyService.RawKeyReleased += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
+                this,
+                new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, string.Empty));
+            _ = macroLoad.TrySetResult(new MacroSequence { Events = { new MacroEvent() } });
+
+            await Task.Delay(100);
+
+            await _player.DidNotReceive().PlayAsync(
+                Arg.Any<MacroSequence>(),
+                Arg.Any<PlaybackOptions>(),
+                Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            File.Delete(task.MacroFilePath);
+        }
+    }
+
+    [Fact]
+    public async Task RunTaskAsync_WhenRunWhileHeld_ExecutesWithoutAnActiveHotkey()
+    {
+        var task = new ShortcutTask
+        {
+            Name = "Manual Held Macro",
+            HotkeyString = "Ctrl+F5",
+            RunWhileHeld = true,
+            MacroFilePath = Path.GetTempFileName(),
+            IsEnabled = true,
+        };
+        _service.AddTask(task);
+        _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        {
+            Events = { new MacroEvent() },
+        }));
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        try
+        {
+            await _service.RunTaskAsync(task.Id);
+
+            await _player.Received(1).PlayAsync(
+                Arg.Any<MacroSequence>(),
+                Arg.Is<PlaybackOptions>(options => options.Loop && options.RepeatCount == 0),
+                Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            File.Delete(task.MacroFilePath);
         }
     }
 
@@ -295,6 +540,12 @@ public sealed class ShortcutServiceTests : IDisposable
             LastStatus = "Success",
             LastTriggeredTime = new DateTime(2026, 4, 27, 10, 30, 0, DateTimeKind.Utc),
         };
+        persistedTask.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "firefox",
+        });
 
         _service.AddTask(persistedTask);
 
@@ -325,6 +576,8 @@ public sealed class ShortcutServiceTests : IDisposable
             _ = loadedTask.CanBeEnabled.Should().BeTrue();
             _ = loadedTask.RepeatCount.Should().Be(4);
             _ = loadedTask.RepeatDelayMs.Should().Be(125);
+            _ = loadedTask.WindowRules.Should().ContainSingle()
+                .Which.Should().BeEquivalentTo(persistedTask.WindowRules.Single());
             _ = loadedTask.LastStatus.Should().Be("Success");
             _ = loadedTask.LastTriggeredTime.Should().Be(new DateTime(2026, 4, 27, 10, 30, 0, DateTimeKind.Utc));
         }
@@ -363,5 +616,19 @@ public sealed class ShortcutServiceTests : IDisposable
         _ = loadedTask.LoopEnabled.Should().BeFalse();
         _ = loadedTask.IsLoopEnabled.Should().BeTrue();
         _ = loadedTask.RepeatDelayMs.Should().Be(42);
+    }
+
+    private ShortcutTask CreateScopedTask(string hotkey, string macroFileName = "test.macro")
+    {
+        var filePath = Path.Combine(_testRootDirectory, macroFileName);
+        File.WriteAllText(filePath, "macro");
+
+        return new ShortcutTask
+        {
+            Name = "Scoped task",
+            HotkeyString = hotkey,
+            MacroFilePath = filePath,
+            IsEnabled = true,
+        };
     }
 }

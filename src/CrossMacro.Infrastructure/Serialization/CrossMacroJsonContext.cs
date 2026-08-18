@@ -16,6 +16,8 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(List<ScheduledTask>))]
 [JsonSerializable(typeof(ShortcutTask))]
 [JsonSerializable(typeof(List<ShortcutTask>))]
+[JsonSerializable(typeof(ShortcutWindowRule))]
+[JsonSerializable(typeof(List<ShortcutWindowRule>))]
 [JsonSerializable(typeof(TriggerTask))]
 [JsonSerializable(typeof(List<TriggerTask>))]
 [JsonSerializable(typeof(GlobalSettings))]

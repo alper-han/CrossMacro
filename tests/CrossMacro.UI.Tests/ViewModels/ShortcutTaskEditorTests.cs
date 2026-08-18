@@ -30,6 +30,34 @@ public sealed class ShortcutTaskEditorTests
     }
 
     [Fact]
+    public void WindowRules_RoundTripAndInvalidRuleDisablesTheShortcut()
+    {
+        var source = new ShortcutTask
+        {
+            MacroFilePath = "macro",
+            HotkeyString = "F9",
+            IsEnabled = true,
+        };
+        source.WindowRules.Add(new ShortcutWindowRule
+        {
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Contains,
+            Value = "firefox",
+        });
+        var editor = new ShortcutTaskEditor();
+        editor.Load(source);
+
+        var saved = editor.ToCore();
+        _ = saved.WindowRules.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(source.WindowRules.Single());
+
+        editor.AddWindowRule();
+
+        _ = editor.IsEnabled.Should().BeFalse();
+        _ = editor.CanBeEnabled.Should().BeFalse();
+    }
+
+    [Fact]
     public void Rollback_RestoresBufferedShortcutChanges()
     {
         var source = new ShortcutTask

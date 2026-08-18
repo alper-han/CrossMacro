@@ -164,6 +164,78 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenShortcutAddHasWindowRules_ReturnsRules()
+    {
+        var result = CliCommandRouterAccessor.Parse([
+            "shortcut", "add",
+            "--name", "Browser Macro",
+            "--macro", "/tmp/demo.macro",
+            "--hotkey", "Ctrl+Alt+D",
+            "--window-rule", "WindowClass", "Equals", "org.mozilla.firefox",
+            "--window-rule", "ProcessName", "Contains", "chrom",
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
+        Assert.NotNull(options.WindowRules);
+        Assert.Collection(
+            options.WindowRules,
+            rule =>
+            {
+                Assert.Equal(TriggerField.WindowClass, rule.Field);
+                Assert.Equal(TriggerMatchMode.Equals, rule.MatchMode);
+                Assert.Equal("org.mozilla.firefox", rule.Value);
+            },
+            rule =>
+            {
+                Assert.Equal(TriggerField.ProcessName, rule.Field);
+                Assert.Equal(TriggerMatchMode.Contains, rule.MatchMode);
+                Assert.Equal("chrom", rule.Value);
+            });
+    }
+
+    [Fact]
+    public void Parse_WhenShortcutEditClearsWindowRules_ReturnsOptions()
+    {
+        const string id = "22222222-2222-2222-2222-222222222222";
+        var result = CliCommandRouterAccessor.Parse(["shortcut", "edit", id, "--clear-window-rules"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
+        Assert.True(options.ClearWindowRules);
+        Assert.Null(options.WindowRules);
+    }
+
+    [Fact]
+    public void Parse_WhenShortcutEditClearsAndSetsWindowRules_ReturnsError()
+    {
+        const string id = "22222222-2222-2222-2222-222222222222";
+        var result = CliCommandRouterAccessor.Parse([
+            "shortcut", "edit", id,
+            "--clear-window-rules",
+            "--window-rule", "WindowClass", "Equals", "org.mozilla.firefox",
+        ]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("--clear-window-rules cannot be combined with --window-rule.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Parse_WhenShortcutWindowRuleHasUnsupportedField_ReturnsError()
+    {
+        var result = CliCommandRouterAccessor.Parse([
+            "shortcut", "add",
+            "--name", "Browser Macro",
+            "--macro", "/tmp/demo.macro",
+            "--hotkey", "Ctrl+Alt+D",
+            "--window-rule", "Workspace", "Equals", "1",
+        ]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("--window-rule field must be WindowClass, WindowTitle, or ProcessName.", result.ErrorMessage);
+    }
+
+    [Fact]
     public void Parse_WhenShortcutBind_ReturnsOptions()
     {
         const string id = "22222222-2222-2222-2222-222222222222";

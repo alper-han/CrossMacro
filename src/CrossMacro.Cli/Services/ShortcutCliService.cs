@@ -26,6 +26,7 @@ public sealed class ShortcutCliService(IManageShortcut manageShortcut) : IShortc
                 x.UseRandomRepeatDelay,
                 x.UseRandomRepeatDelay ? x.RepeatDelayMinMs : null,
                 x.UseRandomRepeatDelay ? x.RepeatDelayMaxMs : null,
+                x.WindowRules.ToArray(),
                 x.LastTriggeredTime,
                 x.LastStatus
             ),
@@ -82,7 +83,7 @@ public sealed class ShortcutCliService(IManageShortcut manageShortcut) : IShortc
 
         if (options.Enabled is not null)
         {
-            task.IsEnabled = options.Enabled.Value;
+            _ = task.TrySetEnabled(options.Enabled.Value);
         }
 
         _ = await _manageShortcut.AddAsync(task, cancellationToken).ConfigureAwait(false);
@@ -116,7 +117,7 @@ public sealed class ShortcutCliService(IManageShortcut manageShortcut) : IShortc
         ApplyOptions(task, options);
         if (options.Enabled is not null)
         {
-            task.IsEnabled = options.Enabled.Value;
+            _ = task.TrySetEnabled(options.Enabled.Value);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -152,7 +153,7 @@ public sealed class ShortcutCliService(IManageShortcut manageShortcut) : IShortc
             return CliCommandExecutionResult.Fail(
                 CliExitCode.InvalidArguments,
                 "Shortcut task cannot be enabled.",
-                ["Shortcut task requires a macro path and hotkey before it can be enabled."]);
+                ["Shortcut task requires a macro path, hotkey, and valid window rules before it can be enabled."]);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -221,6 +222,25 @@ public sealed class ShortcutCliService(IManageShortcut manageShortcut) : IShortc
         {
             task.RunWhileHeld = true;
         }
+
+        if (options.ClearWindowRules)
+        {
+            task.WindowRules.Clear();
+        }
+
+        if (options.WindowRules is not null)
+        {
+            task.WindowRules.Clear();
+            foreach (var rule in options.WindowRules.Where(rule => rule is not null))
+            {
+                task.WindowRules.Add(new ShortcutWindowRule
+                {
+                    Field = rule.Field,
+                    MatchMode = rule.MatchMode,
+                    Value = rule.Value,
+                });
+            }
+        }
     }
 
     private static ShortcutTaskData MapTask(ShortcutTask task)
@@ -239,6 +259,7 @@ public sealed class ShortcutCliService(IManageShortcut manageShortcut) : IShortc
             task.UseRandomRepeatDelay,
             task.UseRandomRepeatDelay ? task.RepeatDelayMinMs : null,
             task.UseRandomRepeatDelay ? task.RepeatDelayMaxMs : null,
+            task.WindowRules.ToArray(),
             task.LastTriggeredTime,
             task.LastStatus);
     }

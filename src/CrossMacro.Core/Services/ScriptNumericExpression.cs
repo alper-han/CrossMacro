@@ -106,7 +106,6 @@ public sealed record ScriptNumericExpression(
         ArgumentNullException.ThrowIfNull(variables);
 
         value = 0;
-        error = null;
 
         if (!TryResolveOperand(expression.LeftSource, expression.LeftValue, variables, out var left, out error))
         {

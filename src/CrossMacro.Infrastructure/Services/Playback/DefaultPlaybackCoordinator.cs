@@ -7,7 +7,7 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// </summary>
 public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider = null) : IPlaybackCoordinator
 {
-    private static readonly TimeSpan CornerPositionSettleTimeout = TimeSpan.FromMilliseconds(64);
+    private static readonly TimeSpan CornerPositionSettleTimeout = TimeSpan.FromMilliseconds(250);
     private const int CornerPositionTolerance = 1;
     private static readonly TimeSpan RawMovementPositionRefreshInterval = TimeSpan.FromMilliseconds(4);
     private const int RawMovementPositionRefreshAttempts = 5;
@@ -233,7 +233,11 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             return;
         }
 
-        if (result.LastObservedPosition is { } observedPosition)
+        if (expectedPosition is not null || _desktopBounds is not null)
+        {
+            UpdateUnobservedCornerPosition(expectedPosition);
+        }
+        else if (result.LastObservedPosition is { } observedPosition)
         {
             Log.Warning(
                 "[PlaybackCoordinator] Corner reset settled at ({X}, {Y}) instead of the requested desktop origin",

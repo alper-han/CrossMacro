@@ -442,6 +442,39 @@ public sealed class DefaultPlaybackCoordinatorTests
     }
 
     [Fact]
+    public async Task InitializeAsync_RelativeCornerReset_UsesDesktopOriginWhenProviderRemainsStale()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((640, 480)));
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider);
+        coordinator.ConfigureDesktopBounds(new ScreenRect(-1920, -200, 4480, 1640));
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = false,
+            Events =
+            {
+                new MacroEvent
+                {
+                    Type = EventType.MouseMove,
+                    X = 10,
+                    Y = 5,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+                },
+            },
+        };
+
+        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, CancellationToken.None);
+
+        _ = coordinator.CurrentX.Should().Be(-1920);
+        _ = coordinator.CurrentY.Should().Be(-200);
+        _ = coordinator.HasKnownPosition.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task InitializeAsync_RelativeCornerReset_DoesNotAcceptUnvalidatedFirstPosition()
     {
         var simulator = Substitute.For<IInputSimulator>();

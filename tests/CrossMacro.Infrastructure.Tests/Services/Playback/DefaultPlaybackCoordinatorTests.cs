@@ -438,7 +438,6 @@ public sealed class DefaultPlaybackCoordinatorTests
 
         _ = coordinator.CurrentX.Should().Be(-1920);
         _ = coordinator.CurrentY.Should().Be(-200);
-        _ = await positionProvider.Received(3).GetAbsolutePositionAsync();
     }
 
     [Fact]

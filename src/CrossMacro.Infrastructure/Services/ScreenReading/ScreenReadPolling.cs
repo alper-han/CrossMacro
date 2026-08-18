@@ -5,21 +5,21 @@ internal static class ScreenReadPolling
     private const int StableCenterTolerance = 2;
     private const int StableSizeTolerance = 1;
 
-    public static DateTimeOffset GetDeadline(TimeSpan timeout) =>
-        TimeProvider.System.GetUtcNow() + timeout;
+    public static DateTimeOffset GetDeadline(TimeSpan timeout, TimeProvider? timeProvider = null) =>
+        (timeProvider ?? TimeProvider.System).GetUtcNow() + timeout;
 
-    public static TimeSpan GetRemaining(DateTimeOffset deadline)
+    public static TimeSpan GetRemaining(DateTimeOffset deadline, TimeProvider? timeProvider = null)
     {
-        var remaining = deadline - TimeProvider.System.GetUtcNow();
+        var remaining = deadline - (timeProvider ?? TimeProvider.System).GetUtcNow();
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
-    public static bool HasExpired(DateTimeOffset deadline) =>
-        TimeProvider.System.GetUtcNow() >= deadline;
+    public static bool HasExpired(DateTimeOffset deadline, TimeProvider? timeProvider = null) =>
+        (timeProvider ?? TimeProvider.System).GetUtcNow() >= deadline;
 
-    public static TimeSpan GetDelay(DateTimeOffset deadline, TimeSpan pollInterval)
+    public static TimeSpan GetDelay(DateTimeOffset deadline, TimeSpan pollInterval, TimeProvider? timeProvider = null)
     {
-        var remaining = GetRemaining(deadline);
+        var remaining = GetRemaining(deadline, timeProvider);
         return remaining < pollInterval ? remaining : pollInterval;
     }
 
@@ -29,7 +29,8 @@ internal static class ScreenReadPolling
         TimeSpan pollInterval,
         string canceledMessage,
         Func<ScreenReadResult<T>>? timeoutFailure,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(searchOnceAsync);
         ArgumentException.ThrowIfNullOrWhiteSpace(canceledMessage);
@@ -41,6 +42,7 @@ internal static class ScreenReadPolling
             consistency: null,
             timeoutFailure: timeoutFailure,
             incompleteMatchFailure: null,
+            timeProvider: timeProvider ?? TimeProvider.System,
             cancellationToken: cancellationToken);
     }
 
@@ -48,7 +50,8 @@ internal static class ScreenReadPolling
         Func<TimeSpan, CancellationToken, Task<ScreenReadResult<ScreenImageMatch>>> searchOnceAsync,
         TimeSpan timeout,
         TimeSpan pollInterval,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(searchOnceAsync);
         return await PollCoreAsync(
@@ -61,6 +64,7 @@ internal static class ScreenReadPolling
             incompleteMatchFailure: static () => ScreenReadResultFactory.Failure<ScreenImageMatch>(
                 ScreenReadErrorKind.CaptureTimeout,
                 "Image was found in only one frame before the polling deadline."),
+            timeProvider: timeProvider ?? TimeProvider.System,
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -72,9 +76,10 @@ internal static class ScreenReadPolling
         Func<T, T, bool>? consistency,
         Func<ScreenReadResult<T>>? timeoutFailure,
         Func<ScreenReadResult<T>>? incompleteMatchFailure,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var deadline = GetDeadline(timeout);
+        var deadline = GetDeadline(timeout, timeProvider);
         var hasPrevious = false;
         T? previous = default;
         ScreenReadResult<T>? lastFailure = null;
@@ -84,7 +89,7 @@ internal static class ScreenReadPolling
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var result = await searchOnceAsync(GetRemaining(deadline), cancellationToken).ConfigureAwait(false);
+                var result = await searchOnceAsync(GetRemaining(deadline, timeProvider), cancellationToken).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
                     if (consistency is null
@@ -108,7 +113,7 @@ internal static class ScreenReadPolling
                     lastFailure = result;
                 }
 
-                if (HasExpired(deadline))
+                if (HasExpired(deadline, timeProvider))
                 {
                     if (hasPrevious && incompleteMatchFailure is not null)
                     {
@@ -122,7 +127,7 @@ internal static class ScreenReadPolling
                             "Screen read polling timed out.");
                 }
 
-                await Task.Delay(GetDelay(deadline, pollInterval), TimeProvider.System, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(GetDelay(deadline, pollInterval, timeProvider), timeProvider, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

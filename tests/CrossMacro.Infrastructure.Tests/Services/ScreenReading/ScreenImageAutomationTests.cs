@@ -211,6 +211,7 @@ public sealed class ScreenImageAutomationTests
         var resolver = Substitute.For<IImageClickMovementResolver>();
         _ = resolver.ResolveAsync(simulator, new ScreenPoint(43, 53), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ImageClickMovementResolution.Absolute(new ScreenPoint(43, 53))));
+        var timeProvider = new FakeTimeProvider();
 
         var automation = new ScreenImageAutomation(
             reader,
@@ -218,14 +219,22 @@ public sealed class ScreenImageAutomationTests
             positionProvider,
             () => simulator,
             simulatorPool: null,
-            resolver);
+            resolver,
+            timeProvider);
 
-        var result = await automation.ClickAsync(
+        var clickTask = automation.ClickAsync(
             new ScreenImageAutomationRequest(
                 "button.png",
                 Timeout: TimeSpan.FromSeconds(1)),
             MouseButtonCode.Left,
             CancellationToken.None);
+        for (var poll = 0; !clickTask.IsCompleted && poll < 4; poll++)
+        {
+            timeProvider.Advance(ScreenReadOptions.DefaultPollInterval);
+            await Task.Yield();
+        }
+
+        var result = await clickTask;
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = result.Point.Should().Be(new ScreenPoint(43, 53));

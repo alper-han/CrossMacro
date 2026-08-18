@@ -610,7 +610,8 @@ internal sealed class RunScriptScreenReadExecutor(
                     token)),
             timeout,
             ScreenReadOptions.DefaultPollInterval,
-            cancellationToken);
+            cancellationToken,
+            TimeProvider.System);
     }
 
     private static void EnsureSuccess<T>(int stepNumber, string command, ScreenReadResult<T> result)

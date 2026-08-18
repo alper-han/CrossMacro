@@ -20,6 +20,7 @@ global using CrossMacro.Platform.Abstractions.Recording.Strategies;
 global using CrossMacro.TestInfrastructure;
 global using FluentAssertions;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Time.Testing;
 global using NSubstitute;
 global using Serilog;
 global using Serilog.Core;

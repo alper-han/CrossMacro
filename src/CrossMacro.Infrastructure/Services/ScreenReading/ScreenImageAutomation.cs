@@ -7,7 +7,8 @@ public sealed class ScreenImageAutomation(
     IMousePositionProvider? mousePositionProvider,
     Func<IInputSimulator>? inputSimulatorFactory,
     IInputSimulatorPool? simulatorPool,
-    IImageClickMovementResolver movementResolver) : IScreenImageAutomation
+    IImageClickMovementResolver movementResolver,
+    TimeProvider? timeProvider = null) : IScreenImageAutomation
 {
     private readonly IScreenPixelReader _screenPixelReader = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? throw new ArgumentNullException(nameof(imageAssetCodec));
@@ -15,6 +16,7 @@ public sealed class ScreenImageAutomation(
     private readonly Func<IInputSimulator>? _inputSimulatorFactory = inputSimulatorFactory;
     private readonly IInputSimulatorPool? _simulatorPool = simulatorPool;
     private readonly IImageClickMovementResolver _movementResolver = movementResolver ?? throw new ArgumentNullException(nameof(movementResolver));
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public string ProviderName => _screenPixelReader.ProviderName;
 
@@ -248,7 +250,7 @@ public sealed class ScreenImageAutomation(
                 cancellationToken)).ConfigureAwait(false);
     }
 
-    private static Task<ScreenReadResult<ScreenImageMatch>> SearchUntilConsistentAsync(
+    private Task<ScreenReadResult<ScreenImageMatch>> SearchUntilConsistentAsync(
         ImageSearchSetup setup,
         TimeSpan timeout,
         CancellationToken cancellationToken)
@@ -257,7 +259,8 @@ public sealed class ScreenImageAutomation(
             (remaining, token) => SearchOnceAsync(setup, remaining, token),
             timeout,
             ScreenReadOptions.DefaultPollInterval,
-            cancellationToken);
+            cancellationToken,
+            _timeProvider);
     }
 
     private static ScreenImageAutomationResult ToResult(ScreenReadResult<ScreenImageMatch> result) =>

@@ -286,10 +286,17 @@ jobs:
     - name: Prepare AUR package files
       run: |
         set -euo pipefail
+        source_revision="${GITHUB_SHA}"
+        pkgver="$(
+          (
+            set -o pipefail
+            git describe --long --tags --abbrev=7 "$source_revision" 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+          ) || printf 'r%s.%s' "$(git rev-list --count "$source_revision")" "$(git rev-parse --short=7 "$source_revision")"
+        )"
         mkdir aur-package
         sed \
-          -e "s/@PKGVER@/0/g" \
-          -e "s/@SOURCE_COMMIT@/${GITHUB_SHA}/g" \
+          -e "s/@PKGVER@/$pkgver/g" \
+          -e "s/@SOURCE_COMMIT@/$source_revision/g" \
           scripts/packaging/arch/PKGBUILD-git.in > aur-package/PKGBUILD
         cp scripts/packaging/arch/crossmacro.install aur-package/
         cp scripts/packaging/arch/crossmacro.sysusers aur-package/

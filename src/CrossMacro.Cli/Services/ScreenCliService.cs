@@ -184,7 +184,6 @@ public sealed class ScreenCliService(
 
     private static ScreenImageAutomationRequest? CreateImageRequest(ScreenCliOptions options, out CliCommandExecutionResult? error)
     {
-        error = null;
         if (!TryCreateRegion(options, out var region, out error))
         {
             return null;

@@ -160,7 +160,6 @@ internal static class RunScriptScreenReadingStepParser
 
     private static bool TryValidateWaitColorStep(string[] parts, out string? error)
     {
-        error = null;
         if (parts.Length < 4)
         {
             error = "Invalid waitcolor syntax. Expected: waitcolor <x> <y> <color> [timeout_ms] [result_var].";
@@ -211,7 +210,6 @@ internal static class RunScriptScreenReadingStepParser
 
     private static bool TryValidatePixelSearchStep(string[] parts, out string? error)
     {
-        error = null;
         if (parts.Length < 6)
         {
             error = "Invalid pixelsearch syntax. Expected: pixelsearch <x1> <y1> <x2> <y2> <color> [found_var var_x var_y|var_x var_y] [timeout <milliseconds>=0+] [tolerance <0..255>].";
@@ -419,7 +417,6 @@ internal static class RunScriptScreenReadingStepParser
 
     private static bool TryValidateImageClickStep(string[] parts, out string? error)
     {
-        error = null;
         if (!TryValidateImageCommandPrefix(parts, RunScriptSyntax.ImageClickCommand, out var imageNameIndex, out error))
         {
             return true;
@@ -485,7 +482,6 @@ internal static class RunScriptScreenReadingStepParser
 
     private static bool TryValidateWaitImageStep(string[] parts, out string? error)
     {
-        error = null;
         if (!TryValidateImageCommandPrefix(parts, RunScriptSyntax.WaitImageCommand, out var imageNameIndex, out error))
         {
             return true;

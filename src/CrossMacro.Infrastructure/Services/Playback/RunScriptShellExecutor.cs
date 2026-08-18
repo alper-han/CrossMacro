@@ -145,7 +145,6 @@ internal sealed class RunScriptShellExecutor(
     private static bool TryParse(string step, out ShellCommandOptions? options, out string error)
     {
         options = null;
-        error = string.Empty;
         if (!RunScriptSyntax.IsShellStep(step))
         {
             error = SyntaxText();
@@ -329,7 +328,6 @@ internal sealed class RunScriptShellExecutor(
     {
         targets = null;
         optionTokens = [];
-        error = string.Empty;
         var tokens = SplitTokens(payload);
         if (tokens.Length < 3)
         {

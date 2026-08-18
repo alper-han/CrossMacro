@@ -1,34 +1,21 @@
-using System;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Threading;
-using CrossMacro.Infrastructure.Linux.Native;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services;
 
-internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessProbe
+internal sealed partial class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessProbe
 {
-    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(1);
-
     private readonly Func<string, LinuxDaemonSocketMetadata> _getSocketMetadata;
-    private readonly Func<string, LinuxDaemonGroupDefinition?> _getGroupDefinition;
+    private readonly Func<string, CancellationToken, ValueTask<LinuxDaemonGroupDefinition?>> _getGroupDefinition;
     private readonly Func<LinuxDaemonCurrentUserGroups> _getCurrentUserGroups;
-    private readonly Func<string, LinuxDaemonSocketAccessStatus> _probeSocketAccess;
+    private readonly Func<string, CancellationToken, ValueTask<(LinuxDaemonSocketAccessStatus Status, string? Message, Exception? Exception)>> _probeSocketAccess;
 
     public LinuxDaemonSocketAccessProbe()
-        : this(GetSocketMetadata, GetGroupDefinition, GetCurrentUserGroups, ProbeSocketAccess)
-    {
-    }
+        : this(GetSocketMetadata, GetGroupDefinitionAsync, GetCurrentUserGroups, ProbeSocketStatusAsync) { /* Empty */ }
 
     internal LinuxDaemonSocketAccessProbe(
         Func<string, LinuxDaemonSocketMetadata> getSocketMetadata,
-        Func<string, LinuxDaemonGroupDefinition?> getGroupDefinition,
+        Func<string, CancellationToken, ValueTask<LinuxDaemonGroupDefinition?>> getGroupDefinition,
         Func<LinuxDaemonCurrentUserGroups> getCurrentUserGroups,
-        Func<string, LinuxDaemonSocketAccessStatus> probeSocketAccess)
+        Func<string, CancellationToken, ValueTask<(LinuxDaemonSocketAccessStatus Status, string? Message, Exception? Exception)>> probeSocketAccess)
     {
         _getSocketMetadata = getSocketMetadata ?? throw new ArgumentNullException(nameof(getSocketMetadata));
         _getGroupDefinition = getGroupDefinition ?? throw new ArgumentNullException(nameof(getGroupDefinition));
@@ -36,22 +23,77 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
         _probeSocketAccess = probeSocketAccess ?? throw new ArgumentNullException(nameof(probeSocketAccess));
     }
 
-    public LinuxDaemonSocketAccessResult Probe(LinuxDaemonSocketProbeOptions options)
+    public async ValueTask<LinuxDaemonSocketAccessResult> ProbeAsync(LinuxDaemonSocketProbeOptions options, CancellationToken cancellationToken = default)
     {
-        return LinuxInputProbeUtilities.ProbeDaemonSocketAccess(
-            options,
-            _getSocketMetadata,
-            _getGroupDefinition,
-            _getCurrentUserGroups,
-            _probeSocketAccess);
+        try
+        {
+            var metadata = _getSocketMetadata(options.SocketPath);
+            if (metadata.EntryKind is LinuxFileSystemEntryKind.Missing)
+            {
+                return LinuxDaemonSocketAccessResult.Missing(options.SocketPath);
+            }
+
+            if (metadata.EntryKind is not LinuxFileSystemEntryKind.Socket)
+            {
+                return new LinuxDaemonSocketAccessResult(
+                    options.SocketPath,
+                    LinuxDaemonSocketAccessStatus.WrongType,
+                    Metadata: metadata);
+            }
+
+            var membership = await ResolveDaemonGroupMembershipAsync(options.RequiredGroupName, cancellationToken).ConfigureAwait(false);
+
+            LinuxDaemonSocketAccessStatus status;
+            string? message;
+            Exception? exception;
+            try
+            {
+                (status, message, exception) = await _probeSocketAccess(options.SocketPath, cancellationToken).ConfigureAwait(false);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                status = LinuxDaemonSocketAccessStatus.PermissionDenied;
+                message = ex.Message;
+                exception = ex;
+            }
+
+            return new LinuxDaemonSocketAccessResult(
+                options.SocketPath,
+                status,
+                membership.Status,
+                metadata,
+                membership,
+                message,
+                exception);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return new LinuxDaemonSocketAccessResult(
+                options.SocketPath,
+                LinuxDaemonSocketAccessStatus.PermissionDenied,
+                Exception: ex,
+                Message: ex.Message);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return new LinuxDaemonSocketAccessResult(
+                options.SocketPath,
+                LinuxDaemonSocketAccessStatus.UnexpectedError,
+                Exception: ex,
+                Message: ex.Message);
+        }
     }
 
     private static LinuxDaemonSocketMetadata GetSocketMetadata(string path)
     {
-        if (lstat(path, out var stat) != 0)
+        if (lstat(path, out var stat) is not 0)
         {
             var errno = Marshal.GetLastPInvokeError();
-            if (errno == ErrNo.ENOENT || errno == ErrNo.ENOTDIR)
+            if (errno is ErrNo.ENOENT or ErrNo.ENOTDIR)
             {
                 return new LinuxDaemonSocketMetadata(path, LinuxFileSystemEntryKind.Missing);
             }
@@ -67,9 +109,9 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
             Permissions: (UnixFileMode)(stat.Mode & FilePermissionMask));
     }
 
-    private static LinuxDaemonGroupDefinition? GetGroupDefinition(string groupName)
+    private static async ValueTask<LinuxDaemonGroupDefinition?> GetGroupDefinitionAsync(string groupName, CancellationToken cancellationToken)
     {
-        foreach (var line in File.ReadLines(LinuxSystemPaths.GroupFile))
+        await foreach (var line in File.ReadLinesAsync(LinuxSystemPaths.GroupFile, cancellationToken).ConfigureAwait(false))
         {
             if (string.IsNullOrWhiteSpace(line) || line[0] == '#')
             {
@@ -89,7 +131,7 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
 
             var members = parts[3]
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(member => member.Length > 0)
+                .Where(static member => member.Length > 0)
                 .ToArray();
 
             return new LinuxDaemonGroupDefinition(parts[0], gid, members);
@@ -100,7 +142,7 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
 
     private static LinuxDaemonCurrentUserGroups GetCurrentUserGroups()
     {
-        var groupCount = getgroups(0, null);
+        var groupCount = getgroups(0, groups: null);
         if (groupCount < 0)
         {
             ThrowForErrno(Marshal.GetLastPInvokeError(), "getgroups");
@@ -119,40 +161,100 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
             supplementaryGroups);
     }
 
-    private static LinuxDaemonSocketAccessStatus ProbeSocketAccess(string socketPath)
+    private static async ValueTask<(LinuxDaemonSocketAccessStatus Status, string? Message, Exception? Exception)> ProbeSocketStatusAsync(string socketPath, CancellationToken cancellationToken)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        using var timeout = new CancellationTokenSource(ConnectTimeout);
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(TimeSpan.FromSeconds(1));
 
         try
         {
-            socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), timeout.Token).GetAwaiter().GetResult();
-            return LinuxDaemonSocketAccessStatus.Accessible;
+            await socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), timeoutSource.Token).ConfigureAwait(false);
+            return (LinuxDaemonSocketAccessStatus.Accessible, null, null);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return (LinuxDaemonSocketAccessStatus.Timeout, "Timed out while probing daemon socket access.", null);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return (LinuxDaemonSocketAccessStatus.PermissionDenied, ex.Message, ex);
+        }
+        catch (SocketException ex) when (ex.SocketErrorCode is SocketError.AccessDenied)
+        {
+            return (LinuxDaemonSocketAccessStatus.PermissionDenied, ex.Message, ex);
+        }
+        catch (SocketException ex) when (ex.SocketErrorCode is SocketError.ConnectionRefused)
+        {
+            return (LinuxDaemonSocketAccessStatus.ConnectionRefusedOrStale, ex.Message, ex);
+        }
+        catch (SocketException ex) when (ex.SocketErrorCode is SocketError.TimedOut)
+        {
+            return (LinuxDaemonSocketAccessStatus.Timeout, ex.Message, ex);
+        }
+        catch (SocketException ex)
+        {
+            return (LinuxDaemonSocketAccessStatus.UnexpectedError, ex.Message, ex);
+        }
+    }
+
+    private async ValueTask<LinuxDaemonGroupMembershipResult> ResolveDaemonGroupMembershipAsync(string groupName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var group = await _getGroupDefinition(groupName, cancellationToken).ConfigureAwait(false);
+            if (group is null)
+            {
+                return new LinuxDaemonGroupMembershipResult(groupName, LinuxDaemonGroupMembershipStatus.MissingGroup);
+            }
+
+            var userGroups = _getCurrentUserGroups();
+            var isEffectiveMember = userGroups.PrimaryGroupId == group.GroupId ||
+                                    userGroups.SupplementaryGroupIds.Contains(group.GroupId);
+            if (isEffectiveMember)
+            {
+                return new LinuxDaemonGroupMembershipResult(
+                    groupName,
+                    LinuxDaemonGroupMembershipStatus.Member,
+                    group.GroupId,
+                    userGroups.UserName,
+                    userGroups.UserId,
+                    GetCurrentProcessGroupIds(userGroups));
+            }
+
+            var isConfiguredMember = group.MemberNames.Contains(userGroups.UserName, StringComparer.Ordinal);
+            var status = isConfiguredMember
+                ? LinuxDaemonGroupMembershipStatus.StaleSession
+                : LinuxDaemonGroupMembershipStatus.UserNotMember;
+
+            return new LinuxDaemonGroupMembershipResult(
+                groupName,
+                status,
+                group.GroupId,
+                userGroups.UserName,
+                userGroups.UserId,
+                GetCurrentProcessGroupIds(userGroups));
         }
         catch (OperationCanceledException)
         {
-            return LinuxDaemonSocketAccessStatus.Timeout;
+            throw;
         }
-        catch (UnauthorizedAccessException)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            return LinuxDaemonSocketAccessStatus.PermissionDenied;
+            return new LinuxDaemonGroupMembershipResult(
+                groupName,
+                LinuxDaemonGroupMembershipStatus.Unknown,
+                Message: ex.Message,
+                Exception: ex);
         }
-        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AccessDenied)
-        {
-            return LinuxDaemonSocketAccessStatus.PermissionDenied;
-        }
-        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionRefused)
-        {
-            return LinuxDaemonSocketAccessStatus.ConnectionRefusedOrStale;
-        }
-        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.TimedOut)
-        {
-            return LinuxDaemonSocketAccessStatus.Timeout;
-        }
-        catch (SocketException)
-        {
-            return LinuxDaemonSocketAccessStatus.UnexpectedError;
-        }
+    }
+
+    private static int[] GetCurrentProcessGroupIds(LinuxDaemonCurrentUserGroups userGroups)
+    {
+        return userGroups.SupplementaryGroupIds
+            .Prepend(userGroups.PrimaryGroupId)
+            .Distinct()
+            .ToArray();
     }
 
     private static LinuxFileSystemEntryKind GetEntryKind(uint mode)
@@ -162,14 +264,14 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
             SocketFileType => LinuxFileSystemEntryKind.Socket,
             DirectoryFileType => LinuxFileSystemEntryKind.Directory,
             RegularFileType => LinuxFileSystemEntryKind.File,
-            _ => LinuxFileSystemEntryKind.Other
+            _ => LinuxFileSystemEntryKind.Other,
         };
     }
 
     private static void ThrowForErrno(int errno, string target)
     {
-        var exception = new IOException($"Linux diagnostic probe failed for {target}: errno {errno}.");
-        if (errno == ErrNo.EACCES || errno == ErrNo.EPERM)
+        var exception = new IOException($"Linux diagnostic probe failed for {target}: errno {errno.ToString(CultureInfo.InvariantCulture)}.");
+        if (errno is ErrNo.EACCES or ErrNo.EPERM)
         {
             throw new UnauthorizedAccessException(exception.Message, exception);
         }
@@ -183,17 +285,17 @@ internal sealed class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketAccessPro
     private const uint RegularFileType = 0x8000;
     private const uint FilePermissionMask = 0x0FFF;
 
-    [DllImport("libc", SetLastError = true, EntryPoint = "lstat")]
-    private static extern int lstat(string path, out LinuxStat stat);
+    [LibraryImport("libc", SetLastError = true, EntryPoint = "lstat", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int lstat(string path, out LinuxStat stat);
 
-    [DllImport("libc", SetLastError = true)]
-    private static extern uint geteuid();
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial uint geteuid();
 
-    [DllImport("libc", SetLastError = true)]
-    private static extern uint getegid();
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial uint getegid();
 
-    [DllImport("libc", SetLastError = true)]
-    private static extern int getgroups(int size, [Out] int[]? groups);
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial int getgroups(int size, [Out] int[]? groups);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct LinuxStat

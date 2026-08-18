@@ -1,6 +1,3 @@
-using CrossMacro.Platform.MacOS.Helpers;
-using CrossMacro.Platform.Abstractions;
-using System.Runtime.Versioning;
 
 namespace CrossMacro.Platform.MacOS.Services;
 
@@ -24,8 +21,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionChecker.IsPostEventAccessGranted,
             MacOSPermissionChecker.RequestListenEventAccess,
             MacOSPermissionChecker.RequestPostEventAccess)
-    {
-    }
+    { /* Empty */ }
 
     internal MacOSPermissionCheckerService(
         Func<MacOSPermissionStatus> getCurrentStatus,
@@ -60,7 +56,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
             MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
             MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
-            _ => false
+            _ => false,
         };
     }
 
@@ -86,7 +82,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionRequirement.ListenEvent => _requestListenEventAccess(),
             MacOSPermissionRequirement.PostEvent => _requestPostEventAccess(),
             MacOSPermissionRequirement.Accessibility => MacOSPermissionChecker.PromptAccessibilityPermission(),
-            _ => false
+            _ => false,
         };
     }
 
@@ -109,6 +105,12 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
     {
         // Not applicable on macOS
         return false;
+    }
+
+    public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(false);
     }
 
     public void OpenAccessibilitySettings()

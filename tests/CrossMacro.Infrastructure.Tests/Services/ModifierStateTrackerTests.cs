@@ -1,12 +1,7 @@
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class ModifierStateTrackerTests
+public sealed class ModifierStateTrackerTests
 {
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly ModifierStateTracker _tracker;
@@ -26,51 +21,51 @@ public class ModifierStateTrackerTests
     public void OnKeyPressed_ShouldAddModifier_WhenIsModifierKey()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(true);
+        _ = _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
 
         // Act
         _tracker.OnKeyPressed(LeftCtrl);
 
         // Assert
-        _tracker.CurrentModifiers.Should().Contain(LeftCtrl);
-        _tracker.HasModifiers.Should().BeTrue();
+        _ = _tracker.CurrentModifiers.Should().Contain(LeftCtrl);
+        _ = _tracker.HasModifiers.Should().BeTrue();
     }
 
     [Fact]
     public void OnKeyPressed_ShouldNotAddKey_WhenNotModifier()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(KeyA).Returns(false);
+        _ = _keyCodeMapper.IsModifierKeyCode(KeyA).Returns(returnThis: false);
 
         // Act
         _tracker.OnKeyPressed(KeyA);
 
         // Assert
-        _tracker.CurrentModifiers.Should().BeEmpty();
-        _tracker.HasModifiers.Should().BeFalse();
+        _ = _tracker.CurrentModifiers.Should().BeEmpty();
+        _ = _tracker.HasModifiers.Should().BeFalse();
     }
 
     [Fact]
     public void OnKeyReleased_ShouldRemoveModifier()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(true);
+        _ = _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
         _tracker.OnKeyPressed(LeftCtrl);
 
         // Act
         _tracker.OnKeyReleased(LeftCtrl);
 
         // Assert
-        _tracker.CurrentModifiers.Should().NotContain(LeftCtrl);
-        _tracker.HasModifiers.Should().BeFalse();
+        _ = _tracker.CurrentModifiers.Should().NotContain(LeftCtrl);
+        _ = _tracker.HasModifiers.Should().BeFalse();
     }
 
     [Fact]
     public void Clear_ShouldRemoveAllModifiers()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(true);
-        _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(true);
+        _ = _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
+        _ = _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(returnThis: true);
         _tracker.OnKeyPressed(LeftCtrl);
         _tracker.OnKeyPressed(RightShift);
 
@@ -78,16 +73,16 @@ public class ModifierStateTrackerTests
         _tracker.Clear();
 
         // Assert
-        _tracker.CurrentModifiers.Should().BeEmpty();
-        _tracker.HasModifiers.Should().BeFalse();
+        _ = _tracker.CurrentModifiers.Should().BeEmpty();
+        _ = _tracker.HasModifiers.Should().BeFalse();
     }
 
     [Fact]
     public void CurrentModifiers_ShouldReturnCopy_NotLiveReference()
     {
         // Arrange
-        _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(true);
-        _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(true);
+        _ = _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
+        _ = _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(returnThis: true);
         _tracker.OnKeyPressed(LeftCtrl);
         var snapshot = _tracker.CurrentModifiers;
 
@@ -95,12 +90,12 @@ public class ModifierStateTrackerTests
         _tracker.OnKeyPressed(RightShift);
 
         // Assert - snapshot should not include new modifier
-        snapshot.Should().NotContain(RightShift);
+        _ = snapshot.Should().NotContain(RightShift);
     }
 
     [Fact]
     public void HasModifiers_ShouldReturnFalse_WhenEmpty()
     {
-        _tracker.HasModifiers.Should().BeFalse();
+        _ = _tracker.HasModifiers.Should().BeFalse();
     }
 }

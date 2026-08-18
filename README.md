@@ -12,13 +12,17 @@
   <img src="screenshots/recording-tab.png" alt="CrossMacro recording interface preview" />
 </p>
 
-CrossMacro is a cross-platform desktop automation app for recording, editing,
-scheduling, and replaying mouse/keyboard workflows. It combines a polished
-Avalonia GUI, scriptable CLI, text expansion, shortcuts, and a GUI-less desktop
-runtime in one app.
+CrossMacro is an open-source, cross-platform mouse and keyboard macro recorder,
+editor, and automation tool for Linux, Windows, and macOS. Record, edit, and
+replay macros with adjustable speed, loops, delays, global hotkeys, and schedules.
+
+Linux-first Wayland and X11 support adds compositor-aware cursor positioning
+where available, daemon-backed or direct-device input paths, text expansion,
+screen-reading commands, native PNG image recognition, profiles, a scriptable
+CLI, and a GUI-less runtime in the same application.
 
 - Linux-first support for Wayland and X11, with daemon-backed/direct-device
-  input modes and compositor-aware cursor positioning
+  input modes and compositor-aware cursor positioning where available
 - Windows support through Microsoft Store, winget, MSIX, and portable binaries
 - macOS support through Apple Silicon and Intel DMG packages
 
@@ -39,7 +43,7 @@ runtime in one app.
 
 ## Features
 
-### Record and replay
+### Macro recorder and player
 
 - Mouse recording for clicks, movement, and scrolling
 - Keyboard recording and macro playback with pause/resume
@@ -50,14 +54,16 @@ runtime in one app.
   - `F9` start/stop playback
   - `F10` pause/resume playback
 
-### Edit and organize
+### Macro editor and workflow building
 
 - Files tab for loading, saving, sequencing, and replaying `.macro` files
 - Macro editor with undo/redo, coordinate capture, action reordering, filtering,
   variables, loops, conditionals, text input, and delay editing
+- Absolute and relative coordinate modes for compositor-aware cursor workflows
 - Screen-reading commands (`pixelcolor`, `waitcolor`, `pixelsearch`) for color-based automation
+- Native PNG image recognition with `imagesearch`, `imageclick`, and `waitimage`
 
-### Automate and trigger
+### Hotkeys, scheduling, and background automation
 
 - Shortcut-bound macro execution with keyboard shortcuts and key combinations
 - Shortcut modes for press-to-start/stop and run-while-held playback
@@ -67,7 +73,7 @@ runtime in one app.
   `run` steps
 - GUI-less desktop runtime for hotkeys, scheduler, shortcuts, and text expansion
 
-### Text expansion and desktop polish
+### Text expansion, profiles, and desktop integration
 
 - Profile management to easily save, load, and switch between different configuration setups
 - Text expansion shortcuts with per-entry enable/disable, direct typing method selection, and insertion-mode controls
@@ -85,6 +91,11 @@ desktop-session tray support.
 CrossMacro is built for people who want desktop automation without stitching
 together separate recorders, hotkey tools, text expanders, and platform-specific
 scripts.
+
+Linux desktop automation is often split across several small utilities.
+CrossMacro brings macro recording and editing, hotkeys, scheduling, text
+expansion, and screen-based workflows into one GUI and CLI application while
+keeping Wayland and X11 as first-class targets.
 
 - **One workflow across platforms:** a polished Avalonia GUI with packaged builds
   for Linux, Windows, and macOS.
@@ -120,6 +131,13 @@ If setup or playback does not work, run:
 crossmacro doctor --json --verbose
 ```
 
+For GUI-less Flatpak/AppImage Wayland sessions, apply the same temporary input
+setup used by the GUI with:
+
+```bash
+crossmacro setup
+```
+
 ## Installation
 
 Download page for all release binaries:
@@ -130,10 +148,11 @@ Download page for all release binaries:
 
 | Platform | Channel | Command / Link | Notes |
 | --- | --- | --- | --- |
-| [![Flatpak](https://img.shields.io/badge/Flatpak-Flathub-0E5AFC?logo=flatpak&logoColor=white)](https://flathub.org/en/apps/io.github.alper_han.crossmacro) | Flathub | [Store](https://flathub.org/en/apps/io.github.alper_han.crossmacro)<br>`flatpak install flathub io.github.alper_han.crossmacro` | Sandboxed install; daemon or Quick Setup on Wayland |
+| [![Flatpak](https://img.shields.io/badge/Flatpak-Flathub-0E5AFC?logo=flatpak&logoColor=white)](https://flathub.org/en/apps/io.github.alper_han.crossmacro) | Flathub | [Store](https://flathub.org/en/apps/io.github.alper_han.crossmacro)<br>`flatpak install flathub io.github.alper_han.crossmacro` | Sandboxed install; direct-device Quick Setup on Wayland |
 | [![Debian](https://img.shields.io/badge/Debian-Ubuntu-A81D33?logo=debian&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.deb` | `sudo apt install ./crossmacro*.deb` | Daemon-backed Linux package |
 | [![Fedora](https://img.shields.io/badge/Fedora-RHEL-51A2DA?logo=fedora&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | `.rpm` | `sudo dnf install ./crossmacro*.rpm` | Daemon-backed Linux package |
 | [![Arch](https://img.shields.io/badge/Arch-AUR-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro) | AUR | `yay -S crossmacro`<br>`paru -S crossmacro` | Community daemon-backed package |
+| [![Arch](https://img.shields.io/badge/Arch-AUR%20development-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro-git) | AUR development | `yay -S crossmacro-git`<br>`paru -S crossmacro-git` | Latest `dev` snapshot; replaces `crossmacro` |
 | [![Linux](https://img.shields.io/badge/Linux-AppImage-1793D1?logo=appimage&logoColor=white)](https://github.com/alper-han/CrossMacro/releases) | AppImage | [Releases](https://github.com/alper-han/CrossMacro/releases) | Portable `x86_64` and `aarch64`; Quick Setup may prompt on Wayland |
 | [![NixOS](https://img.shields.io/badge/NixOS-Module-5277C3?logo=nixos&logoColor=white)](https://search.nixos.org/options?channel=unstable&query=services.crossmacro) | nixpkgs module | `services.crossmacro = { enable = true; users = [ "you" ]; };` | Daemon-backed setup with service, uinput, polkit, group, and users |
 | [![Windows](https://img.shields.io/badge/Windows-Store-0078D6?logo=windows&logoColor=white)](https://apps.microsoft.com/detail/9n1qp1d6js70) | Store | [Store](https://apps.microsoft.com/detail/9n1qp1d6js70) | Managed updates |
@@ -148,7 +167,8 @@ Download page for all release binaries:
   `crossmacro.service` and the `crossmacro` group. Log out and back in, or
   reboot, if your user was added to that group.
 - **Flatpak/AppImage on Wayland:** CrossMacro may show a setup dialog and run
-  Quick Setup for temporary direct device permissions.
+  Quick Setup for temporary direct device permissions. From a terminal, use
+  `crossmacro setup` (or `crossmacro quick-setup`) without starting the GUI.
 - **NixOS:** use the nixpkgs module for a complete daemon-backed setup. Enable
   `services.crossmacro` and set `services.crossmacro.users` for your desktop
   users.
@@ -192,11 +212,31 @@ crossmacro settings set playback.speed 1.25
 crossmacro schedule list
 crossmacro shortcut list
 crossmacro run --step "move abs 800 400" --step "click left" --dry-run
+crossmacro screen pixel 500 300
+crossmacro screen search-color 0 0 1920 1080 FF0000 --timeout-ms 5000
+crossmacro screen search-image ./button.png --similarity 0.95
+crossmacro screen wait-image ./ready.png --timeout-ms 10000
+crossmacro screen image-click ./button.png --button right
 ```
 
 For command syntax, direct-run steps, log levels, and GUI-less desktop runtime
 notes, see [docs/cli.md](docs/cli.md). The `headless` commands still require a
 desktop session; they are not intended for display-less server automation.
+
+Image recognition reads native 8-bit PNG templates. New image commands use the
+automatic profile with similarity (confidence) `0.95` by default; it chooses
+native and bounded scale-aware matching internally. `first` and `best` are
+explicit advanced modes; oversized searches use the same bounded pipeline rather
+than failing with a resource-limit error. `waitimage` and `imageclick` require
+two consistent frames before reporting or clicking a match; `imageclick` uses
+the left mouse button unless `right` or
+`middle` is selected. When a Wayland capture provider is available, image searches
+can span intersecting monitors, but gaps outside real monitor outputs are not
+valid pixels and cannot produce a match or click.
+
+CLI image commands take filesystem paths to native 8-bit PNG files, such as
+`./button.png`. Macro image steps instead use the embedded asset name, such as
+`button` after importing `button.png`.
 
 ## Diagnostics and Troubleshooting
 
@@ -239,11 +279,11 @@ Thanks to everyone who contributes to CrossMacro.
 
 ## Star History
 
-<a href="https://star-history.dera.page/#alper-han/crossmacro&type=date&legend=bottom-right">
+<a href="https://star-history.dera.page/#alper-han/crossmacro&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&theme=dark&legend=bottom-right" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&legend=bottom-right" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&legend=bottom-right" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&legend=top-left" />
  </picture>
 </a>
 

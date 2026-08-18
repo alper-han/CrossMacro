@@ -4,5 +4,5 @@ public enum LoadedMacroPlaybackMode
 {
     SelectedOnly = 0,
     AdvanceSelection = 1,
-    SequentialCycle = 2
+    SequentialCycle = 2,
 }

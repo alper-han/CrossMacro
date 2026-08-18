@@ -1,23 +1,5 @@
-using System;
-using System.Collections.Generic;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Core.Models;
-
-public enum EditorActionScreenReadingVariableRole
-{
-    None,
-    Color,
-    Boolean,
-    Number
-}
-
-public enum EditorActionScreenTargetColorSource
-{
-    ManualHex = 0,
-    Manual = ManualHex,
-    Variable = 1
-}
 
 public readonly record struct EditorActionScreenReadingPayload(
     EditorActionType Type,
@@ -51,16 +33,28 @@ public readonly record struct EditorActionScreenReadingPayload(
     public const int DefaultPointScreenHeight = 1;
     public const int DefaultSearchScreenWidth = 1920;
     public const int DefaultSearchScreenHeight = 1080;
+    public const double DefaultImageSearchSimilarity = 0.95;
 
-    public int ScreenRight => ScreenLeft + ScreenWidth;
+    public string ImageAssetName { get; init; } = string.Empty;
+    public double ImageSearchSimilarity { get; init; } = DefaultImageSearchSimilarity;
+    public EditorImageMatchMode ImageSearchMatchMode { get; init; } = EditorImageMatchMode.Automatic;
+    public bool ImageSearchMatchModeWasExplicit { get; init; }
+    public MacroMouseButton Button { get; init; } = MacroMouseButton.Left;
 
-    public int ScreenBottom => ScreenTop + ScreenHeight;
+    public int ScreenRight => checked(ScreenLeft + ScreenWidth);
+
+    public int ScreenBottom => checked(ScreenTop + ScreenHeight);
 
     public bool UsesTargetColor => Type is EditorActionType.WaitColor or EditorActionType.PixelSearch;
 
     public static bool IsScreenReadingAction(EditorActionType type)
     {
-        return type is EditorActionType.PixelColor or EditorActionType.WaitColor or EditorActionType.PixelSearch;
+        return type is EditorActionType.PixelColor
+            or EditorActionType.WaitColor
+            or EditorActionType.PixelSearch
+            or EditorActionType.ImageSearch
+            or EditorActionType.ImageClick
+            or EditorActionType.WaitImage;
     }
 
     public static bool TryCreate(EditorAction action, out EditorActionScreenReadingPayload payload)
@@ -90,7 +84,14 @@ public readonly record struct EditorActionScreenReadingPayload(
             action.ScreenTolerance,
             action.ScreenFoundVariableName,
             action.ScreenFoundXVariableName,
-            action.ScreenFoundYVariableName);
+            action.ScreenFoundYVariableName)
+        {
+            ImageAssetName = action.ImageAssetName,
+            ImageSearchSimilarity = action.ImageSearchSimilarity,
+            ImageSearchMatchMode = action.ImageSearchMatchMode,
+            ImageSearchMatchModeWasExplicit = action.ImageSearchMatchModeWasExplicit,
+            Button = action.Button,
+        };
         return true;
     }
 
@@ -98,7 +99,7 @@ public readonly record struct EditorActionScreenReadingPayload(
     {
         payload = type switch
         {
-            EditorActionType.PixelColor => ForPixelColor(true, 0, 0, DefaultColorVariableName),
+            EditorActionType.PixelColor => ForPixelColor(isAbsolute: true, 0, 0, DefaultColorVariableName),
             EditorActionType.WaitColor => ForWaitColor(0, 0, DefaultColorHex, DefaultTimeoutMs, DefaultWaitColorVariableName),
             EditorActionType.PixelSearch => ForPixelSearch(
                 0,
@@ -110,7 +111,40 @@ public readonly record struct EditorActionScreenReadingPayload(
                 DefaultFoundXVariableName,
                 DefaultFoundYVariableName,
                 DefaultTolerance),
-            _ => default
+            EditorActionType.ImageSearch => ForImageSearch(),
+            EditorActionType.ImageClick => ForImageClick(),
+            EditorActionType.WaitImage => ForWaitImage(),
+            EditorActionType.MouseMove
+                or EditorActionType.MouseClick
+                or EditorActionType.MouseDown
+                or EditorActionType.MouseUp
+                or EditorActionType.KeyPress
+                or EditorActionType.KeyDown
+                or EditorActionType.KeyUp
+                or EditorActionType.Delay
+                or EditorActionType.ScrollVertical
+                or EditorActionType.ScrollHorizontal
+                or EditorActionType.TextInput
+                or EditorActionType.SetVariable
+                or EditorActionType.IncrementVariable
+                or EditorActionType.DecrementVariable
+                or EditorActionType.MultiplyVariable
+                or EditorActionType.DivideVariable
+                or EditorActionType.RepeatBlockStart
+                or EditorActionType.IfBlockStart
+                or EditorActionType.ElseBlockStart
+                or EditorActionType.WhileBlockStart
+                or EditorActionType.ForBlockStart
+                or EditorActionType.BlockEnd
+                or EditorActionType.Break
+                or EditorActionType.Continue
+                or EditorActionType.ClipboardGet
+                or EditorActionType.ClipboardSet
+                or EditorActionType.ShellCommand
+                or EditorActionType.Screenshot
+                or EditorActionType.WindowCommand
+                or EditorActionType.RawScriptStep => default,
+            _ => default,
         };
 
         return IsScreenReadingAction(type);
@@ -151,7 +185,7 @@ public readonly record struct EditorActionScreenReadingPayload(
     {
         return new EditorActionScreenReadingPayload(
             EditorActionType.WaitColor,
-            true,
+IsAbsolute: true,
             screenX,
             screenY,
             0,
@@ -182,7 +216,7 @@ public readonly record struct EditorActionScreenReadingPayload(
     {
         return new EditorActionScreenReadingPayload(
             EditorActionType.PixelSearch,
-            true,
+IsAbsolute: true,
             0,
             0,
             screenLeft,
@@ -200,7 +234,41 @@ public readonly record struct EditorActionScreenReadingPayload(
             foundYVariableName);
     }
 
-    public IEnumerable<string> GetOutputVariableNames()
+    public static EditorActionScreenReadingPayload ForImageSearch() => ForImageAction(EditorActionType.ImageSearch);
+
+    public static EditorActionScreenReadingPayload ForImageClick() => ForImageAction(EditorActionType.ImageClick);
+
+    public static EditorActionScreenReadingPayload ForWaitImage() => ForImageAction(EditorActionType.WaitImage);
+
+    private static EditorActionScreenReadingPayload ForImageAction(EditorActionType type)
+    {
+        return new EditorActionScreenReadingPayload(
+            type,
+IsAbsolute: true,
+            0,
+            0,
+            0,
+            0,
+            DefaultSearchScreenWidth,
+            DefaultSearchScreenHeight,
+            DefaultColorHex,
+            EditorActionScreenTargetColorSource.ManualHex,
+            DefaultTargetColorVariableName,
+            DefaultColorVariableName,
+            DefaultTimeoutMs,
+            DefaultTolerance,
+            DefaultFoundVariableName,
+            DefaultFoundXVariableName,
+            DefaultFoundYVariableName)
+        {
+            ImageSearchSimilarity = DefaultImageSearchSimilarity,
+            Button = MacroMouseButton.Left,
+        };
+    }
+
+    public IEnumerable<string> OutputVariableNames => GetOutputVariableNames();
+
+    private IEnumerable<string> GetOutputVariableNames()
     {
         switch (Type)
         {
@@ -209,6 +277,9 @@ public readonly record struct EditorActionScreenReadingPayload(
                 yield return ScreenColorVariableName;
                 break;
             case EditorActionType.PixelSearch:
+            case EditorActionType.ImageSearch:
+            case EditorActionType.ImageClick:
+            case EditorActionType.WaitImage:
                 yield return ScreenFoundVariableName;
                 yield return ScreenFoundXVariableName;
                 yield return ScreenFoundYVariableName;
@@ -226,30 +297,41 @@ public readonly record struct EditorActionScreenReadingPayload(
                 EditorActionScreenReadingVariableRole.Boolean,
             EditorActionType.PixelSearch when string.Equals(ScreenFoundVariableName, variableName, StringComparison.Ordinal) =>
                 EditorActionScreenReadingVariableRole.Boolean,
+            EditorActionType.ImageSearch when string.Equals(ScreenFoundVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Boolean,
+            EditorActionType.ImageClick when string.Equals(ScreenFoundVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Boolean,
+            EditorActionType.WaitImage when string.Equals(ScreenFoundVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Boolean,
             EditorActionType.PixelSearch when string.Equals(ScreenFoundXVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Number,
+            EditorActionType.ImageSearch when string.Equals(ScreenFoundXVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Number,
+            EditorActionType.ImageClick when string.Equals(ScreenFoundXVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Number,
+            EditorActionType.WaitImage when string.Equals(ScreenFoundXVariableName, variableName, StringComparison.Ordinal) =>
                 EditorActionScreenReadingVariableRole.Number,
             EditorActionType.PixelSearch when string.Equals(ScreenFoundYVariableName, variableName, StringComparison.Ordinal) =>
                 EditorActionScreenReadingVariableRole.Number,
-            _ => EditorActionScreenReadingVariableRole.None
+            EditorActionType.ImageSearch when string.Equals(ScreenFoundYVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Number,
+            EditorActionType.ImageClick when string.Equals(ScreenFoundYVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Number,
+            EditorActionType.WaitImage when string.Equals(ScreenFoundYVariableName, variableName, StringComparison.Ordinal) =>
+                EditorActionScreenReadingVariableRole.Number,
+            EditorActionType.MouseMove or EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp or EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp or EditorActionType.Delay or EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal or EditorActionType.TextInput or EditorActionType.SetVariable or EditorActionType.IncrementVariable or EditorActionType.DecrementVariable or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable or EditorActionType.RepeatBlockStart or EditorActionType.IfBlockStart or EditorActionType.ElseBlockStart or EditorActionType.WhileBlockStart or EditorActionType.ForBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue or EditorActionType.ClipboardGet or EditorActionType.ClipboardSet or EditorActionType.ShellCommand or EditorActionType.Screenshot or EditorActionType.WindowCommand or EditorActionType.RawScriptStep => EditorActionScreenReadingVariableRole.None,
+            _ => EditorActionScreenReadingVariableRole.None,
         };
     }
 
     public bool HasValidRgbColor()
     {
-        if (ScreenColorHex.Length != 6)
+        if (ScreenColorHex.Length is not 6)
         {
             return false;
         }
 
-        foreach (var ch in ScreenColorHex)
-        {
-            if (!Uri.IsHexDigit(ch))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return ScreenColorHex.All(Uri.IsHexDigit);
     }
 
     public bool HasValidTargetColor()
@@ -257,7 +339,8 @@ public readonly record struct EditorActionScreenReadingPayload(
         return ScreenTargetColorSource switch
         {
             EditorActionScreenTargetColorSource.Variable => HasValidTargetColorVariableName(),
-            _ => HasValidRgbColor()
+            EditorActionScreenTargetColorSource.ManualHex => HasValidRgbColor(),
+            _ => HasValidRgbColor(),
         };
     }
 
@@ -304,7 +387,7 @@ public readonly record struct EditorActionScreenReadingPayload(
 
     public string FormatTargetColorToken()
     {
-        return ScreenTargetColorSource == EditorActionScreenTargetColorSource.Variable
+        return ScreenTargetColorSource is EditorActionScreenTargetColorSource.Variable
             ? $"${NormalizeTargetColorVariableToken()}"
             : ScreenColorHex.Trim().ToUpperInvariant();
     }

@@ -1,11 +1,13 @@
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Core.Services;
 
 public interface IHotkeyConfigurationService
 {
-    HotkeySettings Load();
-    Task<HotkeySettings> LoadAsync();
-    Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
-    void Save(HotkeySettings settings);
+    public HotkeyConfigurationSaveRequest CaptureSaveRequest(HotkeySettings settings);
+    public HotkeySettings Load();
+    public Task<HotkeySettings> LoadAsync();
+    public Task<HotkeySettings> ReloadAsync(string profileConfigDirectory) => LoadAsync();
+    public void Save(HotkeySettings settings);
+    public bool TrySave(HotkeyConfigurationSaveRequest request);
+    public Task<bool> TrySaveAsync(HotkeyConfigurationSaveRequest request);
 }

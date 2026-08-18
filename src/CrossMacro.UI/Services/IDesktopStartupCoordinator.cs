@@ -1,9 +1,7 @@
-using System.Threading.Tasks;
-using Avalonia.Controls.ApplicationLifetimes;
 
 namespace CrossMacro.UI.Services;
 
 public interface IDesktopStartupCoordinator
 {
-    Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop);
+    public Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop);
 }

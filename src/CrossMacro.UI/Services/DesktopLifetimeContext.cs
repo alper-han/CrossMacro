@@ -1,6 +1,3 @@
-using System;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 
 namespace CrossMacro.UI.Services;
 
@@ -19,9 +16,6 @@ internal sealed class DesktopLifetimeContext : IDesktopLifetimeContext
     public void SetMainWindow(Window? mainWindow)
     {
         MainWindow = mainWindow;
-        if (DesktopLifetime != null)
-        {
-            DesktopLifetime.MainWindow = mainWindow;
-        }
+        _ = DesktopLifetime?.MainWindow = mainWindow;
     }
 }

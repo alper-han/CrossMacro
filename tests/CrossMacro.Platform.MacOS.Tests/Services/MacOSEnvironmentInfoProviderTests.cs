@@ -1,10 +1,7 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.MacOS.Services;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-public class MacOSEnvironmentInfoProviderTests
+public sealed class MacOSEnvironmentInfoProviderTests
 {
     [Fact]
     public void CurrentEnvironment_ReturnsMacOS()

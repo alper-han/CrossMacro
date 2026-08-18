@@ -1,9 +1,7 @@
 namespace CrossMacro.UI.Tests.Services;
 
-using CrossMacro.UI.Services;
-using NSubstitute;
 
-public class AvaloniaClipboardServiceTests
+public sealed class AvaloniaClipboardServiceTests
 {
     [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenNoApplicationCurrent_ShouldNotThrow()

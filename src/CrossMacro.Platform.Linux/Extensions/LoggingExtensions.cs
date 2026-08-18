@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Extensions;
 
@@ -8,7 +6,7 @@ namespace CrossMacro.Platform.Linux.Extensions;
 /// </summary>
 public static class LoggingExtensions
 {
-    private static readonly ConcurrentDictionary<string, bool> _loggedKeys = new();
+    private static readonly ConcurrentDictionary<string, bool> _loggedKeys = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Logs an information message only once for a given key.
@@ -19,7 +17,7 @@ public static class LoggingExtensions
     /// <param name="args">Optional arguments for the message template.</param>
     public static void LogOnce(string key, string messageTemplate, params object[] args)
     {
-        if (!_loggedKeys.TryAdd(key, true))
+        if (!_loggedKeys.TryAdd(key, value: true))
         {
             return;
         }

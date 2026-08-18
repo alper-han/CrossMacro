@@ -1,0 +1,33 @@
+{
+  "name": "Dracula",
+  "palette": {
+    "primaryColor": "#bd93f9",
+    "primaryHoverColor": "#cfb0fb",
+    "primaryPressedColor": "#AB76F8",
+    "successColor": "#50fa7b",
+    "successHoverColor": "#6efb91",
+    "successPressedColor": "#50fa7b",
+    "dangerColor": "#ff5555",
+    "dangerHoverColor": "#ff7474",
+    "dangerPressedColor": "#ff5555",
+    "backgroundColor": "#282a36",
+    "surfaceColor": "#44475a",
+    "surfaceHoverColor": "#474d62",
+    "textPrimaryColor": "#f8f8f2",
+    "textSecondaryColor": "#9ca8d4",
+    "warningColor": "#ffb86c",
+    "warningHoverColor": "#ffc78b",
+    "accentColor": "#8be9fd",
+    "systemAccentColor": "#bd93f9",
+    "systemAccentColorDark1": "#AB76F8",
+    "systemAccentColorDark2": "#AB76F8",
+    "systemAccentColorDark3": "#AB76F8",
+    "systemAccentColorLight1": "#cfb0fb",
+    "systemAccentColorLight2": "#cfb0fb",
+    "systemAccentColorLight3": "#cfb0fb",
+    "textOnPrimaryColor": "#282a36",
+    "textOnSuccessColor": "#282a36",
+    "textOnDangerColor": "#282a36",
+    "textOnWarningColor": "#282a36"
+  }
+}

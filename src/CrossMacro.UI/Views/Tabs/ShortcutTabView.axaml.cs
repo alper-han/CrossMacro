@@ -1,5 +1,3 @@
-using Avalonia.Controls;
-using CrossMacro.UI.ViewModels;
 
 namespace CrossMacro.UI.Views.Tabs;
 
@@ -10,11 +8,12 @@ public partial class ShortcutTabView : UserControl
         InitializeComponent();
     }
 
-    private void OnHotkeyChanged(object? sender, string newHotkey)
+    public void OnHotkeyChanged(object? sender, string newHotkey)
     {
-        if (DataContext is ShortcutViewModel vm)
+        if (sender is HotkeyCapture && DataContext is ShortcutViewModel vm)
         {
             vm.OnHotkeyChanged(newHotkey);
         }
     }
+
 }

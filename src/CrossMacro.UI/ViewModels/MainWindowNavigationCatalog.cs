@@ -1,19 +1,9 @@
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Icons;
-using CrossMacro.UI.Models;
 
 namespace CrossMacro.UI.ViewModels;
 
-internal sealed class MainWindowNavigationCatalog
+internal sealed class MainWindowNavigationCatalog(ILocalizationService localizationService)
 {
-    private readonly ILocalizationService _localizationService;
-
-    public MainWindowNavigationCatalog(ILocalizationService localizationService)
-    {
-        _localizationService = localizationService;
-    }
+    private readonly ILocalizationService _localizationService = localizationService;
 
     public ObservableCollection<NavigationItem> CreateTopItems(
         RecordingViewModel recording,
@@ -22,6 +12,7 @@ internal sealed class MainWindowNavigationCatalog
         TextExpansionViewModel textExpansion,
         ShortcutViewModel shortcuts,
         ScheduleViewModel schedule,
+        TriggerViewModel triggers,
         EditorViewModel editor)
     {
         return new ObservableCollection<NavigationItem>
@@ -32,7 +23,8 @@ internal sealed class MainWindowNavigationCatalog
             CreateNavigationItem("Navigation_TextExpansion", AppIcon.EditNote, textExpansion),
             CreateNavigationItem("Navigation_Shortcuts", AppIcon.Keyboard, shortcuts),
             CreateNavigationItem("Navigation_Schedule", AppIcon.Clock, schedule),
-            CreateNavigationItem("Navigation_Editor", AppIcon.Tools, editor)
+            CreateNavigationItem("Navigation_Triggers", AppIcon.Trigger, triggers),
+            CreateNavigationItem("Navigation_Editor", AppIcon.Tools, editor),
         };
     }
 
@@ -40,7 +32,7 @@ internal sealed class MainWindowNavigationCatalog
     {
         return new ObservableCollection<NavigationItem>
         {
-            CreateNavigationItem("Navigation_Settings", AppIcon.Settings, settings)
+            CreateNavigationItem("Navigation_Settings", AppIcon.Settings, settings),
         };
     }
 
@@ -59,7 +51,7 @@ internal sealed class MainWindowNavigationCatalog
             LocalizationKey = localizationKey,
             Label = _localizationService[localizationKey],
             Icon = icon,
-            ViewModel = viewModel
+            ViewModel = viewModel,
         };
     }
 

@@ -1,17 +1,13 @@
-using System.Collections.Generic;
-using CrossMacro.UI.Localization;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.Localization;
 
 [Collection(LocalizationGlobalStateCollection.Name)]
-public class LocalizationBindingSourceTests
+public sealed class LocalizationBindingSourceTests
 {
     [Fact]
     public void Initialize_RaisesIndexerChangeNotifications()
     {
-        using var _ = new LocalizationCultureScope();
+        using var cultureScope = new LocalizationCultureScope();
         var source = new LocalizationBindingSource();
         var service = new LocalizationService();
         var changedProperties = new List<string?>();
@@ -19,14 +15,14 @@ public class LocalizationBindingSourceTests
 
         source.Initialize(service);
 
-        changedProperties.Should().Contain("Item");
-        changedProperties.Should().Contain("Item[]");
+        _ = changedProperties.Should().Contain("Item");
+        _ = changedProperties.Should().Contain("Item[]");
     }
 
     [Fact]
     public void CultureChanged_RaisesIndexerChangeNotifications()
     {
-        using var _ = new LocalizationCultureScope();
+        using var cultureScope = new LocalizationCultureScope();
         var source = new LocalizationBindingSource();
         var service = new LocalizationService();
         source.Initialize(service);
@@ -36,7 +32,7 @@ public class LocalizationBindingSourceTests
 
         service.SetCulture("tr");
 
-        changedProperties.Should().Contain("Item");
-        changedProperties.Should().Contain("Item[]");
+        _ = changedProperties.Should().Contain("Item");
+        _ = changedProperties.Should().Contain("Item[]");
     }
 }

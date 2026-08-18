@@ -1,10 +1,7 @@
 namespace CrossMacro.UI.Tests;
 
-using Avalonia.Controls;
-using CrossMacro.UI;
-using CrossMacro.UI.ViewModels;
 
-public class ViewLocatorTests
+public sealed class ViewLocatorTests
 {
     [Fact]
     public void Match_WhenGivenViewModelBase_ReturnsTrue()
@@ -34,10 +31,8 @@ public class ViewLocatorTests
         var control = locator.Build(new object());
 
         var textBlock = Assert.IsType<TextBlock>(control);
-        Assert.StartsWith("Not Found:", textBlock.Text);
+        Assert.StartsWith("Not Found:", textBlock.Text, StringComparison.Ordinal);
     }
 
-    private sealed class DummyViewModel : ViewModelBase
-    {
-    }
+    private sealed class DummyViewModel : ViewModelBase;
 }

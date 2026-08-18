@@ -1,37 +1,5 @@
-using System;
-using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
-
-internal enum MacOSKeyboardEventRoute
-{
-    Unsupported,
-    Keyboard,
-    SystemDefined
-}
-
-internal readonly struct MacOSSystemKeyEventPayload
-{
-    internal MacOSSystemKeyEventPayload(
-        CoreGraphics.CGEventType eventType,
-        CoreGraphics.CGEventFlags flags,
-        long subtype,
-        long data1,
-        long data2)
-    {
-        EventType = eventType;
-        Flags = flags;
-        Subtype = subtype;
-        Data1 = data1;
-        Data2 = data2;
-    }
-
-    internal CoreGraphics.CGEventType EventType { get; }
-    internal CoreGraphics.CGEventFlags Flags { get; }
-    internal long Subtype { get; }
-    internal long Data1 { get; }
-    internal long Data2 { get; }
-}
 
 internal static class MacOSSystemKeyEventFactory
 {
@@ -45,7 +13,7 @@ internal static class MacOSSystemKeyEventFactory
     internal static MacOSSystemKeyEventPayload CreatePayload(
         int nxKeyType,
         bool pressed,
-        CoreGraphics.CGEventFlags activeModifierFlags = default)
+        CoreGraphics.CGEventModifiers activeModifierFlags = default)
     {
         return new MacOSSystemKeyEventPayload(
             CoreGraphics.CGEventType.SystemDefined,
@@ -60,18 +28,18 @@ internal static class MacOSSystemKeyEventFactory
         return (nxKeyType << 16) | (GetState(pressed) << 8);
     }
 
-    private static CoreGraphics.CGEventFlags CreateEventFlags(
+    private static CoreGraphics.CGEventModifiers CreateEventFlags(
         bool pressed,
-        CoreGraphics.CGEventFlags activeModifierFlags = default)
+        CoreGraphics.CGEventModifiers activeModifierFlags = default)
     {
-        return activeModifierFlags | (CoreGraphics.CGEventFlags)(GetState(pressed) << 8);
+        return activeModifierFlags | (CoreGraphics.CGEventModifiers)(GetState(pressed) << 8);
     }
 
     internal static bool TryCreateEvent(
         int nxKeyType,
         bool pressed,
         long? marker,
-        CoreGraphics.CGEventFlags activeModifierFlags,
+        CoreGraphics.CGEventModifiers activeModifierFlags,
         out IntPtr eventRef)
     {
         var payload = CreatePayload(nxKeyType, pressed, activeModifierFlags);
@@ -120,7 +88,7 @@ internal static class MacOSSystemKeyEventFactory
 
     private static void ApplyMarker(IntPtr eventRef, long? marker)
     {
-        if (marker.HasValue)
+        if (marker is not null)
         {
             CoreGraphics.CGEventSetIntegerValueField(
                 eventRef,

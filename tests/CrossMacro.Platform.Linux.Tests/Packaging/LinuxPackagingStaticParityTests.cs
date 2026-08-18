@@ -1,52 +1,49 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Daemon.Contracts.Security;
 
 namespace CrossMacro.Platform.Linux.Tests.Packaging;
 
 public sealed partial class LinuxPackagingStaticParityTests
 {
     private const string CanonicalSocketPath = "/run/crossmacro/crossmacro.sock";
+    private const string NativeDesktopId = "CrossMacro.desktop";
+    private const string FlatpakDesktopId = "io.github.alper_han.crossmacro.desktop";
+    private const string KWinScreenShotPermission = "org.kde.KWin.ScreenShot2";
     private const string HostDaemonFilesystemArg = "--filesystem=/run/crossmacro:rw";
     private const string DeviceAllArg = "--device=all";
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void FlatpakWrapperAndDocs_ShouldReferenceCanonicalDaemonSocketPath()
+    public void PortablePackageLaunchers_ShouldNotReferenceDaemonSocket()
     {
         Assert.Equal(CanonicalSocketPath, IpcProtocol.DefaultSocketPath);
 
         var referencedFiles = new[]
         {
-            "flatpak/crossmacro.sh",
-            "README.md",
-            "docs/man/crossmacro.1"
+            "flatpak/io.github.alper_han.crossmacro.yml",
+            "flatpak/io.github.alper_han.crossmacro.flathub.yml",
+            "scripts/packaging/appimage/build.sh",
         };
 
         foreach (var relativePath in referencedFiles)
         {
             var text = ReadRepoFile(relativePath);
 
-            Assert.Contains(CanonicalSocketPath, text, StringComparison.Ordinal);
+            Assert.DoesNotContain(CanonicalSocketPath, text, StringComparison.Ordinal);
         }
     }
 
     [Fact]
-    public void FlatpakManifests_ShouldKeepMatchingHostDaemonExposureAndImportantFinishArgs()
+    public void FlatpakManifests_ShouldKeepMatchingDirectDevicePermissions()
     {
         var manifestPaths = new[]
         {
             "flatpak/io.github.alper_han.crossmacro.yml",
-            "flatpak/io.github.alper_han.crossmacro.flathub.yml"
+            "flatpak/io.github.alper_han.crossmacro.flathub.yml",
         };
 
         var expectedFinishArgs = new[]
         {
-            "--socket=x11",
+            "--socket=wayland",
+            "--socket=fallback-x11",
             "--share=ipc",
             DeviceAllArg,
             "--talk-name=org.kde.keyboard",
@@ -54,9 +51,8 @@ public sealed partial class LinuxPackagingStaticParityTests
             "--talk-name=org.gnome.Shell",
             "--talk-name=org.freedesktop.Flatpak",
             "--filesystem=xdg-run/hypr:ro",
-            HostDaemonFilesystemArg,
             "--filesystem=~/.local/share/gnome-shell/extensions:create",
-            "--env=CROSSMACRO_FLATPAK=1"
+            "--env=CROSSMACRO_FLATPAK=1",
         };
 
         var firstManifestArgs = ReadFinishArgs(manifestPaths[0]);
@@ -68,9 +64,76 @@ public sealed partial class LinuxPackagingStaticParityTests
             var finishArgs = ReadFinishArgs(manifestPath);
 
             Assert.Equal(firstManifestArgs, finishArgs);
-            Assert.Contains(HostDaemonFilesystemArg, finishArgs);
+            Assert.DoesNotContain(HostDaemonFilesystemArg, finishArgs);
             Assert.Contains(DeviceAllArg, finishArgs);
         }
+    }
+
+    [Fact]
+    public void NativeDesktopAsset_ShouldUseDistinctIdAndDeclareKWinPermission()
+    {
+        var desktop = ReadDesktopEntry($"scripts/assets/{NativeDesktopId}");
+
+        Assert.Equal("crossmacro", desktop["Exec"]);
+        Assert.Equal("CrossMacro.UI", desktop["StartupWMClass"]);
+        Assert.Equal(KWinScreenShotPermission, desktop["X-KDE-DBUS-Restricted-Interfaces"]);
+        Assert.NotEqual(NativeDesktopId, FlatpakDesktopId);
+    }
+
+    [Fact]
+    public void NativePackageDefinitions_ShouldLaunchTheirInstalledGuiElfDirectly()
+    {
+        var packageSources = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["scripts/packaging/deb/build.sh"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
+            ["scripts/packaging/rpm/crossmacro.spec"] = "Exec=\\/usr\\/lib\\/crossmacro\\/CrossMacro.UI",
+            ["scripts/packaging/arch/PKGBUILD"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
+            ["scripts/packaging/arch/PKGBUILD-git.in"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
+        };
+
+        foreach (var (packageSource, desktopExec) in packageSources)
+        {
+            var text = ReadRepoFile(packageSource);
+
+            Assert.Contains(NativeDesktopId, text, StringComparison.Ordinal);
+            Assert.Contains(desktopExec, text, StringComparison.Ordinal);
+            Assert.DoesNotContain(FlatpakDesktopId, text, StringComparison.Ordinal);
+        }
+
+        Assert.Contains(NativeDesktopId, ReadRepoFile("scripts/packaging/rpm/build.sh"), StringComparison.Ordinal);
+        Assert.Contains("linux-desktop-identity.sh", ReadRepoFile("scripts/smoke/deb-package.sh"), StringComparison.Ordinal);
+        Assert.Contains("linux-desktop-identity.sh", ReadRepoFile("scripts/smoke/rpm-package.sh"), StringComparison.Ordinal);
+        Assert.Contains("file -L \"$executable\"", ReadRepoFile("scripts/smoke/linux-desktop-identity.sh"), StringComparison.Ordinal);
+
+        var releaseWorkflow = ReadRepoFile(".github/workflows/release.yml");
+        Assert.Contains($"usr/share/applications/{NativeDesktopId}", releaseWorkflow, StringComparison.Ordinal);
+        Assert.Contains("crossmacro_validate_native_desktop_identity /", releaseWorkflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SandboxAndAppImagePackages_ShouldKeepTheirDeliberateCaptureStrategies()
+    {
+        var flatpakDesktop = ReadDesktopEntry($"flatpak/{FlatpakDesktopId}");
+        var flatpakManifest = ReadRepoFile("flatpak/io.github.alper_han.crossmacro.yml");
+        var backendPolicy = ReadRepoFile("src/CrossMacro.Platform.Linux/Services/ScreenReading/LinuxScreenReaderBackendPolicy.cs");
+        var appImageBuild = ReadRepoFile("scripts/packaging/appimage/build.sh");
+        var kWinCapture = ReadRepoFile("src/CrossMacro.Platform.Linux/DisplayServer/Wayland/KWinScreenShotCapture.cs");
+
+        Assert.Equal("crossmacro", flatpakDesktop["Exec"]);
+        Assert.Equal("io.github.alper_han.crossmacro", flatpakDesktop["X-Flatpak"]);
+        Assert.DoesNotContain("X-KDE-DBUS-Restricted-Interfaces", flatpakDesktop.Keys);
+        Assert.Contains("ln -s ../lib/crossmacro/CrossMacro.UI /app/bin/crossmacro", flatpakManifest, StringComparison.Ordinal);
+        Assert.DoesNotContain("crossmacro.sh", flatpakManifest, StringComparison.Ordinal);
+
+        var flatpakPolicy = ExtractSection(backendPolicy, "FlatpakWaylandOrder =", "];", includeEndMarker: true);
+        Assert.Contains("LinuxScreenReaderBackend.Portal", flatpakPolicy, StringComparison.Ordinal);
+        Assert.DoesNotContain("LinuxScreenReaderBackend.KWinScreenShot2", flatpakPolicy, StringComparison.Ordinal);
+
+        Assert.Contains("Exec=AppRun", appImageBuild, StringComparison.Ordinal);
+        Assert.Contains("exec \"\\$HERE/usr/bin/CrossMacro.UI\"", appImageBuild, StringComparison.Ordinal);
+        Assert.Contains("File.ResolveLinkTarget(\"/proc/self/exe\"", kWinCapture, StringComparison.Ordinal);
+        Assert.Contains("Exec={canonicalExe}", kWinCapture, StringComparison.Ordinal);
+        Assert.Contains($"X-KDE-DBUS-Restricted-Interfaces={KWinScreenShotPermission}", kWinCapture, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -103,7 +166,7 @@ public sealed partial class LinuxPackagingStaticParityTests
     [Fact]
     public void PackageSources_ShouldReferenceDaemonServicePolkitUdevAndModulesAssets()
     {
-        var requiredReferencesBySource = new Dictionary<string, string[]>
+        var requiredReferencesBySource = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["scripts/packaging/deb/build.sh"] =
             [
@@ -111,7 +174,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "assets/io.github.alper_han.crossmacro.policy",
                 "assets/50-crossmacro.rules",
                 "assets/99-crossmacro.rules",
-                "assets/crossmacro-modules.conf"
+                "assets/crossmacro-modules.conf",
             ],
             ["scripts/packaging/rpm/build.sh"] =
             [
@@ -119,7 +182,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "assets/io.github.alper_han.crossmacro.policy",
                 "assets/50-crossmacro.rules",
                 "assets/99-crossmacro.rules",
-                "assets/crossmacro-modules.conf"
+                "assets/crossmacro-modules.conf",
             ],
             ["scripts/packaging/arch/PKGBUILD"] =
             [
@@ -127,7 +190,15 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "scripts/assets/io.github.alper_han.crossmacro.policy",
                 "scripts/assets/50-crossmacro.rules",
                 "scripts/assets/99-crossmacro.rules",
-                "crossmacro-modules.conf"
+                "crossmacro-modules.conf",
+            ],
+            ["scripts/packaging/arch/PKGBUILD-git.in"] =
+            [
+                "scripts/daemon/crossmacro.service",
+                "scripts/assets/io.github.alper_han.crossmacro.policy",
+                "scripts/assets/50-crossmacro.rules",
+                "scripts/assets/99-crossmacro.rules",
+                "crossmacro-modules.conf",
             ],
             ["scripts/packaging/rpm/crossmacro.spec"] =
             [
@@ -135,7 +206,7 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "io.github.alper_han.crossmacro.policy",
                 "50-crossmacro.rules",
                 "99-crossmacro.rules",
-                "crossmacro-modules.conf"
+                "crossmacro-modules.conf",
             ],
             ["scripts/daemon/install.sh"] =
             [
@@ -143,8 +214,8 @@ public sealed partial class LinuxPackagingStaticParityTests
                 "scripts/assets/crossmacro-modules.conf",
                 "scripts/assets/io.github.alper_han.crossmacro.policy",
                 "scripts/assets/50-crossmacro.rules",
-                "crossmacro.service"
-            ]
+                "crossmacro.service",
+            ],
         };
 
         foreach (var (sourcePath, references) in requiredReferencesBySource)
@@ -184,13 +255,50 @@ public sealed partial class LinuxPackagingStaticParityTests
     }
 
     [Fact]
+    public void LinuxPackages_ShouldDeclareToolsUsedByProvisioningHooks()
+    {
+        var rpmSpec = ReadRepoFile("scripts/packaging/rpm/crossmacro.spec");
+        var debScript = ReadRepoFile("scripts/packaging/deb/build.sh");
+        var archPkgbuild = ReadRepoFile("scripts/packaging/arch/PKGBUILD");
+
+        Assert.Contains("Requires(pre): shadow-utils", rpmSpec, StringComparison.Ordinal);
+        Assert.Contains("Requires(post): shadow-utils", rpmSpec, StringComparison.Ordinal);
+        Assert.Contains("Requires(post): systemd-udev", rpmSpec, StringComparison.Ordinal);
+
+        var debDepends = ExtractDebControlFieldValues(debScript, "Depends");
+        Assert.Contains("adduser", debDepends);
+        Assert.Contains("passwd", debDepends);
+        Assert.Contains("udev", debDepends);
+        Assert.Contains("init-system-helpers", debDepends);
+
+        var archDepends = ExtractArchDepends(archPkgbuild);
+        Assert.Contains("shadow", archDepends);
+        Assert.Contains("systemd", archDepends);
+    }
+
+    [Fact]
+    public void ArchGitPackage_ShouldTrackGitAndConflictWithStablePackage()
+    {
+        var gitPkgbuild = ReadRepoFile("scripts/packaging/arch/PKGBUILD-git.in");
+
+        Assert.Contains("pkgname=crossmacro-git", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("git+https://github.com/alper-han/CrossMacro.git#commit=@SOURCE_COMMIT@", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("conflicts=('crossmacro')", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("provides=('crossmacro')", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("CrossMacroSourceRevision=\"$source_revision\"", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("cd \"$srcdir/crossmacro\"", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("makedepends=('dotnet-sdk>=10.0'", gitPkgbuild, StringComparison.Ordinal);
+        Assert.Contains("pkgver()", gitPkgbuild, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ArchInstallHook_ShouldReportUserGroupChangesTruthfully()
     {
         var installHook = ReadRepoFile("scripts/packaging/arch/crossmacro.install");
 
         Assert.DoesNotContain("usermod -aG crossmacro \"$installer_user\" >/dev/null 2>&1 || true", installHook, StringComparison.Ordinal);
         Assert.DoesNotContain("was added to 'crossmacro' group (best effort)", installHook, StringComparison.Ordinal);
-        Assert.Contains("elif usermod -aG crossmacro \"$installer_user\" >/dev/null 2>&1; then", installHook, StringComparison.Ordinal);
+        Assert.Contains("elif gpasswd -a \"$installer_user\" crossmacro >/dev/null 2>&1; then", installHook, StringComparison.Ordinal);
         Assert.Contains("installer_user_group_status=\"already_member\"", installHook, StringComparison.Ordinal);
         Assert.Contains("installer_user_group_status=\"added\"", installHook, StringComparison.Ordinal);
         Assert.Contains("installer_user_group_status=\"failed\"", installHook, StringComparison.Ordinal);
@@ -199,8 +307,25 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Contains("'$installer_user' was added to the 'crossmacro' group.", installHook, StringComparison.Ordinal);
         Assert.Contains("Could not add '$installer_user' to the 'crossmacro' group automatically.", installHook, StringComparison.Ordinal);
         Assert.Contains("Could not determine the non-root user who launched the installer.", installHook, StringComparison.Ordinal);
-        Assert.Contains("sudo usermod -aG crossmacro \\$USER", installHook, StringComparison.Ordinal);
+        Assert.Contains("sudo gpasswd -a \\$USER crossmacro", installHook, StringComparison.Ordinal);
         Assert.Contains("log out and log back in, or reboot", installHook, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void DaemonInstaller_ShouldReportInstallerGroupMutationResult()
+    {
+        var installer = ReadRepoFile("scripts/daemon/install.sh");
+
+        Assert.Contains("installer_user_group_status=\"not_attempted\"", installer, StringComparison.Ordinal);
+        Assert.Contains(
+            "getent passwd \"$SUDO_USER\" >/dev/null 2>&1 && gpasswd -a \"$SUDO_USER\" crossmacro",
+            installer,
+            StringComparison.Ordinal);
+        Assert.Contains("installer_user_group_status=\"added\"", installer, StringComparison.Ordinal);
+        Assert.Contains("installer_user_group_status=\"failed\"", installer, StringComparison.Ordinal);
+        Assert.Contains("case \"$installer_user_group_status\" in", installer, StringComparison.Ordinal);
+        Assert.Contains("sudo gpasswd -a <your-username> crossmacro", installer, StringComparison.Ordinal);
+        Assert.Contains("sudo gpasswd -a \\$USER crossmacro", installer, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -234,7 +359,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.True(firstIndex < lastIndex, $"Expected '{first}' before '{last}'.");
     }
 
-    private static string ExtractSection(string text, string startMarker, string endMarker)
+    private static string ExtractSection(string text, string startMarker, string endMarker, bool includeEndMarker = false)
     {
         var startIndex = text.IndexOf(startMarker, StringComparison.Ordinal);
         var endIndex = text.IndexOf(endMarker, startIndex + startMarker.Length, StringComparison.Ordinal);
@@ -242,7 +367,8 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.True(startIndex >= 0, $"Could not find '{startMarker}' in packaging hook.");
         Assert.True(endIndex >= 0, $"Could not find '{endMarker}' in packaging hook.");
 
-        return text.Substring(startIndex, endIndex - startIndex);
+        var length = endIndex - startIndex + (includeEndMarker ? endMarker.Length : 0);
+        return text.Substring(startIndex, length);
     }
 
     private static string[] ExtractRpmRequires(string spec)
@@ -281,7 +407,7 @@ public sealed partial class LinuxPackagingStaticParityTests
             .Select(line => line.Trim())
             .Single(line => line.StartsWith("depends=", StringComparison.Ordinal));
 
-        return Regex.Matches(dependsLine, "'([^']+)'")
+        return ArchDependencyRegex.Matches(dependsLine)
             .Select(match => match.Groups[1].Value)
             .ToArray();
     }
@@ -296,7 +422,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         {
             var line = rawLine.TrimEnd('\r');
 
-            if (line == "finish-args:")
+            if (line is "finish-args:")
             {
                 inFinishArgs = true;
                 continue;
@@ -337,6 +463,17 @@ public sealed partial class LinuxPackagingStaticParityTests
         return File.ReadAllText(Path.Combine(RepoRoot, relativePath));
     }
 
+    private static IReadOnlyDictionary<string, string> ReadDesktopEntry(string relativePath)
+    {
+        return ReadRepoFile(relativePath)
+            .Split('\n')
+            .Select(line => line.Trim().TrimEnd('\r'))
+            .Where(line => line.Length > 0 && line[0] is not '#' and not '[')
+            .Select(line => line.Split('=', 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.Ordinal);
+    }
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -354,6 +491,9 @@ public sealed partial class LinuxPackagingStaticParityTests
         throw new DirectoryNotFoundException("Could not locate repository root from test output directory.");
     }
 
-    [GeneratedRegex("io\\.github\\.alper_han\\.crossmacro\\.input-(?:capture|simulate)")]
+    [GeneratedRegex("io\\.github\\.alper_han\\.crossmacro\\.input-(?:capture|simulate)", RegexOptions.NonBacktracking)]
     private static partial Regex PolkitActionIdRegex();
+
+    [GeneratedRegex("'(?<dependency>[^']+)'", RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    private static partial Regex ArchDependencyRegex { get; }
 }

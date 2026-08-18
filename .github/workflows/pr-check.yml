@@ -20,7 +20,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+    - name: Setup .NET for file-based CI contracts
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+      with:
+        dotnet-version: '10.0.x'
 
     - name: Run actionlint
       env:
@@ -31,29 +36,29 @@ jobs:
         tar -xzf actionlint.tar.gz actionlint
         ./actionlint -color
 
-    - name: Verify validator CLI help
+    - name: Validate release and documentation contracts
       run: |
         set -euo pipefail
-        python3 scripts/ci/verify_workflow_triggers.py --help
-        python3 scripts/ci/verify_workflow_security.py --help
-        python3 scripts/ci/verify_reusable_workflows.py --help
-        python3 scripts/ci/verify_artifacts.py --help
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-publish --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-flatpak --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --static-only --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-docs --repo-root "$GITHUB_WORKSPACE"
 
     - name: Validate workflow security policy
       run: |
         set -euo pipefail
-        python3 scripts/ci/verify_workflow_security.py
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-security --repo-root "$GITHUB_WORKSPACE"
 
     - name: Validate current reusable workflow policy
       run: |
         set -euo pipefail
-        python3 scripts/ci/verify_reusable_workflows.py
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-reusable --repo-root "$GITHUB_WORKSPACE"
 
-    - name: Advisory future workflow trigger policy
+    - name: Validate workflow trigger policy
       run: |
         set -euo pipefail
-        echo "Advisory: future split workflow files and release trigger cleanup are handled by later CI/CD decomposition tasks."
-        python3 scripts/ci/verify_workflow_triggers.py || true
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-triggers --repo-root "$GITHUB_WORKSPACE"
 
   pr-release-metadata:
     name: Resolve PR Release Metadata
@@ -65,7 +70,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Resolve package metadata
       id: version
@@ -77,10 +82,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -115,7 +120,7 @@ jobs:
         flathub_lint_rc=$?
         set -e
         if [ "$flathub_lint_rc" -ne 0 ]; then
-          if ! printf '%s\n' "$flathub_lint_output" | python3 -c 'import json,sys; obj=json.loads(sys.stdin.read().strip()); errs=obj.get("errors", []); sys.exit(0 if errs == ["appid-filename-mismatch"] else 1)'; then
+          if ! printf '%s\n' "$flathub_lint_output" | jq -e '.errors == ["appid-filename-mismatch"]' >/dev/null; then
             printf '%s\n' "$flathub_lint_output"
             exit "$flathub_lint_rc"
           fi
@@ -203,6 +208,7 @@ jobs:
     - name: Run Tests (Linux-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
@@ -230,10 +236,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -293,19 +299,19 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Download Linux UI artifact
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
-        path: publish/
+        path: artifacts/input/publish/
 
     - name: Download Linux daemon artifact
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
-        path: publish-daemon/
+        path: artifacts/input/publish-daemon/
 
     - name: Install packaging tools
       run: |
@@ -316,21 +322,21 @@ jobs:
       run: |
         cd scripts
         chmod +x build_deb.sh
-        VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" PUBLISH_DIR="../publish" DAEMON_DIR="../publish-daemon" ./build_deb.sh
+        VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" PUBLISH_DIR="$GITHUB_WORKSPACE/artifacts/input/publish" DAEMON_DIR="$GITHUB_WORKSPACE/artifacts/input/publish-daemon" CROSSMACRO_ARTIFACT_ROOT="$GITHUB_WORKSPACE/artifacts" ./build_deb.sh
 
     - name: Verify DEB contents
       run: |
         set -euo pipefail
-        deb_file="$(find scripts -maxdepth 1 -type f -name '*.deb' -print | sort | head -n 1)"
+        deb_file="$(find artifacts/packages/deb -maxdepth 1 -type f -name '*.deb' -print | sort | head -n 1)"
         dpkg-deb -c "$deb_file" | grep -E '/usr/share/man/man1/crossmacro\.1\.gz$'
 
     - name: Smoke DEB install and CLI
       run: |
         set -euo pipefail
-        deb_file="$(find scripts -maxdepth 1 -type f -name '*.deb' -print | sort | head -n 1)"
+        deb_file="$(find artifacts/packages/deb -maxdepth 1 -type f -name '*.deb' -print | sort | head -n 1)"
         docker run --rm --platform "${{ matrix.docker_platform }}" \
           --tmpfs /run \
-          -v "$PWD/scripts":/artifacts:ro \
+          -v "$PWD/artifacts/packages/deb":/artifacts:ro \
           -e DEB_FILE_NAME="$(basename "$deb_file")" \
           ubuntu:24.04 \
           bash -lc '
@@ -350,8 +356,6 @@ jobs:
     name: Package and Smoke RPM (${{ matrix.arch_suffix }})
     needs: [pr-release-metadata, smoke-published-linux-artifacts]
     runs-on: ${{ matrix.runner }}
-    env:
-      FEDORA_IMAGE: fedora:41
     strategy:
       fail-fast: false
       matrix:
@@ -360,75 +364,51 @@ jobs:
             runner: ubuntu-latest
             target_arch: x86_64
             rpm_arch: x86_64
-            docker_platform: linux/amd64
           - arch_suffix: arm64
             runner: ubuntu-24.04-arm
             target_arch: aarch64
             rpm_arch: aarch64
-            docker_platform: linux/arm64
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Download Linux UI artifact
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
-        path: publish/
+        path: artifacts/input/publish/
 
     - name: Download Linux daemon artifact
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
-        path: publish-daemon/
+        path: artifacts/input/publish-daemon/
 
-    - name: Build RPM package in Fedora
-      run: |
-        docker run --rm --platform "${{ matrix.docker_platform }}" \
-          -v "$PWD":/work \
-          -w /work/scripts \
-          "$FEDORA_IMAGE" \
-          bash -lc '
-            set -euo pipefail
-            dnf -y install rpm-build checkpolicy policycoreutils patchelf file >/dev/null
-            VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" RPM_ARCH="${{ matrix.rpm_arch }}" PUBLISH_DIR=/work/publish DAEMON_DIR=/work/publish-daemon ./build_rpm.sh
-          '
-
-    - name: Verify RPM contents and dependencies
+    - name: Install RPM packaging tools
       run: |
         set -euo pipefail
-        rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' | head -n 1)"
-        rpm_file_name="$(basename "$rpm_file")"
-        docker run --rm --platform "${{ matrix.docker_platform }}" \
-          -v "$PWD/scripts":/artifacts:ro \
-          -e RPM_FILE_NAME="$rpm_file_name" \
-          "$FEDORA_IMAGE" \
-          bash -lc '
-            set -euo pipefail
-            dnf -y install rpm >/dev/null
-            rpm -qpl "/artifacts/${RPM_FILE_NAME}" | grep -E "^/usr/share/man/man1/crossmacro\.1(\.gz)?$"
-            requires="$(rpm -qpR "/artifacts/${RPM_FILE_NAME}")"
-            printf "%s\n" "$requires" | grep -Fx libicu
-          '
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends rpm checkpolicy policycoreutils semodule-utils patchelf file
+        command -v rpmbuild checkmodule semodule_package patchelf file rpm
 
-    - name: Smoke RPM install and CLI
+    - name: Build and smoke RPM package
+      env:
+        CONTAINER_ENGINE: docker
       run: |
         set -euo pipefail
-        rpm_file="$(find scripts -maxdepth 1 -type f -name '*.rpm' | head -n 1)"
-        rpm_file_name="$(basename "$rpm_file")"
-        docker run --rm --platform "${{ matrix.docker_platform }}" \
-          -v "$PWD/scripts":/artifacts:ro \
-          -e RPM_FILE_NAME="$rpm_file_name" \
-          "$FEDORA_IMAGE" \
-          bash -lc '
-            set -euo pipefail
-            dnf -y install polkit libXtst libX11 libXcursor libXrandr fontconfig >/dev/null
-            dnf -y install "/artifacts/${RPM_FILE_NAME}" >/dev/null
-            /usr/bin/crossmacro --help | grep -F "Usage:"
-            /usr/bin/crossmacro settings get --json | grep -F "\"status\": \"ok\""
-            /usr/bin/crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json | grep -F "\"coordinateMode\": \"absolute\""
-          '
+        VERSION="${{ needs.pr-release-metadata.outputs.version }}" \
+        SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" \
+        PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" \
+        TARGET_ARCH="${{ matrix.target_arch }}" \
+        RPM_ARCH="${{ matrix.rpm_arch }}" \
+        PUBLISH_DIR="$GITHUB_WORKSPACE/artifacts/input/publish" \
+        DAEMON_DIR="$GITHUB_WORKSPACE/artifacts/input/publish-daemon" \
+        bash scripts/build_rpm.sh
+
+        rpm_file="$(find artifacts/packages/rpm -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+        test -n "$rpm_file"
+        bash scripts/smoke/rpm-package.sh "$rpm_file"
 
   package-appimage-pr:
     name: Package and Smoke AppImage (${{ matrix.arch_suffix }})
@@ -453,13 +433,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Download Linux UI artifact
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: pr-check-linux-binary-${{ matrix.arch_suffix }}-${{ github.run_id }}
-        path: publish/
+        path: artifacts/input/publish/
 
     - name: Install packaging tools
       run: |
@@ -470,12 +450,12 @@ jobs:
       run: |
         cd scripts
         chmod +x build_appimage.sh
-        VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" APPIMAGE_ARCH="${{ matrix.appimage_arch }}" APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" PUBLISH_DIR="../publish" APPIMAGE_EXTRACT_AND_RUN=1 ./build_appimage.sh
+        VERSION="${{ needs.pr-release-metadata.outputs.version }}" SOURCE_TAG="${{ needs.pr-release-metadata.outputs.source_tag }}" PACKAGE_VERSION_CANONICAL="${{ needs.pr-release-metadata.outputs.package_version_canonical }}" TARGET_ARCH="${{ matrix.target_arch }}" APPIMAGE_ARCH="${{ matrix.appimage_arch }}" APPIMAGETOOL_HOST_ARCH="${{ matrix.appimagetool_host_arch }}" APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" PUBLISH_DIR="$GITHUB_WORKSPACE/artifacts/input/publish" CROSSMACRO_ARTIFACT_ROOT="$GITHUB_WORKSPACE/artifacts" APPIMAGE_EXTRACT_AND_RUN=1 ./build_appimage.sh
 
     - name: Smoke AppImage
       run: |
         set -euo pipefail
-        appimage="$(find scripts -maxdepth 1 -type f -name '*-${{ matrix.appimage_arch }}.AppImage' -print | sort | head -n 1)"
+        appimage="$(find artifacts/packages/appimage -maxdepth 1 -type f -name '*-${{ matrix.appimage_arch }}.AppImage' -print | sort | head -n 1)"
         chmod +x "$appimage"
         APPIMAGE_EXTRACT_AND_RUN=1 scripts/smoke/appimage.sh "$appimage"
 
@@ -498,12 +478,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Install Flatpak tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y flatpak flatpak-builder
+        sudo apt-get install -y dbus flatpak flatpak-builder
         flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
         flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
 
@@ -515,16 +495,14 @@ jobs:
 
     - name: Verify Flatpak bundle exists
       run: |
-        test -f "flatpak/io.github.alper_han.crossmacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.flatpak_arch }}.flatpak"
+        test -f "artifacts/packages/flatpak/io.github.alper_han.crossmacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.flatpak_arch }}.flatpak"
 
     - name: Smoke Flatpak CLI
       run: |
         set -euo pipefail
-        bundle="flatpak/io.github.alper_han.crossmacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.flatpak_arch }}.flatpak"
-        flatpak --user install -y "$bundle"
-        flatpak run io.github.alper_han.crossmacro --help | grep -F "Usage:"
-        flatpak run io.github.alper_han.crossmacro settings get --json | grep -F '"status": "ok"'
-        flatpak run io.github.alper_han.crossmacro run --step "move abs 10 10" --step "click left" --dry-run --json | grep -F '"coordinateMode": "absolute"'
+        bundle="artifacts/packages/flatpak/io.github.alper_han.crossmacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.flatpak_arch }}.flatpak"
+        test -f "$bundle"
+        dbus-run-session -- bash scripts/smoke/flatpak.sh "$bundle"
 
   build-windows:
     name: Build (Windows)
@@ -532,10 +510,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -603,6 +581,7 @@ jobs:
         $ErrorActionPreference = 'Stop'
         $projects = @(
           "tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj",
+          "tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj",
           "tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj",
           "tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj",
           "tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj",
@@ -634,10 +613,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -647,7 +626,7 @@ jobs:
         ./scripts/ci/publish-windows-portable.ps1 `
           -Version '${{ needs.pr-release-metadata.outputs.version }}' `
           -Architecture '${{ matrix.architecture }}' `
-          -OutputDir publish-windows
+          -OutputDir artifacts/packages/windows/portable
 
   package-msix-pr:
     name: Package MSIX (${{ matrix.architecture }})
@@ -664,10 +643,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -678,13 +657,13 @@ jobs:
           -Version '${{ needs.pr-release-metadata.outputs.version }}' `
           -PackageVersion '${{ needs.pr-release-metadata.outputs.package_version_canonical }}' `
           -Architecture '${{ matrix.architecture }}' `
-          -OutputDir msix-content-${{ matrix.architecture }} `
-          -PackagePath CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.architecture }}.msix
+          -OutputDir artifacts/work/msix/content-${{ matrix.architecture }} `
+          -PackagePath artifacts/packages/msix/CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.architecture }}.msix
 
     - name: Verify MSIX package exists
       shell: pwsh
       run: |
-        if (-not (Test-Path -LiteralPath "CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.architecture }}.msix" -PathType Leaf)) {
+        if (-not (Test-Path -LiteralPath "artifacts/packages/msix/CrossMacro-${{ needs.pr-release-metadata.outputs.package_version_canonical }}-${{ matrix.architecture }}.msix" -PathType Leaf)) {
           throw "MSIX package was not created."
         }
 
@@ -694,10 +673,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -736,6 +715,7 @@ jobs:
     - name: Run Tests (macOS-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
@@ -745,27 +725,31 @@ jobs:
   package-macos-dmg-pr:
     name: Package macOS DMG (${{ matrix.rid }})
     needs: pr-release-metadata
-    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - rid: osx-arm64
             target_arch: aarch64
+            runner: macos-26
           - rid: osx-x64
             target_arch: x86_64
+            runner: macos-26-intel
+
+    runs-on: ${{ matrix.runner }}
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
     - name: Install create-dmg
       run: |
+        brew untap aws/tap 2>/dev/null || true
         brew install create-dmg
 
     - name: Build DMG package
@@ -776,7 +760,7 @@ jobs:
     - name: Verify DMG package contents
       run: |
         set -euo pipefail
-        dmg="$(find scripts/macos_output -maxdepth 1 -type f -name '*.dmg' -print | sort | head -n 1)"
+        dmg="$(find artifacts/packages/macos -maxdepth 1 -type f -name '*.dmg' -print | sort | head -n 1)"
         mount_dir="$(mktemp -d)"
         hdiutil attach "$dmg" -mountpoint "$mount_dir" -nobrowse -quiet
         trap 'hdiutil detach "$mount_dir" -quiet || true; rmdir "$mount_dir" || true' EXIT

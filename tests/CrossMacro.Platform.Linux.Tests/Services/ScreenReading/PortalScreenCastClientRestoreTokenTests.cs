@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
@@ -30,9 +28,9 @@ public sealed class PortalScreenCastClientRestoreTokenTests
     [Fact]
     public void TryGetResponseString_WhenRestoreTokenIsReturned_ReadsToken()
     {
-        var results = new Dictionary<string, VariantValue>
+        var results = new Dictionary<string, VariantValue>(StringComparer.Ordinal)
         {
-            ["restore_token"] = VariantValue.String("next-token")
+            ["restore_token"] = VariantValue.String("next-token"),
         };
 
         var token = PortalScreenCastClient.TryGetResponseString(results, "restore_token");
@@ -44,7 +42,7 @@ public sealed class PortalScreenCastClientRestoreTokenTests
     public void TryGetResponseString_WhenRestoreTokenIsMissing_ReturnsNull()
     {
         var token = PortalScreenCastClient.TryGetResponseString(
-            new Dictionary<string, VariantValue>(),
+            new Dictionary<string, VariantValue>(StringComparer.Ordinal),
             "restore_token");
 
         Assert.Null(token);

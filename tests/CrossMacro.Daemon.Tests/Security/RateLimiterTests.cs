@@ -1,10 +1,7 @@
-using System;
-using CrossMacro.Daemon.Security;
-using Xunit;
 
 namespace CrossMacro.Daemon.Tests.Security;
 
-public class RateLimiterTests
+public sealed class RateLimiterTests
 {
     private sealed class FakeClock
     {

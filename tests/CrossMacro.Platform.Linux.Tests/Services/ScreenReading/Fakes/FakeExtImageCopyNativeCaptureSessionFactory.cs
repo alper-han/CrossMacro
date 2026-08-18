@@ -1,16 +1,9 @@
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakeExtImageCopyNativeCaptureSessionFactory : IExtImageCopyNativeCaptureSessionFactory, IDisposable
+internal sealed class FakeExtImageCopyNativeCaptureSessionFactory(ExtImageCopyCaptureResult result) : IExtImageCopyNativeCaptureSessionFactory, IDisposable
 {
-    private readonly ExtImageCopyCaptureResult _result;
-
-    public FakeExtImageCopyNativeCaptureSessionFactory(ExtImageCopyCaptureResult result)
-    {
-        _result = result;
-    }
+    private readonly ExtImageCopyCaptureResult _result = result;
 
     public int CaptureCalls { get; private set; }
 
@@ -26,7 +19,9 @@ internal sealed class FakeExtImageCopyNativeCaptureSessionFactory : IExtImageCop
         LastRegion = region;
         if (DelayBeforeResult > TimeSpan.Zero)
         {
-            await Task.Delay(DelayBeforeResult).ConfigureAwait(false);
+            await Task.Delay(DelayBeforeResult, options.CancellationToken)
+                .WaitAsync(options.Timeout ?? Timeout.InfiniteTimeSpan, options.CancellationToken)
+                ;
         }
 
         return _result;

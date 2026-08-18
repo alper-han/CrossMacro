@@ -1,11 +1,9 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
 
-public class TextExpansionStorageServiceTests : IDisposable
+public sealed class TextExpansionStorageServiceTests : IDisposable
 {
+    private static readonly CancellationToken NonCancelableToken = new(canceled: false);
     private readonly TextExpansionStorageService _service;
     private readonly string _testRootDirectory;
 
@@ -16,7 +14,7 @@ public class TextExpansionStorageServiceTests : IDisposable
             "crossmacro-tests",
             nameof(TextExpansionStorageServiceTests),
             Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_testRootDirectory);
+        _ = Directory.CreateDirectory(_testRootDirectory);
         _service = CreateService();
     }
 
@@ -29,13 +27,16 @@ public class TextExpansionStorageServiceTests : IDisposable
                 Directory.Delete(_testRootDirectory, recursive: true);
             }
         }
-        catch { /* Ignore cleanup errors */ }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Best-effort test cleanup tolerates expected filesystem failures.
+        }
     }
 
     private TextExpansionStorageService CreateService()
     {
         var serviceDirectory = Path.Combine(_testRootDirectory, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(serviceDirectory);
+        _ = Directory.CreateDirectory(serviceDirectory);
         return new TextExpansionStorageService(serviceDirectory);
     }
 
@@ -43,21 +44,21 @@ public class TextExpansionStorageServiceTests : IDisposable
     public void FilePath_IsNotEmpty()
     {
         // Assert
-        _service.FilePath.Should().NotBeNullOrEmpty();
+        _ = _service.FilePath.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
     public void FilePath_ContainsCrossmacro()
     {
         // Assert
-        _service.FilePath.Should().Contain(_testRootDirectory);
+        _ = _service.FilePath.Should().Contain(_testRootDirectory);
     }
 
     [Fact]
     public void FilePath_EndsWithJson()
     {
         // Assert
-        _service.FilePath.Should().EndWith(".json");
+        _ = _service.FilePath.Should().EndWith(".json");
     }
 
     [Fact]
@@ -70,8 +71,8 @@ public class TextExpansionStorageServiceTests : IDisposable
         var result = service.GetCurrent();
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().BeEmpty();
+        _ = result.Should().NotBeNull();
+        _ = result.Should().BeEmpty();
     }
 
     [Fact]
@@ -84,7 +85,7 @@ public class TextExpansionStorageServiceTests : IDisposable
         var result = service.Load();
 
         // Assert
-        result.Should().NotBeNull();
+        _ = result.Should().NotBeNull();
     }
 
     [Fact]
@@ -97,7 +98,7 @@ public class TextExpansionStorageServiceTests : IDisposable
         var result = await service.LoadAsync();
 
         // Assert
-        result.Should().NotBeNull();
+        _ = result.Should().NotBeNull();
     }
 
     [Fact]
@@ -110,7 +111,7 @@ public class TextExpansionStorageServiceTests : IDisposable
         var act = async () => await service.SaveAsync(null!);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentNullException>();
+        _ = await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
     [Fact]
@@ -118,13 +119,13 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var emptyList = new List<TextExpansion>();
+        var emptyList = new List<TextExpansionEntry>();
 
         // Act
         var act = async () => await service.SaveAsync(emptyList);
 
         // Assert
-        await act.Should().NotThrowAsync();
+        _ = await act.Should().NotThrowAsync();
     }
 
     [Fact]
@@ -132,10 +133,10 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new(":mail", "test@example.com"),
-            new(":sig", "Best regards,\nTest User", true, PasteMethod.ShiftInsert, TextInsertionMode.DirectTyping, DirectTypingMethod.CompatibleKeyByKey)
+            new(":sig", "Best regards,\nTest User", true, PasteMethod.ShiftInsert, TextInsertionMode.DirectTyping, DirectTypingMethod.CompatibleKeyByKey),
         };
 
         // Act
@@ -143,36 +144,26 @@ public class TextExpansionStorageServiceTests : IDisposable
         var loaded = await service.LoadAsync();
 
         // Assert
-        loaded.Should().HaveCount(2);
-        loaded[0].Trigger.Should().Be(":mail");
-        loaded[0].Replacement.Should().Be("test@example.com");
-        loaded[1].Trigger.Should().Be(":sig");
-        loaded[1].Method.Should().Be(PasteMethod.ShiftInsert);
-        loaded[1].InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
-        loaded[1].DirectTypingMethod.Should().Be(DirectTypingMethod.CompatibleKeyByKey);
+        _ = loaded.Should().HaveCount(2);
+        _ = loaded[0].Trigger.Should().Be(":mail");
+        _ = loaded[0].Replacement.Should().Be("test@example.com");
+        _ = loaded[1].Trigger.Should().Be(":sig");
+        _ = loaded[1].Method.Should().Be(PasteMethod.ShiftInsert);
+        _ = loaded[1].InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
+        _ = loaded[1].DirectTypingMethod.Should().Be(DirectTypingMethod.CompatibleKeyByKey);
     }
 
     [Fact]
     public async Task LoadAsync_WhenDirectTypingMethodIsMissing_DefaultsToFastBatch()
     {
         var service = CreateService();
-        var legacyJson = """
-            [
-              {
-                "trigger": ":typed",
-                "replacement": "value",
-                "isEnabled": true,
-                "method": 0,
-                "insertionMode": 1
-              }
-            ]
-            """;
-        await File.WriteAllTextAsync(service.FilePath, legacyJson);
+        string legacyJson = "[\n  {\n    \"trigger\": \":typed\",\n    \"replacement\": \"value\",\n    \"isEnabled\": true,\n    \"method\": 0,\n    \"insertionMode\": 1\n  }\n]" + '\n';
+        await File.WriteAllTextAsync(service.FilePath, legacyJson, NonCancelableToken);
 
         var loaded = await service.LoadAsync();
 
-        loaded.Should().ContainSingle();
-        loaded[0].DirectTypingMethod.Should().Be(DirectTypingMethod.FastBatch);
+        _ = loaded.Should().ContainSingle();
+        _ = loaded[0].DirectTypingMethod.Should().Be(DirectTypingMethod.FastBatch);
     }
 
     [Fact]
@@ -180,27 +171,18 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var legacyJson = """
-            [
-              {
-                "trigger": ":mail",
-                "replacement": "test@example.com",
-                "isEnabled": true,
-                "method": 1
-              }
-            ]
-            """;
+        string legacyJson = "[\n  {\n    \"trigger\": \":mail\",\n    \"replacement\": \"test@example.com\",\n    \"isEnabled\": true,\n    \"method\": 1\n  }\n]" + '\n';
 
-        await File.WriteAllTextAsync(service.FilePath, legacyJson);
+        await File.WriteAllTextAsync(service.FilePath, legacyJson, NonCancelableToken);
 
         // Act
         var loaded = await service.LoadAsync();
 
         // Assert
-        loaded.Should().ContainSingle();
-        loaded[0].Trigger.Should().Be(":mail");
-        loaded[0].Method.Should().Be(PasteMethod.CtrlShiftV);
-        loaded[0].InsertionMode.Should().Be(TextInsertionMode.Paste);
+        _ = loaded.Should().ContainSingle();
+        _ = loaded[0].Trigger.Should().Be(":mail");
+        _ = loaded[0].Method.Should().Be(PasteMethod.CtrlShiftV);
+        _ = loaded[0].InsertionMode.Should().Be(TextInsertionMode.Paste);
     }
 
     [Fact]
@@ -208,15 +190,15 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        await service.SaveAsync(new List<TextExpansion> { new(":ok", "value") });
+        await service.SaveAsync(new List<TextExpansionEntry> { new(":ok", "value") });
         File.WriteAllText(service.FilePath, "{ invalid json }");
 
         // Act
         var loaded = service.Load();
 
         // Assert
-        loaded.Should().BeEmpty();
-        service.GetCurrent().Should().BeEmpty();
+        _ = loaded.Should().BeEmpty();
+        _ = service.GetCurrent().Should().BeEmpty();
     }
 
     [Fact]
@@ -224,9 +206,9 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
-            new(":test", "Test Value")
+            new(":test", "Test Value"),
         };
 
         // Act
@@ -234,8 +216,8 @@ public class TextExpansionStorageServiceTests : IDisposable
         var current = service.GetCurrent();
 
         // Assert
-        current.Should().HaveCount(1);
-        current[0].Trigger.Should().Be(":test");
+        _ = current.Should().HaveCount(1);
+        _ = current[0].Trigger.Should().Be(":test");
     }
 
     [Fact]
@@ -243,24 +225,24 @@ public class TextExpansionStorageServiceTests : IDisposable
     {
         // Arrange
         var service = CreateService();
-        var baseline = new List<TextExpansion> { new(":ok", "value") };
+        var baseline = new List<TextExpansionEntry> { new(":ok", "value") };
         await service.SaveAsync(baseline);
 
         // Act
         var act = async () => await service.SaveAsync(new ThrowingExpansionEnumerable());
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("enumeration failed");
 
         var current = service.GetCurrent();
-        current.Should().HaveCount(1);
-        current[0].Trigger.Should().Be(":ok");
+        _ = current.Should().HaveCount(1);
+        _ = current[0].Trigger.Should().Be(":ok");
     }
 
-    private sealed class ThrowingExpansionEnumerable : IEnumerable<TextExpansion>
+    private sealed class ThrowingExpansionEnumerable : IEnumerable<TextExpansionEntry>
     {
-        public IEnumerator<TextExpansion> GetEnumerator() => throw new InvalidOperationException("enumeration failed");
+        public IEnumerator<TextExpansionEntry> GetEnumerator() => throw new InvalidOperationException("enumeration failed");
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 

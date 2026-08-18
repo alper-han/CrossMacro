@@ -1,74 +1,74 @@
-using System;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Markup.Xaml;
-using Avalonia.Threading;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.DependencyInjection;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.Startup;
-using Microsoft.Extensions.DependencyInjection;
-using Serilog;
-using System.Threading.Tasks;
 
 namespace CrossMacro.UI;
 
-public partial class App : Application
+public class App : Avalonia.Application
 {
     private readonly GuiBootstrapContext? _bootstrapContext;
-    private IServiceProvider? _serviceProvider;
+    private bool _shutdownStarted;
+    private bool _shutdownCompleted;
 
-    public App()
-    {
-    }
+    public App() { /* Empty */ }
 
     internal App(GuiBootstrapContext bootstrapContext)
     {
         _bootstrapContext = bootstrapContext ?? throw new ArgumentNullException(nameof(bootstrapContext));
     }
 
-    public IServiceProvider? Services => _serviceProvider;
+    public IServiceProvider? Services { get; private set; }
 
     public override void Initialize()
     {
+        Name = "CrossMacro";
         AvaloniaXamlLoader.Load(this);
+        InitializeThemeResources();
         ConfigureServices();
+    }
+
+    private void InitializeThemeResources()
+    {
+        if (Resources is null)
+        {
+            return;
+        }
+
+        ThemeResourceDictionaryFactory.ReplaceActiveTheme(Resources, ThemeResourceDictionaryFactory.Create(ThemeCatalog.DefaultTheme));
     }
 
     private void ConfigureServices()
     {
-        if (_bootstrapContext == null)
+        if (_bootstrapContext is null)
         {
             // Allow tooling/design-time hosts to construct App without a platform host project.
-            _serviceProvider = new ServiceCollection().BuildServiceProvider();
+            Services = new ServiceCollection().BuildServiceProvider();
             return;
         }
 
         var services = new ServiceCollection();
-        services.AddSingleton(_bootstrapContext.StartupOptions);
-        services.AddCrossMacroServices(_bootstrapContext.PlatformServiceRegistrar);
-        _serviceProvider = services.BuildServiceProvider();
+        _ = services.AddSingleton(_bootstrapContext.StartupOptions);
+        _bootstrapContext.ConfigureServices(services);
+        _bootstrapContext.ConfigureRuntimeServices(services);
+        _ = services.AddCrossMacroServices();
+        Services = services.BuildServiceProvider();
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
         {
-            if (!Design.IsDesignMode && _bootstrapContext == null)
+            if (!Design.IsDesignMode && _bootstrapContext is null)
             {
                 throw new InvalidOperationException(
-                    "Platform service registrar is not configured. Start the app via a platform host project.");
+                    "Platform service composition is not configured. Start the app via a platform host project.");
             }
 
 
-            if (_serviceProvider == null)
+            if (Services is null)
             {
                 throw new InvalidOperationException("Service provider is not initialized");
             }
 
-            var desktopLifetime = (IClassicDesktopStyleApplicationLifetime)ApplicationLifetime;
             AttachDesktopLifetime(desktopLifetime);
+            desktopLifetime.ShutdownRequested += OnShutdownRequested;
             QueueDesktopStartup(desktopLifetime);
         }
 
@@ -77,7 +77,7 @@ public partial class App : Application
 
     private void AttachDesktopLifetime(IClassicDesktopStyleApplicationLifetime desktopLifetime)
     {
-        var context = _serviceProvider?.GetService<IDesktopLifetimeContext>();
+        var context = Services?.GetService<IDesktopLifetimeContext>();
         context?.Attach(desktopLifetime);
     }
 
@@ -90,34 +90,146 @@ public partial class App : Application
                 () => _ = RunStartupAsync(startupCoordinator, desktop),
                 DispatcherPriority.Send);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "Desktop startup initialization failed");
-            Dispatcher.UIThread.Post(() => desktop.Shutdown(1), DispatcherPriority.Send);
+            SerilogLog.Error(ex, "Desktop startup initialization failed");
+            // Already on the UI thread; blocking on InvokeAsync would deadlock the dispatcher.
+            desktop.Shutdown(1);
         }
     }
 
     private IDesktopStartupCoordinator GetDesktopStartupCoordinator()
     {
-        var services = _serviceProvider
+        var services = Services
             ?? throw new InvalidOperationException("Service provider is not initialized.");
 
         return services.GetRequiredService<IDesktopStartupCoordinator>();
     }
 
-    private static async Task RunStartupAsync(
+    private async Task RunStartupAsync(
         IDesktopStartupCoordinator startupCoordinator,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
+        if (Volatile.Read(ref _shutdownStarted))
+        {
+            return;
+        }
+
         try
         {
-            await startupCoordinator.StartAsync(desktop);
+            await startupCoordinator.StartAsync(desktop).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (Volatile.Read(ref _shutdownStarted))
         {
-            Log.Error(ex, "Desktop startup failed");
-            desktop.Shutdown(1);
+            // Shutdown cancellation is an expected completion path.
         }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            SerilogLog.Error(ex, "Desktop startup failed");
+            await Dispatcher.UIThread.InvokeAsync(() => desktop.Shutdown(1), DispatcherPriority.Send, CancellationToken.None);
+        }
+    }
+
+    private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
+    {
+        if (_shutdownCompleted)
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        if (Volatile.Read(ref _shutdownStarted))
+        {
+            return;
+        }
+
+        Volatile.Write(ref _shutdownStarted, value: true);
+        _ = CompleteShutdownAsync((IClassicDesktopStyleApplicationLifetime)sender!);
+    }
+
+    private async Task CompleteShutdownAsync(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var services = Services;
+        if (services is not null)
+        {
+            var cleanupError = await CleanupAsync(
+                () => services.GetService<DesktopStartupRuntimeService>()?.StopAsync() ?? Task.CompletedTask,
+                () => services.GetService<ProfileLoadedMacroSessionPersistenceService>()?.FlushAsync(CancellationToken.None) ?? Task.CompletedTask,
+                () => services.GetService<DesktopStartupRuntimeService>()?.DisposeCreatedMainWindowViewModel(),
+                async () =>
+                {
+                    if (services is IAsyncDisposable asyncDisposable)
+                    {
+                        await asyncDisposable.DisposeAsync().ConfigureAwait(true);
+                    }
+                    else if (services is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
+                }).ConfigureAwait(true);
+
+            if (cleanupError is not null)
+            {
+                SerilogLog.Error(cleanupError, "Desktop shutdown cleanup failed");
+            }
+        }
+
+        desktop.ShutdownRequested -= OnShutdownRequested;
+        _shutdownCompleted = true;
+        desktop.Shutdown();
+    }
+
+    internal static async Task<AggregateException?> CleanupAsync(
+        Func<Task> stopRuntime,
+        Func<Task> flushProfileState,
+        Action disposeViewModel,
+        Func<Task> disposeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(stopRuntime);
+        ArgumentNullException.ThrowIfNull(flushProfileState);
+        ArgumentNullException.ThrowIfNull(disposeViewModel);
+        ArgumentNullException.ThrowIfNull(disposeProvider);
+
+        var errors = new List<Exception>();
+        try
+        {
+            await stopRuntime().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            errors.Add(ex);
+        }
+
+        try
+        {
+            await flushProfileState().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            errors.Add(ex);
+        }
+
+        try
+        {
+            disposeViewModel();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            errors.Add(ex);
+        }
+
+        try
+        {
+            await disposeProvider().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            errors.Add(ex);
+        }
+
+        return errors.Count is 0
+            ? null
+            : new AggregateException("Desktop shutdown cleanup failed.", errors);
     }
 
 }

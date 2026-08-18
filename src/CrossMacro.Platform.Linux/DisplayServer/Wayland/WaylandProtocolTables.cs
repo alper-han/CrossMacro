@@ -5,6 +5,8 @@ internal sealed class WaylandProtocolTables : IDisposable
     public WaylandProtocolTables()
     {
         WlRegistry = new("wl_registry", 1, [("bind", "usun")], [("global", "usu"), ("global_remove", "u")]);
+        WlSeat = new("wl_seat", 1, [("get_pointer", "n"), ("get_keyboard", "n"), ("get_touch", "n")], [("capabilities", "u"), ("name", "s")]);
+        WlPointer = new("wl_pointer", 1, [("set_cursor", "uoii")], [("enter", "uoff"), ("leave", "uo"), ("motion", "uff"), ("button", "uuuu"), ("axis", "uuf")]);
         WlOutput = new("wl_output", 4, [], [("geometry", "iiiiissi"), ("mode", "uiii"), ("done", ""), ("scale", "i"), ("name", "s"), ("description", "s")]);
         WlShm = new("wl_shm", 1, [("create_pool", "nhi")], [("format", "u")]);
         WlShmPool = new("wl_shm_pool", 1, [("create_buffer", "niiiiu"), ("destroy", ""), ("resize", "i")], []);
@@ -14,16 +16,20 @@ internal sealed class WaylandProtocolTables : IDisposable
         ExtOutputSourceManager = new("ext_output_image_capture_source_manager_v1", 1, [("create_source", "no"), ("destroy", "")], []);
         ExtCaptureSource = new("ext_image_capture_source_v1", 1, [("destroy", "")], []);
         ExtCopyManager = new("ext_image_copy_capture_manager_v1", 1, [("create_session", "nou"), ("create_pointer_cursor_session", "noo"), ("destroy", "")], []);
+        ExtCursorSession = new("ext_image_copy_capture_cursor_session_v1", 1, [("destroy", ""), ("get_capture_session", "n")], [("enter", ""), ("leave", ""), ("position", "ii"), ("hotspot", "ii")]);
         ExtCopySession = new("ext_image_copy_capture_session_v1", 1, [("create_frame", "n"), ("destroy", "")], [("buffer_size", "uu"), ("shm_format", "u"), ("dmabuf_device", "a"), ("dmabuf_format", "ua"), ("done", ""), ("stopped", "")]);
         ExtCopyFrame = new("ext_image_copy_capture_frame_v1", 1, [("destroy", ""), ("attach_buffer", "o"), ("damage_buffer", "iiii"), ("capture", "")], [("transform", "u"), ("damage", "iiii"), ("presentation_time", "uuu"), ("ready", ""), ("failed", "u")]);
         WlrScreencopyManager = new("zwlr_screencopy_manager_v1", 3, [("capture_output", "nuo"), ("capture_output_region", "nuoiiii"), ("destroy", "")], []);
         WlrScreencopyFrame = new("zwlr_screencopy_frame_v1", 3, [("copy", "o"), ("destroy", ""), ("copy_with_damage", "o")], [("buffer", "uuuu"), ("flags", "u"), ("ready", "uuu"), ("failed", ""), ("damage", "uuuu"), ("linux_dmabuf", "uuu"), ("buffer_done", "")]);
 
+        WlSeat.SetMethodTypes(0, WlPointer.Address);
         WlShm.SetMethodTypes(0, WlShmPool.Address, IntPtr.Zero, IntPtr.Zero);
         WlShmPool.SetMethodTypes(0, WlBuffer.Address, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
         XdgOutputManager.SetMethodTypes(1, XdgOutput.Address, WlOutput.Address);
         ExtOutputSourceManager.SetMethodTypes(0, ExtCaptureSource.Address, WlOutput.Address);
         ExtCopyManager.SetMethodTypes(0, ExtCopySession.Address, ExtCaptureSource.Address, IntPtr.Zero);
+        ExtCopyManager.SetMethodTypes(1, ExtCursorSession.Address, ExtCaptureSource.Address, WlPointer.Address);
+        ExtCursorSession.SetMethodTypes(1, ExtCopySession.Address);
         ExtCopySession.SetMethodTypes(0, ExtCopyFrame.Address);
         ExtCopyFrame.SetMethodTypes(1, WlBuffer.Address);
         WlrScreencopyManager.SetMethodTypes(0, WlrScreencopyFrame.Address, IntPtr.Zero, WlOutput.Address);
@@ -32,6 +38,8 @@ internal sealed class WaylandProtocolTables : IDisposable
     }
 
     public WaylandInterfaceHandle WlRegistry { get; }
+    public WaylandInterfaceHandle WlSeat { get; }
+    public WaylandInterfaceHandle WlPointer { get; }
     public WaylandInterfaceHandle WlOutput { get; }
     public WaylandInterfaceHandle WlShm { get; }
     public WaylandInterfaceHandle WlShmPool { get; }
@@ -41,6 +49,7 @@ internal sealed class WaylandProtocolTables : IDisposable
     public WaylandInterfaceHandle ExtOutputSourceManager { get; }
     public WaylandInterfaceHandle ExtCaptureSource { get; }
     public WaylandInterfaceHandle ExtCopyManager { get; }
+    public WaylandInterfaceHandle ExtCursorSession { get; }
     public WaylandInterfaceHandle ExtCopySession { get; }
     public WaylandInterfaceHandle ExtCopyFrame { get; }
     public WaylandInterfaceHandle WlrScreencopyManager { get; }
@@ -49,6 +58,8 @@ internal sealed class WaylandProtocolTables : IDisposable
     public void Dispose()
     {
         WlRegistry.Dispose();
+        WlSeat.Dispose();
+        WlPointer.Dispose();
         WlOutput.Dispose();
         WlShm.Dispose();
         WlShmPool.Dispose();
@@ -58,6 +69,7 @@ internal sealed class WaylandProtocolTables : IDisposable
         ExtOutputSourceManager.Dispose();
         ExtCaptureSource.Dispose();
         ExtCopyManager.Dispose();
+        ExtCursorSession.Dispose();
         ExtCopySession.Dispose();
         ExtCopyFrame.Dispose();
         WlrScreencopyManager.Dispose();

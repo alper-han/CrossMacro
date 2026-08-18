@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services;
 
@@ -20,14 +16,38 @@ public class LinuxPermissionChecker : IPermissionChecker
         return CheckUInputAccess();
     }
 
+    public async ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            if (await LinuxInputProbeUtilities.HasUInputWriteAccessAsync(LinuxInputProbeUtilities.CanOpenForWrite, cancellationToken).ConfigureAwait(false))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "Error checking uinput permissions");
+            return false;
+        }
+    }
+
     public bool CheckUInputAccess()
     {
         try
         {
             // Helper to check write access
-            bool CheckWrite(string path)
+            static bool CheckWrite(string path)
             {
-                if (!File.Exists(path)) return false;
+                if (!File.Exists(path))
+                {
+                    return false;
+                }
+
                 try
                 {
                     using var fs = File.OpenWrite(path);
@@ -37,7 +57,7 @@ public class LinuxPermissionChecker : IPermissionChecker
                 {
                     return false;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Debug(ex, "Failed to check permission for {Path}", path);
                     return false;
@@ -45,14 +65,21 @@ public class LinuxPermissionChecker : IPermissionChecker
             }
 
             // Check standard paths
-            if (CheckWrite(LinuxConstants.UInputDevicePath)) return true;
-            if (CheckWrite(LinuxConstants.UInputAlternatePath)) return true;
-            
+            if (CheckWrite(LinuxConstants.UInputDevicePath))
+            {
+                return true;
+            }
+
+            if (CheckWrite(LinuxConstants.UInputAlternatePath))
+            {
+                return true;
+            }
+
             return false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "Error checking uinput permissions");
+            Log.LogError(ex, "Error checking uinput permissions");
             return false;
         }
     }

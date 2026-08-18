@@ -1,9 +1,3 @@
-using System.Threading.Tasks;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.Startup;
-using NSubstitute;
 
 namespace CrossMacro.UI.Tests.Services;
 
@@ -21,7 +15,7 @@ public sealed class DesktopQuickSetupGateServiceTests
 
         var handled = await service.TryHandleAsync(
             desktop,
-            new DesktopStartupPreferences(false, false, false),
+            new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false),
             unsupportedSessionReason: null,
             startDesktopRuntimeAsync: (_, _) =>
             {

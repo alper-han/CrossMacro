@@ -1,27 +1,5 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Core.Services;
-
-/// <summary>
-/// Event args for task execution events
-/// </summary>
-public class TaskExecutedEventArgs : EventArgs
-{
-    public ScheduledTask Task { get; }
-    public bool Success { get; }
-    public string? Message { get; }
-    
-    public TaskExecutedEventArgs(ScheduledTask task, bool success, string? message = null)
-    {
-        Task = task;
-        Success = success;
-        Message = message;
-    }
-}
 
 /// <summary>
 /// Interface for macro scheduling service
@@ -31,61 +9,70 @@ public interface ISchedulerService : IDisposable
     /// <summary>
     /// Collection of scheduled tasks
     /// </summary>
-    ObservableCollection<ScheduledTask> Tasks { get; }
-    
+    public ObservableCollection<ScheduledTask> Tasks { get; }
+
     /// <summary>
     /// Whether the scheduler is running
     /// </summary>
-    bool IsRunning { get; }
-    
+    public bool IsRunning { get; }
+
+    /// <summary>
+    /// Completes when the current timer loop and its serial execution have stopped.
+    /// <see cref="StopScheduler"/> remains non-blocking for host shutdown compatibility.
+    /// </summary>
+    public Task Completion { get; }
+
     /// <summary>
     /// Adds a new scheduled task
     /// </summary>
-    void AddTask(ScheduledTask task);
-    
+    public void AddTask(ScheduledTask task);
+
     /// <summary>
     /// Removes a scheduled task by ID
     /// </summary>
-    void RemoveTask(Guid id);
-    
+    public void RemoveTask(Guid id);
+
     /// <summary>
     /// Updates an existing task
     /// </summary>
-    void UpdateTask(ScheduledTask task);
-    
+    public void UpdateTask(ScheduledTask task);
+
     /// <summary>
     /// Enables or disables a task
     /// </summary>
-    void SetTaskEnabled(Guid id, bool enabled);
-    Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
-    
+    public void SetTaskEnabled(Guid id, bool enabled);
+    public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Starts the scheduler
     /// </summary>
-    void Start();
-    
+    public void Start();
+
     /// <summary>
     /// Stops the scheduler
     /// </summary>
-    void Stop();
-    
+    public void StopScheduler();
+
+    /// <summary>Requests shutdown and exposes completion of the current scheduler lifetime.</summary>
+    public Task StopAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Saves tasks to persistent storage
     /// </summary>
-    Task SaveAsync();
-    
+    public Task SaveAsync();
+
     /// <summary>
     /// Loads tasks from persistent storage
     /// </summary>
-    Task LoadAsync();
-    
+    public Task LoadAsync();
+
     /// <summary>
     /// Event fired when a task is executed
     /// </summary>
-    event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
-    
+    public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
+
     /// <summary>
     /// Event fired when a task starts executing
     /// </summary>
-    event EventHandler<ScheduledTask>? TaskStarting;
+    public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
 }

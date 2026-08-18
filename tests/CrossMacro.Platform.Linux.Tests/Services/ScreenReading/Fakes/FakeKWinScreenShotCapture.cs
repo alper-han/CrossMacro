@@ -1,24 +1,17 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakeKWinScreenShotCapture : IKWinScreenShotCapture
+internal sealed class FakeKWinScreenShotCapture(
+    KWinScreenShotSupportResult support,
+    KWinScreenShotCaptureResult? captureResult = null) : IKWinScreenShotCapture
 {
-    private readonly KWinScreenShotSupportResult _support;
-    private readonly KWinScreenShotCaptureResult _captureResult;
-
-    public FakeKWinScreenShotCapture(
-        KWinScreenShotSupportResult support,
-        KWinScreenShotCaptureResult? captureResult = null)
-    {
-        _support = support;
-        _captureResult = captureResult ?? KWinScreenShotCaptureResult.Failure(
+    private readonly KWinScreenShotSupportResult _support = support;
+    private readonly KWinScreenShotCaptureResult _captureResult = captureResult ?? KWinScreenShotCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake KWin ScreenShot2 frame configured");
-    }
 
     public int CaptureCalls { get; private set; }
+    public int WorkspaceCaptureCalls { get; private set; }
     public int ProbeCalls { get; private set; }
     public int DisposeCount { get; private set; }
     public Exception? CaptureException { get; init; }
@@ -42,17 +35,16 @@ internal sealed class FakeKWinScreenShotCapture : IKWinScreenShotCapture
         return Task.FromResult(_captureResult);
     }
 
-    public void Dispose() => DisposeCount++;
-}
-
-internal sealed class FakeKWinScreenShotSupportProbe : IKWinScreenShotSupportProbe
-{
-    private readonly KWinScreenShotSupportResult _support;
-
-    public FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult support)
+    public Task<KWinScreenShotCaptureResult> CaptureWorkspaceAsync(ScreenReadOptions options)
     {
-        _support = support;
+        WorkspaceCaptureCalls++;
+        if (CaptureException is not null)
+        {
+            return Task.FromException<KWinScreenShotCaptureResult>(CaptureException);
+        }
+
+        return Task.FromResult(_captureResult);
     }
 
-    public KWinScreenShotSupportResult ProbeSupport() => _support;
+    public void Dispose() => DisposeCount++;
 }

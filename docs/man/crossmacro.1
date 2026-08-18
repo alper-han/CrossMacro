@@ -1,4 +1,4 @@
-.TH CROSSMACRO 1 "2026-02-28" "CrossMacro" "User Commands"
+.TH CROSSMACRO 1 "2026-08-06" "CrossMacro" "User Commands"
 .SH NAME
 crossmacro \- keyboard and mouse macro automation CLI
 .SH SYNOPSIS
@@ -23,22 +23,31 @@ crossmacro \- keyboard and mouse macro automation CLI
 \fBdoctor\fR [\fB\-\-verbose\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBsettings get\fR [\fIKEY\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBsetup\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBsettings get\fR [\fIKEY\fR|\fB\-\-all\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBsettings set\fR \fIKEY\fR \fIVALUE\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBschedule list\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBsettings list-keys\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBschedule run\fR \fITASK_ID\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBsettings reset\fR \fIKEY\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBshortcut list\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBprofile list|current|create|switch|rename|delete\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
-\fBshortcut run\fR \fITASK_ID\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+\fBtext-expansion list|add|remove|enable|disable|test\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBschedule list|run|add|edit|remove|enable|disable|next\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBshortcut list|run|add|edit|remove|enable|disable|bind\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBrecord\fR (\fB\-\-output\fR|\fB\-o\fR) \fIMACRO_FILE\fR [\fB\-\-mouse\fR \fIBOOL\fR] [\fB\-\-keyboard\fR \fIBOOL\fR]
@@ -47,13 +56,42 @@ crossmacro \- keyboard and mouse macro automation CLI
 .br
 .B crossmacro
 \fBrun\fR [\fB\-\-step\fR \fISTEP\fR]... [\fB\-\-file\fR \fISTEPS_FILE\fR]
+[\fB\-\-asset\fR \fINAME\fR \fIPNG_PATH\fR]...
 [\fB\-\-speed\fR \fIN\fR] [\fB\-\-countdown\fR \fISEC\fR] [\fB\-\-timeout\fR \fISEC\fR]
 [\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBrun\fR \fISTEP_COMMAND\fR [\fISTEP_COMMAND\fR]... [\fB\-\-file\fR \fISTEPS_FILE\fR]
+[\fB\-\-asset\fR \fINAME\fR \fIPNG_PATH\fR]...
 [\fB\-\-speed\fR \fIN\fR] [\fB\-\-countdown\fR \fISEC\fR] [\fB\-\-timeout\fR \fISEC\fR]
 [\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+.B move|click|down|up|scroll|key|tap|type|delay
+... [\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBclipboard get\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBclipboard set\fR \fITEXT\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBclipboard set --file\fR \fIPATH\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBclipboard clear\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBwindow active|list|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|workspace\fR ...
+[\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBscreen pixel|wait-color|search-color|search-image|wait-image|image-click\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBscreenshot\fR ((\fB\-\-output\fR|\fB\-o\fR) \fIPATH\fR|\fB\-\-clipboard\fR) [\fB\-\-region\fR \fIX\fR \fIY\fR \fIWIDTH\fR \fIHEIGHT\fR]
+[\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBheadless\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
@@ -72,14 +110,17 @@ service user owns device access.
 The desktop user must be a member of the \fBcrossmacro\fR group to use that socket.
 After adding a user to the group, log out and back in or reboot before starting
 CrossMacro again, because existing sessions keep their old group list.
+Directory identities resolved through NSS, including AD, LDAP, and SSSD, are
+supported. Use \fBgpasswd -a <identity> crossmacro\fR to add a local group membership
+without modifying the directory service.
 Some channels and environments intentionally support direct device mode instead,
 where the app process itself needs access to \fI/dev/uinput\fR and, for recording or hotkeys,
 readable \fI/dev/input/event*\fR devices.
 Direct device readiness does not fix daemon socket permission failures.
 On X11, CrossMacro tries native X11 capture and playback first; a supported native X11
 session does not require daemon-backed or direct device fallback.
-Flatpak Wayland is hybrid: it uses the exposed host daemon socket when available and
-falls back to direct device mode only when the needed device permissions are present.
+Flatpak and AppImage use direct device mode on Wayland and do not probe the host daemon.
+The required direct device permissions can be granted by Quick Setup.
 Arch and CachyOS package hooks provision the \fBcrossmacro\fR sysusers entry before service
 start or restart, and print manual remediation when they cannot confirm adding the
 installing user to the \fBcrossmacro\fR group automatically.
@@ -91,7 +132,7 @@ temp-directory socket candidates.
 Show command help.
 .TP
 .B \-v, \-\-version
-Show version.
+Show version. Development builds include the short source revision for bug reports.
 .TP
 .B \-\-start-minimized
 Start GUI minimized. When tray support is available, CrossMacro starts hidden to tray instead.
@@ -136,6 +177,27 @@ Providing \fB\-\-repeat\fR with value > 0 implies loop semantics for that playba
 .B run
 \fB\-\-speed\fR must be between 0.1 and 10.0.
 \fB\-\-countdown\fR and \fB\-\-timeout\fR must be >= 0.
+\fB\-\-asset NAME PNG_PATH\fR is repeatable; NAME must match
+\fB[A-Za-z_][A-Za-z0-9_]*\fR and PNG_PATH must be a valid native PNG.
+.TP
+.B window and screen
+\fBwindow wait --timeout-ms\fR must be >= 0. \fBscreen search-color --tolerance\fR must be between 0 and 255.
+\fBscreen search-color\fR bounds are end-exclusive and must produce a positive region.
+The repeated screen commands use a fixed 50 millisecond cadence and default to
+a total 5000 millisecond timeout. One-frame pixel and image searches keep an
+internal five-second capture safety deadline.
+Image command timeouts and regions must be non-negative and positive-sized respectively.
+Image similarity must be finite and between 0.0 and 1.0.
+.TP
+.B screenshot
+At least one destination, \fB\-\-output\fR/\fB\-o\fR or \fB\-\-clipboard\fR, is required.
+\fB\-\-region\fR width and height must be positive.
+.TP
+.B profile
+\fBprofile delete\fR requires \fB\-\-force\fR. Profile ids and display names are resolved case-insensitively.
+.TP
+.B text-expansion
+\fBadd\fR rejects duplicate triggers. \fBtest\fR only reports a matching expansion and never types or pastes into the desktop.
 .TP
 .B record
 \fB\-\-duration\fR must be >= 0, and at least one of \fB\-\-mouse\fR or \fB\-\-keyboard\fR must be true.
@@ -156,14 +218,89 @@ device checks are reported separately. With \fB--json\fR, inspect daemon-specifi
 socket status, required group, current process groups, session membership, and remediation.
 Direct input readiness can pass while daemon IPC still warns or fails.
 .TP
-.B settings get|set
-Read or update scriptable settings keys.
+.B setup
+Grant temporary direct input access for the current Flatpak or AppImage Wayland session without
+starting the GUI. Flatpak uses \fBflatpak-spawn\fR and the host's \fBrun0\fR or usable setuid
+\fBpkexec\fR; AppImage uses the same authorization selection directly. The alias
+\fBquick-setup\fR is accepted. Returns environment error code 5 when the current session is not
+applicable.
 .TP
-.B schedule list|run
-Inspect schedule tasks or trigger a schedule task manually.
+.B settings get|set|list-keys|reset
+Read, update, list, or reset scriptable settings keys.
+Supported UI/update keys include \fBui.theme\fR, \fBui.language\fR, \fBui.trayIcon\fR,
+\fBui.startMinimized\fR, and \fBupdates.checkForUpdates\fR. The portal restore token
+key \fBscreen.portalRestoreToken\fR is status/reset only; raw token values are never printed.
 .TP
-.B shortcut list|run
-Inspect shortcut tasks or trigger a shortcut task manually.
+.B profile
+Manage GUI profiles from scripts.
+.PP
+Profile syntax:
+.br
+\fBprofile list\fR
+.br
+\fBprofile current\fR
+.br
+\fBprofile create <name>\fR
+.br
+\fBprofile switch <name-or-id>\fR
+.br
+\fBprofile rename <name-or-id> <new-name>\fR
+.br
+\fBprofile delete <name-or-id> --force\fR
+.PP
+Archive \fBprofile export/import\fR is intentionally deferred until portable backup and restore semantics are specified.
+.TP
+.B text-expansion
+Manage stored text expansion entries.
+.PP
+Text expansion syntax:
+.br
+\fBtext-expansion list [--profile <name-or-id>]\fR
+.br
+\fBtext-expansion add <trigger> <replacement> [--method CtrlV|CtrlShiftV|ShiftInsert] [--insertion-mode Paste|DirectTyping] [--direct-typing-method FastBatch|CompatibleKeyByKey] [--profile <name-or-id>]\fR
+.br
+\fBtext-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>]\fR
+.PP
+\fB--profile\fR temporarily loads that profile's text-expansion storage for the operation and restores the active profile storage afterward; it does not switch the active profile. \fBtext\fR is accepted as a short alias for \fBtext-expansion\fR.
+.TP
+.B schedule
+Manage scheduled macro tasks in the active profile.
+.PP
+Schedule syntax:
+.br
+\fBschedule list\fR
+.br
+\fBschedule run <task-id>\fR
+.br
+\fBschedule add --name <name> --macro <path> [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>]\fR
+.br
+\fBschedule edit <task-id> [--name <name>] [--macro <path>] [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>]\fR
+.br
+\fBschedule remove|enable|disable|next <task-id>\fR
+.TP
+.B shortcut
+Manage shortcut-bound macro tasks in the active profile.
+.PP
+Shortcut syntax:
+.br
+\fBshortcut list\fR
+.br
+\fBshortcut run <task-id>\fR
+.br
+\fBshortcut add --name <name> --macro <path> --hotkey <keys> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--window-rule <field> <match-mode> <value>] [--enabled <bool>]\fR
+.br
+\fBshortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>]\fR
+.br
+\fBshortcut remove|enable|disable <task-id>\fR
+.br
+\fBshortcut bind <task-id> <hotkey>\fR
+.PP
+Repeat \fB--window-rule <field> <match-mode> <value>\fR to limit a hotkey to
+focused windows. Fields are \fBWindowClass\fR, \fBWindowTitle\fR, and
+\fBProcessName\fR; match modes are \fBEquals\fR, \fBContains\fR, and
+\fBRegex\fR. Rules use OR semantics. Providing rules with \fBshortcut edit\fR
+replaces all existing rules; \fB--clear-window-rules\fR restores global behavior.
+Explicit \fBshortcut run\fR execution ignores window rules.
 .TP
 .B record
 Record input events and save a macro file.
@@ -171,28 +308,134 @@ Record input events and save a macro file.
 .B run
 Run inline event steps directly from CLI (without a .macro file).
 Supported steps:
-\fBmove abs|rel\fR, \fBdown\fR, \fBup\fR, \fBclick\fR, \fBscroll\fR,
+\fBmove abs|rel|rel-logical|rel-raw\fR, \fBdown\fR, \fBup\fR, \fBclick\fR, \fBscroll\fR,
 \fBkey down|up\fR, \fBtap\fR, \fBdelay\fR, \fBtype\fR,
-\fBset\fR variables, \fBinc\fR/\fBdec\fR counters,
+\fBset\fR variables, \fBinc\fR/\fBdec\fR/\fBmul\fR/\fBdiv\fR counters,
+\fBshell "<command>" [retries] [backoff_ms] [timeout_ms]\fR,
+\fBshell capture "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\fR,
+\fBshell input "<stdin text>" "<command>" [retries] [backoff_ms] [timeout_ms]\fR,
+\fBshell capture-input "<stdin text>" "<command>" exit_var stdout_var stderr_var [retries] [backoff_ms] [timeout_ms]\fR,
 \fBrepeat\fR blocks, \fBif\fR/\fBelse\fR, \fBwhile\fR, and \fBfor\fR blocks,
-screen-reading steps \fBpixelcolor\fR, \fBwaitcolor\fR, and \fBpixelsearch\fR,
+screen-reading steps \fBpixelcolor\fR, \fBwaitcolor\fR, \fBpixelsearch\fR,
+\fBimagesearch\fR, \fBimageclick\fR, and \fBwaitimage\fR,
 plus loop control with \fBbreak\fR and \fBcontinue\fR.
+Named image assets are supplied with repeatable
+\fB\-\-asset NAME PNG_PATH\fR options and are referenced by image-step name.
+\fBpixelcolor\fR and \fBimagesearch\fR inspect one frame. \fBwaitcolor\fR,
+\fBpixelsearch\fR, \fBimageclick\fR, and \fBwaitimage\fR retry every 50
+milliseconds for a total five-second default budget.
 Randomized timing is supported with
 \fBdelay random <min> <max>\fR or \fBdelay random <min>..<max>\fR.
 .PP
-Screen-reading syntax:
-.br
-\fBpixelcolor <x> <y> [var]\fR
-.br
-\fBpixelcolor rel <dx> <dy> [var]\fR
-.br
-\fBwaitcolor <x> <y> <RRGGBB|$var> [timeout_ms] [result_var]\fR
-.br
-\fBpixelsearch <x1> <y1> <x2> <y2> <RRGGBB|$var> [found_var var_x var_y|var_x var_y] [tolerance <0..255>]\fR
+Shell steps run through the platform shell (\fB/bin/sh -c\fR on Unix,
+\fBcmd.exe /S /C\fR on Windows). \fBretries\fR is the number of extra attempts
+after the first; \fBbackoff_ms\fR is the delay before retrying; \fBtimeout_ms\fR
+is per attempt and \fB0\fR means no timeout. Variables inside command and stdin
+payloads are resolved before execution. Quote command payloads when using numeric
+options so command arguments are not confused with retry/backoff/timeout values.
+Capture forms write exit code, stdout, and stderr variables; use \fB_\fR
+to ignore a captured value. Normal and input forms fail on final non-zero exits,
+while capture forms continue and let scripts branch on the captured exit code.
+Captured stdout/stderr are capped at 65536 characters per stream. Shell steps
+execute arbitrary commands, so only run trusted macros. Flatpak builds execute
+them in a stricter nested sandbox without inheriting the parent application's host
+files, devices, D-Bus permissions, portals, or host command channel. Native and
+AppImage builds use the normal platform shell. Use \fB$$NAME\fR when the shell
+should receive \fB$NAME\fR literally instead of resolving a CrossMacro variable.
 .PP
-Use \fBRRGGBB\fR for a literal target color, or \fB$var\fR to reuse a color
-previously written by \fBpixelcolor\fR. Bare variable names are not accepted as
-target colors.
+Runtime primitive steps mirror the first-class \fBclipboard\fR, \fBwindow\fR,
+and \fBscreen\fR command families. Use \fBclipboard get <var>\fR and
+\fBclipboard set <text>\fR for text clipboard state, \fBwindow ...\fR forms for
+active/search/wait/focus/close/move/resize/workspace operations, and
+\fBpixelcolor\fR, \fBwaitcolor\fR, or \fBpixelsearch\fR for screen color reads.
+Use \fBimagesearch\fR, \fBimageclick\fR, or \fBwaitimage\fR for native PNG
+template matching. Similarity defaults to 0.95, automatic matching is the
+default, and
+\fBimageclick\fR defaults to the left button; right and middle are optional.
+Image assets are native 8-bit PNG files only, not JPG files.
+Target colors use six-digit \fBRRGGBB\fR values or \fB$var\fR references to
+values written by \fBpixelcolor\fR. Unsupported platforms return runtime errors.
+.SS Direct input commands
+The one-step input commands can be used without a \fBrun\fR wrapper:
+\fBmove\fR, \fBclick\fR, \fBdown\fR, \fBup\fR, \fBscroll\fR,
+\fBkey\fR, \fBtap\fR, \fBtype\fR, and \fBdelay\fR.
+They use the same compiler, coordinate spaces, button/key names, and runtime
+preflight as \fBrun\fR. Use \fBrun\fR for variables, conditions, loops, or
+multiple steps.
+.TP
+.B move, click, down, up, scroll, key, tap, type, delay
+Execute one common input primitive without a \fBrun\fR wrapper. These aliases
+use the same input compiler and coordinate spaces as \fBrun\fR and accept
+\fB\-\-dry-run\fR, \fB\-\-json\fR, and \fB\-\-log-level\fR. Use \fBrun\fR for
+variables, conditions, loops, screen/window steps, or multiple operations.
+.PP
+Examples:
+.br
+\fBcrossmacro move abs 200 200\fR
+.br
+\fBcrossmacro click left\fR
+.br
+\fBcrossmacro key down CTRL\fR
+.br
+\fBcrossmacro type "hello world"\fR
+.br
+\fBcrossmacro delay 50\fR
+.TP
+.B clipboard
+Read or replace text clipboard contents without writing a run script.
+Text mode for \fBclipboard get\fR prints only the clipboard value; JSON mode includes the value in \fBdata.value\fR.
+\fBclipboard clear\fR replaces clipboard text with an empty value.
+Unsupported platforms return a non-zero environment error.
+.TP
+.B window
+Query and mutate desktop windows without writing a run script.
+Supported forms include \fBactive\fR, \fBlist\fR, \fBsearch (--title <text>|--class <text>)\fR,
+\fBwait (--title <text>|--class <text>) [--timeout-ms <n>]\fR,
+\fBfocus (--address <id>|--title <text>|--class <text>)\fR,
+\fBclose (--address <id>|--title <text>)\fR, \fBmove --active <x> <y>\fR,
+\fBresize --active <width> <height>\fR, \fBcenter|maximize|fullscreen|float --active\fR,
+and workspace \fBget\fR, \fBswitch <name>\fR, \fBmove-active <name>\fR, and
+\fBmove-window --address <id> <name>\fR.
+.PP
+Title and class selectors use case-insensitive substring matching. Unsupported window managers return a non-zero environment error.
+.TP
+.B screen
+Read screen pixels or match native PNG templates without writing a run script.
+Supported forms include \fBpixel <x> <y>\fR,
+\fBpixel --relative <dx> <dy>\fR,
+\fBwait-color <x> <y> <RRGGBB> [--timeout-ms <n>]\fR, and
+\fBsearch-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>]\fR.
+\fBsearch-image <image-path> [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>]\fR
+inspects one frame. \fBwait-image\fR and
+\fBimage-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>]\fR
+retry for 5000 milliseconds by default. Image regions are end-exclusive.
+\fB\-\-matchmode auto\fR is the default with 0.95 confidence; wait-image and
+image-click require two consistent frames before success.
+\fB\-\-matchmode first\fR and \fB\-\-matchmode best\fR select advanced
+deterministic modes; automatic matching remains the default.
+When a Wayland capture provider is available, a region may be stitched from
+intersecting monitor outputs. Gaps outside real outputs are voids and are
+ignored by matching; image-click will not click a template that crosses one.
+.PP
+JSON output includes coordinates, color metadata, provider name, and search/wait result metadata.
+.TP
+.B screenshot
+Capture the current screen frame to a PNG file.
+.PP
+Screenshot syntax:
+.br
+\fBscreenshot --output ./shot.png\fR
+.br
+\fBscreenshot -o ./shot.png --json\fR
+.br
+\fBscreenshot --clipboard\fR
+.br
+\fBscreenshot --output ./shot.png --clipboard\fR
+.br
+\fBscreenshot --output ./crop.png --region 100 100 800 600\fR
+.PP
+Screenshot capture uses the same platform frame providers as screen pixel reads.
+Unsupported platforms or sessions return a non-zero environment error.
 .TP
 .B headless
 Run background services without GUI (hotkeys, scheduler, shortcuts, text expansion)
@@ -236,20 +479,20 @@ Compile and validate direct run steps without sending input.
 .B crossmacro run --step "move abs 800 400" --step "click current left"
 Force click at live cursor even after absolute moves.
 .TP
-.B crossmacro run move rel 100 0 delay 30 click left
-Execute chained inline run steps in sequence.
+.B crossmacro run --step 'shell "echo done" 1 250 5000'
+Run a shell command with one retry, 250 ms backoff, and a 5000 ms per-attempt timeout.
 .TP
-.B crossmacro run --step "set n=3" --step "repeat $n {" --step "click left" --step "delay random 20 50" --step "}"
-Run a repeated block with variable substitution and randomized delay.
+.B crossmacro run --step 'shell capture "printf ok" code out err'
+Run a shell command and store exit code, stdout, and stderr in runtime variables.
 .TP
-.B crossmacro run --step "set i=0" --step "while $i < 10 {" --step "click left" --step "inc i" --step "}"
-Run a bounded while loop with explicit counter increment.
-.TP
-.B crossmacro run --step "for n from 1 to 5 step 2 {" --step "click right" --step "}"
-Run a for loop with custom step value.
+.B crossmacro run --step 'shell capture-input "hello" "cat" code out err'
+Pipe stdin to a shell command and store exit code, stdout, and stderr in runtime variables.
 .TP
 .B crossmacro run --file ./steps.txt
 Load run steps from a plain text file (one step per line, '#' comments allowed).
+.TP
+.B crossmacro clipboard get --json
+Read clipboard text and print structured JSON.
 .TP
 .B crossmacro headless
 Start headless runtime and keep running until interrupted.

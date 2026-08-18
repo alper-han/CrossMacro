@@ -1,12 +1,7 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.TextExpansion;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class InputProcessorTests
+public sealed class InputProcessorTests
 {
     private readonly IKeyboardLayoutService _layoutService;
     private readonly InputProcessor _processor;
@@ -25,14 +20,14 @@ public class InputProcessorTests
         // Arrange
         var charReceived = false;
         _processor.CharacterReceived += _ => charReceived = true;
-        
-        var mouseEvent = new InputCaptureEventArgs { Type = InputEventType.MouseMove, Code = 0, Value = 0 };
+
+        var mouseEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = 0, Value = 0 };
 
         // Act
         _processor.ProcessEvent(mouseEvent);
 
         // Assert
-        charReceived.Should().BeFalse();
+        _ = charReceived.Should().BeFalse();
     }
 
     [Fact]
@@ -41,15 +36,15 @@ public class InputProcessorTests
         // Arrange
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
-        _layoutService.GetCharFromKeyCode(30, false, false, false, false, false, false).Returns('a');
-        
-        var keyEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
+        _ = _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false).Returns('a');
+
+        var keyEvent = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 1 };
 
         // Act
         _processor.ProcessEvent(keyEvent);
 
         // Assert
-        receivedChar.Should().Be('a');
+        _ = receivedChar.Should().Be('a');
     }
 
     [Fact]
@@ -58,14 +53,14 @@ public class InputProcessorTests
         // Arrange
         int? receivedKey = null;
         _processor.SpecialKeyReceived += k => receivedKey = k;
-        
-        var backspaceEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 14, Value = 1 };
+
+        var backspaceEvent = new CapturedInputEvent { Type = InputEventType.Key, Code = 14, Value = 1 };
 
         // Act
         _processor.ProcessEvent(backspaceEvent);
 
         // Assert
-        receivedKey.Should().Be(14);
+        _ = receivedKey.Should().Be(14);
     }
 
     [Fact]
@@ -74,14 +69,14 @@ public class InputProcessorTests
         // Arrange
         int? receivedKey = null;
         _processor.SpecialKeyReceived += k => receivedKey = k;
-        
-        var enterEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 28, Value = 1 };
+
+        var enterEvent = new CapturedInputEvent { Type = InputEventType.Key, Code = 28, Value = 1 };
 
         // Act
         _processor.ProcessEvent(enterEvent);
 
         // Assert
-        receivedKey.Should().Be(28);
+        _ = receivedKey.Should().Be(28);
     }
 
     [Fact]
@@ -90,16 +85,16 @@ public class InputProcessorTests
         // Arrange
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
-        _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(), 
+        _ = _layoutService.GetCharFromKeyCode(Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<bool>(),
             Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns('a');
-        
-        var keyReleaseEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 0 };
+
+        var keyReleaseEvent = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 0 };
 
         // Act
         _processor.ProcessEvent(keyReleaseEvent);
 
         // Assert
-        receivedChar.Should().BeNull();
+        _ = receivedChar.Should().BeNull();
     }
 
     #endregion
@@ -110,28 +105,28 @@ public class InputProcessorTests
     public void ProcessEvent_ShouldTrackShiftModifier()
     {
         // Arrange
-        var shiftPressEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 42, Value = 1 };
+        var shiftPressEvent = new CapturedInputEvent { Type = InputEventType.Key, Code = 42, Value = 1 };
 
         // Act
         _processor.ProcessEvent(shiftPressEvent);
 
         // Assert
-        _processor.AreModifiersPressed.Should().BeTrue();
+        _ = _processor.AreModifiersPressed.Should().BeTrue();
     }
 
     [Fact]
     public void ProcessEvent_ShouldReleaseModifier_WhenReleased()
     {
         // Arrange
-        var shiftPress = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 42, Value = 1 };
-        var shiftRelease = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 42, Value = 0 };
+        var shiftPress = new CapturedInputEvent { Type = InputEventType.Key, Code = 42, Value = 1 };
+        var shiftRelease = new CapturedInputEvent { Type = InputEventType.Key, Code = 42, Value = 0 };
 
         // Act
         _processor.ProcessEvent(shiftPress);
         _processor.ProcessEvent(shiftRelease);
 
         // Assert
-        _processor.AreModifiersPressed.Should().BeFalse();
+        _ = _processor.AreModifiersPressed.Should().BeFalse();
     }
 
     #endregion
@@ -142,14 +137,14 @@ public class InputProcessorTests
     public void Reset_ShouldClearModifierState()
     {
         // Arrange
-        var shiftPress = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 42, Value = 1 };
+        var shiftPress = new CapturedInputEvent { Type = InputEventType.Key, Code = 42, Value = 1 };
         _processor.ProcessEvent(shiftPress);
 
         // Act
         _processor.Reset();
 
         // Assert
-        _processor.AreModifiersPressed.Should().BeFalse();
+        _ = _processor.AreModifiersPressed.Should().BeFalse();
     }
 
     #endregion
@@ -160,21 +155,21 @@ public class InputProcessorTests
     public void ProcessEvent_ShouldToggleCapsLock_OnPress()
     {
         // Arrange - simulate CapsLock press affecting character output
-        _layoutService.GetCharFromKeyCode(30, false, false, false, false, false, true).Returns('A');
-        _layoutService.GetCharFromKeyCode(30, false, false, false, false, false, false).Returns('a');
-        
+        _ = _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: true).Returns('A');
+        _ = _layoutService.GetCharFromKeyCode(30, leftShift: false, rightShift: false, rightAlt: false, leftAlt: false, leftCtrl: false, capsLock: false).Returns('a');
+
         char? receivedChar = null;
         _processor.CharacterReceived += c => receivedChar = c;
 
         // Act - press CapsLock then type 'a'
-        var capsLockPress = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 58, Value = 1 };
+        var capsLockPress = new CapturedInputEvent { Type = InputEventType.Key, Code = 58, Value = 1 };
         _processor.ProcessEvent(capsLockPress);
-        
-        var keyEvent = new InputCaptureEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 };
+
+        var keyEvent = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 1 };
         _processor.ProcessEvent(keyEvent);
 
         // Assert - should get uppercase 'A' due to CapsLock
-        receivedChar.Should().Be('A');
+        _ = receivedChar.Should().Be('A');
     }
 
     #endregion

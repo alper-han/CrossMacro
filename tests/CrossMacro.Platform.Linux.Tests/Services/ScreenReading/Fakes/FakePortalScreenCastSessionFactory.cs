@@ -1,17 +1,9 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using Microsoft.Win32.SafeHandles;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSessionFactory
+internal sealed class FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult result) : IPortalScreenCastSessionFactory
 {
-    private readonly PortalScreenCastSessionResult _result;
-
-    public FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult result)
-    {
-        _result = result;
-    }
+    private readonly PortalScreenCastSessionResult _result = result;
 
     public int StartCalls { get; private set; }
 
@@ -19,7 +11,7 @@ internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSess
 
     public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options)
     {
-        return StartSessionAsync(null, options);
+        return StartSessionAsync(requestedRegion: null, options);
     }
 
     public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenRect? requestedRegion, ScreenReadOptions options)
@@ -31,11 +23,11 @@ internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSess
 
     public static PortalScreenCastSession CreateSession(int x = 0, int y = 0, int width = 2, int height = 1, uint nodeId = 42, string? id = "monitor-1")
     {
-        var properties = new Dictionary<string, object>
+        var properties = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["source_type"] = 1U,
             ["position"] = new object[] { x, y },
-            ["size"] = new object[] { width, height }
+            ["size"] = new object[] { width, height },
         };
 
         if (!string.IsNullOrWhiteSpace(id))
@@ -45,11 +37,11 @@ internal sealed class FakePortalScreenCastSessionFactory : IPortalScreenCastSess
 
         return new PortalScreenCastSession(
             "/org/freedesktop/portal/desktop/session/fake",
-            [new PortalStream(nodeId, properties)],
+            [new PortalStreamDescriptor(nodeId, properties)],
             new SafeFileHandle(new IntPtr(-1), ownsHandle: false));
     }
 
-    public static PortalScreenCastSession CreateSession(IReadOnlyList<PortalStream> streams)
+    public static PortalScreenCastSession CreateSession(IReadOnlyList<PortalStreamDescriptor> streams)
     {
         return new PortalScreenCastSession(
             "/org/freedesktop/portal/desktop/session/fake",

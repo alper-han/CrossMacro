@@ -1,25 +1,38 @@
-using System.IO;
-using CrossMacro.UI.Services;
-using FluentAssertions;
 
 namespace CrossMacro.UI.Tests.Theming;
 
-public class ThemeCatalogAlignmentTests
+public sealed class ThemeCatalogAlignmentTests
 {
     [Fact]
-    public void ThemeCatalog_ShouldMatchAppResourceKeysAndThemeFiles()
+    public void ThemeCatalog_ShouldExposeUniqueNamesAndBuildValidResourceDictionaries()
     {
-        var repoRoot = ThemeTestFileHelper.FindRepositoryRoot();
-        var appResourceFile = Path.Combine(repoRoot, "src", "CrossMacro.UI", "App.axaml");
-        var appResourceKeys = ThemeTestFileHelper.ReadResourceKeys(appResourceFile);
+        _ = ThemeCatalog.Themes.Should().NotBeEmpty();
+        _ = ThemeCatalog.ThemeNames.Should().OnlyHaveUniqueItems();
+        _ = ThemeCatalog.DefaultTheme.Name.Should().Be(ThemeCatalog.DefaultThemeName);
 
-        ThemeCatalog.Themes.Should().NotBeEmpty();
         foreach (var theme in ThemeCatalog.Themes)
         {
-            appResourceKeys.Should().Contain(theme.ResourceKey);
-
-            var fullThemePath = Path.Combine(repoRoot, "src", "CrossMacro.UI", theme.SourcePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-            File.Exists(fullThemePath).Should().BeTrue($"theme source file should exist for {theme.Name}");
+            var dictionary = ThemeResourceDictionaryFactory.Create(theme);
+            _ = dictionary[ThemeCatalog.ThemeMarkerKey].Should().Be(theme.Name);
         }
+    }
+
+    [Fact]
+    public void ThemeCatalog_ShouldMatchBuiltInThemeFilesOnDisk()
+    {
+        // Adding a JSON file under Themes/ is the whole workflow for a new built-in theme;
+        // the catalog must embed exactly those files, no more, no less.
+        var fileNames = ThemeTestFileHelper.GetBuiltInThemeFileNames();
+
+        _ = fileNames.Should().BeEquivalentTo(
+            ThemeCatalog.ThemeNames,
+            because: "every built-in theme JSON file under Themes/ must be embedded into the catalog and vice versa");
+    }
+
+    [Fact]
+    public void ThemeCatalog_DefaultTheme_ShouldStayMocha()
+    {
+        _ = ThemeCatalog.DefaultTheme.Name.Should().Be("Mocha");
+        _ = ThemeCatalog.DefaultThemeName.Should().Be("Mocha");
     }
 }

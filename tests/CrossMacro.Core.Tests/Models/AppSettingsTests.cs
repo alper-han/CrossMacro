@@ -1,98 +1,103 @@
 namespace CrossMacro.Core.Tests.Models;
 
-using CrossMacro.Core.Models;
-using FluentAssertions;
 
-public class AppSettingsTests
+public sealed class AppSettingsTests
 {
     [Fact]
     public void NewAppSettings_HasCorrectDefaultValues()
     {
         var settings = new AppSettings();
 
-        settings.EnableTrayIcon.Should().BeFalse();
-        settings.StartMinimized.Should().BeFalse();
+        _ = settings.EnableTrayIcon.Should().BeFalse();
+        _ = settings.StartMinimized.Should().BeFalse();
+        _ = settings.SuppressFastLoopWarning.Should().BeFalse();
 
-        settings.PlaybackSpeed.Should().Be(1.0);
-        settings.IsLooping.Should().BeFalse();
-        settings.LoopCount.Should().Be(1);
-        settings.LoopDelayMs.Should().Be(0);
-        settings.UseRandomLoopDelay.Should().BeFalse();
-        settings.LoopDelayMinMs.Should().Be(0);
-        settings.LoopDelayMaxMs.Should().Be(0);
-        settings.CountdownSeconds.Should().Be(0);
+        _ = settings.PlaybackSpeed.Should().Be(1.0);
+        _ = settings.IsLooping.Should().BeFalse();
+        _ = settings.LoopCount.Should().Be(1);
+        _ = settings.LoopDelayMs.Should().Be(0);
+        _ = settings.UseRandomLoopDelay.Should().BeFalse();
+        _ = settings.LoopDelayMinMs.Should().Be(0);
+        _ = settings.LoopDelayMaxMs.Should().Be(0);
+        _ = settings.CountdownSeconds.Should().Be(0);
 
-        settings.IsMouseRecordingEnabled.Should().BeTrue();
-        settings.IsKeyboardRecordingEnabled.Should().BeTrue();
-        settings.ForceRelativeCoordinates.Should().BeFalse();
-        settings.SkipInitialZeroZero.Should().BeFalse();
+        _ = settings.IsMouseRecordingEnabled.Should().BeTrue();
+        _ = settings.IsKeyboardRecordingEnabled.Should().BeTrue();
+        _ = settings.ForceRelativeCoordinates.Should().BeFalse();
+        _ = settings.SkipInitialZeroZero.Should().BeFalse();
 
-        settings.EnableTextExpansion.Should().BeFalse();
-        settings.CheckForUpdates.Should().BeFalse();
+        _ = settings.EnableTextExpansion.Should().BeFalse();
+        _ = settings.CheckForUpdates.Should().BeFalse();
     }
 
     [Fact]
     public void AppSettings_CanSetPlaybackSpeed()
     {
-        var settings = new AppSettings();
+        var settings = new AppSettings
+        {
+            PlaybackSpeed = 2.5,
+        };
 
-        settings.PlaybackSpeed = 2.5;
-
-        settings.PlaybackSpeed.Should().Be(2.5);
+        _ = settings.PlaybackSpeed.Should().Be(2.5);
     }
 
     [Fact]
     public void AppSettings_CanSetLoopingOptions()
     {
-        var settings = new AppSettings();
+        var settings = new AppSettings
+        {
+            IsLooping = true,
+            LoopCount = 10,
+            LoopDelayMs = 500,
+            UseRandomLoopDelay = true,
+            LoopDelayMinMs = 200,
+            LoopDelayMaxMs = 800,
+        };
 
-        settings.IsLooping = true;
-        settings.LoopCount = 10;
-        settings.LoopDelayMs = 500;
-        settings.UseRandomLoopDelay = true;
-        settings.LoopDelayMinMs = 200;
-        settings.LoopDelayMaxMs = 800;
-
-        settings.IsLooping.Should().BeTrue();
-        settings.LoopCount.Should().Be(10);
-        settings.LoopDelayMs.Should().Be(500);
-        settings.UseRandomLoopDelay.Should().BeTrue();
-        settings.LoopDelayMinMs.Should().Be(200);
-        settings.LoopDelayMaxMs.Should().Be(800);
+        _ = settings.IsLooping.Should().BeTrue();
+        _ = settings.LoopCount.Should().Be(10);
+        _ = settings.LoopDelayMs.Should().Be(500);
+        _ = settings.UseRandomLoopDelay.Should().BeTrue();
+        _ = settings.LoopDelayMinMs.Should().Be(200);
+        _ = settings.LoopDelayMaxMs.Should().Be(800);
     }
 
     [Fact]
     public void AppSettings_LoopDelayMax_ClampsToMin()
     {
-        var settings = new AppSettings();
+        var settings = new AppSettings
+        {
+            LoopDelayMinMs = 300,
+            LoopDelayMaxMs = 100,
+        };
+        settings.Normalize();
 
-        settings.LoopDelayMinMs = 300;
-        settings.LoopDelayMaxMs = 100;
-
-        settings.LoopDelayMinMs.Should().Be(300);
-        settings.LoopDelayMaxMs.Should().Be(300);
+        _ = settings.LoopDelayMinMs.Should().Be(300);
+        _ = settings.LoopDelayMaxMs.Should().Be(300);
     }
 
     [Fact]
     public void AppSettings_CanSetRecordingOptions()
     {
-        var settings = new AppSettings();
+        var settings = new AppSettings
+        {
+            IsMouseRecordingEnabled = false,
+            IsKeyboardRecordingEnabled = false,
+        };
 
-        settings.IsMouseRecordingEnabled = false;
-        settings.IsKeyboardRecordingEnabled = false;
-
-        settings.IsMouseRecordingEnabled.Should().BeFalse();
-        settings.IsKeyboardRecordingEnabled.Should().BeFalse();
+        _ = settings.IsMouseRecordingEnabled.Should().BeFalse();
+        _ = settings.IsKeyboardRecordingEnabled.Should().BeFalse();
     }
 
     [Fact]
     public void AppSettings_CanEnableTextExpansion()
     {
-        var settings = new AppSettings();
+        var settings = new AppSettings
+        {
+            EnableTextExpansion = true,
+        };
 
-        settings.EnableTextExpansion = true;
-
-        settings.EnableTextExpansion.Should().BeTrue();
+        _ = settings.EnableTextExpansion.Should().BeTrue();
     }
 
     [Fact]
@@ -100,19 +105,20 @@ public class AppSettingsTests
     {
         var settings = new AppSettings
         {
-            StartMinimized = true
+            StartMinimized = true,
         };
 
-        settings.StartMinimized.Should().BeTrue();
+        _ = settings.StartMinimized.Should().BeTrue();
     }
 
     [Fact]
     public void AppSettings_CanSetCountdownSeconds()
     {
-        var settings = new AppSettings();
+        var settings = new AppSettings
+        {
+            CountdownSeconds = 5,
+        };
 
-        settings.CountdownSeconds = 5;
-
-        settings.CountdownSeconds.Should().Be(5);
+        _ = settings.CountdownSeconds.Should().Be(5);
     }
 }

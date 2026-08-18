@@ -1,8 +1,3 @@
-using System.Diagnostics;
-using System.Globalization;
-using System.Text.RegularExpressions;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
@@ -10,22 +5,31 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 /// COSMIC provider for output geometry. Cursor position is intentionally unsupported
 /// because COSMIC does not currently expose a stable public cursor-position API.
 /// </summary>
-public sealed partial class CosmicPositionProvider : IMousePositionProvider
+public sealed partial class CosmicPositionProvider :
+    IMousePositionProvider,
+    IOutputTopologyProvider
 {
     private const string CosmicRandrCommand = "cosmic-randr";
     private const int CommandTimeoutMs = 1000;
 
     private readonly Func<CancellationToken, Task<string?>> _readOutputTopologyAsync;
+    private readonly bool _useFlatpakHostCommand;
     private bool _disposed;
 
     public CosmicPositionProvider()
-        : this(ReadCosmicRandrKdlAsync)
-    {
-    }
+        : this(
+            readOutputTopologyAsync: null,
+            useFlatpakHostCommand: LinuxEnvironmentVariables.CaptureCurrentSnapshot().IsFlatpak) { /* Empty */ }
 
     internal CosmicPositionProvider(Func<CancellationToken, Task<string?>> readOutputTopologyAsync)
+        : this(readOutputTopologyAsync, useFlatpakHostCommand: false) { /* Empty */ }
+
+    internal CosmicPositionProvider(
+        Func<CancellationToken, Task<string?>>? readOutputTopologyAsync,
+        bool useFlatpakHostCommand)
     {
-        _readOutputTopologyAsync = readOutputTopologyAsync ?? throw new ArgumentNullException(nameof(readOutputTopologyAsync));
+        _readOutputTopologyAsync = readOutputTopologyAsync ?? ReadCosmicRandrKdlAsync;
+        _useFlatpakHostCommand = useFlatpakHostCommand;
     }
 
     public string ProviderName => "COSMIC RandR (Resolution Only)";
@@ -39,41 +43,94 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
 
     public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
     {
-        if (_disposed)
+        var bounds = await GetDesktopBoundsAsync().ConfigureAwait(false);
+        return bounds is not null ? (bounds.Value.Width, bounds.Value.Height) : null;
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
+    {
+        var outputs = await QueryOutputBoundsAsync(CancellationToken.None).ConfigureAwait(false);
+        if (!TryComputeDesktopBounds(outputs, out var bounds))
         {
             return null;
+        }
+
+        Log.Information(
+            "[CosmicPositionProvider] Desktop bounds detected: ({X},{Y}) {Width}x{Height}",
+            bounds.X,
+            bounds.Y,
+            bounds.Width,
+            bounds.Height);
+        return bounds;
+    }
+
+    Task<IReadOnlyList<ScreenRect>> IOutputTopologyProvider.GetOutputBoundsAsync(
+        CancellationToken cancellationToken) =>
+        QueryOutputBoundsAsync(cancellationToken);
+
+    private async Task<IReadOnlyList<ScreenRect>> QueryOutputBoundsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+        {
+            return [];
         }
 
         try
         {
-            using var timeoutCts = new CancellationTokenSource(CommandTimeoutMs);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(CommandTimeoutMs);
             var output = await _readOutputTopologyAsync(timeoutCts.Token).ConfigureAwait(false);
-            if (TryParseScreenResolution(output, out var width, out var height))
+            if (TryParseOutputBounds(output, out var bounds))
             {
-                Log.Information("[CosmicPositionProvider] Screen resolution detected: {Width}x{Height}", width, height);
-                return (width, height);
+                return bounds;
             }
 
-            Log.Warning("[CosmicPositionProvider] Failed to parse screen resolution from cosmic-randr output");
-            return null;
+            Log.Warning("[CosmicPositionProvider] Failed to parse cosmic-randr output topology");
+            return [];
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (OperationCanceledException)
         {
-            Log.Warning("[CosmicPositionProvider] Timed out while querying cosmic-randr output topology");
-            return null;
+            Log.Warning("[CosmicPositionProvider] Timed out while querying COSMIC output topology");
+            return [];
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "[CosmicPositionProvider] Failed to get screen resolution");
-            return null;
+            Log.LogError(ex, "[CosmicPositionProvider] Failed to query COSMIC output topology");
+            return [];
         }
     }
 
     internal static bool TryParseScreenResolution(string? kdl, out int width, out int height)
     {
+        if (TryParseDesktopBounds(kdl, out var bounds))
+        {
+            width = bounds.Width;
+            height = bounds.Height;
+            return true;
+        }
+
         width = 0;
         height = 0;
+        return false;
+    }
 
+    internal static bool TryParseDesktopBounds(string? kdl, out ScreenRect desktopBounds)
+    {
+        desktopBounds = default;
+        return TryParseOutputBounds(kdl, out var outputs) &&
+            TryComputeDesktopBounds(outputs, out desktopBounds);
+    }
+
+    internal static bool TryParseOutputBounds(
+        string? kdl,
+        out IReadOnlyList<ScreenRect> outputBounds)
+    {
+        outputBounds = [];
         if (string.IsNullOrWhiteSpace(kdl))
         {
             return false;
@@ -81,39 +138,57 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
 
         try
         {
-            var outputs = ParseOutputs(kdl);
-            var usableOutputs = outputs
+            var usableOutputs = ParseOutputs(kdl)
                 .Where(static output => output.Enabled &&
                                         !output.IsMirrored &&
-                                        output.Position.HasValue &&
-                                        output.CurrentMode.HasValue &&
+                                        output.Position is not null &&
+                                        output.CurrentMode is not null &&
+                                        double.IsFinite(output.Scale) &&
                                         output.Scale > 0)
                 .Select(static output => output.ToLogicalRectangle())
                 .Where(static rectangle => rectangle.Width > 0 && rectangle.Height > 0)
+                .Select(static rectangle => new ScreenRect(
+                    rectangle.X,
+                    rectangle.Y,
+                    rectangle.Width,
+                    rectangle.Height))
+                .Distinct()
                 .ToArray();
-
-            if (usableOutputs.Length == 0)
-            {
-                return false;
-            }
-
-            var minX = usableOutputs.Min(static rectangle => rectangle.X);
-            var minY = usableOutputs.Min(static rectangle => rectangle.Y);
-            var maxX = usableOutputs.Max(static rectangle => rectangle.X + rectangle.Width);
-            var maxY = usableOutputs.Max(static rectangle => rectangle.Y + rectangle.Height);
-
-            if (maxX <= minX || maxY <= minY)
-            {
-                return false;
-            }
-
-            width = maxX - minX;
-            height = maxY - minY;
-            return true;
+            outputBounds = usableOutputs;
+            return usableOutputs.Length > 0;
         }
         catch (FormatException)
         {
             return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryComputeDesktopBounds(
+        IReadOnlyList<ScreenRect> outputs,
+        out ScreenRect desktopBounds)
+    {
+        desktopBounds = default;
+        if (outputs.Count is 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            int minX = outputs.Min(static output => output.X);
+            int minY = outputs.Min(static output => output.Y);
+            int maxX = outputs.Max(static output => output.Right);
+            int maxY = outputs.Max(static output => output.Bottom);
+            desktopBounds = new ScreenRect(
+                minX,
+                minY,
+                checked(maxX - minX),
+                checked(maxY - minY));
+            return true;
         }
         catch (OverflowException)
         {
@@ -130,33 +205,28 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
         foreach (var rawLine in kdl.Split('\n', StringSplitOptions.TrimEntries))
         {
             var line = rawLine.Trim();
-            if (line.Length == 0)
+            if (line.Length is 0)
             {
                 continue;
             }
 
-            var outputMatch = OutputLineRegex().Match(line);
-            if (outputMatch.Success)
-            {
-                currentOutput = new CosmicOutput(
-                    enabled: string.Equals(outputMatch.Groups[2].Value, "true", StringComparison.OrdinalIgnoreCase));
-                outputs.Add(currentOutput);
-                inModes = false;
-                continue;
-            }
-
-            if (currentOutput == null)
+            if (TryStartNewOutput(line, ref currentOutput, outputs, ref inModes))
             {
                 continue;
             }
 
-            if (line == "modes {")
+            if (currentOutput is null)
+            {
+                continue;
+            }
+
+            if (string.Equals(line, "modes {", StringComparison.Ordinal))
             {
                 inModes = true;
                 continue;
             }
 
-            if (line == "}")
+            if (string.Equals(line, "}", StringComparison.Ordinal))
             {
                 if (inModes)
                 {
@@ -166,49 +236,68 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
                 {
                     currentOutput = null;
                 }
-
                 continue;
             }
 
-            if (line.StartsWith("mirroring ", StringComparison.Ordinal))
-            {
-                currentOutput.IsMirrored = true;
-                continue;
-            }
-
-            var positionMatch = PositionLineRegex().Match(line);
-            if (positionMatch.Success)
-            {
-                currentOutput.Position = (
-                    ParseInt32(positionMatch.Groups[1].Value),
-                    ParseInt32(positionMatch.Groups[2].Value));
-                continue;
-            }
-
-            var scaleMatch = ScaleLineRegex().Match(line);
-            if (scaleMatch.Success && double.TryParse(scaleMatch.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
-            {
-                currentOutput.Scale = scale;
-                continue;
-            }
-
-            var transformMatch = TransformLineRegex().Match(line);
-            if (transformMatch.Success)
-            {
-                currentOutput.Transform = transformMatch.Groups[1].Value;
-                continue;
-            }
-
-            var modeMatch = ModeLineRegex().Match(line);
-            if (inModes && modeMatch.Success)
-            {
-                currentOutput.CurrentMode = (
-                    ParseInt32(modeMatch.Groups[1].Value),
-                    ParseInt32(modeMatch.Groups[2].Value));
-            }
+            TryApplyOutputLineProperty(line, currentOutput, inModes);
         }
 
         return outputs;
+    }
+
+    private static bool TryStartNewOutput(string line, ref CosmicOutput? currentOutput, List<CosmicOutput> outputs, ref bool inModes)
+    {
+        var outputMatch = OutputLineRegex.Match(line);
+        if (!outputMatch.Success)
+        {
+            return false;
+        }
+
+        currentOutput = new CosmicOutput(
+            enabled: string.Equals(outputMatch.Groups["enabled"].Value, "true", StringComparison.OrdinalIgnoreCase));
+        outputs.Add(currentOutput);
+        inModes = false;
+        return true;
+    }
+
+    private static void TryApplyOutputLineProperty(string line, CosmicOutput currentOutput, bool inModes)
+    {
+        if (line.StartsWith("mirroring ", StringComparison.Ordinal))
+        {
+            currentOutput.IsMirrored = true;
+            return;
+        }
+
+        var positionMatch = PositionLineRegex.Match(line);
+        if (positionMatch.Success)
+        {
+            currentOutput.Position = (
+                ParseInt32(positionMatch.Groups["x"].Value),
+                ParseInt32(positionMatch.Groups["y"].Value));
+            return;
+        }
+
+        var scaleMatch = ScaleLineRegex.Match(line);
+        if (scaleMatch.Success && double.TryParse(scaleMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
+        {
+            currentOutput.Scale = scale;
+            return;
+        }
+
+        var transformMatch = TransformLineRegex.Match(line);
+        if (transformMatch.Success)
+        {
+            currentOutput.Transform = transformMatch.Groups["transform"].Value;
+            return;
+        }
+
+        var modeMatch = ModeLineRegex.Match(line);
+        if (inModes && modeMatch.Success)
+        {
+            currentOutput.CurrentMode = (
+                ParseInt32(modeMatch.Groups["width"].Value),
+                ParseInt32(modeMatch.Groups["height"].Value));
+        }
     }
 
     private static int ParseInt32(string value)
@@ -216,24 +305,42 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
         return int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
     }
 
-    private static async Task<string?> ReadCosmicRandrKdlAsync(CancellationToken cancellationToken)
+    private Task<string?> ReadCosmicRandrKdlAsync(CancellationToken cancellationToken)
+        => ReadCosmicRandrKdlAsync(_useFlatpakHostCommand, cancellationToken);
+
+    internal static ProcessStartInfo CreateCosmicRandrStartInfo(bool useFlatpakHostCommand)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = CosmicRandrCommand,
+            FileName = useFlatpakHostCommand ? "flatpak-spawn" : CosmicRandrCommand,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
+
+        if (useFlatpakHostCommand)
+        {
+            startInfo.ArgumentList.Add("--host");
+            startInfo.ArgumentList.Add("--watch-bus");
+            startInfo.ArgumentList.Add(CosmicRandrCommand);
+        }
+
         startInfo.ArgumentList.Add("list");
         startInfo.ArgumentList.Add("--kdl");
 
-        using var process = new Process { StartInfo = startInfo };
+        return startInfo;
+    }
+
+    private static async Task<string?> ReadCosmicRandrKdlAsync(
+        bool useFlatpakHostCommand,
+        CancellationToken cancellationToken)
+    {
+        using var process = new Process { StartInfo = CreateCosmicRandrStartInfo(useFlatpakHostCommand) };
 
         try
         {
-            process.Start();
+            _ = process.Start();
 
             var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
@@ -242,7 +349,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             var stdout = await stdoutTask.ConfigureAwait(false);
             var stderr = await stderrTask.ConfigureAwait(false);
 
-            if (process.ExitCode == 0)
+            if (process.ExitCode is 0)
             {
                 return stdout;
             }
@@ -259,7 +366,7 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             {
                 process.Kill(entireProcessTree: true);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Debug(ex, "[CosmicPositionProvider] Failed to kill timed-out cosmic-randr process");
             }
@@ -277,15 +384,8 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
             return null;
         }
 
-        foreach (var line in content.Split('\n', StringSplitOptions.TrimEntries))
-        {
-            if (!string.IsNullOrWhiteSpace(line))
-            {
-                return line;
-            }
-        }
-
-        return null;
+        return content.Split('\n', StringSplitOptions.TrimEntries)
+            .FirstOrDefault(static line => !string.IsNullOrWhiteSpace(line));
     }
 
     public void Dispose()
@@ -299,29 +399,24 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
         GC.SuppressFinalize(this);
     }
 
-    [GeneratedRegex("^output\\s+\\\"([^\\\"]+)\\\"\\s+enabled=#(true|false)\\s*\\{")]
-    private static partial Regex OutputLineRegex();
+    [GeneratedRegex("^output\\s+\\\"(?<name>[^\\\"]+)\\\"\\s+enabled=#(?<enabled>true|false)\\s*\\{", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex OutputLineRegex { get; }
 
-    [GeneratedRegex("^position\\s+(-?\\d+)\\s+(-?\\d+)$")]
-    private static partial Regex PositionLineRegex();
+    [GeneratedRegex("^position\\s+(?<x>-?\\d+)\\s+(?<y>-?\\d+)$", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex PositionLineRegex { get; }
 
-    [GeneratedRegex("^scale\\s+([0-9]+(?:\\.[0-9]+)?)$")]
-    private static partial Regex ScaleLineRegex();
+    [GeneratedRegex("^scale\\s+(?<value>[0-9]+(?:\\.[0-9]+)?)$", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex ScaleLineRegex { get; }
 
-    [GeneratedRegex("^transform\\s+\\\"([^\\\"]+)\\\"$")]
-    private static partial Regex TransformLineRegex();
+    [GeneratedRegex("^transform\\s+\\\"(?<transform>[^\\\"]+)\\\"$", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex TransformLineRegex { get; }
 
-    [GeneratedRegex("^mode\\s+(\\d+)\\s+(\\d+)\\s+\\d+\\b.*\\bcurrent=#true\\b")]
-    private static partial Regex ModeLineRegex();
+    [GeneratedRegex("^mode\\s+(?<width>\\d+)\\s+(?<height>\\d+)\\s+\\d+\\b.*\\bcurrent=#true\\b", RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
+    private static partial Regex ModeLineRegex { get; }
 
-    private sealed class CosmicOutput
+    private sealed class CosmicOutput(bool enabled)
     {
-        public CosmicOutput(bool enabled)
-        {
-            Enabled = enabled;
-        }
-
-        public bool Enabled { get; }
+        public bool Enabled { get; } = enabled;
         public bool IsMirrored { get; set; }
         public (int X, int Y)? Position { get; set; }
         public (int Width, int Height)? CurrentMode { get; set; }
@@ -330,15 +425,15 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
 
         public LogicalRectangle ToLogicalRectangle()
         {
-            var (modeWidth, modeHeight) = CurrentMode!.Value;
+            var (modeWidth, modeHeight) = CurrentMode ?? throw new InvalidOperationException("CurrentMode is not set.");
             if (IsQuarterTurn(Transform))
             {
                 (modeWidth, modeHeight) = (modeHeight, modeWidth);
             }
 
-            var width = (int)Math.Round(modeWidth / Scale, MidpointRounding.AwayFromZero);
-            var height = (int)Math.Round(modeHeight / Scale, MidpointRounding.AwayFromZero);
-            var (x, y) = Position!.Value;
+            var width = checked((int)Math.Round(modeWidth / Scale, MidpointRounding.AwayFromZero));
+            var height = checked((int)Math.Round(modeHeight / Scale, MidpointRounding.AwayFromZero));
+            var (x, y) = Position ?? throw new InvalidOperationException("Position is not set.");
 
             return new LogicalRectangle(x, y, width, height);
         }
@@ -355,5 +450,6 @@ public sealed partial class CosmicPositionProvider : IMousePositionProvider
         }
     }
 
+    [StructLayout(LayoutKind.Auto)]
     private readonly record struct LogicalRectangle(int X, int Y, int Width, int Height);
 }

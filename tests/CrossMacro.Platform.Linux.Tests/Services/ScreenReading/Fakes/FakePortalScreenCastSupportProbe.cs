@@ -1,15 +1,9 @@
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakePortalScreenCastSupportProbe : IPortalScreenCastSupportProbe
+internal sealed class FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult support) : IPortalScreenCastSupportProbe
 {
-    private readonly PortalScreenCastSupportResult _support;
-
-    public FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult support)
-    {
-        _support = support;
-    }
+    private readonly PortalScreenCastSupportResult _support = support;
 
     public PortalScreenCastSupportResult ProbeSupport() => _support;
 }

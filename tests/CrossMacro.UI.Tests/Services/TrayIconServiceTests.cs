@@ -1,7 +1,5 @@
 namespace CrossMacro.UI.Tests.Services;
 
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Services;
 
 public sealed class TrayIconServiceTests
 {

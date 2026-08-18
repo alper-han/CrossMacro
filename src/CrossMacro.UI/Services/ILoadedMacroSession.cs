@@ -1,34 +1,33 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using CrossMacro.Core.Models;
-using CrossMacro.UI.Models;
 
 namespace CrossMacro.UI.Services;
 
 public interface ILoadedMacroSession
 {
-    ReadOnlyObservableCollection<LoadedMacroListItem> LoadedMacros { get; }
+    public ReadOnlyObservableCollection<LoadedMacroListItem> LoadedMacros { get; }
 
-    LoadedMacroListItem? SelectedMacroItem { get; set; }
+    public LoadedMacroListItem? SelectedMacroItem { get; set; }
 
-    LoadedMacroPlaybackMode PlaybackMode { get; set; }
+    public LoadedMacroPlaybackMode PlaybackMode { get; set; }
 
-    MacroSequence? SelectedMacro { get; }
+    public MacroSequence? SelectedMacro { get; }
 
-    int Count { get; }
+    public int Count { get; }
 
-    event EventHandler? SelectedMacroChanged;
+    public event EventHandler? SelectedMacroChanged;
 
-    event EventHandler? SelectedMacroUpdated;
+    public event EventHandler? SelectedMacroUpdated;
 
-    event EventHandler? PlaybackModeChanged;
+    public event EventHandler? PlaybackModeChanged;
 
-    LoadedMacroListItem AddMacro(MacroSequence macro, string? sourcePath = null);
-    LoadedMacroListItem? UpdateMacro(Guid sessionId, MacroSequence macro, string? sourcePath = null);
-    bool UpdateSelectedMacro(MacroSequence macro);
-    IReadOnlyList<LoadedMacroListItem> CreateSequentialCycleSnapshot();
-    bool RemoveMacro(LoadedMacroListItem item);
-    void RenameSelected(string name);
-    bool SelectNext();
+    public event EventHandler? SessionStateChanged;
+
+    public LoadedMacroListItem AddMacro(MacroSequence macro, string? sourcePath = null);
+    public LoadedMacroListItem? UpdateMacro(Guid sessionId, MacroSequence macro, string? sourcePath = null);
+    public bool UpdateSelectedMacro(MacroSequence macro);
+    public IReadOnlyList<LoadedMacroListItem> CreateSequentialCycleSnapshot();
+    public bool RemoveMacro(LoadedMacroListItem item);
+    public void RenameSelected(string name);
+    public bool SelectNext();
+    public LoadedMacroSessionSnapshot CreateSnapshot();
+    public void RestoreSnapshot(LoadedMacroSessionSnapshot snapshot);
 }

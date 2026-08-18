@@ -33,7 +33,7 @@ function Show-Usage {
 Usage: build-msix.ps1 [-Version <version>] [-PackageVersion <name-version>] [-OutputDir <path>] [-PackagePath <path>] [-Architecture <x64|arm64>] [-SymbolsDir <path>] [-NoCli] [-Help]
 
 Builds and validates the CrossMacro MSIX package without installing it:
-  - dotnet publish Release win-x64 or win-arm64 as a trimmed single-file executable
+  - dotnet publish Release win-x64 or win-arm64 as a Native AOT single executable
   - calls scripts/packaging/msix/prepare-msix.ps1 with manifest, assets, version, and output paths
   - validates the staged AppxManifest.xml and CrossMacro.UI.exe with scripts/smoke/msix.ps1
   - runs makeappx.exe pack to create the .msix package
@@ -43,8 +43,8 @@ Builds and validates the CrossMacro MSIX package without installing it:
 Options:
   -Version <version>         Three-part package version. Defaults to VERSION at repository root.
   -PackageVersion <version>  Version text used in the package filename. Defaults to -Version.
-  -OutputDir <path>          Staged MSIX content directory. Defaults to <repo>/msix-content.
-  -PackagePath <path>        Output .msix path. Defaults to <repo>/CrossMacro-<PackageVersion>-<Architecture>.msix.
+  -OutputDir <path>          Staged MSIX content directory. Defaults to <repo>/artifacts/work/msix/content.
+  -PackagePath <path>        Output .msix path. Defaults to <repo>/artifacts/packages/msix/CrossMacro-<PackageVersion>-<Architecture>.msix.
   -Architecture <x64|arm64>  Target MSIX architecture and .NET runtime identifier. Defaults to x64.
   -SymbolsDir <path>         Ignored. Debug symbols are disabled for MSIX packages.
   -NoCli                     Skip executable CLI smoke after structure checks.
@@ -173,7 +173,7 @@ $rid = switch ($Architecture) {
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
-    $OutputDir = Join-Path $projectRoot 'msix-content'
+    $OutputDir = Join-Path $projectRoot 'artifacts/work/msix/content'
 }
 
 if ([string]::IsNullOrWhiteSpace($PackagePath)) {
@@ -181,7 +181,7 @@ if ([string]::IsNullOrWhiteSpace($PackagePath)) {
     if ($packageFileVersion -notmatch "-$([regex]::Escape($Architecture))$") {
         $packageFileVersion = "$packageFileVersion-$Architecture"
     }
-    $PackagePath = Join-Path $projectRoot "CrossMacro-$packageFileVersion.msix"
+    $PackagePath = Join-Path $projectRoot "artifacts/packages/msix/CrossMacro-$packageFileVersion.msix"
 }
 
 foreach ($requiredPath in @($projectPath, $prepareScript, $manifestPath, $smokeScript)) {
@@ -219,21 +219,11 @@ if (Test-Path -LiteralPath $resolvedPackagePath -PathType Leaf) {
     Remove-Item -LiteralPath $resolvedPackagePath -Force
 }
 
-$debugType = 'None'
-$debugSymbols = 'false'
-
 $publishArgs = @(
     'publish', $projectPath,
     '-c', 'Release',
     '-r', $rid,
-    '--self-contained', 'true',
-    '-p:PublishAot=true',
-    '-p:PublishReadyToRun=true',
-    '-p:OptimizationPreference=Speed',
-    '-p:StripSymbols=true',
-    '-p:IlcTrimMetadata=true',
-    "-p:DebugType=$debugType",
-    "-p:DebugSymbols=$debugSymbols",
+    '-p:CrossMacroPublishProfile=native-aot',
     '-p:ErrorOnDuplicatePublishOutputFiles=true',
     "-p:Version=$Version",
     '-o', $resolvedOutputDir

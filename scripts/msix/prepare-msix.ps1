@@ -3,7 +3,7 @@ param(
     [string]$Version = '',
     [string]$ManifestPath = '',
     [string]$AssetsPath = '',
-    [string]$OutputDir = 'msix-content',
+    [string]$OutputDir = '',
     [ValidateSet('x64', 'arm64')]
     [string]$Architecture = 'x64'
 )

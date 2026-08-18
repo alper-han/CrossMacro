@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Linux.DisplayServer;
 
 namespace CrossMacro.Platform.Linux.Services;
 
@@ -9,11 +8,15 @@ namespace CrossMacro.Platform.Linux.Services;
 public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
 {
     private readonly Lazy<CompositorType> _compositor;
-    
-    public LinuxEnvironmentDetector()
-        : this(new LinuxEnvironmentVariables())
-    {
-    }
+
+    /// <summary>
+    /// Captures the live environment at call time. Prefer the snapshot-backed
+    /// constructor in production composition so the environment is captured
+    /// once at the boundary and passed through.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
+    internal LinuxEnvironmentDetector()
+        : this(new LinuxEnvironmentVariables(LinuxEnvironmentVariables.CaptureCurrentSnapshot())) { /* Empty */ }
 
     public LinuxEnvironmentDetector(ILinuxEnvironmentVariables environmentVariables)
     {
@@ -23,20 +26,23 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
             environmentVariables.CaptureSnapshot(),
             OperatingSystem.IsLinux()));
     }
-    
+
     public CompositorType DetectedCompositor => _compositor.Value;
-    
+
     public bool IsWayland => DetectedCompositor switch
     {
         CompositorType.HYPRLAND => true,
         CompositorType.WAYFIRE => true,
         CompositorType.NIRI => true,
         CompositorType.COSMIC => true,
+        CompositorType.SWAY => true,
         CompositorType.GNOME => true,
         CompositorType.KDE => true,
         CompositorType.Other => true,
-        _ => false
+        CompositorType.Unknown => false,
+        CompositorType.X11 => false,
+        _ => false,
     };
-    
-    public bool IsX11 => DetectedCompositor == CompositorType.X11;
+
+    public bool IsX11 => DetectedCompositor is CompositorType.X11;
 }

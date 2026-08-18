@@ -1,20 +1,45 @@
-using System;
-using System.Linq;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Windows.DependencyInjection;
-using CrossMacro.Platform.Windows.Services;
-using CrossMacro.Platform.Windows.Services.ScreenReading;
-using CrossMacro.Platform.Windows.Strategies;
-using CrossMacro.TestInfrastructure;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 
-public class WindowsPlatformServiceRegistrarTests
+[SupportedOSPlatform("windows")]
+public sealed class WindowsPlatformServiceRegistrarTests
 {
+    [Fact]
+    public void RegisterGuiClipboardServices_RegistersNativeClipboardServices()
+    {
+        var services = new ServiceCollection();
+
+        WindowsPlatformServiceRegistrar.RegisterGuiClipboardServices(services);
+
+        var descriptor = Assert.Single(services, service => service.ServiceType == typeof(StaMessageThread));
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+        Assert.Null(descriptor.ImplementationType);
+        Assert.NotNull(descriptor.ImplementationFactory);
+
+        Assert.Equal(
+            typeof(WindowsNativeClipboardService),
+            Assert.Single(services, service => service.ServiceType == typeof(IClipboardService)).ImplementationType);
+        Assert.Equal(
+            typeof(WindowsNativeImageClipboardService),
+            Assert.Single(services, service => service.ServiceType == typeof(IImageClipboardService)).ImplementationType);
+    }
+
+    [Fact]
+    public void RegisterCliClipboardServices_DefersStaMessageThreadCreation()
+    {
+        var services = new ServiceCollection();
+
+        WindowsPlatformServiceRegistrar.RegisterCliClipboardServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var staThread = provider.GetRequiredService<Lazy<StaMessageThread>>();
+
+        Assert.False(staThread.IsValueCreated);
+        _ = provider.GetRequiredService<IClipboardService>();
+        _ = provider.GetRequiredService<IImageClipboardService>();
+        Assert.False(staThread.IsValueCreated);
+    }
+
     [WindowsFact]
     public void RegisterPlatformServices_RegistersKeyboardLayoutService()
     {
@@ -24,7 +49,7 @@ public class WindowsPlatformServiceRegistrarTests
 
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IKeyboardLayoutService));
         Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsKeyboardLayoutService), descriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsKeyboardLayoutService), descriptor.ImplementationType);
     }
 
     [WindowsFact]
@@ -36,10 +61,10 @@ public class WindowsPlatformServiceRegistrarTests
 
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IMousePositionProvider));
         Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsMousePositionProvider), descriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsMousePositionProvider), descriptor.ImplementationType);
     }
 
-    [Fact]
+    [WindowsFact]
     public void RegisterPlatformServices_RegistersScreenFrameProvider()
     {
         var services = new ServiceCollection();
@@ -48,7 +73,7 @@ public class WindowsPlatformServiceRegistrarTests
 
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IScreenFrameProvider));
         Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsScreenFrameProvider), descriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsScreenFrameProvider), descriptor.ImplementationType);
     }
 
     [WindowsFact]
@@ -60,7 +85,7 @@ public class WindowsPlatformServiceRegistrarTests
 
         var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IEnvironmentInfoProvider));
         Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsEnvironmentInfoProvider), descriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsEnvironmentInfoProvider), descriptor.ImplementationType);
     }
 
     [WindowsFact]
@@ -72,11 +97,11 @@ public class WindowsPlatformServiceRegistrarTests
 
         var strategyDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(ICoordinateStrategyFactory));
         Assert.NotNull(strategyDescriptor);
-        Assert.Equal(typeof(WindowsCoordinateStrategyFactory), strategyDescriptor!.ImplementationType);
+        Assert.Equal(typeof(WindowsCoordinateStrategyFactory), strategyDescriptor.ImplementationType);
 
         var displayDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(IDisplaySessionService));
         Assert.NotNull(displayDescriptor);
-        Assert.Equal(typeof(GenericDisplaySessionService), displayDescriptor!.ImplementationType);
+        Assert.Equal(typeof(GenericDisplaySessionService), displayDescriptor.ImplementationType);
     }
 
     [WindowsFact]
@@ -90,8 +115,8 @@ public class WindowsPlatformServiceRegistrarTests
         var simulatorFactory = provider.GetRequiredService<Func<IInputSimulator>>();
         var captureFactory = provider.GetRequiredService<Func<IInputCapture>>();
 
-        Assert.IsType<WindowsInputSimulator>(simulatorFactory());
-        Assert.IsType<WindowsInputCapture>(captureFactory());
+        _ = Assert.IsType<WindowsInputSimulator>(simulatorFactory());
+        _ = Assert.IsType<WindowsInputCapture>(captureFactory());
     }
 
     [WindowsFact]
@@ -106,15 +131,4 @@ public class WindowsPlatformServiceRegistrarTests
         Assert.Null(notifier);
     }
 
-    [WindowsFact]
-    public void RegisterPlatformServices_RegistersWindowsPlaybackBehaviorPolicy()
-    {
-        var services = new ServiceCollection();
-        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        using var provider = services.BuildServiceProvider();
-        var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
-
-        Assert.False(policy.UseHybridAbsoluteDragMovement);
-    }
 }

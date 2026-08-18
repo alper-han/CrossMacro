@@ -1,15 +1,7 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
-using CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
-using NSubstitute;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
-public class LinuxScreenFrameProviderFactoryTests
+public sealed class LinuxScreenFrameProviderFactoryTests
 {
     [Fact]
     public void Create_WhenNativeWaylandAndAllBackendsAvailable_SelectsExtBeforeWlrAndPortal()
@@ -98,10 +90,10 @@ public class LinuxScreenFrameProviderFactoryTests
     {
         var kWinProvider = new RecordingScreenFrameProvider(
             "kwin",
-            ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, "kwin capture failed"));
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "kwin capture failed"));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
-            ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, "ext should not capture"));
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext should not capture"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -123,12 +115,17 @@ public class LinuxScreenFrameProviderFactoryTests
     }
 
     [Fact]
-    public async Task CaptureFrameAsync_WhenNativeKdeFullFrameRequestAndKWinAndExtAvailable_SkipsKWinAndUsesExt()
+    public async Task CaptureFrameAsync_WhenNativeKdeFullFrameRequestAndKWinAndExtAvailable_UsesKWinWorkspace()
     {
-        var kWinCapture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
+        var kWinFrame = ScreenReadingFrameFixtures.KWinFrame(
+            new ScreenRect(0, 0, 2, 1),
+            ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
+        var kWinCapture = new FakeKWinScreenShotCapture(
+            KWinScreenShotSupportResult.Supported(),
+            KWinScreenShotCaptureResult.Success(kWinFrame));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
-            ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, "ext capture failed"));
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext capture failed"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -140,20 +137,25 @@ public class LinuxScreenFrameProviderFactoryTests
             kWinFactory: support => new KWinScreenShotScreenFrameProvider(kWinCapture, support));
 
         using var provider = factory.Create();
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Equal("ext capture failed", result.ErrorMessage);
+        Assert.True(result.IsSuccess);
+        using var resultFrame = Assert.IsType<ScreenFrame>(result.Value);
+        Assert.Equal(new ScreenRect(0, 0, 2, 1), resultFrame.LogicalBounds);
         Assert.Equal(0, kWinCapture.CaptureCalls);
-        Assert.Equal(1, extProvider.CaptureCalls);
-        Assert.Null(extProvider.LastRegion);
+        Assert.Equal(1, kWinCapture.WorkspaceCaptureCalls);
+        Assert.Equal(0, extProvider.CaptureCalls);
     }
 
     [Fact]
-    public async Task CaptureFrameAsync_WhenNativeKdeFullFrameRequestAndOnlyKWinAvailable_ReturnsKWinUnsupportedWithoutCapture()
+    public async Task CaptureFrameAsync_WhenNativeKdeFullFrameRequestAndOnlyKWinAvailable_UsesKWinWorkspace()
     {
-        var kWinCapture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
+        var kWinFrame = ScreenReadingFrameFixtures.KWinFrame(
+            new ScreenRect(0, 0, 2, 1),
+            ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
+        var kWinCapture = new FakeKWinScreenShotCapture(
+            KWinScreenShotSupportResult.Supported(),
+            KWinScreenShotCaptureResult.Success(kWinFrame));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -173,21 +175,24 @@ public class LinuxScreenFrameProviderFactoryTests
             kWinFactory: support => new KWinScreenShotScreenFrameProvider(kWinCapture, support));
 
         using var provider = factory.Create();
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Unsupported, result.ErrorKind);
-        Assert.Contains("bounded region", result.ErrorMessage);
+        Assert.True(result.IsSuccess);
+        using var resultFrame = Assert.IsType<ScreenFrame>(result.Value);
+        Assert.Equal(new ScreenRect(0, 0, 2, 1), resultFrame.LogicalBounds);
         Assert.Equal(0, kWinCapture.CaptureCalls);
+        Assert.Equal(1, kWinCapture.WorkspaceCaptureCalls);
     }
 
     [Fact]
-    public async Task CaptureFrameAsync_WhenFullFrameCompatibleBackendPermissionDenied_ReturnsDeniedWithoutKWinUnsupportedFallback()
+    public async Task CaptureFrameAsync_WhenKWinWorkspaceCapturePermissionDenied_ReturnsDeniedWithoutFallback()
     {
-        var kWinCapture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
+        var kWinCapture = new FakeKWinScreenShotCapture(
+            KWinScreenShotSupportResult.Supported(),
+            KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.PermissionDenied, "kwin denied"));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
-            ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.PermissionDenied, "ext denied"));
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, "ext denied"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -199,13 +204,87 @@ public class LinuxScreenFrameProviderFactoryTests
             kWinFactory: support => new KWinScreenShotScreenFrameProvider(kWinCapture, support));
 
         using var provider = factory.Create();
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Equal("ext denied", result.ErrorMessage);
+        Assert.Equal("kwin denied", result.ErrorMessage);
         Assert.Equal(0, kWinCapture.CaptureCalls);
+        Assert.Equal(1, kWinCapture.WorkspaceCaptureCalls);
+        Assert.Equal(0, extProvider.CaptureCalls);
+    }
+
+    [Fact]
+    public async Task CaptureFrameAsync_WhenNativeBackendBecomesUnavailable_UsesNextBackend()
+    {
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 1, 1),
+            4,
+            ScreenPixelFormat.Xrgb8888,
+            new byte[] { 0x11, 0x22, 0x33, 0x00 });
+        var extProvider = new RecordingScreenFrameProvider(
+            "ext",
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.BackendUnavailable, "ext disconnected"));
+        var wlrProvider = new RecordingScreenFrameProvider(
+            "wlr",
+            ScreenReadResultFactory.Success<ScreenFrame>(frame));
+        var factory = CreateFactoryWithProviders(
+            isFlatpak: false,
+            compositor: CompositorType.Other,
+            LinuxScreenReaderBackendCapability.Unavailable(
+                LinuxScreenReaderBackend.KWinScreenShot2,
+                ScreenReadErrorKind.BackendUnavailable,
+                "not kde"),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal),
+            extProvider: extProvider,
+            wlrProvider: wlrProvider);
+
+        using var provider = factory.Create();
+        var result = await provider.CaptureFrameAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+
+        Assert.True(result.IsSuccess);
         Assert.Equal(1, extProvider.CaptureCalls);
+        Assert.Equal(1, wlrProvider.CaptureCalls);
+    }
+
+    [Fact]
+    public async Task CaptureFrameAsync_WhenBackendSucceeds_PinsRouteForNextCapture()
+    {
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 1, 1),
+            4,
+            ScreenPixelFormat.Xrgb8888,
+            new byte[] { 0x11, 0x22, 0x33, 0x00 });
+        var extProvider = new RecordingScreenFrameProvider(
+            "ext",
+            ScreenReadResultFactory.Success<ScreenFrame>(frame));
+        var wlrProvider = new RecordingScreenFrameProvider(
+            "wlr",
+            ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "wlr should not be selected"));
+        var factory = CreateFactoryWithProviders(
+            isFlatpak: false,
+            compositor: CompositorType.Other,
+            LinuxScreenReaderBackendCapability.Unavailable(
+                LinuxScreenReaderBackend.KWinScreenShot2,
+                ScreenReadErrorKind.BackendUnavailable,
+                "not kde"),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal),
+            extProvider: extProvider,
+            wlrProvider: wlrProvider);
+
+        using var provider = factory.Create();
+        var first = await provider.CaptureFrameAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+        var second = await provider.CaptureFrameAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(2, extProvider.CaptureCalls);
+        Assert.Equal(0, wlrProvider.CaptureCalls);
+        second.Value?.Dispose();
     }
 
     [Fact]
@@ -244,7 +323,7 @@ public class LinuxScreenFrameProviderFactoryTests
     }
 
     [Fact]
-    public void Create_WhenFlatpakWaylandAndPortalUnavailable_FallsBackToExtThenWlr()
+    public void Create_WhenFlatpakWaylandAndPortalUnavailable_DoesNotUseDirectWaylandFallback()
     {
         var factory = CreateFactory(
             isFlatpak: true,
@@ -259,7 +338,7 @@ public class LinuxScreenFrameProviderFactoryTests
 
         using var provider = factory.Create();
 
-        Assert.Equal("ext", provider.ProviderName);
+        Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
     }
 
     [Fact]
@@ -290,12 +369,12 @@ public class LinuxScreenFrameProviderFactoryTests
         Assert.False(provider.IsSupported);
         var unavailable = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, unavailable.ErrorKind);
-        Assert.Contains("portal denied", unavailable.FailureMessage);
+        Assert.Contains("portal denied", unavailable.FailureMessage, StringComparison.Ordinal);
 
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Contains("portal denied", result.ErrorMessage);
+        Assert.Contains("portal denied", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -326,12 +405,12 @@ public class LinuxScreenFrameProviderFactoryTests
         Assert.False(provider.IsSupported);
         var unavailable = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, unavailable.ErrorKind);
-        Assert.Contains("kwin denied", unavailable.FailureMessage);
+        Assert.Contains("kwin denied", unavailable.FailureMessage, StringComparison.Ordinal);
 
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Contains("kwin denied", result.ErrorMessage);
+        Assert.Contains("kwin denied", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -359,13 +438,13 @@ public class LinuxScreenFrameProviderFactoryTests
         var factory = fixture.CreateFactory();
 
         using var provider = factory.Create();
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.Equal("x11", provider.ProviderName);
         Assert.False(provider.IsSupported);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("DISPLAY missing", result.ErrorMessage);
+        Assert.Contains("DISPLAY missing", result.ErrorMessage, StringComparison.Ordinal);
         Assert.False(fixture.SnapshotRequested);
     }
 
@@ -373,9 +452,9 @@ public class LinuxScreenFrameProviderFactoryTests
     public void Create_WhenSessionIsNeitherWaylandNorX11_ReturnsUnsupportedProviderWithoutCreatingBackends()
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(false);
-        environmentDetector.IsX11.Returns(false);
-        environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
+        _ = environmentDetector.IsWayland.Returns(returnThis: false);
+        _ = environmentDetector.IsX11.Returns(returnThis: false);
+        _ = environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
@@ -397,10 +476,10 @@ public class LinuxScreenFrameProviderFactoryTests
         Assert.False(provider.IsSupported);
         var unavailable = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
         Assert.Equal(ScreenReadErrorKind.Unsupported, unavailable.ErrorKind);
-        Assert.Contains("Wayland", unavailable.FailureMessage);
-        Assert.Contains("X11", unavailable.FailureMessage);
-        capabilityDetector.DidNotReceive().GetSnapshot();
-        x11SupportProbe.DidNotReceive().ProbeSupport();
+        Assert.Contains("Wayland", unavailable.FailureMessage, StringComparison.Ordinal);
+        Assert.Contains("X11", unavailable.FailureMessage, StringComparison.Ordinal);
+        _ = capabilityDetector.DidNotReceive().GetSnapshot();
+        _ = x11SupportProbe.DidNotReceive().ProbeSupport();
     }
 
     private static LinuxScreenFrameProviderFactory CreateFactory(
@@ -412,14 +491,14 @@ public class LinuxScreenFrameProviderFactoryTests
         LinuxScreenReaderBackendCapability portal)
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(true);
-        environmentDetector.DetectedCompositor.Returns(compositor);
+        _ = environmentDetector.IsWayland.Returns(returnThis: true);
+        _ = environmentDetector.DetectedCompositor.Returns(compositor);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsFlatpak.Returns(isFlatpak);
+        _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
 
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
-        capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
+        _ = capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
         return new LinuxScreenFrameProviderFactory(
@@ -448,14 +527,14 @@ public class LinuxScreenFrameProviderFactoryTests
         Func<KWinScreenShotSupportResult, IScreenFrameProvider>? kWinFactory = null)
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        environmentDetector.IsWayland.Returns(true);
-        environmentDetector.DetectedCompositor.Returns(compositor);
+        _ = environmentDetector.IsWayland.Returns(returnThis: true);
+        _ = environmentDetector.DetectedCompositor.Returns(compositor);
 
         var runtimeContext = Substitute.For<IRuntimeContext>();
-        runtimeContext.IsFlatpak.Returns(isFlatpak);
+        _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
 
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
-        capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
+        _ = capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
         return new LinuxScreenFrameProviderFactory(
@@ -470,20 +549,15 @@ public class LinuxScreenFrameProviderFactoryTests
             _ => new NamedScreenFrameProvider("x11"));
     }
 
-    private sealed class NamedScreenFrameProvider : IScreenFrameProvider
+    private sealed class NamedScreenFrameProvider(string providerName) : IScreenFrameProvider
     {
-        public NamedScreenFrameProvider(string providerName)
-        {
-            ProviderName = providerName;
-        }
-
-        public string ProviderName { get; }
+        public string ProviderName { get; } = providerName;
 
         public bool IsSupported => true;
 
         public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
         {
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Test provider does not capture frames."));
         }
@@ -493,17 +567,11 @@ public class LinuxScreenFrameProviderFactoryTests
         }
     }
 
-    private sealed class RecordingScreenFrameProvider : IScreenFrameProvider
+    private sealed class RecordingScreenFrameProvider(string providerName, ScreenReadResult<ScreenFrame> result) : IScreenFrameProvider
     {
-        private readonly ScreenReadResult<ScreenFrame> _result;
+        private readonly ScreenReadResult<ScreenFrame> _result = result;
 
-        public RecordingScreenFrameProvider(string providerName, ScreenReadResult<ScreenFrame> result)
-        {
-            ProviderName = providerName;
-            _result = result;
-        }
-
-        public string ProviderName { get; }
+        public string ProviderName { get; } = providerName;
 
         public bool IsSupported => true;
 

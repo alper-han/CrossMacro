@@ -1,24 +1,14 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class KWinScreenShotScreenFrameProvider : IScreenFrameProvider
+public sealed class KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture, KWinScreenShotSupportResult support) : IScreenFrameProvider
 {
-    private readonly IKWinScreenShotCapture _capture;
-    private readonly KWinScreenShotSupportResult _support;
+    private readonly IKWinScreenShotCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly KWinScreenShotSupportResult _support = support;
     private bool _disposed;
 
     public KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture, KWinScreenShotSupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "KDE KWin ScreenShot2";
     public bool IsSupported => _support.IsSupported;
@@ -29,16 +19,9 @@ public sealed class KWinScreenShotScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "KDE KWin ScreenShot2 is unavailable.");
-        }
-
-        if (region is null)
-        {
-            return ScreenReadResult<ScreenFrame>.Failure(
-                ScreenReadErrorKind.Unsupported,
-                "KDE KWin ScreenShot2 screen reading currently requires a bounded region.");
         }
 
         if (options.CancellationToken.IsCancellationRequested)
@@ -49,7 +32,9 @@ public sealed class KWinScreenShotScreenFrameProvider : IScreenFrameProvider
         KWinScreenShotCaptureResult captureResult;
         try
         {
-            captureResult = await _capture.CaptureAreaAsync(region.Value, options).ConfigureAwait(false);
+            captureResult = region is { } boundedRegion
+                ? await _capture.CaptureAreaAsync(boundedRegion, options).ConfigureAwait(false)
+                : await _capture.CaptureWorkspaceAsync(options).ConfigureAwait(false);
         }
         catch (Exception ex) when (LinuxScreenFrameProviderResults.IsKnownCaptureException(ex))
         {
@@ -67,7 +52,7 @@ public sealed class KWinScreenShotScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(ScreenReadErrorKind.CaptureFailed, "Successful KDE KWin ScreenShot2 capture did not include a frame.");
+            return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "Successful KDE KWin ScreenShot2 capture did not include a frame.");
         }
 
         return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame);

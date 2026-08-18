@@ -23,6 +23,9 @@ USAGE
 
 fail() {
   echo "Flatpak smoke failed: $1" >&2
+  if [ "$#" -gt 1 ] && [ -n "$2" ]; then
+    echo "$2" >&2
+  fi
   exit 1
 }
 
@@ -80,14 +83,33 @@ if [ "$installation" = "user" ]; then
   flatpak --user install -y --noninteractive "$bundle"
   installed=1
   run_prefix=(flatpak run "$APP_ID")
+  permissions="$(flatpak --user info --show-permissions "$APP_ID")"
 else
   flatpak --installation="$installation" install -y --noninteractive "$bundle"
   installed=1
   run_prefix=(flatpak --installation="$installation" run "$APP_ID")
+  permissions="$(flatpak --installation="$installation" info --show-permissions "$APP_ID")"
 fi
+
+printf '%s\n' "$permissions" | grep -Fq '/run/crossmacro' && fail "portable package exposes the host daemon socket"
 
 if [ "$skip_cli" -eq 0 ]; then
   "$CLI_SMOKE" -- "${run_prefix[@]}"
+
+  if [ "${CROSSMACRO_FLATPAK_SHELL_SMOKE_TESTS:-0}" != "1" ]; then
+    echo "Flatpak smoke: nested shell isolation skipped; set CROSSMACRO_FLATPAK_SHELL_SMOKE_TESTS=1 in a desktop session to enable it."
+    exit 0
+  fi
+
+  shell_output="$("${run_prefix[@]}" run --step 'shell capture "printf sandbox-ok" shell_code shell_out shell_err' --json 2>&1)" ||
+    fail "nested sandbox shell execution failed" "$shell_output"
+  printf '%s\n' "$shell_output" | grep -Fq '"shell_code": "0"' || fail "nested sandbox shell exit code mismatch" "$shell_output"
+  printf '%s\n' "$shell_output" | grep -Fq '"shell_out": "sandbox-ok"' || fail "nested sandbox shell output mismatch" "$shell_output"
+
+  boundary_output="$("${run_prefix[@]}" run --step 'shell capture "flatpak-spawn --host /usr/bin/true" escape_code escape_out escape_err' --step 'shell capture "test ! -e /dev/uinput && test ! -d /dev/input && ! env | grep -q DBUS_SESSION_BUS_ADDRESS" boundary_code boundary_out boundary_err' --json 2>&1)" ||
+    fail "nested sandbox boundary check failed" "$boundary_output"
+  printf '%s\n' "$boundary_output" | grep -Fq '"escape_code": "0"' && fail "nested shell reached the host command channel" "$boundary_output"
+  printf '%s\n' "$boundary_output" | grep -Fq '"boundary_code": "0"' || fail "nested shell inherited device or session-bus access" "$boundary_output"
 fi
 
 echo "Flatpak smoke: OK"

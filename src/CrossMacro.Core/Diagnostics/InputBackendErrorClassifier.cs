@@ -1,4 +1,3 @@
-using System;
 
 namespace CrossMacro.Core.Diagnostics;
 
@@ -11,18 +10,18 @@ public static class InputBackendErrorClassifier
     private static readonly string[] KnownUnavailableFragments =
     [
         "No usable Linux input capture backend is available.",
-        "No usable Linux input backend is available."
+        "No usable Linux input backend is available.",
     ];
 
     public static bool IsKnownUnavailable(Exception? exception)
     {
-        if (exception == null)
+        if (exception is null)
         {
             return false;
         }
 
         var current = exception;
-        while (current != null)
+        while (current is not null)
         {
             if (IsKnownUnavailableMessage(current.Message))
             {
@@ -42,14 +41,6 @@ public static class InputBackendErrorClassifier
             return false;
         }
 
-        foreach (var fragment in KnownUnavailableFragments)
-        {
-            if (message.Contains(fragment, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return KnownUnavailableFragments.Any(fragment => message.Contains(fragment, StringComparison.OrdinalIgnoreCase));
     }
 }

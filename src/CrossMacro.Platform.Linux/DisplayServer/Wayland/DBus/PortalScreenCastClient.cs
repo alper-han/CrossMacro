@@ -1,54 +1,36 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using Microsoft.Win32.SafeHandles;
-using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-
-internal delegate void PortalMessageWriterAction(ref MessageWriter writer);
-
-internal interface IPortalScreenCastSessionClient : IDisposable
-{
-    Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null);
-
-    void DisposeIfNotOwnedBySession();
-}
-
-internal interface IPortalScreenCastSessionClientFactory
-{
-    Task<IPortalScreenCastSessionClient> ConnectAsync();
-}
-
-internal sealed class PortalScreenCastSessionClientFactory : IPortalScreenCastSessionClientFactory
-{
-    public static PortalScreenCastSessionClientFactory Instance { get; } = new();
-
-    public async Task<IPortalScreenCastSessionClient> ConnectAsync() => await PortalScreenCastClient.ConnectAsync().ConfigureAwait(false);
-}
 
 internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
 {
     private const string Service = "org.freedesktop.portal.Desktop";
     private const string DesktopPath = "/org/freedesktop/portal/desktop";
     private const string ScreenCastInterface = "org.freedesktop.portal.ScreenCast";
+    private const string SessionInterface = "org.freedesktop.portal.Session";
     private const string RequestInterface = "org.freedesktop.portal.Request";
 
     private readonly DBusConnection _connection;
+    private readonly TimeProvider _timeProvider;
+    private IDisposable? _sessionClosedSubscription;
     private bool _ownedBySession;
 
-    private PortalScreenCastClient(DBusConnection connection)
+    private PortalScreenCastClient(DBusConnection connection, TimeProvider timeProvider)
     {
         _connection = connection;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public static async Task<PortalScreenCastClient> ConnectAsync()
+        => await ConnectAsync(TimeProvider.System).ConfigureAwait(false);
+
+    internal static async Task<PortalScreenCastClient> ConnectAsync(TimeProvider timeProvider)
     {
         var connection = LinuxDbusTransportBoundary.CreateSessionConnection();
         await connection.ConnectAsync().ConfigureAwait(false);
-        return new PortalScreenCastClient(connection);
+        return new PortalScreenCastClient(connection, timeProvider);
     }
 
-    public async Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null)
+    public async Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null, string? restoreData = null)
     {
         options.CancellationToken.ThrowIfCancellationRequested();
 
@@ -57,19 +39,19 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         var createHandleToken = $"crossmacro_create_{token}";
         var createResponse = await CallRequestAsync("CreateSession", "a{sv}", createHandleToken, options, (ref MessageWriter writer) =>
         {
-            writer.WriteDictionary(new Dictionary<string, VariantValue>
+            writer.WriteDictionary(new Dictionary<string, VariantValue>(StringComparer.Ordinal)
             {
                 ["session_handle_token"] = VariantValue.String(sessionHandleToken),
-                ["handle_token"] = VariantValue.String(createHandleToken)
+                ["handle_token"] = VariantValue.String(createHandleToken),
             });
         }).ConfigureAwait(false);
 
         var sessionHandle = GetResponseObjectPath(createResponse.Results, "session_handle");
 
         var selectHandleToken = $"crossmacro_select_{token}";
-        var selectOptions = BuildSelectSourcesOptions(selectHandleToken, restoreToken);
+        var selectOptions = BuildSelectSourcesOptions(selectHandleToken, restoreToken, restoreData);
 
-        await CallRequestAsync("SelectSources", "oa{sv}", selectHandleToken, options, (ref MessageWriter writer) =>
+        _ = await CallRequestAsync("SelectSources", "oa{sv}", selectHandleToken, options, (ref MessageWriter writer) =>
         {
             writer.WriteObjectPath(sessionHandle);
             writer.WriteDictionary(selectOptions);
@@ -80,20 +62,38 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         {
             writer.WriteObjectPath(sessionHandle);
             writer.WriteString(string.Empty);
-            writer.WriteDictionary(new Dictionary<string, VariantValue>
+            writer.WriteDictionary(new Dictionary<string, VariantValue>(StringComparer.Ordinal)
             {
-                ["handle_token"] = VariantValue.String(startHandleToken)
+                ["handle_token"] = VariantValue.String(startHandleToken),
             });
         }).ConfigureAwait(false);
 
         var streams = ParseStreams(startResponse.Results);
         var refreshedRestoreToken = TryGetResponseString(startResponse.Results, "restore_token");
-        var remote = await OpenPipeWireRemoteAsync(sessionHandle).WaitAsync(GetTimeout(options), options.CancellationToken).ConfigureAwait(false);
-        _ownedBySession = true;
-        return new PortalScreenCastSession(sessionHandle, streams, remote, this, refreshedRestoreToken);
+        var refreshedRestoreData = TryGetResponseRestoreData(startResponse.Results);
+        var remote = await OpenPipeWireRemoteAsync(sessionHandle)
+            .WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken)
+            .ConfigureAwait(false);
+        var session = new PortalScreenCastSession(sessionHandle, streams, remote, this, refreshedRestoreToken, refreshedRestoreData);
+        try
+        {
+            _sessionClosedSubscription = await WatchSessionClosedAsync(sessionHandle, session).ConfigureAwait(false);
+            _ownedBySession = true;
+            return session;
+        }
+        catch
+        {
+            session.Dispose();
+            throw;
+        }
     }
 
-    public void Dispose() => _connection.Dispose();
+    public void Dispose()
+    {
+        _sessionClosedSubscription?.Dispose();
+        _sessionClosedSubscription = null;
+        _connection.Dispose();
+    }
 
     public void DisposeIfNotOwnedBySession()
     {
@@ -121,7 +121,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         {
             var reader = message.GetBodyReader();
             return reader.ReadObjectPathAsString();
-        }).WaitAsync(GetTimeout(options), options.CancellationToken).ConfigureAwait(false);
+        }).WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken).ConfigureAwait(false);
 
         if (!StringComparer.Ordinal.Equals(requestPath, returnedRequestPath))
         {
@@ -130,7 +130,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
                 $"Portal returned unexpected request path '{returnedRequestPath}', expected '{requestPath}'.");
         }
 
-        return await completion.Task.WaitAsync(GetTimeout(options), options.CancellationToken).ConfigureAwait(false);
+        return await completion.Task.WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken).ConfigureAwait(false);
     }
 
     private async Task<IDisposable> WatchResponseAsync(string requestPath, TaskCompletionSource<PortalResponse> completion)
@@ -147,26 +147,47 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
                 var results = reader.ReadDictionaryOfStringToVariantValue();
                 return new PortalResponse(response, results);
             },
-            (exception, response) =>
+            notification =>
             {
-                if (exception is not null)
+                if (notification.IsCompletion)
                 {
-                    completion.TrySetException(exception);
-                }
-                else if (response.ResponseCode == 0)
-                {
-                    completion.TrySetResult(response);
+                    var exception = notification.Exception;
+                    if (exception is not null)
+                    {
+                        _ = completion.TrySetException(exception);
+                    }
                 }
                 else
                 {
-                    completion.TrySetException(new PortalScreenCastException(
-                        MapResponseCode(response.ResponseCode),
-                        $"XDG Desktop Portal ScreenCast request failed with response={response.ResponseCode}."));
+                    var response = notification.Value;
+                    if (response.ResponseCode == 0)
+                    {
+                        _ = completion.TrySetResult(response);
+                    }
+                    else
+                    {
+                        _ = completion.TrySetException(new PortalScreenCastException(
+                            MapResponseCode(response.ResponseCode),
+                            $"XDG Desktop Portal ScreenCast request failed with response={response.ResponseCode}."));
+                    }
                 }
             },
-            readerState: null,
-            emitOnCapturedContext: false,
-            flags: ObserverFlags.None).ConfigureAwait(false);
+            synchronizationContext: null,
+            flags: ObserverFlags.None,
+            state: null).ConfigureAwait(false);
+    }
+
+    private async Task<IDisposable> WatchSessionClosedAsync(string sessionHandle, PortalScreenCastSession session)
+    {
+        return await _connection.WatchSignalAsync(
+            Service,
+            sessionHandle,
+            SessionInterface,
+            "Closed",
+            notification => session.MarkClosed(),
+            synchronizationContext: null,
+            flags: ObserverFlags.None,
+            state: null).ConfigureAwait(false);
     }
 
     private string GetRequestPath(string handleToken)
@@ -189,25 +210,28 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         }).ConfigureAwait(false);
     }
 
-    private static string GetResponseObjectPath(IReadOnlyDictionary<string, VariantValue> results, string key)
+    private static string GetResponseObjectPath(Dictionary<string, VariantValue> results, string key)
     {
         if (!results.TryGetValue(key, out var value))
         {
             throw new PortalScreenCastException(ScreenReadErrorKind.CaptureFailed, $"Portal response did not include '{key}'.");
         }
 
-        return value.Type == VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
+        return value.Type is VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
     }
 
-    internal static Dictionary<string, VariantValue> BuildSelectSourcesOptions(string handleToken, string? restoreToken)
+    internal static Dictionary<string, VariantValue> BuildSelectSourcesOptions(string handleToken, string? restoreToken) =>
+        BuildSelectSourcesOptions(handleToken, restoreToken, restoreData: null);
+
+    internal static Dictionary<string, VariantValue> BuildSelectSourcesOptions(string handleToken, string? restoreToken, string? restoreData)
     {
-        var options = new Dictionary<string, VariantValue>
+        var options = new Dictionary<string, VariantValue>(StringComparer.Ordinal)
         {
             ["types"] = VariantValue.UInt32(1),
-            ["multiple"] = VariantValue.Bool(true),
+            ["multiple"] = VariantValue.Bool(value: true),
             ["cursor_mode"] = VariantValue.UInt32(1),
             ["persist_mode"] = VariantValue.UInt32(2),
-            ["handle_token"] = VariantValue.String(handleToken)
+            ["handle_token"] = VariantValue.String(handleToken),
         };
 
         if (!string.IsNullOrWhiteSpace(restoreToken))
@@ -215,7 +239,36 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             options["restore_token"] = VariantValue.String(restoreToken);
         }
 
+        if (PortalScreenCastRestoreDataCodec.TryDeserialize(restoreData, out var restoredValue)
+            && PortalScreenCastRestoreDataCodec.IsSupportedEnvelope(restoredValue))
+        {
+            options["restore_data"] = UnwrapRestoreData(restoredValue);
+        }
+
         return options;
+    }
+
+    internal static string? TryGetResponseRestoreData(IReadOnlyDictionary<string, VariantValue> results)
+    {
+        if (!results.TryGetValue("restore_data", out var value))
+        {
+            return null;
+        }
+
+        var normalized = UnwrapRestoreData(value);
+        return PortalScreenCastRestoreDataCodec.IsSupportedEnvelope(normalized)
+            ? PortalScreenCastRestoreDataCodec.TrySerialize(normalized)
+            : null;
+    }
+
+    private static VariantValue UnwrapRestoreData(VariantValue value)
+    {
+        while (value.Type is VariantValueType.Variant)
+        {
+            value = value.GetVariantValue();
+        }
+
+        return value;
     }
 
     internal static string? TryGetResponseString(IReadOnlyDictionary<string, VariantValue> results, string key)
@@ -225,27 +278,27 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
             return null;
         }
 
-        var result = value.Type == VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
+        var result = value.Type is VariantValueType.ObjectPath ? value.GetObjectPathAsString() : value.GetString();
         return string.IsNullOrWhiteSpace(result) ? null : result;
     }
 
-    internal static IReadOnlyList<PortalStream> ParseStreams(IReadOnlyDictionary<string, VariantValue> results)
+    internal static IReadOnlyList<PortalStreamDescriptor> ParseStreams(IReadOnlyDictionary<string, VariantValue> results)
     {
         if (!results.TryGetValue("streams", out var streamsValue))
         {
             throw new PortalScreenCastException(ScreenReadErrorKind.CaptureFailed, "Portal Start response did not include streams.");
         }
 
-        var streams = new List<PortalStream>();
+        var streams = new List<PortalStreamDescriptor>();
         for (var i = 0; i < streamsValue.Count; i++)
         {
             var stream = streamsValue.GetItem(i);
             var nodeId = stream.GetItem(0).GetUInt32();
             var properties = UnboxDictionary(stream.GetItem(1));
-            streams.Add(new PortalStream(nodeId, properties));
+            streams.Add(new PortalStreamDescriptor(nodeId, properties));
         }
 
-        if (streams.Count == 0)
+        if (streams.Count is 0)
         {
             throw new PortalScreenCastException(ScreenReadErrorKind.CaptureFailed, "Portal Start response did not include any streams.");
         }
@@ -253,7 +306,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         return streams;
     }
 
-    private static IReadOnlyDictionary<string, object> UnboxDictionary(VariantValue value)
+    private static Dictionary<string, object> UnboxDictionary(VariantValue value)
     {
         var result = new Dictionary<string, object>(StringComparer.Ordinal);
         for (var i = 0; i < value.Count; i++)
@@ -277,13 +330,21 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         VariantValueType.Struct => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         VariantValueType.Dictionary => UnboxDictionary(value),
         VariantValueType.Variant => UnboxVariant(value.GetVariantValue()),
-        _ => value.ToString() ?? string.Empty
+        VariantValueType.Invalid => value.ToString() ?? string.Empty,
+        VariantValueType.Byte => value.ToString() ?? string.Empty,
+        VariantValueType.Int16 => value.ToString() ?? string.Empty,
+        VariantValueType.UInt16 => value.ToString() ?? string.Empty,
+        VariantValueType.Int64 => value.ToString() ?? string.Empty,
+        VariantValueType.Double => value.ToString() ?? string.Empty,
+        VariantValueType.Signature => value.ToString() ?? string.Empty,
+        VariantValueType.UnixFd => value.ToString() ?? string.Empty,
+        _ => value.ToString() ?? string.Empty,
     };
 
     private static ScreenReadErrorKind MapResponseCode(uint responseCode) => responseCode switch
     {
         1 => ScreenReadErrorKind.PermissionDenied,
-        _ => ScreenReadErrorKind.CaptureFailed
+        _ => ScreenReadErrorKind.CaptureFailed,
     };
 
     private static TimeSpan GetTimeout(ScreenReadOptions options) => options.Timeout ?? TimeSpan.FromMinutes(2);

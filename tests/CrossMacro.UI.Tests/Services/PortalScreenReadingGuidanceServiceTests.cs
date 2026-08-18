@@ -1,8 +1,3 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.UI;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.Tests.Services;
 
@@ -30,7 +25,7 @@ public sealed class PortalScreenReadingGuidanceServiceTests
 
         await service.ShowBeforePortalWarmupAsync();
 
-        Assert.Single(dialog.MessageCalls);
+        _ = Assert.Single(dialog.MessageCalls);
     }
 
     [Theory]
@@ -62,12 +57,36 @@ public sealed class PortalScreenReadingGuidanceServiceTests
     }
 
     [Fact]
+    public async Task ShowBeforePortalWarmupAsync_WhenLegacyRestoreDataExists_DoesNotShowGuidance()
+    {
+        var dialog = new RecordingDialogService();
+        var service = CreateService(dialog, selectedBackend: "Portal", restoreToken: null, restoreData: "stored-data");
+
+        await service.ShowBeforePortalWarmupAsync();
+
+        Assert.Empty(dialog.MessageCalls);
+    }
+
+    [Fact]
+    public async Task ShowBeforePortalWarmupAsync_WhenRestoreStateReadFails_ShowsGuidance()
+    {
+        var dialog = new RecordingDialogService();
+        var service = new PortalScreenReadingGuidanceService(
+            dialog,
+            new StaticDiagnosticProvider("Portal"),
+            portalRestoreStateService: new ThrowingPortalRestoreStateService());
+
+        await service.ShowBeforePortalWarmupAsync();
+
+        _ = Assert.Single(dialog.MessageCalls);
+    }
+
+    [Fact]
     public async Task ShowBeforePortalWarmupAsync_WhenDiagnosticsFail_DoesNotShowGuidance()
     {
         var dialog = new RecordingDialogService();
         var service = new PortalScreenReadingGuidanceService(
             dialog,
-            new StaticSettingsService(null),
             new ThrowingDiagnosticProvider());
 
         await service.ShowBeforePortalWarmupAsync();
@@ -80,8 +99,7 @@ public sealed class PortalScreenReadingGuidanceServiceTests
     {
         var dialog = new RecordingDialogService();
         var service = new PortalScreenReadingGuidanceService(
-            dialog,
-            new StaticSettingsService(null));
+            dialog);
 
         await service.ShowBeforePortalWarmupAsync();
 
@@ -97,30 +115,49 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         await service.ShowBeforePortalWarmupAsync();
         await service.ShowBeforePortalWarmupAsync();
 
-        Assert.Single(dialog.MessageCalls);
+        _ = Assert.Single(dialog.MessageCalls);
+    }
+
+    [Fact]
+    public async Task ShowBeforePortalWarmupAsync_WaitsForCapabilityReadinessBeforeShowingPortalGuidance()
+    {
+        var dialog = new RecordingDialogService();
+        var diagnostics = new MutableDiagnosticProvider("Portal");
+        var readiness = new RecordingCapabilityReadiness(() => diagnostics.SelectedBackend = "GnomeExtension");
+        var service = new PortalScreenReadingGuidanceService(
+            dialog,
+            diagnostics,
+            readiness);
+
+        await service.ShowBeforePortalWarmupAsync();
+
+        Assert.Equal(1, readiness.Calls);
+        Assert.Empty(dialog.MessageCalls);
     }
 
     [Fact]
     public void PortalGuidanceMessage_ExplainsPortalSelectionWithoutClaimingControl()
     {
-        var message = UIStrings.PortalScreenReadingGuidanceMessage;
+        const string message = UIStrings.PortalScreenReadingGuidanceMessage;
 
-        Assert.Contains("system screen-sharing portal dialog next", message);
-        Assert.Contains("monitor or screen sources", message);
-        Assert.Contains("select every monitor", message);
-        Assert.Contains("cannot choose or force", message);
-        Assert.Contains("saved permission may be reused", message);
+        Assert.Contains("system screen-sharing portal dialog next", message, StringComparison.Ordinal);
+        Assert.Contains("monitor or screen sources", message, StringComparison.Ordinal);
+        Assert.Contains("select every monitor", message, StringComparison.Ordinal);
+        Assert.Contains("cannot choose or force", message, StringComparison.Ordinal);
+        Assert.Contains("saved permission may be reused", message, StringComparison.Ordinal);
     }
 
     private static PortalScreenReadingGuidanceService CreateService(
         RecordingDialogService dialog,
         string? selectedBackend,
-        string? restoreToken)
+        string? restoreToken,
+        string? restoreData = null)
     {
         return new PortalScreenReadingGuidanceService(
             dialog,
-            new StaticSettingsService(restoreToken),
-            new StaticDiagnosticProvider(selectedBackend));
+            new StaticDiagnosticProvider(selectedBackend),
+            portalRestoreStateService: new StaticPortalRestoreStateService(
+                !string.IsNullOrWhiteSpace(restoreToken) || !string.IsNullOrWhiteSpace(restoreData)));
     }
 
     private sealed class RecordingDialogService : IDialogService
@@ -149,34 +186,23 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         }
     }
 
-    private sealed class StaticSettingsService : ISettingsService
+    private sealed class StaticPortalRestoreStateService(bool hasRestoreState) : IPortalScreenCastRestoreStateService
     {
-        public StaticSettingsService(string? restoreToken)
-        {
-            Current = new AppSettings { PortalScreenCastRestoreToken = restoreToken };
-        }
+        public Task<bool> HasRestoreStateAsync(CancellationToken cancellationToken) => Task.FromResult(hasRestoreState);
 
-        public AppSettings Current { get; }
-
-        public Task<AppSettings> LoadAsync() => Task.FromResult(Current);
-
-        public AppSettings Load() => Current;
-
-        public Task SaveAsync() => Task.CompletedTask;
-
-        public void Save()
-        {
-        }
+        public Task ClearRestoreStateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
-    private sealed class StaticDiagnosticProvider : IScreenReadingDiagnosticProvider
+    private sealed class ThrowingPortalRestoreStateService : IPortalScreenCastRestoreStateService
     {
-        private readonly string? _selectedBackend;
+        public Task<bool> HasRestoreStateAsync(CancellationToken cancellationToken) => throw new IOException("restore state unavailable");
 
-        public StaticDiagnosticProvider(string? selectedBackend)
-        {
-            _selectedBackend = selectedBackend;
-        }
+        public Task ClearRestoreStateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class StaticDiagnosticProvider(string? selectedBackend) : IScreenReadingDiagnosticProvider
+    {
+        private readonly string? _selectedBackend = selectedBackend;
 
         public ScreenReadingDiagnosticSnapshot GetSnapshot()
         {
@@ -191,6 +217,38 @@ public sealed class PortalScreenReadingGuidanceServiceTests
                 FailureKind: null,
                 FailureMessage: null,
                 Remediation: null);
+        }
+    }
+
+    private sealed class MutableDiagnosticProvider(string? selectedBackend) : IScreenReadingDiagnosticProvider
+    {
+        public string? SelectedBackend { get; set; } = selectedBackend;
+
+        public ScreenReadingDiagnosticSnapshot GetSnapshot()
+        {
+            return new ScreenReadingDiagnosticSnapshot(
+                IsSupportedSession: true,
+                SessionKind: "Wayland",
+                PolicyName: "test",
+                PolicyOrder: ["Portal"],
+                SelectedBackend,
+                Backends: [],
+                FailureBackend: null,
+                FailureKind: null,
+                FailureMessage: null,
+                Remediation: null);
+        }
+    }
+
+    private sealed class RecordingCapabilityReadiness(Action onEnsure) : IScreenReadingCapabilityReadiness
+    {
+        public int Calls { get; private set; }
+
+        public Task EnsureReadyAsync(CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            onEnsure();
+            return Task.CompletedTask;
         }
     }
 

@@ -20,14 +20,17 @@ ARCH="${DEB_ARCH:-$(to_deb_arch "$TARGET_ARCH_RESOLVED")}"
 DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
 DAEMON_RID="linux-$DOTNET_ARCH"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
-PUBLISH_DIR="${PUBLISH_DIR:-$SCRIPTS_DIR/../publish}"  # Use env var or default to ../publish
-DEB_DIR="$SCRIPTS_DIR/deb_package"
-ICON_PATH="$PROJECT_ROOT/src/CrossMacro.UI/Assets/mouse-icon.png"
+PUBLISH_DIR="${PUBLISH_DIR:-$SCRIPTS_DIR/../publish}"  # Use env var or default to repository publish input
+ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
+DEB_OUTPUT_DIR="${DEB_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/deb}"
+DEB_WORK_DIR="${DEB_WORK_DIR:-$ARTIFACT_ROOT/work/deb}"
+DEB_DIR="$DEB_WORK_DIR/content"
 MANPAGE_SOURCE="$PROJECT_ROOT/docs/man/crossmacro.1"
-OUTPUT_DEB="$SCRIPTS_DIR/${APP_NAME}-${DEB_VERSION}_${ARCH}.deb"
+OUTPUT_DEB="$DEB_OUTPUT_DIR/${APP_NAME}-${DEB_VERSION}_${ARCH}.deb"
 
 # Clean previous build
 rm -rf "$DEB_DIR" "$OUTPUT_DEB"
+mkdir -p "$DEB_OUTPUT_DIR" "$DEB_WORK_DIR"
 
 # Verify publish directory exists
 if [ ! -d "$PUBLISH_DIR" ]; then
@@ -68,13 +71,12 @@ Version: $DEB_VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: libc6, libstdc++6, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0, libicu74 | libicu72 | libicu76 | libicu70
+Depends: libc6, libstdc++6, adduser, passwd, udev, init-system-helpers, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0, libicu74 | libicu72 | libicu76 | libicu70
 Recommends: libx11-6, libice6, libsm6, libfontconfig1
 Maintainer: Zynix <crossmacro@zynix.net>
-Description: Mouse and Keyboard Macro Automation Tool
- A powerful cross-platform mouse and keyboard macro automation tool.
- Supports text expansion and works on Linux (Wayland/X11), Windows, and macOS.
- Includes background input daemon for secure macro playback.
+Description: Mouse and keyboard macro recorder and automation
+ Record, edit, and replay macros with hotkeys, scheduling, text expansion,
+ screen/image recognition, CLI control, and a background input daemon.
 EOF
 
 # Create postinst script
@@ -132,12 +134,16 @@ if [ "\$1" = "configure" ]; then
     fi
 
     if [ -n "\$installer_user" ] && getent passwd "\$installer_user" >/dev/null 2>&1; then
-        usermod -aG crossmacro "\$installer_user" 2>/dev/null || true
-        echo "Added '\$installer_user' to 'crossmacro' group."
-        echo "Re-login (or reboot) is required for group change to take effect."
+        if gpasswd -a "\$installer_user" crossmacro >/dev/null 2>&1; then
+            echo "Added '\$installer_user' to 'crossmacro' group."
+            echo "Re-login (or reboot) is required for group change to take effect."
+        else
+            echo "NOTE: Could not add '\$installer_user' to 'crossmacro' group automatically."
+            echo "      sudo gpasswd -a <your-username> crossmacro"
+        fi
     else
         echo "NOTE: Add your user to 'crossmacro' group to communicate with the daemon:"
-        echo "      sudo usermod -aG crossmacro <your-username>"
+        echo "      sudo gpasswd -a <your-username> crossmacro"
     fi
 fi
 EOF
@@ -207,15 +213,8 @@ else
     dotnet publish "$PROJECT_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj" \
         -c Release \
         -r "$DAEMON_RID" \
-        -p:PublishAot=true \
-        -p:EnableCompressionInSingleFile=true \
-        -p:PublishReadyToRun=true \
-        -p:OptimizationPreference=Speed \
-        -p:StripSymbols=true \
-        -p:IlcTrimMetadata=true \
-        -p:DebugType=None \
-        -p:DebugSymbols=false \
-        -p:Version=$VERSION \
+        -p:CrossMacroPublishProfile=native-aot \
+        -p:Version="$VERSION" \
         -o "$DEB_DIR/usr/lib/$APP_NAME/daemon"
 fi
 PACKAGED_DAEMON_BINARY="$DEB_DIR/usr/lib/$APP_NAME/daemon/CrossMacro.Daemon"
@@ -270,8 +269,9 @@ echo "Installing icons..."
 cp -r "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/"* "$DEB_DIR/usr/share/icons/hicolor/"
 
 # Copy Desktop File
-cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$DEB_DIR/usr/share/applications/CrossMacro.desktop"
-sed -i 's|Exec=crossmacro|Exec=/usr/lib/crossmacro/CrossMacro.UI|g' "$DEB_DIR/usr/share/applications/CrossMacro.desktop"
+DESKTOP_FILE="$DEB_DIR/usr/share/applications/CrossMacro.desktop"
+cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$DESKTOP_FILE"
+sed -i 's|Exec=crossmacro|Exec=/usr/lib/crossmacro/CrossMacro.UI|g' "$DESKTOP_FILE"
 
 # Install man page (Debian policy: compressed under /usr/share/man/man1)
 echo "Installing man page..."

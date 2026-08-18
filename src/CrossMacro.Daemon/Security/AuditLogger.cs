@@ -1,20 +1,15 @@
-using System;
-using System.Text;
-using System.IO;
-using CrossMacro.Core.Logging;
-using CrossMacro.Infrastructure.Linux.Native;
 
 namespace CrossMacro.Daemon.Security;
 
 /// <summary>
 /// Audit logger for security-relevant events.
 /// Logs connection attempts, capture operations, and simulation events.
-/// 
+///
 /// NOTE: This class is designed specifically for the Linux daemon and uses
 /// Linux-specific paths (systemd runtime directory, XDG state home).
 /// It is not intended to be used on Windows or macOS.
 /// </summary>
-public class AuditLogger
+internal sealed class AuditLogger : IDisposable, IAsyncDisposable
 {
     private readonly string _logDirectory;
     private readonly string _logPath;
@@ -35,7 +30,7 @@ public class AuditLogger
         _logPath = Path.Combine(_logDirectory, "audit.log");
         _logSimulations = logSimulations;
         _maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
-        
+
         EnsureLogDirectory();
         Log.Information("[AuditLogger] Audit log path: {Path}", _logPath);
     }
@@ -46,21 +41,21 @@ public class AuditLogger
         // 1. RUNTIME_DIRECTORY (set by systemd) - /run/crossmacro
         // 2. /run/crossmacro if exists (systemd managed)
         // 3. XDG_STATE_HOME/crossmacro (user-level fallback)
-        
+
         var runtimeDir = Environment.GetEnvironmentVariable("RUNTIME_DIRECTORY");
         if (!string.IsNullOrEmpty(runtimeDir) && Directory.Exists(runtimeDir))
         {
             return runtimeDir;
         }
-        
+
         // Check if systemd created the directory
         if (Directory.Exists(LinuxSystemPaths.RuntimeDirectory))
         {
             return LinuxSystemPaths.RuntimeDirectory;
         }
-        
+
         // Fallback to XDG state home (writable by current user)
-        var stateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME") 
+        var stateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/state");
         return Path.Combine(stateHome, "crossmacro");
     }
@@ -71,11 +66,11 @@ public class AuditLogger
         {
             if (!Directory.Exists(_logDirectory))
             {
-                Directory.CreateDirectory(_logDirectory);
+                _ = Directory.CreateDirectory(_logDirectory);
                 Log.Information("[AuditLogger] Created log directory: {Dir}", _logDirectory);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[AuditLogger] Failed to create log directory: {Dir}", _logDirectory);
         }
@@ -87,8 +82,8 @@ public class AuditLogger
     public void LogConnectionAttempt(uint uid, int pid, string? executable, bool success, string? reason = null)
     {
         var action = success ? "CONNECT_OK" : "CONNECT_DENIED";
-        var details = executable != null ? FormatField("exe", executable) : "";
-        if (!success && reason != null)
+        var details = executable is not null ? FormatField("exe", executable) : "";
+        if (!success && reason is not null)
         {
             details += $" {FormatField("reason", reason)}";
         }
@@ -100,7 +95,7 @@ public class AuditLogger
     /// </summary>
     public void LogDisconnect(uint uid, int pid, TimeSpan sessionDuration)
     {
-        WriteEntry(uid, pid, "DISCONNECT", $"duration={sessionDuration.TotalSeconds:F1}s");
+        WriteEntry(uid, pid, "DISCONNECT", string.Create(CultureInfo.InvariantCulture, $"duration={sessionDuration.TotalSeconds:F1}s"));
     }
 
     /// <summary>
@@ -124,8 +119,12 @@ public class AuditLogger
     /// </summary>
     public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value)
     {
-        if (!_logSimulations) return;
-        WriteEntry(uid, pid, "SIMULATE", $"type={type} code={code} value={value}");
+        if (!_logSimulations)
+        {
+            return;
+        }
+
+        WriteEntry(uid, pid, "SIMULATE", string.Create(CultureInfo.InvariantCulture, $"type={type} code={code} value={value}"));
     }
 
     /// <summary>
@@ -159,14 +158,14 @@ public class AuditLogger
         var builder = new StringBuilder(value.Length);
         foreach (var character in value)
         {
-            builder.Append(character switch
+            _ = builder.Append(character switch
             {
                 '\r' => "\\r",
                 '\n' => "\\n",
                 '|' => "\\|",
                 '=' => "\\=",
                 _ when char.IsControl(character) => $"\\u{(int)character:X4}",
-                _ => character
+                _ => character,
             });
         }
 
@@ -180,18 +179,18 @@ public class AuditLogger
             lock (_lock)
             {
                 RotateIfNeeded();
-                
-                var timestamp = DateTime.UtcNow.ToString("O");
+
+                var timestamp = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
                 var line = string.IsNullOrEmpty(details)
-                    ? $"{timestamp}|UID={uid}|PID={pid}|{action}"
-                    : $"{timestamp}|UID={uid}|PID={pid}|{action}|{details}";
+                    ? string.Create(CultureInfo.InvariantCulture, $"{timestamp}|UID={uid}|PID={pid}|{action}")
+                    : string.Create(CultureInfo.InvariantCulture, $"{timestamp}|UID={uid}|PID={pid}|{action}|{details}");
 
                 EnsureWriter();
                 _writer?.WriteLine(line);
                 _writer?.Flush();
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[AuditLogger] Failed to write audit entry");
         }
@@ -199,13 +198,13 @@ public class AuditLogger
 
     private void EnsureWriter()
     {
-        if (_writer == null)
+        if (_writer is null)
         {
             try
             {
                 _writer = new StreamWriter(_logPath, append: true);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "[AuditLogger] Failed to open log file: {Path}", _logPath);
             }
@@ -216,8 +215,11 @@ public class AuditLogger
     {
         try
         {
-            if (!File.Exists(_logPath)) return;
-            
+            if (!File.Exists(_logPath))
+            {
+                return;
+            }
+
             var fileInfo = new FileInfo(_logPath);
             if (fileInfo.Length > _maxFileSizeBytes)
             {
@@ -227,11 +229,15 @@ public class AuditLogger
                 // Rotate: audit.log -> audit.log.1, audit.log.1 -> audit.log.2, etc.
                 for (int i = 5; i >= 1; i--)
                 {
-                    var oldPath = i == 1 ? _logPath : $"{_logPath}.{i - 1}";
-                    var newPath = $"{_logPath}.{i}";
+                    var oldPath = i is 1 ? _logPath : string.Create(CultureInfo.InvariantCulture, $"{_logPath}.{i - 1}");
+                    var newPath = string.Create(CultureInfo.InvariantCulture, $"{_logPath}.{i}");
                     if (File.Exists(oldPath))
                     {
-                        if (File.Exists(newPath)) File.Delete(newPath);
+                        if (File.Exists(newPath))
+                        {
+                            File.Delete(newPath);
+                        }
+
                         File.Move(oldPath, newPath);
                     }
                 }
@@ -239,7 +245,7 @@ public class AuditLogger
                 Log.Information("[AuditLogger] Rotated log file");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[AuditLogger] Failed to rotate log file");
         }
@@ -254,6 +260,30 @@ public class AuditLogger
         {
             _writer?.Dispose();
             _writer = null;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        StreamWriter? writer;
+        lock (_lock)
+        {
+            writer = _writer;
+            _writer = null;
+        }
+
+        return writer is null ? ValueTask.CompletedTask : DisposeWriterAsync(writer);
+    }
+
+    private static async ValueTask DisposeWriterAsync(StreamWriter writer)
+    {
+        try
+        {
+            await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        finally
+        {
+            await writer.DisposeAsync().ConfigureAwait(false);
         }
     }
 }

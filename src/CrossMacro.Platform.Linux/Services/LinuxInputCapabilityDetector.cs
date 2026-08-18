@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Core.Logging;
-using CrossMacro.Infrastructure.Linux.Native.Evdev;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services;
 
@@ -26,6 +20,7 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
     private readonly Func<string, TimeSpan, DaemonHandshakeProbeResult> _daemonHandshakeProbe;
     private readonly Func<DateTime> _utcNow;
+    private readonly bool _daemonEnabled;
     private readonly Lock _lock = new();
     private static readonly TimeSpan DaemonProbeTtl = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan ModeResolutionTtl = TimeSpan.FromSeconds(5);
@@ -39,9 +34,19 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             LinuxInputProbeUtilities.CanOpenForWrite,
             new LinuxInputDeviceAccessProbe(),
             ProbeDaemonHandshake,
-            static () => DateTime.UtcNow)
-    {
-    }
+            static () => DateTime.UtcNow,
+            daemonEnabled: true)
+    { /* Empty */ }
+
+    internal LinuxInputCapabilityDetector(bool daemonEnabled)
+        : this(
+            File.Exists,
+            LinuxInputProbeUtilities.CanOpenForWrite,
+            new LinuxInputDeviceAccessProbe(),
+            ProbeDaemonHandshake,
+            static () => DateTime.UtcNow,
+            daemonEnabled)
+    { /* Empty */ }
 
     public LinuxInputCapabilityDetector(
         Func<string, bool> fileExists,
@@ -57,11 +62,11 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             (socketPath, _) => daemonHandshakeProbe(socketPath)
                 ? DaemonHandshakeProbeResult.Success()
                 : DaemonHandshakeProbeResult.Failed(),
-            utcNow)
-    {
-    }
+            utcNow,
+            daemonEnabled: true)
+    { /* Empty */ }
 
-    public LinuxInputCapabilityDetector(
+    internal LinuxInputCapabilityDetector(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
         Func<string, bool> canOpenForRead,
@@ -73,72 +78,99 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             canOpenForWrite,
             new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
             daemonHandshakeProbe,
-            utcNow)
-    {
-    }
+            utcNow,
+            daemonEnabled: true)
+    { /* Empty */ }
 
     internal LinuxInputCapabilityDetector(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
         Func<string, bool> canOpenForRead,
-        Func<bool> hasUsableReadableInputDevices,
         Func<string, TimeSpan, DaemonHandshakeProbeResult> daemonHandshakeProbe,
         Func<string[]> getInputEventCandidates,
+        Func<DateTime> utcNow,
+        bool daemonEnabled)
+        : this(
+            fileExists,
+            canOpenForWrite,
+            new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
+            daemonHandshakeProbe,
+            utcNow,
+            daemonEnabled)
+    { /* Empty */ }
+
+    internal LinuxInputCapabilityDetector(
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        Func<bool> hasUsableReadableInputDevices,
+        Func<string, TimeSpan, DaemonHandshakeProbeResult> daemonHandshakeProbe,
         Func<DateTime> utcNow)
         : this(
             fileExists,
             canOpenForWrite,
             new LinuxInputDeviceAccessProbe(hasUsableReadableInputDevices),
             daemonHandshakeProbe,
-            utcNow)
-    {
-    }
+            utcNow,
+            daemonEnabled: true)
+    { /* Empty */ }
 
     internal LinuxInputCapabilityDetector(
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
         ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
         Func<string, TimeSpan, DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<DateTime> utcNow)
+        Func<DateTime> utcNow,
+        bool daemonEnabled)
     {
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
         _inputDeviceAccessProbe = inputDeviceAccessProbe ?? throw new ArgumentNullException(nameof(inputDeviceAccessProbe));
         _daemonHandshakeProbe = daemonHandshakeProbe ?? throw new ArgumentNullException(nameof(daemonHandshakeProbe));
         _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
+        _daemonEnabled = daemonEnabled;
     }
 
-    public readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure, LinuxDaemonHandshakeStatus Status)
+    internal readonly record struct DaemonHandshakeProbeResult(bool Succeeded, bool TimedOut, Exception? Failure, LinuxDaemonHandshakeStatus Status)
     {
-        public static DaemonHandshakeProbeResult Success()
+        internal static DaemonHandshakeProbeResult Success()
         {
-            return new(true, false, null, LinuxDaemonHandshakeStatus.Success);
+            return new(Succeeded: true, TimedOut: false, Failure: null, LinuxDaemonHandshakeStatus.Success);
         }
 
-        public static DaemonHandshakeProbeResult Failed(Exception? failure = null)
+        internal static DaemonHandshakeProbeResult Failed(Exception? failure = null)
         {
-            return new(false, false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
+            return new(Succeeded: false, TimedOut: false, failure, LinuxDaemonHandshakeTransport.MapFailure(failure));
         }
 
-        public static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
+        internal static DaemonHandshakeProbeResult Failed(LinuxDaemonHandshakeStatus status, Exception? failure = null)
         {
-            if (status == LinuxDaemonHandshakeStatus.Success)
+            if (status is LinuxDaemonHandshakeStatus.Success)
             {
                 throw new ArgumentException("Use Success for successful daemon handshakes.", nameof(status));
             }
 
-            return new(false, status == LinuxDaemonHandshakeStatus.Timeout, failure, status);
+            return new(Succeeded: false, status is LinuxDaemonHandshakeStatus.Timeout, failure, status);
         }
 
-        public static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
+        internal static DaemonHandshakeProbeResult Timeout(Exception? failure = null)
         {
-            return new(false, true, failure, LinuxDaemonHandshakeStatus.Timeout);
+            return new(Succeeded: false, TimedOut: true, failure, LinuxDaemonHandshakeStatus.Timeout);
         }
     }
 
     internal static DaemonHandshakeProbeResult ProbeDaemonHandshakeWithinBudget(string socketPath, TimeSpan timeout)
     {
         return MapProbeResult(LinuxDaemonHandshakeTransport.ProbeWithinBudget(socketPath, timeout), socketPath);
+    }
+
+    internal static async ValueTask<DaemonHandshakeProbeResult> ProbeDaemonHandshakeWithinBudgetAsync(
+        string socketPath,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        return MapProbeResult(
+            await LinuxDaemonHandshakeTransport.ProbeWithinBudgetAsync(socketPath, timeout, cancellationToken).ConfigureAwait(false),
+            socketPath);
     }
 
     private static DaemonHandshakeProbeResult ProbeDaemonHandshake(string socketPath, TimeSpan timeout)
@@ -169,11 +201,16 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
 
         return DaemonHandshakeProbeResult.Failed(result.Failure);
     }
-    
+
     public bool CanConnectToDaemon
     {
         get
         {
+            if (!_daemonEnabled)
+            {
+                return false;
+            }
+
             using (_lock.EnterScope())
             {
                 var now = _utcNow();
@@ -194,23 +231,24 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         get
         {
-            if (_canUseDirectUInput.HasValue)
+            if (_canUseDirectUInput is not null)
             {
                 return _canUseDirectUInput.Value;
             }
 
             using (_lock.EnterScope())
             {
-                if (_canUseDirectUInput.HasValue)
+                var val = GetCanUseDirectUInput();
+                if (val is not null)
                 {
-                    return _canUseDirectUInput.Value;
+                    return val.Value;
                 }
 
                 try
                 {
                     _canUseDirectUInput = ProbeDirectUInputAccess();
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed to check uinput write access");
                     _canUseDirectUInput = false;
@@ -225,23 +263,24 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         get
         {
-            if (_canReadInputEvents.HasValue)
+            if (_canReadInputEvents is not null)
             {
                 return _canReadInputEvents.Value;
             }
 
             using (_lock.EnterScope())
             {
-                if (_canReadInputEvents.HasValue)
+                var val = GetCanReadInputEvents();
+                if (val is not null)
                 {
-                    return _canReadInputEvents.Value;
+                    return val.Value;
                 }
 
                 try
                 {
                     _canReadInputEvents = ProbeReadableInputEventAccess();
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed checking readable input events");
                     _canReadInputEvents = false;
@@ -258,37 +297,39 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         {
             var now = _utcNow();
 
-            if (_lastDaemonProbeUtc == DateTime.MinValue ||
-                (now - _lastDaemonProbeUtc) > DaemonProbeTtl)
+            if (_daemonEnabled &&
+                (_lastDaemonProbeUtc == DateTime.MinValue || (now - _lastDaemonProbeUtc) > DaemonProbeTtl))
             {
                 RefreshDaemonConnectivity(now);
             }
 
-            if (!_canUseDirectUInput.HasValue)
+            if (_canUseDirectUInput is null)
             {
                 try
                 {
                     _canUseDirectUInput = ProbeDirectUInputAccess();
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing uinput write access");
                     _canUseDirectUInput = false;
                 }
             }
 
-            if (!_canReadInputEvents.HasValue)
+            if (_canReadInputEvents is null)
             {
                 try
                 {
                     _canReadInputEvents = ProbeReadableInputEventAccess();
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing readable input events");
                     _canReadInputEvents = false;
                 }
             }
+
+            var resolvedMode = ResolveMode(now);
 
             return new LinuxInputCapabilitySnapshot(
                 ResolvedSocketPath: _resolvedSocketPath,
@@ -297,7 +338,8 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
                 DaemonHandshakeTimedOut: _lastDaemonHandshakeTimedOut,
                 CanUseDirectUInput: _canUseDirectUInput ?? false,
                 CanReadInputEvents: _canReadInputEvents ?? false,
-                DaemonHandshakeDiagnostic: _lastDaemonHandshakeDiagnostic);
+                DaemonHandshakeDiagnostic: _lastDaemonHandshakeDiagnostic,
+                ResolvedMode: resolvedMode);
         }
     }
 
@@ -307,95 +349,107 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         {
             var now = _utcNow();
 
-            if (_lastDaemonProbeUtc == DateTime.MinValue ||
-                (now - _lastDaemonProbeUtc) > DaemonProbeTtl)
+            if (_daemonEnabled &&
+                (_lastDaemonProbeUtc == DateTime.MinValue || (now - _lastDaemonProbeUtc) > DaemonProbeTtl))
             {
                 RefreshDaemonConnectivity(now);
             }
 
-            if (_cachedMode.HasValue &&
-                _lastModeResolutionUtc != DateTime.MinValue &&
-                (now - _lastModeResolutionUtc) <= ModeResolutionTtl)
+            if (!_canConnectToDaemon)
             {
-                return _cachedMode.Value;
+                EnsureDirectInputCapabilitiesProbed();
             }
 
-            if (_canConnectToDaemon)
+            return ResolveMode(now);
+        }
+    }
+
+    private void EnsureDirectInputCapabilitiesProbed()
+    {
+        if (_canUseDirectUInput is null)
+        {
+            try
             {
-                _cachedMode = InputProviderMode.Daemon;
-                _lastModeResolutionUtc = now;
-                return InputProviderMode.Daemon;
+                _canUseDirectUInput = ProbeDirectUInputAccess();
             }
-
-            // Daemon is unavailable, so we probe fallback capabilities to decide the mode
-            if (!_canUseDirectUInput.HasValue)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                try
-                {
-                    _canUseDirectUInput = ProbeDirectUInputAccess();
-                }
-                catch (Exception ex)
-                {
-                    Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing uinput write access");
-                    _canUseDirectUInput = false;
-                }
+                Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing uinput write access");
+                _canUseDirectUInput = false;
             }
+        }
 
-            if (!_canReadInputEvents.HasValue)
+        if (_canReadInputEvents is null)
+        {
+            try
             {
-                try
-                {
-                    _canReadInputEvents = ProbeReadableInputEventAccess();
-                }
-                catch (Exception ex)
-                {
-                    Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing readable input events");
-                    _canReadInputEvents = false;
-                }
+                _canReadInputEvents = ProbeReadableInputEventAccess();
             }
-
-            var canUseDirectUInput = _canUseDirectUInput ?? false;
-
-            if (!canUseDirectUInput && ShouldKeepDaemonModeDuringTransientFailure(now))
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                Log.Warning(
-                    "[LinuxInputCapabilityDetector] Daemon probe failed ({FailureCount}/{MaxFailures}) but recent daemon success is within grace window ({GraceSeconds}s) and direct uinput fallback is unavailable. Keeping DAEMON mode.",
-                    _consecutiveDaemonProbeFailures,
-                    MaxConsecutiveDaemonFailuresBeforeFallback,
-                    DaemonSuccessGracePeriod.TotalSeconds);
-                _cachedMode = InputProviderMode.Daemon;
-                _lastModeResolutionUtc = now;
-                return InputProviderMode.Daemon;
+                Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing readable input events");
+                _canReadInputEvents = false;
             }
+        }
+    }
 
-            if (!canUseDirectUInput && _daemonSocketExists)
-            {
-                Log.Warning(
-                    "[LinuxInputCapabilityDetector] Daemon socket is present but handshake failed and direct uinput is unavailable. Returning NONE mode for fail-fast handling.");
-                _cachedMode = InputProviderMode.None;
-                _lastModeResolutionUtc = now;
-                return InputProviderMode.None;
-            }
+    private InputProviderMode ResolveMode(DateTime now)
+    {
+        if (_cachedMode is not null &&
+            _lastModeResolutionUtc != DateTime.MinValue &&
+            (now - _lastModeResolutionUtc) <= ModeResolutionTtl)
+        {
+            return _cachedMode.Value;
+        }
 
-            if (canUseDirectUInput)
-            {
-                Log.Warning(
-                    "[LinuxInputCapabilityDetector] Daemon unavailable, but uinput is writable ({Primary}, {Alternate}). Using LEGACY mode.",
-                    LinuxConstants.UInputDevicePath,
-                    LinuxConstants.UInputAlternatePath);
-                _cachedMode = InputProviderMode.Legacy;
-                _lastModeResolutionUtc = now;
-                return InputProviderMode.Legacy;
-            }
+        if (_canConnectToDaemon)
+        {
+            _cachedMode = InputProviderMode.Daemon;
+            _lastModeResolutionUtc = now;
+            return InputProviderMode.Daemon;
+        }
 
+        var canUseDirectUInput = _canUseDirectUInput ?? false;
+
+        if (!canUseDirectUInput && ShouldKeepDaemonModeDuringTransientFailure(now))
+        {
             Log.Warning(
-                "[LinuxInputCapabilityDetector] Neither daemon handshake nor uinput write access available ({Primary}, {Alternate}). Returning NONE mode for fail-fast handling.",
-                LinuxConstants.UInputDevicePath,
-                LinuxConstants.UInputAlternatePath);
+                "[LinuxInputCapabilityDetector] Daemon probe failed ({FailureCount}/{MaxFailures}) but recent daemon success is within grace window ({GraceSeconds}s) and direct uinput fallback is unavailable. Keeping DAEMON mode.",
+                _consecutiveDaemonProbeFailures,
+                MaxConsecutiveDaemonFailuresBeforeFallback,
+                DaemonSuccessGracePeriod.TotalSeconds);
+            _cachedMode = InputProviderMode.Daemon;
+            _lastModeResolutionUtc = now;
+            return InputProviderMode.Daemon;
+        }
+
+        if (!canUseDirectUInput && _daemonSocketExists)
+        {
+            Log.Warning(
+                "[LinuxInputCapabilityDetector] Daemon socket is present but handshake failed and direct uinput is unavailable. Returning NONE mode for fail-fast handling.");
             _cachedMode = InputProviderMode.None;
             _lastModeResolutionUtc = now;
             return InputProviderMode.None;
         }
+
+        if (canUseDirectUInput)
+        {
+            Log.Warning(
+                "[LinuxInputCapabilityDetector] Daemon unavailable, but uinput is writable ({Primary}, {Alternate}). Using LEGACY mode.",
+                LinuxConstants.UInputDevicePath,
+                LinuxConstants.UInputAlternatePath);
+            _cachedMode = InputProviderMode.Legacy;
+            _lastModeResolutionUtc = now;
+            return InputProviderMode.Legacy;
+        }
+
+        Log.Warning(
+            "[LinuxInputCapabilityDetector] Neither daemon handshake nor uinput write access available ({Primary}, {Alternate}). Returning NONE mode for fail-fast handling.",
+            LinuxConstants.UInputDevicePath,
+            LinuxConstants.UInputAlternatePath);
+        _cachedMode = InputProviderMode.None;
+        _lastModeResolutionUtc = now;
+        return InputProviderMode.None;
     }
 
     public void InvalidateCache()
@@ -467,11 +521,6 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         }
     }
 
-    private bool IsDaemonSocketPresent()
-    {
-        return ResolveAvailableSocketPath() is not null;
-    }
-
     private bool ShouldKeepDaemonModeDuringTransientFailure(DateTime now)
     {
         if (_lastSuccessfulDaemonProbeUtc == DateTime.MinValue)
@@ -479,12 +528,24 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
             return false;
         }
 
-        if ((now - _lastSuccessfulDaemonProbeUtc) > DaemonSuccessGracePeriod)
-        {
-            return false;
-        }
+        return IsWithinDaemonGracePeriod(
+            now,
+            _lastSuccessfulDaemonProbeUtc,
+            _consecutiveDaemonProbeFailures,
+            DaemonSuccessGracePeriod,
+            MaxConsecutiveDaemonFailuresBeforeFallback);
+    }
 
-        return _consecutiveDaemonProbeFailures < MaxConsecutiveDaemonFailuresBeforeFallback;
+    internal static bool IsWithinDaemonGracePeriod(
+        DateTime now,
+        DateTime lastSuccessfulProbeUtc,
+        int consecutiveFailures,
+        TimeSpan gracePeriod,
+        int maxFailuresBeforeFallback)
+    {
+        return lastSuccessfulProbeUtc != DateTime.MinValue &&
+               (now - lastSuccessfulProbeUtc) <= gracePeriod &&
+               consecutiveFailures < maxFailuresBeforeFallback;
     }
 
     private bool ProbeDirectUInputAccess()
@@ -502,21 +563,21 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
         try
         {
             string? socketPath = _resolvedSocketPath;
-            if (socketPath == null)
+            if (socketPath is null)
             {
                 socketPath = ResolveAvailableSocketPath();
                 _resolvedSocketPath = socketPath;
                 _daemonSocketExists = socketPath is not null;
             }
 
-            if (socketPath == null)
+            if (socketPath is null)
             {
                 return DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket);
             }
 
             return ProbeDaemonHandshake(socketPath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[LinuxInputCapabilityDetector] Failed probing daemon connectivity");
             return DaemonHandshakeProbeResult.Failed(ex);
@@ -532,6 +593,10 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         return LinuxInputProbeUtilities.ResolveAvailableSocketPath(_fileExists);
     }
+
+    private bool? GetCanUseDirectUInput() => _canUseDirectUInput;
+
+    private bool? GetCanReadInputEvents() => _canReadInputEvents;
 
 
     private static LinuxDaemonHandshakeProbeResult CreateDaemonHandshakeDiagnostic(

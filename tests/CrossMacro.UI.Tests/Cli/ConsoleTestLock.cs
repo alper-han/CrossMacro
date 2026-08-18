@@ -22,7 +22,7 @@ internal static class ConsoleTestLock
     {
         public void Dispose()
         {
-            AsyncGate.Release();
+            _ = AsyncGate.Release();
         }
     }
 }

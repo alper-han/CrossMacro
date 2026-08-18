@@ -9,12 +9,17 @@ public class GlobalSettings
     /// <summary>
     /// Whether the system tray icon is enabled.
     /// </summary>
-    public bool EnableTrayIcon { get; set; } = false;
+    public bool EnableTrayIcon { get; set; }
 
     /// <summary>
     /// Whether the GUI should start minimized.
     /// </summary>
-    public bool StartMinimized { get; set; } = false;
+    public bool StartMinimized { get; set; }
+
+    /// <summary>
+    /// Whether the user chose not to see the warning for fast loop playback again.
+    /// </summary>
+    public bool SuppressFastLoopWarning { get; set; }
 
     /// <summary>
     /// Minimum log level for the application.
@@ -32,8 +37,4 @@ public class GlobalSettings
     /// </summary>
     public string Language { get; set; } = "en";
 
-    /// <summary>
-    /// XDG Desktop Portal ScreenCast restore token shared across profiles.
-    /// </summary>
-    public string? PortalScreenCastRestoreToken { get; set; }
 }

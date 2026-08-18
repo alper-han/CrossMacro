@@ -1,10 +1,43 @@
-using CrossMacro.Core.Models;
-using FluentAssertions;
 
 namespace CrossMacro.Core.Tests.Models;
 
-public class EditorActionTests
+public sealed class EditorActionTests
 {
+    [Fact]
+    public void CommandPayloads_ProjectOnlyTheirOwnedEditorFields()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.Screenshot,
+            ScreenshotOutputPath = "capture.png",
+            ScreenshotCopyToClipboard = true,
+            ScreenshotUseRegion = true,
+            ScreenshotRegionX = "$x",
+            ScreenshotRegionY = "2",
+            ScreenshotRegionWidth = "30",
+            ScreenshotRegionHeight = "40",
+            ShellCommand = "echo ignored",
+            WindowSelectorValue = "ignored",
+        };
+
+        _ = action.TryGetScreenshotPayload(out var screenshot).Should().BeTrue();
+        _ = screenshot.OutputPath.Should().Be("capture.png");
+        _ = screenshot.RegionWidth.Should().Be("30");
+        _ = action.TryGetShellPayload(out _).Should().BeFalse();
+        _ = action.TryGetWindowPayload(out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CommandPayloads_RejectWrongActionTypeWithoutChangingTheFacade()
+    {
+        var action = new EditorAction { Type = EditorActionType.ShellCommand, ShellCommand = "echo ok" };
+
+        _ = action.TryGetShellPayload(out var shell).Should().BeTrue();
+        _ = shell.Command.Should().Be("echo ok");
+        _ = action.TryGetScreenshotPayload(out _).Should().BeFalse();
+        _ = action.TryGetWindowPayload(out _).Should().BeFalse();
+    }
+
     [Fact]
     public void Clone_CreatesNewActionWithCopiedFields()
     {
@@ -14,8 +47,11 @@ public class EditorActionTests
             Type = EditorActionType.MouseMove,
             X = 40,
             Y = 55,
+            CoordinateXToken = "$found_x",
+            CoordinateYToken = "$found_y",
             IsAbsolute = false,
-            Button = MouseButton.Right,
+            CoordinateSpace = MouseCoordinateSpace.RawDevice,
+            Button = MacroMouseButton.Right,
             KeyCode = 30,
             KeyName = "A",
             DelayMs = 25,
@@ -41,46 +77,151 @@ public class EditorActionTests
             ForEndValue = "10",
             ForHasStep = true,
             ForStepType = ScriptNumericSourceType.Number,
-            ForStepValue = "2"
+            ForStepValue = "2",
+            ShellCommandMode = ShellCommandMode.ShellCaptureInput,
+            ShellCommand = "cat",
+            ShellStandardInput = "hello",
+            ShellExitCodeVariableName = "exitVar",
+            ShellStandardOutputVariableName = "outVar",
+            ShellStandardErrorVariableName = "errVar",
+            ShellRetries = 2,
+            ShellBackoffMs = 50,
+            ShellTimeoutMs = 1000,
+            WindowCommandMode = WindowCommandMode.Wait,
+            WindowSelectorKind = "class",
+            WindowSelectorValue = "Firefox",
+            WindowActiveField = "address",
+            WindowOutputVariable = "windowAddr",
+            WindowTimeoutMs = 2500,
+            WindowX = 10,
+            WindowY = 20,
+            WindowWidth = 800,
+            WindowHeight = 600,
+            WindowWorkspace = "2",
         };
 
         // Act
         var clone = source.Clone();
 
         // Assert
-        clone.Should().NotBeSameAs(source);
-        clone.Id.Should().NotBe(source.Id);
-        clone.Type.Should().Be(source.Type);
-        clone.X.Should().Be(source.X);
-        clone.Y.Should().Be(source.Y);
-        clone.IsAbsolute.Should().Be(source.IsAbsolute);
-        clone.Button.Should().Be(source.Button);
-        clone.KeyCode.Should().Be(source.KeyCode);
-        clone.KeyName.Should().Be(source.KeyName);
-        clone.DelayMs.Should().Be(source.DelayMs);
-        clone.UseRandomDelay.Should().Be(source.UseRandomDelay);
-        clone.RandomDelayMinMs.Should().Be(source.RandomDelayMinMs);
-        clone.RandomDelayMaxMs.Should().Be(source.RandomDelayMaxMs);
-        clone.ScrollAmount.Should().Be(source.ScrollAmount);
-        clone.Text.Should().Be(source.Text);
-        clone.ScriptVariableName.Should().Be(source.ScriptVariableName);
-        clone.ScriptValueType.Should().Be(source.ScriptValueType);
-        clone.ScriptValue.Should().Be(source.ScriptValue);
-        clone.ScriptNumericSourceType.Should().Be(source.ScriptNumericSourceType);
-        clone.ScriptNumericValue.Should().Be(source.ScriptNumericValue);
-        clone.ScriptLeftOperandType.Should().Be(source.ScriptLeftOperandType);
-        clone.ScriptLeftOperand.Should().Be(source.ScriptLeftOperand);
-        clone.ScriptConditionOperator.Should().Be(source.ScriptConditionOperator);
-        clone.ScriptRightOperandType.Should().Be(source.ScriptRightOperandType);
-        clone.ScriptRightOperand.Should().Be(source.ScriptRightOperand);
-        clone.ForVariableName.Should().Be(source.ForVariableName);
-        clone.ForStartType.Should().Be(source.ForStartType);
-        clone.ForStartValue.Should().Be(source.ForStartValue);
-        clone.ForEndType.Should().Be(source.ForEndType);
-        clone.ForEndValue.Should().Be(source.ForEndValue);
-        clone.ForHasStep.Should().Be(source.ForHasStep);
-        clone.ForStepType.Should().Be(source.ForStepType);
-        clone.ForStepValue.Should().Be(source.ForStepValue);
+        _ = clone.Should().NotBeSameAs(source);
+        _ = clone.Id.Should().NotBe(source.Id);
+        _ = clone.Type.Should().Be(source.Type);
+        _ = clone.X.Should().Be(source.X);
+        _ = clone.Y.Should().Be(source.Y);
+        _ = clone.CoordinateXToken.Should().Be("$found_x");
+        _ = clone.CoordinateYToken.Should().Be("$found_y");
+        _ = clone.IsAbsolute.Should().Be(source.IsAbsolute);
+        _ = clone.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
+        _ = clone.Button.Should().Be(source.Button);
+        _ = clone.KeyCode.Should().Be(source.KeyCode);
+        _ = clone.KeyName.Should().Be(source.KeyName);
+        _ = clone.DelayMs.Should().Be(source.DelayMs);
+        _ = clone.UseRandomDelay.Should().Be(source.UseRandomDelay);
+        _ = clone.RandomDelayMinMs.Should().Be(source.RandomDelayMinMs);
+        _ = clone.RandomDelayMaxMs.Should().Be(source.RandomDelayMaxMs);
+        _ = clone.ScrollAmount.Should().Be(source.ScrollAmount);
+        _ = clone.Text.Should().Be(source.Text);
+        _ = clone.ScriptVariableName.Should().Be(source.ScriptVariableName);
+        _ = clone.ScriptValueType.Should().Be(source.ScriptValueType);
+        _ = clone.ScriptValue.Should().Be(source.ScriptValue);
+        _ = clone.ScriptNumericSourceType.Should().Be(source.ScriptNumericSourceType);
+        _ = clone.ScriptNumericValue.Should().Be(source.ScriptNumericValue);
+        _ = clone.ScriptLeftOperandType.Should().Be(source.ScriptLeftOperandType);
+        _ = clone.ScriptLeftOperand.Should().Be(source.ScriptLeftOperand);
+        _ = clone.ScriptConditionOperator.Should().Be(source.ScriptConditionOperator);
+        _ = clone.ScriptRightOperandType.Should().Be(source.ScriptRightOperandType);
+        _ = clone.ScriptRightOperand.Should().Be(source.ScriptRightOperand);
+        _ = clone.ForVariableName.Should().Be(source.ForVariableName);
+        _ = clone.ForStartType.Should().Be(source.ForStartType);
+        _ = clone.ForStartValue.Should().Be(source.ForStartValue);
+        _ = clone.ForEndType.Should().Be(source.ForEndType);
+        _ = clone.ForEndValue.Should().Be(source.ForEndValue);
+        _ = clone.ForHasStep.Should().Be(source.ForHasStep);
+        _ = clone.ForStepType.Should().Be(source.ForStepType);
+        _ = clone.ForStepValue.Should().Be(source.ForStepValue);
+        _ = clone.ShellCommandMode.Should().Be(source.ShellCommandMode);
+        _ = clone.ShellCommand.Should().Be(source.ShellCommand);
+        _ = clone.ShellStandardInput.Should().Be(source.ShellStandardInput);
+        _ = clone.ShellExitCodeVariableName.Should().Be(source.ShellExitCodeVariableName);
+        _ = clone.ShellStandardOutputVariableName.Should().Be(source.ShellStandardOutputVariableName);
+        _ = clone.ShellStandardErrorVariableName.Should().Be(source.ShellStandardErrorVariableName);
+        _ = clone.ShellRetries.Should().Be(source.ShellRetries);
+        _ = clone.ShellBackoffMs.Should().Be(source.ShellBackoffMs);
+        _ = clone.ShellTimeoutMs.Should().Be(source.ShellTimeoutMs);
+        _ = clone.WindowCommandMode.Should().Be(source.WindowCommandMode);
+        _ = clone.WindowSelectorKind.Should().Be(source.WindowSelectorKind);
+        _ = clone.WindowSelectorValue.Should().Be(source.WindowSelectorValue);
+        _ = clone.WindowActiveField.Should().Be(source.WindowActiveField);
+        _ = clone.WindowOutputVariable.Should().Be(source.WindowOutputVariable);
+        _ = clone.WindowTimeoutMs.Should().Be(source.WindowTimeoutMs);
+        _ = clone.WindowX.Should().Be(source.WindowX);
+        _ = clone.WindowY.Should().Be(source.WindowY);
+        _ = clone.WindowWidth.Should().Be(source.WindowWidth);
+        _ = clone.WindowHeight.Should().Be(source.WindowHeight);
+        _ = clone.WindowWorkspace.Should().Be(source.WindowWorkspace);
+    }
+
+    [Fact]
+    public void CoordinateTokens_WhenSwitchingBetweenVariableAndLiteral_KeepNumericFacadeConsistent()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            X = 10,
+            Y = 20,
+            CoordinateXToken = "$found_x",
+            CoordinateYToken = "42",
+        };
+
+        _ = action.CoordinateXToken.Should().Be("$found_x");
+        _ = action.CoordinateYToken.Should().Be("42");
+        _ = action.Y.Should().Be(42);
+        _ = action.HasVariableCoordinates.Should().BeTrue();
+        _ = action.TryGetLiteralCoordinates(out _, out _).Should().BeFalse();
+
+        action.X = 7;
+
+        _ = action.CoordinateXToken.Should().Be("7");
+        _ = action.HasVariableCoordinates.Should().BeFalse();
+        _ = action.TryGetLiteralCoordinates(out var x, out var y).Should().BeTrue();
+        _ = x.Should().Be(7);
+        _ = y.Should().Be(42);
+    }
+
+    [Theory]
+    [InlineData("$x", true)]
+    [InlineData("-15", true)]
+    [InlineData("$1bad", false)]
+    [InlineData("$ x", false)]
+    [InlineData("$x y", false)]
+    [InlineData("not-a-coordinate", false)]
+    public void IsValid_MouseMoveValidatesCoordinateTokens(string xToken, bool expected)
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MouseMove,
+            CoordinateXToken = xToken,
+            CoordinateYToken = "1",
+            IsAbsolute = false,
+        };
+
+        _ = action.IsValid().Should().Be(expected);
+    }
+
+    [Fact]
+    public void IsAbsolute_WhenModeChanges_UsesLogicalSpaceForNewEditorCoordinates()
+    {
+        var action = new EditorAction
+        {
+            IsAbsolute = false,
+            CoordinateSpace = MouseCoordinateSpace.RawDevice,
+        };
+
+        action.IsAbsolute = true;
+        action.IsAbsolute = false;
+
+        _ = action.CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
     }
 
     [Fact]
@@ -90,15 +231,15 @@ public class EditorActionTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = "abcdefghijklmnopqrstuvwxyz"
+            Text = "abcdefghijklmnopqrstuvwxyz",
         };
 
         // Act
         var display = action.DisplayName;
 
         // Assert
-        display.Should().Contain("Type");
-        display.Should().Contain("...");
+        _ = display.Should().Contain("Type");
+        _ = display.Should().Contain("...");
     }
 
     [Fact]
@@ -111,14 +252,83 @@ public class EditorActionTests
             Type = EditorActionType.Delay,
             UseRandomDelay = true,
             RandomDelayMinMs = 200,
-            RandomDelayMaxMs = 100
+            RandomDelayMaxMs = 100,
         };
         var scroll = new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 0 };
 
         // Assert
-        delay.IsValid().Should().BeFalse();
-        randomDelay.IsValid().Should().BeFalse();
-        scroll.IsValid().Should().BeFalse();
+        _ = delay.IsValid().Should().BeFalse();
+        _ = randomDelay.IsValid().Should().BeFalse();
+        _ = scroll.IsValid().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public void IsValid_ImageActionsUseStructuredFields(EditorActionType actionType)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScreenWidth = EditorActionScreenReadingPayload.DefaultSearchScreenWidth,
+            ScreenHeight = EditorActionScreenReadingPayload.DefaultSearchScreenHeight,
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y",
+            ScreenTimeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs,
+            ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
+            Button = MacroMouseButton.Left,
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_ImageClickRejectsSideButtons()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageClick,
+            ScreenWidth = 100,
+            ScreenHeight = 100,
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y",
+            Button = MacroMouseButton.Side1,
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch)]
+    [InlineData(EditorActionType.ImageClick)]
+    [InlineData(EditorActionType.WaitImage)]
+    public void ScreenReadingPayload_CoversImageActions(EditorActionType actionType)
+    {
+        _ = EditorActionScreenReadingPayload.TryCreateDefault(actionType, out var defaults).Should().BeTrue();
+        _ = defaults.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
+        _ = defaults.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
+        _ = defaults.ImageSearchSimilarity.Should().Be(0.95);
+        _ = defaults.Button.Should().Be(MacroMouseButton.Left);
+
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y",
+        };
+
+        _ = action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
+        _ = payload.OutputVariableNames.Should().Equal("found", "found_x", "found_y");
+        _ = payload.GetOutputVariableRole("found").Should().Be(EditorActionScreenReadingVariableRole.Boolean);
+        _ = payload.GetOutputVariableRole("found_x").Should().Be(EditorActionScreenReadingVariableRole.Number);
+        _ = payload.GetOutputVariableRole("found_y").Should().Be(EditorActionScreenReadingVariableRole.Number);
     }
 
     [Fact]
@@ -127,10 +337,10 @@ public class EditorActionTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = " \n\t"
+            Text = " \n\t",
         };
 
-        action.IsValid().Should().BeTrue();
+        _ = action.IsValid().Should().BeTrue();
     }
 
     [Fact]
@@ -139,10 +349,10 @@ public class EditorActionTests
         var action = new EditorAction
         {
             Type = EditorActionType.TextInput,
-            Text = string.Empty
+            Text = string.Empty,
         };
 
-        action.IsValid().Should().BeFalse();
+        _ = action.IsValid().Should().BeFalse();
     }
 
     [Fact]
@@ -154,11 +364,19 @@ public class EditorActionTests
             Type = EditorActionType.SetVariable,
             ScriptVariableName = "$target",
             ScriptValueType = ScriptValueType.VariableReference,
-            ScriptValue = "$source"
+            ScriptValue = "$source",
         };
 
         // Act + Assert
-        action.IsValid().Should().BeTrue();
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("$ target")]
+    [InlineData("target value")]
+    public void ScriptTokens_WhenVariableContainsWhitespace_ReturnFalse(string token)
+    {
+        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeFalse();
     }
 
     [Fact]
@@ -175,17 +393,17 @@ public class EditorActionTests
             ForEndValue = "$finish",
             ForHasStep = true,
             ForStepType = ScriptNumericSourceType.VariableReference,
-            ForStepValue = "$step"
+            ForStepValue = "$step",
         };
 
         // Act
         var displayName = action.DisplayName;
 
         // Assert
-        displayName.Should().Contain("$start");
-        displayName.Should().Contain("$finish");
-        displayName.Should().Contain("$step");
-        displayName.Should().NotContain("$$");
+        _ = displayName.Should().Contain("$start");
+        _ = displayName.Should().Contain("$finish");
+        _ = displayName.Should().Contain("$step");
+        _ = displayName.Should().NotContain("$$");
     }
 
     [Fact]
@@ -198,10 +416,10 @@ public class EditorActionTests
             ScriptLeftOperand = "$foo",
             ScriptConditionOperator = ScriptConditionOperator.Equals,
             ScriptRightOperandType = ScriptOperandType.VariableReference,
-            ScriptRightOperand = "$bar"
+            ScriptRightOperand = "$bar",
         };
 
-        action.DisplayName.Should().Contain("$$foo == $bar");
+        _ = action.DisplayName.Should().Contain("$$foo == $bar");
     }
 
     [Theory]
@@ -210,7 +428,7 @@ public class EditorActionTests
     [InlineData("00ff00")]
     public void ValidateOperandToken_WhenColorIsValidRgbHex_ReturnsTrue(string value)
     {
-        EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeTrue();
+        _ = EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeTrue();
     }
 
     [Theory]
@@ -220,13 +438,13 @@ public class EditorActionTests
     [InlineData("")]
     public void ValidateOperandToken_WhenColorIsInvalidRgbHex_ReturnsFalse(string value)
     {
-        EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeFalse();
+        _ = EditorActionScriptTokens.ValidateOperandToken(ScriptOperandType.Color, value).Should().BeFalse();
     }
 
     [Fact]
     public void FormatOperandToken_WhenColorUsesLowercaseHex_ReturnsUppercaseRgbHex()
     {
-        EditorActionScriptTokens.FormatOperandToken(ScriptOperandType.Color, "1c2d3e").Should().Be("1C2D3E");
+        _ = EditorActionScriptTokens.FormatOperandToken(ScriptOperandType.Color, "1c2d3e").Should().Be("1C2D3E");
     }
 
     [Fact]
@@ -236,9 +454,383 @@ public class EditorActionTests
         {
             Type = EditorActionType.RepeatBlockStart,
             ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
-            ScriptNumericValue = "$count"
+            ScriptNumericValue = "$count",
         };
 
-        action.IsValid().Should().BeTrue();
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("count")]
+    [InlineData("$count")]
+    public void IsValidVariableName_WhenTokenHasValidName_ReturnsTrue(string token)
+    {
+        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("$ x")]
+    [InlineData("count value")]
+    [InlineData("$1count")]
+    public void IsValidVariableName_WhenTokenContainsWhitespaceOrInvalidStart_ReturnsFalse(string token)
+    {
+        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_WhenShellCaptureUsesIgnoredTargets_ReturnsTrue()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ShellCommand,
+            ShellCommandMode = ShellCommandMode.ShellCapture,
+            ShellCommand = "echo ok",
+            ShellExitCodeVariableName = "_",
+            ShellStandardOutputVariableName = "stdout",
+            ShellStandardErrorVariableName = "_",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void ImageSearchMutations_ClearLegacyScriptPreference()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageSearch,
+            Text = "legacy image search",
+        };
+
+        action.SetImageSearchMatchMode(EditorImageMatchMode.BestMatch);
+
+        _ = action.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
+        _ = action.ImageSearchMatchModeWasExplicit.Should().BeTrue();
+        _ = action.PreferLegacyScriptText.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable)]
+    [InlineData(EditorActionType.DivideVariable)]
+    public void IsValid_MulDivActionsUseStructuredFields(EditorActionType actionType)
+    {
+        var numberAmount = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+        var variableAmount = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$factor",
+        };
+
+        _ = numberAmount.IsValid().Should().BeTrue();
+        _ = variableAmount.IsValid().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "1bad")]
+    [InlineData(EditorActionType.DivideVariable, "$ x")]
+    public void IsValid_MulDivRejectInvalidVariableName(EditorActionType actionType, string variableName)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = variableName,
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, ScriptNumericSourceType.Number, "abc")]
+    [InlineData(EditorActionType.DivideVariable, ScriptNumericSourceType.Number, "")]
+    [InlineData(EditorActionType.MultiplyVariable, ScriptNumericSourceType.VariableReference, "1bad")]
+    [InlineData(EditorActionType.DivideVariable, ScriptNumericSourceType.VariableReference, "has space")]
+    public void IsValid_MulDivRejectNonNumericAmount(
+        EditorActionType actionType,
+        ScriptNumericSourceType sourceType,
+        string amount)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = sourceType,
+            ScriptNumericValue = amount,
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsScriptStateAction_ClassifiesMulDivAsStateActions()
+    {
+        _ = EditorActionScriptClassifier.IsScriptStateAction(EditorActionType.MultiplyVariable).Should().BeTrue();
+        _ = EditorActionScriptClassifier.IsScriptStateAction(EditorActionType.DivideVariable).Should().BeTrue();
+        _ = EditorActionScriptClassifier.IsScriptFlowControlAction(EditorActionType.MultiplyVariable).Should().BeFalse();
+        _ = EditorActionScriptClassifier.IsRuntimeEventAction(EditorActionType.DivideVariable).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "Mul x by 2")]
+    [InlineData(EditorActionType.DivideVariable, "Div x by 2")]
+    public void DisplayName_ForMulDivActions_UsesStructuredNumericToken(EditorActionType actionType, string expected)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+
+        _ = action.DisplayName.Should().Be(expected);
+    }
+
+    [Fact]
+    public void DisplayName_ForDivideVariableWithVariableAmount_RendersDollarToken()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.DivideVariable,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "factor",
+        };
+
+        _ = action.DisplayName.Should().Be("Div x by $factor");
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "x 2", "Mul x 2")]
+    [InlineData(EditorActionType.DivideVariable, "x 4", "Div x 4")]
+    public void DisplayName_ForLegacyMulDivText_UsesLegacyText(EditorActionType actionType, string text, string expected)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            Text = text,
+            PreferLegacyScriptText = true,
+        };
+
+        _ = action.DisplayName.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.MultiplyVariable, "Multiply Variable")]
+    [InlineData(EditorActionType.DivideVariable, "Divide Variable")]
+    public void DisplayName_ForMulDivWithInvalidVariableName_FallsBackToTypeLabel(EditorActionType actionType, string expected)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "1bad",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "2",
+        };
+
+        _ = action.DisplayName.Should().Be(expected);
+    }
+
+    [Fact]
+    public void IsValid_RepeatBlockAcceptsBinaryExpressionCount()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$count / 10",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("$count /")]
+    [InlineData("1 + 2 + 3")]
+    [InlineData("5 * - 3")]
+    public void IsValid_RepeatBlockRejectsMalformedExpressionCount(string value)
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = value,
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_ForBlockAcceptsBinaryExpressionSegments()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.VariableReference,
+            ForStartValue = "$a + 1",
+            ForEndType = ScriptNumericSourceType.VariableReference,
+            ForEndValue = "$n * 2",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.VariableReference,
+            ForStepValue = "$s - 1",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_ForBlockRejectsMalformedExpressionStep()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.Number,
+            ForStartValue = "0",
+            ForEndType = ScriptNumericSourceType.Number,
+            ForEndValue = "10",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.VariableReference,
+            ForStepValue = "$s +",
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_IncDecAmountStillRejectsArithmeticExpressions()
+    {
+        // Amount fields stay out of the arithmetic scope: only block arguments accept expressions.
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IncrementVariable,
+            ScriptVariableName = "x",
+            ScriptNumericSourceType = ScriptNumericSourceType.Number,
+            ScriptNumericValue = "1 + 2",
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void DisplayName_WhenRepeatCountIsExpression_RendersCanonicalTextVerbatim()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "$count / 10",
+        };
+
+        _ = action.DisplayName.Should().Be("Repeat ($count / 10)");
+    }
+
+    [Fact]
+    public void DisplayName_WhenRepeatCountExpressionStartsWithNumber_DoesNotPrependVariableSigil()
+    {
+        // The source type only mirrors the left operand by convention; a hand-edited
+        // number-left expression must not gain a stray sigil in the display.
+        var action = new EditorAction
+        {
+            Type = EditorActionType.RepeatBlockStart,
+            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
+            ScriptNumericValue = "5 + 2",
+        };
+
+        _ = action.DisplayName.Should().Be("Repeat (5 + 2)");
+    }
+
+    [Fact]
+    public void DisplayName_WhenForSegmentsAreExpressions_RendersCanonicalTextVerbatim()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ForBlockStart,
+            ForVariableName = "i",
+            ForStartType = ScriptNumericSourceType.Number,
+            ForStartValue = "0",
+            ForEndType = ScriptNumericSourceType.VariableReference,
+            ForEndValue = "$n + 1",
+            ForHasStep = true,
+            ForStepType = ScriptNumericSourceType.Number,
+            ForStepValue = "2",
+        };
+
+        _ = action.DisplayName.Should().Be("For (i: 0 -> $n + 1, step 2)");
+    }
+
+    [Fact]
+    public void DisplayName_WhenConditionOperandIsExpression_RendersCanonicalTextVerbatim()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "$x + 1",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "5",
+        };
+
+        _ = action.DisplayName.Should().Be("If ($x + 1 > 5)");
+    }
+
+    [Fact]
+    public void IsValid_WhenConditionOperandIsArithmeticExpression_Accepts()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "$x + 1",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "5",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsValid_WhenConditionOperandExpressionIsMalformed_Rejects()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.WhileBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "$x +",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "5",
+        };
+
+        _ = action.IsValid().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValid_TextConditionOperand_WithArithmeticShape_StaysPlainText()
+    {
+        // Text operands never take the arithmetic path; the value is an opaque literal.
+        var action = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.Text,
+            ScriptLeftOperand = "5 + 3",
+            ScriptConditionOperator = ScriptConditionOperator.Equals,
+            ScriptRightOperandType = ScriptOperandType.Text,
+            ScriptRightOperand = "8",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
     }
 }

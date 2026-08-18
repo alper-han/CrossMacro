@@ -1,0 +1,17 @@
+# Name: Legacy Schema V3 Fixture
+# Created: 2026-01-15T10:30:00.0000000Z
+# DurationMs: 150
+# IsAbsolute: True
+# SkipInitialZero: False
+# Format: CrossMacroFormatV3
+[Script]
+set count 3
+inc count 2
+dec count
+repeat $count {
+move abs 100 200
+click left
+}
+[Events]
+M,abs,100,200
+C,abs,100,200,Left

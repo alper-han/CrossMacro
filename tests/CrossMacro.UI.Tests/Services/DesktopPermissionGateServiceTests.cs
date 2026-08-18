@@ -1,8 +1,3 @@
-using Avalonia.Controls.ApplicationLifetimes;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI;
-using CrossMacro.UI.Services;
-using NSubstitute;
 
 namespace CrossMacro.UI.Tests.Services;
 
@@ -12,7 +7,7 @@ public sealed class DesktopPermissionGateServiceTests
     public void IsStartupPermissionBlocked_WhenCheckerUnsupported_ReturnsFalse()
     {
         var checker = Substitute.For<IPermissionChecker>();
-        checker.IsSupported.Returns(false);
+        _ = checker.IsSupported.Returns(returnThis: false);
 
         Assert.False(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
     }
@@ -21,8 +16,8 @@ public sealed class DesktopPermissionGateServiceTests
     public void IsStartupPermissionBlocked_WhenStartupGateNotRequired_ReturnsFalse()
     {
         var checker = Substitute.For<IPermissionChecker>();
-        checker.IsSupported.Returns(true);
-        checker.RequiresStartupPermissionGate.Returns(false);
+        _ = checker.IsSupported.Returns(returnThis: true);
+        _ = checker.RequiresStartupPermissionGate.Returns(returnThis: false);
 
         Assert.False(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
     }
@@ -31,9 +26,9 @@ public sealed class DesktopPermissionGateServiceTests
     public void IsStartupPermissionBlocked_WhenAccessibilityUntrusted_ReturnsTrue()
     {
         var checker = Substitute.For<IPermissionChecker>();
-        checker.IsSupported.Returns(true);
-        checker.RequiresStartupPermissionGate.Returns(true);
-        checker.IsAccessibilityTrusted().Returns(false);
+        _ = checker.IsSupported.Returns(returnThis: true);
+        _ = checker.RequiresStartupPermissionGate.Returns(returnThis: true);
+        _ = checker.IsAccessibilityTrusted().Returns(returnThis: false);
 
         Assert.True(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
     }
@@ -164,47 +159,47 @@ public sealed class DesktopPermissionGateServiceTests
     [Fact]
     public void MacOSStartupPermissionMessage_ExplainsTwoStepPermissionSetup()
     {
-        var message = UIStrings.MacOSInputMonitoringStartupBlockMessage;
+        const string message = UIStrings.MacOSInputMonitoringStartupBlockMessage;
 
-        Assert.Contains("Input Monitoring", message);
-        Assert.Contains("read", message);
-        Assert.Contains("recording", message);
-        Assert.Contains("Accessibility", message);
-        Assert.Contains("play macros back", message);
-        Assert.Contains("correct System Settings page", message);
-        Assert.Contains("do not need to add the app by hand", message);
+        Assert.Contains("Input Monitoring", message, StringComparison.Ordinal);
+        Assert.Contains("read", message, StringComparison.Ordinal);
+        Assert.Contains("recording", message, StringComparison.Ordinal);
+        Assert.Contains("Accessibility", message, StringComparison.Ordinal);
+        Assert.Contains("play macros back", message, StringComparison.Ordinal);
+        Assert.Contains("correct System Settings page", message, StringComparison.Ordinal);
+        Assert.Contains("do not need to add the app by hand", message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void MacOSAccessibilityStartupBlockMessage_ExplainsPlaybackPermissionStep()
     {
-        var message = UIStrings.MacOSAccessibilityStartupBlockMessage;
+        const string message = UIStrings.MacOSAccessibilityStartupBlockMessage;
 
-        Assert.Contains("playback", message);
-        Assert.Contains("Accessibility", message);
-        Assert.Contains("Input Monitoring", message);
-        Assert.Contains("recording", message);
-        Assert.Contains("current app", message);
-        Assert.Contains("check again", message);
+        Assert.Contains("playback", message, StringComparison.Ordinal);
+        Assert.Contains("Accessibility", message, StringComparison.Ordinal);
+        Assert.Contains("Input Monitoring", message, StringComparison.Ordinal);
+        Assert.Contains("recording", message, StringComparison.Ordinal);
+        Assert.Contains("current app", message, StringComparison.Ordinal);
+        Assert.Contains("check again", message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void MacOSPermissionApprovalRecheckMessage_ExplainsContinueFlow()
     {
-        var message = UIStrings.MacOSPermissionApprovalRecheckMessage;
+        const string message = UIStrings.MacOSPermissionApprovalRecheckMessage;
 
-        Assert.Contains("Approve CrossMacro", message);
-        Assert.Contains("click Continue", message);
-        Assert.Contains("continue automatically", message);
+        Assert.Contains("Approve CrossMacro", message, StringComparison.Ordinal);
+        Assert.Contains("click Continue", message, StringComparison.Ordinal);
+        Assert.Contains("continue automatically", message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void MacOSApprovalPendingMessages_ExplainRestartFallback()
     {
-        Assert.Contains("Input Monitoring", UIStrings.MacOSInputMonitoringApprovalPendingMessage);
-        Assert.Contains("quit and reopen CrossMacro", UIStrings.MacOSInputMonitoringApprovalPendingMessage);
-        Assert.Contains("Accessibility", UIStrings.MacOSAccessibilityApprovalPendingMessage);
-        Assert.Contains("quit and reopen CrossMacro", UIStrings.MacOSAccessibilityApprovalPendingMessage);
+        Assert.Contains("Input Monitoring", UIStrings.MacOSInputMonitoringApprovalPendingMessage, StringComparison.Ordinal);
+        Assert.Contains("quit and reopen CrossMacro", UIStrings.MacOSInputMonitoringApprovalPendingMessage, StringComparison.Ordinal);
+        Assert.Contains("Accessibility", UIStrings.MacOSAccessibilityApprovalPendingMessage, StringComparison.Ordinal);
+        Assert.Contains("quit and reopen CrossMacro", UIStrings.MacOSAccessibilityApprovalPendingMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -245,13 +240,7 @@ public sealed class DesktopPermissionGateServiceTests
     [Fact]
     public async Task TryHandleAsync_WhenSessionUnsupported_ReturnsUnsupportedReasonWithoutHandling()
     {
-        var displaySessionService = Substitute.For<IDisplaySessionService>();
-        displaySessionService.IsSessionSupported(out Arg.Any<string>())
-            .Returns(ci =>
-            {
-                ci[0] = "unsupported session";
-                return false;
-            });
+        var displaySessionService = new UnsupportedDisplaySessionService();
 
         var service = new DesktopPermissionGateService(displaySessionService, () => null);
         var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
@@ -262,6 +251,21 @@ public sealed class DesktopPermissionGateServiceTests
         Assert.Equal("unsupported session", result.UnsupportedSessionReason);
     }
 
+    private sealed class UnsupportedDisplaySessionService : IDisplaySessionService
+    {
+        public bool IsSessionSupported(out string reason)
+        {
+            reason = "unsupported session";
+            return false;
+        }
+
+        public ValueTask<(bool Supported, string Reason)> IsSessionSupportedAsync(CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            return ValueTask.FromResult((false, "unsupported session"));
+        }
+    }
+
     private sealed class TestMacOSPermissionChecker : IMacOSPermissionChecker
     {
         private readonly bool _listenEventGranted;
@@ -270,7 +274,12 @@ public sealed class DesktopPermissionGateServiceTests
         private readonly bool _listenEventApiAvailable;
         private readonly bool? _listenEventListedOrGranted;
         private readonly bool _postEventApiAvailable;
-        private readonly bool _isSupported;
+
+        public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(CheckUInputAccess());
+        }
 
         internal TestMacOSPermissionChecker(
             bool listenEventGranted,
@@ -287,10 +296,10 @@ public sealed class DesktopPermissionGateServiceTests
             _listenEventApiAvailable = listenEventApiAvailable;
             _listenEventListedOrGranted = listenEventListedOrGranted;
             _postEventApiAvailable = postEventApiAvailable;
-            _isSupported = isSupported;
+            IsSupported = isSupported;
         }
 
-        public bool IsSupported => _isSupported;
+        public bool IsSupported { get; }
         public bool RequiresStartupPermissionGate => true;
         public int ListenEventRequestCount { get; private set; }
         public int AccessibilityRequestCount { get; private set; }
@@ -355,7 +364,7 @@ public sealed class DesktopPermissionGateServiceTests
                 MacOSPermissionRequirement.ListenEvent => RequestListenEventAccess(),
                 MacOSPermissionRequirement.PostEvent => RequestPostEventAccess(),
                 MacOSPermissionRequirement.Accessibility => RequestAccessibilityPermission(),
-                _ => false
+                _ => false,
             };
         }
 
@@ -366,7 +375,7 @@ public sealed class DesktopPermissionGateServiceTests
                 MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
                 MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
                 MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
-                _ => false
+                _ => false,
             };
         }
 
@@ -451,6 +460,12 @@ public sealed class DesktopPermissionGateServiceTests
         public bool CheckUInputAccess()
         {
             return false;
+        }
+
+        public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(false);
         }
 
         public void OpenAccessibilitySettings()

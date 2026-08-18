@@ -1,15 +1,8 @@
-using System;
-using System.IO;
-using System.Text.Json;
-using System.Threading.Tasks;
-using CrossMacro.Cli;
-using CrossMacro.Platform.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Tests.Cli;
 
 [Collection("EnvironmentVariableSensitive")]
-public class ProgramCliContractTests
+public sealed class ProgramCliContractTests
 {
     [Fact]
     public async Task RunAsync_WhenStandaloneJsonFlagWithoutCommand_ReturnsInvalidArgumentsAsJson()
@@ -26,7 +19,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["--json"],
                 new NoOpPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI parse error."),
@@ -64,7 +57,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["doctor", "--bad", "--json"],
                 new NoOpPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI parse error."),
@@ -103,7 +96,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["run", "--json"],
                 new NoOpPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI parse error."),
@@ -141,7 +134,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["doctor", "--json"],
                 new ThrowingPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI command."),
@@ -176,7 +169,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["doctor", "--json"],
                 new CancelledPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for CLI command."),
@@ -211,7 +204,7 @@ public class ProgramCliContractTests
             Console.SetOut(stdout);
             Console.SetError(stderr);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
+            var exitCode = await RunAsync(
                 ["headless", "--json"],
                 new NoOpPlatformServiceRegistrar(),
                 startGui: () => throw new InvalidOperationException("GUI must not start for headless command."),
@@ -237,7 +230,7 @@ public class ProgramCliContractTests
         var guiStarted = false;
         using var dataHome = new TemporaryDataHomeScope();
 
-        var exitCode = await CliGuiRuntime.RunAsync(
+        var exitCode = await RunAsync(
             [],
             new NoOpPlatformServiceRegistrar(),
             startGui: () =>
@@ -254,16 +247,30 @@ public class ProgramCliContractTests
 
     private sealed class NoOpPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
         }
     }
 
+    private static Task<int> RunAsync(
+        string[] args,
+        IPlatformServiceRegistrar registrar,
+        Func<int> startGui,
+        Func<string> getVersionString,
+        Func<IDisposable?> tryAcquireSingleInstanceGuard)
+    {
+        return CliGuiRuntime.RunAsync(
+            args,
+            registrar.RegisterPlatformServices,
+            (services, _) => registrar.RegisterPlatformServices(services),
+            startGui,
+            getVersionString,
+            tryAcquireSingleInstanceGuard);
+    }
+
     private sealed class ThrowingPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
@@ -273,7 +280,6 @@ public class ProgramCliContractTests
 
     private sealed class CancelledPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
@@ -296,8 +302,7 @@ public class ProgramCliContractTests
         }
 
         var normalized = stderr.Replace("\r\n", "\n", StringComparison.Ordinal);
-        var lines = normalized.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var line in lines)
+        foreach (var line in normalized.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             Assert.StartsWith("[CrossMacro]", line, StringComparison.Ordinal);
         }
@@ -311,7 +316,7 @@ public class ProgramCliContractTests
         public TemporaryDataHomeScope()
         {
             _tempDir = Path.Combine(Path.GetTempPath(), "crossmacro-tests", nameof(ProgramCliContractTests), Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_tempDir);
+            _ = Directory.CreateDirectory(_tempDir);
 
             _previousValue = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
             Environment.SetEnvironmentVariable("XDG_DATA_HOME", _tempDir);
@@ -327,8 +332,9 @@ public class ProgramCliContractTests
                     Directory.Delete(_tempDir, recursive: true);
                 }
             }
-            catch
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
+                // Temporary test-directory cleanup may race with another process or lose access during teardown.
             }
         }
     }

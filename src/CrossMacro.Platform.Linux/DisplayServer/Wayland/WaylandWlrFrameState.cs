@@ -1,15 +1,16 @@
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandWlrFrameState
+internal sealed class WaylandWlrFrameState : IDisposable
 {
-    private readonly FrameDispatcher _dispatcher;
+    private GCHandle _dispatcherHandle;
+    private bool _disposed;
 
     public WaylandWlrFrameState()
     {
-        _dispatcher = Dispatch;
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
+        var dispatcher = (FrameDispatcher)Dispatch;
+        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
+        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
     }
 
     private delegate int FrameDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
@@ -25,6 +26,20 @@ internal sealed class WaylandWlrFrameState
     public uint Stride { get; private set; }
     public bool CanCreateBuffer => HasBuffer && BufferDone;
 
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (_dispatcherHandle.IsAllocated)
+        {
+            _dispatcherHandle.Free();
+        }
+    }
+
     private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
     {
         var size = Marshal.SizeOf<WlArgument>();
@@ -33,8 +48,8 @@ internal sealed class WaylandWlrFrameState
             case 0:
                 Format = Marshal.PtrToStructure<WlArgument>(args).u;
                 Width = Marshal.PtrToStructure<WlArgument>(args + size).u;
-                Height = Marshal.PtrToStructure<WlArgument>(args + size * 2).u;
-                Stride = Marshal.PtrToStructure<WlArgument>(args + size * 3).u;
+                Height = Marshal.PtrToStructure<WlArgument>(args + (size * 2)).u;
+                Stride = Marshal.PtrToStructure<WlArgument>(args + (size * 3)).u;
                 HasBuffer = true;
                 break;
             case 2:
@@ -46,34 +61,6 @@ internal sealed class WaylandWlrFrameState
             case 6:
                 BufferDone = true;
                 break;
-        }
-
-        return 0;
-    }
-}
-
-internal sealed class WaylandBufferState
-{
-    private readonly BufferDispatcher _dispatcher;
-
-    public WaylandBufferState()
-    {
-        _dispatcher = Dispatch;
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(_dispatcher);
-    }
-
-    private delegate int BufferDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    public IntPtr DispatcherPtr { get; }
-    public bool Released { get; private set; } = true;
-
-    public void MarkSubmitted() => Released = false;
-
-    private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
-    {
-        if (opcode == 0)
-        {
-            Released = true;
         }
 
         return 0;

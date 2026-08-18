@@ -1,16 +1,7 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.Native;
-using CrossMacro.Platform.MacOS.Services;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-public class MacOSInputCaptureTests
+public sealed class MacOSInputCaptureTests
 {
     [Fact]
     public void SystemDefinedConstants_MatchNativeGoldenValues()
@@ -151,9 +142,10 @@ public class MacOSInputCaptureTests
             subtype: 8,
             data1: CreateSystemDefinedData1(keyType, 0x0A),
             timestamp: 123,
-            out _);
+            out var inputEvent);
 
         Assert.False(created);
+        Assert.Equal(default, inputEvent);
     }
 
     [Fact]
@@ -266,6 +258,28 @@ public class MacOSInputCaptureTests
         Assert.Equal(1, inputEvent.Value);
     }
 
+    [Theory]
+    [InlineData(2, MouseButtonCode.Middle)]
+    [InlineData(3, MouseButtonCode.Side1)]
+    [InlineData(4, MouseButtonCode.Side2)]
+    public void TryMapOtherMouseButton_UsesCoreGraphicsButtonNumbers(long buttonNumber, int expectedButton)
+    {
+        bool mapped = MacOSInputCapture.TryMapOtherMouseButton(buttonNumber, out int button);
+
+        Assert.True(mapped);
+        Assert.Equal(expectedButton, button);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(5)]
+    public void TryMapOtherMouseButton_WhenUnsupported_ReturnsFalse(long buttonNumber)
+    {
+        Assert.False(MacOSInputCapture.TryMapOtherMouseButton(buttonNumber, out _));
+    }
+
     private static long CreateSystemDefinedData1(int keyType, int state)
     {
         return (keyType << 16) | (state << 8);
@@ -289,9 +303,9 @@ public class MacOSInputCaptureTests
     {
         using var capture = new MacOSInputCapture();
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => capture.StartAsync(cts.Token));
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => capture.StartAsync(cts.Token));
     }
 
     [NonMacOSFact]
@@ -299,7 +313,7 @@ public class MacOSInputCaptureTests
     {
         using var capture = new MacOSInputCapture();
         string? error = null;
-        capture.Error += (_, message) => error = message;
+        capture.CaptureError += (_, message) => error = message.Message;
 
         var exception = await Record.ExceptionAsync(() => capture.StartAsync(CancellationToken.None));
 

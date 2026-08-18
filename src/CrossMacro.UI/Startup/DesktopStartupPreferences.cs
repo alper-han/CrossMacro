@@ -1,14 +1,5 @@
-using System;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.UI.Startup;
-
-internal enum DesktopStartupDisplayMode
-{
-    Visible,
-    Minimized,
-    HiddenToTray
-}
 
 internal readonly record struct DesktopStartupPreferences(
     bool ShouldStartMinimized,

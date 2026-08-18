@@ -1,6 +1,3 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Services.Factories.Selectors;
 
@@ -10,7 +7,7 @@ public sealed class NiriPositionProviderSelector : IPositionProviderSelector
 
     public bool CanHandle(CompositorType compositor)
     {
-        return compositor == CompositorType.NIRI;
+        return compositor is CompositorType.NIRI;
     }
 
     public IMousePositionProvider Create()

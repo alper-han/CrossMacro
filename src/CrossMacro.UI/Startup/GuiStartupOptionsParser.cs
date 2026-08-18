@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 
 namespace CrossMacro.UI.Startup;
 
@@ -7,9 +5,16 @@ public static class GuiStartupOptionsParser
 {
     public static GuiStartupParseResult Parse(string[]? args)
     {
-        if (args == null || args.Length == 0)
+        return args is null
+            ? new GuiStartupParseResult(GuiStartupOptions.Default, (IReadOnlyList<string>)[])
+            : Parse(args.AsSpan());
+    }
+
+    public static GuiStartupParseResult Parse(ReadOnlySpan<string> args)
+    {
+        if (args.Length is 0)
         {
-            return new GuiStartupParseResult(GuiStartupOptions.Default, []);
+            return new GuiStartupParseResult(GuiStartupOptions.Default, (IReadOnlyList<string>)[]);
         }
 
         var forwardedArgs = new List<string>(args.Length);
@@ -28,7 +33,7 @@ public static class GuiStartupOptionsParser
 
         return new GuiStartupParseResult(
             new GuiStartupOptions(StartMinimized: startMinimized),
-            [.. forwardedArgs]);
+            forwardedArgs.ToArray());
     }
 
     private static bool IsStartMinimizedToken(string arg)

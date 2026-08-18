@@ -1,42 +1,29 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Helpers;
-using CrossMacro.Infrastructure.Serialization;
 
 namespace CrossMacro.Infrastructure.Services;
 
-public class JsonScheduledTaskRepository : IScheduledTaskRepository
+public class JsonScheduledTaskRepository(string scheduleFilePath) : IScheduledTaskRepository
 {
-    private string _scheduleFilePath;
+    private string _scheduleFilePath = scheduleFilePath;
 
     public JsonScheduledTaskRepository() : this(PathHelper.GetConfigFilePath(ConfigFileNames.Schedules))
     {
     }
 
-    public JsonScheduledTaskRepository(string scheduleFilePath)
-    {
-        _scheduleFilePath = scheduleFilePath;
-    }
-
-    public async Task<List<ScheduledTask>> LoadAsync()
+    public async Task<IReadOnlyList<ScheduledTask>> LoadAsync()
     {
         try
         {
-            if (!File.Exists(_scheduleFilePath)) 
-                return new List<ScheduledTask>();
-            
+            if (!File.Exists(_scheduleFilePath))
+            {
+                return [];
+            }
+
             var tasks = await FileBackedJsonStorage.ReadAsync(_scheduleFilePath, CrossMacroJsonContext.Default.ListScheduledTask)
                 .ConfigureAwait(false);
-            
-            return tasks ?? new List<ScheduledTask>();
+
+            return (IReadOnlyList<ScheduledTask>?)tasks ?? [];
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "Failed to load scheduled tasks from {Path}", _scheduleFilePath);
             return new List<ScheduledTask>();
@@ -59,10 +46,10 @@ public class JsonScheduledTaskRepository : IScheduledTaskRepository
                     CrossMacroJsonContext.Default.ListScheduledTask)
                 .ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "Failed to save scheduled tasks to {Path}", _scheduleFilePath);
-            throw; 
+            throw;
         }
     }
 }

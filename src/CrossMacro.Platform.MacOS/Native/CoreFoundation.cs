@@ -1,44 +1,42 @@
-using System;
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.MacOS.Native;
 
-internal static class CoreFoundation
+internal static partial class CoreFoundation
 {
     private const string CoreFoundationLib = "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";
 
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
-    public static extern IntPtr CFMachPortCreateRunLoopSource(IntPtr allocator, IntPtr port, IntPtr order);
+    [LibraryImport(CoreFoundationLib)]
+    public static partial IntPtr CFMachPortCreateRunLoopSource(IntPtr allocator, IntPtr port, IntPtr order);
 
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
-    public static extern void CFRunLoopAddSource(IntPtr rl, IntPtr source, IntPtr mode);
+    [LibraryImport(CoreFoundationLib)]
+    public static partial void CFRunLoopAddSource(IntPtr rl, IntPtr source, IntPtr mode);
 
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
-    public static extern IntPtr CFRunLoopGetCurrent();
+    [LibraryImport(CoreFoundationLib)]
+    public static partial IntPtr CFRunLoopGetCurrent();
 
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
-    public static extern int CFRunLoopRunInMode(IntPtr mode, double seconds, bool returnAfterSourceHandled);
-    
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
-    public static extern void CFRunLoopRun();
+    [LibraryImport(CoreFoundationLib)]
+    public static partial int CFRunLoopRunInMode(IntPtr mode, double seconds, [MarshalAs(UnmanagedType.I1)] bool returnAfterSourceHandled);
 
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
-    public static extern void CFRunLoopStop(IntPtr rl);
+    [LibraryImport(CoreFoundationLib)]
+    public static partial void CFRunLoopRun();
 
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
-    public static extern void CFRelease(IntPtr cf);
+    [LibraryImport(CoreFoundationLib)]
+    public static partial void CFRunLoopStop(IntPtr rl);
 
-    [DllImport(CoreFoundationLib, CharSet = CharSet.Ansi)]
-    public static extern IntPtr CFRetain(IntPtr cf);
-    
-    [DllImport(CoreFoundationLib)]
-    public static extern IntPtr CFDataGetBytePtr(IntPtr cfData);
+    [LibraryImport(CoreFoundationLib)]
+    public static partial void CFRelease(IntPtr cf);
 
-    [DllImport(CoreFoundationLib)]
-    public static extern nint CFDataGetLength(IntPtr cfData);
+    [LibraryImport(CoreFoundationLib)]
+    public static partial IntPtr CFRetain(IntPtr cf);
 
-    [DllImport(CoreFoundationLib)]
-    public static extern IntPtr CFDictionaryCreate(
+    [LibraryImport(CoreFoundationLib)]
+    public static partial IntPtr CFDataGetBytePtr(IntPtr cfData);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial nint CFDataGetLength(IntPtr cfData);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial IntPtr CFDictionaryCreate(
         IntPtr allocator,
         IntPtr[] keys,
         IntPtr[] values,
@@ -46,27 +44,34 @@ internal static class CoreFoundation
         IntPtr keyCallBacks,
         IntPtr valueCallBacks);
 
-    public static readonly IntPtr kCFRunLoopCommonModes;
-    public static readonly IntPtr kCFRunLoopDefaultMode;
-    public static readonly IntPtr kCFBooleanTrue;
+    private static readonly IntPtr _lib = TryLoadLib(CoreFoundationLib);
+    public static readonly IntPtr kCFRunLoopCommonModes = ReadIntPtr(_lib, "kCFRunLoopCommonModes");
+    public static readonly IntPtr kCFRunLoopDefaultMode = ReadIntPtr(_lib, "kCFRunLoopDefaultMode");
+    public static readonly IntPtr kCFBooleanTrue = ReadIntPtr(_lib, "kCFBooleanTrue");
 
-    static CoreFoundation()
+    private static IntPtr TryLoadLib(string libPath)
     {
-        // Load constants from native library
-        IntPtr lib = NativeLibrary.Load(CoreFoundationLib);
-        kCFRunLoopCommonModes = ReadIntPtr(lib, "kCFRunLoopCommonModes");
-        kCFRunLoopDefaultMode = ReadIntPtr(lib, "kCFRunLoopDefaultMode");
-        kCFBooleanTrue = ReadIntPtr(lib, "kCFBooleanTrue");
+        if (!OperatingSystem.IsMacOS())
+        {
+            return IntPtr.Zero;
+        }
+
+        return NativeLibrary.TryLoad(libPath, out var lib) ? lib : IntPtr.Zero;
     }
 
     private static IntPtr ReadIntPtr(IntPtr lib, string name)
     {
+        if (lib == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
         try
         {
             IntPtr addr = NativeLibrary.GetExport(lib, name);
             return Marshal.ReadIntPtr(addr);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return IntPtr.Zero;
         }

@@ -1,17 +1,15 @@
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.Services;
 
-public class LinuxEnvironmentInfoProviderTests
+public sealed class LinuxEnvironmentInfoProviderTests
 {
     [Theory]
     [InlineData(CompositorType.X11, DisplayEnvironment.LinuxX11, false)]
     [InlineData(CompositorType.HYPRLAND, DisplayEnvironment.LinuxHyprland, true)]
     [InlineData(CompositorType.WAYFIRE, DisplayEnvironment.LinuxWayfire, false)]
-    [InlineData(CompositorType.NIRI, DisplayEnvironment.LinuxWayland, false)]
+    [InlineData(CompositorType.NIRI, DisplayEnvironment.LinuxWayland, true)]
     [InlineData(CompositorType.COSMIC, DisplayEnvironment.LinuxWayland, false)]
+    [InlineData(CompositorType.SWAY, DisplayEnvironment.LinuxWayland, true)]
     [InlineData(CompositorType.KDE, DisplayEnvironment.LinuxKDE, false)]
     [InlineData(CompositorType.GNOME, DisplayEnvironment.LinuxGnome, false)]
     [InlineData(CompositorType.Other, DisplayEnvironment.LinuxWayland, false)]
@@ -41,7 +39,7 @@ public class LinuxEnvironmentInfoProviderTests
     {
         var provider = new LinuxEnvironmentInfoProvider(
             CompositorType.HYPRLAND,
-            key => key == "CROSSMACRO_WINDOW_BUTTONS" ? value : null);
+            key => key is "CROSSMACRO_WINDOW_BUTTONS" ? value : null);
 
         Assert.Equal(expected, provider.WindowManagerHandlesCloseButton);
     }
@@ -52,11 +50,19 @@ public class LinuxEnvironmentInfoProviderTests
         var hyprlandProvider = new LinuxEnvironmentInfoProvider(
             CompositorType.HYPRLAND,
             _ => null);
+        var swayProvider = new LinuxEnvironmentInfoProvider(
+            CompositorType.SWAY,
+            _ => null);
+        var niriProvider = new LinuxEnvironmentInfoProvider(
+            CompositorType.NIRI,
+            _ => null);
         var x11Provider = new LinuxEnvironmentInfoProvider(
             CompositorType.X11,
             _ => null);
 
         Assert.True(hyprlandProvider.WindowManagerHandlesCloseButton);
+        Assert.True(swayProvider.WindowManagerHandlesCloseButton);
+        Assert.True(niriProvider.WindowManagerHandlesCloseButton);
         Assert.False(x11Provider.WindowManagerHandlesCloseButton);
     }
 }

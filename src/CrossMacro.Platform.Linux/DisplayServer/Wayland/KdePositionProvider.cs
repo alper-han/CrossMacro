@@ -1,467 +1,567 @@
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using Tmds.DBus.Protocol;
 
-namespace CrossMacro.Platform.Linux.DisplayServer.Wayland
+namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
+
+public sealed class KdePositionProvider : IMousePositionProvider, IMousePositionChangeSource, IAsyncDisposable
 {
-    public class KdePositionProvider : IMousePositionProvider
+    private static readonly string ScriptDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "crossmacro", "scripts");
+
+    private static readonly TimeSpan ResolutionTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan PositionTimeout = TimeSpan.FromSeconds(2);
+
+    private KWinScriptLease? _scriptLease;
+    private string? _tempJsFile;
+    private int _currentX;
+    private int _currentY;
+    private bool _hasPosition;
+    private (int Width, int Height)? _currentResolution;
+    private ScreenRect? _currentDesktopBounds;
+    private bool _positionDiscontinuityPending;
+    private readonly Lock _lock = new();
+    private readonly TaskCompletionSource<(int X, int Y)> _positionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<(int Width, int Height)> _resolutionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<ScreenRect?> _desktopBoundsTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly CancellationTokenSource _cts = new();
+    private readonly Lock _disposeStateLock = new();
+    private Task? _disposeTask;
+
+    private DBusConnection? _dbusConnection;
+    private int _disposed;
+
+    public string ProviderName => "KDE KWin Script (DBus)";
+    public bool IsSupported { get; private set; }
+    public Task<bool> InitializationTask { get; private set; } = Task.FromResult(false);
+
+    public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
+
+    public KdePositionProvider()
+        : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
+
+    public KdePositionProvider(LinuxEnvironmentSnapshot environment)
+        : this(
+            LinuxDisplaySessionClassifier.IsWayland(environment) &&
+            !string.IsNullOrEmpty(environment.CurrentDesktop) &&
+            (environment.CurrentDesktop.Contains("KDE", StringComparison.OrdinalIgnoreCase) ||
+             environment.CurrentDesktop.Contains("PLASMA", StringComparison.OrdinalIgnoreCase)),
+            autoStartTracking: true)
+    { /* Empty */ }
+
+    internal KdePositionProvider(bool isSupported, bool autoStartTracking)
     {
-        private static readonly string ScriptDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "crossmacro", "scripts");
+        IsSupported = isSupported;
 
-        private static readonly TimeSpan ResolutionTimeout = TimeSpan.FromSeconds(2);
-        private static readonly TimeSpan PositionTimeout = TimeSpan.FromSeconds(2);
-
-        private string? _scriptId;
-        private string? _tempJsFile;
-        private int _currentX;
-        private int _currentY;
-        private bool _hasPosition;
-        private readonly Lock _lock = new();
-        private readonly TaskCompletionSource<(int X, int Y)> _positionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly TaskCompletionSource<(int Width, int Height)> _resolutionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly CancellationTokenSource _cts = new();
-        private Task? _initializationTask;
-        
-        private DBusConnection? _dbusConnection;
-        private KdeTrackerServiceMethodHandler? _trackerHandler;
-        private KdeTrackerService? _trackerService;
-        private int _disposed;
-
-        public string ProviderName => "KDE KWin Script (DBus)";
-        public bool IsSupported { get; private set; }
-
-        public KdePositionProvider()
-            : this(
-                string.Equals(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"), "KDE", StringComparison.OrdinalIgnoreCase),
-                autoStartTracking: true)
+        if (IsSupported && autoStartTracking)
         {
+            StartTracking();
         }
-
-        internal KdePositionProvider(bool isSupported, bool autoStartTracking)
+        else
         {
-            IsSupported = isSupported;
-
-            if (IsSupported && autoStartTracking)
+            InitializationTask = Task.FromResult(IsSupported);
+            if (!IsSupported)
             {
-                StartTracking();
+                CompleteUnavailableState();
             }
-            else if (!IsSupported)
-            {
-                _positionTcs.TrySetResult((0, 0));
-                _resolutionTcs.TrySetResult((0, 0));
-            }
-        }
-
-
-
-        private void StartTracking()
-        {
-            _initializationTask = Task.Run(async () =>
-            {
-                try
-                {
-                    await InitializeAsync(_cts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    // Normal shutdown
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "[KdePositionProvider] Failed to initialize tracking");
-                    IsSupported = false;
-                    _positionTcs.TrySetResult((0, 0));
-                    _resolutionTcs.TrySetResult((0, 0));
-                }
-            });
-        }
-
-        private static string GetSafeScriptPath(string fileName)
-        {
-            if (!Directory.Exists(ScriptDirectory))
-                Directory.CreateDirectory(ScriptDirectory);
-                
-            return Path.Combine(ScriptDirectory, fileName);
-        }
-
-        internal void ApplyPositionUpdate(int x, int y)
-        {
-            if (IsDisposed)
-            {
-                return;
-            }
-
-            lock (_lock)
-            {
-                _currentX = x;
-                _currentY = y;
-                _hasPosition = true;
-            }
-
-            _positionTcs.TrySetResult((x, y));
-        }
-
-        internal void ApplyResolutionUpdate(int width, int height)
-        {
-            if (IsDisposed)
-            {
-                return;
-            }
-
-            Log.Information("[KdePositionProvider] Resolution received via DBus: {W}x{H}", width, height);
-            _resolutionTcs.TrySetResult((width, height));
-        }
-
-        internal static async Task<(int Width, int Height)?> AwaitResolutionAsync(
-            Task<(int Width, int Height)> resolutionTask,
-            TimeSpan timeout,
-            Func<TimeSpan, Task> delayAsync)
-        {
-            var completedTask = await Task.WhenAny(resolutionTask, delayAsync(timeout)).ConfigureAwait(false);
-
-            if (completedTask == resolutionTask)
-            {
-                var resolution = await resolutionTask.ConfigureAwait(false);
-                if (resolution.Width > 0 && resolution.Height > 0)
-                {
-                    return resolution;
-                }
-            }
-
-            return null;
-        }
-
-        internal static async Task<(int X, int Y)?> AwaitPositionAsync(
-            Task<(int X, int Y)> positionTask,
-            TimeSpan timeout,
-            Func<TimeSpan, Task> delayAsync)
-        {
-            var completedTask = await Task.WhenAny(positionTask, delayAsync(timeout)).ConfigureAwait(false);
-
-            if (completedTask == positionTask)
-            {
-                return await positionTask.ConfigureAwait(false);
-            }
-
-            return null;
-        }
-
-        internal static void StopLoadedScript(
-            string? scriptId,
-            Func<string, Task> stopScriptAsync,
-            Func<string, Task> unloadScriptAsync,
-            Action<Exception> onError)
-        {
-            if (string.IsNullOrEmpty(scriptId) || !int.TryParse(scriptId, out _))
-            {
-                return;
-            }
-
-            try
-            {
-                stopScriptAsync(scriptId).GetAwaiter().GetResult();
-                unloadScriptAsync(scriptId).GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                onError(ex);
-            }
-        }
-
-        internal static bool CleanupLoadedScriptIfShutdownRequested(
-            bool disposed,
-            CancellationToken cancellationToken,
-            string? scriptId,
-            Func<string, Task> stopScriptAsync,
-            Func<string, Task> unloadScriptAsync,
-            Action<Exception> onError)
-        {
-            if (!disposed && !cancellationToken.IsCancellationRequested)
-            {
-                return false;
-            }
-
-            StopLoadedScript(scriptId, stopScriptAsync, unloadScriptAsync, onError);
-            return true;
-        }
-
-        internal bool IsDisposed => Volatile.Read(ref _disposed) != 0;
-
-        private void ThrowIfDisposedOrCanceled(CancellationToken ct)
-        {
-            if (IsDisposed)
-            {
-                throw new OperationCanceledException(ct);
-            }
-
-            ct.ThrowIfCancellationRequested();
-        }
-
-        private void ThrowIfShutdownRequestedAfterScriptLoad(CancellationToken ct)
-        {
-            if (_dbusConnection == null)
-            {
-                throw new InvalidOperationException("DBus session was not initialized.");
-            }
-
-            if (CleanupLoadedScriptIfShutdownRequested(
-                    IsDisposed,
-                    ct,
-                    _scriptId,
-                    scriptId => new KWinScriptClient(_dbusConnection, scriptId).StopAsync(),
-                    scriptId => new KWinScriptingClient(_dbusConnection).UnloadScriptAsync(scriptId),
-                    ex => Log.Debug(ex, "[KdePositionProvider] Error stopping/unloading KWin script during shutdown")))
-            {
-                throw new OperationCanceledException(ct);
-            }
-        }
-
-        private async Task InitializeAsync(System.Threading.CancellationToken ct)
-        {
-            try 
-            {
-                // 1. Initialize DBus Service
-                Log.Information("[KdePositionProvider] Initializing DBus service...");
-                _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
-                await _dbusConnection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
-                ThrowIfDisposedOrCanceled(ct);
-                
-                _trackerService = new KdeTrackerService(ApplyPositionUpdate, ApplyResolutionUpdate);
-                _trackerHandler = new KdeTrackerServiceMethodHandler(_trackerService);
-                _dbusConnection.AddMethodHandler(_trackerHandler);
-                await _dbusConnection
-                    .RequestNameAsync(KdeTrackerService.TrackerServiceName, RequestNameOptions.Default)
-                    .WaitAsync(ct)
-                    .ConfigureAwait(false);
-                Log.Information("[KdePositionProvider] DBus service registered at {ServiceName}", KdeTrackerService.TrackerServiceName);
-                ThrowIfDisposedOrCanceled(ct);
-
-                // 2. Create KWin script with DBus calls
-                _tempJsFile = GetSafeScriptPath($"kde_tracker_{Guid.NewGuid()}.js");
-                
-                var scriptContent = BuildTrackerScriptContent();
-                scriptContent = scriptContent.Replace("__TRACKER_OBJECT_PATH__", KdeTrackerService.TrackerObjectPath, StringComparison.Ordinal);
-                await File.WriteAllTextAsync(_tempJsFile, scriptContent, ct);
-                ThrowIfDisposedOrCanceled(ct);
-                
-                await Task.Delay(200, ct);
-                ThrowIfDisposedOrCanceled(ct);
-
-                // 3. Load KWin script
-                try 
-                {
-                    Log.Information("[KdePositionProvider] Loading KWin script via DBus...");
-                    if (_dbusConnection == null)
-                    {
-                        throw new InvalidOperationException("DBus session was not initialized.");
-                    }
-
-                    var scriptingProxy = new KWinScriptingClient(_dbusConnection);
-                    var scriptIdInt = await scriptingProxy.LoadScriptAsync(_tempJsFile).WaitAsync(ct).ConfigureAwait(false);
-                    _scriptId = scriptIdInt.ToString();
-                    ThrowIfShutdownRequestedAfterScriptLoad(ct);
-                    
-                    if (string.IsNullOrEmpty(_scriptId) || scriptIdInt < 0)
-                    {
-                         Log.Error("[KdePositionProvider] Failed to load KWin script. Invalid ID: '{ScriptId}'", _scriptId);
-                         IsSupported = false;
-                         _positionTcs.TrySetResult((0, 0));
-                         _resolutionTcs.TrySetResult((0, 0));
-                         return;
-                    }
-
-                    Log.Information("[KdePositionProvider] KWin script loaded with ID: {ScriptId}", _scriptId);
-
-                    // 4. Run script
-                    var scriptProxy = new KWinScriptClient(_dbusConnection, _scriptId);
-                    await scriptProxy.RunAsync().WaitAsync(ct).ConfigureAwait(false);
-                    ThrowIfShutdownRequestedAfterScriptLoad(ct);
-                    
-                    Log.Information("[KdePositionProvider] Tracking started successfully via DBus");
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "[KdePositionProvider] DBus error during script loading/execution");
-                    throw;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[KdePositionProvider] Initialization failed");
-                IsSupported = false;
-                _positionTcs.TrySetResult((0, 0));
-                _resolutionTcs.TrySetResult((0, 0));
-            }
-        }
-
-        internal static string BuildTrackerScriptContent()
-        {
-            return @"
-var dbusService = 'io.github.alper_han.crossmacro.Tracker';
-var dbusPath = '__TRACKER_OBJECT_PATH__';
-var dbusInterface = 'io.github.alper_han.crossmacro.Tracker';
-
-console.error('[CrossMacro] Script started, attempting DBus connection...');
-
-var lastX = -1;
-var lastY = -1;
-var errorCount = 0;
-
-// Send initial cursor position before any other startup calls so short-lived
-// CLI commands such as `pixelcolor rel 0 0` have a cached position immediately.
-try {
-    var initialPos = workspace.cursorPos;
-    callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition', initialPos.x, initialPos.y);
-    lastX = initialPos.x;
-    lastY = initialPos.y;
-} catch (e) {
-    console.error('[CrossMacro] DBus Error (Initial Pos): ' + e);
-}
-
-// Send Resolution
-try {
-    console.error('[CrossMacro] Sending resolution: ' + workspace.virtualScreenGeometry.width + 'x' + workspace.virtualScreenGeometry.height);
-    callDBus(dbusService, dbusPath, dbusInterface, 'UpdateResolution',
-             workspace.virtualScreenGeometry.width,
-             workspace.virtualScreenGeometry.height);
-    console.error('[CrossMacro] Resolution sent successfully');
-} catch (e) {
-    console.error('[CrossMacro] DBus Error (Res): ' + e);
-}
-
-// Start cursor tracking. KWin scripting reliably exposes QTimer here; do not
-// depend on cursor-position change signals that are not available everywhere.
-var timer = new QTimer();
-timer.interval = 1;  // 1ms interval for 1000Hz mouse support
-
-timer.timeout.connect(function() {
-    try {
-        var x = workspace.cursorPos.x;
-        var y = workspace.cursorPos.y;
-
-        // Only send update if position changed
-        if (x !== lastX || y !== lastY) {
-            callDBus(dbusService, dbusPath, dbusInterface, 'UpdatePosition', x, y);
-            lastX = x;
-            lastY = y;
-            errorCount = 0;
-        }
-    } catch (e) {
-        errorCount++;
-        if (errorCount <= 3) {
-            console.error('[CrossMacro] DBus Error (Pos #' + errorCount + '): ' + e);
         }
     }
-});
-timer.start();
-console.error('[CrossMacro] Position tracking started');
-";
+
+
+
+    private void StartTracking()
+    {
+        InitializationTask = InitializeAsync(_cts.Token);
+    }
+
+    private static string GetSafeScriptPath(string fileName)
+    {
+        _ = Directory.CreateDirectory(ScriptDirectory);
+
+        return Path.Combine(ScriptDirectory, fileName);
+    }
+
+    internal void ApplyPositionUpdate(int x, int y)
+    {
+        if (IsDisposed)
+        {
+            return;
         }
 
-        public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
+        bool changed;
+        bool isDiscontinuity;
+        lock (_lock)
         {
-            if (!IsSupported || IsDisposed)
-                return null;
+            isDiscontinuity = _positionDiscontinuityPending;
+            changed = !_hasPosition || _currentX != x || _currentY != y || isDiscontinuity;
+            _currentX = x;
+            _currentY = y;
+            _hasPosition = true;
+            _positionDiscontinuityPending = false;
+        }
 
+        _ = _positionTcs.TrySetResult((x, y));
+        if (changed)
+        {
+            PositionChanged?.Invoke(this, new MousePositionChangedEventArgs(x, y, isDiscontinuity));
+        }
+    }
+
+    internal void ApplyResolutionUpdate(int width, int height)
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        Log.Information("[KdePositionProvider] Resolution received via DBus: {W}x{H}", width, height);
+        if (width > 0 && height > 0)
+        {
             lock (_lock)
             {
-                if (_hasPosition)
-                {
-                    return (_currentX, _currentY);
-                }
-            }
-
-            var position = await AwaitPositionAsync(
-                _positionTcs.Task,
-                PositionTimeout,
-                timeout => Task.Delay(timeout)).ConfigureAwait(false);
-            if (position == null || !IsSupported || IsDisposed)
-            {
-                return null;
-            }
-
-            lock (_lock)
-            {
-                return _hasPosition ? (_currentX, _currentY) : null;
+                _currentResolution = (width, height);
             }
         }
 
-        public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
-        {
-            if (!IsSupported)
-                return null;
+        _ = _resolutionTcs.TrySetResult((width, height));
+    }
 
-            var resolution = await AwaitResolutionAsync(_resolutionTcs.Task, ResolutionTimeout, timeout => Task.Delay(timeout)).ConfigureAwait(false);
-            if (resolution != null)
+    internal void ApplyDesktopBoundsUpdate(int x, int y, int width, int height)
+    {
+        if (IsDisposed || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var bounds = new ScreenRect(x, y, width, height);
+        lock (_lock)
+        {
+            if (_currentDesktopBounds is { } currentBounds && currentBounds != bounds)
+            {
+                _positionDiscontinuityPending = true;
+            }
+
+            _currentDesktopBounds = bounds;
+            _currentResolution = (width, height);
+        }
+
+        Log.Information(
+            "[KdePositionProvider] Desktop bounds received via DBus: ({X},{Y}) {W}x{H}",
+            x,
+            y,
+            width,
+            height);
+        _ = _desktopBoundsTcs.TrySetResult(bounds);
+        _ = _resolutionTcs.TrySetResult((width, height));
+    }
+
+    internal static async Task<(int Width, int Height)?> AwaitResolutionAsync(
+        Task<(int Width, int Height)> resolutionTask,
+        TimeSpan timeout,
+        Func<TimeSpan, Task> delayAsync)
+    {
+        var completedTask = await Task.WhenAny(resolutionTask, delayAsync(timeout)).ConfigureAwait(false);
+
+        if (completedTask == resolutionTask)
+        {
+            var resolution = await resolutionTask.ConfigureAwait(false);
+            if (resolution.Width > 0 && resolution.Height > 0)
             {
                 return resolution;
             }
-            
-            Log.Warning("[KdePositionProvider] Resolution detection timed out; downgrading to unknown resolution mode.");
+        }
+
+        return null;
+    }
+
+    internal static async Task<(int X, int Y)?> AwaitPositionAsync(
+        Task<(int X, int Y)> positionTask,
+        TimeSpan timeout,
+        Func<TimeSpan, Task> delayAsync)
+    {
+        var completedTask = await Task.WhenAny(positionTask, delayAsync(timeout)).ConfigureAwait(false);
+
+        if (completedTask == positionTask)
+        {
+            return await positionTask.ConfigureAwait(false);
+        }
+
+        return null;
+    }
+
+    internal readonly record struct DeadlineResult<T>(bool Completed, T Value);
+
+    internal static async Task<DeadlineResult<T>> AwaitInitializedValueAsync<T>(
+        Task<bool> initializationTask,
+        Task<T> valueTask,
+        TimeSpan timeout,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(initializationTask);
+        ArgumentNullException.ThrowIfNull(valueTask);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        using var timeoutCancellation = new CancellationTokenSource(timeout, timeProvider);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            timeoutCancellation.Token);
+        try
+        {
+            if (!await initializationTask.WaitAsync(deadline.Token).ConfigureAwait(false))
+            {
+                return default;
+            }
+
+            return new DeadlineResult<T>(
+                Completed: true,
+                Value: await valueTask.WaitAsync(deadline.Token).ConfigureAwait(false));
+        }
+        catch (OperationCanceledException) when (
+            timeoutCancellation.IsCancellationRequested &&
+            !cancellationToken.IsCancellationRequested)
+        {
+            return default;
+        }
+    }
+
+    internal bool IsDisposed => Volatile.Read(ref _disposed) is not 0;
+
+    private void ThrowIfDisposedOrCanceled(CancellationToken ct)
+    {
+        if (IsDisposed)
+        {
+            throw new OperationCanceledException(ct);
+        }
+
+        ct.ThrowIfCancellationRequested();
+    }
+
+    private async Task<bool> InitializeAsync(CancellationToken ct)
+    {
+        using var timeoutCancellation = new CancellationTokenSource(ResolutionTimeout, TimeProvider.System);
+        using var initializationCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            ct,
+            timeoutCancellation.Token);
+
+        try
+        {
+            await InitializeDbusAndScriptAsync(initializationCancellation.Token).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested || IsDisposed)
+        {
+            return false;
+        }
+        catch (OperationCanceledException) when (timeoutCancellation.IsCancellationRequested)
+        {
+            Log.Warning("[KdePositionProvider] Initialization timed out after {Timeout}.", ResolutionTimeout);
+            IsSupported = false;
+            await ReleaseRuntimeResourcesAsync().ConfigureAwait(false);
+            CompleteUnavailableState();
+            return false;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[KdePositionProvider] Initialization failed");
+            IsSupported = false;
+            await ReleaseRuntimeResourcesAsync().ConfigureAwait(false);
+            CompleteUnavailableState();
+            return false;
+        }
+    }
+
+    private async Task InitializeDbusAndScriptAsync(CancellationToken ct)
+    {
+        Log.Information("[KdePositionProvider] Initializing DBus service...");
+        _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
+        await LinuxDbusTransportBoundary
+            .AwaitReplyAsync(_dbusConnection.ConnectAsync().AsTask(), KWinScriptLease.DefaultOperationTimeout, ct)
+            .ConfigureAwait(false);
+        ThrowIfDisposedOrCanceled(ct);
+
+        var trackerService = new KdeTrackerService(
+            ApplyPositionUpdate,
+            ApplyResolutionUpdate,
+            onDesktopBoundsUpdate: ApplyDesktopBoundsUpdate);
+        var trackerHandler = new KdeTrackerServiceMethodHandler(trackerService);
+        _dbusConnection.AddMethodHandler(trackerHandler);
+        var callbackDestination = LinuxDbusTransportBoundary.GetUniqueDestination(_dbusConnection);
+        Log.Information("[KdePositionProvider] DBus callback endpoint registered at {Destination}", callbackDestination);
+        ThrowIfDisposedOrCanceled(ct);
+
+        await PrepareAndLoadTrackerScriptAsync(callbackDestination, ct).ConfigureAwait(false);
+    }
+
+    private async Task PrepareAndLoadTrackerScriptAsync(string callbackDestination, CancellationToken ct)
+    {
+        string scriptKey = Guid.NewGuid().ToString("N");
+        _tempJsFile = GetSafeScriptPath($"kde_tracker_{scriptKey}.js");
+
+        var scriptContent = BuildTrackerScriptContent(callbackDestination);
+        await File.WriteAllTextAsync(_tempJsFile, scriptContent, ct).ConfigureAwait(false);
+        ThrowIfDisposedOrCanceled(ct);
+
+        Log.Information("[KdePositionProvider] Loading KWin script via DBus...");
+        if (_dbusConnection is null)
+        {
+            throw new InvalidOperationException("DBus session was not initialized.");
+        }
+
+        _scriptLease = new KWinScriptLease(
+            _dbusConnection,
+            $"io.github.alper_han.crossmacro.position.{scriptKey}",
+            ex => Log.Debug(ex, "[KdePositionProvider] KWin script cleanup failed"));
+        await _scriptLease.LoadAndRunAsync(_tempJsFile, ct).ConfigureAwait(false);
+        ThrowIfDisposedOrCanceled(ct);
+
+        Log.Information(
+            "[KdePositionProvider] Tracking started successfully via DBus with script ID {ScriptId}",
+            _scriptLease.Handle?.Id);
+    }
+
+    private void CompleteUnavailableState()
+    {
+        _ = _positionTcs.TrySetResult((0, 0));
+        _ = _resolutionTcs.TrySetResult((0, 0));
+        _ = _desktopBoundsTcs.TrySetResult(null);
+    }
+
+    private async Task ReleaseRuntimeResourcesAsync()
+    {
+        if (_scriptLease is not null)
+        {
+            await _scriptLease.DisposeAsync().ConfigureAwait(false);
+            _scriptLease = null;
+        }
+
+        _dbusConnection?.Dispose();
+        _dbusConnection = null;
+        DeleteTempScript();
+    }
+
+    private void DeleteTempScript()
+    {
+        string? tempJsFile = _tempJsFile;
+        _tempJsFile = null;
+        if (tempJsFile is null)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(tempJsFile);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Debug(ex, "[KdePositionProvider] Failed to delete temp script file: {File}", tempJsFile);
+        }
+    }
+
+    internal static string BuildTrackerScriptContent(string callbackDestination)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(callbackDestination);
+        return TrackerScriptContent
+            .Replace("__TRACKER_SERVICE_NAME__", callbackDestination, StringComparison.Ordinal)
+            .Replace("__TRACKER_OBJECT_PATH__", KdeTrackerService.TrackerObjectPath, StringComparison.Ordinal)
+            .Replace("__TRACKER_INTERFACE__", KdeTrackerService.TrackerInterface, StringComparison.Ordinal);
+    }
+
+    private static readonly string TrackerScriptContent = LoadEmbeddedScript("CrossMacro.Platform.Linux.DisplayServer.Wayland.KdePositionProvider.js");
+
+    private static string LoadEmbeddedScript(string resourceName)
+    {
+        using var stream = typeof(KdePositionProvider).Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException($"Embedded resource '{resourceName}' not found.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal);
+    }
+
+    public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
+    {
+        if (!IsSupported || IsDisposed)
+        {
             return null;
         }
 
-        public void Dispose()
+        lock (_lock)
         {
-            if (IsDisposed)
-                return;
-
-            Volatile.Write(ref _disposed, 1);
-            _cts.Cancel();
-
-            try
+            if (_hasPosition)
             {
-                _initializationTask?.GetAwaiter().GetResult();
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when startup is canceled during disposal.
-            }
-            catch (AggregateException ex) when (ex.InnerException is OperationCanceledException)
-            {
-                // Expected when startup is canceled during disposal.
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "[KdePositionProvider] Initialization task failed during disposal");
-            }
-
-            // Stop script
-            if (_dbusConnection != null)
-            {
-                StopLoadedScript(
-                    _scriptId,
-                    scriptId => new KWinScriptClient(_dbusConnection, scriptId).StopAsync(),
-                    scriptId => new KWinScriptingClient(_dbusConnection).UnloadScriptAsync(scriptId),
-                    ex => Log.Debug(ex, "[KdePositionProvider] Error stopping/unloading KWin script"));
-            }
-
-            // Clean up DBus
-            _dbusConnection?.Dispose();
-            _cts.Dispose();
-
-            if (_tempJsFile != null && File.Exists(_tempJsFile))
-            {
-                try 
-                { 
-                    File.Delete(_tempJsFile); 
-                } 
-                catch (Exception ex)
-                {
-                    Log.Debug(ex, "[KdePositionProvider] Failed to delete temp script file: {File}", _tempJsFile);
-                }
+                return (_currentX, _currentY);
             }
         }
+
+        (int X, int Y)? position;
+        CancellationToken lifetimeToken;
+        try
+        {
+            lifetimeToken = _cts.Token;
+        }
+        catch (ObjectDisposedException)
+        {
+            return null;
+        }
+
+        try
+        {
+            position = await AwaitPositionAsync(
+                _positionTcs.Task,
+                PositionTimeout,
+                timeout => Task.Delay(timeout, TimeProvider.System, lifetimeToken)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (IsDisposed)
+        {
+            return null;
+        }
+
+        if (position is null || !IsSupported || IsDisposed)
+        {
+            return null;
+        }
+
+        lock (_lock)
+        {
+            return _hasPosition ? (_currentX, _currentY) : null;
+        }
+    }
+
+    public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
+    {
+        if (!IsSupported || IsDisposed)
+        {
+            return null;
+        }
+
+        if (ReadCurrentResolution() is { } currentResolution)
+        {
+            return currentResolution;
+        }
+
+        try
+        {
+            var result = await AwaitInitializedValueAsync(
+                InitializationTask,
+                _resolutionTcs.Task,
+                ResolutionTimeout,
+                TimeProvider.System,
+                _cts.Token).ConfigureAwait(false);
+            if (!result.Completed)
+            {
+                if (IsSupported && !IsDisposed)
+                {
+                    Log.Warning("[KdePositionProvider] Resolution detection timed out; downgrading to unknown resolution mode.");
+                }
+
+                return null;
+            }
+
+            var resolution = result.Value;
+            return resolution.Width > 0 && resolution.Height > 0
+                ? ReadCurrentResolution() ?? resolution
+                : null;
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested || IsDisposed)
+        {
+            return null;
+        }
+        catch (ObjectDisposedException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
+    {
+        if (!IsSupported || IsDisposed)
+        {
+            return null;
+        }
+
+        if (ReadCurrentDesktopBounds() is { } currentBounds)
+        {
+            return currentBounds;
+        }
+
+        try
+        {
+            var result = await AwaitInitializedValueAsync(
+                InitializationTask,
+                _desktopBoundsTcs.Task,
+                ResolutionTimeout,
+                TimeProvider.System,
+                _cts.Token).ConfigureAwait(false);
+            if (result.Completed)
+            {
+                return ReadCurrentDesktopBounds() ?? result.Value;
+            }
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested || IsDisposed)
+        {
+            return null;
+        }
+        catch (ObjectDisposedException)
+        {
+            return null;
+        }
+
+        var resolution = ReadCurrentResolution();
+        return resolution is { Width: > 0, Height: > 0 }
+            ? new ScreenRect(0, 0, resolution.Value.Width, resolution.Value.Height)
+            : null;
+    }
+
+    private (int Width, int Height)? ReadCurrentResolution()
+    {
+        lock (_lock)
+        {
+            return _currentDesktopBounds is { } bounds
+                ? (bounds.Width, bounds.Height)
+                : _currentResolution;
+        }
+    }
+
+    private ScreenRect? ReadCurrentDesktopBounds()
+    {
+        lock (_lock)
+        {
+            return _currentDesktopBounds;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        lock (_disposeStateLock)
+        {
+            _disposeTask ??= DisposeCoreAsync();
+            return new ValueTask(_disposeTask);
+        }
+    }
+
+    private async Task DisposeCoreAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) is not 0)
+        {
+            return;
+        }
+
+        await _cts.CancelAsync().ConfigureAwait(false);
+
+        try
+        {
+            _ = await InitializationTask.ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Debug(ex, "[KdePositionProvider] Initialization task failed during disposal");
+        }
+
+        await ReleaseRuntimeResourcesAsync().ConfigureAwait(false);
+        _cts.Dispose();
+    }
+
+    public void Dispose()
+    {
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
+        GC.SuppressFinalize(this);
     }
 }

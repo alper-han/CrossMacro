@@ -1,18 +1,46 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using CrossMacro.TestInfrastructure;
-using Tmds.DBus.Protocol;
-using Xunit.Sdk;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
-#pragma warning disable CS0618
 [Collection(nameof(DbusIntegrationSerialCollection))]
 public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
 {
+    [DbusSessionFact]
+    public async Task DbusIntegration_UniqueDestinations_ShouldIsolateTrackerCallbacksAcrossConnections()
+    {
+        var firstPosition = (X: 0, Y: 0);
+        var secondPosition = (X: 0, Y: 0);
+
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var firstServiceConnection = bus.CreateConnection();
+        using var secondServiceConnection = bus.CreateConnection();
+        using var clientConnection = bus.CreateConnection();
+
+        await firstServiceConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+        await secondServiceConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+        await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+
+        firstServiceConnection.AddMethodHandler(new KdeTrackerServiceMethodHandler(new KdeTrackerService(
+            (x, y) => firstPosition = (x, y),
+            (_, _) => { })));
+        secondServiceConnection.AddMethodHandler(new KdeTrackerServiceMethodHandler(new KdeTrackerService(
+            (x, y) => secondPosition = (x, y),
+            (_, _) => { })));
+
+        var firstDestination = LinuxDbusTransportBoundary.GetUniqueDestination(firstServiceConnection);
+        var secondDestination = LinuxDbusTransportBoundary.GetUniqueDestination(secondServiceConnection);
+        Assert.NotEqual(firstDestination, secondDestination);
+
+        await new KdeTrackerClient(clientConnection, firstDestination)
+            .UpdatePositionAsync(120, 240)
+            .WaitAsync(SessionBusTimeout);
+        await new KdeTrackerClient(clientConnection, secondDestination)
+            .UpdatePositionAsync(360, 480)
+            .WaitAsync(SessionBusTimeout);
+
+        Assert.Equal((120, 240), firstPosition);
+        Assert.Equal((360, 480), secondPosition);
+    }
+
     [DbusSessionFact]
     public async Task DbusIntegration_TrackerServiceRegistrationAndClientRoundTrip_ShouldInvokeExportedHandlers()
     {
@@ -23,8 +51,10 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         using var serviceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
-        await serviceConnection.ConnectAsync();
-        await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+        await serviceConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+        await clientConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         var service = new KdeTrackerService(
             (x, y) => position = (x, y),
@@ -102,7 +132,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         wrongInterfaceRequest.WriteInt32(240);
         var wrongInterfaceMessage = wrongInterfaceRequest.CreateMessage();
 
-        var exception = await Assert.ThrowsAnyAsync<DBusException>(() =>
+        var exception = await Assert.ThrowsAnyAsync<DBusErrorReplyException>(() =>
             clientConnection.CallMethodAsync(wrongInterfaceMessage).WaitAsync(SessionBusTimeout));
 
         Assert.Equal("org.freedesktop.DBus.Error.UnknownMethod", exception.ErrorName);
@@ -140,7 +170,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         invalidSignatureRequest.WriteString("oops");
         var invalidSignatureMessage = invalidSignatureRequest.CreateMessage();
 
-        var exception = await Assert.ThrowsAnyAsync<DBusException>(() =>
+        var exception = await Assert.ThrowsAnyAsync<DBusErrorReplyException>(() =>
             clientConnection.CallMethodAsync(invalidSignatureMessage).WaitAsync(SessionBusTimeout));
 
         Assert.Equal("org.freedesktop.DBus.Error.InvalidArgs", exception.ErrorName);
@@ -188,10 +218,12 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
     }
 
     [DbusSessionFact]
-    public async Task DbusIntegration_KWinScriptingClient_ShouldSendScriptNameForUnload()
+    public async Task DbusIntegration_KWinScriptingClient_ShouldSendPathAndPluginNameForLoad()
     {
-        const string expectedScriptName = "42";
-        string? receivedScriptName = null;
+        const string expectedPath = "/tmp/crossmacro-tracker.js";
+        const string expectedPluginName = "io.github.alper_han.crossmacro.position.test";
+        string? receivedPath = null;
+        string? receivedPluginName = null;
 
         await using var bus = await CreatePrivateSessionBusAsync();
         using var serviceConnection = bus.CreateConnection();
@@ -203,50 +235,113 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         serviceConnection.AddMethodHandler(new RecordingMethodHandler(
             KWinScriptingClient.Path,
             KWinScriptingClient.Interface,
+            "loadScript",
+            request =>
+            {
+                Assert.Equal("ss", request.SignatureAsString);
+                var reader = request.GetBodyReader();
+                receivedPath = reader.ReadString();
+                receivedPluginName = reader.ReadString();
+            },
+            "i",
+            (ref MessageWriter writer) => writer.WriteInt32(42)));
+
+        await serviceConnection.RequestNameAsync(KWinScriptingClient.Service, RequestNameOptions.Default)
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+
+        var client = new KWinScriptingClient(clientConnection);
+        var scriptId = await client.LoadScriptAsync(expectedPath, expectedPluginName)
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+
+        Assert.Equal(42, scriptId);
+        Assert.Equal(expectedPath, receivedPath);
+        Assert.Equal(expectedPluginName, receivedPluginName);
+    }
+
+    [DbusSessionFact]
+    public async Task DbusIntegration_KWinScriptingClient_ShouldSendPluginNameForUnload()
+    {
+        const string expectedScriptName = "io.github.alper_han.crossmacro.position.test";
+        string? receivedScriptName = null;
+
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var serviceConnection = bus.CreateConnection();
+        using var clientConnection = bus.CreateConnection();
+
+        await serviceConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+        await clientConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+
+        serviceConnection.AddMethodHandler(new RecordingMethodHandler(
+            KWinScriptingClient.Path,
+            KWinScriptingClient.Interface,
             "unloadScript",
             request =>
             {
                 receivedScriptName = request.GetBodyReader().ReadString();
             },
-            replySignature: null,
-            writeReply: null));
+            "b",
+            (ref MessageWriter writer) => writer.WriteBool(true)));
 
         await serviceConnection.RequestNameAsync(KWinScriptingClient.Service, RequestNameOptions.Default)
-            .WaitAsync(SessionBusTimeout);
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         var client = new KWinScriptingClient(clientConnection);
-        await client.UnloadScriptAsync(expectedScriptName).WaitAsync(SessionBusTimeout);
+        await client.UnloadScriptAsync(expectedScriptName)
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(expectedScriptName, receivedScriptName);
     }
 
+    [DbusSessionFact]
+    public async Task DbusIntegration_KWinScriptClient_ShouldRouteRunByNumericId()
+    {
+        var runReceived = false;
+
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var serviceConnection = bus.CreateConnection();
+        using var clientConnection = bus.CreateConnection();
+
+        await serviceConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+        await clientConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+
+        serviceConnection.AddMethodHandler(new RecordingMethodHandler(
+            "/Scripting/Script42",
+            KWinScriptClient.Interface,
+            "run",
+            _ => runReceived = true,
+            replySignature: null,
+            writeReply: null));
+
+        await serviceConnection.RequestNameAsync(KWinScriptClient.Service, RequestNameOptions.Default)
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+
+        await new KWinScriptClient(clientConnection, 42).RunAsync()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+
+        Assert.True(runReceived);
+    }
+
     private delegate void ReplyWriter(ref MessageWriter writer);
 
-    private sealed class RecordingMethodHandler : IPathMethodHandler
+    private sealed class RecordingMethodHandler(
+        string path,
+        string expectedInterface,
+        string expectedMember,
+        Action<Message> onRequest,
+        string? replySignature,
+DbusIntegrationTrackerInteropTests.ReplyWriter? writeReply) : IPathMethodHandler
     {
-        private readonly string _expectedInterface;
-        private readonly string _expectedMember;
-        private readonly Action<Message> _onRequest;
-        private readonly string? _replySignature;
-        private readonly ReplyWriter? _writeReply;
+        private readonly string _expectedInterface = expectedInterface;
+        private readonly string _expectedMember = expectedMember;
+        private readonly Action<Message> _onRequest = onRequest;
+        private readonly string? _replySignature = replySignature;
+        private readonly ReplyWriter? _writeReply = writeReply;
 
-        public RecordingMethodHandler(
-            string path,
-            string expectedInterface,
-            string expectedMember,
-            Action<Message> onRequest,
-            string? replySignature,
-            ReplyWriter? writeReply)
-        {
-            Path = path;
-            _expectedInterface = expectedInterface;
-            _expectedMember = expectedMember;
-            _onRequest = onRequest;
-            _replySignature = replySignature;
-            _writeReply = writeReply;
-        }
-
-        public string Path { get; }
+        public string Path { get; } = path;
 
         public bool HandlesChildPaths => false;
 
@@ -284,4 +379,3 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         }
     }
 }
-#pragma warning restore CS0618

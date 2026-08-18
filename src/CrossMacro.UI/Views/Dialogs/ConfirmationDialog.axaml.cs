@@ -1,5 +1,3 @@
-using Avalonia.Controls;
-using Avalonia.Interactivity;
 
 namespace CrossMacro.UI.Views.Dialogs;
 
@@ -25,7 +23,7 @@ public partial class ConfirmationDialog : Window
 
         SetButtonStyle(YesButton, dangerYes ? "danger" : "primary");
         SetButtonStyle(NoButton, dangerNo ? "danger" : "secondary");
-        
+
         if (string.IsNullOrEmpty(noText))
         {
             NoButton.IsVisible = false;
@@ -34,19 +32,19 @@ public partial class ConfirmationDialog : Window
 
     private void YesButton_Click(object? sender, RoutedEventArgs e)
     {
-        Close(true);
+        Close(dialogResult: true);
     }
 
     private void NoButton_Click(object? sender, RoutedEventArgs e)
     {
-        Close(false);
+        Close(dialogResult: false);
     }
 
     private static void SetButtonStyle(Button button, string styleClass)
     {
-        button.Classes.Remove("primary");
-        button.Classes.Remove("secondary");
-        button.Classes.Remove("danger");
+        _ = button.Classes.Remove("primary");
+        _ = button.Classes.Remove("secondary");
+        _ = button.Classes.Remove("danger");
         button.Classes.Add(styleClass);
     }
 }

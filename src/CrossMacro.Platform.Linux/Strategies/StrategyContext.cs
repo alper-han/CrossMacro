@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Linux.DisplayServer;
 
 namespace CrossMacro.Platform.Linux.Strategies;
 

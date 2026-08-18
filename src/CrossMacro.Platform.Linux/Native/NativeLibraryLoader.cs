@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Linux.Native;
 
@@ -51,12 +50,9 @@ internal static class NativeLibraryLoader
             yield break;
         }
 
-        foreach (var directory in raw.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var directory in raw.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(Directory.Exists))
         {
-            if (Directory.Exists(directory))
-            {
-                yield return directory;
-            }
+            yield return directory;
         }
     }
 }

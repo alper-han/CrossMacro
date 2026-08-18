@@ -1,30 +1,23 @@
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
 /// <summary>
 /// Parses hotkey strings into structured HotkeyMapping objects.
 /// </summary>
-public class HotkeyParser : IHotkeyParser
+public class HotkeyParser(IKeyCodeMapper keyCodeMapper) : IHotkeyParser
 {
-    private readonly IKeyCodeMapper _keyCodeMapper;
-    
-    public HotkeyParser(IKeyCodeMapper keyCodeMapper)
-    {
-        _keyCodeMapper = keyCodeMapper;
-    }
-    
+    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper;
+
     public HotkeyMapping Parse(string hotkeyString)
     {
         var mapping = new HotkeyMapping();
-        
+
         if (string.IsNullOrWhiteSpace(hotkeyString))
+        {
             return mapping;
-        
-        var parts = hotkeyString.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        
-        foreach (var part in parts)
+        }
+
+        foreach (var part in hotkeyString.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var keyCode = _keyCodeMapper.GetKeyCode(part);
             if (keyCode == -1)
@@ -35,7 +28,7 @@ public class HotkeyParser : IHotkeyParser
 
             if (_keyCodeMapper.IsModifierKeyCode(keyCode))
             {
-                mapping.RequiredModifiers.Add(keyCode);
+                _ = mapping.RequiredModifiers.Add(keyCode);
             }
             else
             {

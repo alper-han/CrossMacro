@@ -1,13 +1,11 @@
-using System;
-using System.Threading.Tasks;
 
 namespace CrossMacro.Platform.Abstractions;
 
 public interface IScreenFrameProvider : IDisposable
 {
-    string ProviderName { get; }
+    public string ProviderName { get; }
 
-    bool IsSupported { get; }
+    public bool IsSupported { get; }
 
-    Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options);
+    public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options);
 }

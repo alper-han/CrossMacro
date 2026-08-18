@@ -1,64 +1,61 @@
-using System;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
-internal sealed class TextExpansionKeyDispatcher
+internal static class TextExpansionKeyDispatcher
 {
-    public async Task SendKeyAsync(
+    public static async Task SendKeyAsync(
         IInputSimulator simulator,
         int keyCode,
         bool shift = false,
         bool altGr = false,
         bool ctrl = false,
-        bool meta = false)
+        bool meta = false,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(simulator);
 
         if (ctrl)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, true);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, pressed: true);
         }
 
         if (meta)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, true);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, pressed: true);
         }
 
         if (shift)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, true);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, pressed: true);
         }
 
         if (altGr)
         {
-            SendKeyState(simulator, InputEventCode.KEY_RIGHTALT, true);
+            SendKeyState(simulator, InputEventCode.KEY_RIGHTALT, pressed: true);
         }
 
-        SendKeyState(simulator, keyCode, true);
-        await Task.Delay(TextExpansionExecutionTimings.KeyPressReleaseDelay);
-        SendKeyState(simulator, keyCode, false);
+        SendKeyState(simulator, keyCode, pressed: true);
+        await Task.Delay(TextExpansionExecutionTimings.KeyPressReleaseDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+        SendKeyState(simulator, keyCode, pressed: false);
 
         if (altGr)
         {
-            SendKeyState(simulator, InputEventCode.KEY_RIGHTALT, false);
+            SendKeyState(simulator, InputEventCode.KEY_RIGHTALT, pressed: false);
         }
 
         if (shift)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, false);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTSHIFT, pressed: false);
         }
 
         if (meta)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, false);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTMETA, pressed: false);
         }
 
         if (ctrl)
         {
-            SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, false);
+            SendKeyState(simulator, InputEventCode.KEY_LEFTCTRL, pressed: false);
         }
     }
 

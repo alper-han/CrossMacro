@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using CrossMacro.Daemon.Contracts.Ipc;
 
 namespace CrossMacro.Daemon.Tests.Contracts;
 
@@ -25,11 +23,11 @@ public sealed class IpcProtocolContractTests
     [Fact]
     public void ProtocolConstants_ShouldKeepExpectedWireValues()
     {
-        Assert.Equal(3, IpcProtocol.ProtocolVersion);
+        Assert.Equal(4, IpcProtocol.ProtocolVersion);
         Assert.Equal("/run/crossmacro/crossmacro.sock", IpcProtocol.DefaultSocketPath);
         Assert.Equal(4096, IpcProtocol.MaxSimulationBatchEvents);
-        Assert.Equal(1000, IpcProtocol.MaxSimulationBatchDelayMs);
-        Assert.Equal(5000, IpcProtocol.MaxSimulationBatchTotalDelayMs);
+        Assert.Equal(1_000_000, IpcProtocol.MaxSimulationBatchDelayMicroseconds);
+        Assert.Equal(5_000_000, IpcProtocol.MaxSimulationBatchTotalDelayMicroseconds);
     }
 
     [Fact]
@@ -50,7 +48,7 @@ public sealed class IpcProtocolContractTests
             Type = 1,
             Code = 30,
             Value = 1,
-            Timestamp = 123456789
+            Timestamp = 123456789,
         };
 
         Assert.Equal((byte)1, evt.Type);
@@ -62,11 +60,11 @@ public sealed class IpcProtocolContractTests
     [Fact]
     public void IpcSimulationRequest_ShouldKeepPackedSequentialLayout()
     {
-        Assert.Equal(12, Marshal.SizeOf<IpcSimulationRequest>());
+        Assert.Equal(16, Marshal.SizeOf<IpcSimulationRequest>());
         Assert.Equal(0, Marshal.OffsetOf<IpcSimulationRequest>(nameof(IpcSimulationRequest.Type)).ToInt32());
         Assert.Equal(2, Marshal.OffsetOf<IpcSimulationRequest>(nameof(IpcSimulationRequest.Code)).ToInt32());
         Assert.Equal(4, Marshal.OffsetOf<IpcSimulationRequest>(nameof(IpcSimulationRequest.Value)).ToInt32());
-        Assert.Equal(8, Marshal.OffsetOf<IpcSimulationRequest>(nameof(IpcSimulationRequest.DelayAfterMs)).ToInt32());
+        Assert.Equal(8, Marshal.OffsetOf<IpcSimulationRequest>(nameof(IpcSimulationRequest.DelayAfterMicroseconds)).ToInt32());
     }
 
     [Fact]
@@ -77,12 +75,13 @@ public sealed class IpcProtocolContractTests
             Type = 2,
             Code = 15,
             Value = -1,
-            DelayAfterMs = 25
+            DelayAfterMicroseconds = 25_000,
         };
 
         Assert.Equal((ushort)2, request.Type);
         Assert.Equal((ushort)15, request.Code);
         Assert.Equal(-1, request.Value);
-        Assert.Equal(25, request.DelayAfterMs);
+        Assert.Equal(25_000, request.DelayAfterMicroseconds);
     }
+
 }

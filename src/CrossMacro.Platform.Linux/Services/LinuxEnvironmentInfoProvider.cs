@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer;
 
 namespace CrossMacro.Platform.Linux.Services;
 
@@ -12,11 +10,15 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     private const string WindowButtonsEnvKey = "CROSSMACRO_WINDOW_BUTTONS";
     private readonly CompositorType _compositor;
     private readonly bool _windowManagerHandlesCloseButton;
-    
-    public LinuxEnvironmentInfoProvider()
-        : this(CompositorDetector.DetectCompositor(), new LinuxEnvironmentVariables().CaptureSnapshot().WindowButtons)
-    {
-    }
+
+    /// <summary>
+    /// Captures the live environment at call time. Prefer the snapshot-backed
+    /// constructor in production composition so the environment is captured
+    /// once at the boundary and passed through.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Advanced)]
+    internal LinuxEnvironmentInfoProvider()
+        : this(CompositorDetector.DetectCompositor(), LinuxEnvironmentVariables.CaptureCurrentSnapshot().WindowButtons) { /* Empty */ }
 
     public LinuxEnvironmentInfoProvider(
         ILinuxEnvironmentDetector environmentDetector,
@@ -24,16 +26,19 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         : this(
             (environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector))).DetectedCompositor,
             (environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot().WindowButtons)
-    {
-    }
-    
+    { /* Empty */ }
+
+    public LinuxEnvironmentInfoProvider(LinuxEnvironmentSnapshot environment)
+        : this(
+            CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux()),
+            environment.WindowButtons)
+    { /* Empty */ }
+
     /// <summary>
     /// Constructor for testing with explicit compositor type.
     /// </summary>
     internal LinuxEnvironmentInfoProvider(CompositorType compositor)
-        : this(compositor, (string?)null)
-    {
-    }
+        : this(compositor, (string?)null) { /* Empty */ }
 
     /// <summary>
     /// Constructor for testing with explicit compositor type and environment accessor.
@@ -63,7 +68,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
             compositor,
             windowButtonsMode);
     }
-    
+
     public DisplayEnvironment CurrentEnvironment => _compositor switch
     {
         CompositorType.X11 => DisplayEnvironment.LinuxX11,
@@ -71,32 +76,34 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         CompositorType.WAYFIRE => DisplayEnvironment.LinuxWayfire,
         CompositorType.NIRI => DisplayEnvironment.LinuxWayland,
         CompositorType.COSMIC => DisplayEnvironment.LinuxWayland,
+        CompositorType.SWAY => DisplayEnvironment.LinuxWayland,
         CompositorType.KDE => DisplayEnvironment.LinuxKDE,
         CompositorType.GNOME => DisplayEnvironment.LinuxGnome,
         CompositorType.Other => DisplayEnvironment.LinuxWayland,
-        _ => DisplayEnvironment.Unknown
+        CompositorType.Unknown => DisplayEnvironment.Unknown,
+        _ => DisplayEnvironment.Unknown,
     };
-    
+
     public bool WindowManagerHandlesCloseButton => _windowManagerHandlesCloseButton;
 
     private static bool ResolveWindowManagerHandlesCloseButton(
         CompositorType compositor,
         string? windowButtonsMode)
     {
-        // Default behavior: on Hyprland, let compositor title bar controls own close/minimize affordance.
-        var defaultValue = compositor == CompositorType.HYPRLAND;
+        // Default behavior: on tiling WMs like Hyprland, Sway, and Niri, let compositor title bar controls own close/minimize affordance.
+        var defaultValue = compositor is CompositorType.HYPRLAND or CompositorType.SWAY or CompositorType.NIRI;
 
         if (string.IsNullOrWhiteSpace(windowButtonsMode))
         {
             return defaultValue;
         }
 
-        return windowButtonsMode.Trim().ToLowerInvariant() switch
+        return windowButtonsMode.Trim().ToUpperInvariant() switch
         {
-            "show" or "1" or "true" or "yes" or "on" => false,
-            "hide" or "0" or "false" or "no" or "off" => true,
-            "auto" => defaultValue,
-            _ => defaultValue
+            "SHOW" or "1" or "TRUE" or "YES" or "ON" => false,
+            "HIDE" or "0" or "FALSE" or "NO" or "OFF" => true,
+            "AUTO" => defaultValue,
+            _ => defaultValue,
         };
     }
 }

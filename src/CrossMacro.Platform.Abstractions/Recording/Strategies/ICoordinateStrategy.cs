@@ -1,12 +1,13 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CrossMacro.Platform.Abstractions;
 
 public interface ICoordinateStrategy : IDisposable
 {
-    Task InitializeAsync(CancellationToken ct);
+    public bool ProducesLogicalCoordinates { get; }
 
-    (int X, int Y) ProcessPosition(InputCaptureEventArgs e);
+    public bool ProducesRelativeCoordinates { get; }
+
+    public Task InitializeAsync(CancellationToken ct);
+
+    public CoordinateSample ProcessPosition(CapturedInputEvent e);
 }

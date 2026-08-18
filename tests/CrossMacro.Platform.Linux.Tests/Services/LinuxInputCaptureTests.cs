@@ -1,14 +1,7 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Linux.Native.Evdev;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
-using CrossMacro.TestInfrastructure;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
-public class LinuxInputCaptureTests
+public sealed class LinuxInputCaptureTests
 {
     [LinuxFact]
     public async Task StartAsync_WhenNoMatchingDevicesFound_ShouldThrowInvalidOperationException()
@@ -32,8 +25,8 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-test",
                 Name = "Test Keyboard",
-                IsKeyboard = true
-            }
+                IsKeyboard = true,
+            },
         };
 
         using var capture = new LinuxInputCapture(
@@ -55,8 +48,8 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-test",
                 Name = "Test Mouse",
-                IsMouse = true
-            }
+                IsMouse = true,
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -82,8 +75,8 @@ public class LinuxInputCaptureTests
                 Path = "/dev/input/event-test",
                 Name = "Combo Device",
                 IsMouse = true,
-                IsKeyboard = true
-            }
+                IsKeyboard = true,
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -91,14 +84,20 @@ public class LinuxInputCaptureTests
         capture.Configure(captureMouse: true, captureKeyboard: false);
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) =>
+        {
+            if (args.Event.Type is not InputEventType.Sync)
+            {
+                received = args.Event;
+            }
+        };
 
-        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
+        reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
         Assert.Null(received);
 
-        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = UInputNative.BTN_LEFT, value = 1 });
-        Assert.NotNull(received);
+        reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = UInputNative.BTN_LEFT, value = 1 });
+        _ = Assert.NotNull(received);
         Assert.Equal(InputEventType.MouseButton, received!.Value.Type);
     }
 
@@ -112,8 +111,8 @@ public class LinuxInputCaptureTests
                 Path = "/dev/input/event-test",
                 Name = "Combo Device",
                 IsMouse = true,
-                IsKeyboard = true
-            }
+                IsKeyboard = true,
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -121,14 +120,20 @@ public class LinuxInputCaptureTests
         capture.Configure(captureMouse: false, captureKeyboard: true);
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) =>
+        {
+            if (args.Event.Type is not InputEventType.Sync)
+            {
+                received = args.Event;
+            }
+        };
 
-        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = UInputNative.BTN_LEFT, value = 1 });
+        reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = UInputNative.BTN_LEFT, value = 1 });
         Assert.Null(received);
 
-        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
-        Assert.NotNull(received);
+        reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
+        _ = Assert.NotNull(received);
         Assert.Equal(InputEventType.Key, received!.Value.Type);
     }
 
@@ -141,8 +146,8 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-test",
                 Name = "Absolute Pointer",
-                IsMouse = true
-            }
+                IsMouse = true,
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -150,14 +155,111 @@ public class LinuxInputCaptureTests
         capture.Configure(captureMouse: true, captureKeyboard: false);
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) =>
+        {
+            if (args.Event.Type is not InputEventType.Sync)
+            {
+                received = args.Event;
+            }
+        };
 
-        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_ABS, code = UInputNative.ABS_X, value = 512 });
-        Assert.NotNull(received);
+        reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_ABS, code = UInputNative.ABS_X, value = 512 });
+        _ = Assert.NotNull(received);
         Assert.Equal(InputEventType.MouseMove, received!.Value.Type);
         Assert.Equal(UInputNative.ABS_X, received.Value.Code);
         Assert.Equal(512, received.Value.Value);
+    }
+
+    [LinuxFact]
+    public async Task StartAsync_WhenRelativeReportHasKernelTimestamp_ForwardsTimestampMicroseconds()
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-test",
+                Name = "Relative Mouse",
+                IsMouse = true,
+            },
+        };
+        var reader = new FakeLinuxInputReader();
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        var received = new List<CapturedInputEvent>();
+        capture.InputReceived += (_, args) => received.Add(args.Event);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        var timestampSeconds = (IntPtr)1_700_000_123L;
+        var timestampMicroseconds = (IntPtr)456_789;
+        reader.Emit(new UInputNative.input_event
+        {
+            time_sec = timestampSeconds,
+            time_usec = timestampMicroseconds,
+            type = UInputNative.EV_REL,
+            code = UInputNative.REL_X,
+            value = 4,
+        });
+        reader.Emit(new UInputNative.input_event
+        {
+            time_sec = timestampSeconds,
+            time_usec = timestampMicroseconds,
+            type = UInputNative.EV_REL,
+            code = UInputNative.REL_Y,
+            value = -2,
+        });
+        reader.Emit(new UInputNative.input_event
+        {
+            time_sec = timestampSeconds,
+            time_usec = timestampMicroseconds,
+            type = UInputNative.EV_SYN,
+            code = UInputNative.SYN_REPORT,
+        });
+
+        _ = received.Select(static inputEvent =>
+                (inputEvent.Type, inputEvent.Code, inputEvent.Value, inputEvent.TimestampMicroseconds))
+            .Should()
+            .Equal(
+                (InputEventType.MouseMove, (int)UInputNative.REL_X, 4, 1_700_000_123_456_789L),
+                (InputEventType.MouseMove, (int)UInputNative.REL_Y, -2, 1_700_000_123_456_789L),
+                (InputEventType.Sync, (int)UInputNative.SYN_REPORT, 0, 1_700_000_123_456_789L));
+    }
+
+    [LinuxFact]
+    public async Task StartAsync_WhenRelativeReportHasInvalidKernelTimestamp_UsesFallbackTimestamp()
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-test",
+                Name = "Relative Mouse",
+                IsMouse = true,
+            },
+        };
+        var reader = new FakeLinuxInputReader();
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        var received = new List<CapturedInputEvent>();
+        capture.InputReceived += (_, args) => received.Add(args.Event);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        reader.Emit(new UInputNative.input_event
+        {
+            type = UInputNative.EV_REL,
+            code = UInputNative.REL_X,
+            value = 4,
+        });
+        reader.Emit(new UInputNative.input_event
+        {
+            type = UInputNative.EV_SYN,
+            code = UInputNative.SYN_REPORT,
+        });
+
+        _ = received.Should().HaveCount(2);
+        _ = received.Should().OnlyContain(inputEvent => inputEvent.TimestampMicroseconds > 0);
     }
 
     [LinuxFact]
@@ -169,8 +271,8 @@ public class LinuxInputCaptureTests
             {
                 Path = "/dev/input/event-test",
                 Name = "Wheel Mouse",
-                IsMouse = true
-            }
+                IsMouse = true,
+            },
         };
         var reader = new FakeLinuxInputReader();
 
@@ -178,14 +280,133 @@ public class LinuxInputCaptureTests
         capture.Configure(captureMouse: true, captureKeyboard: false);
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) =>
+        {
+            if (args.Event.Type is not InputEventType.Sync)
+            {
+                received = args.Event;
+            }
+        };
 
-        reader.Emit(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_HWHEEL, value = 1 });
+        reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_HWHEEL, value = 1 });
 
-        Assert.NotNull(received);
+        _ = Assert.NotNull(received);
         Assert.Equal(InputEventType.MouseScroll, received!.Value.Type);
         Assert.Equal(UInputNative.REL_HWHEEL, received.Value.Code);
+    }
+
+    [LinuxTheory]
+    [InlineData(UInputNative.REL_WHEEL_HI_RES)]
+    [InlineData(UInputNative.REL_HWHEEL_HI_RES)]
+    public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsHighResolutionWheelAsScrollEvent(ushort code)
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-test",
+                Name = "High Resolution Wheel Mouse",
+                IsMouse = true,
+            },
+        };
+        var reader = new FakeLinuxInputReader();
+
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        await capture.StartAsync(CancellationToken.None);
+
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) =>
+        {
+            if (args.Event.Type is not InputEventType.Sync)
+            {
+                received = args.Event;
+            }
+        };
+
+        reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_REL, code = code, value = 120 });
+
+        _ = Assert.NotNull(received);
+        Assert.Equal(InputEventType.MouseScroll, received!.Value.Type);
+        Assert.Equal(code, received.Value.Code);
+    }
+
+    [LinuxTheory]
+    [InlineData(UInputNative.REL_X)]
+    [InlineData(UInputNative.REL_Y)]
+    public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsRelativeAxisAsMouseMove(ushort code)
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-test",
+                Name = "Relative Mouse",
+                IsMouse = true,
+            },
+        };
+        var reader = new FakeLinuxInputReader();
+
+        using var capture = new LinuxInputCapture(() => devices, _ => reader);
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        await capture.StartAsync(CancellationToken.None);
+
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) =>
+        {
+            if (args.Event.Type is not InputEventType.Sync)
+            {
+                received = args.Event;
+            }
+        };
+
+        reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_REL, code = code, value = 10 });
+
+        _ = Assert.NotNull(received);
+        Assert.Equal(InputEventType.MouseMove, received!.Value.Type);
+        Assert.Equal(code, received.Value.Code);
+    }
+
+    [LinuxFact]
+    public async Task StartAsync_WhenDeviceReportsOverlap_ForwardsEachReportAtomically()
+    {
+        var devices = new[]
+        {
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-mouse",
+                Name = "Mouse",
+                IsMouse = true,
+            },
+            new InputDeviceHelper.InputDevice
+            {
+                Path = "/dev/input/event-keyboard",
+                Name = "Keyboard",
+                IsKeyboard = true,
+            },
+        };
+        var mouseReader = new FakeLinuxInputReader(deviceName: "Mouse");
+        var keyboardReader = new FakeLinuxInputReader(deviceName: "Keyboard");
+        using var capture = new LinuxInputCapture(
+            () => devices,
+            device => device.IsMouse ? mouseReader : keyboardReader);
+        capture.Configure(captureMouse: true, captureKeyboard: true);
+        var received = new List<CapturedInputEvent>();
+        capture.InputReceived += (_, args) => received.Add(args.Event);
+
+        await capture.StartAsync(CancellationToken.None);
+        mouseReader.Emit(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_X, value = 4 });
+        keyboardReader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
+        mouseReader.Emit(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_Y, value = 6 });
+        mouseReader.Emit(new UInputNative.input_event { type = UInputNative.EV_SYN, code = UInputNative.SYN_REPORT });
+
+        _ = received.Select(inputEvent => (inputEvent.DeviceName, inputEvent.Type, inputEvent.Code)).Should().Equal(
+            ("Keyboard", InputEventType.Key, 30),
+            ("Keyboard", InputEventType.Sync, (int)UInputNative.SYN_REPORT),
+            ("Mouse", InputEventType.MouseMove, (int)UInputNative.REL_X),
+            ("Mouse", InputEventType.MouseMove, (int)UInputNative.REL_Y),
+            ("Mouse", InputEventType.Sync, (int)UInputNative.SYN_REPORT));
     }
 
     [LinuxFact]
@@ -200,14 +421,14 @@ public class LinuxInputCaptureTests
                 Name = VirtualDeviceConstants.DeviceName,
                 IsKeyboard = true,
                 VendorId = VirtualDeviceConstants.VendorId,
-                ProductId = VirtualDeviceConstants.ProductId
+                ProductId = VirtualDeviceConstants.ProductId,
             },
             new InputDeviceHelper.InputDevice
             {
                 Path = "/dev/input/event-real",
                 Name = "Real Keyboard",
-                IsKeyboard = true
-            }
+                IsKeyboard = true,
+            },
         };
 
         var realReader = new FakeLinuxInputReader(deviceName: "Real Keyboard");
@@ -215,7 +436,7 @@ public class LinuxInputCaptureTests
             () => devices,
             device =>
             {
-                if (device.Name == VirtualDeviceConstants.DeviceName)
+                if (string.Equals(device.Name, VirtualDeviceConstants.DeviceName, StringComparison.Ordinal))
                 {
                     virtualFactoryCalls++;
                     return new FakeLinuxInputReader(deviceName: VirtualDeviceConstants.DeviceName);
@@ -242,8 +463,8 @@ public class LinuxInputCaptureTests
                 Name = VirtualDeviceConstants.DeviceName,
                 IsKeyboard = true,
                 VendorId = 0x9999,
-                ProductId = 0x8888
-            }
+                ProductId = 0x8888,
+            },
         };
 
         using var capture = new LinuxInputCapture(() => devices, _ => reader);
@@ -267,8 +488,8 @@ public class LinuxInputCaptureTests
                 IsVirtual = true,
                 IsKeyboard = true,
                 VendorId = 0xdec0,
-                ProductId = 0x5eba
-            }
+                ProductId = 0x5eba,
+            },
         };
 
         using var capture = new LinuxInputCapture(() => devices, _ => virtualKeyboardReader);
@@ -276,30 +497,30 @@ public class LinuxInputCaptureTests
 
         await capture.StartAsync(CancellationToken.None);
 
-        InputCaptureEventArgs? received = null;
-        capture.InputReceived += (_, args) => received = args;
+        CapturedInputEvent? received = null;
+        capture.InputReceived += (_, args) =>
+        {
+            if (args.Event.Type is not InputEventType.Sync)
+            {
+                received = args.Event;
+            }
+        };
 
-        virtualKeyboardReader.Emit(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
+        virtualKeyboardReader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
 
         Assert.Equal(1, virtualKeyboardReader.StartCalls);
-        Assert.NotNull(received);
+        _ = Assert.NotNull(received);
         Assert.Equal(InputEventType.Key, received!.Value.Type);
         Assert.Equal("gsr-ui virtual keyboard", received.Value.DeviceName);
     }
 
-    private sealed class FakeLinuxInputReader : LinuxInputCapture.ILinuxInputReader
+    private sealed class FakeLinuxInputReader(string deviceName = "Fake Reader", Exception? startException = null) : LinuxInputCapture.ILinuxInputReader
     {
-        private readonly Exception? _startException;
-        private readonly string _deviceName;
+        private readonly Exception? _startException = startException;
+
         private event Action<LinuxInputCapture.ILinuxInputReader, UInputNative.input_event>? EventReceivedInternal;
 
-        public FakeLinuxInputReader(string deviceName = "Fake Reader", Exception? startException = null)
-        {
-            _deviceName = deviceName;
-            _startException = startException;
-        }
-
-        public string DeviceName => _deviceName;
+        public string DeviceName { get; } = deviceName;
         public int StartCalls { get; private set; }
         public int StopCalls { get; private set; }
 
@@ -318,13 +539,13 @@ public class LinuxInputCaptureTests
         public void Start()
         {
             StartCalls++;
-            if (_startException != null)
+            if (_startException is not null)
             {
                 throw _startException;
             }
         }
 
-        public void Stop()
+        public void StopCapture()
         {
             StopCalls++;
         }
@@ -333,9 +554,25 @@ public class LinuxInputCaptureTests
         {
         }
 
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
         public void Emit(UInputNative.input_event inputEvent)
         {
             EventReceivedInternal?.Invoke(this, inputEvent);
+        }
+
+        public void EmitReport(params UInputNative.input_event[] events)
+        {
+            foreach (var inputEvent in events)
+            {
+                Emit(inputEvent);
+            }
+
+            Emit(new UInputNative.input_event
+            {
+                type = UInputNative.EV_SYN,
+                code = UInputNative.SYN_REPORT,
+            });
         }
     }
 }

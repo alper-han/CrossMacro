@@ -1,8 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
+             xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -13,7 +15,7 @@
              x:Name="Root">
 
     <Design.DataContext>
-        <vm:DesignTextExpansionViewModel/>
+        <designVm:DesignTextExpansionViewModel/>
     </Design.DataContext>
 
     <Panel>
@@ -70,7 +72,7 @@
                                           CornerRadius="6">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Converter={x:Static tabs:TextExpansionConverters.InsertionModeDisplayText}}"/>
+                                            <TextBlock Text="{Binding Converter={x:Static conv:TextExpansionConverters.InsertionModeDisplayText}}"/>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
@@ -86,7 +88,7 @@
                                           CornerRadius="6">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Converter={x:Static tabs:TextExpansionConverters.PasteMethodDisplayText}}"/>
+                                            <TextBlock Text="{Binding Converter={x:Static conv:TextExpansionConverters.PasteMethodDisplayText}}"/>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
@@ -102,7 +104,7 @@
                                           CornerRadius="6">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Converter={x:Static tabs:TextExpansionConverters.DirectTypingMethodDisplayText}}"/>
+                                            <TextBlock Text="{Binding Converter={x:Static conv:TextExpansionConverters.DirectTypingMethodDisplayText}}"/>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
@@ -149,7 +151,7 @@
                         <!-- List -->
                         <ItemsControl Grid.Row="1" ItemsSource="{Binding Expansions}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="core:TextExpansion">
+                                <DataTemplate x:DataType="core:TextExpansionEntry">
                                     <Border Background="Transparent"
                                             BorderBrush="{DynamicResource SurfaceHoverBrush}"
                                             BorderThickness="0,0,0,0"
@@ -159,7 +161,7 @@
     <!-- Checkbox -->
                                             <CheckBox Grid.Column="0"
                                                       IsChecked="{Binding IsEnabled}"
-                                                      Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext).ToggleExpansionCommand}"
+                                                      Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext)?.ToggleExpansionCommand}"
                                                       CommandParameter="{Binding}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,12,0"/>
@@ -186,24 +188,24 @@
                                                                TextWrapping="Wrap"/>
                                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                                          <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left">
-                                                             <TextBlock Text="{Binding InsertionMode, Converter={x:Static tabs:TextExpansionConverters.InsertionModeDisplayText}}"
+                                                             <TextBlock Text="{Binding InsertionMode, Converter={x:Static conv:TextExpansionConverters.InsertionModeDisplayText}}"
                                                                         FontSize="10"
                                                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
                                                          </Border>
                                                          <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left"
-                                                                 IsVisible="{Binding InsertionMode, Converter={x:Static tabs:TextExpansionConverters.IsDirectTypingMode}, FallbackValue=False}">
-                                                             <TextBlock Text="{Binding DirectTypingMethod, Converter={x:Static tabs:TextExpansionConverters.DirectTypingMethodDisplayText}}"
+                                                                 IsVisible="{Binding InsertionMode, Converter={x:Static conv:TextExpansionConverters.IsDirectTypingMode}, FallbackValue=False}">
+                                                             <TextBlock Text="{Binding DirectTypingMethod, Converter={x:Static conv:TextExpansionConverters.DirectTypingMethodDisplayText}}"
                                                                         FontSize="10"
                                                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
                                                          </Border>
                                                          <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,2" HorizontalAlignment="Left">
                                                             <Border.IsVisible>
                                                                 <MultiBinding Converter="{x:Static BoolConverters.And}">
-                                                                    <Binding Path="InsertionMode" Converter="{x:Static tabs:TextExpansionConverters.IsPasteMode}" FallbackValue="False"/>
-                                                                    <Binding Path="#Root.((vm:TextExpansionViewModel)DataContext).IsPasteMethodVisible" FallbackValue="False"/>
+                                                                    <Binding Path="InsertionMode" Converter="{x:Static conv:TextExpansionConverters.IsPasteMode}" FallbackValue="False"/>
+                                                                    <Binding Path="#Root.((vm:TextExpansionViewModel)DataContext)?.IsPasteMethodVisible" FallbackValue="False"/>
                                                                 </MultiBinding>
                                                             </Border.IsVisible>
-                                                            <TextBlock Text="{Binding Method, Converter={x:Static tabs:TextExpansionConverters.PasteMethodDisplayText}}"
+                                                            <TextBlock Text="{Binding Method, Converter={x:Static conv:TextExpansionConverters.PasteMethodDisplayText}}"
                                                                        FontSize="10"
                                                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
                                                         </Border>
@@ -216,7 +218,7 @@
                                                     Classes="row-action danger"
                                                     Background="Transparent"
                                                     Padding="8"
-                                                    Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext).RemoveExpansionCommand}"
+                                                    Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext)?.RemoveExpansionCommand}"
                                                     CommandParameter="{Binding}"
                                                     Cursor="Hand">
                                                 <icons:EmojiAppIcon Icon="Delete"

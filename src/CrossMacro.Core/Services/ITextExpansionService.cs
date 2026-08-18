@@ -1,4 +1,3 @@
-using System;
 
 namespace CrossMacro.Core.Services;
 
@@ -10,15 +9,22 @@ public interface ITextExpansionService : IDisposable
     /// <summary>
     /// Starts the text expansion service monitoring
     /// </summary>
-    void Start();
+    public void Start();
+
+    /// <summary>
+    /// Starts the text expansion service monitoring asynchronously.
+    /// </summary>
+    public Task StartAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Stops the text expansion service monitoring
     /// </summary>
-    void Stop();
+    public void StopExpansion();
+
+    public Task StopExpansionAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Check if the service is currently running
     /// </summary>
-    bool IsRunning { get; }
+    public bool IsRunning { get; }
 }

@@ -1,6 +1,3 @@
-using System.Text.Json;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
@@ -16,9 +13,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
     private bool _disposed;
 
     public NiriPositionProvider()
-        : this(new NiriIpcClient())
-    {
-    }
+        : this(new NiriIpcClient()) { /* Empty */ }
 
     internal NiriPositionProvider(INiriIpcClient ipcClient)
     {
@@ -36,6 +31,12 @@ public sealed class NiriPositionProvider : IMousePositionProvider
 
     public async Task<(int Width, int Height)?> GetScreenResolutionAsync()
     {
+        var bounds = await GetDesktopBoundsAsync().ConfigureAwait(false);
+        return bounds is not null ? (bounds.Value.Width, bounds.Value.Height) : null;
+    }
+
+    public async Task<ScreenRect?> GetDesktopBoundsAsync()
+    {
         if (_disposed || !_ipcClient.IsAvailable)
         {
             return null;
@@ -44,26 +45,44 @@ public sealed class NiriPositionProvider : IMousePositionProvider
         try
         {
             var response = await _ipcClient.SendRequestAsync(OutputsRequestJson).ConfigureAwait(false);
-            if (TryParseScreenResolution(response, out var width, out var height))
+            if (TryParseDesktopBounds(response, out var bounds))
             {
-                Log.Information("[NiriPositionProvider] Screen resolution detected: {Width}x{Height}", width, height);
-                return (width, height);
+                Log.Information(
+                    "[NiriPositionProvider] Desktop bounds detected: ({X},{Y}) {Width}x{Height}",
+                    bounds.X,
+                    bounds.Y,
+                    bounds.Width,
+                    bounds.Height);
+                return bounds;
             }
 
             Log.Warning("[NiriPositionProvider] Failed to parse screen resolution from Niri outputs response");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "[NiriPositionProvider] Failed to get screen resolution");
+            Log.LogError(ex, "[NiriPositionProvider] Failed to get screen resolution");
             return null;
         }
     }
 
     internal static bool TryParseScreenResolution(string? response, out int width, out int height)
     {
+        if (TryParseDesktopBounds(response, out var bounds))
+        {
+            width = bounds.Width;
+            height = bounds.Height;
+            return true;
+        }
+
         width = 0;
         height = 0;
+        return false;
+    }
+
+    internal static bool TryParseDesktopBounds(string? response, out ScreenRect desktopBounds)
+    {
+        desktopBounds = default;
 
         if (string.IsNullOrWhiteSpace(response))
         {
@@ -75,77 +94,83 @@ public sealed class NiriPositionProvider : IMousePositionProvider
             using var document = JsonDocument.Parse(response);
             var root = document.RootElement;
 
-            if (!TryGetOutputsElement(root, out var outputsElement) || outputsElement.ValueKind != JsonValueKind.Object)
+            if (!TryGetOutputsElement(root, out var outputsElement) || outputsElement.ValueKind is not JsonValueKind.Object)
             {
                 return false;
             }
 
-            var hasOutput = false;
-            var minX = 0;
-            var minY = 0;
-            var maxX = 0;
-            var maxY = 0;
+            var bounds = outputsElement.EnumerateObject()
+                .Select(TryGetOutputBounds)
+                .Where(static b => b is not null)
+                .Cast<(int X, int Y, int Right, int Bottom)>()
+                .ToList();
 
-            foreach (var outputProperty in outputsElement.EnumerateObject())
-            {
-                var output = outputProperty.Value;
-                if (output.ValueKind != JsonValueKind.Object || !IsOutputEnabled(output))
-                {
-                    continue;
-                }
-
-                if (!output.TryGetProperty("logical", out var logical) || logical.ValueKind != JsonValueKind.Object)
-                {
-                    continue;
-                }
-
-                if (!TryGetInt32(logical, "x", out var x) ||
-                    !TryGetInt32(logical, "y", out var y) ||
-                    !TryGetPositiveInt32(logical, "width", out var logicalWidth) ||
-                    !TryGetPositiveInt32(logical, "height", out var logicalHeight))
-                {
-                    continue;
-                }
-
-                var right = x + logicalWidth;
-                var bottom = y + logicalHeight;
-
-                if (!hasOutput)
-                {
-                    minX = x;
-                    minY = y;
-                    maxX = right;
-                    maxY = bottom;
-                    hasOutput = true;
-                    continue;
-                }
-
-                minX = Math.Min(minX, x);
-                minY = Math.Min(minY, y);
-                maxX = Math.Max(maxX, right);
-                maxY = Math.Max(maxY, bottom);
-            }
-
-            if (!hasOutput || maxX <= minX || maxY <= minY)
+            if (bounds.Count is 0)
             {
                 return false;
             }
 
-            width = maxX - minX;
-            height = maxY - minY;
-            return true;
+            return TryComputeDesktopBounds(bounds, out desktopBounds);
         }
         catch (JsonException)
         {
             return false;
         }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static (int X, int Y, int Right, int Bottom)? TryGetOutputBounds(JsonProperty outputProperty)
+    {
+        var output = outputProperty.Value;
+        if (output.ValueKind is not JsonValueKind.Object || !IsOutputEnabled(output))
+        {
+            return null;
+        }
+
+        if (!output.TryGetProperty("logical", out var logical) || logical.ValueKind is not JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!TryGetInt32(logical, "x", out var x) ||
+            !TryGetInt32(logical, "y", out var y) ||
+            !TryGetPositiveInt32(logical, "width", out var logicalWidth) ||
+            !TryGetPositiveInt32(logical, "height", out var logicalHeight))
+        {
+            return null;
+        }
+
+        return (x, y, checked(x + logicalWidth), checked(y + logicalHeight));
+    }
+
+    private static bool TryComputeDesktopBounds(
+        List<(int X, int Y, int Right, int Bottom)> bounds,
+        out ScreenRect desktopBounds)
+    {
+        desktopBounds = default;
+
+        var minX = bounds.Min(static b => b.X);
+        var minY = bounds.Min(static b => b.Y);
+        var maxX = bounds.Max(static b => b.Right);
+        var maxY = bounds.Max(static b => b.Bottom);
+
+        if (maxX <= minX || maxY <= minY)
+        {
+            return false;
+        }
+
+        desktopBounds = new ScreenRect(minX, minY, checked(maxX - minX), checked(maxY - minY));
+        return true;
     }
 
     private static bool TryGetOutputsElement(JsonElement root, out JsonElement outputsElement)
     {
         outputsElement = default;
 
-        if (root.ValueKind != JsonValueKind.Object)
+        if (root.ValueKind is not JsonValueKind.Object)
         {
             return false;
         }
@@ -157,12 +182,12 @@ public sealed class NiriPositionProvider : IMousePositionProvider
 
         if (root.TryGetProperty("Ok", out var okElement))
         {
-            if (okElement.ValueKind == JsonValueKind.Object && okElement.TryGetProperty("Outputs", out outputsElement))
+            if (okElement.ValueKind is JsonValueKind.Object && okElement.TryGetProperty("Outputs", out outputsElement))
             {
                 return true;
             }
 
-            if (okElement.ValueKind == JsonValueKind.Object)
+            if (okElement.ValueKind is JsonValueKind.Object)
             {
                 outputsElement = okElement;
                 return true;
@@ -176,8 +201,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
     private static bool IsOutputEnabled(JsonElement output)
     {
         return output.TryGetProperty("current_mode", out var currentMode) &&
-               currentMode.ValueKind != JsonValueKind.Null &&
-               currentMode.ValueKind != JsonValueKind.Undefined;
+               currentMode.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined);
     }
 
     private static bool TryGetPositiveInt32(JsonElement element, string propertyName, out int value)
@@ -193,7 +217,7 @@ public sealed class NiriPositionProvider : IMousePositionProvider
             return false;
         }
 
-        return property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out value);
+        return property.ValueKind is JsonValueKind.Number && property.TryGetInt32(out value);
     }
 
     public void Dispose()

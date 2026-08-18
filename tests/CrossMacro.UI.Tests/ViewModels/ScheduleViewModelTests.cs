@@ -1,18 +1,7 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public class ScheduleViewModelTests
+public sealed class ScheduleViewModelTests : IDisposable
 {
     private readonly ISchedulerService _schedulerService;
     private readonly IDialogService _dialogService;
@@ -24,8 +13,8 @@ public class ScheduleViewModelTests
         _schedulerService = Substitute.For<ISchedulerService>();
         _dialogService = Substitute.For<IDialogService>();
         _localizationService = Substitute.For<ILocalizationService>();
-        _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
+        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
         {
             "Schedule_ItemsText" => "[Schedule_ItemsText] {0}",
             "Schedule_NoFileSelected" => "[Schedule_NoFileSelected]",
@@ -45,18 +34,22 @@ public class ScheduleViewModelTests
             "Schedule_WeeklyWeekdays" => "[Schedule_WeeklyWeekdays]",
             "Schedule_WeeklyWeekends" => "[Schedule_WeeklyWeekends]",
             "Schedule_WeeklyCustom" => "[Schedule_WeeklyCustom]",
-            _ => call.Arg<string>()
+            _ => call.Arg<string>(),
         });
-        var timeProvider = Substitute.For<ITimeProvider>();
-        timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
-        timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
-        
+        var timeProvider = Substitute.For<TimeProvider>();
+        _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
+
         // Setup initial tasks list
-        _schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
-        _schedulerService.LoadAsync().Returns(Task.CompletedTask);
-        _schedulerService.SaveAsync().Returns(Task.CompletedTask);
+        _ = _schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
+        _ = _schedulerService.LoadAsync().Returns(Task.CompletedTask);
+        _ = _schedulerService.SaveAsync().Returns(Task.CompletedTask);
 
         _viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, _localizationService);
+    }
+
+    public void Dispose()
+    {
+        _viewModel.Dispose();
     }
 
     [Fact]
@@ -79,17 +72,40 @@ public class ScheduleViewModelTests
     }
 
     [Fact]
+    public async Task InitializeAsync_WhenProfileRuntimeAlreadyLoaded_SkipsRedundantLoad()
+    {
+        var schedulerService = Substitute.For<ISchedulerService>();
+        _ = schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
+        _ = schedulerService.LoadAsync().Returns(Task.CompletedTask);
+        var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
+        _ = profileRuntimeState.IsInitialized.Returns(true);
+        var timeProvider = Substitute.For<TimeProvider>();
+        _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
+        using var viewModel = new ScheduleViewModel(
+            schedulerService,
+            _dialogService,
+            timeProvider,
+            _localizationService,
+            profileRuntimeState);
+
+        await viewModel.InitializeAsync();
+
+        await schedulerService.DidNotReceive().LoadAsync();
+        schedulerService.Received(1).Start();
+    }
+
+    [Fact]
     public async Task InitializeAsync_WhenLoadFails_ReportsStatusAndSkipsStart()
     {
-        _schedulerService.LoadAsync().Returns(Task.FromException(new InvalidOperationException("load failed")));
+        _ = _schedulerService.LoadAsync().Returns(Task.FromException(new InvalidOperationException("load failed")));
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _viewModel.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
 
         await _viewModel.InitializeAsync();
         var reportedStatus = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        reportedStatus.Should().Contain("[Schedule_StatusInitFailed]");
-        reportedStatus.Should().Contain("load failed");
+        _ = reportedStatus.Should().Contain("[Schedule_StatusInitFailed]");
+        _ = reportedStatus.Should().Contain("load failed");
         _schedulerService.DidNotReceive().Start();
     }
 
@@ -97,50 +113,78 @@ public class ScheduleViewModelTests
     public void CultureChanged_RaisesLocalizedComputedProperties()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        localizationService["Schedule_ItemsText"].Returns("{0} items");
-        localizationService["Schedule_NoFileSelected"].Returns("No file selected");
-        var timeProvider = Substitute.For<ITimeProvider>();
-        timeProvider.Now.Returns(new DateTime(2026, 1, 1, 10, 0, 0));
-        timeProvider.UtcNow.Returns(new DateTime(2026, 1, 1, 7, 0, 0));
+        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = localizationService["Schedule_ItemsText"].Returns("{0} items");
+        _ = localizationService["Schedule_NoFileSelected"].Returns("No file selected");
+        var timeProvider = Substitute.For<TimeProvider>();
+        _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
         var viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, localizationService);
         var changedProperties = new List<string?>();
         viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 
         localizationService.CultureChanged += Raise.Event<EventHandler>(localizationService, EventArgs.Empty);
 
-        changedProperties.Should().Contain(nameof(ScheduleViewModel.TaskCountText));
-        changedProperties.Should().Contain(nameof(ScheduleViewModel.SelectedMacroFileName));
-        changedProperties.Should().Contain(nameof(ScheduleViewModel.SelectedTask));
-        changedProperties.Should().Contain(nameof(ScheduleViewModel.Tasks));
+        _ = changedProperties.Should().Contain(nameof(ScheduleViewModel.TaskCountText));
+        _ = changedProperties.Should().Contain(nameof(ScheduleViewModel.SelectedMacroFileName));
+        _ = changedProperties.Should().Contain(nameof(ScheduleViewModel.SelectedTask));
+        _ = changedProperties.Should().Contain(nameof(ScheduleViewModel.Tasks));
     }
 
     [Fact]
     public void AddTask_CreatesAndSelectsTask()
     {
         // Act
-        _viewModel.AddTaskCommand.Execute(null);
+        _schedulerService.When(x => x.AddTask(Arg.Any<ScheduledTask>()))
+            .Do(call => _schedulerService.Tasks.Add(call.Arg<ScheduledTask>()));
+        _viewModel.AddTaskCommand.Execute(parameter: null);
 
         // Assert
         _schedulerService.Received(1).AddTask(Arg.Any<ScheduledTask>());
-        _viewModel.SelectedTask.Should().NotBeNull();
-        _viewModel.SelectedTask!.Name.Should().Contain("[Schedule_DefaultTaskName]");
+        _ = _viewModel.SelectedTask.Should().NotBeNull();
+        _ = _viewModel.SelectedTask!.Name.Should().Contain("[Schedule_DefaultTaskName]");
+    }
+
+    [Fact]
+    public async Task ManagedAddTask_CommitsEditorAndSelectionOnlyAfterServiceCompletes()
+    {
+        var manager = Substitute.For<IManageSchedule>();
+        var addCompletion = new TaskCompletionSource<ScheduledTask>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = manager.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
+        ScheduledTask? addedTask = null;
+        manager.When(x => x.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>()))
+            .Do(call => addedTask = call.Arg<ScheduledTask>());
+        var timeProvider = Substitute.For<TimeProvider>();
+        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService);
+
+        var add = viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
+
+        _ = viewModel.Tasks.Should().BeEmpty();
+        _ = viewModel.SelectedTask.Should().BeNull();
+
+        _schedulerService.Tasks.Add(addedTask!);
+        _ = addCompletion.TrySetResult(addedTask!);
+        await add;
+
+        _ = viewModel.Tasks.Should().ContainSingle();
+        _ = viewModel.SelectedTask.Should().BeSameAs(viewModel.Tasks.Single());
     }
 
     [Fact]
     public void SelectedRunTexts_DisplayUtcRuntimeValuesAsLocalTime()
     {
         var culture = System.Globalization.CultureInfo.InvariantCulture;
-        _localizationService.CurrentCulture.Returns(culture);
+        _ = _localizationService.CurrentCulture.Returns(culture);
         var task = new ScheduledTask
         {
             LastRunTime = new DateTime(2026, 1, 1, 7, 0, 0, DateTimeKind.Utc),
-            NextRunTime = new DateTime(2026, 1, 1, 8, 30, 0, DateTimeKind.Utc)
+            NextRunTime = new DateTime(2026, 1, 1, 8, 30, 0, DateTimeKind.Utc),
         };
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
-        _viewModel.SelectedLastRunText.Should().Be(task.LastRunTime.Value.ToLocalTime().ToString("G", culture));
-        _viewModel.SelectedNextRunText.Should().Be(task.NextRunTime.Value.ToLocalTime().ToString("G", culture));
+        _ = _viewModel.SelectedLastRunText.Should().Be(task.LastRunTime.Value.ToLocalTime().ToString("G", culture));
+        _ = _viewModel.SelectedNextRunText.Should().Be(task.NextRunTime.Value.ToLocalTime().ToString("G", culture));
     }
 
     [Fact]
@@ -149,11 +193,13 @@ public class ScheduleViewModelTests
         // Arrange
         var task = new ScheduledTask();
         _schedulerService.Tasks.Add(task);
-        _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(true));
 
         // Act
-        await _viewModel.RemoveTaskCommand.ExecuteAsync(task);
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
 
         // Assert
         _schedulerService.Received(1).RemoveTask(task.Id);
@@ -167,13 +213,15 @@ public class ScheduleViewModelTests
         var second = new ScheduledTask { Name = "Second" };
         _schedulerService.Tasks.Add(first);
         _schedulerService.Tasks.Add(second);
-        _viewModel.SelectedTask = second;
-        _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        var firstEditor = _viewModel.Tasks.Single(editor => editor.Id == first.Id);
+        var secondEditor = _viewModel.Tasks.Single(editor => editor.Id == second.Id);
+        _viewModel.SelectedTask = secondEditor;
+        _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(true));
 
-        await _viewModel.RemoveTaskCommand.ExecuteAsync(second);
+        await _viewModel.RemoveTaskCommand.ExecuteAsync(secondEditor);
 
-        _viewModel.SelectedTask.Should().Be(first);
+        _ = _viewModel.SelectedTask.Should().BeSameAs(firstEditor);
     }
 
     [Fact]
@@ -182,9 +230,11 @@ public class ScheduleViewModelTests
         // Arrange
         var task = new ScheduledTask();
         _schedulerService.Tasks.Add(task);
-        _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(true));
-        _schedulerService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _schedulerService.When(x => x.RemoveTask(task.Id)).Do(_ => _schedulerService.Tasks.Remove(task));
+        _schedulerService.When(x => x.AddTask(task)).Do(_ => _schedulerService.Tasks.Add(task));
+        _ = _schedulerService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _viewModel.StatusChanged += (_, status) =>
@@ -196,12 +246,15 @@ public class ScheduleViewModelTests
         };
 
         // Act
-        await _viewModel.RemoveTaskCommand.ExecuteAsync(task);
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
         var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert
-        status.Should().Contain("[Schedule_StatusSaveFailed]");
-        status.Should().Contain("disk full");
+        _ = status.Should().Contain("[Schedule_StatusSaveFailed]");
+        _ = status.Should().Contain("disk full");
+        _ = _schedulerService.Tasks.Should().Contain(task);
         await _dialogService.Received(1).ShowMessageAsync(
             "[Schedule_SaveFailedTitle]",
             Arg.Is<string>(s => s.Contains("disk full")),
@@ -214,11 +267,13 @@ public class ScheduleViewModelTests
         // Arrange
         var task = new ScheduledTask();
         _schedulerService.Tasks.Add(task);
-        _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(false));
 
         // Act
-        await _viewModel.RemoveTaskCommand.ExecuteAsync(task);
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
 
         // Assert
         _schedulerService.DidNotReceive().RemoveTask(Arg.Any<System.Guid>());
@@ -229,29 +284,31 @@ public class ScheduleViewModelTests
     {
         // Arrange
         var task = new ScheduledTask { Type = ScheduleType.Interval };
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
         // Act
         _viewModel.IsDateTimeSelected = true;
 
         // Assert
-        task.Type.Should().Be(ScheduleType.SpecificTime);
-        _viewModel.IsIntervalSelected.Should().BeFalse();
+        _ = editor.Type.Should().Be(ScheduleType.SpecificTime);
+        _ = _viewModel.IsIntervalSelected.Should().BeFalse();
 
         // Act 2
         _viewModel.IsIntervalSelected = true;
 
         // Assert 2
-        task.Type.Should().Be(ScheduleType.Interval);
-        _viewModel.IsDateTimeSelected.Should().BeFalse();
+        _ = editor.Type.Should().Be(ScheduleType.Interval);
+        _ = _viewModel.IsDateTimeSelected.Should().BeFalse();
 
         // Act 3
         _viewModel.IsWeeklySelected = true;
 
         // Assert 3
-        task.Type.Should().Be(ScheduleType.Weekly);
-        _viewModel.IsIntervalSelected.Should().BeFalse();
-        _viewModel.IsDateTimeSelected.Should().BeFalse();
+        _ = editor.Type.Should().Be(ScheduleType.Weekly);
+        _ = _viewModel.IsIntervalSelected.Should().BeFalse();
+        _ = _viewModel.IsDateTimeSelected.Should().BeFalse();
     }
 
     [Fact]
@@ -259,15 +316,17 @@ public class ScheduleViewModelTests
     {
         // Arrange
         var task = new ScheduledTask();
-        _viewModel.SelectedTask = task;
-        _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns(Task.FromResult<string?>("test.macro"));
 
         // Act
-        await _viewModel.BrowseMacroCommand.ExecuteAsync(null);
+        await _viewModel.BrowseMacroCommand.ExecuteAsync(parameter: null);
 
         // Assert
-        task.MacroFilePath.Should().Be("test.macro");
+        _ = editor.MacroFilePath.Should().Be("test.macro");
     }
 
     [Fact]
@@ -275,15 +334,17 @@ public class ScheduleViewModelTests
     {
         // Arrange
         var task = new ScheduledTask { MacroFilePath = "existing.macro" };
-        _viewModel.SelectedTask = task;
-        _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns(Task.FromResult<string?>(null));
 
         // Act
-        await _viewModel.BrowseMacroCommand.ExecuteAsync(null);
+        await _viewModel.BrowseMacroCommand.ExecuteAsync(parameter: null);
 
         // Assert
-        task.MacroFilePath.Should().Be("existing.macro");
+        _ = task.MacroFilePath.Should().Be("existing.macro");
     }
 
     [Fact]
@@ -291,13 +352,15 @@ public class ScheduleViewModelTests
     {
         // Arrange
         var task = new ScheduledTask();
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
         // Act
-        _viewModel.SelectTaskCommand.Execute(task);
+        _viewModel.SelectTaskCommand.Execute(editor);
 
         // Assert
-        _viewModel.SelectedTask.Should().Be(task);
+        _ = _viewModel.SelectedTask.Should().BeSameAs(editor);
     }
 
     [Fact]
@@ -307,17 +370,19 @@ public class ScheduleViewModelTests
         var task = new ScheduledTask
         {
             MacroFilePath = "/tmp/sample.txt",
-            IsEnabled = true
+            IsEnabled = true,
         };
         string? status = null;
         _viewModel.StatusChanged += (_, s) => status = s;
 
         // Act
-        _viewModel.OnTaskEnabledChanged(task);
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.OnTaskEnabledChanged(editor);
 
         // Assert
-        status.Should().Contain("[Schedule_StatusExtensionWarning]");
-        _schedulerService.Received(1).SetTaskEnabled(task.Id, true);
+        _ = status.Should().Contain("[Schedule_StatusExtensionWarning]");
+        _schedulerService.Received(1).SetTaskEnabled(task.Id, enabled: true);
     }
 
     [Fact]
@@ -327,15 +392,39 @@ public class ScheduleViewModelTests
         var task = new ScheduledTask
         {
             MacroFilePath = "/tmp/sample.macro",
-            IsEnabled = true
+            IsEnabled = true,
         };
 
         // Act
-        await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(task);
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         // Assert
-        _schedulerService.Received(1).SetTaskEnabled(task.Id, true);
+        _schedulerService.Received(1).SetTaskEnabled(task.Id, enabled: true);
         await _schedulerService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task TaskEnabledChangedCommand_WhenManaged_PersistsTheToggledTask()
+    {
+        var task = new ScheduledTask { MacroFilePath = "test.macro", IsEnabled = true };
+        _schedulerService.Tasks.Add(task);
+        var manager = Substitute.For<IManageSchedule>();
+        var timeProvider = Substitute.For<TimeProvider>();
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService)
+        {
+            SelectedTask = editor,
+        };
+
+        await viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
+
+        _ = await manager.Received(1).SetEnabledAsync(Arg.Is<TaskRequest>(request =>
+            request.Id == task.Id && request.Enabled == task.IsEnabled));
+        _schedulerService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
+        await _schedulerService.DidNotReceive().SaveAsync();
     }
 
     [Fact]
@@ -343,88 +432,100 @@ public class ScheduleViewModelTests
     {
         // Arrange
         var task = new ScheduledTask { ScheduledDateTime = new DateTime(2026, 1, 10, 8, 30, 0) };
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
         // Act
         _viewModel.ScheduledDate = new DateTimeOffset(new DateTime(2026, 2, 15));
         _viewModel.ScheduledTime = new TimeSpan(14, 45, 20);
 
         // Assert
-        task.ScheduledDateTime.Should().NotBeNull();
-        task.ScheduledDateTime!.Value.Year.Should().Be(2026);
-        task.ScheduledDateTime.Value.Month.Should().Be(2);
-        task.ScheduledDateTime.Value.Day.Should().Be(15);
-        task.ScheduledDateTime.Value.Hour.Should().Be(14);
-        task.ScheduledDateTime.Value.Minute.Should().Be(45);
-        task.ScheduledDateTime.Value.Second.Should().Be(20);
+        _ = editor.ScheduledDateTime.Should().NotBeNull();
+        _ = editor.ScheduledDateTime!.Value.Year.Should().Be(2026);
+        _ = editor.ScheduledDateTime.Value.Month.Should().Be(2);
+        _ = editor.ScheduledDateTime.Value.Day.Should().Be(15);
+        _ = editor.ScheduledDateTime.Value.Hour.Should().Be(14);
+        _ = editor.ScheduledDateTime.Value.Minute.Should().Be(45);
+        _ = editor.ScheduledDateTime.Value.Second.Should().Be(20);
     }
 
     [Fact]
     public void ScheduledDateAndTime_WhenInitialValueMissing_UsesInjectedTimeProviderNow()
     {
         // Arrange
-        var timeProvider = Substitute.For<ITimeProvider>();
-        timeProvider.Now.Returns(new DateTime(2032, 3, 4, 9, 10, 11));
+        var timeProvider = Substitute.For<TimeProvider>();
+        _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2032, 3, 4, 9, 10, 11, TimeSpan.Zero));
         var viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, _localizationService);
         var task = new ScheduledTask();
-        viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        viewModel.SelectedTask = editor;
 
         // Act
         viewModel.ScheduledDate = new DateTimeOffset(new DateTime(2032, 6, 7));
         viewModel.ScheduledTime = new TimeSpan(15, 20, 25);
 
         // Assert
-        task.ScheduledDateTime.Should().Be(new DateTime(2032, 6, 7, 15, 20, 25));
+        _ = editor.ScheduledDateTime.Should().Be(new DateTime(2032, 6, 7, 15, 20, 25));
     }
 
     [Fact]
     public void WeeklyTime_WhenChanged_UpdatesSelectedTaskTime()
     {
         var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyTime = new TimeSpan(9, 0, 0) };
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
         _viewModel.WeeklyTime = new TimeSpan(14, 45, 0);
 
-        task.WeeklyTime.Should().Be(new TimeSpan(14, 45, 0));
+        _ = editor.WeeklyTime.Should().Be(new TimeSpan(14, 45, 0));
     }
 
     [Fact]
     public void SelectedWeeklyPreset_WhenChanged_UpdatesWeeklyDays()
     {
         var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.Weekdays };
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
-        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value == ScheduleDays.Weekends);
+        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value is ScheduleDays.Weekends);
 
-        task.WeeklyDays.Should().Be(ScheduleDays.Weekends);
-        _viewModel.IsWeeklyCustomSelected.Should().BeFalse();
+        _ = editor.WeeklyDays.Should().Be(ScheduleDays.Weekends);
+        _ = _viewModel.IsWeeklyCustomSelected.Should().BeFalse();
     }
 
     [Fact]
     public void SelectedWeeklyPreset_WhenCustomSelected_ShowsCustomDaySelection()
     {
         var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.Weekdays };
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
-        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value == null);
+        _viewModel.SelectedWeeklyPreset = _viewModel.WeeklyPresetOptions.Single(x => x.Value is null);
 
-        task.WeeklyDays.Should().Be(ScheduleDays.Weekdays);
-        _viewModel.IsWeeklyCustomSelected.Should().BeTrue();
+        _ = editor.WeeklyDays.Should().Be(ScheduleDays.Weekdays);
+        _ = _viewModel.IsWeeklyCustomSelected.Should().BeTrue();
     }
 
     [Fact]
     public void WeeklyDaySelection_WhenChanged_UpdatesWeeklyDays()
     {
         var task = new ScheduledTask { Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.Monday };
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
         var dayOptions = _viewModel.WeeklyDayOptions.ToArray();
-        dayOptions.Single(option => option.Value == ScheduleDays.Wednesday).IsSelected = true;
-        dayOptions.Single(option => option.Value == ScheduleDays.Monday).IsSelected = false;
+        dayOptions.Single(option => option.Value is ScheduleDays.Wednesday).IsSelected = true;
+        dayOptions.Single(option => option.Value is ScheduleDays.Monday).IsSelected = false;
 
-        task.WeeklyDays.Should().Be(ScheduleDays.Wednesday);
-        _viewModel.IsWeeklyCustomSelected.Should().BeTrue();
-        dayOptions.Select(option => option.Value)
+        _ = editor.WeeklyDays.Should().Be(ScheduleDays.Wednesday);
+        _ = _viewModel.IsWeeklyCustomSelected.Should().BeTrue();
+        _ = dayOptions.Select(option => option.Value)
             .Should().Contain([ScheduleDays.Monday, ScheduleDays.Tuesday, ScheduleDays.Wednesday, ScheduleDays.Thursday, ScheduleDays.Friday, ScheduleDays.Saturday, ScheduleDays.Sunday]);
     }
 
@@ -435,12 +536,14 @@ public class ScheduleViewModelTests
         {
             MacroFilePath = "test.macro",
             Type = ScheduleType.Weekly,
-            WeeklyDays = ScheduleDays.None
+            WeeklyDays = ScheduleDays.None,
         };
 
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
-        task.CanBeEnabled.Should().BeFalse();
+        _ = editor.CanBeEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -451,15 +554,16 @@ public class ScheduleViewModelTests
             MacroFilePath = "test.macro",
             Type = ScheduleType.Weekly,
             WeeklyDays = ScheduleDays.Monday,
-            WeeklyTime = new TimeSpan(9, 0, 0)
+            WeeklyTime = new TimeSpan(9, 0, 0),
+            IsEnabled = true,
         };
-        task.IsEnabled = true;
-        _viewModel.SelectedTask = task;
+        var editor = new ScheduledTaskEditor();
+        editor.Load(task);
+        _viewModel.SelectedTask = editor;
 
-        _viewModel.WeeklyDayOptions.Single(option => option.Value == ScheduleDays.Monday).IsSelected = false;
+        _viewModel.WeeklyDayOptions.Single(option => option.Value is ScheduleDays.Monday).IsSelected = false;
 
-        task.IsEnabled.Should().BeFalse();
-        task.CanBeEnabled.Should().BeFalse();
-        task.NextRunTime.Should().BeNull();
+        _ = editor.CanBeEnabled.Should().BeFalse();
+        _ = editor.NextRunTime.Should().BeNull();
     }
 }

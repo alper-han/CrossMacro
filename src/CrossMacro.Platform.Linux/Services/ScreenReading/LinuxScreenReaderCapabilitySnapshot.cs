@@ -21,8 +21,7 @@ public readonly record struct LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackend.GnomeExtension,
                 ScreenReadErrorKind.BackendUnavailable,
                 "GNOME Shell extension backend is unavailable or not enabled."))
-    {
-    }
+    { /* Empty */ }
 
     public LinuxScreenReaderBackendCapability GetCapability(LinuxScreenReaderBackend backend) => backend switch
     {
@@ -31,6 +30,25 @@ public readonly record struct LinuxScreenReaderCapabilitySnapshot(
         LinuxScreenReaderBackend.WlrScreencopy => WlrScreencopy,
         LinuxScreenReaderBackend.Portal => Portal,
         LinuxScreenReaderBackend.GnomeExtension => GnomeExtension,
-        _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend.")
+        _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend."),
     };
+
+    internal static LinuxScreenReaderCapabilitySnapshot NotApplicable(string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        return new LinuxScreenReaderCapabilitySnapshot(
+            Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, reason),
+            Unavailable(LinuxScreenReaderBackend.ExtImageCopy, reason),
+            Unavailable(LinuxScreenReaderBackend.WlrScreencopy, reason),
+            Unavailable(LinuxScreenReaderBackend.Portal, reason),
+            Unavailable(LinuxScreenReaderBackend.GnomeExtension, reason));
+    }
+
+    private static LinuxScreenReaderBackendCapability Unavailable(
+        LinuxScreenReaderBackend backend,
+        string reason) =>
+        LinuxScreenReaderBackendCapability.Unavailable(
+            backend,
+            ScreenReadErrorKind.Unsupported,
+            reason);
 }

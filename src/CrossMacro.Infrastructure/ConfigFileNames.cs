@@ -10,22 +10,34 @@ public static class ConfigFileNames
     /// Application settings file.
     /// </summary>
     public const string Settings = "settings.json";
-    
+
     /// <summary>
     /// Scheduled tasks file.
     /// </summary>
     public const string Schedules = "schedules.json";
-    
+
     /// <summary>
     /// Keyboard shortcuts file.
     /// </summary>
     public const string Shortcuts = "shortcuts.json";
-    
+
     /// <summary>
     /// Text expansions file.
     /// </summary>
     public const string TextExpansions = "text-expansions.json";
-    
+
+    /// <summary>
+    /// Window-state triggers file.
+    /// </summary>
+    public const string Triggers = "triggers.json";
+
+    /// <summary>
+    /// Profile-scoped loaded macro session state.
+    /// </summary>
+    public const string LoadedMacros = "loaded-macros.json";
+
+    public const string MacrosDirectory = "macros";
+
     /// <summary>
     /// Hotkey configuration file.
     /// </summary>
@@ -43,6 +55,7 @@ public static class ConfigFileNames
 
     /// <summary>
     /// Subdirectory containing per-profile configuration folders.
+    /// Single source of truth: <see cref="CrossMacro.Core.AppConstants.ProfilesDirectory"/>.
     /// </summary>
-    public const string ProfilesDirectory = "profiles";
+    public const string ProfilesDirectory = CrossMacro.Core.AppConstants.ProfilesDirectory;
 }

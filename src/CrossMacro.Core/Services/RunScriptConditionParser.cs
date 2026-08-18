@@ -1,11 +1,5 @@
-using System;
 
 namespace CrossMacro.Core.Services;
-
-/// <summary>
-/// Parsed run-script condition expression.
-/// </summary>
-public sealed record RunScriptCondition(string LeftToken, string OperatorToken, string RightToken);
 
 /// <summary>
 /// Shared parser for run-script condition expressions.
@@ -25,6 +19,28 @@ public static class RunScriptConditionParser
             return false;
         }
 
+        var (bestOperator, bestOperatorIndex, sawInvalidBoundaryCandidate) = FindBestOperator(payload);
+
+        if (bestOperatorIndex > 0)
+        {
+            var leftToken = payload[..bestOperatorIndex].Trim();
+            var rightToken = payload[(bestOperatorIndex + bestOperator.Length)..].Trim();
+            condition = new RunScriptCondition(leftToken, bestOperator, rightToken);
+            return true;
+        }
+
+        if (sawInvalidBoundaryCandidate)
+        {
+            error = "Condition must be in the form: <left> <op> <right>.";
+            return false;
+        }
+
+        error = "Unsupported condition operator. Allowed: ==, !=, >, >=, <, <=.";
+        return false;
+    }
+
+    private static (string Operator, int Index, bool SawInvalidBoundaryCandidate) FindBestOperator(string payload)
+    {
         var bestOperator = string.Empty;
         var bestOperatorIndex = -1;
         var bestBoundaryScore = -1;
@@ -41,7 +57,7 @@ public static class RunScriptConditionParser
                     break;
                 }
 
-                if (opIndex == 0)
+                if (opIndex is 0)
                 {
                     sawInvalidBoundaryCandidate = true;
                     searchIndex = opIndex + op.Length;
@@ -50,7 +66,7 @@ public static class RunScriptConditionParser
 
                 var leftToken = payload[..opIndex].Trim();
                 var rightToken = payload[(opIndex + op.Length)..].Trim();
-                if (leftToken.Length == 0 || rightToken.Length == 0)
+                if (leftToken.Length is 0 || rightToken.Length is 0)
                 {
                     sawInvalidBoundaryCandidate = true;
                     searchIndex = opIndex + op.Length;
@@ -81,21 +97,6 @@ public static class RunScriptConditionParser
             }
         }
 
-        if (bestOperatorIndex > 0)
-        {
-            var leftToken = payload[..bestOperatorIndex].Trim();
-            var rightToken = payload[(bestOperatorIndex + bestOperator.Length)..].Trim();
-            condition = new RunScriptCondition(leftToken, bestOperator, rightToken);
-            return true;
-        }
-
-        if (sawInvalidBoundaryCandidate)
-        {
-            error = "Condition must be in the form: <left> <op> <right>.";
-            return false;
-        }
-
-        error = "Unsupported condition operator. Allowed: ==, !=, >, >=, <, <=.";
-        return false;
+        return (bestOperator, bestOperatorIndex, sawInvalidBoundaryCandidate);
     }
 }

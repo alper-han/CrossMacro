@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.MacOS.Services;
 
@@ -8,7 +7,7 @@ namespace CrossMacro.Platform.MacOS.Services;
 public class MacOSEnvironmentInfoProvider : IEnvironmentInfoProvider
 {
     public DisplayEnvironment CurrentEnvironment => DisplayEnvironment.MacOS;
-    
+
     /// <summary>
     /// macOS always uses its own window decorations with traffic light buttons.
     /// </summary>

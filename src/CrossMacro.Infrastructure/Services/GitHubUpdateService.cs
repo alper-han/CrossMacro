@@ -1,55 +1,22 @@
-using System;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.Infrastructure.Services;
 
-// Source-generated JSON context for trimming-safe deserialization.
-[JsonSerializable(typeof(GitHubRelease))]
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
-internal partial class GitHubJsonContext : JsonSerializerContext
+public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? httpClient) : IUpdateService
 {
-}
-
-internal class GitHubRelease
-{
-    [JsonPropertyName("tag_name")]
-    public string? TagName { get; set; }
-
-    [JsonPropertyName("html_url")]
-    public string? HtmlUrl { get; set; }
-}
-
-public class GitHubUpdateService : IUpdateService
-{
-    private const string GitHubApiUrl = "https://api.github.com/repos/alper-han/CrossMacro/releases/latest";
+    private static readonly Uri GitHubApiUri = new("https://api.github.com/repos/alper-han/CrossMacro/releases/latest");
     private const string UserAgent = "CrossMacro-App";
     private static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(8);
-    private readonly IRuntimeContext _runtimeContext;
-    private readonly HttpClient? _httpClient;
+    private readonly IRuntimeContext _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+    private readonly HttpClient? _httpClient = httpClient;
 
     public GitHubUpdateService()
-        : this(new RuntimeContext(), null)
+        : this(new RuntimeContext(), httpClient: null)
     {
     }
 
     public GitHubUpdateService(IRuntimeContext runtimeContext)
-        : this(runtimeContext, null)
+        : this(runtimeContext, httpClient: null)
     {
-    }
-
-    public GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? httpClient)
-    {
-        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
-        _httpClient = httpClient;
     }
 
     public async Task<UpdateCheckResult> CheckForUpdatesAsync()
@@ -71,9 +38,9 @@ public class GitHubUpdateService : IUpdateService
 
                 using var timeoutCts = new CancellationTokenSource(RequestTimeout);
                 using var response = await client.GetAsync(
-                    GitHubApiUrl,
+                    GitHubApiUri,
                     HttpCompletionOption.ResponseHeadersRead,
-                    timeoutCts.Token);
+                    timeoutCts.Token).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -83,9 +50,9 @@ public class GitHubUpdateService : IUpdateService
 
                 var release = await response.Content.ReadFromJsonAsync(
                     GitHubJsonContext.Default.GitHubRelease,
-                    timeoutCts.Token);
+                    timeoutCts.Token).ConfigureAwait(false);
 
-                if (release == null)
+                if (release is null)
                 {
                     Log.Warning("GitHub release info is null");
                     return new UpdateCheckResult { HasUpdate = false };
@@ -109,7 +76,9 @@ public class GitHubUpdateService : IUpdateService
                         {
                             HasUpdate = true,
                             LatestVersion = tagName ?? release.TagName ?? string.Empty,
-                            ReleaseUrl = release.HtmlUrl ?? string.Empty
+                            ReleaseUrl = Uri.TryCreate(release.HtmlUrl, UriKind.Absolute, out var releaseUrl)
+                                ? releaseUrl
+                                : null,
                         };
                     }
 
@@ -140,9 +109,9 @@ public class GitHubUpdateService : IUpdateService
         {
             Log.Warning(ex, "Failed to deserialize update payload from GitHub");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "Error checking for updates");
+            Log.LogError(ex, "Error checking for updates");
         }
 
         return new UpdateCheckResult { HasUpdate = false };

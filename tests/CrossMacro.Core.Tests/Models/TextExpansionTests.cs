@@ -1,127 +1,128 @@
 namespace CrossMacro.Core.Tests.Models;
 
-using CrossMacro.Core.Models;
-using FluentAssertions;
 
-public class TextExpansionTests
+public sealed class TextExpansionTests
 {
     [Fact]
     public void NewTextExpansion_DefaultConstructor_HasEmptyValues()
     {
         // Arrange & Act
-        var expansion = new TextExpansion();
+        var expansion = new TextExpansionEntry();
 
         // Assert
-        expansion.Trigger.Should().BeEmpty();
-        expansion.Replacement.Should().BeEmpty();
-        expansion.IsEnabled.Should().BeTrue();
-        expansion.Method.Should().Be(PasteMethod.CtrlV);
-        expansion.InsertionMode.Should().Be(TextInsertionMode.Paste);
+        _ = expansion.Trigger.Should().BeEmpty();
+        _ = expansion.Replacement.Should().BeEmpty();
+        _ = expansion.IsEnabled.Should().BeTrue();
+        _ = expansion.Method.Should().Be(PasteMethod.CtrlV);
+        _ = expansion.InsertionMode.Should().Be(TextInsertionMode.Paste);
     }
 
     [Fact]
     public void TextExpansion_ParameterizedConstructor_SetsAllValues()
     {
         // Arrange & Act
-        var expansion = new TextExpansion(
+        var expansion = new TextExpansionEntry(
             ":mail",
             "test@example.com",
-            true,
+isEnabled: true,
             PasteMethod.CtrlShiftV,
             TextInsertionMode.DirectTyping);
 
         // Assert
-        expansion.Trigger.Should().Be(":mail");
-        expansion.Replacement.Should().Be("test@example.com");
-        expansion.IsEnabled.Should().BeTrue();
-        expansion.Method.Should().Be(PasteMethod.CtrlShiftV);
-        expansion.InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
+        _ = expansion.Trigger.Should().Be(":mail");
+        _ = expansion.Replacement.Should().Be("test@example.com");
+        _ = expansion.IsEnabled.Should().BeTrue();
+        _ = expansion.Method.Should().Be(PasteMethod.CtrlShiftV);
+        _ = expansion.InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
     }
 
     [Fact]
     public void TextExpansion_ParameterizedConstructor_CanBeDisabled()
     {
         // Arrange & Act
-        var expansion = new TextExpansion(":sig", "Best regards,\nJohn", false);
+        var expansion = new TextExpansionEntry(":sig", "Best regards,\nJohn", isEnabled: false);
 
         // Assert
-        expansion.IsEnabled.Should().BeFalse();
+        _ = expansion.IsEnabled.Should().BeFalse();
     }
 
     [Fact]
     public void TextExpansion_CanSetTrigger()
     {
         // Arrange
-        var expansion = new TextExpansion();
-
-        // Act
-        expansion.Trigger = ":addr";
+        var expansion = new TextExpansionEntry
+        {
+            // Act
+            Trigger = ":addr",
+        };
 
         // Assert
-        expansion.Trigger.Should().Be(":addr");
+        _ = expansion.Trigger.Should().Be(":addr");
     }
 
     [Fact]
     public void TextExpansion_CanSetReplacement()
     {
         // Arrange
-        var expansion = new TextExpansion();
-
-        // Act
-        expansion.Replacement = "123 Main Street, City, Country";
+        var expansion = new TextExpansionEntry
+        {
+            // Act
+            Replacement = "123 Main Street, City, Country",
+        };
 
         // Assert
-        expansion.Replacement.Should().Be("123 Main Street, City, Country");
+        _ = expansion.Replacement.Should().Be("123 Main Street, City, Country");
     }
 
     [Fact]
     public void TextExpansion_CanToggleEnabled()
     {
         // Arrange
-        var expansion = new TextExpansion(":test", "test");
-
-        // Act
-        expansion.IsEnabled = false;
+        var expansion = new TextExpansionEntry(":test", "test")
+        {
+            // Act
+            IsEnabled = false,
+        };
 
         // Assert
-        expansion.IsEnabled.Should().BeFalse();
+        _ = expansion.IsEnabled.Should().BeFalse();
     }
 
     [Fact]
     public void TextExpansion_SupportsMultilineReplacement()
     {
         // Arrange
-        var multilineText = "Line 1\nLine 2\nLine 3";
+        const string multilineText = "Line 1\nLine 2\nLine 3";
 
         // Act
-        var expansion = new TextExpansion(":multi", multilineText);
+        var expansion = new TextExpansionEntry(":multi", multilineText);
 
         // Assert
-        expansion.Replacement.Should().Contain("\n");
-        expansion.Replacement.Should().Be(multilineText);
+        _ = expansion.Replacement.Should().Contain("\n");
+        _ = expansion.Replacement.Should().Be(multilineText);
     }
 
     [Fact]
     public void TextExpansion_SupportsSpecialCharactersInTrigger()
     {
         // Arrange & Act
-        var expansion = new TextExpansion("::email", "user@domain.com");
+        var expansion = new TextExpansionEntry("::email", "user@domain.com");
 
         // Assert
-        expansion.Trigger.Should().Be("::email");
+        _ = expansion.Trigger.Should().Be("::email");
     }
 
     [Fact]
     public void TextExpansion_SupportsUnicodeInReplacement()
     {
         // Arrange
-        var unicodeText = "こんにちは 🎉 Привет";
+        const string unicodeText = "こんにちは 🎉 Привет";
 
         // Act
-        var expansion = new TextExpansion(":hello", unicodeText);
+        var expansion = new TextExpansionEntry(":hello", unicodeText);
 
         // Assert
-        expansion.Replacement.Should().Be(unicodeText);
+        _ = expansion.Replacement.Should().Be(unicodeText);
     }
 
     [Theory]
@@ -132,10 +133,10 @@ public class TextExpansionTests
     public void TextExpansion_SupportsVariousTriggerPatterns(string trigger, string replacement)
     {
         // Arrange & Act
-        var expansion = new TextExpansion(trigger, replacement);
+        var expansion = new TextExpansionEntry(trigger, replacement);
 
         // Assert
-        expansion.Trigger.Should().Be(trigger);
-        expansion.Replacement.Should().Be(replacement);
+        _ = expansion.Trigger.Should().Be(trigger);
+        _ = expansion.Replacement.Should().Be(replacement);
     }
 }

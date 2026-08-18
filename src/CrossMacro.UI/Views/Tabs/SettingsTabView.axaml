@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -11,7 +12,7 @@
              x:DataType="vm:SettingsViewModel">
 
     <Design.DataContext>
-        <vm:DesignSettingsViewModel/>
+        <designVm:DesignSettingsViewModel/>
     </Design.DataContext>
 
     <Panel>
@@ -142,7 +143,7 @@
                             <ComboBox Grid.Column="1"
                                       ItemsSource="{Binding LogLevels}"
                                       SelectedItem="{Binding SelectedLogLevel}"
-                                      Width="150"
+                                      Width="180"
                                       VerticalAlignment="Center"/>
                         </Grid>
 
@@ -154,16 +155,41 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{localization:Loc Settings_ThemeDescription}" 
-                                            FontSize="12"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                            TextWrapping="Wrap"/>
+                                             FontSize="12"
+                                             Foreground="{DynamicResource TextSecondaryBrush}"
+                                             TextWrapping="Wrap"/>
+                                <Button Classes="secondary compact"
+                                        Command="{Binding OpenThemesFolderCommand}"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,6,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <PathIcon Data="{icons:AppIcon FolderOpen}" Width="12" Height="12"/>
+                                        <TextBlock Text="{localization:Loc Settings_OpenThemesFolder}"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                             
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding AvailableThemes}"
-                                      SelectedItem="{Binding SelectedTheme}"
-                                      Width="150"
-                                      VerticalAlignment="Center"/>
+                            <!-- Fixed 180 total width keeps this row's left/right edges aligned with
+                                 the sibling ComboBox rows; the ComboBox absorbs whatever width the
+                                 refresh button leaves over. -->
+                            <Grid Grid.Column="1"
+                                  Width="180"
+                                  ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="8"
+                                  VerticalAlignment="Center">
+                                <ComboBox Grid.Column="0"
+                                          ItemsSource="{Binding AvailableThemes}"
+                                          SelectedItem="{Binding SelectedTheme}"
+                                          VerticalAlignment="Center"/>
+                                <Button Grid.Column="1"
+                                        Classes="secondary"
+                                        Command="{Binding RefreshThemesCommand}"
+                                        Padding="8"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="{localization:Loc Settings_RefreshThemes}">
+                                    <PathIcon Data="{icons:AppIcon Refresh}" Width="14" Height="14"/>
+                                </Button>
+                            </Grid>
                         </Grid>
 
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -181,7 +207,7 @@
                             <ComboBox Grid.Column="1"
                                       ItemsSource="{Binding AvailableLanguages}"
                                       SelectedItem="{Binding SelectedLanguageOption}"
-                                      Width="150"
+                                      Width="180"
                                       VerticalAlignment="Center">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
@@ -213,7 +239,7 @@
                             </ComboBox>
 
                             <Button Grid.Column="1"
-                                    Command="{Binding SwitchProfile}"
+                                    Command="{Binding SwitchProfileAsync}"
                                     Classes="secondary"
                                     MinWidth="96"
                                     HorizontalAlignment="Stretch"
@@ -223,7 +249,7 @@
                             </Button>
 
                             <Button Grid.Column="2"
-                                    Command="{Binding DeleteSelectedProfile}"
+                                    Command="{Binding DeleteSelectedProfileAsync}"
                                     Classes="secondary"
                                     MinWidth="96"
                                     HorizontalAlignment="Stretch"
@@ -240,7 +266,7 @@
                                      VerticalAlignment="Center"/>
 
                             <Button Grid.Column="1"
-                                    Command="{Binding CreateProfile}"
+                                    Command="{Binding CreateProfileAsync}"
                                     Classes="secondary"
                                     MinWidth="96"
                                     HorizontalAlignment="Stretch"
@@ -250,7 +276,7 @@
                             </Button>
 
                             <Button Grid.Column="2"
-                                    Command="{Binding RenameSelectedProfile}"
+                                    Command="{Binding RenameSelectedProfileAsync}"
                                     Classes="secondary"
                                     MinWidth="96"
                                     HorizontalAlignment="Stretch"

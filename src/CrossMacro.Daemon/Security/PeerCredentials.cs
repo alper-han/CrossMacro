@@ -1,8 +1,3 @@
-using System;
-using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using CrossMacro.Core.Logging;
-using CrossMacro.Infrastructure.Linux.Native;
 
 namespace CrossMacro.Daemon.Security;
 
@@ -11,13 +6,13 @@ namespace CrossMacro.Daemon.Security;
 /// Retrieves the UID, GID, and PID of the connected peer process.
 /// These credentials are provided by the kernel and cannot be spoofed.
 /// </summary>
-public static class PeerCredentials
+internal static partial class PeerCredentials
 {
     private const int SOL_SOCKET = 1;
     private const int SO_PEERCRED = 17;
 
-    [DllImport("libc", SetLastError = true)]
-    private static extern int getsockopt(int socket, int level, int optname, byte[] optval, ref int optlen);
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial int getsockopt(int socket, int level, int optname, byte[] optval, ref int optlen);
 
     /// <summary>
     /// Gets the peer credentials (UID, GID, PID) for a connected Unix domain socket.
@@ -26,8 +21,10 @@ public static class PeerCredentials
     /// <returns>Tuple of (uid, gid, pid) or null if failed</returns>
     public static (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket)
     {
-        if (socket == null)
+        if (socket is null)
+        {
             return null;
+        }
 
         try
         {
@@ -35,117 +32,23 @@ public static class PeerCredentials
             var len = credBuffer.Length;
 
             var handle = (int)socket.Handle;
-            if (getsockopt(handle, SOL_SOCKET, SO_PEERCRED, credBuffer, ref len) == 0)
+            if (getsockopt(handle, SOL_SOCKET, SO_PEERCRED, credBuffer, ref len) is 0)
             {
                 var pid = BitConverter.ToInt32(credBuffer, 0);
                 var uid = BitConverter.ToUInt32(credBuffer, 4);
                 var gid = BitConverter.ToUInt32(credBuffer, 8);
-                
+
                 Log.Debug("[PeerCredentials] Retrieved: UID={Uid}, GID={Gid}, PID={Pid}", uid, gid, pid);
                 return (uid, gid, pid);
             }
-            else
-            {
-                var errno = Marshal.GetLastWin32Error();
-                Log.Warning("[PeerCredentials] getsockopt failed with errno: {Errno}", errno);
-            }
+            var errno = Marshal.GetLastWin32Error();
+            Log.Warning("[PeerCredentials] getsockopt failed with errno: {Errno}", errno);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[PeerCredentials] Failed to get peer credentials");
         }
 
-        return null;
-    }
-
-    /// <summary>
-    /// Checks if a user (by UID) is a member of a specific group.
-    /// </summary>
-    public static bool IsUserInGroup(uint uid, string groupName)
-    {
-        try
-        {
-            // 1. Get the group's GID
-            int? groupGid = null;
-            if (System.IO.File.Exists(LinuxSystemPaths.GroupFile))
-            {
-                foreach (var line in System.IO.File.ReadLines(LinuxSystemPaths.GroupFile))
-                {
-                    var parts = line.Split(':');
-                    if (parts.Length >= 4 && parts[0] == groupName)
-                    {
-                        if (int.TryParse(parts[2], out int gid))
-                        {
-                            groupGid = gid;
-                            
-                            // Also check if UID is in the member list (field 4)
-                            var members = parts[3].Split(',', StringSplitOptions.RemoveEmptyEntries);
-                            var username = GetUsernameByUid(uid);
-                            if (!string.IsNullOrEmpty(username) && Array.Exists(members, m => m == username))
-                            {
-                                return true;
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-
-            if (groupGid == null)
-            {
-                Log.Debug("[PeerCredentials] Group '{Group}' not found", groupName);
-                return false;
-            }
-
-            // 2. Check if user's primary group matches
-            if (System.IO.File.Exists(LinuxSystemPaths.PasswdFile))
-            {
-                foreach (var line in System.IO.File.ReadLines(LinuxSystemPaths.PasswdFile))
-                {
-                    var parts = line.Split(':');
-                    if (parts.Length >= 4 && int.TryParse(parts[2], out int userUid) && userUid == uid)
-                    {
-                        if (int.TryParse(parts[3], out int userGid) && userGid == groupGid)
-                        {
-                            return true;
-                        }
-                        break;
-                    }
-                }
-            }
-
-            return false;
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[PeerCredentials] Failed to check group membership");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Gets the username for a given UID.
-    /// </summary>
-    public static string? GetUsernameByUid(uint uid)
-    {
-        try
-        {
-            if (System.IO.File.Exists(LinuxSystemPaths.PasswdFile))
-            {
-                foreach (var line in System.IO.File.ReadLines(LinuxSystemPaths.PasswdFile))
-                {
-                    var parts = line.Split(':');
-                    if (parts.Length >= 3 && int.TryParse(parts[2], out int userUid) && userUid == uid)
-                    {
-                        return parts[0];
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "[PeerCredentials] Failed to get username for UID {Uid}", uid);
-        }
         return null;
     }
 
@@ -156,25 +59,25 @@ public static class PeerCredentials
     {
         try
         {
-            var linkPath = $"/proc/{pid}/exe";
+            var linkPath = "/proc/" + pid.ToString(CultureInfo.InvariantCulture) + "/exe";
             if (System.IO.File.Exists(linkPath))
             {
                 // ReadLink to resolve the symlink
-                var target = new System.Text.StringBuilder(4096);
-                var result = readlink(linkPath, target, target.Capacity);
+                var target = new byte[4096];
+                var result = readlink(linkPath, target, target.Length);
                 if (result > 0)
                 {
-                    return target.ToString(0, result);
+                    return System.Text.Encoding.UTF8.GetString(target, 0, result);
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[PeerCredentials] Failed to get executable for PID {Pid}", pid);
         }
         return null;
     }
 
-    [DllImport("libc", SetLastError = true)]
-    private static extern int readlink(string path, System.Text.StringBuilder buf, int bufsize);
+    [LibraryImport("libc", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int readlink(string path, byte[] buf, int bufsize);
 }

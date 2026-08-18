@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Abstractions;
 
@@ -7,7 +6,5 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public interface IPlatformServiceRegistrar
 {
-    PlatformClipboardRegistration ClipboardRegistration { get; }
-
-    void RegisterPlatformServices(IServiceCollection services);
+    public void RegisterPlatformServices(IServiceCollection services);
 }

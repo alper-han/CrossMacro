@@ -1,19 +1,5 @@
-using System;
-using System.Collections.Generic;
 
 namespace CrossMacro.Platform.Linux.Ipc;
-
-internal enum CaptureCommandType
-{
-    None = 0,
-    Start = 1,
-    Stop = 2
-}
-
-internal readonly record struct CaptureCommand(
-    CaptureCommandType Type,
-    bool CaptureMouse = false,
-    bool CaptureKeyboard = false);
 
 internal sealed class CaptureSubscriptionCoordinator
 {
@@ -38,7 +24,7 @@ internal sealed class CaptureSubscriptionCoordinator
         }
         else
         {
-            _subscriptions.Remove(consumerId);
+            _ = _subscriptions.Remove(consumerId);
         }
     }
 
@@ -49,7 +35,7 @@ internal sealed class CaptureSubscriptionCoordinator
             return;
         }
 
-        _subscriptions.Remove(consumerId);
+        _ = _subscriptions.Remove(consumerId);
     }
 
     public bool TryGetSubscription(string consumerId, out bool captureMouse, out bool captureKeyboard)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # flatpak-dotnet-generator.sh
-# Bash alternative to flatpak-dotnet-generator.py
+# Generates the Flatpak NuGet source manifest used by CrossMacro packaging.
 # Generates nuget-sources.json for offline Flatpak builds
 
 set -euo pipefail
@@ -134,7 +134,7 @@ for PROJECT in "${PROJECTS[@]}"; do
             --share=network \
             --filesystem=host \
             "org.freedesktop.Sdk.Extension.dotnet${DOTNET}//${FREEDESKTOP}" \
-            -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\" -p:PublishAot=true -p:PublishReadyToRun=true -p:OptimizationPreference=Speed -p:StripSymbols=true -p:IlcTrimMetadata=true -p:DebugType=None -p:DebugSymbols=false --source https://api.nuget.org/v3/index.json --source /usr/lib/sdk/dotnet${DOTNET}/nuget/packages" \
+            -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\" -p:CrossMacroPublishProfile=native-aot --source https://api.nuget.org/v3/index.json --source /usr/lib/sdk/dotnet${DOTNET}/nuget/packages" \
             2>&1
     done
 done

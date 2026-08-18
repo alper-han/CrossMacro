@@ -1,7 +1,3 @@
-using System.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
-using System.Threading.Tasks;
 
 namespace CrossMacro.Infrastructure.Helpers;
 
@@ -15,7 +11,7 @@ internal static class FileBackedJsonStorage
 
     public static async Task<T?> ReadAsync<T>(string filePath, JsonTypeInfo<T> typeInfo)
     {
-        var json = await File.ReadAllTextAsync(filePath).ConfigureAwait(false);
+        var json = await File.ReadAllTextAsync(filePath, CancellationToken.None).ConfigureAwait(false);
         return JsonSerializer.Deserialize(json, typeInfo);
     }
 
@@ -23,14 +19,50 @@ internal static class FileBackedJsonStorage
     {
         EnsureParentDirectory(filePath);
         var json = JsonSerializer.Serialize(value, typeInfo);
-        File.WriteAllText(filePath, json);
+        var temporaryPath = GetTemporaryPath(filePath);
+        try
+        {
+            using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.WriteThrough))
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true))
+            {
+                writer.Write(json);
+                writer.Flush();
+                stream.Flush(flushToDisk: true);
+            }
+
+            Replace(filePath, temporaryPath);
+        }
+        finally
+        {
+            DeleteTemporaryFile(temporaryPath);
+        }
     }
 
-    public static async Task WriteAsync<T>(string filePath, T value, JsonTypeInfo<T> typeInfo)
+    public static async Task WriteAsync<T>(string filePath, T value, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
     {
         EnsureParentDirectory(filePath);
         var json = JsonSerializer.Serialize(value, typeInfo);
-        await File.WriteAllTextAsync(filePath, json).ConfigureAwait(false);
+        var temporaryPath = GetTemporaryPath(filePath);
+        try
+        {
+            var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous | FileOptions.WriteThrough);
+            await using (stream.ConfigureAwait(false))
+            {
+                var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true);
+                await using (writer.ConfigureAwait(false))
+                {
+                    await writer.WriteAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            Replace(filePath, temporaryPath);
+        }
+        finally
+        {
+            DeleteTemporaryFile(temporaryPath);
+        }
     }
 
     private static void EnsureParentDirectory(string filePath)
@@ -38,7 +70,29 @@ internal static class FileBackedJsonStorage
         var directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory))
         {
-            Directory.CreateDirectory(directory);
+            _ = Directory.CreateDirectory(directory);
+        }
+    }
+
+    private static string GetTemporaryPath(string filePath) => $"{filePath}.{System.Guid.NewGuid():N}.tmp";
+
+    private static void Replace(string filePath, string temporaryPath)
+    {
+        if (File.Exists(filePath))
+        {
+            File.Replace(temporaryPath, filePath, destinationBackupFileName: null);
+        }
+        else
+        {
+            File.Move(temporaryPath, filePath);
+        }
+    }
+
+    private static void DeleteTemporaryFile(string temporaryPath)
+    {
+        if (File.Exists(temporaryPath))
+        {
+            File.Delete(temporaryPath);
         }
     }
 }

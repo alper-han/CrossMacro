@@ -1,14 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.UI.ViewModels;
 
 public partial class EditorViewModel
 {
-    private IReadOnlyList<string> BuildAvailableVariableNames()
+    private string[] BuildAvailableVariableNames()
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < Actions.Count; index++)
@@ -26,21 +21,36 @@ public partial class EditorViewModel
                 case EditorActionType.ForBlockStart:
                     AddIfValidVariableName(names, action.ForVariableName);
                     break;
+                case EditorActionType.ShellCommand when action.ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput:
+                    AddIfValidVariableName(names, action.ShellExitCodeVariableName);
+                    AddIfValidVariableName(names, action.ShellStandardOutputVariableName);
+                    AddIfValidVariableName(names, action.ShellStandardErrorVariableName);
+                    break;
+                case EditorActionType.WindowCommand when action.WindowCommandMode is WindowCommandMode.Active or WindowCommandMode.Search or WindowCommandMode.Wait or WindowCommandMode.WorkspaceGet:
+                    AddIfValidVariableName(names, action.WindowOutputVariable);
+                    break;
+                case EditorActionType.ImageSearch:
+                case EditorActionType.ImageClick:
+                case EditorActionType.WaitImage:
+                    AddIfValidVariableName(names, action.ScreenFoundVariableName);
+                    AddIfValidVariableName(names, action.ScreenFoundXVariableName);
+                    AddIfValidVariableName(names, action.ScreenFoundYVariableName);
+                    break;
             }
 
             if (action.TryGetScreenReadingPayload(out var screenReadingPayload))
             {
-                foreach (var variableName in screenReadingPayload.GetOutputVariableNames())
+                foreach (var variableName in screenReadingPayload.OutputVariableNames)
                 {
                     AddIfValidVariableName(names, variableName);
                 }
             }
         }
 
-        return names.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+        return names.Order(StringComparer.Ordinal).ToArray();
     }
 
-    private IReadOnlyList<string> BuildAvailableColorVariableNames()
+    private string[] BuildAvailableColorVariableNames()
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         var selectedIndex = SelectedAction is null ? -1 : Actions.IndexOf(SelectedAction);
@@ -54,24 +64,22 @@ public partial class EditorViewModel
                 continue;
             }
 
-            foreach (var variableName in screenReadingPayload.GetOutputVariableNames())
+            foreach (var variableName in screenReadingPayload.OutputVariableNames
+                .Where(name => screenReadingPayload.GetOutputVariableRole(name) is EditorActionScreenReadingVariableRole.Color))
             {
-                if (screenReadingPayload.GetOutputVariableRole(variableName) == EditorActionScreenReadingVariableRole.Color)
-                {
-                    AddIfValidVariableName(names, variableName);
-                }
+                AddIfValidVariableName(names, variableName);
             }
         }
 
-        return names.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+        return names.Order(StringComparer.Ordinal).ToArray();
     }
 
     private void RefreshAvailableVariableNames()
     {
         var next = BuildAvailableVariableNames();
         var nextColor = BuildAvailableColorVariableNames();
-        var variableNamesChanged = !_availableVariableNames.SequenceEqual(next, StringComparer.Ordinal);
-        var colorVariableNamesChanged = !_availableColorVariableNames.SequenceEqual(nextColor, StringComparer.Ordinal);
+        var variableNamesChanged = !AvailableVariableNames.SequenceEqual(next, StringComparer.Ordinal);
+        var colorVariableNamesChanged = !AvailableColorVariableNames.SequenceEqual(nextColor, StringComparer.Ordinal);
 
         if (!variableNamesChanged && !colorVariableNamesChanged)
         {
@@ -92,14 +100,14 @@ public partial class EditorViewModel
 
         if (variableNamesChanged)
         {
-            _availableVariableNames = next;
+            AvailableVariableNames = next;
             OnPropertyChanged(nameof(AvailableVariableNames));
             OnPropertyChanged(nameof(HasAvailableVariableNames));
         }
 
         if (colorVariableNamesChanged)
         {
-            _availableColorVariableNames = nextColor;
+            AvailableColorVariableNames = nextColor;
             OnPropertyChanged(nameof(AvailableColorVariableNames));
             OnPropertyChanged(nameof(HasAvailableColorVariableNames));
         }
@@ -115,18 +123,26 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowConditionRightOperandTextBox));
         OnPropertyChanged(nameof(ShowConditionRightColorPicker));
         OnPropertyChanged(nameof(ShowForVariablePicker));
+        NotifyScriptArithmeticPresentationChanged();
         NotifyScreenReadingComputedPropertiesChanged();
         ClearVariableSuggestionSelections();
     }
 
     private void ClearVariableSuggestionSelections()
     {
-        SetSuggestionValue(ref _selectedSetVariableSuggestion, nameof(SelectedSetVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedIncDecVariableSuggestion, nameof(SelectedIncDecVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedConditionLeftVariableSuggestion, nameof(SelectedConditionLeftVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedConditionRightVariableSuggestion, nameof(SelectedConditionRightVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedForVariableSuggestion, nameof(SelectedForVariableSuggestion), null);
-        SetSuggestionValue(ref _selectedScreenTargetColorVariableSuggestion, nameof(SelectedScreenTargetColorVariableSuggestion), null);
+        SetSuggestionValue(ref _selectedSetVariableSuggestion, nameof(SelectedSetVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedIncDecVariableSuggestion, nameof(SelectedIncDecVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedConditionLeftVariableSuggestion, nameof(SelectedConditionLeftVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedConditionRightVariableSuggestion, nameof(SelectedConditionRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedForVariableSuggestion, nameof(SelectedForVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedClipboardVariableSuggestion, nameof(SelectedClipboardVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedScreenTargetColorVariableSuggestion, nameof(SelectedScreenTargetColorVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedRepeatCountExprRightVariableSuggestion, nameof(SelectedRepeatCountExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedForStartExprRightVariableSuggestion, nameof(SelectedForStartExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedForEndExprRightVariableSuggestion, nameof(SelectedForEndExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedForStepExprRightVariableSuggestion, nameof(SelectedForStepExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedConditionLeftExprRightVariableSuggestion, nameof(SelectedConditionLeftExprRightVariableSuggestion), value: null);
+        SetSuggestionValue(ref _selectedConditionRightExprRightVariableSuggestion, nameof(SelectedConditionRightExprRightVariableSuggestion), value: null);
     }
 
     private void SetSuggestionValue(ref string? targetField, string propertyName, string? value)
@@ -180,7 +196,7 @@ public partial class EditorViewModel
         }
 
         var text = legacyText.Trim();
-        var equalIndex = text.IndexOf('=');
+        var equalIndex = text.IndexOf('=', StringComparison.Ordinal);
         if (equalIndex > 0)
         {
             AddIfValidVariableName(target, text[..equalIndex]);
@@ -199,14 +215,17 @@ public partial class EditorViewModel
         }
 
         var token = value.Trim();
-        if (token.StartsWith("$", StringComparison.Ordinal))
+        if (token.StartsWith('$'))
         {
             token = token[1..];
         }
 
-        if (Regex.IsMatch(token, @"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant))
+        if (VariableNameRegex.IsMatch(token))
         {
-            target.Add(token);
+            _ = target.Add(token);
         }
     }
+
+    [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    private static partial Regex VariableNameRegex { get; }
 }

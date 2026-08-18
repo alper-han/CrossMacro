@@ -1,42 +1,61 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Avalonia.Threading;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Core.Services.Playback;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Models;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 
 /// <summary>
 /// ViewModel for the Playback tab - handles macro playback functionality
 /// </summary>
-public class PlaybackViewModel : ViewModelBase, IDisposable
+public partial class PlaybackViewModel : ViewModelBase, IDisposable
 {
+    private const int FastLoopWarningThresholdMs = 100;
+
+    private bool _disposed;
+
     private readonly IMacroPlayer _player;
     private readonly ISettingsService _settingsService;
     private readonly ILoadedMacroSession _loadedMacroSession;
     private readonly ILocalizationService _localizationService;
     private readonly IDialogService? _dialogService;
-    private readonly Random _random = Random.Shared;
+    private readonly Func<int, int, int> _randomInclusive;
+    private readonly Func<Func<Task>, Task> _executeOnUiThread;
 
     private double _playbackSpeed = 1.0;
-    private bool _isLooping;
-    private int _loopCount = 1;
+    private MotionPlaybackMode _motionPlaybackMode = MotionPlaybackMode.Precision;
+    private int? _precisionMotionEventsPerSecond = PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
+    private int? _strictSpeedMotionEventsPerSecond = PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
     private int? _loopDelayMs = 0;
-    private bool _useRandomLoopDelay;
     private int? _loopDelayMinMs = 0;
     private int? _loopDelayMaxMs = 0;
-    private int? _countdownSeconds = 0;
-    private bool _isPlaying;
-    private bool _isPaused;
     private string _playbackStatus;
-    private bool _stopRequested;
+    private int _stopRequested;
+    private int _settingsChangeVersion;
+    private bool _fastLoopWarningAcknowledged;
+    private Task? _fastLoopWarningTask;
+    private double _maximumMotionErrorPixels = PlaybackOptions.DefaultMaximumMotionErrorPixels;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFixedLoopDelayInput))]
+    [NotifyPropertyChangedFor(nameof(ShowRandomLoopDelayInputs))]
+    private bool _isLooping;
+
+    [ObservableProperty]
+    private int _loopCount = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LoopDelayMinMs))]
+    [NotifyPropertyChangedFor(nameof(LoopDelayMaxMs))]
+    [NotifyPropertyChangedFor(nameof(ShowFixedLoopDelayInput))]
+    [NotifyPropertyChangedFor(nameof(ShowRandomLoopDelayInputs))]
+    private bool _useRandomLoopDelay;
+
+    [ObservableProperty]
+    private int? _countdownSeconds = 0;
+
+    /// <summary>
+    /// Used by MainWindowViewModel to control if playback can start (considering recording state)
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanPlayMacro))]
+    private bool _canPlayMacroExternal = true;
     private bool _isSequencePlayback;
     private bool _isWaitingBetweenSequenceCycles;
     private int _sequenceMacroIndex;
@@ -45,10 +64,14 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
     private int _sequenceTotalCycles;
     private string _sequenceMacroName = string.Empty;
     private int _sequenceMacroRepeatCount = 1;
+    private readonly SettingsSaveRollbackTracker _saveRollbackTracker = new();
 
     private MacroSequence? _currentMacro;
     private CancellationTokenSource? _playbackCts;
     private DispatcherTimer? _statusUpdateTimer;
+    private SynchronizationContext? _uiSynchronizationContext;
+
+    private bool StopRequested => Volatile.Read(ref _stopRequested) is not 0;
 
     /// <summary>
     /// Event fired when playback state changes
@@ -66,16 +89,32 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         ILoadedMacroSession loadedMacroSession,
         ILocalizationService? localizationService = null,
         IDialogService? dialogService = null)
+        : this(player, settingsService, loadedMacroSession, localizationService, dialogService, RandomNumberGeneratorUtility.GetInt32Inclusive) { /* Empty */ }
+
+    internal PlaybackViewModel(
+        IMacroPlayer player,
+        ISettingsService settingsService,
+        ILoadedMacroSession loadedMacroSession,
+        ILocalizationService? localizationService,
+        IDialogService? dialogService,
+        Func<int, int, int> randomInclusive,
+        Func<Func<Task>, Task>? executeOnUiThread = null)
     {
         _player = player;
         _settingsService = settingsService;
         _loadedMacroSession = loadedMacroSession;
         _localizationService = localizationService ?? new LocalizationService();
         _dialogService = dialogService;
+        _randomInclusive = randomInclusive ?? throw new ArgumentNullException(nameof(randomInclusive));
+        _executeOnUiThread = executeOnUiThread ?? ExecuteOnUiThreadAsync;
         _playbackStatus = _localizationService["Playback_StatusReady"];
 
         // Initialize playback settings from saved settings
         _playbackSpeed = _settingsService.Current.PlaybackSpeed;
+        _motionPlaybackMode = _settingsService.Current.MotionMode;
+        _precisionMotionEventsPerSecond = _settingsService.Current.PrecisionMotionEventsPerSecond;
+        _strictSpeedMotionEventsPerSecond = _settingsService.Current.StrictSpeedMotionEventsPerSecond;
+        _maximumMotionErrorPixels = _settingsService.Current.MaximumMotionErrorPixels;
         _isLooping = _settingsService.Current.IsLooping;
         _loopCount = _settingsService.Current.LoopCount;
         _loopDelayMs = _settingsService.Current.LoopDelayMs;
@@ -93,7 +132,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         // Setup status update timer
         _statusUpdateTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(100)
+            Interval = TimeSpan.FromMilliseconds(100),
         };
         _statusUpdateTimer.Tick += OnStatusUpdateTimerTick;
     }
@@ -105,7 +144,13 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        // Direct field writes: refreshing from settings must not re-persist via setter hooks.
+#pragma warning disable MVVMTK0034
         _playbackSpeed = _settingsService.Current.PlaybackSpeed;
+        _motionPlaybackMode = _settingsService.Current.MotionMode;
+        _precisionMotionEventsPerSecond = _settingsService.Current.PrecisionMotionEventsPerSecond;
+        _strictSpeedMotionEventsPerSecond = _settingsService.Current.StrictSpeedMotionEventsPerSecond;
+        _maximumMotionErrorPixels = _settingsService.Current.MaximumMotionErrorPixels;
         _isLooping = _settingsService.Current.IsLooping;
         _loopCount = _settingsService.Current.LoopCount;
         _loopDelayMs = _settingsService.Current.LoopDelayMs;
@@ -113,8 +158,17 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         _loopDelayMinMs = _settingsService.Current.LoopDelayMinMs;
         _loopDelayMaxMs = _settingsService.Current.LoopDelayMaxMs;
         _countdownSeconds = _settingsService.Current.CountdownSeconds;
+#pragma warning restore MVVMTK0034
 
         OnPropertyChanged(nameof(PlaybackSpeed));
+        OnPropertyChanged(nameof(MotionPlaybackMode));
+        OnPropertyChanged(nameof(PrecisionMotionEventsPerSecond));
+        OnPropertyChanged(nameof(StrictSpeedMotionEventsPerSecond));
+        OnPropertyChanged(nameof(MaximumMotionErrorPixels));
+        OnPropertyChanged(nameof(IsPrecisionMotionMode));
+        OnPropertyChanged(nameof(IsStrictSpeedMotionMode));
+        OnPropertyChanged(nameof(ShowPrecisionMotionRate));
+        OnPropertyChanged(nameof(ShowStrictSpeedMotionRate));
         OnPropertyChanged(nameof(IsLooping));
         OnPropertyChanged(nameof(LoopCount));
         OnPropertyChanged(nameof(LoopDelayMs));
@@ -127,13 +181,13 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
     private void OnStatusUpdateTimerTick(object? sender, EventArgs e)
     {
-        if (IsPlaying && !IsPaused && !_stopRequested)
+        if (IsPlaying && !IsPaused && !StopRequested)
         {
-            UpdatePlaybackStatus();
+            ApplyPlaybackStatus();
         }
     }
 
-    private void UpdatePlaybackStatus()
+    private void ApplyPlaybackStatus()
     {
         if (_isSequencePlayback)
         {
@@ -148,12 +202,12 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 : _sequenceMacroName;
             var macroIndex = Math.Max(1, _sequenceMacroIndex);
             var macroCount = Math.Max(1, _sequenceMacroCount);
-            var cycleText = _sequenceTotalCycles == 0
+            var cycleText = _sequenceTotalCycles is 0
                 ? string.Format(
                     _localizationService.CurrentCulture,
                     _localizationService["Playback_SequenceCycleInfinite"],
                     Math.Max(1, _sequenceCycle))
-                : $"{Math.Max(1, _sequenceCycle)}/{Math.Max(1, _sequenceTotalCycles)}";
+                : $"{Math.Max(1, _sequenceCycle).ToString(CultureInfo.InvariantCulture)}/{Math.Max(1, _sequenceTotalCycles).ToString(CultureInfo.InvariantCulture)}";
             var repeatCount = Math.Max(1, _sequenceMacroRepeatCount);
             var repeatText = string.Empty;
 
@@ -183,7 +237,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (totalLoops == 0)
+        if (totalLoops is 0)
         {
             PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusLoopInfinite"], currentLoop);
         }
@@ -199,27 +253,31 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        if (IsPlaying && !IsPaused && !_stopRequested)
+        PostToUiThread(() =>
         {
-            UpdatePlaybackStatus();
-            return;
-        }
+            if (IsPlaying && !IsPaused && !StopRequested)
+            {
+                ApplyPlaybackStatus();
+                return;
+            }
 
-        if (IsPaused)
-        {
-            PlaybackStatus = _localizationService["Playback_StatusPaused"];
-            return;
-        }
+            if (IsPaused)
+            {
+                PlaybackStatus = _localizationService["Playback_StatusPaused"];
+                return;
+            }
 
-        if (_stopRequested)
-        {
-            PlaybackStatus = _localizationService["Playback_StatusStopped"];
-            return;
-        }
+            if (StopRequested)
+            {
+                PlaybackStatus = _localizationService["Playback_StatusStopped"];
+                return;
+            }
 
-        PlaybackStatus = _localizationService["Playback_StatusReady"];
+            PlaybackStatus = _localizationService["Playback_StatusReady"];
+        });
     }
 
+    // Kept manual: normalizes (coerces) the incoming value and compares with an epsilon instead of equality.
     public double PlaybackSpeed
     {
         get => _playbackSpeed;
@@ -232,7 +290,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 _playbackSpeed = normalized;
                 _settingsService.Current.PlaybackSpeed = normalized;
                 OnPropertyChanged();
-                TryPersistSettingChange(
+                _ = TryPersistSettingChange(
                     () =>
                     {
                         _playbackSpeed = previousValue;
@@ -243,53 +301,169 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool IsLooping
+    public MotionPlaybackMode MotionPlaybackMode
     {
-        get => _isLooping;
+        get => _motionPlaybackMode;
         set
         {
-            if (_isLooping != value)
+            var normalized = Enum.IsDefined(value) ? value : MotionPlaybackMode.Precision;
+            if (_motionPlaybackMode == normalized)
             {
-                var previousValue = _isLooping;
-                _isLooping = value;
-                _settingsService.Current.IsLooping = value;
-                OnPropertyChanged();
-                NotifyLoopDelayVisibilityChanged();
-                TryPersistSettingChange(
-                    () =>
-                    {
-                        _isLooping = previousValue;
-                        _settingsService.Current.IsLooping = previousValue;
-                    },
-                    nameof(IsLooping),
-                    nameof(ShowFixedLoopDelayInput),
-                    nameof(ShowRandomLoopDelayInputs));
+                return;
+            }
+
+            var previousValue = _motionPlaybackMode;
+            _motionPlaybackMode = normalized;
+            _settingsService.Current.MotionMode = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsPrecisionMotionMode));
+            OnPropertyChanged(nameof(IsStrictSpeedMotionMode));
+            OnPropertyChanged(nameof(ShowPrecisionMotionRate));
+            OnPropertyChanged(nameof(ShowStrictSpeedMotionRate));
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _motionPlaybackMode = previousValue;
+                    _settingsService.Current.MotionMode = previousValue;
+                },
+                nameof(MotionPlaybackMode),
+                nameof(IsPrecisionMotionMode),
+                nameof(IsStrictSpeedMotionMode),
+                nameof(ShowPrecisionMotionRate),
+                nameof(ShowStrictSpeedMotionRate));
+        }
+    }
+
+    public bool IsPrecisionMotionMode
+    {
+        get => MotionPlaybackMode is MotionPlaybackMode.Precision;
+        set
+        {
+            if (value)
+            {
+                MotionPlaybackMode = MotionPlaybackMode.Precision;
             }
         }
     }
 
-    public int LoopCount
+    public bool IsStrictSpeedMotionMode
     {
-        get => _loopCount;
+        get => MotionPlaybackMode is MotionPlaybackMode.StrictSpeed;
         set
         {
-            if (_loopCount != value)
+            if (value)
             {
-                var previousValue = _loopCount;
-                _loopCount = value;
-                _settingsService.Current.LoopCount = value;
-                OnPropertyChanged();
-                TryPersistSettingChange(
-                    () =>
-                    {
-                        _loopCount = previousValue;
-                        _settingsService.Current.LoopCount = previousValue;
-                    },
-                    nameof(LoopCount));
+                MotionPlaybackMode = MotionPlaybackMode.StrictSpeed;
             }
         }
     }
 
+    public bool ShowPrecisionMotionRate => IsPrecisionMotionMode;
+
+    public bool ShowStrictSpeedMotionRate => IsStrictSpeedMotionMode;
+
+    public int? PrecisionMotionEventsPerSecond
+    {
+        get => _precisionMotionEventsPerSecond;
+        set
+        {
+            var normalized = PlaybackOptions.NormalizePrecisionMotionEventsPerSecond(value ?? 0);
+            if (_precisionMotionEventsPerSecond == normalized)
+            {
+                return;
+            }
+
+            var previousValue = _precisionMotionEventsPerSecond ?? PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
+            _precisionMotionEventsPerSecond = normalized;
+            _settingsService.Current.PrecisionMotionEventsPerSecond = normalized;
+            OnPropertyChanged();
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _precisionMotionEventsPerSecond = previousValue;
+                    _settingsService.Current.PrecisionMotionEventsPerSecond = previousValue;
+                },
+                nameof(PrecisionMotionEventsPerSecond));
+        }
+    }
+
+    public int? StrictSpeedMotionEventsPerSecond
+    {
+        get => _strictSpeedMotionEventsPerSecond;
+        set
+        {
+            var normalized = PlaybackOptions.NormalizeStrictSpeedMotionEventsPerSecond(value ?? 0);
+            if (_strictSpeedMotionEventsPerSecond == normalized)
+            {
+                return;
+            }
+
+            var previousValue = _strictSpeedMotionEventsPerSecond ?? PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
+            _strictSpeedMotionEventsPerSecond = normalized;
+            _settingsService.Current.StrictSpeedMotionEventsPerSecond = normalized;
+            OnPropertyChanged();
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _strictSpeedMotionEventsPerSecond = previousValue;
+                    _settingsService.Current.StrictSpeedMotionEventsPerSecond = previousValue;
+                },
+                nameof(StrictSpeedMotionEventsPerSecond));
+        }
+    }
+
+    public double MaximumMotionErrorPixels
+    {
+        get => _maximumMotionErrorPixels;
+        set
+        {
+            var normalized = PlaybackOptions.NormalizeMaximumMotionErrorPixels(value);
+            if (Math.Abs(_maximumMotionErrorPixels - normalized) < 0.001d)
+            {
+                return;
+            }
+
+            var previousValue = _maximumMotionErrorPixels;
+            _maximumMotionErrorPixels = normalized;
+            _settingsService.Current.MaximumMotionErrorPixels = normalized;
+            OnPropertyChanged();
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _maximumMotionErrorPixels = previousValue;
+                    _settingsService.Current.MaximumMotionErrorPixels = previousValue;
+                },
+                nameof(MaximumMotionErrorPixels));
+        }
+    }
+
+    partial void OnIsLoopingChanged(bool oldValue, bool newValue)
+    {
+        _settingsService.Current.IsLooping = newValue;
+        PersistLoopSettingChange(
+            () =>
+            {
+                _isLooping = oldValue;
+                _settingsService.Current.IsLooping = oldValue;
+            },
+            nameof(IsLooping),
+            nameof(ShowFixedLoopDelayInput),
+            nameof(ShowRandomLoopDelayInputs));
+    }
+
+    partial void OnLoopCountChanged(int oldValue, int newValue)
+    {
+        _settingsService.Current.LoopCount = newValue;
+        PersistLoopSettingChange(
+            () =>
+            {
+                _loopCount = oldValue;
+                _settingsService.Current.LoopCount = oldValue;
+            },
+            nameof(LoopCount));
+    }
+
+    // Kept manual: normalizes (coerces) the incoming value before the change check.
     public int? LoopDelayMs
     {
         get => _loopDelayMs;
@@ -302,7 +476,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 _loopDelayMs = normalized;
                 _settingsService.Current.LoopDelayMs = normalized;
                 OnPropertyChanged();
-                TryPersistSettingChange(
+                PersistLoopSettingChange(
                     () =>
                     {
                         _loopDelayMs = previousValue;
@@ -313,48 +487,34 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool UseRandomLoopDelay
+    partial void OnUseRandomLoopDelayChanged(bool oldValue, bool newValue)
     {
-        get => _useRandomLoopDelay;
-        set
+        var previousMin = _loopDelayMinMs ?? 0;
+        var previousMax = _loopDelayMaxMs ?? 0;
+
+        if (newValue && previousMin is 0 && previousMax is 0)
         {
-            if (_useRandomLoopDelay == value)
-            {
-                return;
-            }
-
-            var previousUseRandom = _useRandomLoopDelay;
-            var previousMin = _loopDelayMinMs ?? 0;
-            var previousMax = _loopDelayMaxMs ?? 0;
-
-            _useRandomLoopDelay = value;
-            if (value && previousMin == 0 && previousMax == 0)
-            {
-                var seededDelay = NormalizeDelayInput(LoopDelayMs);
-                UpdateLoopDelayRange(seededDelay, seededDelay);
-            }
-
-            _settingsService.Current.UseRandomLoopDelay = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(LoopDelayMinMs));
-            OnPropertyChanged(nameof(LoopDelayMaxMs));
-            NotifyLoopDelayVisibilityChanged();
-
-            TryPersistSettingChange(
-                () =>
-                {
-                    _useRandomLoopDelay = previousUseRandom;
-                    UpdateLoopDelayRange(previousMin, previousMax);
-                    _settingsService.Current.UseRandomLoopDelay = previousUseRandom;
-                },
-                nameof(UseRandomLoopDelay),
-                nameof(LoopDelayMinMs),
-                nameof(LoopDelayMaxMs),
-                nameof(ShowFixedLoopDelayInput),
-                nameof(ShowRandomLoopDelayInputs));
+            var seededDelay = NormalizeDelayInput(LoopDelayMs);
+            UpdateLoopDelayRange(seededDelay, seededDelay);
         }
+
+        _settingsService.Current.UseRandomLoopDelay = newValue;
+
+        PersistLoopSettingChange(
+            () =>
+            {
+                _useRandomLoopDelay = oldValue;
+                UpdateLoopDelayRange(previousMin, previousMax);
+                _settingsService.Current.UseRandomLoopDelay = oldValue;
+            },
+            nameof(UseRandomLoopDelay),
+            nameof(LoopDelayMinMs),
+            nameof(LoopDelayMaxMs),
+            nameof(ShowFixedLoopDelayInput),
+            nameof(ShowRandomLoopDelayInputs));
     }
 
+    // Kept manual: cross-property coercion (NormalizeDelayRange) with a conditional partner notification.
     public int? LoopDelayMinMs
     {
         get => _loopDelayMinMs;
@@ -368,20 +528,24 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            UpdateLoopDelayRange(normalizedMin, normalizedMax);
+            _loopDelayMinMs = normalizedMin;
+            _loopDelayMaxMs = normalizedMax;
+            _settingsService.Current.LoopDelayMinMs = normalizedMin;
+            _settingsService.Current.LoopDelayMaxMs = normalizedMax;
             OnPropertyChanged();
             if (previousMax != normalizedMax)
             {
                 OnPropertyChanged(nameof(LoopDelayMaxMs));
             }
 
-            TryPersistSettingChange(
+            PersistLoopSettingChange(
                 () => UpdateLoopDelayRange(previousMin, previousMax),
                 nameof(LoopDelayMinMs),
                 nameof(LoopDelayMaxMs));
         }
     }
 
+    // Kept manual: cross-property coercion (NormalizeDelayRange) with a conditional partner notification.
     public int? LoopDelayMaxMs
     {
         get => _loopDelayMaxMs;
@@ -395,14 +559,17 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            UpdateLoopDelayRange(normalizedMin, normalizedMax);
+            _loopDelayMinMs = normalizedMin;
+            _loopDelayMaxMs = normalizedMax;
+            _settingsService.Current.LoopDelayMinMs = normalizedMin;
+            _settingsService.Current.LoopDelayMaxMs = normalizedMax;
             OnPropertyChanged();
             if (previousMin != normalizedMin)
             {
                 OnPropertyChanged(nameof(LoopDelayMinMs));
             }
 
-            TryPersistSettingChange(
+            PersistLoopSettingChange(
                 () => UpdateLoopDelayRange(previousMin, previousMax),
                 nameof(LoopDelayMinMs),
                 nameof(LoopDelayMaxMs));
@@ -413,36 +580,27 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
     public bool ShowRandomLoopDelayInputs => IsLooping && UseRandomLoopDelay;
 
-    public int? CountdownSeconds
+    partial void OnCountdownSecondsChanged(int? oldValue, int? newValue)
     {
-        get => _countdownSeconds;
-        set
-        {
-            if (_countdownSeconds != value)
+        _settingsService.Current.CountdownSeconds = newValue ?? 0;
+        _ = TryPersistSettingChange(
+            () =>
             {
-                var previousValue = _countdownSeconds;
-                _countdownSeconds = value;
-                _settingsService.Current.CountdownSeconds = value ?? 0;
-                OnPropertyChanged();
-                TryPersistSettingChange(
-                    () =>
-                    {
-                        _countdownSeconds = previousValue;
-                        _settingsService.Current.CountdownSeconds = previousValue ?? 0;
-                    },
-                    nameof(CountdownSeconds));
-            }
-        }
+                _countdownSeconds = oldValue;
+                _settingsService.Current.CountdownSeconds = oldValue ?? 0;
+            },
+            nameof(CountdownSeconds));
     }
 
+    // Kept manual: PlaybackStateChanged must fire after the CanPlayMacro notification, a generated OnChanged hook would fire before it.
     public bool IsPlaying
     {
-        get => _isPlaying;
+        get;
         private set
         {
-            if (_isPlaying != value)
+            if (field != value)
             {
-                _isPlaying = value;
+                field = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanPlayMacro));
                 PlaybackStateChanged?.Invoke(this, value);
@@ -450,25 +608,16 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool IsPaused
-    {
-        get => _isPaused;
-        private set
-        {
-            if (_isPaused != value)
-            {
-                _isPaused = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    [ObservableProperty]
+    public partial bool IsPaused { get; private set; }
 
+    // Kept manual: StatusChanged must fire after the PropertyChanged notification, a generated OnChanged hook would fire before it.
     public string PlaybackStatus
     {
         get => _playbackStatus;
         private set
         {
-            if (_playbackStatus != value)
+            if (!string.Equals(_playbackStatus, value, StringComparison.Ordinal))
             {
                 _playbackStatus = value;
                 OnPropertyChanged();
@@ -481,25 +630,6 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         PlaybackExecutionPlanner.GetPreviewMacro(_loadedMacroSession, _currentMacro));
 
     public bool CanPlayMacro => HasMacro && !IsPlaying && CanPlayMacroExternal;
-
-    private bool _canPlayMacroExternal = true;
-
-    /// <summary>
-    /// Used by MainWindowViewModel to control if playback can start (considering recording state)
-    /// </summary>
-    public bool CanPlayMacroExternal
-    {
-        get => _canPlayMacroExternal;
-        set
-        {
-            if (_canPlayMacroExternal != value)
-            {
-                _canPlayMacroExternal = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanPlayMacro));
-            }
-        }
-    }
 
     /// <summary>
     /// Set the fallback macro to be played.
@@ -519,14 +649,30 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var currentSynchronizationContext = SynchronizationContext.Current;
+        var contextTypeName = currentSynchronizationContext?.GetType().FullName;
+        _uiSynchronizationContext = currentSynchronizationContext is not null
+            && (contextTypeName is null || !contextTypeName.StartsWith("Avalonia.", StringComparison.Ordinal))
+            ? currentSynchronizationContext
+            : null;
+
         var executionPlan = PlaybackExecutionPlanner.CreatePlan(_loadedMacroSession, _currentMacro);
         if (!string.IsNullOrEmpty(executionPlan.ValidationError))
         {
-            PlaybackStatus = executionPlan.ValidationError;
+            await _executeOnUiThread(() =>
+            {
+                PlaybackStatus = executionPlan.ValidationError;
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
             return;
         }
 
         if (!PlaybackExecutionPlanner.HasPlayableEvents(executionPlan.ActiveMacro))
+        {
+            return;
+        }
+
+        if (!await ConfirmFastLoopPlaybackAsync(forPlayback: true).ConfigureAwait(false))
         {
             return;
         }
@@ -536,83 +682,103 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         var sequenceSnapshot = executionPlan.SequenceSnapshot;
 
         _playbackCts?.Dispose();
-        _playbackCts = new CancellationTokenSource();
-        _stopRequested = false;
-        ResetSequenceState();
+        var playbackCts = new CancellationTokenSource();
+        _playbackCts = playbackCts;
+        Volatile.Write(ref _stopRequested, 0);
+        var completedNormally = false;
 
         try
         {
-            IsPlaying = true;
-            IsPaused = false;
+            await _executeOnUiThread(() =>
+            {
+                ResetSequenceState();
+                IsPlaying = true;
+                IsPaused = false;
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
 
-            await WaitForCountdownAsync(_playbackCts.Token);
-            if (_stopRequested)
+            await WaitForCountdownAsync(playbackCts.Token).ConfigureAwait(false);
+            if (StopRequested)
             {
                 return;
             }
 
-            _statusUpdateTimer?.Start();
+            await _executeOnUiThread(() =>
+            {
+                _statusUpdateTimer?.Start();
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
 
             if (executionPlan.UsesSequence)
             {
-                await PlaySequentialCycleAsync(sequenceSnapshot, _playbackCts.Token);
+                await PlaySequentialCycleAsync(sequenceSnapshot, playbackCts.Token).ConfigureAwait(false);
             }
             else
             {
-                await PlaySingleMacroModeAsync(activeMacro, playbackMode, _playbackCts.Token);
+                await PlaySingleMacroModeAsync(activeMacro, playbackMode, playbackCts.Token).ConfigureAwait(false);
             }
 
-            if (!_stopRequested)
-            {
-                PlaybackStatus = _localizationService["Playback_StatusComplete"];
-            }
+            completedNormally = !StopRequested;
         }
-        catch (OperationCanceledException) when (_stopRequested)
-        {
-        }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (StopRequested) { /* Empty */ }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (ex is AbsolutePlaybackUnsupportedException)
             {
-                PlaybackStatus = _localizationService["Playback_StatusAbsoluteCoordinatesUnsupported"];
-                _statusUpdateTimer?.Stop();
-                IsPlaying = false;
-                IsPaused = false;
-
-                if (_dialogService != null)
+                await _executeOnUiThread(async () =>
                 {
-                    await _dialogService.ShowMessageAsync(
-                        _localizationService["Playback_AbsoluteCoordinatesUnsupportedTitle"],
-                        _localizationService["Playback_AbsoluteCoordinatesUnsupportedMessage"]);
-                }
+                    PlaybackStatus = _localizationService["Playback_StatusAbsoluteCoordinatesUnsupported"];
+                    _statusUpdateTimer?.Stop();
+
+                    if (_dialogService is not null)
+                    {
+                        await _dialogService.ShowMessageAsync(
+                            _localizationService["Playback_AbsoluteCoordinatesUnsupportedTitle"],
+                            _localizationService["Playback_AbsoluteCoordinatesUnsupportedMessage"]).ConfigureAwait(true);
+                    }
+                }).ConfigureAwait(false);
             }
             else if (ex is InputInjectionPermissionRequiredException)
             {
-                PlaybackStatus = _localizationService["Playback_StatusPermissionRequired"];
-                _statusUpdateTimer?.Stop();
-                IsPlaying = false;
-                IsPaused = false;
-
-                if (_dialogService != null)
+                await _executeOnUiThread(async () =>
                 {
-                    await _dialogService.ShowMessageAsync(
-                        _localizationService["Playback_PermissionRequiredTitle"],
-                        _localizationService["Playback_PermissionRequiredMessage"]);
-                }
+                    PlaybackStatus = _localizationService["Playback_StatusPermissionRequired"];
+                    _statusUpdateTimer?.Stop();
+
+                    if (_dialogService is not null)
+                    {
+                        await _dialogService.ShowMessageAsync(
+                            _localizationService["Playback_PermissionRequiredTitle"],
+                            _localizationService["Playback_PermissionRequiredMessage"]).ConfigureAwait(true);
+                    }
+                }).ConfigureAwait(false);
             }
             else
             {
-                PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusError"], ex.Message);
+                await _executeOnUiThread(() =>
+                {
+                    PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusError"], ex.Message);
+                    return Task.CompletedTask;
+                }).ConfigureAwait(false);
             }
         }
         finally
         {
-            _statusUpdateTimer?.Stop();
-            _playbackCts?.Dispose();
-            _playbackCts = null;
-            ResetSequenceState();
-            IsPlaying = false;
-            IsPaused = false;
+            await _executeOnUiThread(() =>
+            {
+                if (completedNormally)
+                {
+                    PlaybackStatus = _localizationService["Playback_StatusComplete"];
+                }
+
+                _statusUpdateTimer?.Stop();
+                _playbackCts?.Dispose();
+                _playbackCts = null;
+                ResetSequenceState();
+                IsPlaying = false;
+                IsPaused = false;
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
         }
     }
 
@@ -623,15 +789,15 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _stopRequested = true;
+        Volatile.Write(ref _stopRequested, 1);
         _isWaitingBetweenSequenceCycles = false;
         _statusUpdateTimer?.Stop();
         _playbackCts?.Cancel();
         IsPaused = false;
-        _player.Stop();
+        _player.StopPlayback();
         PlaybackStatus = _localizationService["Playback_StatusStopped"];
 
-        if (_playbackCts == null)
+        if (_playbackCts is null)
         {
             IsPlaying = false;
         }
@@ -639,16 +805,16 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
     public void TogglePause()
     {
-        if (!IsPlaying || _isWaitingBetweenSequenceCycles || _stopRequested)
+        if (!IsPlaying || _isWaitingBetweenSequenceCycles || StopRequested)
         {
             return;
         }
 
         if (_player.IsPaused)
         {
-            _player.Resume();
+            _player.ResumePlayback();
             IsPaused = false;
-            UpdatePlaybackStatus();
+            ApplyPlaybackStatus();
         }
         else
         {
@@ -675,12 +841,21 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        _statusUpdateTimer?.Stop();
-        if (_statusUpdateTimer != null)
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
         {
-            _statusUpdateTimer.Tick -= OnStatusUpdateTimerTick;
-            _statusUpdateTimer = null;
+            return;
         }
+
+        _disposed = true;
+        _statusUpdateTimer?.Stop();
+        _statusUpdateTimer?.Tick -= OnStatusUpdateTimerTick;
+        _statusUpdateTimer = null;
 
         _localizationService.CultureChanged -= OnCultureChanged;
         _loadedMacroSession.SelectedMacroChanged -= OnLoadedMacroSelectionChanged;
@@ -700,7 +875,11 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             RepeatDelayMs = LoopDelayMs ?? 0,
             UseRandomRepeatDelay = UseRandomLoopDelay,
             RepeatDelayMinMs = LoopDelayMinMs ?? 0,
-            RepeatDelayMaxMs = LoopDelayMaxMs ?? 0
+            RepeatDelayMaxMs = LoopDelayMaxMs ?? 0,
+            MotionMode = MotionPlaybackMode,
+            PrecisionMotionEventsPerSecond = PrecisionMotionEventsPerSecond ?? PlaybackOptions.DefaultPrecisionMotionEventsPerSecond,
+            StrictSpeedMotionEventsPerSecond = StrictSpeedMotionEventsPerSecond ?? PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond,
+            MaximumMotionErrorPixels = MaximumMotionErrorPixels,
         };
     }
 
@@ -716,7 +895,11 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             RepeatDelayMs = 0,
             UseRandomRepeatDelay = false,
             RepeatDelayMinMs = 0,
-            RepeatDelayMaxMs = 0
+            RepeatDelayMaxMs = 0,
+            MotionMode = MotionPlaybackMode,
+            PrecisionMotionEventsPerSecond = PrecisionMotionEventsPerSecond ?? PlaybackOptions.DefaultPrecisionMotionEventsPerSecond,
+            StrictSpeedMotionEventsPerSecond = StrictSpeedMotionEventsPerSecond ?? PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond,
+            MaximumMotionErrorPixels = MaximumMotionErrorPixels,
         };
     }
 
@@ -730,9 +913,13 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
         for (var i = countdown; i > 0; i--)
         {
-            PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusStartingIn"], i);
-            await Task.Delay(1000, cancellationToken);
-            if (_stopRequested)
+            await _executeOnUiThread(() =>
+            {
+                PlaybackStatus = string.Format(_localizationService.CurrentCulture, _localizationService["Playback_StatusStartingIn"], i);
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
+            await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+            if (StopRequested)
             {
                 return;
             }
@@ -744,16 +931,19 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         LoadedMacroPlaybackMode playbackMode,
         CancellationToken cancellationToken)
     {
-        UpdatePlaybackStatus();
-        await _player.PlayAsync(macro, BuildSingleMacroPlaybackOptions(), cancellationToken);
-        if (_stopRequested)
+        await UpdatePlaybackStatusAsync().ConfigureAwait(false);
+        await _player.PlayAsync(macro, BuildSingleMacroPlaybackOptions(), cancellationToken).ConfigureAwait(false);
+        if (StopRequested)
         {
             return;
         }
 
-        if (playbackMode == LoadedMacroPlaybackMode.AdvanceSelection)
+        if (playbackMode is LoadedMacroPlaybackMode.AdvanceSelection)
         {
-            _loadedMacroSession.SelectNext();
+            await _executeOnUiThread(() =>
+            {
+                return Task.FromResult(_loadedMacroSession.SelectNext());
+            }).ConfigureAwait(false);
         }
     }
 
@@ -761,38 +951,45 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         IReadOnlyList<LoadedMacroListItem> sequenceSnapshot,
         CancellationToken cancellationToken)
     {
-        if (sequenceSnapshot.Count == 0)
+        if (sequenceSnapshot.Count is 0)
         {
             return;
         }
 
-        _isSequencePlayback = true;
-        _sequenceMacroCount = sequenceSnapshot.Count;
-        _sequenceTotalCycles = IsLooping ? LoopCount : 1;
+        await _executeOnUiThread(() =>
+        {
+            _isSequencePlayback = true;
+            _sequenceMacroCount = sequenceSnapshot.Count;
+            _sequenceTotalCycles = IsLooping ? LoopCount : 1;
+            return Task.CompletedTask;
+        }).ConfigureAwait(false);
 
         var startItemSessionId = sequenceSnapshot[0].SessionId;
-        var infiniteCycles = IsLooping && LoopCount == 0;
+        var infiniteCycles = IsLooping && LoopCount is 0;
         var completedCycles = 0;
 
         try
         {
             while ((infiniteCycles || completedCycles < _sequenceTotalCycles) && !cancellationToken.IsCancellationRequested)
             {
-                _sequenceCycle = completedCycles + 1;
-
                 for (var index = 0; index < sequenceSnapshot.Count; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
                     var item = sequenceSnapshot[index];
-                    _sequenceMacroIndex = index + 1;
-                    _sequenceMacroName = item.Name;
-                    _sequenceMacroRepeatCount = item.SequenceRepeatCount;
-                    SelectLiveMacroBySessionId(item.SessionId);
-                    UpdatePlaybackStatus();
+                    await _executeOnUiThread(() =>
+                    {
+                        _sequenceCycle = completedCycles + 1;
+                        _sequenceMacroIndex = index + 1;
+                        _sequenceMacroName = item.Name;
+                        _sequenceMacroRepeatCount = item.SequenceRepeatCount;
+                        SelectLiveMacroBySessionId(item.SessionId);
+                        ApplyPlaybackStatus();
+                        return Task.CompletedTask;
+                    }).ConfigureAwait(false);
 
-                    await _player.PlayAsync(item.Macro, BuildSequenceMacroPlaybackOptions(item), cancellationToken);
-                    if (_stopRequested)
+                    await _player.PlayAsync(item.Macro, BuildSequenceMacroPlaybackOptions(item), cancellationToken).ConfigureAwait(false);
+                    if (StopRequested)
                     {
                         return;
                     }
@@ -805,20 +1002,36 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
                     break;
                 }
 
-                SelectLiveMacroBySessionId(startItemSessionId);
+                await _executeOnUiThread(() =>
+                {
+                    SelectLiveMacroBySessionId(startItemSessionId);
+                    return Task.CompletedTask;
+                }).ConfigureAwait(false);
                 var cycleDelay = ResolveSequenceCycleDelayMs();
                 if (cycleDelay > 0)
                 {
-                    _isWaitingBetweenSequenceCycles = true;
-                    UpdatePlaybackStatus();
-                    await Task.Delay(cycleDelay, cancellationToken);
-                    _isWaitingBetweenSequenceCycles = false;
+                    await _executeOnUiThread(() =>
+                    {
+                        _isWaitingBetweenSequenceCycles = true;
+                        ApplyPlaybackStatus();
+                        return Task.CompletedTask;
+                    }).ConfigureAwait(false);
+                    await Task.Delay(cycleDelay, cancellationToken).ConfigureAwait(false);
+                    await _executeOnUiThread(() =>
+                    {
+                        _isWaitingBetweenSequenceCycles = false;
+                        return Task.CompletedTask;
+                    }).ConfigureAwait(false);
                 }
             }
         }
         finally
         {
-            SelectLiveMacroBySessionId(startItemSessionId);
+            await _executeOnUiThread(() =>
+            {
+                SelectLiveMacroBySessionId(startItemSessionId);
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
         }
     }
 
@@ -853,12 +1066,7 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
             return min;
         }
 
-        if (max == int.MaxValue)
-        {
-            return (int)_random.NextInt64(min, (long)max + 1);
-        }
-
-        return _random.Next(min, max + 1);
+        return min == max ? min : _randomInclusive(min, max);
     }
 
     private void ResetSequenceState()
@@ -875,23 +1083,91 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
 
     private void OnLoadedMacroSelectionChanged(object? sender, EventArgs e)
     {
-        NotifyPlaybackAvailabilityChanged();
+        PostToUiThread(NotifyPlaybackAvailabilityChanged);
     }
 
     private void OnLoadedMacroUpdated(object? sender, EventArgs e)
     {
-        NotifyPlaybackAvailabilityChanged();
+        PostToUiThread(NotifyPlaybackAvailabilityChanged);
     }
 
     private void OnLoadedMacroPlaybackModeChanged(object? sender, EventArgs e)
     {
-        NotifyPlaybackAvailabilityChanged();
+        PostToUiThread(NotifyPlaybackAvailabilityChanged);
     }
 
     private void NotifyPlaybackAvailabilityChanged()
     {
         OnPropertyChanged(nameof(HasMacro));
         OnPropertyChanged(nameof(CanPlayMacro));
+    }
+
+    private Task UpdatePlaybackStatusAsync()
+    {
+        return _executeOnUiThread(() =>
+        {
+            ApplyPlaybackStatus();
+            return Task.CompletedTask;
+        });
+    }
+
+    private async Task ExecuteOnUiThreadAsync(Func<Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (_uiSynchronizationContext is not null)
+        {
+            if (ReferenceEquals(SynchronizationContext.Current, _uiSynchronizationContext))
+            {
+                await action().ConfigureAwait(true);
+            }
+            else
+            {
+                await ExecuteOnSynchronizationContextAsync(_uiSynchronizationContext, action).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            await action().ConfigureAwait(true);
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(action).ConfigureAwait(false);
+    }
+
+    private static Task ExecuteOnSynchronizationContextAsync(SynchronizationContext context, Func<Task> action)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        context.Post(
+            state =>
+            {
+                var execution = ExecuteAsync((Func<Task>)state!);
+                execution.GetAwaiter().OnCompleted(() =>
+                {
+                    if (execution.IsCompletedSuccessfully)
+                    {
+                        completion.SetResult();
+                    }
+                    else if (execution.IsCanceled)
+                    {
+                        completion.SetCanceled(new CancellationToken(canceled: true));
+                    }
+                    else if (execution.Exception is { } exception)
+                    {
+                        completion.SetException(exception.InnerExceptions);
+                    }
+                });
+            },
+            action);
+        return completion.Task;
+
+        static async Task ExecuteAsync(Func<Task> callback)
+        {
+            await callback().ConfigureAwait(true);
+        }
     }
 
     private static int NormalizeDelayInput(int? value)
@@ -908,41 +1184,161 @@ public class PlaybackViewModel : ViewModelBase, IDisposable
         _settingsService.Current.LoopDelayMaxMs = normalizedMax;
     }
 
-    private void NotifyLoopDelayVisibilityChanged()
-    {
-        OnPropertyChanged(nameof(ShowFixedLoopDelayInput));
-        OnPropertyChanged(nameof(ShowRandomLoopDelayInputs));
-    }
-
     private string GetLoopDelayWaitText()
     {
         if (!UseRandomLoopDelay)
         {
-            return $"{LoopDelayMs ?? 0} ms";
+            return $"{(LoopDelayMs ?? 0).ToString(CultureInfo.InvariantCulture)} ms";
         }
 
         var min = LoopDelayMinMs ?? 0;
         var max = LoopDelayMaxMs ?? 0;
-        return min == max ? $"{min} ms" : $"{min}-{max} ms";
+        return min == max ? $"{min.ToString(CultureInfo.InvariantCulture)} ms" : $"{min.ToString(CultureInfo.InvariantCulture)}-{max.ToString(CultureInfo.InvariantCulture)} ms";
+    }
+
+    private void PersistLoopSettingChange(Action rollback, params string[] propertyNames)
+    {
+        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
+        _ = PersistLoopSettingChangeAsync(changeVersion, rollback, propertyNames);
+    }
+
+    private async Task PersistLoopSettingChangeAsync(int changeVersion, Action rollback, string[] propertyNames)
+    {
+        if (!IsFastLoopRisky())
+        {
+            _fastLoopWarningAcknowledged = false;
+        }
+
+        if (!await ConfirmFastLoopPlaybackAsync(forPlayback: false).ConfigureAwait(false))
+        {
+            await RunOnUiThreadAsync(() =>
+            {
+                if (Volatile.Read(ref _settingsChangeVersion) == changeVersion)
+                {
+                    rollback();
+                    foreach (var propertyName in propertyNames)
+                    {
+                        OnPropertyChanged(propertyName);
+                    }
+                }
+            }).ConfigureAwait(false);
+            return;
+        }
+
+        _ = TryPersistSettingChange(rollback, propertyNames);
+    }
+
+    private async Task<bool> ConfirmFastLoopPlaybackAsync(bool forPlayback)
+    {
+        if (!IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsService.Current.SuppressFastLoopWarning)
+        {
+            return true;
+        }
+
+        var dialogService = _dialogService;
+        if (dialogService is null)
+        {
+            return false;
+        }
+
+        var warningTask = _fastLoopWarningTask;
+        if (warningTask is not null)
+        {
+            await warningTask.ConfigureAwait(false);
+            return !IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsService.Current.SuppressFastLoopWarning;
+        }
+
+        warningTask = ShowFastLoopWarningAsync(dialogService, forPlayback);
+        _fastLoopWarningTask = warningTask;
+        try
+        {
+            await warningTask.ConfigureAwait(false);
+        }
+        finally
+        {
+            _fastLoopWarningTask = null;
+        }
+
+        return !IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsService.Current.SuppressFastLoopWarning;
+    }
+
+    private async Task ShowFastLoopWarningAsync(IDialogService dialogService, bool forPlayback)
+    {
+        var result = await dialogService.ShowFastLoopWarningAsync(
+            _localizationService["Playback_FastLoopWarningTitle"],
+            _localizationService["Playback_FastLoopWarningMessage"],
+            _localizationService[forPlayback ? "Playback_FastLoopWarningPlay" : "Playback_FastLoopWarningContinue"],
+            _localizationService[forPlayback ? "Playback_FastLoopWarningAbort" : "Playback_FastLoopWarningCancel"],
+            _localizationService["Playback_FastLoopWarningSuppress"]).ConfigureAwait(false);
+        if (!result.ContinuePlayback)
+        {
+            return;
+        }
+
+        _fastLoopWarningAcknowledged = true;
+        if (!result.SuppressFutureWarnings)
+        {
+            return;
+        }
+
+        _settingsService.Current.SuppressFastLoopWarning = true;
+        _ = TryPersistSettingChange(
+            () => _settingsService.Current.SuppressFastLoopWarning = false,
+            nameof(AppSettings.SuppressFastLoopWarning));
+    }
+
+    private bool IsFastLoopRisky()
+    {
+        if (!IsLooping || LoopCount is not 0 and <= 1)
+        {
+            return false;
+        }
+
+        return UseRandomLoopDelay
+            ? (LoopDelayMinMs ?? 0) < FastLoopWarningThresholdMs
+            : (LoopDelayMs ?? 0) < FastLoopWarningThresholdMs;
     }
 
     private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)
     {
+        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
+        _ = TryPersistSettingChangeAsync(changeVersion, rollback, propertyNames);
+        return true;
+    }
+
+    private async Task TryPersistSettingChangeAsync(int changeVersion, Action rollback, string[] propertyNames)
+    {
+        Task? saveTask = null;
+
         try
         {
-            _settingsService.Save();
-            return true;
+            saveTask = _settingsService.SaveAfterIdleAsync();
+            _saveRollbackTracker.Track(saveTask, rollback, propertyNames);
+            await saveTask.ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            rollback();
-            foreach (var propertyName in propertyNames)
+            var isCoalescedSave = _saveRollbackTracker.TryTakeRollback(
+                saveTask,
+                propertyNames,
+                out var trackedRollback,
+                out var isTracked);
+            var coalescedRollback = isCoalescedSave ? trackedRollback : null;
+
+            if (coalescedRollback is not null
+                || (Volatile.Read(ref _settingsChangeVersion) == changeVersion && !isTracked))
             {
-                OnPropertyChanged(propertyName);
+                await RunOnUiThreadAsync(() =>
+                {
+                    (coalescedRollback ?? rollback)();
+                    foreach (var propertyName in propertyNames)
+                    {
+                        OnPropertyChanged(propertyName);
+                    }
+                }).ConfigureAwait(false);
             }
 
-            Log.Error(ex, "[PlaybackViewModel] Failed to persist playback settings");
-            return false;
+            Log.LogError(ex, "[PlaybackViewModel] Failed to persist playback settings");
         }
     }
 }

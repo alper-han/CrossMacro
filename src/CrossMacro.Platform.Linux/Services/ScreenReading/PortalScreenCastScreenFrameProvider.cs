@@ -1,24 +1,14 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class PortalScreenCastScreenFrameProvider : IScreenFrameProvider
+public sealed class PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture, PortalScreenCastSupportResult support) : IScreenFrameProvider
 {
-    private readonly IPortalScreenCastCapture _capture;
-    private readonly PortalScreenCastSupportResult _support;
+    private readonly IPortalScreenCastCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly PortalScreenCastSupportResult _support = support;
     private bool _disposed;
 
     public PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture, PortalScreenCastSupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "XDG Desktop Portal ScreenCast";
 
@@ -30,7 +20,7 @@ public sealed class PortalScreenCastScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable.");
         }
@@ -61,36 +51,42 @@ public sealed class PortalScreenCastScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Successful XDG Desktop Portal capture did not include a frame.");
         }
 
         if (region is null || region.Value == frame.LogicalBounds)
         {
-            return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame);
+            return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask);
         }
 
         try
         {
-            if (!frame.LogicalBounds.Contains(region.Value))
-            {
-                return ScreenReadResult<ScreenFrame>.Failure(
-                    ScreenReadErrorKind.OutOfBounds,
-                    $"Requested region {region.Value} is outside XDG Desktop Portal frame bounds {frame.LogicalBounds}.");
-            }
-
-            return ScreenReadResult<ScreenFrame>.Success(LinuxScreenFrameProviderResults.CopyRegion(
-                frame.LogicalBounds,
-                frame.Stride,
-                frame.PixelFormat,
-                frame.Pixels,
-                region.Value));
+            return CopyRegionForResult(region.Value, frame);
         }
         finally
         {
             frame.Dispose();
         }
+    }
+
+    private static ScreenReadResult<ScreenFrame> CopyRegionForResult(ScreenRect region, PortalPipeWireFrame frame)
+    {
+        if (!frame.LogicalBounds.Contains(region))
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
+                ScreenReadErrorKind.OutOfBounds,
+                $"Requested region {region} is outside XDG Desktop Portal frame bounds {frame.LogicalBounds}.");
+        }
+
+        return ScreenReadResultFactory.Success<ScreenFrame>(LinuxScreenFrameProviderResults.CopyRegion(
+            frame.LogicalBounds,
+            frame.Stride,
+            frame.PixelFormat,
+            frame.Pixels,
+            region,
+            frame.ValidPixelMask));
     }
 
     public void Dispose()

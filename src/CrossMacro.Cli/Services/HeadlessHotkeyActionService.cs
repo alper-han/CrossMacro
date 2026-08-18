@@ -1,0 +1,565 @@
+
+namespace CrossMacro.Cli.Services;
+
+public sealed class HeadlessHotkeyActionService(
+    IGlobalHotkeyService globalHotkeyService,
+    IMacroRecorder macroRecorder,
+    Func<IMacroPlayer> macroPlayerFactory,
+    ISettingsService settingsService,
+    IRuntimeContext runtimeContext,
+    Func<TimeSpan, CancellationToken, Task> delayAsync) : IHeadlessHotkeyActionService
+{
+    private static readonly Func<TimeSpan, CancellationToken, Task> DefaultDelayAsync = Task.Delay;
+
+    private readonly IGlobalHotkeyService _globalHotkeyService = globalHotkeyService;
+    private readonly IMacroRecorder _macroRecorder = macroRecorder;
+    private readonly Func<IMacroPlayer> _macroPlayerFactory = macroPlayerFactory;
+    private readonly ISettingsService _settingsService = settingsService;
+    private readonly IRuntimeContext _runtimeContext = runtimeContext;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync = delayAsync;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private bool _disposed;
+    private bool _gateDisposed;
+    private bool _playbackPauseHotkeysDisabled;
+
+    private MacroSequence? _lastRecordedMacro;
+    private IMacroPlayer? _activePlayer;
+    private CancellationTokenSource? _playbackCts;
+    private Task? _playbackTask;
+    private Task? _stopTask;
+
+    public HeadlessHotkeyActionService(
+        IGlobalHotkeyService globalHotkeyService,
+        IMacroRecorder macroRecorder,
+        Func<IMacroPlayer> macroPlayerFactory,
+        ISettingsService settingsService,
+        IRuntimeContext runtimeContext)
+        : this(globalHotkeyService, macroRecorder, macroPlayerFactory, settingsService, runtimeContext, DefaultDelayAsync) { /* Empty */ }
+
+    public bool IsRunning { get; private set; }
+
+    public void Start()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (IsRunning)
+        {
+            return;
+        }
+
+        _globalHotkeyService.ToggleRecordingRequested += OnToggleRecordingRequested;
+        _globalHotkeyService.TogglePlaybackRequested += OnTogglePlaybackRequested;
+        _globalHotkeyService.TogglePauseRequested += OnTogglePauseRequested;
+        IsRunning = true;
+
+        Log.Information("[HeadlessHotkeyActionService] Hotkey actions enabled");
+    }
+
+    public void StopHeadlessHotkeyActions()
+    {
+        var stopTask = EnsureStopTaskAsync(logWhenStarted: true);
+        ObserveTask(stopTask, "stop-hotkey-actions");
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureStopTaskAsync(logWhenStarted: true).WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        var stopTask = EnsureStopTaskAsync(logWhenStarted: false);
+        if (stopTask.IsCompleted)
+        {
+            DisposeGate();
+        }
+        else
+        {
+            _ = stopTask.ContinueWith(
+                static (_, state) => ((HeadlessHotkeyActionService)state!).DisposeGate(),
+                this,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            if (_stopTask is not null)
+            {
+                await _stopTask.ConfigureAwait(false);
+            }
+
+            DisposeGate();
+            return;
+        }
+
+        _disposed = true;
+        try
+        {
+            await EnsureStopTaskAsync(logWhenStarted: false).ConfigureAwait(false);
+        }
+        finally
+        {
+            DisposeGate();
+        }
+    }
+
+    private Task EnsureStopTaskAsync(bool logWhenStarted)
+    {
+        if (_stopTask is not null)
+        {
+            return _stopTask;
+        }
+
+        if (!UnsubscribeHotkeys())
+        {
+            return Task.CompletedTask;
+        }
+
+        _stopTask = StopCoreAsync(logWhenStarted);
+        return _stopTask;
+    }
+
+    private async Task StopCoreAsync(bool logWhenStarted)
+    {
+        await HandleStopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        if (logWhenStarted)
+        {
+            Log.Information("[HeadlessHotkeyActionService] Hotkey actions disabled");
+        }
+    }
+
+    private bool UnsubscribeHotkeys()
+    {
+        if (!IsRunning)
+        {
+            return false;
+        }
+
+        _globalHotkeyService.ToggleRecordingRequested -= OnToggleRecordingRequested;
+        _globalHotkeyService.TogglePlaybackRequested -= OnTogglePlaybackRequested;
+        _globalHotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
+        IsRunning = false;
+        return true;
+    }
+
+    private void OnToggleRecordingRequested(object? sender, EventArgs e)
+    {
+        ObserveTask(HandleRecordingToggleAsync(), "toggle-recording");
+    }
+
+    private void OnTogglePlaybackRequested(object? sender, EventArgs e)
+    {
+        ObserveTask(HandlePlaybackToggleAsync(), "toggle-playback");
+    }
+
+    private void OnTogglePauseRequested(object? sender, EventArgs e)
+    {
+        ObserveTask(HandlePauseToggleAsync(), "toggle-pause");
+    }
+
+    private async Task HandleRecordingToggleAsync()
+    {
+        await _gate.WaitAsync(_playbackCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            if (!IsRunning)
+            {
+                return;
+            }
+
+            if (_activePlayer is not null)
+            {
+                Log.Debug("[HeadlessHotkeyActionService] Recording toggle ignored while playback is active");
+                return;
+            }
+
+            if (_macroRecorder.IsRecording)
+            {
+                StopRecordingCore();
+                return;
+            }
+
+            StartRecordingCore();
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
+    }
+
+    private async Task HandlePlaybackToggleAsync()
+    {
+        PlaybackStopState? playbackStopState = null;
+
+        await _gate.WaitAsync(_playbackCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            if (!IsRunning)
+            {
+                return;
+            }
+
+            if (_macroRecorder.IsRecording)
+            {
+                Log.Debug("[HeadlessHotkeyActionService] Playback toggle ignored while recording is active");
+                return;
+            }
+
+            if (_activePlayer is not null)
+            {
+                playbackStopState = DetachPlaybackCore();
+                Log.Information("[HeadlessHotkeyActionService] Playback stop requested via hotkey");
+            }
+            else if (_lastRecordedMacro is null || _lastRecordedMacro.Events.Count is 0)
+            {
+                Log.Warning("[HeadlessHotkeyActionService] Playback requested but no recorded macro is available in this headless session");
+                return;
+            }
+            else
+            {
+                var settings = _settingsService.Current;
+                var player = _macroPlayerFactory();
+                var cts = new CancellationTokenSource();
+                var countdownSeconds = Math.Max(0, settings.CountdownSeconds);
+                var options = new PlaybackOptions
+                {
+                    SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(settings.PlaybackSpeed),
+                    Loop = settings.IsLooping,
+                    RepeatCount = settings.LoopCount,
+                    RepeatDelayMs = settings.LoopDelayMs,
+                    UseRandomRepeatDelay = settings.UseRandomLoopDelay,
+                    RepeatDelayMinMs = settings.LoopDelayMinMs,
+                    RepeatDelayMaxMs = settings.LoopDelayMaxMs,
+                    MotionMode = settings.MotionMode,
+                    StrictSpeedMotionEventsPerSecond = settings.StrictSpeedMotionEventsPerSecond,
+                    PrecisionMotionEventsPerSecond = settings.PrecisionMotionEventsPerSecond,
+                    MaximumMotionErrorPixels = settings.MaximumMotionErrorPixels,
+                };
+
+                _activePlayer = player;
+                _playbackCts = cts;
+                _playbackTask = RunPlaybackAsync(player, _lastRecordedMacro, options, countdownSeconds, cts.Token);
+                ObserveTask(_playbackTask, "playback");
+
+                Log.Information("[HeadlessHotkeyActionService] Playback started via hotkey (Events={EventCount})", _lastRecordedMacro.Events.Count);
+            }
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
+
+        if (playbackStopState is not null)
+        {
+            ObserveTask(StopPlaybackAsync(playbackStopState), "playback-stop");
+        }
+    }
+
+    private async Task HandlePauseToggleAsync()
+    {
+        await _gate.WaitAsync(_playbackCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            if (!IsRunning || _macroRecorder.IsRecording || _activePlayer is null)
+            {
+                return;
+            }
+
+            if (_activePlayer.IsPaused)
+            {
+                _activePlayer.ResumePlayback();
+                Log.Information("[HeadlessHotkeyActionService] Playback resumed via hotkey");
+            }
+            else
+            {
+                _activePlayer.Pause();
+                Log.Information("[HeadlessHotkeyActionService] Playback paused via hotkey");
+            }
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
+    }
+
+    private async Task HandleStopAsync(CancellationToken cancellationToken)
+    {
+        PlaybackStopState? playbackStopState = null;
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            playbackStopState = DetachPlaybackCore();
+
+            if (_macroRecorder.IsRecording)
+            {
+                StopRecordingCore();
+            }
+            else
+            {
+                EnsurePlaybackPauseHotkeysEnabled();
+            }
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
+
+        if (playbackStopState is not null)
+        {
+            try
+            {
+                await StopPlaybackAsync(playbackStopState).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { /* Empty */ }
+        }
+    }
+
+    private void StartRecordingCore()
+    {
+        var settings = _settingsService.Current;
+        if (!settings.IsMouseRecordingEnabled && !settings.IsKeyboardRecordingEnabled)
+        {
+            Log.Warning("[HeadlessHotkeyActionService] Recording toggle ignored because both mouse and keyboard recording are disabled");
+            return;
+        }
+
+        var forceRelative = settings.ForceRelativeCoordinates && (_runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS);
+        var skipInitialZero = forceRelative && settings.SkipInitialZeroZero;
+        var ignoredKeys = new[]
+        {
+            _globalHotkeyService.RecordingHotkeyCode,
+            _globalHotkeyService.PlaybackHotkeyCode,
+            _globalHotkeyService.PauseHotkeyCode,
+        };
+
+        try
+        {
+            _globalHotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: false);
+            _playbackPauseHotkeysDisabled = true;
+
+            var startTask = _macroRecorder.StartRecordingAsync(
+                settings.IsMouseRecordingEnabled,
+                settings.IsKeyboardRecordingEnabled,
+                ignoredKeys,
+                forceRelative: forceRelative,
+                skipInitialZero: skipInitialZero,
+                cancellationToken: CancellationToken.None);
+
+            _ = startTask.ContinueWith(
+                t =>
+                {
+                    EnsurePlaybackPauseHotkeysEnabled();
+                    Log.LogError(
+                        (Exception?)t.Exception ?? new InvalidOperationException("Recording start task faulted without an exception."),
+                        "[HeadlessHotkeyActionService] Failed to start recording via hotkey");
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
+
+            Log.Information(
+                "[HeadlessHotkeyActionService] Recording start requested via hotkey (Mouse={MouseEnabled}, Keyboard={KeyboardEnabled}, ForceRelative={ForceRelative})",
+                settings.IsMouseRecordingEnabled,
+                settings.IsKeyboardRecordingEnabled,
+                forceRelative);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            EnsurePlaybackPauseHotkeysEnabled();
+            throw;
+        }
+    }
+
+    private void StopRecordingCore()
+    {
+        try
+        {
+            var macro = _macroRecorder.StopRecording();
+            if (macro is null || macro.Events.Count is 0)
+            {
+                Log.Warning("[HeadlessHotkeyActionService] Recording stopped but no events were captured");
+                return;
+            }
+
+            _lastRecordedMacro = macro;
+            Log.Information("[HeadlessHotkeyActionService] Recording stopped via hotkey (Events={EventCount})", macro.Events.Count);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[HeadlessHotkeyActionService] Failed to stop recording");
+        }
+        finally
+        {
+            EnsurePlaybackPauseHotkeysEnabled();
+        }
+    }
+
+    private PlaybackStopState? DetachPlaybackCore()
+    {
+        var player = _activePlayer;
+        var cts = _playbackCts;
+        var playbackTask = _playbackTask;
+
+        _activePlayer = null;
+        _playbackCts = null;
+        _playbackTask = null;
+
+        if (player is null && cts is null && playbackTask is null)
+        {
+            return null;
+        }
+
+        return new PlaybackStopState(player, cts, playbackTask);
+    }
+
+    private static async Task StopPlaybackAsync(PlaybackStopState stopState)
+    {
+        try
+        {
+            if (stopState.Cts is not null)
+            {
+                await stopState.Cts.CancelAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { /* Empty */ }
+        finally
+        {
+            stopState.Cts?.Dispose();
+        }
+
+        try
+        {
+            stopState.Player?.StopPlayback();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Debug(ex, "[HeadlessHotkeyActionService] Failed to stop active player");
+        }
+
+        if (stopState.PlaybackTask is not null)
+        {
+            await stopState.PlaybackTask.ConfigureAwait(false);
+        }
+    }
+
+    private sealed class PlaybackStopState(
+        IMacroPlayer? player,
+        CancellationTokenSource? cts,
+        Task? playbackTask)
+    {
+        public IMacroPlayer? Player { get; } = player;
+        public CancellationTokenSource? Cts { get; } = cts;
+        public Task? PlaybackTask { get; } = playbackTask;
+    }
+
+    private async Task RunPlaybackAsync(
+        IMacroPlayer player,
+        MacroSequence macro,
+        PlaybackOptions options,
+        int countdownSeconds,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            for (var remaining = countdownSeconds; remaining > 0; remaining--)
+            {
+                await _delayAsync(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+            }
+
+            await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);
+            Log.Information("[HeadlessHotkeyActionService] Playback completed via hotkey");
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Information("[HeadlessHotkeyActionService] Playback cancelled via hotkey");
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[HeadlessHotkeyActionService] Playback failed via hotkey");
+        }
+        finally
+        {
+            try
+            {
+                player.Dispose();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.Debug(ex, "[HeadlessHotkeyActionService] Failed to dispose player");
+            }
+
+            await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                if (ReferenceEquals(_activePlayer, player))
+                {
+                    _activePlayer = null;
+                    _playbackTask = null;
+                    _playbackCts?.Dispose();
+                    _playbackCts = null;
+                }
+            }
+            finally
+            {
+                _ = _gate.Release();
+            }
+        }
+    }
+
+    private void EnsurePlaybackPauseHotkeysEnabled()
+    {
+        if (!_playbackPauseHotkeysDisabled)
+        {
+            return;
+        }
+
+        try
+        {
+            _globalHotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: true);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[HeadlessHotkeyActionService] Failed to re-enable playback/pause hotkeys after recording");
+        }
+        finally
+        {
+            _playbackPauseHotkeysDisabled = false;
+        }
+    }
+
+    private static void ObserveTask(Task task, string operation)
+    {
+        _ = task.ContinueWith(
+            t => Log.LogError(
+                (Exception?)t.Exception ?? new InvalidOperationException($"Task '{operation}' faulted without an exception."),
+                "[HeadlessHotkeyActionService] Unhandled error during {Operation}",
+                operation),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
+    }
+
+    private void DisposeGate()
+    {
+        if (_gateDisposed)
+        {
+            return;
+        }
+
+        _gate.Dispose();
+        _gateDisposed = true;
+    }
+}

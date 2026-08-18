@@ -1,7 +1,3 @@
-using System;
-using System.Globalization;
-using Avalonia.Data;
-using Avalonia.Data.Converters;
 
 namespace CrossMacro.UI.Converters;
 
@@ -19,7 +15,7 @@ public sealed class NumericUpDownValueConverter : IValueConverter
             long longValue => (decimal)longValue,
             double doubleValue => (decimal)doubleValue,
             float floatValue => (decimal)floatValue,
-            _ => value
+            _ => value,
         };
     }
 
@@ -39,7 +35,7 @@ public sealed class NumericUpDownValueConverter : IValueConverter
         if (destinationType == typeof(int))
         {
             var integerValue = decimal.Truncate(decimalValue);
-            if (integerValue < int.MinValue || integerValue > int.MaxValue)
+            if (integerValue is < int.MinValue or > int.MaxValue)
             {
                 return BindingOperations.DoNothing;
             }

@@ -1,13 +1,7 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.Localization;
 
-public class LocalizationResourceParityTests
+public sealed partial class LocalizationResourceParityTests
 {
     private static readonly string LocalizationDirectory = FindLocalizationDirectory();
 
@@ -17,7 +11,7 @@ public class LocalizationResourceParityTests
             .EnumerateFiles(LocalizationDirectory, "Resources.*.resx")
             .Where(path => !Path.GetFileName(path).Equals("Resources.resx", StringComparison.OrdinalIgnoreCase))
             .Select(path => new object[] { Path.GetFileName(path) })
-            .OrderBy(row => (string)row[0]);
+            .OrderBy(row => (string)row[0], StringComparer.Ordinal);
     }
 
     [Theory]
@@ -27,14 +21,14 @@ public class LocalizationResourceParityTests
         var baseKeys = ReadKeys(Path.Combine(LocalizationDirectory, "Resources.resx"));
         var localizedKeys = ReadKeys(Path.Combine(LocalizationDirectory, fileName));
 
-        localizedKeys.Should().BeEquivalentTo(baseKeys);
-        localizedKeys.Should().OnlyHaveUniqueItems();
+        _ = localizedKeys.Should().BeEquivalentTo(baseKeys);
+        _ = localizedKeys.Should().OnlyHaveUniqueItems();
     }
 
     private static IReadOnlyList<string> ReadKeys(string path)
     {
         var content = File.ReadAllText(path);
-        return Regex.Matches(content, "<data name=\"([^\"]+)\"")
+        return ResourceKeyRegex.Matches(content)
             .Select(match => match.Groups[1].Value)
             .ToArray();
     }
@@ -42,7 +36,7 @@ public class LocalizationResourceParityTests
     private static string FindLocalizationDirectory()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current != null)
+        while (current is not null)
         {
             var candidate = Path.Combine(current.FullName, "src", "CrossMacro.UI", "Localization");
             if (Directory.Exists(candidate))
@@ -55,4 +49,7 @@ public class LocalizationResourceParityTests
 
         throw new DirectoryNotFoundException("Could not locate src/CrossMacro.UI/Localization from test base directory.");
     }
+
+    [GeneratedRegex("<data name=\"(?<key>[^\"]+)\"", RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    private static partial Regex ResourceKeyRegex { get; }
 }

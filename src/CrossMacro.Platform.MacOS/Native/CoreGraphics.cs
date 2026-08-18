@@ -1,9 +1,7 @@
-using System;
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.MacOS.Native;
 
-internal static class CoreGraphics
+internal static partial class CoreGraphics
 {
     private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
 
@@ -24,26 +22,26 @@ internal static class CoreGraphics
         IntPtr eventRef,
         IntPtr userInfo);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGEventTapCreate(
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGEventTapCreate(
         CGEventTapLocation tap,
         CGEventTapPlacement place,
         CGEventTapOptions options,
         ulong eventsOfInterest,
-        CGEventTapCallBack callback,
+        nint callback,
         IntPtr userInfo);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern void CGEventTapEnable(IntPtr tap, [MarshalAs(UnmanagedType.I1)] bool enable);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial void CGEventTapEnable(IntPtr tap, [MarshalAs(UnmanagedType.I1)] bool enable);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern void CGEventPost(CGEventTapLocation tap, IntPtr eventRef);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial void CGEventPost(CGEventTapLocation tap, IntPtr eventRef);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGEventCreate(IntPtr source);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGEventCreate(IntPtr source);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGEventCreateKeyboardEvent(IntPtr source, ushort virtualKey, [MarshalAs(UnmanagedType.I1)] bool keyDown);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGEventCreateKeyboardEvent(IntPtr source, ushort virtualKey, [MarshalAs(UnmanagedType.I1)] bool keyDown);
 
     // These CoreGraphics ListenEvent/PostEvent TCC helpers are macOS 10.15+ era APIs.
     // Resolve them dynamically so older systems or unusual runtimes report unavailable instead of
@@ -108,103 +106,103 @@ internal static class CoreGraphics
         return RequestScreenCaptureAccess.Invoke();
     }
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGEventCreateMouseEvent(
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGEventCreateMouseEvent(
         IntPtr source,
         CGEventType mouseType,
         CGPoint mouseCursorPosition,
         CGMouseButton mouseButton);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGEventCreateScrollWheelEvent(
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGEventCreateScrollWheelEvent(
         IntPtr source,
         CGScrollEventUnit units,
         uint wheelCount,
         int wheel1);
 
-    [DllImport(CoreGraphicsLib, EntryPoint = "CGEventCreateScrollWheelEvent")]
-    public static extern IntPtr CGEventCreateScrollWheelEvent2(
+    [LibraryImport(CoreGraphicsLib, EntryPoint = "CGEventCreateScrollWheelEvent")]
+    public static partial IntPtr CGEventCreateScrollWheelEvent2(
         IntPtr source,
         CGScrollEventUnit units,
         uint wheelCount,
         int wheel1,
         int wheel2);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern void CGEventSetFlags(IntPtr eventRef, CGEventFlags flags);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial void CGEventSetFlags(IntPtr eventRef, CGEventModifiers flags);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern void CGEventSetType(IntPtr eventRef, CGEventType type);
-    
-    [DllImport(CoreGraphicsLib)]
-    public static extern CGEventFlags CGEventGetFlags(IntPtr eventRef);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial void CGEventSetType(IntPtr eventRef, CGEventType type);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern long CGEventGetIntegerValueField(IntPtr eventRef, CGEventField field);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial CGEventModifiers CGEventGetFlags(IntPtr eventRef);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern void CGEventSetIntegerValueField(IntPtr eventRef, CGEventField field, long value);
-    
-    [DllImport(CoreGraphicsLib)]
-    public static extern CGPoint CGEventGetLocation(IntPtr eventRef);
-    
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial long CGEventGetIntegerValueField(IntPtr eventRef, CGEventField field);
+
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial void CGEventSetIntegerValueField(IntPtr eventRef, CGEventField field, long value);
+
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial CGPoint CGEventGetLocation(IntPtr eventRef);
+
     /// <summary>
     /// Gets the unicode string from a keyboard event
     /// </summary>
-    [DllImport(CoreGraphicsLib)]
-    public static extern void CGEventKeyboardGetUnicodeString(
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial void CGEventKeyboardGetUnicodeString(
         IntPtr eventRef,
         nuint maxStringLength,
         out nuint actualStringLength,
-        [Out, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
+        [Out] ushort[] unicodeString);
 
     /// <summary>
     /// Sets the unicode string for a keyboard event (for typing characters)
     /// </summary>
-    [DllImport(CoreGraphicsLib)]
-    public static extern void CGEventKeyboardSetUnicodeString(
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial void CGEventKeyboardSetUnicodeString(
         IntPtr eventRef,
         nuint stringLength,
-        [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
-    
+        ushort[] unicodeString);
+
     // Text Input Source (TIS) functions for keyboard layout
     private const string CarbonCoreLib = "/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/CarbonCore";
     private const string HIToolboxLib = "/System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/HIToolbox";
-    
-    [DllImport(HIToolboxLib)]
-    public static extern IntPtr TISCopyCurrentKeyboardInputSource();
-    
-    [DllImport(HIToolboxLib)]
-    public static extern IntPtr TISCopyCurrentKeyboardLayoutInputSource();
-    
-    [DllImport(HIToolboxLib)]
-    public static extern IntPtr TISGetInputSourceProperty(IntPtr inputSource, IntPtr propertyKey);
 
-    [DllImport(HIToolboxLib)]
-    public static extern byte LMGetKbdType();
-    
+    [LibraryImport(HIToolboxLib)]
+    public static partial IntPtr TISCopyCurrentKeyboardInputSource();
+
+    [LibraryImport(HIToolboxLib)]
+    public static partial IntPtr TISCopyCurrentKeyboardLayoutInputSource();
+
+    [LibraryImport(HIToolboxLib)]
+    public static partial IntPtr TISGetInputSourceProperty(IntPtr inputSource, IntPtr propertyKey);
+
+    [LibraryImport(HIToolboxLib)]
+    public static partial byte LMGetKbdType();
+
     // Property key for Unicode keyboard layout data - loaded at runtime
-    public static readonly IntPtr kTISPropertyUnicodeKeyLayoutData;
-    
-    static CoreGraphics()
+    public static readonly IntPtr kTISPropertyUnicodeKeyLayoutData = LoadHIToolboxConstant("kTISPropertyUnicodeKeyLayoutData");
+
+    private static IntPtr LoadHIToolboxConstant(string name)
     {
         try
         {
             IntPtr lib = NativeLibrary.Load(HIToolboxLib);
-            IntPtr addr = NativeLibrary.GetExport(lib, "kTISPropertyUnicodeKeyLayoutData");
-            kTISPropertyUnicodeKeyLayoutData = Marshal.ReadIntPtr(addr);
+            IntPtr addr = NativeLibrary.GetExport(lib, name);
+            return Marshal.ReadIntPtr(addr);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            kTISPropertyUnicodeKeyLayoutData = IntPtr.Zero;
+            return IntPtr.Zero;
         }
     }
-    
+
     /// <summary>
     /// UCKeyTranslate - converts keycode to unicode character
     /// </summary>
-    [DllImport(CarbonCoreLib)]
-    public static extern int UCKeyTranslate(
+    [LibraryImport(CarbonCoreLib)]
+    public static partial int UCKeyTranslate(
         IntPtr keyLayoutPtr,
         ushort virtualKeyCode,
         ushort keyAction,
@@ -214,46 +212,46 @@ internal static class CoreGraphics
         ref uint deadKeyState,
         nuint maxStringLength,
         out nuint actualStringLength,
-        [Out, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U2)] ushort[] unicodeString);
-    
+        [Out] ushort[] unicodeString);
+
     // UCKeyTranslate action types
     public const ushort kUCKeyActionDown = 0;
     public const ushort kUCKeyActionUp = 1;
     public const ushort kUCKeyActionAutoKey = 2;
     public const ushort kUCKeyActionDisplay = 3;
-    
+
     // UCKeyTranslate options
     public const uint kUCKeyTranslateNoDeadKeysBit = 0;
     public const uint kUCKeyTranslateNoDeadKeysMask = 1;
 
 
     // Enums and Structs
-    
+
     public enum CGEventTapLocation : uint
     {
         HIDEventTap = 0,
         SessionEventTap = 1,
-        AnnotatedSessionEventTap = 2
+        AnnotatedSessionEventTap = 2,
     }
 
     public enum CGEventTapPlacement : uint
     {
         HeadInsertEventTap = 0,
-        TailAppendEventTap = 1
+        TailAppendEventTap = 1,
     }
-    
+
     public enum CGScrollEventUnit : uint
     {
         Pixel = 0,
-        Line = 1
+        Line = 1,
     }
 
     public enum CGEventTapOptions : uint
     {
         Default = 0x00000000,
-        ListenOnly = 0x00000001
+        ListenOnly = 0x00000001,
     }
-    
+
     public enum CGEventType : uint
     {
         Null = 0,
@@ -275,18 +273,18 @@ internal static class CoreGraphics
         OtherMouseUp = 26,
         OtherMouseDragged = 27,
         TapDisabledByTimeout = 0xFFFFFFFE,
-        TapDisabledByUserInput = 0xFFFFFFFF
+        TapDisabledByUserInput = 0xFFFFFFFF,
     }
 
     public enum CGMouseButton : uint
     {
         Left = 0,
         Right = 1,
-        Center = 2
+        Center = 2,
     }
-    
+
     [Flags]
-    public enum CGEventFlags : ulong
+    public enum CGEventModifiers : ulong
     {
         NonCoalesced = 0x0000000000000100,
         AlphaShift = 0x0000000000010000, // Caps Lock
@@ -296,9 +294,9 @@ internal static class CoreGraphics
         Command = 0x0000000000100000,
         NumericPad = 0x0000000000200000,
         Help = 0x0000000000400000,
-        SecondaryFn = 0x0000000000800000
+        SecondaryFn = 0x0000000000800000,
     }
-    
+
     public enum CGEventField : uint
     {
         MouseEventNumber = 0,
@@ -326,7 +324,7 @@ internal static class CoreGraphics
         ScrollWheelEventPointDeltaAxis1 = 96,
         ScrollWheelEventPointDeltaAxis2 = 97,
         ScrollWheelEventPointDeltaAxis3 = 98,
-        ScrollWheelEventInstantMouser = 14
+        ScrollWheelEventInstantMouser = 14,
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -335,74 +333,74 @@ internal static class CoreGraphics
         public double X;
         public double Y;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct CGSize
     {
         public double width;
         public double height;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct CGRect
     {
         public CGPoint origin;
         public CGSize size;
     }
-    
-    [DllImport(CoreGraphicsLib)]
-    public static extern uint CGMainDisplayID();
-    
-    [DllImport(CoreGraphicsLib)]
-    public static extern CGRect CGDisplayBounds(uint display);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern CGError CGGetOnlineDisplayList(uint maxDisplays, [Out] uint[]? onlineDisplays, out uint displayCount);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial uint CGMainDisplayID();
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern CGError CGGetActiveDisplayList(uint maxDisplays, [Out] uint[]? activeDisplays, out uint displayCount);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial CGRect CGDisplayBounds(uint display);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern CGError CGGetDisplaysWithRect(CGRect rect, uint maxDisplays, [Out] uint[]? displays, out uint displayCount);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial CGError CGGetOnlineDisplayList(uint maxDisplays, [Out] uint[]? onlineDisplays, out uint displayCount);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGDisplayCreateImageForRect(uint display, CGRect rect);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial CGError CGGetActiveDisplayList(uint maxDisplays, [Out] uint[]? activeDisplays, out uint displayCount);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern void CGImageRelease(IntPtr image);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial CGError CGGetDisplaysWithRect(CGRect rect, uint maxDisplays, [Out] uint[]? displays, out uint displayCount);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGImageGetDataProvider(IntPtr image);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGDisplayCreateImageForRect(uint display, CGRect rect);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern IntPtr CGDataProviderCopyData(IntPtr provider);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial void CGImageRelease(IntPtr image);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern nuint CGImageGetWidth(IntPtr image);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGImageGetDataProvider(IntPtr image);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern nuint CGImageGetHeight(IntPtr image);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGDataProviderCopyData(IntPtr provider);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern nuint CGImageGetBitsPerComponent(IntPtr image);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial nuint CGImageGetWidth(IntPtr image);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern nuint CGImageGetBitsPerPixel(IntPtr image);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial nuint CGImageGetHeight(IntPtr image);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern nuint CGImageGetBytesPerRow(IntPtr image);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial nuint CGImageGetBitsPerComponent(IntPtr image);
 
-    [DllImport(CoreGraphicsLib)]
-    public static extern CGBitmapInfo CGImageGetBitmapInfo(IntPtr image);
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial nuint CGImageGetBitsPerPixel(IntPtr image);
+
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial nuint CGImageGetBytesPerRow(IntPtr image);
+
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial CGBitmapInfo CGImageGetBitmapInfo(IntPtr image);
 
     public const uint kCGBitmapAlphaInfoMask = 0x1F;
     public const uint kCGBitmapByteOrderMask = 0x7000;
     public const uint kCGBitmapByteOrder32Little = 0x2000;
     public const uint kCGBitmapByteOrder32Big = 0x4000;
 
-    public enum CGError : int
+    public enum CGError
     {
-        Success = 0
+        Success = 0,
     }
 
     [Flags]
@@ -415,7 +413,7 @@ internal static class CoreGraphics
         AlphaNoneSkipLast = 5,
         AlphaNoneSkipFirst = 6,
         ByteOrder32Little = kCGBitmapByteOrder32Little,
-        ByteOrder32Big = kCGBitmapByteOrder32Big
+        ByteOrder32Big = kCGBitmapByteOrder32Big,
     }
 
     private sealed class OptionalPermissionAccessFunction
@@ -434,7 +432,7 @@ internal static class CoreGraphics
         internal bool Invoke()
         {
             var function = _function.Value;
-            return function is not null && function() != 0;
+            return function is not null && function() is not 0;
         }
 
         private PermissionAccessDelegate? LoadFunction()

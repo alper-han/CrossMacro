@@ -1,34 +1,16 @@
-using System;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Packaging.Abstractions;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
-internal sealed class LinuxQuickSetupExecutor
+internal sealed class LinuxQuickSetupExecutor(
+    LinuxQuickSetupIdentityResolver identityResolver,
+    Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcessAsync)
 {
-    private readonly LinuxQuickSetupIdentityResolver _identityResolver;
-    private readonly LinuxQuickSetupScriptBuilder _scriptBuilder;
-    private readonly Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> _runProcessAsync;
+    private readonly LinuxQuickSetupIdentityResolver _identityResolver = identityResolver ?? throw new ArgumentNullException(nameof(identityResolver));
+    private readonly Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> _runProcessAsync = runProcessAsync ?? throw new ArgumentNullException(nameof(runProcessAsync));
 
     public LinuxQuickSetupExecutor(
-        LinuxQuickSetupIdentityResolver identityResolver,
-        LinuxQuickSetupScriptBuilder scriptBuilder)
-        : this(identityResolver, scriptBuilder, RunProcessAsync)
-    {
-    }
-
-    public LinuxQuickSetupExecutor(
-        LinuxQuickSetupIdentityResolver identityResolver,
-        LinuxQuickSetupScriptBuilder scriptBuilder,
-        Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcessAsync)
-    {
-        _identityResolver = identityResolver ?? throw new ArgumentNullException(nameof(identityResolver));
-        _scriptBuilder = scriptBuilder ?? throw new ArgumentNullException(nameof(scriptBuilder));
-        _runProcessAsync = runProcessAsync ?? throw new ArgumentNullException(nameof(runProcessAsync));
-    }
+        LinuxQuickSetupIdentityResolver identityResolver)
+        : this(identityResolver, RunProcessAsync) { /* Empty */ }
 
     public async Task<QuickSetupResult> RunAsync(
         IPrivilegedHostCommandLauncher launcher,
@@ -37,10 +19,7 @@ internal sealed class LinuxQuickSetupExecutor
         string unexpectedFailureMessage,
         CancellationToken cancellationToken = default)
     {
-        if (launcher == null)
-        {
-            throw new ArgumentNullException(nameof(launcher));
-        }
+        ArgumentNullException.ThrowIfNull(launcher);
 
         var identity = _identityResolver.Resolve();
         if (identity == null)
@@ -50,19 +29,20 @@ internal sealed class LinuxQuickSetupExecutor
                 Message: "Could not determine a valid host identity for session setup.");
         }
 
-        if (!launcher.IsAvailable(out var failureMessage))
+        var (isAvailable, failureMessage) = await launcher.IsAvailableAsync(cancellationToken).ConfigureAwait(false);
+        if (!isAvailable)
         {
             return new QuickSetupResult(
                 Success: false,
                 Message: failureMessage);
         }
 
-        var startInfo = launcher.CreateStartInfo(_scriptBuilder.Build(scriptOptions), identity.Value);
+        var startInfo = launcher.CreateStartInfo(LinuxQuickSetupScriptBuilder.Build(scriptOptions), identity.Value);
 
         try
         {
-            var (exitCode, stdout, stderr) = await _runProcessAsync(startInfo, cancellationToken);
-            if (exitCode == 0)
+            var (exitCode, stdout, stderr) = await _runProcessAsync(startInfo, cancellationToken).ConfigureAwait(false);
+            if (exitCode is 0)
             {
                 var successText = BuildSuccessMessage(stdout);
                 Log.Information("[{LogContext}] Session helper completed successfully for {Identity}", logContext, identity.Value.LogDisplay);
@@ -75,11 +55,11 @@ internal sealed class LinuxQuickSetupExecutor
             Log.Warning("[{LogContext}] Session helper failed (ExitCode={ExitCode}): {Error}", logContext, exitCode, errorText);
             return new QuickSetupResult(
                 Success: false,
-                Message: $"Quick setup failed (exit code {exitCode}). {errorText}");
+                Message: BuildFailureMessage(exitCode, errorText));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "[{LogContext}] Failed to run session helper command", logContext);
+            Log.LogError(ex, "[{LogContext}] Failed to run session helper command", logContext);
             return new QuickSetupResult(
                 Success: false,
                 Message: unexpectedFailureMessage);
@@ -93,15 +73,8 @@ internal sealed class LinuxQuickSetupExecutor
             return null;
         }
 
-        foreach (var line in content.Split('\n', StringSplitOptions.TrimEntries))
-        {
-            if (!string.IsNullOrWhiteSpace(line))
-            {
-                return line;
-            }
-        }
-
-        return null;
+        return content.Split('\n', StringSplitOptions.TrimEntries)
+            .FirstOrDefault(static line => !string.IsNullOrWhiteSpace(line));
     }
 
     private static string BuildSuccessMessage(string stdout)
@@ -117,19 +90,39 @@ internal sealed class LinuxQuickSetupExecutor
             : $"Quick setup completed. {detail}";
     }
 
+    private static string BuildFailureMessage(int exitCode, string errorText)
+    {
+        var formattedExitCode = exitCode.ToString(CultureInfo.InvariantCulture);
+        if (IsPolkitAuthenticationFailure(errorText))
+        {
+            return "Quick setup could not obtain host authorization "
+                + $"(exit code {formattedExitCode}). No usable polkit authentication agent is available "
+                + "for this desktop-launched process. Start a host graphical polkit authentication agent or run Quick Setup "
+                + $"from a terminal so pkexec can prompt there. Details: {errorText}";
+        }
+
+        return $"Quick setup failed (exit code {formattedExitCode}). {errorText}";
+    }
+
+    private static bool IsPolkitAuthenticationFailure(string errorText)
+    {
+        return errorText.Contains("authentication agent", StringComparison.OrdinalIgnoreCase)
+            || errorText.Contains("interactive authentication has not been enabled", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<(int ExitCode, string StdOut, string StdErr)> RunProcessAsync(
         ProcessStartInfo startInfo,
         CancellationToken cancellationToken)
     {
         using var process = new Process { StartInfo = startInfo };
 
-        process.Start();
+        _ = process.Start();
 
         var stdOutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var stdErrTask = process.StandardError.ReadToEndAsync(cancellationToken);
 
-        await process.WaitForExitAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
-        return (process.ExitCode, await stdOutTask, await stdErrTask);
+        return (process.ExitCode, await stdOutTask.ConfigureAwait(false), await stdErrTask.ConfigureAwait(false));
     }
 }

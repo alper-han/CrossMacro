@@ -1,25 +1,39 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-public class WayfirePositionProviderTests
+public sealed class WayfirePositionProviderTests
 {
     private const string CursorMethod = "window-rules/get_cursor_position";
     private const string OutputsMethod = "window-rules/list-outputs";
 
     [Fact]
-    public void Constructor_ShouldSetUnsupported_WhenRequiredMethodsAreUnavailable()
+    public async Task Constructor_ShouldSetUnsupported_WhenRequiredMethodsAreUnavailable()
     {
         var ipcClient = new FakeWayfireIpcClient { IsAvailable = true };
         ipcClient.Enqueue(CursorMethod, "{\"error\":\"No such method found!\"}");
 
         using var provider = new WayfirePositionProvider(ipcClient);
+        var position = await provider.GetAbsolutePositionAsync();
 
+        Assert.Null(position);
         Assert.False(provider.IsSupported);
     }
 
     [Fact]
-    public async Task GetAbsolutePositionAsync_ShouldNormalizeUsingLayoutOrigin()
+    public async Task Constructor_ShouldRemainUnsupported_WhenOutputProbeFails()
+    {
+        var ipcClient = new FakeWayfireIpcClient { IsAvailable = true };
+        ipcClient.Enqueue(CursorMethod, "{\"pos\":{\"x\":0,\"y\":0}}");
+        ipcClient.Enqueue(OutputsMethod, response: null);
+
+        await using var provider = new WayfirePositionProvider(ipcClient);
+
+        Assert.Null(await provider.GetScreenResolutionAsync());
+        Assert.False(provider.IsSupported);
+    }
+
+    [Fact]
+    public async Task GetAbsolutePositionAsync_ShouldPreserveLogicalDesktopOrigin()
     {
         var ipcClient = new FakeWayfireIpcClient { IsAvailable = true };
         ipcClient.Enqueue(CursorMethod, "{\"pos\":{\"x\":1200.0,\"y\":300.0}}"); // capability probe
@@ -30,7 +44,21 @@ public class WayfirePositionProviderTests
         var position = await provider.GetAbsolutePositionAsync();
 
         Assert.True(provider.IsSupported);
-        Assert.Equal((1820, 200), position);
+        Assert.Equal((-100, 200), position);
+    }
+
+    [Fact]
+    public async Task GetAbsolutePositionAsync_ShouldNotClampToStaleStartupLayout()
+    {
+        var ipcClient = new FakeWayfireIpcClient { IsAvailable = true };
+        ipcClient.Enqueue(CursorMethod, "{\"pos\":{\"x\":100.0,\"y\":100.0}}");
+        ipcClient.Enqueue(OutputsMethod, OutputsWithNegativeOrigin());
+        ipcClient.Enqueue(CursorMethod, "{\"pos\":{\"x\":3000.0,\"y\":1600.0}}");
+
+        using var provider = new WayfirePositionProvider(ipcClient);
+        var position = await provider.GetAbsolutePositionAsync();
+
+        Assert.Equal((3000, 1600), position);
     }
 
     [Fact]
@@ -45,6 +73,20 @@ public class WayfirePositionProviderTests
         var resolution = await provider.GetScreenResolutionAsync();
 
         Assert.Equal((4480, 1440), resolution);
+    }
+
+    [Fact]
+    public async Task GetDesktopBoundsAsync_ShouldReturnLogicalDesktopOriginAndExtent()
+    {
+        var ipcClient = new FakeWayfireIpcClient { IsAvailable = true };
+        ipcClient.Enqueue(CursorMethod, "{\"pos\":{\"x\":0.0,\"y\":0.0}}");
+        ipcClient.Enqueue(OutputsMethod, OutputsWithNegativeOrigin());
+        ipcClient.Enqueue(OutputsMethod, OutputsWithNegativeOrigin());
+
+        using var provider = new WayfirePositionProvider(ipcClient);
+        var bounds = await provider.GetDesktopBoundsAsync();
+
+        Assert.Equal(new ScreenRect(-1920, 0, 4480, 1440), bounds);
     }
 
     [Fact]
@@ -77,20 +119,46 @@ public class WayfirePositionProviderTests
         Assert.True(provider.IsSupported);
     }
 
+    [Theory]
+    [InlineData("{\"pos\":{\"x\":2147483648,\"y\":10}}")]
+    [InlineData("{\"pos\":{\"x\":10,\"y\":-2147483649}}")]
+    public void TryParseCursorPosition_ShouldRejectCoordinatesOutsideInt32(string response)
+    {
+        bool parsed = WayfirePositionProvider.TryParseCursorPosition(
+            response,
+            out _,
+            out _,
+            out _);
+
+        Assert.False(parsed);
+    }
+
+    [Fact]
+    public void TryParseOutputLayout_ShouldRejectOverflowingDesktopExtent()
+    {
+        const string response =
+            "[{\"geometry\":{\"x\":2147483640,\"y\":0,\"width\":100,\"height\":100}}]";
+
+        bool parsed = WayfirePositionProvider.TryParseOutputLayout(
+            response,
+            out _,
+            out _);
+
+        Assert.False(parsed);
+    }
+
     private static string OutputsWithNegativeOrigin()
     {
-        return """
-               [
-                 {
-                   "id": 1,
-                   "geometry": { "x": -1920, "y": 0, "width": 1920, "height": 1080 }
-                 },
-                 {
-                   "id": 2,
-                   "geometry": { "x": 0, "y": 0, "width": 2560, "height": 1440 }
-                 }
-               ]
-               """;
+        return "[\n"
+             + "  {\n"
+             + "    \"id\": 1,\n"
+             + "    \"geometry\": { \"x\": -1920, \"y\": 0, \"width\": 1920, \"height\": 1080 }\n"
+             + "  },\n"
+             + "  {\n"
+             + "    \"id\": 2,\n"
+             + "    \"geometry\": { \"x\": 0, \"y\": 0, \"width\": 2560, \"height\": 1440 }\n"
+             + "  }\n"
+             + "]" + '\n';
     }
 
     private sealed class FakeWayfireIpcClient : IWayfireIpcClient

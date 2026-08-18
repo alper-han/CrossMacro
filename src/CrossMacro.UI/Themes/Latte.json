@@ -1,0 +1,33 @@
+{
+  "name": "Latte",
+  "palette": {
+    "primaryColor": "#1e66f5",
+    "primaryHoverColor": "#0b57ef",
+    "primaryPressedColor": "#094bcd",
+    "successColor": "#40a02b",
+    "successHoverColor": "#3B9228",
+    "successPressedColor": "#40a02b",
+    "dangerColor": "#d20f39",
+    "dangerHoverColor": "#ba0d33",
+    "dangerPressedColor": "#d20f39",
+    "backgroundColor": "#eff1f5",
+    "surfaceColor": "#e6e9ef",
+    "surfaceHoverColor": "#c0c4d0",
+    "textPrimaryColor": "#4c4f69",
+    "textSecondaryColor": "#5c5f77",
+    "warningColor": "#df8e1d",
+    "warningHoverColor": "#c8801a",
+    "accentColor": "#8839ef",
+    "systemAccentColor": "#1e66f5",
+    "systemAccentColorDark1": "#094bcd",
+    "systemAccentColorDark2": "#094bcd",
+    "systemAccentColorDark3": "#094bcd",
+    "systemAccentColorLight1": "#3b7af6",
+    "systemAccentColorLight2": "#3b7af6",
+    "systemAccentColorLight3": "#3b7af6",
+    "textOnPrimaryColor": "#ffffff",
+    "textOnSuccessColor": "#111827",
+    "textOnDangerColor": "#ffffff",
+    "textOnWarningColor": "#111827"
+  }
+}

@@ -1,20 +1,35 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Svg.Skia;
 
 namespace CrossMacro.UI.Icons;
 
 public sealed class EmojiAppIcon : Image
 {
-    private static readonly IReadOnlyDictionary<AppIcon, Lazy<SvgSource>> Sources = Enum.GetValues<AppIcon>()
-        .Select(icon => new { Icon = icon, AssetName = GetAssetName(icon) })
-        .Where(entry => entry.AssetName is not null)
-        .ToDictionary(
-            entry => entry.Icon,
-            entry => new Lazy<SvgSource>(() => SvgSource.Load(GetAssetUri(entry.Icon), null)));
+    private static readonly Dictionary<AppIcon, Lazy<IImage>> Sources = new Dictionary<AppIcon, Lazy<IImage>>
+    {
+        [AppIcon.ArrowNorthEast] = CreateSource(ArrowNorthEastEmojiIcon.Picture),
+        [AppIcon.Calendar] = CreateSource(CalendarEmojiIcon.Picture),
+        [AppIcon.Cancel] = CreateSource(CancelEmojiIcon.Picture),
+        [AppIcon.Clipboard] = CreateSource(ClipboardEmojiIcon.Picture),
+        [AppIcon.Clock] = CreateSource(ClockEmojiIcon.Picture),
+        [AppIcon.Delete] = CreateSource(DeleteEmojiIcon.Picture),
+        [AppIcon.Edit] = CreateSource(EditEmojiIcon.Picture),
+        [AppIcon.EditNote] = CreateSource(EditNoteEmojiIcon.Picture),
+        [AppIcon.FolderOpen] = CreateSource(FolderOpenEmojiIcon.Picture),
+        [AppIcon.Info] = CreateSource(TipEmojiIcon.Picture),
+        [AppIcon.Keyboard] = CreateSource(KeyboardEmojiIcon.Picture),
+        [AppIcon.Location] = CreateSource(LocationEmojiIcon.Picture),
+        [AppIcon.Mouse] = CreateSource(MouseEmojiIcon.Picture),
+        [AppIcon.Play] = CreateSource(PlayEmojiIcon.Picture),
+        [AppIcon.Record] = CreateSource(RecordEmojiIcon.Picture),
+        [AppIcon.Save] = CreateSource(SaveEmojiIcon.Picture),
+        [AppIcon.Settings] = CreateSource(SettingsEmojiIcon.Picture),
+        [AppIcon.Stop] = CreateSource(StopEmojiIcon.Picture),
+        [AppIcon.Success] = CreateSource(SuccessEmojiIcon.Picture),
+        [AppIcon.Timer] = CreateSource(TimerEmojiIcon.Picture),
+        [AppIcon.Tip] = CreateSource(TipEmojiIcon.Picture),
+        [AppIcon.Tools] = CreateSource(ToolsEmojiIcon.Picture),
+        [AppIcon.Trigger] = CreateSource(TriggerEmojiIcon.Picture),
+        [AppIcon.Warning] = CreateSource(WarningEmojiIcon.Picture),
+    };
 
     public static readonly StyledProperty<AppIcon> IconProperty = AvaloniaProperty.Register<EmojiAppIcon, AppIcon>(
         nameof(Icon),
@@ -22,12 +37,12 @@ public sealed class EmojiAppIcon : Image
 
     static EmojiAppIcon()
     {
-        IconProperty.Changed.AddClassHandler<EmojiAppIcon>((icon, _) => icon.UpdateSource());
+        _ = IconProperty.Changed.AddClassHandler<EmojiAppIcon>((icon, _) => icon.UpdateSource());
     }
 
     public EmojiAppIcon()
     {
-        Stretch = Avalonia.Media.Stretch.Uniform;
+        Stretch = Stretch.Uniform;
         UpdateSource();
     }
 
@@ -39,29 +54,12 @@ public sealed class EmojiAppIcon : Image
 
     private void UpdateSource()
     {
-        if (!Sources.TryGetValue(Icon, out var source))
-        {
-            Source = null;
-            return;
-        }
-
-        Source = new SvgImage
-        {
-            Source = source.Value
-        };
+        Source = GetImageSource(Icon);
     }
 
-    public static string GetAssetUri(AppIcon icon)
+    public static IImage? GetImageSource(AppIcon icon)
     {
-        var assetName = GetAssetName(icon);
-        if (assetName == null)
-        {
-            throw new ArgumentOutOfRangeException(nameof(icon), icon, "The icon does not have a bundled SVG asset.");
-        }
-
-        // Only trusted, bundled Avalonia resources are loaded through SvgSource. Do not pass
-        // user-provided SVG paths or arbitrary asset names into the SVG renderer.
-        return $"avares://CrossMacro.UI.Core/Assets/Emoji/NotoColorEmoji/Svg/{assetName}.svg";
+        return Sources.TryGetValue(icon, out var source) ? source.Value : null;
     }
 
     public static string? GetAssetName(AppIcon icon)
@@ -90,7 +88,26 @@ public sealed class EmojiAppIcon : Image
             AppIcon.Clipboard => "clipboard",
             AppIcon.Cancel => "cancel",
             AppIcon.Warning => "warning",
-            _ => null
+            AppIcon.Trigger => "trigger",
+            AppIcon.Add => null,
+            AppIcon.ArrowDown => null,
+            AppIcon.ArrowRight => null,
+            AppIcon.ArrowUp => null,
+            AppIcon.Check => null,
+            AppIcon.Close => null,
+            AppIcon.GitHub => null,
+            AppIcon.Info => null,
+            AppIcon.Menu => null,
+            AppIcon.Minus => null,
+            AppIcon.Redo => null,
+            AppIcon.Refresh => null,
+            AppIcon.Undo => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(icon), icon, message: null),
         };
+    }
+
+    private static Lazy<IImage> CreateSource(SkiaSharp.SKPicture picture)
+    {
+        return new Lazy<IImage>(() => new StaticSkPictureImage(picture));
     }
 }

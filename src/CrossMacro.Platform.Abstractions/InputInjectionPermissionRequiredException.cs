@@ -1,11 +1,19 @@
-using System;
 
 namespace CrossMacro.Platform.Abstractions;
 
 public sealed class InputInjectionPermissionRequiredException : InvalidOperationException
 {
-    public InputInjectionPermissionRequiredException(string message)
+    public InputInjectionPermissionRequiredException()
+    {
+    }
+
+    public InputInjectionPermissionRequiredException(string? message)
         : base(message)
+    {
+    }
+
+    public InputInjectionPermissionRequiredException(string? message, Exception? innerException)
+        : base(message, innerException)
     {
     }
 }

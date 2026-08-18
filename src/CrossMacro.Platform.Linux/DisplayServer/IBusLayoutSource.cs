@@ -1,5 +1,3 @@
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.Helpers;
 
 namespace CrossMacro.Platform.Linux.DisplayServer;
 
@@ -7,30 +5,33 @@ namespace CrossMacro.Platform.Linux.DisplayServer;
 /// Detects the active keyboard layout via IBus input method daemon.
 /// Works on both X11 and Wayland when IBus is the active input method.
 /// </summary>
-public class IBusLayoutSource
+public static class IBusLayoutSource
 {
-    public string? DetectLayout()
+    public static string? DetectLayout()
     {
         try
         {
             // Command: ibus engine
             // Output: xkb:us::eng or xkb:tr::tur
             var output = ProcessHelper.ExecuteCommand("ibus", "engine");
-            if (string.IsNullOrWhiteSpace(output)) return null;
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return null;
+            }
 
-            if (output.StartsWith("xkb:"))
+            if (output.StartsWith("xkb:", StringComparison.Ordinal))
             {
                 var parts = output.Split(':');
-                if (parts.Length > 1) 
+                if (parts.Length > 1)
                 {
                     return parts[1];
                 }
             }
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "Error detecting IBus layout");
+            Log.LogError(ex, "Error detecting IBus layout");
             return null;
         }
     }

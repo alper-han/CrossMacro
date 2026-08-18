@@ -214,6 +214,11 @@ Useful entry points:
 ./scripts/sync-version.sh --check
 bash scripts/ci/resolve-release-metadata.sh --mode ci
 man -l docs/man/crossmacro.1 > /dev/null
+
+# .NET 10 file-based CI/release contracts
+dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$PWD"
+dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-docs --repo-root "$PWD"
+dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --static-only --repo-root "$PWD"
 ```
 
 Packaging-related areas include:

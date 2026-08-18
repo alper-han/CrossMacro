@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>linux</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" >
@@ -17,16 +23,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Daemon\CrossMacro.Daemon.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux.Native\CrossMacro.Platform.Linux.Native.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\TestInfrastructure\PlatformFactAttributes.cs" Link="TestInfrastructure\PlatformFactAttributes.cs" />
+    <Compile Include="..\TestInfrastructure\ConditionalSkipMessage.cs" Link="TestInfrastructure\ConditionalSkipMessage.cs" />
+    <Compile Include="..\TestInfrastructure\LinuxFactAttribute.cs" Link="TestInfrastructure\LinuxFactAttribute.cs" />
+    <Compile Include="..\TestInfrastructure\LinuxIntegrationFactAttribute.cs" Link="TestInfrastructure\LinuxIntegrationFactAttribute.cs" />
+    <Compile Include="..\TestInfrastructure\TestSocketPaths.cs" Link="TestInfrastructure\TestSocketPaths.cs" />
+    <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
   </ItemGroup>
 
 </Project>

@@ -1,42 +1,27 @@
-using System.IO;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
 
 namespace CrossMacro.Daemon.Services;
 
-internal sealed class DaemonProtocolSession
+internal sealed class DaemonProtocolSession(
+    BinaryReader reader,
+    BinaryWriter writer,
+    Stream stream,
+    int maxBufferedCaptureEvents)
 {
-    private readonly DaemonInputEventEncoder _inputEventEncoder;
+    public BinaryReader Reader { get; } = reader;
 
-    public DaemonProtocolSession(
-        BinaryReader reader,
-        BinaryWriter writer,
-        Stream stream,
-        int maxBufferedCaptureEvents,
-        DaemonInputEventEncoder inputEventEncoder)
-    {
-        Reader = reader;
-        Writer = writer;
-        Stream = stream;
-        WriterGate = new OrderedWriteGate();
-        CaptureForwarding = new CaptureForwardingCoordinator(maxBufferedCaptureEvents);
-        _inputEventEncoder = inputEventEncoder;
-    }
+    public BinaryWriter Writer { get; } = writer;
 
-    public BinaryReader Reader { get; }
+    public Stream Stream { get; } = stream;
 
-    public BinaryWriter Writer { get; }
+    public OrderedWriteGate WriterGate { get; } = new OrderedWriteGate();
 
-    public Stream Stream { get; }
-
-    public OrderedWriteGate WriterGate { get; }
-
-    public CaptureForwardingCoordinator CaptureForwarding { get; }
+    public CaptureForwardingCoordinator CaptureForwarding { get; } = new CaptureForwardingCoordinator(maxBufferedCaptureEvents);
 
     public bool Disconnected { get; private set; }
 
     public void WriteInputEvent(UInputNative.input_event inputEvent)
     {
-        _inputEventEncoder.Write(Writer, inputEvent);
+        DaemonInputEventEncoder.Write(Writer, inputEvent);
     }
 
     public void MarkDisconnected()

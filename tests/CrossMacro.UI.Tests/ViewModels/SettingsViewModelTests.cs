@@ -1,19 +1,7 @@
-using System;
-using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public class SettingsViewModelTests
+public sealed class SettingsViewModelTests : IDisposable
 {
     private sealed class FakeRuntimeContext : IRuntimeContext
     {
@@ -30,6 +18,7 @@ public class SettingsViewModelTests
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
+    private readonly IRuntimeContext _runtimeContext = new FakeRuntimeContext();
     private readonly HotkeySettings _hotkeySettings;
     private readonly SettingsViewModel _viewModel;
 
@@ -42,43 +31,57 @@ public class SettingsViewModelTests
         _runtimeLogLevelService = Substitute.For<IRuntimeLogLevelService>();
         _themeService = Substitute.For<IThemeService>();
         _hotkeySettings = new HotkeySettings();
-        _themeService.AvailableThemes.Returns(new[] { "Classic", "Nord" });
-        _themeService.CurrentTheme.Returns("Classic");
-        _themeService
+        _ = _themeService.AvailableThemes.Returns(["Classic", "Nord"]);
+        _ = _themeService.CurrentTheme.Returns("Classic");
+        _ = _themeService
             .TryApplyTheme(Arg.Any<string>(), out Arg.Any<string>())
             .Returns(callInfo =>
             {
                 callInfo[1] = string.Empty;
                 return true;
             });
-        
+        _ = _themeService
+            .TryRefreshThemes(out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[0] = string.Empty;
+                return true;
+            });
+
         // Setup initial settings
-        _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, StartMinimized = false, EnableTextExpansion = false, Theme = "Classic" });
+        _ = _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, StartMinimized = false, EnableTextExpansion = false, Theme = "Classic" });
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
 
         _viewModel = new SettingsViewModel(
-            _hotkeyService, 
-            _settingsService, 
+            _hotkeyService,
+            _settingsService,
             _textExpansionService,
             _hotkeySettings,
             _externalUrlOpener,
             _runtimeLogLevelService,
-            _themeService);
+            _themeService,
+            _runtimeContext);
+    }
+
+    public void Dispose()
+    {
+        _viewModel.Dispose();
     }
 
     [Fact]
     public void Construction_InitializesProperties()
     {
-        _viewModel.RecordingHotkey.Should().Be("F8"); // Default
-        _viewModel.EnableTrayIcon.Should().BeFalse();
-        _viewModel.StartMinimized.Should().BeFalse();
-        _viewModel.SelectedTheme.Should().Be("Classic");
+        _ = _viewModel.RecordingHotkey.Should().Be("F8"); // Default
+        _ = _viewModel.EnableTrayIcon.Should().BeFalse();
+        _ = _viewModel.StartMinimized.Should().BeFalse();
+        _ = _viewModel.SelectedTheme.Should().Be("Classic");
     }
 
     [Fact]
     public void Construction_ExposesSuppliedHotkeyAndLocalizationServices()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
 
         var vm = new SettingsViewModel(
             _hotkeyService,
@@ -88,10 +91,11 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             localizationService);
 
-        vm.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
-        vm.LocalizationService.Should().BeSameAs(localizationService);
+        _ = vm.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
+        _ = vm.LocalizationService.Should().BeSameAs(localizationService);
     }
 
     [Fact]
@@ -104,11 +108,11 @@ public class SettingsViewModelTests
             .Select(language => language.Code)
             .ToArray();
 
-        codes.Should().OnlyHaveUniqueItems();
-        codes.Should().Equal(expectedCodes);
-        SettingsViewModel.SupportedLanguages.Should().ContainSingle(language => language.IsDefault)
+        _ = codes.Should().OnlyHaveUniqueItems();
+        _ = codes.Should().Equal(expectedCodes);
+        _ = SettingsViewModel.SupportedLanguages.Should().ContainSingle(language => language.IsDefault)
             .Which.Code.Should().Be("en");
-        SettingsViewModel.SupportedLanguages.Select(language => language.ResourceKey)
+        _ = SettingsViewModel.SupportedLanguages.Select(language => language.ResourceKey)
             .Should().OnlyHaveUniqueItems()
             .And.AllSatisfy(resourceKey => resourceKey.Should().StartWith("Language_"));
     }
@@ -117,7 +121,7 @@ public class SettingsViewModelTests
     public void SelectedLanguageOption_WhenChanged_UpdatesSettingsAndSaves()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
         var vm = new SettingsViewModel(
             _hotkeyService,
             _settingsService,
@@ -126,21 +130,22 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             localizationService);
 
-        vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code == "ja");
+        vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code is "ja");
 
-        vm.SelectedLanguage.Should().Be("ja");
-        _settingsService.Current.Language.Should().Be("ja");
+        _ = vm.SelectedLanguage.Should().Be("ja");
+        _ = _settingsService.Current.Language.Should().Be("ja");
         localizationService.Received(1).SetCulture("ja");
-        _settingsService.Received(1).Save();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
     public void SelectedLanguageOption_WhenLanguageLabelsRefresh_KeepsSelectedOptionInstance()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
         var vm = new SettingsViewModel(
             _hotkeyService,
             _settingsService,
@@ -149,30 +154,31 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             localizationService);
 
-        var selectedBefore = vm.AvailableLanguages.Single(option => option.Code == "zh");
+        var selectedBefore = vm.AvailableLanguages.Single(option => option.Code is "zh");
 
         vm.SelectedLanguageOption = selectedBefore;
-        localizationService["Language_Chinese"].Returns("中文");
-        localizationService["Language_English"].Returns("英语");
+        _ = localizationService["Language_Chinese"].Returns("中文");
+        _ = localizationService["Language_English"].Returns("英语");
 
         vm.SelectedLanguage = "en";
 
-        vm.AvailableLanguages.Single(option => option.Code == "zh").Should().BeSameAs(selectedBefore);
-        vm.SelectedLanguageOption.Should().BeSameAs(vm.AvailableLanguages.Single(option => option.Code == "en"));
+        _ = vm.AvailableLanguages.Single(option => option.Code is "zh").Should().BeSameAs(selectedBefore);
+        _ = vm.SelectedLanguageOption.Should().BeSameAs(vm.AvailableLanguages.Single(option => option.Code is "en"));
     }
 
     [Fact]
     public void Construction_WhenPersistedLanguageIsUnsupported_FallsBackToEnglish()
     {
-        _settingsService.Current.Returns(new AppSettings
+        _ = _settingsService.Current.Returns(new AppSettings
         {
             EnableTrayIcon = false,
             StartMinimized = false,
             EnableTextExpansion = false,
             Theme = "Classic",
-            Language = "auto"
+            Language = "auto",
         });
 
         var vm = new SettingsViewModel(
@@ -182,10 +188,37 @@ public class SettingsViewModelTests
             _hotkeySettings,
             _externalUrlOpener,
             _runtimeLogLevelService,
-            _themeService);
+            _themeService,
+            _runtimeContext);
 
-        vm.SelectedLanguage.Should().Be("en");
-        vm.SelectedLanguageOption!.Code.Should().Be("en");
+        _ = vm.SelectedLanguage.Should().Be("en");
+        _ = vm.SelectedLanguageOption!.Code.Should().Be("en");
+    }
+
+    [Fact]
+    public void Construction_WhenPersistedLanguageUsesDifferentCase_UsesCanonicalSupportedCode()
+    {
+        _ = _settingsService.Current.Returns(new AppSettings
+        {
+            EnableTrayIcon = false,
+            StartMinimized = false,
+            EnableTextExpansion = false,
+            Theme = "Classic",
+            Language = "JA",
+        });
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            _runtimeContext);
+
+        _ = vm.SelectedLanguage.Should().Be("ja");
+        _ = _settingsService.Current.Language.Should().Be("ja");
     }
 
     [Fact]
@@ -198,9 +231,10 @@ public class SettingsViewModelTests
             _hotkeySettings,
             _externalUrlOpener,
             _runtimeLogLevelService,
-            null!);
+            null!,
+            _runtimeContext);
 
-        act.Should().Throw<ArgumentNullException>();
+        _ = act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
@@ -210,9 +244,9 @@ public class SettingsViewModelTests
         _viewModel.RecordingHotkey = "F12";
 
         // Assert
-        _hotkeySettings.RecordingHotkey.Should().Be("F12");
-        _viewModel.RecordingHotkey.Should().Be("F12");
-        
+        _ = _hotkeySettings.RecordingHotkey.Should().Be("F12");
+        _ = _viewModel.RecordingHotkey.Should().Be("F12");
+
         // Since service is not running in test, UpdateHotkeys might catch exception or skip?
         // Code: if (_hotkeyService.IsRunning) UpdateHotkeys...
         // Let's assume IsRunning = false by default mock.
@@ -223,7 +257,7 @@ public class SettingsViewModelTests
     public void HotkeyChange_WhenServiceRunning_UpdatesHotkeys()
     {
         // Arrange
-        _hotkeyService.IsRunning.Returns(true);
+        _ = _hotkeyService.IsRunning.Returns(returnThis: true);
 
         // Act
         _viewModel.PlaybackHotkey = "Ctrl+P";
@@ -237,18 +271,19 @@ public class SettingsViewModelTests
     {
         // Arrange
         bool eventFired = false;
-        _viewModel.TrayIconEnabledChanged += (s, val) => {
+        _viewModel.TrayIconEnabledChanged += (s, val) =>
+        {
             eventFired = true;
-            val.Should().BeTrue();
+            _ = val.Should().BeTrue();
         };
 
         // Act
         _viewModel.EnableTrayIcon = true;
 
         // Assert
-        _settingsService.Current.EnableTrayIcon.Should().BeTrue();
-        _settingsService.Received(1).Save();
-        eventFired.Should().BeTrue();
+        _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
+        _ = eventFired.Should().BeTrue();
     }
 
     [Fact]
@@ -263,12 +298,12 @@ public class SettingsViewModelTests
 
         _viewModel.StartMinimized = true;
 
-        _viewModel.StartMinimized.Should().BeTrue();
-        _viewModel.EnableTrayIcon.Should().BeTrue();
-        _settingsService.Current.StartMinimized.Should().BeTrue();
-        _settingsService.Current.EnableTrayIcon.Should().BeTrue();
-        _settingsService.Received(1).Save();
-        trayEventFired.Should().BeTrue();
+        _ = _viewModel.StartMinimized.Should().BeTrue();
+        _ = _viewModel.EnableTrayIcon.Should().BeTrue();
+        _ = _settingsService.Current.StartMinimized.Should().BeTrue();
+        _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
+        _ = trayEventFired.Should().BeTrue();
     }
 
     [Fact]
@@ -278,11 +313,11 @@ public class SettingsViewModelTests
 
         _viewModel.EnableTrayIcon = false;
 
-        _viewModel.EnableTrayIcon.Should().BeFalse();
-        _viewModel.StartMinimized.Should().BeFalse();
-        _settingsService.Current.EnableTrayIcon.Should().BeFalse();
-        _settingsService.Current.StartMinimized.Should().BeFalse();
-        _settingsService.Received(2).Save();
+        _ = _viewModel.EnableTrayIcon.Should().BeFalse();
+        _ = _viewModel.StartMinimized.Should().BeFalse();
+        _ = _settingsService.Current.EnableTrayIcon.Should().BeFalse();
+        _ = _settingsService.Current.StartMinimized.Should().BeFalse();
+        _ = _settingsService.Received(2).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -290,27 +325,27 @@ public class SettingsViewModelTests
     {
         _viewModel.StartMinimized = true;
         _settingsService.ClearReceivedCalls();
-        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.EnableTrayIcon = false;
 
-        _viewModel.EnableTrayIcon.Should().BeTrue();
-        _viewModel.StartMinimized.Should().BeTrue();
-        _settingsService.Current.EnableTrayIcon.Should().BeTrue();
-        _settingsService.Current.StartMinimized.Should().BeTrue();
+        _ = _viewModel.EnableTrayIcon.Should().BeTrue();
+        _ = _viewModel.StartMinimized.Should().BeTrue();
+        _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
+        _ = _settingsService.Current.StartMinimized.Should().BeTrue();
     }
 
     [Fact]
     public void StartMinimized_WhenSaveFails_RollsBackAndDoesNotEnableTray()
     {
-        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.StartMinimized = true;
 
-        _viewModel.StartMinimized.Should().BeFalse();
-        _viewModel.EnableTrayIcon.Should().BeFalse();
-        _settingsService.Current.StartMinimized.Should().BeFalse();
-        _settingsService.Current.EnableTrayIcon.Should().BeFalse();
+        _ = _viewModel.StartMinimized.Should().BeFalse();
+        _ = _viewModel.EnableTrayIcon.Should().BeFalse();
+        _ = _settingsService.Current.StartMinimized.Should().BeFalse();
+        _ = _settingsService.Current.EnableTrayIcon.Should().BeFalse();
     }
 
     [Fact]
@@ -321,9 +356,9 @@ public class SettingsViewModelTests
             EnableTrayIcon = false,
             StartMinimized = false,
             EnableTextExpansion = false,
-            Theme = "Classic"
+            Theme = "Classic",
         };
-        _settingsService.Current.Returns(settings);
+        _ = _settingsService.Current.Returns(settings);
 
         var viewModel = new SettingsViewModel(
             _hotkeyService,
@@ -335,41 +370,82 @@ public class SettingsViewModelTests
             _themeService,
             new FakeRuntimeContext { IsFlatpak = true });
 
-        viewModel.IsTraySettingsVisible.Should().BeFalse();
+        _ = viewModel.IsTraySettingsVisible.Should().BeFalse();
 
         viewModel.StartMinimized = true;
 
-        viewModel.StartMinimized.Should().BeTrue();
-        viewModel.EnableTrayIcon.Should().BeFalse();
-        _settingsService.Current.StartMinimized.Should().BeTrue();
-        _settingsService.Current.EnableTrayIcon.Should().BeFalse();
-        _settingsService.Received(1).Save();
+        _ = viewModel.StartMinimized.Should().BeTrue();
+        _ = viewModel.EnableTrayIcon.Should().BeFalse();
+        _ = _settingsService.Current.StartMinimized.Should().BeTrue();
+        _ = _settingsService.Current.EnableTrayIcon.Should().BeFalse();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
     public async Task EnableTextExpansion_WhenChanged_SavesSettingsAndTogglesService()
     {
         var startCalled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var stopCalled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _textExpansionService.When(x => x.Start()).Do(_ => startCalled.TrySetResult(true));
-        _textExpansionService.When(x => x.Stop()).Do(_ => stopCalled.TrySetResult(true));
+        _ = _textExpansionService.StopExpansionAsync(Arg.Any<CancellationToken>()).Returns(unusedCallInfo =>
+        {
+            _ = stopStarted.TrySetResult();
+            return stopCompletion.Task;
+        });
 
         // Act - Enable
         _viewModel.EnableTextExpansion = true;
 
         // Assert - Enable
-        _settingsService.Current.EnableTextExpansion.Should().BeTrue();
-        _settingsService.Received(1).Save();
-        await startCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = _settingsService.Current.EnableTextExpansion.Should().BeTrue();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
+        _ = await startCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
         _textExpansionService.Received(1).Start();
 
         // Act - Disable
         _viewModel.EnableTextExpansion = false;
-        
+
         // Assert - Disable
-        _settingsService.Current.EnableTextExpansion.Should().BeFalse();
-        await stopCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        _textExpansionService.Received(1).Stop();
+        _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
+        await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
+        stopCompletion.SetResult();
+    }
+
+    [Fact]
+    public async Task EnableTextExpansion_WhenDisabled_AwaitsAsyncStopCompletion()
+    {
+        _settingsService.Current.EnableTextExpansion = true;
+        var stopStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _textExpansionService.StopExpansionAsync(Arg.Any<CancellationToken>()).Returns(unusedCallInfo =>
+        {
+            _ = stopStarted.TrySetResult();
+            return stopCompletion.Task;
+        });
+
+        var rollbackObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _viewModel.PropertyChanged += (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(SettingsViewModel.EnableTextExpansion), StringComparison.Ordinal) &&
+                _settingsService.Current.EnableTextExpansion)
+            {
+                rollbackObserved.TrySetResult();
+            }
+        };
+
+        _viewModel.EnableTextExpansion = false;
+        await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.False(_settingsService.Current.EnableTextExpansion);
+        TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
+        Assert.False(rollbackObserved.Task.IsCompleted);
+        stopCompletion.SetException(new InvalidOperationException("stop failed"));
+        await rollbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.True(_settingsService.Current.EnableTextExpansion);
+        TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
     }
 
     [Fact]
@@ -387,29 +463,29 @@ public class SettingsViewModelTests
     {
         _viewModel.SelectedLogLevel = "Warning";
 
-        _settingsService.Current.LogLevel.Should().Be("Warning");
+        _ = _settingsService.Current.LogLevel.Should().Be("Warning");
         Received.InOrder(() =>
         {
             _runtimeLogLevelService.SetLogLevel("Warning");
-            _settingsService.Save();
+            _ = _settingsService.SaveAfterIdleAsync();
         });
-        _settingsService.Received(1).Save();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
     public void SelectedLogLevel_WhenSaveFails_RollsBackAndRestoresRuntimeLevel()
     {
         _settingsService.Current.LogLevel = "Information";
-        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.SelectedLogLevel = "Warning";
 
-        _viewModel.SelectedLogLevel.Should().Be("Information");
-        _settingsService.Current.LogLevel.Should().Be("Information");
+        _ = _viewModel.SelectedLogLevel.Should().Be("Information");
+        _ = _settingsService.Current.LogLevel.Should().Be("Information");
         Received.InOrder(() =>
         {
             _runtimeLogLevelService.SetLogLevel("Warning");
-            _settingsService.Save();
+            _ = _settingsService.SaveAfterIdleAsync();
             _runtimeLogLevelService.SetLogLevel("Information");
         });
     }
@@ -424,8 +500,8 @@ public class SettingsViewModelTests
         _viewModel.CheckForUpdates = false;
 
         // Assert
-        _settingsService.Current.CheckForUpdates.Should().BeFalse();
-        _settingsService.Received(1).Save();
+        _ = _settingsService.Current.CheckForUpdates.Should().BeFalse();
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -435,16 +511,16 @@ public class SettingsViewModelTests
         _viewModel.SelectedTheme = "Nord";
 
         // Assert
-        _settingsService.Current.Theme.Should().Be("Nord");
-        _themeService.Received(1).TryApplyTheme("Nord", out Arg.Any<string>());
-        _settingsService.Received(1).Save();
+        _ = _settingsService.Current.Theme.Should().Be("Nord");
+        _ = _themeService.Received(1).TryApplyTheme("Nord", out Arg.Any<string>());
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
     public void SelectedTheme_WhenApplyFails_RevertsToCurrentTheme()
     {
-        _themeService.CurrentTheme.Returns("Classic");
-        _themeService
+        _ = _themeService.CurrentTheme.Returns("Classic");
+        _ = _themeService
             .TryApplyTheme("Broken", out Arg.Any<string>())
             .Returns(callInfo =>
             {
@@ -454,21 +530,209 @@ public class SettingsViewModelTests
 
         _viewModel.SelectedTheme = "Broken";
 
-        _viewModel.SelectedTheme.Should().Be("Classic");
-        _settingsService.Current.Theme.Should().Be("Classic");
-        _settingsService.DidNotReceive().Save();
+        _ = _viewModel.SelectedTheme.Should().Be("Classic");
+        _ = _settingsService.Current.Theme.Should().Be("Classic");
+        _ = _settingsService.DidNotReceive().SaveAfterIdleAsync();
+    }
+
+    [Fact]
+    public void RefreshThemesCommand_WhenThemeChangesDuringRefresh_PersistsCurrentTheme()
+    {
+        _ = _themeService.CurrentTheme.Returns("Classic");
+        _ = _themeService
+            .TryRefreshThemes(out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                _ = _themeService.CurrentTheme.Returns("Nord");
+                callInfo[0] = string.Empty;
+                return true;
+            });
+
+        _viewModel.RefreshThemesCommand.Execute(null);
+
+        _ = _viewModel.SelectedTheme.Should().Be("Nord");
+        _ = _settingsService.Current.Theme.Should().Be("Nord");
+        _themeService.Received(1).TryRefreshThemes(out Arg.Any<string>());
+        _ = _settingsService.Received(1).SaveAfterIdleAsync();
+    }
+
+    [Fact]
+    public void RefreshThemesCommand_WhenBindingClearsSelection_DoesNotApplyFallback()
+    {
+        _ = _themeService.CurrentTheme.Returns("Classic");
+        _ = _themeService
+            .TryRefreshThemes(out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo[0] = string.Empty;
+                return true;
+            });
+
+        void ClearSelectionAfterThemeListRefresh(object? sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName is nameof(SettingsViewModel.AvailableThemes))
+            {
+                _viewModel.SelectedTheme = string.Empty;
+            }
+        }
+
+        _viewModel.PropertyChanged += ClearSelectionAfterThemeListRefresh;
+        try
+        {
+            _viewModel.RefreshThemesCommand.Execute(null);
+        }
+        finally
+        {
+            _viewModel.PropertyChanged -= ClearSelectionAfterThemeListRefresh;
+        }
+
+        _ = _viewModel.SelectedTheme.Should().Be("Classic");
+        _ = _settingsService.Current.Theme.Should().Be("Classic");
+        _themeService.DidNotReceive().TryApplyTheme(Arg.Any<string>(), out Arg.Any<string>());
+        _settingsService.DidNotReceive().SaveAfterIdleAsync();
+    }
+
+    [Fact]
+    public async Task RefreshThemesCommand_WhenSaveFailsAfterRemovedTheme_KeepsActualFallbackThemeSelected()
+    {
+        var settings = new AppSettings
+        {
+            EnableTrayIcon = false,
+            StartMinimized = false,
+            EnableTextExpansion = false,
+            Theme = "Aurora",
+        };
+        var currentTheme = "Aurora";
+
+        _ = _settingsService.Current.Returns(settings);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
+        _ = _themeService.AvailableThemes.Returns(["Aurora", "Classic"]);
+        _ = _themeService.CurrentTheme.Returns(_ => currentTheme);
+        _ = _themeService
+            .TryRefreshThemes(out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                currentTheme = "Classic";
+                callInfo[0] = "Current theme 'Aurora' is no longer available.";
+                return false;
+            });
+        _ = _themeService
+            .TryApplyTheme("Aurora", out Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                currentTheme = "Classic";
+                callInfo[1] = "Unknown theme 'Aurora'. Fallback to Classic applied.";
+                return false;
+            });
+
+        var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            _runtimeContext);
+
+        try
+        {
+            vm.RefreshThemesCommand.Execute(null);
+            await Task.Delay(25);
+
+            _ = vm.SelectedTheme.Should().Be("Classic");
+            _ = settings.Theme.Should().Be("Classic");
+            _themeService.Received(1).TryApplyTheme("Aurora", out Arg.Any<string>());
+        }
+        finally
+        {
+            vm.Dispose();
+        }
     }
 
     [Fact]
     public void EnableTextExpansion_WhenSaveFails_RollsBackAndDoesNotToggleService()
     {
-        _settingsService.When(x => x.Save()).Do(_ => throw new InvalidOperationException("disk full"));
+        _ = _settingsService.SaveAfterIdleAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         _viewModel.EnableTextExpansion = true;
 
-        _settingsService.Current.EnableTextExpansion.Should().BeFalse();
+        _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
         _textExpansionService.DidNotReceive().Start();
-        _textExpansionService.DidNotReceive().Stop();
+        _textExpansionService.DidNotReceive().StopExpansion();
+    }
+
+    [Fact]
+    public async Task StaleFailedSave_DoesNotRollbackNewerSettingChange()
+    {
+        var firstSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(firstSave.Task, secondSave.Task);
+
+        _viewModel.EnableTextExpansion = true;
+        _viewModel.CheckForUpdates = true;
+
+        firstSave.SetException(new InvalidOperationException("disk full"));
+        await Task.Yield();
+        secondSave.SetResult(true);
+        await Task.Delay(25, CancellationToken.None);
+
+        _ = _viewModel.EnableTextExpansion.Should().BeTrue();
+        _ = _viewModel.CheckForUpdates.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CoalescedFailedSave_RollsBackEverySettingChange()
+    {
+        var failedSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(failedSave.Task);
+
+        _viewModel.EnableTextExpansion = true;
+        _viewModel.CheckForUpdates = true;
+
+        failedSave.SetException(new InvalidOperationException("disk full"));
+        await Task.Delay(25, CancellationToken.None);
+
+        _ = _viewModel.EnableTextExpansion.Should().BeFalse();
+        _ = _viewModel.CheckForUpdates.Should().BeFalse();
+        _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
+        _ = _settingsService.Current.CheckForUpdates.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RepeatedCoalescedSettingChange_RollsBackToValueBeforeBurst()
+    {
+        var failedSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(failedSave.Task);
+
+        _viewModel.EnableTextExpansion = true;
+        _viewModel.EnableTextExpansion = false;
+
+        failedSave.SetException(new InvalidOperationException("disk full"));
+        await Task.Delay(25, CancellationToken.None);
+
+        _ = _viewModel.EnableTextExpansion.Should().BeFalse();
+        _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StaleSuccessfulSave_ReconcilesTheLatestTextExpansionState()
+    {
+        var firstSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondSave = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var textExpansionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _settingsService.SaveAfterIdleAsync().Returns(firstSave.Task, secondSave.Task);
+        _textExpansionService.When(service => service.Start())
+            .Do(_ => textExpansionStarted.TrySetResult());
+
+        _viewModel.EnableTextExpansion = true;
+        _viewModel.CheckForUpdates = true;
+
+        firstSave.SetResult(true);
+        await textExpansionStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _textExpansionService.Received(1).Start();
+
+        secondSave.SetResult(true);
     }
 
     [Fact]
@@ -478,9 +742,9 @@ public class SettingsViewModelTests
         var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
         var profiles = new List<ProfileInfo> { defaultProfile };
         var profileManager = Substitute.For<IProfileManager>();
-        profileManager.Profiles.Returns(_ => profiles.ToArray());
-        profileManager.ActiveProfile.Returns(_ => defaultProfile);
-        profileManager.CreateProfileAsync("Work").Returns(_ =>
+        _ = profileManager.Profiles.Returns(_ => profiles.ToArray());
+        _ = profileManager.ActiveProfile.Returns(_ => defaultProfile);
+        _ = profileManager.CreateProfileAsync("Work").Returns(_ =>
         {
             profiles.Add(workProfile);
             return Task.FromResult(workProfile);
@@ -494,24 +758,25 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             profileManager: profileManager);
 
-        vm.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
-        vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
+        _ = vm.SelectedProfile.Should().Be(defaultProfile);
 
         vm.NewProfileName = " Work ";
         await vm.CreateProfileAsync();
 
-        await profileManager.Received(1).CreateProfileAsync("Work");
-        vm.AvailableProfiles.Select(profile => profile.Name).Should().Equal("Default", "Work");
-        vm.SelectedProfile.Should().Be(workProfile);
-        vm.NewProfileName.Should().BeEmpty();
+        _ = await profileManager.Received(1).CreateProfileAsync("Work");
+        _ = vm.AvailableProfiles.Select(profile => profile.Name).Should().Equal("Default", "Work");
+        _ = vm.SelectedProfile.Should().Be(workProfile);
+        _ = vm.NewProfileName.Should().BeEmpty();
 
         vm.NewProfileName = "Renamed Work";
         await vm.RenameSelectedProfileAsync();
 
         await profileManager.Received(1).RenameProfileAsync("work", "Renamed Work");
-        vm.NewProfileName.Should().BeEmpty();
+        _ = vm.NewProfileName.Should().BeEmpty();
 
         await vm.SwitchProfileAsync();
 
@@ -528,12 +793,12 @@ public class SettingsViewModelTests
         var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
         var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
         var profileManager = Substitute.For<IProfileManager>();
-        profileManager.Profiles.Returns([defaultProfile, workProfile]);
-        profileManager.ActiveProfile.Returns(defaultProfile);
+        _ = profileManager.Profiles.Returns([defaultProfile, workProfile]);
+        _ = profileManager.ActiveProfile.Returns(defaultProfile);
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = CreateProfileLocalizationService();
-        dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
-            .Returns(false);
+        _ = dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
+            .Returns(returnThis: false);
 
         var vm = new SettingsViewModel(
             _hotkeyService,
@@ -543,16 +808,17 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            localizationService,
+            _runtimeContext,
+            localizationService: localizationService,
             profileManager: profileManager,
             dialogService: dialogService)
         {
-            SelectedProfile = workProfile
+            SelectedProfile = workProfile,
         };
 
         await vm.DeleteSelectedProfileAsync();
 
-        await dialogService.Received(1).ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No");
+        _ = await dialogService.Received(1).ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No");
         await profileManager.DidNotReceive().DeleteProfileAsync(Arg.Any<string>());
     }
 
@@ -563,17 +829,17 @@ public class SettingsViewModelTests
         var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
         var profiles = new List<ProfileInfo> { defaultProfile, workProfile };
         var profileManager = Substitute.For<IProfileManager>();
-        profileManager.Profiles.Returns(_ => profiles.ToArray());
-        profileManager.ActiveProfile.Returns(defaultProfile);
-        profileManager.DeleteProfileAsync("work").Returns(_ =>
+        _ = profileManager.Profiles.Returns(_ => profiles.ToArray());
+        _ = profileManager.ActiveProfile.Returns(defaultProfile);
+        _ = profileManager.DeleteProfileAsync("work").Returns(unusedCallInfo =>
         {
-            profiles.Remove(workProfile);
+            _ = profiles.Remove(workProfile);
             return Task.CompletedTask;
         });
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = CreateProfileLocalizationService();
-        dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
-            .Returns(true);
+        _ = dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
+            .Returns(returnThis: true);
 
         var vm = new SettingsViewModel(
             _hotkeyService,
@@ -583,18 +849,19 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            localizationService,
+            _runtimeContext,
+            localizationService: localizationService,
             profileManager: profileManager,
             dialogService: dialogService)
         {
-            SelectedProfile = workProfile
+            SelectedProfile = workProfile,
         };
 
         await vm.DeleteSelectedProfileAsync();
 
         await profileManager.Received(1).DeleteProfileAsync("work");
-        vm.AvailableProfiles.Should().ContainSingle().Which.Should().Be(defaultProfile);
-        vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.AvailableProfiles.Should().ContainSingle().Which.Should().Be(defaultProfile);
+        _ = vm.SelectedProfile.Should().Be(defaultProfile);
     }
 
     [Fact]
@@ -603,8 +870,8 @@ public class SettingsViewModelTests
         var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
         var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
         var profileManager = Substitute.For<IProfileManager>();
-        profileManager.Profiles.Returns([defaultProfile, workProfile]);
-        profileManager.ActiveProfile.Returns(defaultProfile);
+        _ = profileManager.Profiles.Returns([defaultProfile, workProfile]);
+        _ = profileManager.ActiveProfile.Returns(defaultProfile);
 
         var vm = new SettingsViewModel(
             _hotkeyService,
@@ -614,13 +881,14 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             profileManager: profileManager);
 
         vm.Dispose();
-        profileManager.ActiveProfile.Returns(workProfile);
-        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileInfo>>(profileManager, workProfile);
+        _ = profileManager.ActiveProfile.Returns(workProfile);
+        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
-        vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.SelectedProfile.Should().Be(defaultProfile);
     }
 
     [Fact]
@@ -628,9 +896,9 @@ public class SettingsViewModelTests
     {
         var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
         var profileManager = Substitute.For<IProfileManager>();
-        profileManager.Profiles.Returns([defaultProfile]);
-        profileManager.ActiveProfile.Returns(defaultProfile);
-        profileManager.DeleteProfileAsync("default").Returns<Task>(_ => throw new InvalidOperationException("Cannot delete default profile."));
+        _ = profileManager.Profiles.Returns([defaultProfile]);
+        _ = profileManager.ActiveProfile.Returns(defaultProfile);
+        _ = profileManager.DeleteProfileAsync("default").Returns<Task>(_ => throw new InvalidOperationException("Cannot delete default profile."));
 
         var vm = new SettingsViewModel(
             _hotkeyService,
@@ -640,14 +908,15 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             profileManager: profileManager);
         string? failureMessage = null;
         vm.ProfileOperationFailed += (_, message) => failureMessage = message;
 
         await vm.DeleteSelectedProfileAsync();
 
-        failureMessage.Should().Be("Failed to delete profile: Cannot delete default profile.");
-        vm.IsProfileOperationInProgress.Should().BeFalse();
+        _ = failureMessage.Should().Be("Failed to delete profile: Cannot delete default profile.");
+        _ = vm.IsProfileOperationInProgress.Should().BeFalse();
     }
 
     [Fact]
@@ -656,8 +925,8 @@ public class SettingsViewModelTests
         var defaultProfile = new ProfileInfo { Id = "default", Name = "Default" };
         var workProfile = new ProfileInfo { Id = "work", Name = "Work" };
         var profileManager = Substitute.For<IProfileManager>();
-        profileManager.Profiles.Returns([defaultProfile, workProfile]);
-        profileManager.ActiveProfile.Returns(_ => workProfile);
+        _ = profileManager.Profiles.Returns([defaultProfile, workProfile]);
+        _ = profileManager.ActiveProfile.Returns(_ => workProfile);
 
         _settingsService.Current.EnableTextExpansion = true;
         _settingsService.Current.CheckForUpdates = true;
@@ -674,17 +943,18 @@ public class SettingsViewModelTests
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
+            _runtimeContext,
             profileManager: profileManager);
 
-        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileInfo>>(profileManager, workProfile);
+        profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
-        vm.SelectedProfile.Should().Be(workProfile);
-        vm.RecordingHotkey.Should().Be("Ctrl+Alt+R");
-        vm.PlaybackHotkey.Should().Be("Ctrl+Alt+P");
-        vm.PauseHotkey.Should().Be("Ctrl+Alt+Space");
-        vm.EnableTextExpansion.Should().BeTrue();
-        vm.CheckForUpdates.Should().BeTrue();
-        vm.SelectedTheme.Should().Be("Classic");
+        _ = vm.SelectedProfile.Should().Be(workProfile);
+        _ = vm.RecordingHotkey.Should().Be("Ctrl+Alt+R");
+        _ = vm.PlaybackHotkey.Should().Be("Ctrl+Alt+P");
+        _ = vm.PauseHotkey.Should().Be("Ctrl+Alt+Space");
+        _ = vm.EnableTextExpansion.Should().BeTrue();
+        _ = vm.CheckForUpdates.Should().BeTrue();
+        _ = vm.SelectedTheme.Should().Be("Classic");
     }
 
     [Fact]
@@ -694,17 +964,17 @@ public class SettingsViewModelTests
         _viewModel.OpenGitHub();
 
         // Assert
-        _externalUrlOpener.Received(1).Open("https://github.com/alper-han/CrossMacro");
+        TestAssertions.VerifyTask(() => _externalUrlOpener.Received(1).OpenAsync(new Uri("https://github.com/alper-han/CrossMacro", UriKind.Absolute)));
     }
 
     private static ILocalizationService CreateProfileLocalizationService()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
-        localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
-        localizationService["Settings_ProfileDeleteTitle"].Returns("Delete Profile");
-        localizationService["Settings_ProfileDeleteMessage"].Returns("Delete profile '{0}'?");
-        localizationService["Settings_ProfileDeleteFailed"].Returns("Failed to delete profile");
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
+        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
+        _ = localizationService["Settings_ProfileDeleteTitle"].Returns("Delete Profile");
+        _ = localizationService["Settings_ProfileDeleteMessage"].Returns("Delete profile '{0}'?");
+        _ = localizationService["Settings_ProfileDeleteFailed"].Returns("Failed to delete profile");
         return localizationService;
     }
 
@@ -722,8 +992,8 @@ public class SettingsViewModelTests
             _themeService,
             runtimeContext);
 
-        vm.IsUpdateSettingsVisible.Should().BeFalse();
-        vm.IsTraySettingsVisible.Should().BeFalse();
+        _ = vm.IsUpdateSettingsVisible.Should().BeFalse();
+        _ = vm.IsTraySettingsVisible.Should().BeFalse();
     }
 
     [Fact]
@@ -740,7 +1010,7 @@ public class SettingsViewModelTests
             _themeService,
             runtimeContext);
 
-        vm.IsUpdateSettingsVisible.Should().BeTrue();
-        vm.IsTraySettingsVisible.Should().BeTrue();
+        _ = vm.IsUpdateSettingsVisible.Should().BeTrue();
+        _ = vm.IsTraySettingsVisible.Should().BeTrue();
     }
 }

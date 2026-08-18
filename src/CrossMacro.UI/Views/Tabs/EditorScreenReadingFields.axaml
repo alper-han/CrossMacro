@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
+             xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -11,9 +12,10 @@
              x:DataType="vm:EditorViewModel">
 
     <UserControl.Resources>
-        <local:NullableIntConverter x:Key="NullableIntConverter"/>
-        <local:HexColorBrushConverter x:Key="HexColorBrushConverter"/>
-        <local:ScreenTargetColorSourceDisplayConverter x:Key="ScreenTargetColorSourceDisplayConverter"/>
+        <conv:NullableIntConverter x:Key="NullableIntConverter"/>
+        <conv:NullableDoubleConverter x:Key="NullableDoubleConverter"/>
+        <conv:HexColorBrushConverter x:Key="HexColorBrushConverter"/>
+             <conv:ScreenTargetColorSourceDisplayConverter x:Key="ScreenTargetColorSourceDisplayConverter"/>
     </UserControl.Resources>
 
     <StackPanel>
@@ -392,12 +394,12 @@
             </Grid>
             <TextBlock Text="{localization:Loc Editor_FoundVariableName}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
             <TextBox Text="{Binding SelectedAction.ScreenFoundVariableName, UpdateSourceTrigger=PropertyChanged}"
-                          PlaceholderText="found"
-                          Background="{DynamicResource SurfaceHoverBrush}"
-                          Foreground="{DynamicResource TextPrimaryBrush}"
-                          BorderThickness="0"
-                         CornerRadius="4"
-                         Padding="8,6"/>
+                      PlaceholderText="found"
+                      Background="{DynamicResource SurfaceHoverBrush}"
+                      Foreground="{DynamicResource TextPrimaryBrush}"
+                      BorderThickness="0"
+                      CornerRadius="4"
+                      Padding="8,6"/>
             <TextBlock Text="{localization:Loc Editor_Tolerance}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
             <TextBox Text="{Binding SelectedAction.ScreenTolerance, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="{localization:Loc Editor_Tolerance}"
@@ -406,6 +408,206 @@
                      BorderThickness="0"
                      CornerRadius="4"
                      Padding="8,6"/>
+            <TextBlock Text="{localization:Loc Editor_TimeoutMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+            <TextBox Text="{Binding SelectedAction.ScreenTimeoutMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                     PlaceholderText="5000"
+                     Background="{DynamicResource SurfaceHoverBrush}"
+                     Foreground="{DynamicResource TextPrimaryBrush}"
+                     BorderThickness="0"
+                     CornerRadius="4"
+                     Padding="8,6"/>
         </StackPanel>
+
+        <!-- Image search -->
+        <StackPanel Spacing="6" IsVisible="{Binding ShowImageSearchFields}">
+             <TextBlock Text="{localization:Loc Editor_ImageSearchAction}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+             <TextBlock Text="{localization:Loc Editor_ImageMatchMode}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+             <ComboBox ItemsSource="{Binding ImageMatchModes}"
+                       SelectedItem="{Binding SelectedImageSearchMatchMode, Mode=TwoWay}"
+                       Background="{DynamicResource SurfaceHoverBrush}"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       HorizontalAlignment="Stretch">
+                 <ComboBox.ItemTemplate>
+                     <DataTemplate>
+                         <TextBlock Text="{Binding Converter={x:Static conv:ImageMatchModeConverters.DisplayText}}"/>
+                     </DataTemplate>
+                 </ComboBox.ItemTemplate>
+             </ComboBox>
+            <Button Command="{Binding ImportImageAssetAsync}"
+                    Classes="primary compact"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                    <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
+                    <TextBlock Text="{localization:Loc Editor_ImportImageAsset}"/>
+                </StackPanel>
+            </Button>
+            <TextBlock Text="{localization:Loc Editor_ImageAsset}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+            <ComboBox ItemsSource="{Binding ImageAssetNames}"
+                      SelectedItem="{Binding SelectedAction.ImageAssetName, Mode=TwoWay}"
+                      IsVisible="{Binding HasImageAssets}"
+                      Background="{DynamicResource SurfaceHoverBrush}"
+                      Foreground="{DynamicResource TextPrimaryBrush}"
+                      HorizontalAlignment="Stretch"/>
+            <StackPanel Spacing="4" IsVisible="{Binding ShowSelectedImageAssetPreview}">
+                <TextBlock Text="{localization:Loc Editor_ImageAssetPreview}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           FontSize="11"/>
+                <Border Classes="notice-card"
+                        HorizontalAlignment="Left"
+                        MaxWidth="640"
+                        MaxHeight="360"
+                        Padding="8">
+                    <Image Source="{Binding SelectedImageAssetPreview}"
+                           Stretch="Uniform"
+                           MaxWidth="640"
+                           MaxHeight="360"/>
+                </Border>
+            </StackPanel>
+            <TextBlock Text="{localization:Loc Editor_ImageAssetImportHint}"
+                       Classes="caption"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding !HasImageAssets}"/>
+            <TextBlock Text="{localization:Loc Editor_SearchRegion}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+            <Grid ColumnDefinitions="*,8,*">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{localization:Loc Editor_Left}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+                    <TextBox Text="{Binding SelectedAction.ScreenLeft, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{localization:Loc Editor_Left}"
+                             Background="{DynamicResource SurfaceHoverBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             CornerRadius="4"
+                             Padding="8,6"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="3">
+                    <TextBlock Text="{localization:Loc Editor_Top}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+                    <TextBox Text="{Binding SelectedAction.ScreenTop, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{localization:Loc Editor_Top}"
+                             Background="{DynamicResource SurfaceHoverBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             CornerRadius="4"
+                             Padding="8,6"/>
+                </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="*,8,*">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{localization:Loc Editor_Width}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+                    <TextBox Text="{Binding SelectedAction.ScreenWidth, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{localization:Loc Editor_Width}"
+                             Background="{DynamicResource SurfaceHoverBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             CornerRadius="4"
+                             Padding="8,6"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="3">
+                    <TextBlock Text="{localization:Loc Editor_Height}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+                    <TextBox Text="{Binding SelectedAction.ScreenHeight, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{localization:Loc Editor_Height}"
+                             Background="{DynamicResource SurfaceHoverBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             CornerRadius="4"
+                             Padding="8,6"/>
+                </StackPanel>
+             </Grid>
+             <Grid ColumnDefinitions="*,8,*">
+                 <Button Command="{Binding CapturePixelSearchTopLeftAsync}"
+                         Classes="primary compact"
+                         IsVisible="{Binding !IsCapturingPixelSearchTopLeft}"
+                         HorizontalAlignment="Stretch"
+                         HorizontalContentAlignment="Center">
+                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                         <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                         <TextBlock Text="{localization:Loc Editor_CaptureRegionTopLeft}"/>
+                     </StackPanel>
+                 </Button>
+                 <Button Command="{Binding CancelCapture}"
+                         Classes="danger compact"
+                         IsVisible="{Binding IsCapturingPixelSearchTopLeft}"
+                         HorizontalAlignment="Stretch"
+                         HorizontalContentAlignment="Center">
+                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                         <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                         <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
+                     </StackPanel>
+                 </Button>
+                 <Button Grid.Column="2"
+                         Command="{Binding CapturePixelSearchBottomRightAsync}"
+                         Classes="primary compact"
+                         IsVisible="{Binding !IsCapturingPixelSearchBottomRight}"
+                         HorizontalAlignment="Stretch"
+                         HorizontalContentAlignment="Center">
+                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                         <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                         <TextBlock Text="{localization:Loc Editor_CaptureRegionBottomRight}"/>
+                     </StackPanel>
+                 </Button>
+                 <Button Grid.Column="2"
+                         Command="{Binding CancelCapture}"
+                         Classes="danger compact"
+                         IsVisible="{Binding IsCapturingPixelSearchBottomRight}"
+                         HorizontalAlignment="Stretch"
+                         HorizontalContentAlignment="Center">
+                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                         <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
+                         <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
+                     </StackPanel>
+                 </Button>
+             </Grid>
+             <TextBlock Text="{localization:Loc Editor_FoundVariables}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" IsVisible="{Binding ShowImageOutputVariableFields}"/>
+            <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowImageOutputVariableFields}">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{localization:Loc Editor_FoundXVariableNamePlaceholder}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+                    <TextBox Text="{Binding SelectedAction.ScreenFoundXVariableName, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{localization:Loc Editor_FoundXVariableNamePlaceholder}"
+                             Background="{DynamicResource SurfaceHoverBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             CornerRadius="4"
+                             Padding="8,6"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="3">
+                    <TextBlock Text="{localization:Loc Editor_FoundYVariableNamePlaceholder}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+                    <TextBox Text="{Binding SelectedAction.ScreenFoundYVariableName, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{localization:Loc Editor_FoundYVariableNamePlaceholder}"
+                             Background="{DynamicResource SurfaceHoverBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             CornerRadius="4"
+                             Padding="8,6"/>
+                </StackPanel>
+            </Grid>
+            <TextBlock Text="{localization:Loc Editor_FoundVariableName}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10" IsVisible="{Binding ShowImageOutputVariableFields}"/>
+            <TextBox Text="{Binding SelectedAction.ScreenFoundVariableName, UpdateSourceTrigger=PropertyChanged}"
+                     PlaceholderText="found"
+                     Background="{DynamicResource SurfaceHoverBrush}"
+                     Foreground="{DynamicResource TextPrimaryBrush}"
+                     BorderThickness="0"
+                     CornerRadius="4"
+                     Padding="8,6"
+                     IsVisible="{Binding ShowImageOutputVariableFields}"/>
+            <TextBlock Text="{localization:Loc Editor_TimeoutMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10" IsVisible="{Binding ShowImageWaitTimeoutField}"/>
+            <TextBox Text="{Binding SelectedAction.ScreenTimeoutMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                     PlaceholderText="5000"
+                     Background="{DynamicResource SurfaceHoverBrush}"
+                     Foreground="{DynamicResource TextPrimaryBrush}"
+                     BorderThickness="0"
+                     CornerRadius="4"
+                     Padding="8,6"
+                     IsVisible="{Binding ShowImageWaitTimeoutField}"/>
+            <StackPanel Spacing="3">
+                <TextBlock Text="{localization:Loc Editor_ImageSearchSimilarity}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
+                <TextBox Text="{Binding SelectedAction.ImageSearchSimilarity, Converter={StaticResource NullableDoubleConverter}, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="0.95"
+                         Background="{DynamicResource SurfaceHoverBrush}"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         BorderThickness="0"
+                         CornerRadius="4"
+                         Padding="8,6"/>
+            </StackPanel>
+         </StackPanel>
     </StackPanel>
 </UserControl>

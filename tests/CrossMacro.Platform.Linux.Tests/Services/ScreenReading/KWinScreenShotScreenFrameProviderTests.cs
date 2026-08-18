@@ -1,7 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
-using CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
@@ -44,7 +40,7 @@ public sealed class KWinScreenShotScreenFrameProviderTests
         Assert.False(provider.IsSupported);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.PermissionDenied, result.ErrorKind);
-        Assert.Contains("desktop permission missing", result.ErrorMessage);
+        Assert.Contains("desktop permission missing", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, capture.CaptureCalls);
     }
 
@@ -76,17 +72,23 @@ public sealed class KWinScreenShotScreenFrameProviderTests
     }
 
     [Fact]
-    public async Task KWinProvider_WhenNullRegion_ReturnsUnsupportedWithoutCapture()
+    public async Task KWinProvider_WhenNullRegion_UsesWorkspaceCapture()
     {
-        var capture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported());
+        var frame = ScreenReadingFrameFixtures.KWinFrame(
+            new ScreenRect(0, 0, 2, 1),
+            ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
+        var capture = new FakeKWinScreenShotCapture(
+            KWinScreenShotSupportResult.Supported(),
+            KWinScreenShotCaptureResult.Success(frame));
 
         using var provider = new KWinScreenShotScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Unsupported, result.ErrorKind);
-        Assert.Contains("bounded region", result.ErrorMessage);
+        Assert.True(result.IsSuccess);
+        using var resultFrame = Assert.IsType<ScreenFrame>(result.Value);
+        Assert.Equal(new ScreenRect(0, 0, 2, 1), resultFrame.LogicalBounds);
         Assert.Equal(0, capture.CaptureCalls);
+        Assert.Equal(1, capture.WorkspaceCaptureCalls);
     }
 
     [Fact]
@@ -109,7 +111,7 @@ public sealed class KWinScreenShotScreenFrameProviderTests
     {
         var capture = new FakeKWinScreenShotCapture(KWinScreenShotSupportResult.Supported())
         {
-            CaptureException = new OperationCanceledException("capture canceled")
+            CaptureException = new OperationCanceledException("capture canceled"),
         };
 
         using var provider = new KWinScreenShotScreenFrameProvider(capture);

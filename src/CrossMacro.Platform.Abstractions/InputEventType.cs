@@ -13,5 +13,5 @@ public enum InputEventType
     MouseScroll = 4,
 
     // Preserve protocol compatibility while making unknown events explicit.
-    Unknown = 255
+    Unknown = 255,
 }

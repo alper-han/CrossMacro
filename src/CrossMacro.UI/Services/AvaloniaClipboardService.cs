@@ -1,47 +1,35 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Avalonia.Controls;
-using Avalonia.Input.Platform;
-using Avalonia.Threading;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.UI.Services;
 
-public class AvaloniaClipboardService : IClipboardService
+public class AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeContext) : IClipboardService
 {
-    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext = desktopLifetimeContext;
 
-    public AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeContext)
+    public virtual bool IsSupported => _desktopLifetimeContext.MainWindow?.Clipboard is not null;
+
+    public virtual async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
     {
-        _desktopLifetimeContext = desktopLifetimeContext;
-    }
-
-    public bool IsSupported => _desktopLifetimeContext.MainWindow?.Clipboard is not null;
-
-    public async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
-    {
+        ArgumentNullException.ThrowIfNull(text);
         cancellationToken.ThrowIfCancellationRequested();
         Log.Debug("[AvaloniaClipboard] SetTextAsync called for length {Length}", text.Length);
 
-        if (_desktopLifetimeContext.MainWindow == null)
+        if (_desktopLifetimeContext.MainWindow is null)
         {
             Log.Warning("[AvaloniaClipboard] SetTextAsync skipped because desktop main window is unavailable");
             return;
         }
 
-        await await Dispatcher.UIThread.InvokeAsync(async () =>
+        await (await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             Log.Debug("[AvaloniaClipboard] SetTextAsync running on UI thread");
             var clipboard = GetClipboard();
-            if (clipboard != null)
+            if (clipboard is not null)
             {
-                try 
+                try
                 {
                     Log.Debug("[AvaloniaClipboard] Setting text to clipboard instance: {Type}", clipboard.GetType().Name);
-                    await ClipboardExtensions.SetTextAsync(clipboard, text);
+                    await ClipboardExtensions.SetTextAsync(clipboard, text).ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                     Log.Debug("[AvaloniaClipboard] SetTextAsync completed successfully");
                 }
@@ -49,9 +37,9 @@ public class AvaloniaClipboardService : IClipboardService
                 {
                     throw;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
-                    Log.Error(ex, "[AvaloniaClipboard] Exception during SetTextAsync");
+                    Log.LogError(ex, "[AvaloniaClipboard] Exception during SetTextAsync");
                     throw;
                 }
             }
@@ -59,29 +47,29 @@ public class AvaloniaClipboardService : IClipboardService
             {
                 Log.Warning("[AvaloniaClipboard] SetTextAsync: Clipboard is null");
             }
-        }, DispatcherPriority.Normal, cancellationToken);
+        }, DispatcherPriority.Normal, cancellationToken)).ConfigureAwait(false);
     }
 
-    public async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
+    public virtual async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Log.Debug("[AvaloniaClipboard] GetTextAsync called");
 
-        if (_desktopLifetimeContext.MainWindow == null)
+        if (_desktopLifetimeContext.MainWindow is null)
         {
             Log.Warning("[AvaloniaClipboard] GetTextAsync skipped because desktop main window is unavailable");
             return null;
         }
 
-        return await await Dispatcher.UIThread.InvokeAsync(async () =>
+        return await (await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var clipboard = GetClipboard();
-                if (clipboard != null)
+                if (clipboard is not null)
                 {
-                    var text = await ClipboardExtensions.TryGetTextAsync(clipboard);
+                    var text = await ClipboardExtensions.TryGetTextAsync(clipboard).ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                     return text;
                 }
@@ -91,25 +79,25 @@ public class AvaloniaClipboardService : IClipboardService
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                Log.Error(ex, "Failed to get clipboard text via Avalonia");
+                Log.LogError(ex, "Failed to get clipboard text via Avalonia");
                 throw;
             }
-        }, DispatcherPriority.Normal, cancellationToken);
+        }, DispatcherPriority.Normal, cancellationToken)).ConfigureAwait(false);
     }
 
     private IClipboard? GetClipboard()
     {
         var mainWindow = _desktopLifetimeContext.MainWindow;
-        if (mainWindow == null)
+        if (mainWindow is null)
         {
             Log.Warning("[AvaloniaClipboard] Main window is unavailable. Clipboard access skipped.");
             return null;
         }
 
         var clipboard = mainWindow.Clipboard;
-        if (clipboard != null)
+        if (clipboard is not null)
         {
             return clipboard;
         }

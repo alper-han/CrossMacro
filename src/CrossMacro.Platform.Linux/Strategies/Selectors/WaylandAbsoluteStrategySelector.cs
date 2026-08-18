@@ -1,37 +1,32 @@
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.Strategies;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
 
 namespace CrossMacro.Platform.Linux.Strategies.Selectors;
 
-public class WaylandAbsoluteStrategySelector : ICoordinateStrategySelector
+public class WaylandAbsoluteStrategySelector(IMousePositionProvider positionProvider) : ICoordinateStrategySelector
 {
-    private readonly IMousePositionProvider _positionProvider;
-
-    public WaylandAbsoluteStrategySelector(IMousePositionProvider positionProvider)
-    {
-        _positionProvider = positionProvider;
-    }
+    private readonly IMousePositionProvider _positionProvider = positionProvider;
 
     public int Priority => 10;
 
     public bool CanHandle(StrategyContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
         return context.IsWayland && context.UseAbsoluteCoordinates;
     }
 
     public ICoordinateStrategy Create(StrategyContext context)
     {
-        if (!_positionProvider.IsSupported)
+        ArgumentNullException.ThrowIfNull(context);
+        if (!_positionProvider.HasUsableAbsolutePosition())
         {
             Log.Warning(
-                "[WaylandAbsoluteStrategySelector] Provider {ProviderName} is unsupported for {Compositor}; falling back to relative strategy.",
+                "[WaylandAbsoluteStrategySelector] Provider {ProviderName} has no usable cursor position for {Compositor}; falling back to raw relative strategy.",
                 _positionProvider.ProviderName,
                 context.Compositor);
             return new RelativeCoordinateStrategy();
         }
 
-        return new EvdevAbsoluteStrategy(_positionProvider);
+        return new CompositorCoordinateStrategy(
+            _positionProvider,
+            emitRelativeCoordinates: false);
     }
 }

@@ -4,5 +4,81 @@
     <UsedAvaloniaProducts></UsedAvaloniaProducts>
   </PropertyGroup>
 
+  <!--
+    Release publish policy is selected by the packaging recipe through one
+    explicit profile.  Platform-specific recipes still own the RID, output
+    path, native toolchain and package format; the invariant .NET publish
+    flags live here so those recipes cannot silently drift apart.
+  -->
+  <PropertyGroup Condition="'$(CrossMacroPublishProfile)' == 'native-aot'">
+    <SelfContained>true</SelfContained>
+    <PublishAot>true</PublishAot>
+    <!-- Native AOT supplies the final executable; do not generate an apphost. -->
+    <UseAppHost>false</UseAppHost>
+    <!-- Keep SDK RID inference aligned with the AOT output model. -->
+    <_RuntimeIdentifierUsesAppHost>false</_RuntimeIdentifierUsesAppHost>
+    <ErrorOnDuplicatePublishOutputFiles>true</ErrorOnDuplicatePublishOutputFiles>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <StripSymbols>true</StripSymbols>
+    <IlcTrimMetadata>true</IlcTrimMetadata>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(CrossMacroPublishProfile)' == 'portable-trimmed'">
+    <SelfContained>true</SelfContained>
+    <PublishAot>false</PublishAot>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <ErrorOnDuplicatePublishOutputFiles>true</ErrorOnDuplicatePublishOutputFiles>
+  </PropertyGroup>
+
+  <Target Name="ValidateCrossMacroPublishProfile" BeforeTargets="PrepareForBuild"
+          Condition="'$(CrossMacroPublishProfile)' != ''">
+    <PropertyGroup Condition="'$(CrossMacroPublishProfile)' == 'native-aot'">
+      <!-- NativeAOT targets reset this during evaluation; restore the publish policy at execution time. -->
+      <ErrorOnDuplicatePublishOutputFiles>true</ErrorOnDuplicatePublishOutputFiles>
+    </PropertyGroup>
+    <Error Condition="'$(CrossMacroPublishProfile)' != 'native-aot' and '$(CrossMacroPublishProfile)' != 'portable-trimmed'"
+           Text="Unknown CrossMacroPublishProfile '$(CrossMacroPublishProfile)'. Expected native-aot or portable-trimmed." />
+    <Error Condition="'$(CrossMacroPublishProfile)' == 'native-aot' and '$(PublishAot)' != 'true'"
+           Text="CrossMacro native-aot publish profile requires PublishAot=true." />
+    <Error Condition="'$(CrossMacroPublishProfile)' != '' and '$(SelfContained)' != 'true'"
+           Text="CrossMacro publish profiles require SelfContained=true." />
+    <Error Condition="'$(CrossMacroPublishProfile)' == 'native-aot' and '$(PublishReadyToRun)' == 'true'"
+           Text="CrossMacro native-aot publish profile requires PublishReadyToRun=false." />
+    <Error Condition="'$(CrossMacroPublishProfile)' == 'native-aot' and '$(UseAppHost)' == 'true'"
+           Text="CrossMacro native-aot publish profile requires UseAppHost=false because Native AOT supplies the final executable." />
+    <Error Condition="'$(CrossMacroPublishProfile)' == 'native-aot' and '$(ErrorOnDuplicatePublishOutputFiles)' != 'true'"
+           Text="CrossMacro native-aot publish profile requires ErrorOnDuplicatePublishOutputFiles=true." />
+    <Error Condition="'$(CrossMacroPublishProfile)' == 'portable-trimmed' and '$(PublishAot)' == 'true'"
+           Text="CrossMacro portable-trimmed publish profile requires PublishAot=false." />
+    <Error Condition="'$(CrossMacroPublishProfile)' == 'portable-trimmed' and '$(PublishTrimmed)' != 'true'"
+           Text="CrossMacro portable-trimmed publish profile requires PublishTrimmed=true." />
+  </Target>
+
   <Target Name="AvaloniaStats" />
+
+  <!-- DesignerSupport is design-time only; exclude it from Windows portable publish. -->
+  <Target Name="ExcludeAvaloniaDesignerSupportFromPortableRuntime"
+          BeforeTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(CrossMacroPublishProfile)' == 'portable-trimmed' and '$(OutputType)' == 'WinExe'">
+    <ItemGroup>
+      <_ResolvedCopyLocalPublishAssets Remove="@(_ResolvedCopyLocalPublishAssets->WithMetadataValue('Filename', 'Avalonia.DesignerSupport'))" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="ValidateCrossMacroPublishModes" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(PublishAot)' == 'true' and '$(PublishReadyToRun)' == 'true'"
+           Text="CrossMacro publish profiles are mutually exclusive: PublishAot=true requires PublishReadyToRun=false." />
+  </Target>
 </Project>

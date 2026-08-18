@@ -1,7 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
-using CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
@@ -35,12 +31,12 @@ public sealed class X11ScreenFrameProviderTests
         var capture = new FakeX11ScreenCapture(X11ScreenCaptureSupportResult.Unsupported("DISPLAY missing"));
 
         using var provider = new X11ScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(provider.IsSupported);
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("DISPLAY missing", result.ErrorMessage);
+        Assert.Contains("DISPLAY missing", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, capture.CaptureCalls);
     }
 
@@ -80,7 +76,7 @@ public sealed class X11ScreenFrameProviderTests
         await cts.CancelAsync();
 
         using var provider = new X11ScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, new ScreenReadOptions(cancellationToken: cts.Token));
+        var result = await provider.CaptureFrameAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
@@ -92,15 +88,15 @@ public sealed class X11ScreenFrameProviderTests
     {
         var capture = new FakeX11ScreenCapture(X11ScreenCaptureSupportResult.Supported())
         {
-            CaptureException = new TimeoutException("capture timed out")
+            CaptureException = new TimeoutException("capture timed out"),
         };
 
         using var provider = new X11ScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
-        Assert.Contains("capture timed out", result.ErrorMessage);
+        Assert.Contains("capture timed out", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(1, capture.CaptureCalls);
     }
 

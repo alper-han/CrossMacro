@@ -1,42 +1,60 @@
-using System.IO;
-using System.Reflection;
-using System.Threading;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Platform.Linux.Ipc;
-using CrossMacro.TestInfrastructure;
-using Xunit;
+using System.Globalization;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-public class IpcClientSendFailureTests
+public sealed class IpcClientSendFailureTests
 {
+    [LinuxFact]
+    public async Task ConnectAsync_WhenDisposedWhileWaitingForConnectGate_CannotInstallTransport()
+    {
+        using var client = new IpcClient(() => throw new InvalidOperationException("Socket resolver should not run."), autoReconnect: false);
+        var gate = client.ConnectGate;
+        Assert.True(gate.Wait(TimeSpan.FromSeconds(2)));
+
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connectTask = Task.Run(async () =>
+        {
+            started.SetResult();
+            await client.ConnectAsync(CancellationToken.None);
+        });
+
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        client.Dispose();
+
+        await TestAssertions.ThrowsAnyAsync<Exception>(() => connectTask.WaitAsync(TimeSpan.FromSeconds(2)));
+    }
+
+    [LinuxFact]
+    public async Task DeferredErrorNotification_WhenAlreadyDisposed_DoesNotInvokeHandler()
+    {
+        using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
+        var callbackObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.ErrorOccurred += (_, _) => callbackObserved.TrySetResult();
+        client.Dispose();
+
+        client.RaiseErrorOccurredDeferred("late error");
+
+        await Task.Delay(TimeSpan.FromMilliseconds(100));
+        Assert.False(callbackObserved.Task.IsCompleted);
+    }
+
     [LinuxFact]
     public async Task HandleSendFailure_WhenErrorHandlerReentersCaptureControl_ShouldNotBlockCaller()
     {
         using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
 
-        var captureGateField = typeof(IpcClient).GetField(
-            "_captureCommandGate",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(captureGateField);
-        var captureGate = Assert.IsType<SemaphoreSlim>(captureGateField!.GetValue(client));
-
-        var handleSendFailureMethod = typeof(IpcClient).GetMethod(
-            "HandleSendFailure",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(handleSendFailureMethod);
+        var captureGate = client.CaptureCommandGate;
 
         var callbackObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         client.ErrorOccurred += (_, _) =>
         {
-            callbackObserved.TrySetResult();
+            _ = callbackObserved.TrySetResult();
             client.StopCapture("reentrant-consumer");
         };
 
         InvokeHandleSendFailureWhileHoldingGate(
             client,
             captureGate,
-            handleSendFailureMethod!,
             new IOException("Simulated send failure"),
             callbackObserved.Task);
 
@@ -48,29 +66,19 @@ public class IpcClientSendFailureTests
     {
         using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
 
-        var captureGateField = typeof(IpcClient).GetField(
-            "_captureCommandGate",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(captureGateField);
-        var captureGate = Assert.IsType<SemaphoreSlim>(captureGateField!.GetValue(client));
-
-        var handleSendFailureMethod = typeof(IpcClient).GetMethod(
-            "HandleSendFailure",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(handleSendFailureMethod);
+        var captureGate = client.CaptureCommandGate;
 
         var healthySubscriberObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         client.ErrorOccurred += (_, _) => throw new InvalidOperationException("Simulated error callback failure");
         client.ErrorOccurred += (_, _) =>
         {
-            healthySubscriberObserved.TrySetResult();
+            _ = healthySubscriberObserved.TrySetResult();
             client.StopCapture("healthy-consumer");
         };
 
         InvokeHandleSendFailureWhileHoldingGate(
             client,
             captureGate,
-            handleSendFailureMethod!,
             new IOException("Simulated send failure"),
             healthySubscriberObserved.Task);
 
@@ -82,24 +90,15 @@ public class IpcClientSendFailureTests
     {
         using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
 
-        var captureGateField = typeof(IpcClient).GetField(
-            "_captureCommandGate",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(captureGateField);
-        var captureGate = Assert.IsType<SemaphoreSlim>(captureGateField!.GetValue(client));
-
-        var handleSendFailureMethod = typeof(IpcClient).GetMethod(
-            "HandleSendFailure",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(handleSendFailureMethod);
+        var captureGate = client.CaptureCommandGate;
 
         const int iterations = 50;
         var callbacksObserved = 0;
         TaskCompletionSource? nextCallbackObserved = null;
         client.ErrorOccurred += (_, _) =>
         {
-            Interlocked.Increment(ref callbacksObserved);
-            Volatile.Read(ref nextCallbackObserved)?.TrySetResult();
+            _ = Interlocked.Increment(ref callbacksObserved);
+            _ = (Volatile.Read(ref nextCallbackObserved)?.TrySetResult());
 
             client.StartCapture("stress-consumer", mouse: true, keyboard: true);
             client.StopCapture("stress-consumer");
@@ -112,8 +111,7 @@ public class IpcClientSendFailureTests
             InvokeHandleSendFailureWhileHoldingGate(
                 client,
                 captureGate,
-                handleSendFailureMethod!,
-                new IOException($"Simulated send failure {iteration}"),
+                new IOException(string.Create(CultureInfo.InvariantCulture, $"Simulated send failure {iteration}")),
                 pendingCallback: null);
 
             await callbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -123,10 +121,47 @@ public class IpcClientSendFailureTests
         Assert.Equal(iterations, Volatile.Read(ref callbacksObserved));
     }
 
+    [LinuxFact]
+    public async Task DisposeAsync_WhenDeferredReconcileIsWaitingForGate_ShouldCancelWithoutLeakingCancellation()
+    {
+        await using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
+        var captureGate = client.CaptureCommandGate;
+        Assert.True(captureGate.Wait(TimeSpan.FromSeconds(2)));
+
+        var reconcileTask = client.StartDeferredCaptureReconcileAsync();
+
+        var disposeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposeTask = Task.Run(async () =>
+        {
+            disposeStarted.SetResult();
+            await client.DisposeAsync();
+        });
+        await disposeStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var exception = await Record.ExceptionAsync(() => reconcileTask.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.Null(exception);
+    }
+
+    [LinuxFact]
+    public async Task DisposeAsync_WhenCalledConcurrently_ShouldShareCleanupTask()
+    {
+        await using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
+        var firstDispose = client.DisposeAsync().AsTask();
+        var secondDispose = client.DisposeAsync().AsTask();
+
+        await Task.WhenAll(firstDispose, secondDispose).WaitAsync(TimeSpan.FromSeconds(2));
+
+        var sharedDisposeTask = client.DisposeTask;
+        Assert.NotNull(sharedDisposeTask);
+        Assert.True(sharedDisposeTask!.IsCompleted);
+        Assert.True(firstDispose.IsCompletedSuccessfully);
+        Assert.True(secondDispose.IsCompletedSuccessfully);
+    }
+
     private static void InvokeHandleSendFailureWhileHoldingGate(
         IpcClient client,
         SemaphoreSlim captureGate,
-        MethodInfo handleSendFailureMethod,
         IOException sendFailure,
         Task? pendingCallback)
     {
@@ -134,11 +169,7 @@ public class IpcClientSendFailureTests
         try
         {
             var invocationException = Record.Exception(() =>
-            {
-                handleSendFailureMethod.Invoke(
-                    client,
-                    [sendFailure, IpcOpCode.StartCapture, false]);
-            });
+                client.HandleSendFailureForSession(sendFailure, IpcOpCode.StartCapture, throwOnFailure: false, sessionGeneration: null));
 
             Assert.Null(invocationException);
 
@@ -151,7 +182,7 @@ public class IpcClientSendFailureTests
         }
         finally
         {
-            captureGate.Release();
+            _ = captureGate.Release();
         }
     }
 }

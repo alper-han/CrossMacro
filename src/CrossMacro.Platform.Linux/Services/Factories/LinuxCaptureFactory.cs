@@ -1,9 +1,3 @@
-using System;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Linux.Ipc;
-using CrossMacro.Platform.Linux.Extensions;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services.Factories;
 
@@ -16,10 +10,26 @@ public class LinuxCaptureFactory
 {
     private readonly ILinuxEnvironmentDetector _environmentDetector;
     private readonly ILinuxInputCapabilityDetector _capabilityDetector;
+    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
     private readonly Func<LinuxInputCapture> _legacyFactory;
     private readonly Func<LinuxIpcInputCapture> _ipcFactory;
     private readonly Func<X11InputCapture> _x11Factory;
     private readonly Func<X11InputCapture, bool> _x11IsSupported;
+
+    internal LinuxCaptureFactory(
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
+        Func<LinuxInputCapture> legacyFactory,
+        Func<LinuxIpcInputCapture> ipcFactory,
+        Func<X11InputCapture> x11Factory)
+        : this(
+environmentDetector: null,
+capabilityDetector: null,
+            snapshotProvider,
+            legacyFactory,
+            ipcFactory,
+            x11Factory,
+            static x11 => x11.IsSupported)
+    { /* Empty */ }
 
     public LinuxCaptureFactory(
         ILinuxEnvironmentDetector environmentDetector,
@@ -27,9 +37,7 @@ public class LinuxCaptureFactory
         Func<LinuxInputCapture> legacyFactory,
         Func<LinuxIpcInputCapture> ipcFactory,
         Func<X11InputCapture> x11Factory)
-        : this(environmentDetector, capabilityDetector, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported)
-    {
-    }
+        : this(environmentDetector, capabilityDetector, snapshotProvider: null, legacyFactory, ipcFactory, x11Factory, static x11 => x11.IsSupported) { /* Empty */ }
 
     internal LinuxCaptureFactory(
         ILinuxEnvironmentDetector environmentDetector,
@@ -38,9 +46,30 @@ public class LinuxCaptureFactory
         Func<LinuxIpcInputCapture> ipcFactory,
         Func<X11InputCapture> x11Factory,
         Func<X11InputCapture, bool> x11IsSupported)
+        : this(environmentDetector, capabilityDetector, snapshotProvider: null, legacyFactory, ipcFactory, x11Factory, x11IsSupported) { /* Empty */ }
+
+    internal LinuxCaptureFactory(
+        ILinuxEnvironmentDetector? environmentDetector,
+        ILinuxInputCapabilityDetector? capabilityDetector,
+        ILinuxCapabilitySnapshotProvider? snapshotProvider,
+        Func<LinuxInputCapture> legacyFactory,
+        Func<LinuxIpcInputCapture> ipcFactory,
+        Func<X11InputCapture> x11Factory,
+        Func<X11InputCapture, bool> x11IsSupported)
     {
-        _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
-        _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
+        if (snapshotProvider is null && environmentDetector is null)
+        {
+            throw new ArgumentNullException(nameof(environmentDetector));
+        }
+
+        if (snapshotProvider is null && capabilityDetector is null)
+        {
+            throw new ArgumentNullException(nameof(capabilityDetector));
+        }
+
+        _environmentDetector = environmentDetector!;
+        _capabilityDetector = capabilityDetector!;
+        _snapshotProvider = snapshotProvider;
         _legacyFactory = legacyFactory ?? throw new ArgumentNullException(nameof(legacyFactory));
         _ipcFactory = ipcFactory ?? throw new ArgumentNullException(nameof(ipcFactory));
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
@@ -53,47 +82,87 @@ public class LinuxCaptureFactory
     /// </summary>
     public IInputCapture Create()
     {
-        // 1. Wayland -> Check capabilities (Daemon or Legacy fallback)
-        if (_environmentDetector.IsWayland)
+        if (_snapshotProvider is not null)
         {
-            var mode = _capabilityDetector.DetermineMode();
-
-            if (mode == InputProviderMode.Daemon)
-            {
-                LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Daemon",
-                    "[LinuxCaptureFactory] Wayland detected ({0}), using IPC Capture (Daemon mode)",
-                    _environmentDetector.DetectedCompositor);
-                return _ipcFactory();
-            }
-
-            if (mode == InputProviderMode.None)
-            {
-                var reason = BuildUnavailableCaptureMessage();
-                LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_None",
-                    "[LinuxCaptureFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported capture: {1}",
-                    _environmentDetector.DetectedCompositor,
-                    reason);
-                return new UnavailableInputCapture(reason);
-            }
-
-            if (!_capabilityDetector.CanReadInputEvents)
-            {
-                var reason = BuildUnavailableCaptureMessage();
-                LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Legacy_NoReadableEvents",
-                    "[LinuxCaptureFactory] Wayland detected ({0}), direct uinput is available but no readable input events were found. Returning unsupported capture: {1}",
-                    _environmentDetector.DetectedCompositor,
-                    reason);
-                return new UnavailableInputCapture(reason);
-            }
-
-            // Fallback to legacy evdev (works with direct device permissions or Flatpak --device=all)
-            LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Legacy",
-                "[LinuxCaptureFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Capture",
-                _environmentDetector.DetectedCompositor);
-            return _legacyFactory();
+            var snapshot = _snapshotProvider.GetSnapshot();
+            return CreateFromSnapshot(snapshot);
         }
 
-        // 2. X11 -> Try Native X11
+        return CreateFromEnvironment();
+    }
+
+    private IInputCapture CreateFromSnapshot(LinuxCapabilitySnapshot snapshot)
+    {
+        var x11 = snapshot.IsX11 ? _x11Factory() : null;
+        var selection = LinuxBackendSelectionPolicy.SelectInput(
+            snapshot,
+            x11 is not null && _x11IsSupported(x11),
+            forCapture: true);
+
+        if (string.Equals(selection.Reason, "native-x11", StringComparison.Ordinal))
+        {
+            return x11!;
+        }
+
+        return selection.Mode switch
+        {
+            InputProviderMode.Daemon => _ipcFactory(),
+            InputProviderMode.Legacy => _legacyFactory(),
+            InputProviderMode.None => new UnavailableInputCapture(BuildUnavailableCaptureMessage(snapshot)),
+            _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage(snapshot)),
+        };
+    }
+
+    private IInputCapture CreateFromEnvironment()
+    {
+        if (_environmentDetector.IsWayland)
+        {
+            return CreateForWaylandEnvironment();
+        }
+
+        return CreateForX11OrFallbackEnvironment();
+    }
+
+    private IInputCapture CreateForWaylandEnvironment()
+    {
+        var mode = _capabilityDetector.DetermineMode();
+
+        if (mode is InputProviderMode.Daemon)
+        {
+            LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Daemon",
+                "[LinuxCaptureFactory] Wayland detected ({0}), using IPC Capture (Daemon mode)",
+                _environmentDetector.DetectedCompositor);
+            return _ipcFactory();
+        }
+
+        if (mode is InputProviderMode.None)
+        {
+            var reason = BuildUnavailableCaptureMessage();
+            LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_None",
+                "[LinuxCaptureFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported capture: {1}",
+                _environmentDetector.DetectedCompositor,
+                reason);
+            return new UnavailableInputCapture(reason);
+        }
+
+        if (!_capabilityDetector.CanReadInputEvents)
+        {
+            var reason = BuildUnavailableCaptureMessage();
+            LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Legacy_NoReadableEvents",
+                "[LinuxCaptureFactory] Wayland detected ({0}), direct uinput is available but no readable input events were found. Returning unsupported capture: {1}",
+                _environmentDetector.DetectedCompositor,
+                reason);
+            return new UnavailableInputCapture(reason);
+        }
+
+        LoggingExtensions.LogOnce("LinuxCaptureFactory_Wayland_Legacy",
+            "[LinuxCaptureFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Capture",
+            _environmentDetector.DetectedCompositor);
+        return _legacyFactory();
+    }
+
+    private IInputCapture CreateForX11OrFallbackEnvironment()
+    {
         var x11Cap = _x11Factory();
         if (_x11IsSupported(x11Cap))
         {
@@ -101,7 +170,6 @@ public class LinuxCaptureFactory
             return x11Cap;
         }
 
-        // 3. Fallback -> Legacy or Daemon based on capabilities
         var fallbackMode = _capabilityDetector.DetermineMode();
         LoggingExtensions.LogOnce("LinuxCaptureFactory_Fallback", "[LinuxCaptureFactory] Fallback mode: {0}", fallbackMode);
 
@@ -109,7 +177,9 @@ public class LinuxCaptureFactory
         {
             InputProviderMode.Legacy when _capabilityDetector.CanReadInputEvents => _legacyFactory(),
             InputProviderMode.Daemon => _ipcFactory(),
-            _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage())
+            InputProviderMode.Legacy => new UnavailableInputCapture(BuildUnavailableCaptureMessage()),
+            InputProviderMode.None => new UnavailableInputCapture(BuildUnavailableCaptureMessage()),
+            _ => new UnavailableInputCapture(BuildUnavailableCaptureMessage()),
         };
     }
 
@@ -129,9 +199,27 @@ public class LinuxCaptureFactory
                 LinuxDaemonHandshakeStatus.Timeout => snapshot.CanUseDirectUInput
                     ? "No usable Linux input capture backend is available: daemon handshake timed out and direct input fallback is unavailable."
                     : "No usable Linux input capture backend is available: daemon handshake timed out and no direct input fallback is available.",
+                LinuxDaemonHandshakeStatus.Success => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
+                    ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+                LinuxDaemonHandshakeStatus.WrongSocketType => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
+                    ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+                LinuxDaemonHandshakeStatus.ConnectionRefusedOrStale => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
+                    ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+                LinuxDaemonHandshakeStatus.ProtocolMismatch => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
+                    ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+                LinuxDaemonHandshakeStatus.HandshakeRejected => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
+                    ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+                LinuxDaemonHandshakeStatus.UnexpectedError => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
+                    ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
                 _ => snapshot.CanUseDirectUInput && snapshot.CanReadInputEvents
                     ? "No usable Linux input capture backend is available: daemon backend unavailable and direct event access is not usable."
-                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found."
+                    : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
             };
         }
 
@@ -139,5 +227,21 @@ public class LinuxCaptureFactory
             ? "No usable Linux input capture backend is available: daemon backend unavailable."
             : "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.";
     }
+
+    private static string BuildUnavailableCaptureMessage(LinuxCapabilitySnapshot snapshot) =>
+        snapshot.Input.DaemonHandshakeDiagnostic?.Status switch
+        {
+            LinuxDaemonHandshakeStatus.PermissionDenied => "No usable Linux input capture backend is available: daemon socket permission denied and no readable input events were found.",
+            LinuxDaemonHandshakeStatus.Timeout => "No usable Linux input capture backend is available: daemon handshake timed out and no direct input fallback is available.",
+            LinuxDaemonHandshakeStatus.Success => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+            LinuxDaemonHandshakeStatus.MissingSocket => "No usable Linux input capture backend is available: daemon socket is missing and no direct input fallback is available.",
+            LinuxDaemonHandshakeStatus.WrongSocketType => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+            LinuxDaemonHandshakeStatus.ConnectionRefusedOrStale => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+            LinuxDaemonHandshakeStatus.ProtocolMismatch => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+            LinuxDaemonHandshakeStatus.HandshakeRejected => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+            LinuxDaemonHandshakeStatus.UnexpectedError => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+            _ when snapshot.Input.CanUseDirectUInput && !snapshot.Input.CanReadInputEvents => "No usable Linux input capture backend is available: direct input events are not readable.",
+            _ => "No usable Linux input capture backend is available: daemon backend unavailable and no readable input events were found.",
+        };
 
 }

@@ -7,18 +7,34 @@
   <developer id="io.github.alper_han">
     <name>Alper Han</name>
   </developer>
-  <summary>Mouse and keyboard automation</summary>
+  <summary>Mouse and keyboard macro automation</summary>
   <keywords>
     <keyword>crossmacro</keyword>
     <keyword>macro</keyword>
+    <keyword>macro recorder</keyword>
+    <keyword>macro player</keyword>
+    <keyword>macro editor</keyword>
     <keyword>automation</keyword>
     <keyword>keyboard</keyword>
     <keyword>mouse</keyword>
     <keyword>recording</keyword>
     <keyword>playback</keyword>
+    <keyword>hotkeys</keyword>
+    <keyword>scheduling</keyword>
     <keyword>text expansion</keyword>
+    <keyword>screen recognition</keyword>
+    <keyword>image recognition</keyword>
     <keyword>wayland</keyword>
     <keyword>x11</keyword>
+    <keyword>linux</keyword>
+    <keyword>cli</keyword>
+    <keyword>headless</keyword>
+    <keyword>profiles</keyword>
+    <keyword>themes</keyword>
+    <keyword>screenshot</keyword>
+    <keyword>screen capture</keyword>
+    <keyword>pixel search</keyword>
+    <keyword>image search</keyword>
   </keywords>
   <branding>
     <color type="primary" scheme_preference="light">#3584e4</color>
@@ -26,26 +42,39 @@
   </branding>
   <description>
     <p>
-      CrossMacro helps you record and replay mouse and keyboard actions.
-      It works on both Wayland and X11.
+      CrossMacro is an open-source, cross-platform mouse and keyboard macro
+      recorder, editor, and automation tool for Linux, Windows, and macOS. Record
+      clicks, movement, scrolling, and keyboard input, then edit and replay macros
+      with configurable speed, pauses, loops, repeat counts, delays, global
+      hotkeys, or schedules.
+    </p>
+    <p>
+      Linux-first Wayland and X11 support provides compositor-aware cursor
+      positioning and daemon-backed or direct-device input paths. CrossMacro uses
+      absolute mouse positioning when the active session exposes a compatible
+      cursor-position protocol and falls back to relative input when that
+      capability is unavailable. It also combines text expansion, screen-reading
+      commands, native PNG image recognition, profiles, themes, a GUI, and a
+      scriptable CLI in one application.
     </p>
     <p>Features:</p>
     <ul>
-      <li>Record and replay mouse movements, clicks, and keyboard events</li>
-      <li>Text expansion shortcuts</li>
-      <li>Assign macros to keyboard shortcuts with toggle or hold-to-run modes</li>
-      <li>Schedule macros to run at specific times or intervals</li>
-      <li>Macro editor with undo/redo and action reordering</li>
-      <li>Playback with pause/resume, adjustable speed (0.1x to 10x), and loop mode</li>
-      <li>Save and load macros in .macro format</li>
-      <li>Customizable global hotkeys for control (defaults: F8 Record, F9 Play, F10 Pause)</li>
-      <li>CLI and headless workflows for automation and scripting</li>
-      <li>Multiple themes: Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox, Solarized, Crimson</li>
+      <li>Record and replay mouse and keyboard macros with configurable timing and pause/resume control</li>
+      <li>Edit macros with undo/redo, action reordering, coordinate modes, variables, loops, conditionals, and text input</li>
+      <li>Bind macros to global hotkeys with toggle or hold-to-run modes</li>
+      <li>Schedule macros at specific times or intervals, including one-time, weekly, custom weekday, and randomized intervals</li>
+      <li>Expand text from global shortcuts with configurable typing methods</li>
+      <li>Read screen pixels and search native PNG templates for image-based workflows</li>
+      <li>Control playback speed from 0.1x to 10x, loops, repeat counts, and fixed or randomized repeat delays</li>
+      <li>Save, load, sequence, and replay .macro files, then switch between profiles</li>
+      <li>Customize themes and use the desktop GUI, CLI, or GUI-less runtime on Linux Wayland/X11, Windows, and macOS</li>
+      <li>Use customizable global controls with F8 recording, F9 playback, and F10 pause as the defaults</li>
     </ul>
     <p>Wayland and X11 support:</p>
     <p>
-      CrossMacro works on both Wayland and X11.
-      Absolute mouse positioning is supported on Hyprland, KDE Plasma, and GNOME.
+      CrossMacro treats Wayland and X11 as first-class Linux targets and selects
+      compositor-aware positioning and daemon-backed or direct-device input
+      according to the active session's capabilities.
     </p>
     <p>
       On GNOME, a Shell Extension can be installed on first run.
@@ -53,8 +82,8 @@
     </p>
     <p>
       If permissions are missing, the app offers Quick Setup on launch.
-      Quick Setup opens a standard system authorization prompt to enable the direct device mode fallback for the current user session.
-      If setup cannot complete, you can use the native daemon-backed setup instructions in the project README instead.
+      Quick Setup opens a standard system authorization prompt to enable direct device access for the current user session.
+      If setup cannot complete, use the direct-device troubleshooting instructions in the project README.
     </p>
   </description>
   <launchable type="desktop-id">io.github.alper_han.crossmacro.desktop</launchable>
@@ -63,31 +92,35 @@
   <url type="vcs-browser">https://github.com/alper-han/CrossMacro</url>
   <screenshots>
     <screenshot type="default">
-      <caption>Recording Tab - Record mouse and keyboard macros</caption>
+      <caption>Record mouse and keyboard macros</caption>
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/recording-tab.png</image>
     </screenshot>
     <screenshot>
-      <caption>Playback Tab - Play recorded macros with customizable settings</caption>
+      <caption>Play recorded macros with adjustable speed, loops, and delays</caption>
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/playback-tab.png</image>
     </screenshot>
     <screenshot>
-      <caption>Text Expansion Tab - Create text shortcuts</caption>
+      <caption>Manage saved macro files</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/files-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Create text expansion shortcuts</caption>
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/text-expansion-tab.png</image>
     </screenshot>
     <screenshot>
-      <caption>Shortcuts Tab - Assign macros to keyboard shortcuts</caption>
+      <caption>Assign macros to global hotkeys</caption>
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/shortcuts-tab.png</image>
     </screenshot>
     <screenshot>
-      <caption>Schedule Tab - Run macros at specific times</caption>
+      <caption>Schedule macros at specific times or intervals</caption>
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/schedule-tab.png</image>
     </screenshot>
     <screenshot>
-      <caption>Editor Tab - Edit macro actions with reorder and undo/redo</caption>
+      <caption>Edit macros with undo/redo, reordering, and workflow actions</caption>
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/editor-tab.png</image>
     </screenshot>
     <screenshot>
-      <caption>Settings Tab - Configure application preferences</caption>
+      <caption>Configure themes and application preferences</caption>
       <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/settings-tab.png</image>
     </screenshot>
   </screenshots>

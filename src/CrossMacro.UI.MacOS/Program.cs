@@ -1,8 +1,5 @@
-using Avalonia;
-using CrossMacro.Cli;
-using CrossMacro.Platform.MacOS.DependencyInjection;
-using System.Runtime.Versioning;
-using System.Threading.Tasks;
+
+using CrossMacro.UI.Hosting;
 
 namespace CrossMacro.UI.MacOS;
 
@@ -18,16 +15,45 @@ internal static class Program
     [System.STAThread]
     public static Task<int> Main(string[] args)
     {
-        var platformServiceRegistrar = new MacOSPlatformServiceRegistrar();
-
         return CliGuiRuntime.RunAsync(
             args,
-            platformServiceRegistrar,
+            ConfigureGuiServices,
+            ConfigureCliServices,
             startGui: () => CrossMacro.UI.Program.RunGui(
                 args,
-                platformServiceRegistrar,
+                ConfigureGuiServices,
+                GuiHostBootstrap.ConfigureGuiRuntimeServices,
                 static appBuilder => appBuilder.UseAvaloniaNative().UseSkia()),
             getVersionString: CrossMacro.UI.Program.GetVersionString,
-            tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard);
+            tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard,
+            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks());
     }
+
+    private static void ConfigurePlatformServices(IServiceCollection services)
+    {
+        new MacOSPlatformServiceRegistrar().RegisterPlatformServices(services);
+        _ = services.AddSingleton<IRuntimeContext, RuntimeContext>();
+        GuiHostBootstrap.AddRuntimeDiagnostics(services);
+    }
+
+    private static void ConfigureGuiServices(IServiceCollection services)
+    {
+        ConfigurePlatformServices(services);
+        GuiHostBootstrap.AddCommonGuiServices(services);
+        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
+        _ = services.AddSingleton<IImageClipboardService, NoOpImageClipboardService>();
+    }
+
+    private static void ConfigureCliServices(IServiceCollection services, CliRuntimeProfile runtimeProfile)
+    {
+        ConfigurePlatformServices(services);
+        _ = services.AddSingleton<IClipboardService, CrossMacro.Cli.Services.NoOpClipboardService>();
+        _ = services.AddSingleton<IImageClipboardService, NoOpImageClipboardService>();
+        _ = services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
+            sp => runtimeProfile is CliRuntimeProfile.Persistent
+                ? sp.GetService<IInputSimulatorPool>()
+                : null);
+    }
+
 }

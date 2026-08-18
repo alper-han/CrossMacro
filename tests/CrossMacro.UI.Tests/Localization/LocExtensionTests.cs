@@ -1,17 +1,13 @@
-using System.Collections.Generic;
-using CrossMacro.UI.Localization;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.Localization;
 
 [Collection(LocalizationGlobalStateCollection.Name)]
-public class LocExtensionTests
+public sealed class LocExtensionTests
 {
     [Fact]
     public void Observe_EmitsLocalizedValuesAndFallsBackToKey()
     {
-        using var _ = new LocalizationCultureScope();
+        using var cultureScope = new LocalizationCultureScope();
         var source = new LocalizationBindingSource();
         var service = new LocalizationService();
         source.Initialize(service);
@@ -19,17 +15,17 @@ public class LocExtensionTests
         var emittedValues = new List<string>();
         var subscription = source.Observe("Settings_Title").Subscribe(new ListObserver(emittedValues));
 
-        emittedValues.Should().NotBeEmpty();
-        emittedValues[0].Should().Be(service["Settings_Title"]);
+        _ = emittedValues.Should().NotBeEmpty();
+        _ = emittedValues[0].Should().Be(service["Settings_Title"]);
 
         service.SetCulture("tr-TR");
 
-        emittedValues.Should().Contain(service["Settings_Title"]);
+        _ = emittedValues.Should().Contain(service["Settings_Title"]);
 
         var missingValues = new List<string>();
         using var missingSubscription = source.Observe("__missing_key__").Subscribe(new ListObserver(missingValues));
 
-        missingValues.Should().ContainSingle().Which.Should().Be("__missing_key__");
+        _ = missingValues.Should().ContainSingle().Which.Should().Be("__missing_key__");
 
         subscription.Dispose();
     }

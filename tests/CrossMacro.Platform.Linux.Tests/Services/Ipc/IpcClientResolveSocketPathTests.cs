@@ -1,18 +1,12 @@
-using System;
-using System.IO;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Platform.Linux.Ipc;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-public class IpcClientResolveSocketPathTests
+public sealed class IpcClientResolveSocketPathTests
 {
     [LinuxFact]
     public void ResolveSocketPath_WhenSocketExists_ReturnsDefaultSocketPath()
     {
-        var socketPath = IpcClient.ResolveSocketPath(path => path == IpcProtocol.DefaultSocketPath, _ => { });
+        var socketPath = IpcClient.ResolveSocketPath(path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal), _ => { });
 
         Assert.Equal(IpcProtocol.DefaultSocketPath, socketPath);
     }
@@ -25,7 +19,7 @@ public class IpcClientResolveSocketPathTests
 
         Assert.Equal(IpcClientFailureReason.PermissionDenied, exception.Reason);
         Assert.Contains("access denied", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.IsType<UnauthorizedAccessException>(exception.InnerException);
+        _ = Assert.IsType<UnauthorizedAccessException>(exception.InnerException);
     }
 
     [LinuxFact]

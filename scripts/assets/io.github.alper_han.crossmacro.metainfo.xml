@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.alper_han.crossmacro</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>CrossMacro</name>
+  <developer id="io.github.alper_han">
+    <name>Alper Han</name>
+  </developer>
+  <summary>Mouse and keyboard macro automation</summary>
+  <keywords>
+    <keyword>crossmacro</keyword>
+    <keyword>macro</keyword>
+    <keyword>macro recorder</keyword>
+    <keyword>macro player</keyword>
+    <keyword>macro editor</keyword>
+    <keyword>automation</keyword>
+    <keyword>keyboard</keyword>
+    <keyword>mouse</keyword>
+    <keyword>recording</keyword>
+    <keyword>playback</keyword>
+    <keyword>hotkeys</keyword>
+    <keyword>scheduling</keyword>
+    <keyword>text expansion</keyword>
+    <keyword>screen recognition</keyword>
+    <keyword>image recognition</keyword>
+    <keyword>wayland</keyword>
+    <keyword>x11</keyword>
+    <keyword>linux</keyword>
+    <keyword>cli</keyword>
+    <keyword>headless</keyword>
+    <keyword>profiles</keyword>
+    <keyword>themes</keyword>
+    <keyword>screenshot</keyword>
+    <keyword>screen capture</keyword>
+    <keyword>pixel search</keyword>
+    <keyword>image search</keyword>
+  </keywords>
+  <branding>
+    <color type="primary" scheme_preference="light">#3584e4</color>
+    <color type="primary" scheme_preference="dark">#1a5fb4</color>
+  </branding>
+  <description>
+    <p>
+      CrossMacro is an open-source, cross-platform mouse and keyboard macro
+      recorder, editor, and automation tool for Linux, Windows, and macOS. Record
+      clicks, movement, scrolling, and keyboard input, then edit and replay macros
+      with configurable speed, pauses, loops, repeat counts, delays, global
+      hotkeys, or schedules.
+    </p>
+    <p>
+      Linux-first Wayland and X11 support provides compositor-aware cursor
+      positioning and daemon-backed or direct-device input paths. CrossMacro uses
+      absolute mouse positioning when the active session exposes a compatible
+      cursor-position protocol and falls back to relative input when that
+      capability is unavailable. It also combines text expansion, screen-reading
+      commands, native PNG image recognition, profiles, themes, a GUI, and a
+      scriptable CLI in one application.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Record and replay mouse and keyboard macros with configurable timing and pause/resume control</li>
+      <li>Edit macros with undo/redo, action reordering, coordinate modes, variables, loops, conditionals, and text input</li>
+      <li>Bind macros to global hotkeys with toggle or hold-to-run modes</li>
+      <li>Schedule macros at specific times or intervals, including one-time, weekly, custom weekday, and randomized intervals</li>
+      <li>Expand text from global shortcuts with configurable typing methods</li>
+      <li>Read screen pixels and search native PNG templates for image-based workflows</li>
+      <li>Control playback speed from 0.1x to 10x, loops, repeat counts, and fixed or randomized repeat delays</li>
+      <li>Save, load, sequence, and replay .macro files, then switch between profiles</li>
+      <li>Customize themes and use the desktop GUI, CLI, or GUI-less runtime on Linux Wayland/X11, Windows, and macOS</li>
+      <li>Use customizable global controls with F8 recording, F9 playback, and F10 pause as the defaults</li>
+    </ul>
+    <p>Wayland and X11 support:</p>
+    <p>
+      CrossMacro treats Wayland and X11 as first-class Linux targets and selects
+      compositor-aware positioning and daemon-backed or direct-device input
+      according to the active session's capabilities.
+    </p>
+    <p>
+      On GNOME, a Shell Extension can be installed on first run.
+      A logout/login may be required for the extension to take effect.
+    </p>
+    <p>
+      If permissions are missing, the app offers Quick Setup on launch.
+      Quick Setup opens a standard system authorization prompt to enable the direct device mode fallback for the current user session.
+      If setup cannot complete, you can use the native daemon-backed setup instructions in the project README instead.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.alper_han.crossmacro.desktop</launchable>
+  <url type="homepage">https://github.com/alper-han/CrossMacro</url>
+  <url type="bugtracker">https://github.com/alper-han/CrossMacro/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Record mouse and keyboard macros</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/recording-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Play recorded macros with adjustable speed, loops, and delays</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/playback-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Manage saved macro files</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/files-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Create text expansion shortcuts</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/text-expansion-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Assign macros to global hotkeys</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/shortcuts-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Schedule macros at specific times or intervals</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/schedule-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Edit macros with undo/redo, reordering, and workflow actions</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/editor-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Configure themes and application preferences</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/settings-tab.png</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="1.3.1" date="2026-06-28">
+      <description>
+        <p>Version 1.3.1 - Native AOT compilation, major CLI performance optimizations, and Linux uinput stabilization fixes.</p>
+        <ul>
+          <li>Added Native AOT compilation support for CLI and UI packages, eliminating the .NET runtime dependency and dramatically reducing binary size, startup latency, and memory footprint.</li>
+          <li>Optimized Linux virtual uinput device creation and stabilization using dynamic sysfs and ioctl calls, dropping sequential run delays.</li>
+          <li>Optimized CLI startup by lazily evaluating capability probes and conditionally bypassing profile initialization, saving multiple redundant disk I/O operations on macro runs.</li>
+          <li>Fixed a desktop entry filename casing issue across Linux packages to ensure standard application launcher compliance.</li>
+          <li>Fixed a potential race condition (ENOENT) during evdev hardware device scanning when a temporary virtual uinput node is destroyed.</li>
+          <li>Replaced the IsCapturing boolean with EditorCaptureMode enum in the UI editor to support rich macro recording states.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.3.0" date="2026-06-27">
+      <description>
+        <p>Version 1.3.0 - Screen-reading support, profile management, and input simulation improvements.</p>
+        <ul>
+          <li>Added pixelcolor, waitcolor, and pixelsearch commands for color-based automation.</li>
+          <li>Added built-in color picker and region capture controls for editor actions.</li>
+          <li>Added support for native screen capturing backends.</li>
+          <li>Added profile management to easily save, load, and switch configuration profiles.</li>
+          <li>Added Fast and Compatible (Key-by-Key) method selector for Direct Typing text expansion to resolve character skipping.</li>
+          <li>Added scheduler safeguards to prevent burst-firing of macros after system stalls.</li>
+          <li>Improved Linux AppImage and Flatpak diagnostics to reliably detect missing input recording permissions upfront.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.2.1" date="2026-06-09">
+      <description>
+        <p>Version 1.2.1 - Multiline text expansion editing and updated GNOME Shell integration metadata.</p>
+        <ul>
+          <li>Added multiline text input and expansion support for text expansion entries and editor text actions.</li>
+          <li>Added GNOME Shell 50 and 51 extension metadata support for newer GNOME environments.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.2.0" date="2026-05-18">
+      <description>
+        <p>Version 1.2.0 - Linux coordinate playback, diagnostics, input reliability, and package runtime improvements.</p>
+        <ul>
+          <li>Improved Linux coordinate recording and playback with clearer absolute and relative coordinate handling.</li>
+          <li>Expanded Linux daemon, socket, input backend, and doctor diagnostics with clearer startup notifications and troubleshooting details.</li>
+          <li>Improved direct input capture edge cases, unavailable backend reporting, horizontal scroll recording, and stale daemon event handling.</li>
+          <li>Added Niri keyboard layout detection for better Wayland desktop integration.</li>
+          <li>Improved Linux package runtime reliability, including AppImage ICU bundling and hardened Arch daemon installation.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.1.0" date="2026-05-05">
+      <description>
+        <p>Version 1.1.0 - Better editor workflows, smoother text expansion, randomized timing controls, stronger Linux integration, and more reliable packages.</p>
+        <ul>
+          <li>Added minimized startup, loaded macro playlists, editor filtering, multi-select controls, clearer toolbar actions, bundled icons, and more reliable editor selection behavior.</li>
+          <li>Added clipboard-free text expansion, faster direct typing, safer paste insertion, and improved clipboard behavior across native sessions, Flatpak, and X11.</li>
+          <li>Added randomized playback loop delays, schedule intervals, and shortcut repeat delays.</li>
+          <li>Improved localization coverage for tabs, editor text, runtime states, placeholders, and language settings.</li>
+          <li>Improved Linux support with Niri and COSMIC detection, batched input simulation, stronger permission handling, clearer setup guidance, and GNOME warning replay.</li>
+          <li>Improved existing Flatpak integration with better host clipboard handling and cleaner build inputs.</li>
+          <li>Improved CLI and headless automation with cleaner JSON output and more reliable daemon detection.</li>
+          <li>Improved release packaging with stricter validation, refreshed package metadata, Avalonia 12, and compact portable Windows packages.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.0.1" date="2026-03-28">
+      <description>
+        <p>Version 1.0.1 - Major Linux workflow improvements for scripting and Wayland environments.</p>
+        <ul>
+          <li>Fixed a Linux mutex contention issue that could cause intermittent daemon synchronization failures.</li>
+          <li>Added Wayfire Wayland compositor support for absolute pointer position integration.</li>
+          <li>Added the current-position action for using live cursor coordinates in automation flows.</li>
+          <li>Expanded the script engine with structured control flow: if, for, while, continue, and break.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.9.9" date="2026-03-09">
+      <description>
+        <p>Version 0.9.9 - Improved Linux packaging reliability and refreshed application metadata.</p>
+      </description>
+    </release>
+    <release version="0.9.8" date="2026-03-01">
+      <description>
+        <p>Version 0.9.8 - Added Flatpak support with Wayland compatibility.</p>
+      </description>
+    </release>
+    <release version="0.9.0" date="2026-01-10">
+      <description>
+        <p>Version 0.9.0 - Major update with Macro Editor and Themes support.</p>
+      </description>
+    </release>
+    <release version="0.8.4" date="2026-01-03">
+      <description>
+        <p>Version 0.8.4 - Bug fixes and improvements.</p>
+      </description>
+    </release>
+    <release version="0.8.2" date="2025-12-30">
+      <description>
+        <p>Version 0.8.2 - Fixed daemon service path and Polkit configuration issues.</p>
+      </description>
+    </release>
+    <release version="0.8.1" date="2025-12-30">
+      <description>
+        <p>Version 0.8.1 - Bug fixes and improvements.</p>
+      </description>
+    </release>
+    <release version="0.8.0" date="2025-12-29">
+      <description>
+        <p>Version 0.8.0 - Added Shortcuts and Scheduling features.</p>
+      </description>
+    </release>
+    <release version="0.7.2" date="2025-12-25">
+      <description>
+        <p>Version 0.7.2 - Native Wayland Integration, UI Refinements, and Core Fixes.</p>
+      </description>
+    </release>
+    <release version="0.7.1" date="2025-12-25">
+      <description>
+        <p>Version 0.7.1 - Bug fixes and improvements.</p>
+      </description>
+    </release>
+    <release version="0.7.0" date="2025-12-24">
+      <description>
+        <p>Version 0.7.0 - Added macOS platform support.</p>
+      </description>
+    </release>
+    <release version="0.6.1" date="2025-12-21">
+      <description>
+        <p>Version 0.6.1 - Added automatic GitHub update checking and notification support.</p>
+      </description>
+    </release>
+    <release version="0.6.0" date="2025-12-21">
+      <description>
+        <p>Version 0.6.0 - Improved daemon architecture and packaging.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

@@ -1,6 +1,3 @@
-using System.Numerics;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.Native.X11;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.X11;
 
@@ -16,9 +13,7 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
     private bool _disposed;
 
     public X11ScreenCapture()
-        : this(X11ScreenCaptureSupportProbe.Instance, X11NativeApi.Instance)
-    {
-    }
+        : this(X11ScreenCaptureSupportProbe.Instance, X11NativeApi.Instance) { /* Empty */ }
 
     internal X11ScreenCapture(IX11ScreenCaptureSupportProbe supportProbe, IX11NativeApi native)
     {
@@ -119,19 +114,19 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
                 }
                 finally
                 {
-                    _native.DestroyImage(image);
+                    _ = _native.DestroyImage(image);
                 }
             }
             finally
             {
-                _native.CloseDisplay(display);
+                _ = _native.CloseDisplay(display);
             }
         }
     }
 
     private IntPtr OpenDisplay()
     {
-        var display = _native.OpenDisplay(null);
+        var display = _native.OpenDisplay(display: null);
         if (display == IntPtr.Zero)
         {
             throw new InvalidOperationException("Failed to open the X11 display for screen capture.");
@@ -143,7 +138,7 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
     private ScreenRect GetRootBounds(IntPtr display, IntPtr root)
     {
         var status = _native.GetGeometry(display, root, out _, out _, out _, out var width, out var height, out _, out _);
-        if (status == 0 || width == 0 || height == 0)
+        if (status is 0 || width == 0 || height == 0)
         {
             throw new InvalidOperationException("Failed to read X11 root window geometry for screen capture.");
         }
@@ -160,7 +155,7 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
         if (ximage.Width < logicalBounds.Width || ximage.Height < logicalBounds.Height)
         {
             throw new InvalidOperationException(
-                $"X11 image dimensions {ximage.Width}x{ximage.Height} are smaller than requested region {logicalBounds.Width}x{logicalBounds.Height}.");
+                $"X11 image dimensions {ximage.Width.ToString(CultureInfo.InvariantCulture)}x{ximage.Height.ToString(CultureInfo.InvariantCulture)} are smaller than requested region {logicalBounds.Width.ToString(CultureInfo.InvariantCulture)}x{logicalBounds.Height.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         ValidateRgbMasks(ximage);
@@ -173,7 +168,7 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
             for (var x = 0; x < logicalBounds.Width; x++)
             {
                 var pixel = _native.GetPixel(image, x, y).ToUInt64();
-                var offset = checked(y * stride + x * 4);
+                var offset = checked((y * stride) + (x * 4));
                 pixels[offset] = ExtractChannel(pixel, ximage.BlueMask.ToUInt64());
                 pixels[offset + 1] = ExtractChannel(pixel, ximage.GreenMask.ToUInt64());
                 pixels[offset + 2] = ExtractChannel(pixel, ximage.RedMask.ToUInt64());
@@ -197,17 +192,17 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
         var bitCount = BitOperations.PopCount(mask);
         if (bitCount is <= 0 or > 16)
         {
-            throw new InvalidOperationException($"Unsupported X11 RGB channel mask 0x{mask:X}.");
+            throw new InvalidOperationException($"Unsupported X11 RGB channel mask 0x{mask.ToString("X", CultureInfo.InvariantCulture)}.");
         }
 
         var raw = (pixel & mask) >> BitOperations.TrailingZeroCount(mask);
-        if (bitCount == 8)
+        if (bitCount is 8)
         {
             return checked((byte)raw);
         }
 
         var max = (1UL << bitCount) - 1;
-        return checked((byte)((raw * byte.MaxValue + max / 2) / max));
+        return checked((byte)(((raw * byte.MaxValue) + (max / 2)) / max));
     }
 
     private static bool IsKnownCaptureException(Exception exception) =>
@@ -217,54 +212,4 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
         exception is DllNotFoundException or EntryPointNotFoundException
             ? ScreenReadErrorKind.BackendUnavailable
             : ScreenReadErrorKind.CaptureFailed;
-}
-
-public sealed class X11ScreenCaptureSupportProbe : IX11ScreenCaptureSupportProbe
-{
-    private const string DisplayEnvironmentVariable = "DISPLAY";
-
-    public static X11ScreenCaptureSupportProbe Instance { get; } = new(X11NativeApi.Instance, Environment.GetEnvironmentVariable);
-
-    private readonly IX11NativeApi _native;
-    private readonly Func<string, string?> _getEnvironmentVariable;
-
-    internal X11ScreenCaptureSupportProbe(IX11NativeApi native, Func<string, string?> getEnvironmentVariable)
-    {
-        _native = native ?? throw new ArgumentNullException(nameof(native));
-        _getEnvironmentVariable = getEnvironmentVariable ?? throw new ArgumentNullException(nameof(getEnvironmentVariable));
-    }
-
-    public X11ScreenCaptureSupportResult ProbeSupport()
-    {
-        if (string.IsNullOrWhiteSpace(_getEnvironmentVariable(DisplayEnvironmentVariable)))
-        {
-            return X11ScreenCaptureSupportResult.Unsupported("DISPLAY is not set; X11 screen reading requires a native X11 session.");
-        }
-
-        try
-        {
-            var display = _native.OpenDisplay(null);
-            if (display == IntPtr.Zero)
-            {
-                return X11ScreenCaptureSupportResult.Unsupported("Failed to open the X11 display for screen reading.");
-            }
-
-            try
-            {
-                var root = _native.DefaultRootWindow(display);
-                var status = _native.GetGeometry(display, root, out _, out _, out _, out var width, out var height, out _, out _);
-                return status != 0 && width > 0 && height > 0
-                    ? X11ScreenCaptureSupportResult.Supported()
-                    : X11ScreenCaptureSupportResult.Unsupported("Failed to read X11 root window geometry for screen reading.");
-            }
-            finally
-            {
-                _native.CloseDisplay(display);
-            }
-        }
-        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException or IOException or UnauthorizedAccessException)
-        {
-            return X11ScreenCaptureSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
-        }
-    }
 }

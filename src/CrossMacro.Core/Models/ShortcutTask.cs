@@ -1,216 +1,66 @@
-using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-
 namespace CrossMacro.Core.Models;
 
 /// <summary>
-/// Represents a shortcut-triggered macro task
+/// Represents a shortcut-triggered macro task.
 /// </summary>
-public class ShortcutTask : INotifyPropertyChanged
+public class ShortcutTask
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
-    
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    /// <summary>
-    /// Unique identifier for this shortcut task
-    /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
-    
-    /// <summary>
-    /// Display name for the task
-    /// </summary>
-    private string _name = "New Shortcut";
-    public string Name 
-    { 
-        get => _name;
-        set { _name = value; OnPropertyChanged(); }
-    }
-    
-    /// <summary>
-    /// Path to the macro file to execute
-    /// </summary>
-    private string _macroFilePath = string.Empty;
-    public string MacroFilePath 
-    { 
-        get => _macroFilePath;
-        set 
-        { 
-            _macroFilePath = value; 
-            OnPropertyChanged(); 
-            OnPropertyChanged(nameof(CanBeEnabled));
-        }
-    }
-    
-    /// <summary>
-    /// Hotkey string (e.g., "Ctrl+Shift+P")
-    /// </summary>
-    private string _hotkeyString = string.Empty;
-    public string HotkeyString 
-    { 
-        get => _hotkeyString;
-        set 
-        { 
-            _hotkeyString = value; 
-            OnPropertyChanged(); 
-            OnPropertyChanged(nameof(CanBeEnabled));
-        }
-    }
-    
-    /// <summary>
-    /// Playback speed multiplier (0.1 = 10x slower, 1.0 = normal, 10.0 = 10x faster)
-    /// </summary>
-    private double _playbackSpeed = 1.0;
-    public double PlaybackSpeed 
-    { 
-        get => _playbackSpeed;
-        set
-        {
-            var normalized = PlaybackOptions.NormalizeSpeedMultiplier(value);
-            if (Math.Abs(_playbackSpeed - normalized) > double.Epsilon)
-            {
-                _playbackSpeed = normalized;
-                OnPropertyChanged();
-            }
-        }
-    }
-    
-    /// <summary>
-    /// Whether the shortcut is enabled
-    /// </summary>
-    private bool _isEnabled;
-    public bool IsEnabled 
-    { 
-        get => _isEnabled;
-        set
-        {
-            // Can only enable if macro file and hotkey are set
-            if (value && !CanBeEnabled)
-            {
-                return;
-            }
-            
-            _isEnabled = value;
-            OnPropertyChanged();
-        }
-    }
-    
-    /// <summary>
-    /// Whether the task can be enabled (has both macro file path and hotkey)
-    /// </summary>
-    public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath) && !string.IsNullOrEmpty(HotkeyString);
+    public string Name { get; set; } = "New Shortcut";
+    public string MacroFilePath { get; set; } = string.Empty;
+    public string HotkeyString { get; set; } = string.Empty;
+    public double PlaybackSpeed { get; set; } = PlaybackOptions.DefaultSpeedMultiplier;
+    public bool IsEnabled { get; set; }
+    public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
+        && !string.IsNullOrEmpty(HotkeyString)
+        && WindowRules.All(rule => rule is not null && rule.IsValid());
+    public bool LoopEnabled { get; set; }
+    public int RepeatCount { get; set; }
+    public int RepeatDelayMs { get; set; }
+    public bool UseRandomRepeatDelay { get; set; }
+    public int RepeatDelayMinMs { get; set; }
+    public int RepeatDelayMaxMs { get; set; }
+    public bool RunWhileHeld { get; set; }
 
-    private bool _loopEnabled;
-    public bool LoopEnabled
-    {
-        get => _loopEnabled;
-        set
-        {
-            if (_loopEnabled == value) return;
-            _loopEnabled = value;
-            if (value) { _runWhileHeld = false; OnPropertyChanged(nameof(RunWhileHeld)); }
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IsLoopEnabled));
-        }
-    }
-
-    private int _repeatCount = 0;
-    public int RepeatCount
-    {
-        get => _repeatCount;
-        set { _repeatCount = value; OnPropertyChanged(); }
-    }
-
-    private int _repeatDelayMs = 0;
-    public int RepeatDelayMs
-    {
-        get => _repeatDelayMs;
-        set { _repeatDelayMs = PlaybackOptions.NormalizeDelayMs(value); OnPropertyChanged(); }
-    }
-
-    private bool _useRandomRepeatDelay;
-    public bool UseRandomRepeatDelay
-    {
-        get => _useRandomRepeatDelay;
-        set { _useRandomRepeatDelay = value; OnPropertyChanged(); }
-    }
-
-    private int _repeatDelayMinMs = 0;
-    public int RepeatDelayMinMs
-    {
-        get => _repeatDelayMinMs;
-        set
-        {
-            var (min, max) = PlaybackOptions.NormalizeDelayRange(value, _repeatDelayMaxMs);
-            _repeatDelayMinMs = min;
-            _repeatDelayMaxMs = max;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(RepeatDelayMaxMs));
-        }
-    }
-
-    private int _repeatDelayMaxMs = 0;
-    public int RepeatDelayMaxMs
-    {
-        get => _repeatDelayMaxMs;
-        set
-        {
-            var (min, max) = PlaybackOptions.NormalizeDelayRange(_repeatDelayMinMs, value);
-            _repeatDelayMinMs = min;
-            _repeatDelayMaxMs = max;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(RepeatDelayMinMs));
-        }
-    }
-
-    private bool _runWhileHeld;
-    public bool RunWhileHeld
-    {
-        get => _runWhileHeld;
-        set
-        {
-            if (_runWhileHeld == value) return;
-            _runWhileHeld = value;
-            if (value) { _loopEnabled = false; OnPropertyChanged(nameof(LoopEnabled)); }
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IsLoopEnabled));
-        }
-    }
+    [System.Text.Json.Serialization.JsonObjectCreationHandling(
+        System.Text.Json.Serialization.JsonObjectCreationHandling.Populate)]
+    public ICollection<ShortcutWindowRule> WindowRules { get; } = [];
 
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsLoopEnabled
+    public bool IsLoopEnabled => LoopEnabled || RunWhileHeld;
+
+    public string? LastStatus { get; set; }
+    public DateTime? LastTriggeredTime { get; set; }
+
+    public bool TrySetEnabled(bool enabled)
     {
-        get => _loopEnabled || _runWhileHeld;
-        set
+        if (enabled && !CanBeEnabled)
         {
-            if (value == IsLoopEnabled) return;
-            if (value) { _loopEnabled = true; _runWhileHeld = false; OnPropertyChanged(nameof(LoopEnabled)); OnPropertyChanged(nameof(RunWhileHeld)); }
-            else { _loopEnabled = false; _runWhileHeld = false; OnPropertyChanged(nameof(LoopEnabled)); OnPropertyChanged(nameof(RunWhileHeld)); }
-            OnPropertyChanged();
+            return false;
         }
+
+        IsEnabled = enabled;
+        return true;
     }
 
-    /// <summary>
-    /// Status message from last execution
-    /// </summary>
-    private string? _lastStatus;
-    public string? LastStatus 
-    { 
-        get => _lastStatus;
-        set { _lastStatus = value; OnPropertyChanged(); }
-    }
-    
-    /// <summary>
-    /// When the shortcut was last triggered
-    /// </summary>
-    private DateTime? _lastTriggeredTime;
-    public DateTime? LastTriggeredTime 
-    { 
-        get => _lastTriggeredTime;
-        set { _lastTriggeredTime = value; OnPropertyChanged(); }
+    public void Normalize()
+    {
+        PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed);
+        RepeatDelayMs = PlaybackOptions.NormalizeDelayMs(RepeatDelayMs);
+        (RepeatDelayMinMs, RepeatDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(RepeatDelayMinMs, RepeatDelayMaxMs);
+
+        if (LoopEnabled)
+        {
+            RunWhileHeld = false;
+        }
+        else if (RunWhileHeld)
+        {
+            LoopEnabled = false;
+        }
+
+        if (IsEnabled && !CanBeEnabled)
+        {
+            IsEnabled = false;
+        }
     }
 }

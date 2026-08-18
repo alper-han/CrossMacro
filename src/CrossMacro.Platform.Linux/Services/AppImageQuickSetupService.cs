@@ -1,21 +1,41 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Packaging.Abstractions;
-using CrossMacro.Platform.Linux.Services.QuickSetup;
 
 namespace CrossMacro.Platform.Linux.Services;
 
 internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
 {
     private const string AppImageKey = "APPIMAGE";
-    private const string FlatpakIdKey = "FLATPAK_ID";
     private const string SessionTypeKey = "XDG_SESSION_TYPE";
 
     private readonly Func<string, string?> _getEnvironmentVariable;
-    private readonly ILinuxInputCapabilityDetector _capabilityDetector;
+    private readonly ILinuxInputCapabilityDetector? _capabilityDetector;
+    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
     private readonly LinuxQuickSetupExecutor _executor;
     private readonly IPrivilegedHostCommandLauncher _launcher;
+
+    internal AppImageQuickSetupService(
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
+        LinuxQuickSetupExecutor executor,
+        IPrivilegedHostCommandLauncher launcher)
+    {
+        _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
+        _executor = executor ?? throw new ArgumentNullException(nameof(executor));
+        _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
+        _getEnvironmentVariable = static _ => null;
+        _capabilityDetector = null;
+    }
+
+    internal AppImageQuickSetupService(
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
+        Func<string, string?> getEnvironmentVariable,
+        LinuxQuickSetupExecutor executor,
+        IPrivilegedHostCommandLauncher launcher)
+    {
+        _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
+        _getEnvironmentVariable = getEnvironmentVariable ?? throw new ArgumentNullException(nameof(getEnvironmentVariable));
+        _executor = executor ?? throw new ArgumentNullException(nameof(executor));
+        _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
+        _capabilityDetector = null;
+    }
 
     internal AppImageQuickSetupService(
         ILinuxInputCapabilityDetector capabilityDetector,
@@ -36,17 +56,34 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(_getEnvironmentVariable(FlatpakIdKey)))
+        var environment = _snapshotProvider?.GetSnapshot().Environment ?? new LinuxEnvironmentSnapshot(
+            FlatpakId: _getEnvironmentVariable("FLATPAK_ID"),
+            AppImage: _getEnvironmentVariable(AppImageKey),
+            SessionType: _getEnvironmentVariable(SessionTypeKey),
+            WaylandDisplay: null,
+            Display: null,
+            CurrentDesktop: null,
+            GdmSession: null,
+            HyprlandInstanceSignature: null,
+            RuntimeDir: null,
+            WayfireSocket: null,
+            SwaySocket: null,
+            WindowButtons: null,
+            CrossMacroFlatpak: _getEnvironmentVariable("CROSSMACRO_FLATPAK"),
+            FlatpakInfoExists: false);
+        var appImage = environment.AppImage;
+        var sessionType = environment.SessionType;
+
+        if (environment.IsFlatpak)
         {
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(_getEnvironmentVariable(AppImageKey)))
+        if (string.IsNullOrWhiteSpace(appImage))
         {
             return false;
         }
 
-        var sessionType = _getEnvironmentVariable(SessionTypeKey);
         return string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -57,9 +94,18 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
             return false;
         }
 
-        var mode = _capabilityDetector.DetermineMode();
-        return mode == InputProviderMode.None ||
-               (mode == InputProviderMode.Legacy && !_capabilityDetector.CanReadInputEvents);
+        if (_snapshotProvider is not null)
+        {
+            var input = _snapshotProvider.GetSnapshot().Input;
+            return !input.CanUseDirectUInput || !input.CanReadInputEvents;
+        }
+
+        if (_capabilityDetector is not null)
+        {
+            return !_capabilityDetector.CanUseDirectUInput || !_capabilityDetector.CanReadInputEvents;
+        }
+
+        return false;
     }
 
     public async Task<QuickSetupResult> RunAsync(CancellationToken cancellationToken = default)
@@ -69,11 +115,18 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
             LinuxQuickSetupScriptOptions.Strict,
             "AppImageQuickSetupService",
             "Failed to run quick setup command from AppImage.",
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (result.Success)
         {
-            _capabilityDetector.InvalidateCache();
+            if (_snapshotProvider is not null)
+            {
+                _snapshotProvider.InvalidateCache();
+            }
+            else
+            {
+                _capabilityDetector?.InvalidateCache();
+            }
         }
 
         return result;

@@ -1,12 +1,8 @@
-using System.Globalization;
-using CrossMacro.UI.Localization;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.UI.Tests.Localization;
 
 [Collection(LocalizationGlobalStateCollection.Name)]
-public class LocalizationServiceTests
+public sealed class LocalizationServiceTests
 {
     [Theory]
     [InlineData("zh-CN", "zh")]
@@ -22,7 +18,7 @@ public class LocalizationServiceTests
     {
         var culture = LocalizationService.ResolveCulture(input);
 
-        culture.Name.Should().Be(expected);
+        _ = culture.Name.Should().Be(expected);
     }
 
     [Fact]
@@ -30,32 +26,32 @@ public class LocalizationServiceTests
     {
         var culture = LocalizationService.ResolveCulture("de-DE");
 
-        culture.Name.Should().Be("en");
+        _ = culture.Name.Should().Be("en");
     }
 
     [Fact]
     public void ResolveCulture_WhenNullOrAutoProvided_FallsBackToEnglish()
     {
-        LocalizationService.ResolveCulture(null).Name.Should().Be("en");
-        LocalizationService.ResolveCulture(string.Empty).Name.Should().Be("en");
-        LocalizationService.ResolveCulture("auto").Name.Should().Be("en");
+        _ = LocalizationService.ResolveCulture(cultureName: null).Name.Should().Be("en");
+        _ = LocalizationService.ResolveCulture(string.Empty).Name.Should().Be("en");
+        _ = LocalizationService.ResolveCulture("auto").Name.Should().Be("en");
     }
 
     [Fact]
     public void SetCulture_WhenSupportedLanguageProvided_UpdatesCurrentCulture()
     {
-        using var _ = new LocalizationCultureScope();
+        using var cultureScope = new LocalizationCultureScope();
         var service = new LocalizationService();
 
         service.SetCulture("fr-FR");
 
-        service.CurrentCulture.Name.Should().Be("fr");
+        _ = service.CurrentCulture.Name.Should().Be("fr");
     }
 
     [Fact]
     public void SetCulture_WhenEnglishAlreadySelected_StillAppliesThreadAndResourceCultures()
     {
-        using var _ = new LocalizationCultureScope("tr-TR");
+        using var cultureScope = new LocalizationCultureScope("tr-TR");
         CultureInfo.DefaultThreadCurrentCulture = null;
         CultureInfo.DefaultThreadCurrentUICulture = null;
         Resources.Culture = null;
@@ -64,11 +60,11 @@ public class LocalizationServiceTests
 
         service.SetCulture("en");
 
-        service.CurrentCulture.Name.Should().Be("en");
-        CultureInfo.CurrentCulture.Name.Should().Be("en");
-        CultureInfo.CurrentUICulture.Name.Should().Be("en");
-        CultureInfo.DefaultThreadCurrentCulture?.Name.Should().Be("en");
-        CultureInfo.DefaultThreadCurrentUICulture?.Name.Should().Be("en");
-        Resources.Culture?.Name.Should().Be("en");
+        _ = service.CurrentCulture.Name.Should().Be("en");
+        _ = CultureInfo.CurrentCulture.Name.Should().Be("en");
+        _ = CultureInfo.CurrentUICulture.Name.Should().Be("en");
+        _ = (CultureInfo.DefaultThreadCurrentCulture?.Name.Should().Be("en"));
+        _ = (CultureInfo.DefaultThreadCurrentUICulture?.Name.Should().Be("en"));
+        _ = (Resources.Culture?.Name.Should().Be("en"));
     }
 }

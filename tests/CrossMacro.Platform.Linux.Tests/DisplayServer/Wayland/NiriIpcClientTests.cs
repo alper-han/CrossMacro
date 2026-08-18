@@ -1,8 +1,5 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-using System.Net.Sockets;
-using System.Text;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public sealed class NiriIpcClientTests
 {
@@ -59,9 +56,7 @@ public sealed class NiriIpcClientTests
     [Fact]
     public async Task SendRequestAsync_ShouldReadFragmentedNewlineTerminatedResponse()
     {
-        var runtimeDirectory = Path.Combine(Path.GetTempPath(), $"crossmacro-niri-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(runtimeDirectory);
-        var socketPath = Path.Combine(runtimeDirectory, "niri.sock");
+        var socketPath = TestSocketPaths.CreateShort("cm-niri");
 
         using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         listener.Bind(new UnixDomainSocketEndPoint(socketPath));
@@ -75,13 +70,13 @@ public sealed class NiriIpcClientTests
             var request = Encoding.UTF8.GetString(requestBuffer, 0, requestLength);
             Assert.Equal("\"Outputs\"\n", request);
 
-            await accepted.SendAsync(Encoding.UTF8.GetBytes("{ \"Ok\": "), SocketFlags.None);
-            await accepted.SendAsync(Encoding.UTF8.GetBytes("{ \"Outputs\": {} } }\n"), SocketFlags.None);
+            _ = await accepted.SendAsync(Encoding.UTF8.GetBytes("{ \"Ok\": "), SocketFlags.None);
+            _ = await accepted.SendAsync(Encoding.UTF8.GetBytes("{ \"Outputs\": {} } }\n"), SocketFlags.None);
         });
 
         try
         {
-            using var client = new NiriIpcClient(socketPath, runtimeDirectory);
+            using var client = new NiriIpcClient(socketPath, Path.GetDirectoryName(socketPath)!);
 
             var response = await client.SendRequestAsync("\"Outputs\"");
 
@@ -91,7 +86,7 @@ public sealed class NiriIpcClientTests
         finally
         {
             listener.Close();
-            Directory.Delete(runtimeDirectory, recursive: true);
+            File.Delete(socketPath);
         }
     }
 }

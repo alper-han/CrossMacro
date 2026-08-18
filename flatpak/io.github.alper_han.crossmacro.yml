@@ -8,7 +8,8 @@ command: crossmacro
 
 finish-args:
   # Display
-  - --socket=x11
+  - --socket=wayland
+  - --socket=fallback-x11
   - --share=ipc
 
   # Input devices (required for Wayland macro recording/playback)
@@ -27,9 +28,6 @@ finish-args:
 
   # Filesystem: Compositor IPC
   - --filesystem=xdg-run/hypr:ro
-
-  # Filesystem: Daemon socket (hybrid mode)
-  - --filesystem=/run/crossmacro:rw
 
   # Filesystem: GNOME Shell extension (auto-install for Wayland support)
   - --filesystem=~/.local/share/gnome-shell/extensions:create
@@ -60,12 +58,12 @@ modules:
           aarch64|arm64) rid=linux-arm64 ;;
           *) echo "Unsupported Flatpak architecture: ${FLATPAK_ARCH:-$(uname -m)}" >&2; exit 1 ;;
         esac
-        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -c Release -r "$rid" --self-contained true -p:PublishAot=true -p:PublishReadyToRun=true -p:OptimizationPreference=Speed -p:StripSymbols=true -p:IlcTrimMetadata=true -p:DebugType=None -p:DebugSymbols=false --source nuget-sources --source /usr/lib/sdk/dotnet10/nuget/packages -o /app/lib/crossmacro
+        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -c Release -r "$rid" -p:CrossMacroPublishProfile=native-aot --source nuget-sources --source /usr/lib/sdk/dotnet10/nuget/packages -o /app/lib/crossmacro
         find /app/lib/crossmacro -type f -name '*.pdb' -delete
         chmod +x /app/lib/crossmacro/CrossMacro.UI
 
-      # Install launcher script
-      - install -Dm755 flatpak/crossmacro.sh /app/bin/crossmacro
+      # Install direct launcher
+      - install -d /app/bin && ln -s ../lib/crossmacro/CrossMacro.UI /app/bin/crossmacro
 
       # Desktop entry
       - install -Dm644 flatpak/io.github.alper_han.crossmacro.desktop /app/share/applications/io.github.alper_han.crossmacro.desktop

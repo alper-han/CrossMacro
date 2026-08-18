@@ -24,14 +24,24 @@ public static class EditorActionScriptClassifier
             EditorActionType.SetVariable
             or EditorActionType.IncrementVariable
             or EditorActionType.DecrementVariable
+            or EditorActionType.MultiplyVariable
+            or EditorActionType.DivideVariable
             or EditorActionType.PixelColor
             or EditorActionType.WaitColor
-            or EditorActionType.PixelSearch;
+            or EditorActionType.PixelSearch
+            or EditorActionType.ImageSearch
+            or EditorActionType.ImageClick
+            or EditorActionType.WaitImage
+            or EditorActionType.ClipboardGet
+            or EditorActionType.ClipboardSet
+            or EditorActionType.ShellCommand
+            or EditorActionType.Screenshot
+            or EditorActionType.WindowCommand;
     }
 
     public static bool IsOpaqueScriptAction(EditorActionType actionType)
     {
-        return actionType == EditorActionType.RawScriptStep;
+        return actionType is EditorActionType.RawScriptStep;
     }
 
     public static bool IsRuntimeEventAction(EditorActionType actionType)

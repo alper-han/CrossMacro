@@ -3,7 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
     <ProjectReference Include="..\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
-    <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="..\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\CrossMacro.Platform.Linux.Native\CrossMacro.Platform.Linux.Native.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -11,17 +12,26 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Verify referenced assemblies declare AOT compatibility; surfaces IL3058
+         for third-party refs that silently break Native AOT publish. -->
+    <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Serilog" />
+  </ItemGroup>
+
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(PublishAot)' == 'true'">
+    <PublishReadyToRun>false</PublishReadyToRun>
     <StripSymbols>true</StripSymbols>
     <IlcTrimMetadata>true</IlcTrimMetadata>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
     <OptimizationPreference>Speed</OptimizationPreference>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
@@ -37,5 +47,12 @@
                              Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
     </ItemGroup>
   </Target>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.Daemon.Tests" />
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>linux</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 
 </Project>

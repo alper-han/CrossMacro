@@ -1,24 +1,14 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
+public sealed class ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture, ExtImageCopySupportResult support) : IScreenFrameProvider
 {
-    private readonly IExtImageCopyCapture _capture;
-    private readonly ExtImageCopySupportResult _support;
+    private readonly IExtImageCopyCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly ExtImageCopySupportResult _support = support;
     private bool _disposed;
 
     public ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture, ExtImageCopySupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "Wayland ext-image-copy-capture-v1";
 
@@ -30,7 +20,7 @@ public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "ext-image-copy-capture-v1 is unavailable.");
         }
@@ -61,36 +51,42 @@ public sealed class ExtImageCopyScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Successful ext-image-copy capture did not include a frame.");
         }
 
         if (region is null || region.Value == frame.LogicalBounds)
         {
-            return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame);
+            return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask, frame.ValidityIndex);
         }
 
         try
         {
-            if (!frame.LogicalBounds.Contains(region.Value))
-            {
-                return ScreenReadResult<ScreenFrame>.Failure(
-                    ScreenReadErrorKind.OutOfBounds,
-                    $"Requested region {region.Value} is outside ext-image-copy frame bounds {frame.LogicalBounds}.");
-            }
-
-            return ScreenReadResult<ScreenFrame>.Success(LinuxScreenFrameProviderResults.CopyRegion(
-                frame.LogicalBounds,
-                frame.Stride,
-                frame.PixelFormat,
-                frame.Pixels,
-                region.Value));
+            return CopyRegionForResult(region.Value, frame);
         }
         finally
         {
             frame.Dispose();
         }
+    }
+
+    private static ScreenReadResult<ScreenFrame> CopyRegionForResult(ScreenRect region, ExtImageCopyFrame frame)
+    {
+        if (!frame.LogicalBounds.Contains(region))
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
+                ScreenReadErrorKind.OutOfBounds,
+                $"Requested region {region} is outside ext-image-copy frame bounds {frame.LogicalBounds}.");
+        }
+
+        return ScreenReadResultFactory.Success<ScreenFrame>(LinuxScreenFrameProviderResults.CopyRegion(
+            frame.LogicalBounds,
+            frame.Stride,
+            frame.PixelFormat,
+            frame.Pixels,
+            region,
+            frame.ValidPixelMask));
     }
 
     public void Dispose()

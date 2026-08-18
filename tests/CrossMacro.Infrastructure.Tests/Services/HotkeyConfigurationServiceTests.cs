@@ -1,33 +1,26 @@
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-using System;
-using System.IO;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
-using Xunit;
 
-public class HotkeyConfigurationServiceTests : IDisposable
+public sealed class HotkeyConfigurationServiceTests : IDisposable
 {
     private readonly string _tempPath;
 
     public HotkeyConfigurationServiceTests()
     {
         _tempPath = Path.Combine(Path.GetTempPath(), "CrossMacroTests_" + Guid.NewGuid());
-        Directory.CreateDirectory(_tempPath);
+        _ = Directory.CreateDirectory(_tempPath);
     }
 
     public void Dispose()
     {
         if (Directory.Exists(_tempPath))
         {
-            try 
+            try
             {
-                Directory.Delete(_tempPath, true);
+                Directory.Delete(_tempPath, recursive: true);
             }
-            catch 
-            { 
+            catch
+            {
                 // Ignore cleanup errors
             }
         }
@@ -43,10 +36,10 @@ public class HotkeyConfigurationServiceTests : IDisposable
         var result = service.Load();
 
         // Assert
-        result.Should().NotBeNull();
-        result.RecordingHotkey.Should().NotBeNullOrEmpty();
-        result.PlaybackHotkey.Should().NotBeNullOrEmpty();
-        result.PauseHotkey.Should().NotBeNullOrEmpty();
+        _ = result.Should().NotBeNull();
+        _ = result.RecordingHotkey.Should().NotBeNullOrEmpty();
+        _ = result.PlaybackHotkey.Should().NotBeNullOrEmpty();
+        _ = result.PauseHotkey.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -59,10 +52,10 @@ public class HotkeyConfigurationServiceTests : IDisposable
         var result = await service.LoadAsync();
 
         // Assert
-        result.Should().NotBeNull();
-        result.RecordingHotkey.Should().NotBeNullOrEmpty();
-        result.PlaybackHotkey.Should().NotBeNullOrEmpty();
-        result.PauseHotkey.Should().NotBeNullOrEmpty();
+        _ = result.Should().NotBeNull();
+        _ = result.RecordingHotkey.Should().NotBeNullOrEmpty();
+        _ = result.PlaybackHotkey.Should().NotBeNullOrEmpty();
+        _ = result.PauseHotkey.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -74,14 +67,14 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "Ctrl+R",
             PlaybackHotkey = "Ctrl+P",
-            PauseHotkey = "Ctrl+Space"
+            PauseHotkey = "Ctrl+Space",
         };
 
         // Act
         var act = () => service.Save(settings);
 
         // Assert
-        act.Should().NotThrow();
+        _ = act.Should().NotThrow();
     }
 
     [Fact]
@@ -93,7 +86,7 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "F1",
             PlaybackHotkey = "F2",
-            PauseHotkey = "F3"
+            PauseHotkey = "F3",
         };
 
         // Act
@@ -101,9 +94,32 @@ public class HotkeyConfigurationServiceTests : IDisposable
         var loaded = service.Load();
 
         // Assert
-        loaded.RecordingHotkey.Should().Be("F1");
-        loaded.PlaybackHotkey.Should().Be("F2");
-        loaded.PauseHotkey.Should().Be("F3");
+        _ = loaded.RecordingHotkey.Should().Be("F1");
+        _ = loaded.PlaybackHotkey.Should().Be("F2");
+        _ = loaded.PauseHotkey.Should().Be("F3");
+    }
+
+    [Fact]
+    public async Task CapturedSaveRequest_RetainsOriginalPathAfterProfileReload()
+    {
+        var firstProfile = Path.Combine(_tempPath, "first");
+        var secondProfile = Path.Combine(_tempPath, "second");
+        _ = Directory.CreateDirectory(firstProfile);
+        _ = Directory.CreateDirectory(secondProfile);
+        var service = new HotkeyConfigurationService(firstProfile);
+        var settings = new HotkeySettings
+        {
+            RecordingHotkey = "F1",
+            PlaybackHotkey = "F2",
+            PauseHotkey = "F3",
+        };
+
+        var request = service.CaptureSaveRequest(settings);
+        await service.ReloadAsync(secondProfile);
+        _ = service.TrySave(request).Should().BeTrue();
+
+        _ = File.Exists(Path.Combine(firstProfile, "hotkeys.json")).Should().BeTrue();
+        _ = File.Exists(Path.Combine(secondProfile, "hotkeys.json")).Should().BeFalse();
     }
 
     [Fact]
@@ -115,7 +131,7 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "Super+R",
             PlaybackHotkey = "Super+P",
-            PauseHotkey = "Super+S"
+            PauseHotkey = "Super+S",
         };
 
         // Act
@@ -123,9 +139,9 @@ public class HotkeyConfigurationServiceTests : IDisposable
         var loaded = await service.LoadAsync();
 
         // Assert
-        loaded.RecordingHotkey.Should().Be("Super+R");
-        loaded.PlaybackHotkey.Should().Be("Super+P");
-        loaded.PauseHotkey.Should().Be("Super+S");
+        _ = loaded.RecordingHotkey.Should().Be("Super+R");
+        _ = loaded.PlaybackHotkey.Should().Be("Super+P");
+        _ = loaded.PauseHotkey.Should().Be("Super+S");
     }
 
     [Fact]
@@ -139,9 +155,9 @@ public class HotkeyConfigurationServiceTests : IDisposable
         var loaded = service.Load();
 
         // Assert
-        loaded.RecordingHotkey.Should().Be("F8");
-        loaded.PlaybackHotkey.Should().Be("F9");
-        loaded.PauseHotkey.Should().Be("F10");
+        _ = loaded.RecordingHotkey.Should().Be("F8");
+        _ = loaded.PlaybackHotkey.Should().Be("F9");
+        _ = loaded.PauseHotkey.Should().Be("F10");
     }
 
     [Fact]
@@ -149,7 +165,7 @@ public class HotkeyConfigurationServiceTests : IDisposable
     {
         // Arrange
         var serviceRoot = Path.Combine(_tempPath, "config-root");
-        Directory.CreateDirectory(serviceRoot);
+        _ = Directory.CreateDirectory(serviceRoot);
         var service = new HotkeyConfigurationService(serviceRoot);
         Directory.Delete(serviceRoot);
         File.WriteAllText(serviceRoot, "blocking file");
@@ -158,13 +174,13 @@ public class HotkeyConfigurationServiceTests : IDisposable
         {
             RecordingHotkey = "Ctrl+R",
             PlaybackHotkey = "Ctrl+P",
-            PauseHotkey = "Ctrl+Space"
+            PauseHotkey = "Ctrl+Space",
         };
 
         // Act
         var act = () => service.Save(settings);
 
         // Assert
-        act.Should().NotThrow();
+        _ = act.Should().NotThrow();
     }
 }

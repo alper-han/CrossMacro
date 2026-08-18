@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using CrossMacro.Core.Models;
-using CrossMacro.UI.Models;
 
 namespace CrossMacro.UI.Services;
 
@@ -12,35 +8,35 @@ internal static class PlaybackExecutionPlanner
         ArgumentNullException.ThrowIfNull(loadedMacroSession);
 
         var mode = GetEffectivePlaybackMode(loadedMacroSession);
-        if (mode != LoadedMacroPlaybackMode.SequentialCycle)
+        if (mode is not LoadedMacroPlaybackMode.SequentialCycle)
         {
             return CreateSingleMacroPlan(mode, loadedMacroSession.SelectedMacro ?? fallbackMacro);
         }
 
         var sequenceSnapshot = loadedMacroSession.CreateSequentialCycleSnapshot();
-        if (sequenceSnapshot.Count == 0)
+        if (sequenceSnapshot.Count is 0)
         {
             return CreateSingleMacroPlan(LoadedMacroPlaybackMode.SelectedOnly, loadedMacroSession.SelectedMacro ?? fallbackMacro);
         }
 
         if (!TryValidateSequenceSnapshot(sequenceSnapshot, out var validationError))
         {
-            return new PlaybackExecutionPlan(mode, null, sequenceSnapshot, validationError);
+            return new PlaybackExecutionPlan(mode, ActiveMacro: null, sequenceSnapshot, validationError);
         }
 
-        return new PlaybackExecutionPlan(mode, sequenceSnapshot[0].Macro, sequenceSnapshot, null);
+        return new PlaybackExecutionPlan(mode, sequenceSnapshot[0].Macro, sequenceSnapshot, ValidationError: null);
     }
 
     public static MacroSequence? GetPreviewMacro(ILoadedMacroSession loadedMacroSession, MacroSequence? fallbackMacro)
     {
         ArgumentNullException.ThrowIfNull(loadedMacroSession);
 
-        if (GetEffectivePlaybackMode(loadedMacroSession) != LoadedMacroPlaybackMode.SequentialCycle)
+        if (GetEffectivePlaybackMode(loadedMacroSession) is not LoadedMacroPlaybackMode.SequentialCycle)
         {
             return loadedMacroSession.SelectedMacro ?? fallbackMacro;
         }
 
-        if (loadedMacroSession.SelectedMacro != null)
+        if (loadedMacroSession.SelectedMacro is not null)
         {
             return loadedMacroSession.SelectedMacro;
         }
@@ -57,12 +53,12 @@ internal static class PlaybackExecutionPlanner
 
     private static PlaybackExecutionPlan CreateSingleMacroPlan(LoadedMacroPlaybackMode mode, MacroSequence? activeMacro)
     {
-        return new PlaybackExecutionPlan(mode, activeMacro, Array.Empty<LoadedMacroListItem>(), null);
+        return new PlaybackExecutionPlan(mode, activeMacro, [], ValidationError: null);
     }
 
     private static LoadedMacroPlaybackMode GetEffectivePlaybackMode(ILoadedMacroSession loadedMacroSession)
     {
-        return loadedMacroSession.Count == 0
+        return loadedMacroSession.Count is 0
             ? LoadedMacroPlaybackMode.SelectedOnly
             : loadedMacroSession.PlaybackMode;
     }

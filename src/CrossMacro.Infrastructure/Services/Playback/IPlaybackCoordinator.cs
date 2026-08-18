@@ -1,7 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
@@ -12,6 +8,11 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 public interface IPlaybackCoordinator
 {
     /// <summary>
+    /// Configures logical desktop bounds used when cursor synchronization is unavailable.
+    /// </summary>
+    public void ConfigureDesktopBounds(ScreenRect? desktopBounds);
+
+    /// <summary>
     /// Initialize playback for a macro (called once at start)
     /// </summary>
     /// <param name="macro">The macro being played</param>
@@ -19,7 +20,7 @@ public interface IPlaybackCoordinator
     /// <param name="screenWidth">Screen width (0 if unknown)</param>
     /// <param name="screenHeight">Screen height (0 if unknown)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    Task InitializeAsync(
+    public Task InitializeAsync(
         MacroSequence macro,
         IInputSimulator simulator,
         int screenWidth,
@@ -35,7 +36,7 @@ public interface IPlaybackCoordinator
     /// <param name="screenWidth">Screen width (0 if unknown)</param>
     /// <param name="screenHeight">Screen height (0 if unknown)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    Task PrepareIterationAsync(
+    public Task PrepareIterationAsync(
         int iteration,
         MacroSequence macro,
         IInputSimulator simulator,
@@ -46,20 +47,41 @@ public interface IPlaybackCoordinator
     /// <summary>
     /// Current X position (tracked internally)
     /// </summary>
-    int CurrentX { get; }
+    public int CurrentX { get; }
 
     /// <summary>
     /// Current Y position (tracked internally)
     /// </summary>
-    int CurrentY { get; }
+    public int CurrentY { get; }
+
+    /// <summary>
+    /// Whether the tracked coordinates are known to match the logical cursor position.
+    /// </summary>
+    public bool HasKnownPosition { get; }
+
+    /// <summary>
+    /// Refreshes the logical cursor position when the current estimate is unknown.
+    /// </summary>
+    public Task<bool> TrySynchronizePositionAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Waits until the compositor reports the requested absolute position after
+    /// an injected move. Input injection acknowledgement only confirms that the
+    /// event reached the virtual device; it does not guarantee that the
+    /// compositor has applied the pointer update before a following click.
+    /// This verifies delivery but does not rebase the command position.
+    /// </summary>
+    public Task<bool> WaitForPositionAsync(int expectedX, int expectedY, CancellationToken cancellationToken);
 
     /// <summary>
     /// Update tracked position
     /// </summary>
-    void UpdatePosition(int x, int y);
+    public void UpdatePosition(int x, int y);
 
     /// <summary>
-    /// Add delta to tracked position
+    /// Marks the tracked position unknown. Set <paramref name="movementMayBePending" /> when
+    /// a raw movement was just injected and the platform position provider may still expose
+    /// the pre-injection position briefly.
     /// </summary>
-    void AddDelta(int dx, int dy);
+    public void InvalidatePosition(bool movementMayBePending = false);
 }

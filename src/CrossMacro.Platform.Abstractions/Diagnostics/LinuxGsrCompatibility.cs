@@ -1,4 +1,3 @@
-using System;
 
 namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
@@ -21,7 +20,7 @@ public static class LinuxGsrCompatibility
         foreach (var rawLine in inputDevicesContent.Split('\n'))
         {
             var line = rawLine.Trim();
-            if (line.Length == 0)
+            if (line.Length is 0)
             {
                 if (hasMatchingName && hasKeyboardHandler && hasEventHandler)
                 {
@@ -44,7 +43,7 @@ public static class LinuxGsrCompatibility
             {
                 var handlers = GetHandlers(line);
                 hasKeyboardHandler = HasHandler(handlers, "kbd");
-                hasEventHandler = Array.Exists(handlers, handler => handler.StartsWith("event", StringComparison.Ordinal));
+                hasEventHandler = Array.Exists(handlers, static handler => handler.StartsWith("event", StringComparison.Ordinal));
             }
         }
 

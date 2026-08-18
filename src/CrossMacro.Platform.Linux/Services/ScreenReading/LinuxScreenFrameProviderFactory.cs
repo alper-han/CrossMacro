@@ -1,7 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Extensions;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
@@ -10,6 +6,7 @@ public sealed class LinuxScreenFrameProviderFactory
     private readonly ILinuxEnvironmentDetector _environmentDetector;
     private readonly IRuntimeContext _runtimeContext;
     private readonly ILinuxScreenReaderCapabilityDetector _capabilityDetector;
+    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
     private readonly Func<ExtImageCopySupportResult, IScreenFrameProvider> _extFactory;
     private readonly Func<WlrScreencopySupportResult, IScreenFrameProvider> _wlrFactory;
     private readonly Func<PortalScreenCastSupportResult, IScreenFrameProvider> _portalFactory;
@@ -18,10 +15,24 @@ public sealed class LinuxScreenFrameProviderFactory
     private readonly IX11ScreenCaptureSupportProbe _x11SupportProbe;
     private readonly Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> _x11Factory;
 
-    public LinuxScreenFrameProviderFactory(
+    internal LinuxScreenFrameProviderFactory(
         ILinuxEnvironmentDetector environmentDetector,
         IRuntimeContext runtimeContext,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
+        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
+        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
+        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
+        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
+        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
+        IX11ScreenCaptureSupportProbe x11SupportProbe,
+        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
+        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider: null, extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory) { /* Empty */ }
+
+    internal LinuxScreenFrameProviderFactory(
+        ILinuxEnvironmentDetector environmentDetector,
+        IRuntimeContext runtimeContext,
+        ILinuxScreenReaderCapabilityDetector capabilityDetector,
+        ILinuxCapabilitySnapshotProvider? snapshotProvider,
         Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
         Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
         Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
@@ -33,6 +44,7 @@ public sealed class LinuxScreenFrameProviderFactory
         _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
         _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
+        _snapshotProvider = snapshotProvider;
         _extFactory = extFactory ?? throw new ArgumentNullException(nameof(extFactory));
         _wlrFactory = wlrFactory ?? throw new ArgumentNullException(nameof(wlrFactory));
         _portalFactory = portalFactory ?? throw new ArgumentNullException(nameof(portalFactory));
@@ -42,7 +54,7 @@ public sealed class LinuxScreenFrameProviderFactory
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
     }
 
-    public LinuxScreenFrameProviderFactory(
+    internal LinuxScreenFrameProviderFactory(
         ILinuxEnvironmentDetector environmentDetector,
         IRuntimeContext runtimeContext,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
@@ -60,20 +72,20 @@ public sealed class LinuxScreenFrameProviderFactory
             wlrFactory,
             portalFactory,
             kWinFactory,
-            _ => new UnavailableLinuxScreenFrameProvider(ScreenReadErrorKind.BackendUnavailable, "Gnome extension is not configured in tests."),
+            static _ => new UnavailableLinuxScreenFrameProvider(ScreenReadErrorKind.BackendUnavailable, "Gnome extension is not configured in tests."),
             x11SupportProbe,
             x11Factory)
-    {
-    }
+    { /* Empty */ }
 
     public IScreenFrameProvider Create()
     {
-        if (_environmentDetector.IsWayland)
+        var capabilitySnapshot = _snapshotProvider?.GetSnapshot();
+        if ((capabilitySnapshot?.IsWayland) is true || (capabilitySnapshot is null && _environmentDetector.IsWayland))
         {
-            return CreateWaylandProvider();
+            return CreateWaylandProvider(capabilitySnapshot);
         }
 
-        if (_environmentDetector.IsX11)
+        if ((capabilitySnapshot?.IsX11) is true || (capabilitySnapshot is null && _environmentDetector.IsX11))
         {
             return _x11Factory(_x11SupportProbe.ProbeSupport());
         }
@@ -83,10 +95,12 @@ public sealed class LinuxScreenFrameProviderFactory
             $"Linux screen reading is currently supported on Wayland and native X11. Detected compositor: {_environmentDetector.DetectedCompositor}.");
     }
 
-    private IScreenFrameProvider CreateWaylandProvider()
+    private IScreenFrameProvider CreateWaylandProvider(LinuxCapabilitySnapshot? centralizedSnapshot = null)
     {
-        var snapshot = _capabilityDetector.GetSnapshot();
-        var order = LinuxScreenReaderBackendPolicy.GetOrder(_runtimeContext.IsFlatpak, _environmentDetector.DetectedCompositor);
+        var snapshot = centralizedSnapshot?.ScreenReading ?? _capabilityDetector.GetSnapshot();
+        var isFlatpak = centralizedSnapshot?.IsFlatpak ?? _runtimeContext.IsFlatpak;
+        var compositor = centralizedSnapshot?.Compositor ?? _environmentDetector.DetectedCompositor;
+        var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak, compositor);
         var lastUnavailable = default(LinuxScreenReaderBackendCapability?);
         var permissionDenied = default(LinuxScreenReaderBackendCapability?);
 
@@ -106,10 +120,25 @@ public sealed class LinuxScreenFrameProviderFactory
             }
 
             lastUnavailable = capability;
-            if (permissionDenied is null && capability.ErrorKind == ScreenReadErrorKind.PermissionDenied)
+            if (permissionDenied is null && capability.ErrorKind is ScreenReadErrorKind.PermissionDenied)
             {
                 permissionDenied = capability;
             }
+        }
+
+        // GNOME extension discovery is asynchronous. Keep a request-aware provider
+        // alive while it is still initializing so the first real capture can wait
+        // for the extension instead of permanently falling back to Portal.
+        if (_capabilityDetector.IsGnomeSession)
+        {
+            return new LinuxRequestAwareScreenFrameProvider(
+                _capabilityDetector,
+                order,
+                _extFactory,
+                _wlrFactory,
+                _portalFactory,
+                _kWinFactory,
+                _gnomeFactory);
         }
 
         var failure = permissionDenied ?? lastUnavailable ?? LinuxScreenReaderBackendCapability.Unavailable(
@@ -129,14 +158,14 @@ public sealed class LinuxScreenFrameProviderFactory
         Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
         Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory) => capability.Backend switch
-    {
-        LinuxScreenReaderBackend.KWinScreenShot2 => kWinFactory(ToKWinSupport(capability)),
-        LinuxScreenReaderBackend.ExtImageCopy => extFactory(ToExtSupport(capability)),
-        LinuxScreenReaderBackend.WlrScreencopy => wlrFactory(ToWlrSupport(capability)),
-        LinuxScreenReaderBackend.Portal => portalFactory(ToPortalSupport(capability)),
-        LinuxScreenReaderBackend.GnomeExtension => gnomeFactory(ToGnomeSupport(capability)),
-        _ => throw new ArgumentOutOfRangeException(nameof(capability), capability.Backend, "Unknown Linux screen reader backend.")
-    };
+        {
+            LinuxScreenReaderBackend.KWinScreenShot2 => kWinFactory(ToKWinSupport(capability)),
+            LinuxScreenReaderBackend.ExtImageCopy => extFactory(ToExtSupport(capability)),
+            LinuxScreenReaderBackend.WlrScreencopy => wlrFactory(ToWlrSupport(capability)),
+            LinuxScreenReaderBackend.Portal => portalFactory(ToPortalSupport(capability)),
+            LinuxScreenReaderBackend.GnomeExtension => gnomeFactory(ToGnomeSupport(capability)),
+            _ => throw new ArgumentOutOfRangeException(nameof(capability), capability.Backend, "Unknown Linux screen reader backend."),
+        };
 
     private static GnomeExtensionSupportResult ToGnomeSupport(LinuxScreenReaderBackendCapability capability) =>
         capability.IsAvailable

@@ -1,6 +1,3 @@
-using System;
-using System.ComponentModel;
-using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace CrossMacro.UI.Localization;
 
@@ -24,10 +21,7 @@ public sealed class LocalizationBindingSource : ObservableObject
             return;
         }
 
-        if (_service != null)
-        {
-            _service.CultureChanged -= OnCultureChanged;
-        }
+        _service?.CultureChanged -= OnCultureChanged;
 
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _service.CultureChanged += OnCultureChanged;

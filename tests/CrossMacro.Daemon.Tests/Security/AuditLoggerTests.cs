@@ -1,11 +1,6 @@
 namespace CrossMacro.Daemon.Tests.Security;
 
-using System;
-using System.IO;
-using CrossMacro.Daemon.Security;
-using CrossMacro.Infrastructure.Linux.Native;
 
-[Collection(AuditEnvironmentCollection.Name)]
 public sealed class AuditLoggerTests
 {
     [Fact]
@@ -139,7 +134,7 @@ public sealed class AuditLoggerTests
             File.WriteAllText(logPath, new string('x', 32));
             var logger = new AuditLogger(directory, maxFileSizeMB: 0);
 
-            logger.LogConnectionAttempt(1001, 456, null, success: true);
+            logger.LogConnectionAttempt(1001, 456, executable: null, success: true);
             logger.Dispose();
 
             Assert.True(File.Exists(Path.Combine(directory, "audit.log.1")));
@@ -198,7 +193,7 @@ public sealed class AuditLoggerTests
 
         try
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", null);
+            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", value: null);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", xdgStateHome);
             var logger = new AuditLogger();
 
@@ -220,7 +215,7 @@ public sealed class AuditLoggerTests
     private static string CreateTempDirectory()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"crossmacro-audit-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
+        _ = Directory.CreateDirectory(directory);
         return directory;
     }
 

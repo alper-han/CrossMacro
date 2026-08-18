@@ -1,24 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Avalonia.Threading;
-using CrossMacro.Core.Diagnostics;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 
 /// <summary>
 /// ViewModel for the Settings tab - handles hotkey and application settings
 /// </summary>
-public class SettingsViewModel : ViewModelBase, IDisposable
+public partial class SettingsViewModel : ViewModelBase, IDisposable
 {
+    private static readonly Uri RepositoryUri = new("https://github.com/alper-han/CrossMacro", UriKind.Absolute);
+
     internal static readonly IReadOnlyList<SupportedLanguageDescriptor> SupportedLanguages =
     [
         new("en", "Language_English", "English", isDefault: true),
@@ -29,46 +18,60 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         new("pt", "Language_Portuguese", "Portuguese"),
         new("ru", "Language_Russian", "Russian"),
         new("es", "Language_Spanish", "Spanish"),
-        new("tr", "Language_Turkish", "Turkish")
+        new("tr", "Language_Turkish", "Turkish"),
     ];
 
     internal static IReadOnlyList<string> SupportedLanguageCodes { get; } = SupportedLanguages
         .Select(language => language.Code)
         .ToArray();
 
-    private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
     private readonly HotkeySettings _hotkeySettings;
     private readonly IExternalUrlOpener _externalUrlOpener;
-    private readonly IRuntimeContext _runtimeContext;
     private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
-    private readonly ILocalizationService _localizationService;
+    private readonly IThemeDirectoryResolver? _themeDirectoryResolver;
+    private readonly IDirectoryOpener? _directoryOpener;
     private readonly IProfileManager? _profileManager;
     private readonly IDialogService? _dialogService;
-    
-    private string _recordingHotkey;
-    private string _playbackHotkey;
-    private string _pauseHotkey;
+    private readonly IManageProfile? _manageProfile;
+    private readonly SettingsSaveRollbackTracker _saveRollbackTracker = new();
+    private int _settingsChangeVersion;
+
     private bool _enableTrayIcon;
     private bool _startMinimized;
-    private string _selectedLogLevel;
-    private string _selectedLanguage;
-    private IReadOnlyList<LanguageOption> _availableLanguages;
-    private IReadOnlyList<ProfileInfo> _availableProfiles = [];
-    private ProfileInfo? _selectedProfile;
-    private bool _isProfileOperationInProgress;
-    private string _newProfileName = string.Empty;
     private bool _disposed;
-    
+
+    [ObservableProperty]
+    private string _recordingHotkey;
+
+    [ObservableProperty]
+    private string _playbackHotkey;
+
+    [ObservableProperty]
+    private string _pauseHotkey;
+
+    [ObservableProperty]
+    private string _selectedLogLevel;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedLanguageOption))]
+    private string _selectedLanguage;
+
+    [ObservableProperty]
+    private string _newProfileName = string.Empty;
+
+    [ObservableProperty]
+    private ProfileInfo? _selectedProfile;
+
     /// <summary>
     /// Event fired when tray icon setting changes
     /// </summary>
     public event EventHandler<bool>? TrayIconEnabledChanged;
 
     public event EventHandler<string>? ProfileOperationFailed;
-    
+
     public SettingsViewModel(
         IGlobalHotkeyService hotkeyService,
         ISettingsService settingsService,
@@ -80,55 +83,22 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         ILocalizationService? localizationService = null,
         IRuntimeContext? runtimeContext = null,
         IProfileManager? profileManager = null,
-        IDialogService? dialogService = null)
-    {
-        ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
-        ArgumentNullException.ThrowIfNull(themeService);
-
-        _hotkeyService = hotkeyService;
-        _settingsService = settingsService;
-        _textExpansionService = textExpansionService;
-        _hotkeySettings = hotkeySettings;
-        _externalUrlOpener = externalUrlOpener;
-        _runtimeContext = runtimeContext ?? new RuntimeContext();
-        _runtimeLogLevelService = runtimeLogLevelService;
-        _themeService = themeService;
-        _localizationService = localizationService ?? new LocalizationService();
-        _profileManager = profileManager;
-        _dialogService = dialogService;
-        
-        // Initialize hotkey properties
-        _recordingHotkey = _hotkeySettings.RecordingHotkey;
-        _playbackHotkey = _hotkeySettings.PlaybackHotkey;
-        _pauseHotkey = _hotkeySettings.PauseHotkey;
-        
-        // Initialize tray icon setting
-        _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
-        _startMinimized = _settingsService.Current.StartMinimized;
-        
-        // Initialize log level setting
-        _selectedLogLevel = _settingsService.Current.LogLevel;
-
-        // Initialize theme setting
-        _selectedTheme = _settingsService.Current.Theme;
-
-        _selectedLanguage = NormalizeSupportedLanguage(_settingsService.Current.Language);
-        _settingsService.Current.Language = _selectedLanguage;
-        _availableLanguages = CreateLanguageOptions();
-        RefreshLanguageOptions();
-        
-        // Hide update settings if running as Flatpak
-        IsUpdateSettingsVisible = !_runtimeContext.IsFlatpak;
-
-        // Hide tray settings if tray is not supported (Flatpak sandbox blocks D-Bus StatusNotifierItem)
-        IsTraySettingsVisible = TrayIconService.IsTraySupported(_runtimeContext);
-
-        RefreshProfileState();
-        if (_profileManager != null)
-        {
-            _profileManager.ProfileChanged += OnProfileChanged;
-        }
-    }
+        IDialogService? dialogService = null,
+        IManageProfile? manageProfile = null)
+        : this(
+            hotkeyService,
+            settingsService,
+            textExpansionService,
+            hotkeySettings,
+            externalUrlOpener,
+            runtimeLogLevelService,
+            themeService,
+            runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext)),
+            localizationService,
+            profileManager,
+            dialogService,
+            manageProfile)
+    { /* Empty */ }
 
     public SettingsViewModel(
         IGlobalHotkeyService hotkeyService,
@@ -138,100 +108,86 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         IExternalUrlOpener externalUrlOpener,
         IRuntimeLogLevelService runtimeLogLevelService,
         IThemeService themeService,
-        IRuntimeContext runtimeContext)
-        : this(
-            hotkeyService,
-            settingsService,
-            textExpansionService,
-            hotkeySettings,
-            externalUrlOpener,
-            runtimeLogLevelService,
-            themeService,
-            null,
-            runtimeContext)
+        IRuntimeContext runtimeContext,
+        ILocalizationService? localizationService = null,
+        IProfileManager? profileManager = null,
+        IDialogService? dialogService = null,
+        IManageProfile? manageProfile = null,
+        IThemeDirectoryResolver? themeDirectoryResolver = null,
+        IDirectoryOpener? directoryOpener = null)
     {
+        ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
+        ArgumentNullException.ThrowIfNull(themeService);
+        ArgumentNullException.ThrowIfNull(runtimeContext);
+
+        GlobalHotkeyService = hotkeyService;
+        _settingsService = settingsService;
+        _textExpansionService = textExpansionService;
+        _hotkeySettings = hotkeySettings;
+        _externalUrlOpener = externalUrlOpener;
+        _runtimeLogLevelService = runtimeLogLevelService;
+        _themeService = themeService;
+        LocalizationService = localizationService ?? new LocalizationService();
+        _profileManager = profileManager;
+        _dialogService = dialogService;
+        _manageProfile = manageProfile;
+        _themeDirectoryResolver = themeDirectoryResolver;
+        _directoryOpener = directoryOpener;
+
+        AvailableProfiles = [];
+        _recordingHotkey = _hotkeySettings.RecordingHotkey;
+        _playbackHotkey = _hotkeySettings.PlaybackHotkey;
+        _pauseHotkey = _hotkeySettings.PauseHotkey;
+        _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
+        _startMinimized = _settingsService.Current.StartMinimized;
+        _selectedLogLevel = _settingsService.Current.LogLevel;
+        _selectedTheme = _settingsService.Current.Theme;
+        _selectedLanguage = NormalizeSupportedLanguage(_settingsService.Current.Language);
+        _settingsService.Current.Language = _selectedLanguage;
+        AvailableLanguages = CreateLanguageOptions();
+        RefreshLanguageOptions();
+        IsUpdateSettingsVisible = !runtimeContext.IsFlatpak;
+        IsTraySettingsVisible = TrayIconService.IsTraySupported(runtimeContext);
+        RefreshProfileState();
+        _profileManager?.ProfileChanged += OnProfileChanged;
     }
 
     public bool IsUpdateSettingsVisible { get; }
 
-    public IGlobalHotkeyService GlobalHotkeyService => _hotkeyService;
+    public IGlobalHotkeyService GlobalHotkeyService { get; }
 
-    public ILocalizationService LocalizationService => _localizationService;
+    public ILocalizationService LocalizationService { get; }
 
-    public IReadOnlyList<ProfileInfo> AvailableProfiles
-    {
-        get => _availableProfiles;
-        private set => SetProperty(ref _availableProfiles, value);
-    }
+    [ObservableProperty]
+    public partial IReadOnlyList<ProfileInfo> AvailableProfiles { get; private set; }
 
-    public ProfileInfo? SelectedProfile
-    {
-        get => _selectedProfile;
-        set => SetProperty(ref _selectedProfile, value);
-    }
-
-    public bool IsProfileOperationInProgress
-    {
-        get => _isProfileOperationInProgress;
-        private set => SetProperty(ref _isProfileOperationInProgress, value);
-    }
-
-    public string NewProfileName
-    {
-        get => _newProfileName;
-        set => SetProperty(ref _newProfileName, value);
-    }
+    [ObservableProperty]
+    public partial bool IsProfileOperationInProgress { get; private set; }
 
     /// <summary>
     /// Tray icon settings are hidden in Flatpak where StatusNotifierItem is not supported
     /// </summary>
     public bool IsTraySettingsVisible { get; }
-    
-    public string RecordingHotkey
+
+    partial void OnRecordingHotkeyChanged(string value)
     {
-        get => _recordingHotkey;
-        set
-        {
-            if (_recordingHotkey != value)
-            {
-                _recordingHotkey = value;
-                _hotkeySettings.RecordingHotkey = value;
-                OnPropertyChanged();
-                UpdateHotkeys();
-            }
-        }
+        _hotkeySettings.RecordingHotkey = value;
+        UpdateHotkeys();
     }
-    
-    public string PlaybackHotkey
+
+    partial void OnPlaybackHotkeyChanged(string value)
     {
-        get => _playbackHotkey;
-        set
-        {
-            if (_playbackHotkey != value)
-            {
-                _playbackHotkey = value;
-                _hotkeySettings.PlaybackHotkey = value;
-                OnPropertyChanged();
-                UpdateHotkeys();
-            }
-        }
+        _hotkeySettings.PlaybackHotkey = value;
+        UpdateHotkeys();
     }
-    
-    public string PauseHotkey
+
+    partial void OnPauseHotkeyChanged(string value)
     {
-        get => _pauseHotkey;
-        set
-        {
-            if (_pauseHotkey != value)
-            {
-                _pauseHotkey = value;
-                _hotkeySettings.PauseHotkey = value;
-                OnPropertyChanged();
-                UpdateHotkeys();
-            }
-        }
+        _hotkeySettings.PauseHotkey = value;
+        UpdateHotkeys();
     }
-    
+
+    // Kept manual: coerces StartMinimized alongside and controls the cross-property notification order.
     public bool EnableTrayIcon
     {
         get => _enableTrayIcon;
@@ -263,18 +219,21 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
                 var propertyNames = startMinimizedStateChanged
                     ? new[] { nameof(EnableTrayIcon), nameof(StartMinimized) }
-                    : new[] { nameof(EnableTrayIcon) };
+                    : [nameof(EnableTrayIcon)];
 
-                if (TryPersistSettings(
+                _ = TryPersistSettings(
                     () => RestoreStartupPreferences(previousTrayIcon, previousStartMinimized),
-                    propertyNames))
-                {
-                    TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
-                }
+                    () =>
+                    {
+                        TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
+                        return Task.CompletedTask;
+                    },
+                    propertyNames);
             }
         }
     }
 
+    // Kept manual: coerces EnableTrayIcon alongside and controls the cross-property notification order.
     public bool StartMinimized
     {
         get => _startMinimized;
@@ -304,22 +263,24 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
                 var propertyNames = trayIconStateChanged
                     ? new[] { nameof(StartMinimized), nameof(EnableTrayIcon) }
-                    : new[] { nameof(StartMinimized) };
+                    : [nameof(StartMinimized)];
 
-                if (TryPersistSettings(
+                _ = TryPersistSettings(
                     () => RestoreStartupPreferences(previousTrayIcon, previousStartMinimized),
-                    propertyNames))
-                {
-                    if (trayIconStateChanged)
-                    {
-                        TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
-                    }
-                }
+                    trayIconStateChanged
+                        ? () =>
+                        {
+                            TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
+                            return Task.CompletedTask;
+                        }
+                        : null,
+                    propertyNames);
             }
         }
     }
-    
-    
+
+
+    // Kept manual: no backing field, state proxies ISettingsService directly.
     public bool EnableTextExpansion
     {
         get => _settingsService.Current.EnableTextExpansion;
@@ -331,23 +292,25 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                 _settingsService.Current.EnableTextExpansion = value;
                 OnPropertyChanged();
 
-                if (TryPersistSettings(
+                _ = TryPersistSettings(
                     () => _settingsService.Current.EnableTextExpansion = previousValue,
-                    nameof(EnableTextExpansion)))
-                {
-                    if (value)
+                    async () =>
                     {
-                        _textExpansionService.Start();
-                    }
-                    else
-                    {
-                        _textExpansionService.Stop();
-                    }
-                }
+                        if (_settingsService.Current.EnableTextExpansion)
+                        {
+                            _textExpansionService.Start();
+                        }
+                        else
+                        {
+                            await _textExpansionService.StopExpansionAsync(CancellationToken.None).ConfigureAwait(false);
+                        }
+                    },
+                    nameof(EnableTextExpansion));
             }
         }
     }
 
+    // Kept manual: no backing field, state proxies ISettingsService directly.
     public bool CheckForUpdates
     {
         get => _settingsService.Current.CheckForUpdates;
@@ -359,57 +322,45 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                 _settingsService.Current.CheckForUpdates = value;
                 OnPropertyChanged();
 
-                TryPersistSettings(
+                _ = TryPersistSettings(
                     () => _settingsService.Current.CheckForUpdates = previousValue,
                     nameof(CheckForUpdates));
             }
         }
     }
-    
-    /// <summary>
-    /// Selected log level for the application
-    /// </summary>
-    public string SelectedLogLevel
-    {
-        get => _selectedLogLevel;
-        set
-        {
-            if (_selectedLogLevel != value)
-            {
-                var previousValue = _selectedLogLevel;
-                _selectedLogLevel = value;
-                _settingsService.Current.LogLevel = value;
-                OnPropertyChanged();
-                _runtimeLogLevelService.SetLogLevel(value);
 
-                TryPersistSettings(
-                    () =>
-                    {
-                        _selectedLogLevel = previousValue;
-                        _settingsService.Current.LogLevel = previousValue;
-                        _runtimeLogLevelService.SetLogLevel(previousValue);
-                    },
-                    nameof(SelectedLogLevel));
-            }
-        }
+    partial void OnSelectedLogLevelChanged(string? oldValue, string newValue)
+    {
+        var previousValue = oldValue!;
+        _settingsService.Current.LogLevel = newValue;
+        _runtimeLogLevelService.SetLogLevel(newValue);
+
+        _ = TryPersistSettings(
+            () =>
+            {
+                _selectedLogLevel = previousValue;
+                _settingsService.Current.LogLevel = previousValue;
+                _runtimeLogLevelService.SetLogLevel(previousValue);
+            },
+            nameof(SelectedLogLevel));
     }
-    
+
     /// <summary>
     /// Available log levels for the ComboBox
     /// </summary>
-    public IEnumerable<string> LogLevels { get; } = new[]
-    {
+    public IEnumerable<string> LogLevels { get; } =
+    [
         "Debug",
         "Information",
         "Warning",
-        "Error"
-    };
+        "Error",
+    ];
 
-    public IReadOnlyList<LanguageOption> AvailableLanguages => _availableLanguages;
+    public IReadOnlyList<LanguageOption> AvailableLanguages { get; }
 
     public LanguageOption? SelectedLanguageOption
     {
-        get => _availableLanguages.FirstOrDefault(option => option.Code == _selectedLanguage);
+        get => AvailableLanguages.FirstOrDefault(option => string.Equals(option.Code, SelectedLanguage, StringComparison.Ordinal));
         set
         {
             if (value is null)
@@ -421,39 +372,29 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public string SelectedLanguage
+    partial void OnSelectedLanguageChanged(string? oldValue, string newValue)
     {
-        get => _selectedLanguage;
-        set
-        {
-            if (_selectedLanguage != value)
-            {
-                var previousValue = _selectedLanguage;
-                _selectedLanguage = value;
-                _settingsService.Current.Language = value;
-                _localizationService.SetCulture(value);
-                RefreshLanguageOptions();
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(SelectedLanguageOption));
+        var previousValue = oldValue!;
+        _settingsService.Current.Language = newValue;
+        LocalizationService.SetCulture(newValue);
+        RefreshLanguageOptions();
 
-                TryPersistSettings(
-                    () =>
-                    {
-                        _selectedLanguage = previousValue;
-                        _settingsService.Current.Language = previousValue;
-                        _localizationService.SetCulture(previousValue);
-                        RefreshLanguageOptions();
-                    },
-                    nameof(SelectedLanguage),
-                    nameof(AvailableLanguages),
-                    nameof(SelectedLanguageOption));
-            }
-        }
+        _ = TryPersistSettings(
+            () =>
+            {
+                _selectedLanguage = previousValue;
+                _settingsService.Current.Language = previousValue;
+                LocalizationService.SetCulture(previousValue);
+                RefreshLanguageOptions();
+            },
+            nameof(SelectedLanguage),
+            nameof(AvailableLanguages),
+            nameof(SelectedLanguageOption));
     }
 
     private void RefreshLanguageOptions()
     {
-        foreach (var option in _availableLanguages)
+        foreach (var option in AvailableLanguages)
         {
             option.DisplayName = GetLanguageDisplayName(option.Code);
         }
@@ -462,7 +403,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedLanguageOption));
     }
 
-    private IReadOnlyList<LanguageOption> CreateLanguageOptions()
+    private LanguageOption[] CreateLanguageOptions()
     {
         return SupportedLanguages
             .OrderByDescending(language => language.IsDefault)
@@ -470,7 +411,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             .Select(language => new LanguageOption
             {
                 Code = language.Code,
-                DisplayName = GetLanguageDisplayName(language)
+                DisplayName = GetLanguageDisplayName(language),
             })
             .ToArray();
     }
@@ -480,13 +421,13 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         var language = SupportedLanguages.FirstOrDefault(language =>
             string.Equals(language.Code, code, StringComparison.OrdinalIgnoreCase));
         return language is null
-            ? _localizationService[SupportedLanguages[0].ResourceKey]
+            ? LocalizationService[SupportedLanguages[0].ResourceKey]
             : GetLanguageDisplayName(language);
     }
 
     private string GetLanguageDisplayName(SupportedLanguageDescriptor language)
     {
-        return _localizationService[language.ResourceKey];
+        return LocalizationService[language.ResourceKey];
     }
 
     internal sealed record SupportedLanguageDescriptor
@@ -520,18 +461,26 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             return "en";
         }
 
-        return SupportedLanguageCodes.Contains(language, StringComparer.OrdinalIgnoreCase)
-            ? language.ToLowerInvariant()
-            : "en";
+        var supportedLanguage = SupportedLanguages.FirstOrDefault(candidate =>
+            string.Equals(candidate.Code, language, StringComparison.OrdinalIgnoreCase));
+        return supportedLanguage?.Code ?? "en";
     }
 
     private string _selectedTheme;
+    private bool _isRefreshingThemes;
+
+    // Kept manual: ignores transient refresh selections and rejects failed theme applications.
     public string SelectedTheme
     {
         get => _selectedTheme;
         set
         {
-            if (_selectedTheme != value)
+            if (_isRefreshingThemes || string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            if (!string.Equals(_selectedTheme, value, StringComparison.Ordinal))
             {
                 if (!_themeService.TryApplyTheme(value, out var applyError))
                 {
@@ -544,7 +493,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                 _settingsService.Current.Theme = value;
                 OnPropertyChanged();
 
-                TryPersistSettings(
+                _ = TryPersistSettings(
                     () =>
                     {
                         _selectedTheme = previousValue;
@@ -561,47 +510,122 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     public IEnumerable<string> AvailableThemes => _themeService.AvailableThemes;
 
+    [RelayCommand]
+    private void RefreshThemes()
+    {
+        var previousTheme = _selectedTheme;
+        string refreshedTheme;
+
+        _isRefreshingThemes = true;
+        try
+        {
+            if (!_themeService.TryRefreshThemes(out var refreshError))
+            {
+                Log.Warning("Theme refresh completed with warnings: {Error}", refreshError);
+            }
+
+            refreshedTheme = _themeService.CurrentTheme;
+            OnPropertyChanged(nameof(AvailableThemes));
+            if (string.Equals(_selectedTheme, refreshedTheme, StringComparison.Ordinal))
+            {
+                OnPropertyChanged(nameof(SelectedTheme));
+                return;
+            }
+
+            _selectedTheme = refreshedTheme;
+            _settingsService.Current.Theme = refreshedTheme;
+            OnPropertyChanged(nameof(SelectedTheme));
+        }
+        finally
+        {
+            _isRefreshingThemes = false;
+        }
+
+        _ = TryPersistSettings(
+            () =>
+            {
+                if (!_themeService.TryApplyTheme(previousTheme, out var revertError))
+                {
+                    Log.Warning("Theme rollback after refresh failed for '{Theme}': {Error}", previousTheme, revertError);
+                }
+
+                _selectedTheme = _themeService.CurrentTheme;
+                _settingsService.Current.Theme = _selectedTheme;
+            },
+            nameof(SelectedTheme));
+    }
+
+    [RelayCommand]
+    private async Task OpenThemesFolderAsync()
+    {
+        // Design-time and minimal compositions may omit these optional dependencies.
+        if (_themeDirectoryResolver is null || _directoryOpener is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _directoryOpener.OpenAsync(_themeDirectoryResolver.GetThemeDirectoryPath()).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning("Failed to open themes folder: {Error}", ex.Message);
+        }
+    }
+
     public async Task CreateProfileAsync()
     {
         var profileName = NewProfileName.Trim();
-        if (_profileManager is null || profileName.Length == 0)
+        if ((_profileManager is null && _manageProfile is null) || profileName.Length is 0)
         {
             return;
         }
 
         await RunProfileOperationAsync(async () =>
         {
-            var createdProfile = await _profileManager.CreateProfileAsync(profileName);
-            RefreshProfileState(createdProfile.Id);
-            NewProfileName = string.Empty;
-        }, _localizationService["Settings_ProfileCreateFailed"]);
+            var createdProfile = _manageProfile is not null
+                ? (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: profileName), default).ConfigureAwait(false)).Profile ?? throw new InvalidOperationException("Profile was not returned after creation.")
+                : await (_profileManager ?? throw new InvalidOperationException("Profile manager is not initialized.")).CreateProfileAsync(profileName).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
+            {
+                RefreshProfileState(createdProfile.Id);
+                NewProfileName = string.Empty;
+            }).ConfigureAwait(false);
+        }, LocalizationService["Settings_ProfileCreateFailed"]).ConfigureAwait(false);
     }
-
-    public Task CreateProfile() => CreateProfileAsync();
 
     public async Task RenameSelectedProfileAsync()
     {
         var profileName = NewProfileName.Trim();
         var selectedProfile = SelectedProfile;
-        if (_profileManager is null || selectedProfile is null || profileName.Length == 0)
+        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null || profileName.Length is 0)
         {
             return;
         }
 
         await RunProfileOperationAsync(async () =>
         {
-            await _profileManager.RenameProfileAsync(selectedProfile.Id, profileName);
-            RefreshProfileState(selectedProfile.Id);
-            NewProfileName = string.Empty;
-        }, _localizationService["Settings_ProfileRenameFailed"]);
+            if (_manageProfile is not null)
+            {
+                _ = await _manageProfile.RenameAsync(new ProfileRequest(selectedProfile.Id, profileName), default).ConfigureAwait(false);
+            }
+            else
+            {
+                await (_profileManager ?? throw new InvalidOperationException("Profile manager is not initialized.")).RenameProfileAsync(selectedProfile.Id, profileName).ConfigureAwait(false);
+            }
+            await RunOnUiThreadAsync(() =>
+            {
+                RefreshProfileState(selectedProfile.Id);
+                NewProfileName = string.Empty;
+            }).ConfigureAwait(false);
+        }, LocalizationService["Settings_ProfileRenameFailed"]).ConfigureAwait(false);
     }
-
-    public Task RenameSelectedProfile() => RenameSelectedProfileAsync();
 
     public async Task DeleteSelectedProfileAsync()
     {
         var selectedProfile = SelectedProfile;
-        if (_profileManager is null || selectedProfile is null)
+        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null)
         {
             return;
         }
@@ -611,14 +635,14 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (_dialogService != null)
+        if (_dialogService is not null)
         {
             var confirmed = await _dialogService.ShowConfirmationAsync(
-                _localizationService["Settings_ProfileDeleteTitle"],
+                LocalizationService["Settings_ProfileDeleteTitle"],
                 string.Format(
-                    _localizationService.CurrentCulture,
-                    _localizationService["Settings_ProfileDeleteMessage"],
-                    selectedProfile.Name));
+                    LocalizationService.CurrentCulture,
+                    LocalizationService["Settings_ProfileDeleteMessage"],
+                    selectedProfile.Name)).ConfigureAwait(false);
 
             if (!confirmed)
             {
@@ -628,30 +652,44 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
         await RunProfileOperationAsync(async () =>
         {
-            await _profileManager.DeleteProfileAsync(selectedProfile.Id);
-            RefreshProfileState();
-        }, _localizationService["Settings_ProfileDeleteFailed"]);
+            if (_manageProfile is not null)
+            {
+                _ = await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: selectedProfile.Id), default).ConfigureAwait(false);
+            }
+            else
+            {
+                await (_profileManager ?? throw new InvalidOperationException("Profile manager is not initialized.")).DeleteProfileAsync(selectedProfile.Id).ConfigureAwait(false);
+            }
+            await RunOnUiThreadAsync(() => RefreshProfileState()).ConfigureAwait(false);
+        }, LocalizationService["Settings_ProfileDeleteFailed"]).ConfigureAwait(false);
     }
-
-    public Task DeleteSelectedProfile() => DeleteSelectedProfileAsync();
 
     public async Task SwitchProfileAsync()
     {
         var selectedProfile = SelectedProfile;
-        if (_profileManager is null || selectedProfile is null)
+        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null)
         {
             return;
         }
 
+        _ = Interlocked.Increment(ref _settingsChangeVersion);
         await RunProfileOperationAsync(async () =>
         {
-            await _profileManager.SwitchProfileAsync(selectedProfile.Id);
-            RefreshProfileState(selectedProfile.Id);
-            RefreshProfileSpecificSettings();
-        }, _localizationService["Settings_ProfileSwitchFailed"]);
+            if (_manageProfile is not null)
+            {
+                _ = await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: selectedProfile.Id), default).ConfigureAwait(false);
+            }
+            else
+            {
+                await (_profileManager ?? throw new InvalidOperationException("Profile manager is not initialized.")).SwitchProfileAsync(selectedProfile.Id).ConfigureAwait(false);
+            }
+            await RunOnUiThreadAsync(() =>
+            {
+                RefreshProfileState(selectedProfile.Id);
+                RefreshProfileSpecificSettings();
+            }).ConfigureAwait(false);
+        }, LocalizationService["Settings_ProfileSwitchFailed"]).ConfigureAwait(false);
     }
-
-    public Task SwitchProfile() => SwitchProfileAsync();
 
     private void RestoreStartupPreferences(bool trayIconEnabled, bool startMinimized)
     {
@@ -663,76 +701,131 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     public void RefreshProfileState(string? selectedProfileId = null)
     {
-        void Refresh()
-        {
-            if (_profileManager is null)
-            {
-                AvailableProfiles = [];
-                SelectedProfile = null;
-                return;
-            }
+        PostToUiThread(() => RefreshProfileStateCore(selectedProfileId));
+    }
 
-            AvailableProfiles = _profileManager.Profiles.ToArray();
-            var effectiveSelectedProfileId = selectedProfileId ?? _profileManager.ActiveProfile.Id;
-            SelectedProfile = AvailableProfiles.FirstOrDefault(profile =>
-                                  string.Equals(profile.Id, effectiveSelectedProfileId, StringComparison.Ordinal))
-                              ?? _profileManager.ActiveProfile;
+    private void RefreshProfileStateCore(string? selectedProfileId)
+    {
+        if (_profileManager is null)
+        {
+            AvailableProfiles = [];
+            SelectedProfile = null;
+            return;
         }
 
-        RaiseOnUiThread(Refresh);
+        AvailableProfiles = _profileManager.Profiles.ToArray();
+        var effectiveSelectedProfileId = selectedProfileId ?? _profileManager.ActiveProfile.Id;
+        SelectedProfile = AvailableProfiles.FirstOrDefault(profile =>
+                              string.Equals(profile.Id, effectiveSelectedProfileId, StringComparison.Ordinal))
+                          ?? _profileManager.ActiveProfile;
     }
 
     public void RefreshProfileSpecificSettings()
     {
-        void Refresh()
-        {
-            _recordingHotkey = _hotkeySettings.RecordingHotkey;
-            _playbackHotkey = _hotkeySettings.PlaybackHotkey;
-            _pauseHotkey = _hotkeySettings.PauseHotkey;
+        PostToUiThread(RefreshProfileSpecificSettingsCore);
+    }
 
-            OnPropertyChanged(nameof(RecordingHotkey));
-            OnPropertyChanged(nameof(PlaybackHotkey));
-            OnPropertyChanged(nameof(PauseHotkey));
-            OnPropertyChanged(nameof(EnableTextExpansion));
-            OnPropertyChanged(nameof(CheckForUpdates));
+    private void RefreshProfileSpecificSettingsCore()
+    {
+        // Direct field writes: refreshing from settings must not re-apply hotkeys via setter hooks.
+#pragma warning disable MVVMTK0034
+        _recordingHotkey = _hotkeySettings.RecordingHotkey;
+        _playbackHotkey = _hotkeySettings.PlaybackHotkey;
+        _pauseHotkey = _hotkeySettings.PauseHotkey;
+#pragma warning restore MVVMTK0034
+
+        OnPropertyChanged(nameof(RecordingHotkey));
+        OnPropertyChanged(nameof(PlaybackHotkey));
+        OnPropertyChanged(nameof(PauseHotkey));
+        OnPropertyChanged(nameof(EnableTextExpansion));
+        OnPropertyChanged(nameof(CheckForUpdates));
+    }
+
+    /// <summary>
+    /// Validates that a new hotkey for one slot does not collide with the other two slots.
+    /// Returns a localized error message when invalid.
+    /// </summary>
+    public (bool IsValid, string ErrorMessage) ValidateRecordingHotkey(string newHotkey) =>
+        ValidateHotkeyAssignment(newHotkey, (PlaybackHotkey, "Settings_TogglePlayback"), (PauseHotkey, "Settings_PauseResumePlayback"));
+
+    public (bool IsValid, string ErrorMessage) ValidatePlaybackHotkey(string newHotkey) =>
+        ValidateHotkeyAssignment(newHotkey, (RecordingHotkey, "Settings_ToggleRecording"), (PauseHotkey, "Settings_PauseResumePlayback"));
+
+    public (bool IsValid, string ErrorMessage) ValidatePauseHotkey(string newHotkey) =>
+        ValidateHotkeyAssignment(newHotkey, (RecordingHotkey, "Settings_ToggleRecording"), (PlaybackHotkey, "Settings_TogglePlayback"));
+
+    private (bool IsValid, string ErrorMessage) ValidateHotkeyAssignment(
+        string newHotkey,
+        (string Hotkey, string LabelKey) first,
+        (string Hotkey, string LabelKey) second)
+    {
+        foreach (var (hotkey, labelKey) in (ReadOnlySpan<(string, string)>)[first, second])
+        {
+            if (string.Equals(newHotkey, hotkey, StringComparison.Ordinal))
+            {
+                var message = string.Format(
+                    LocalizationService.CurrentCulture,
+                    LocalizationService["Settings_HotkeyAlreadyAssignedTo"],
+                    LocalizationService[labelKey]);
+                return (false, message);
+            }
         }
 
-        RaiseOnUiThread(Refresh);
+        return (true, string.Empty);
     }
 
     private async Task RunProfileOperationAsync(Func<Task> operation, string failureMessage)
     {
-        if (IsProfileOperationInProgress)
+        var started = false;
+        await RunOnUiThreadAsync(() =>
+        {
+            if (!IsProfileOperationInProgress)
+            {
+                IsProfileOperationInProgress = true;
+                started = true;
+            }
+        }).ConfigureAwait(false);
+        if (!started)
         {
             return;
         }
 
         try
         {
-            IsProfileOperationInProgress = true;
-            await operation();
+            await operation().ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             var message = string.IsNullOrWhiteSpace(ex.Message)
                 ? failureMessage
                 : $"{failureMessage}: {ex.Message}";
             Log.Warning(ex, "{FailureMessage}: {Error}", failureMessage, ex.Message);
-            RaiseOnUiThread(() => ProfileOperationFailed?.Invoke(this, message));
+            await RunOnUiThreadAsync(() => ProfileOperationFailed?.Invoke(this, message)).ConfigureAwait(false);
         }
         finally
         {
-            IsProfileOperationInProgress = false;
+            await RunOnUiThreadAsync(() => IsProfileOperationInProgress = false).ConfigureAwait(false);
         }
     }
 
-    private void OnProfileChanged(object? sender, ProfileInfo profile)
+    private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
     {
-        RefreshProfileState(profile.Id);
-        RefreshProfileSpecificSettings();
+        var profile = e.Profile;
+        _ = Interlocked.Increment(ref _settingsChangeVersion);
+        PostToUiThread(() =>
+        {
+            RefreshProfileStateCore(profile.Id);
+            RefreshProfileSpecificSettingsCore();
+        });
     }
 
     public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
     {
         if (_disposed)
         {
@@ -741,41 +834,27 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
 
-        if (_profileManager != null)
-        {
-            _profileManager.ProfileChanged -= OnProfileChanged;
-        }
-    }
-
-    private static void RaiseOnUiThread(Action action)
-    {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            return;
-        }
-
-        Dispatcher.UIThread.Post(action);
+        _profileManager?.ProfileChanged -= OnProfileChanged;
     }
 
     private void UpdateHotkeys()
     {
         try
         {
-            if (_hotkeyService.IsRunning)
+            if (GlobalHotkeyService.IsRunning)
             {
-                _hotkeyService.UpdateHotkeys(
+                GlobalHotkeyService.UpdateHotkeys(
                     _hotkeySettings.RecordingHotkey,
                     _hotkeySettings.PlaybackHotkey,
                     _hotkeySettings.PauseHotkey);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "Hotkey update error");
+            Log.LogError(ex, "Hotkey update error");
         }
     }
-    
+
     /// <summary>
     /// Start the hotkey service
     /// </summary>
@@ -783,9 +862,9 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            _hotkeyService.Start();
+            GlobalHotkeyService.Start();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
             {
@@ -793,7 +872,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            Log.Error(ex, "Hotkey service start error");
+            Log.LogError(ex, "Hotkey service start error");
         }
     }
     /// <summary>
@@ -801,33 +880,84 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void OpenGitHub()
     {
+        ObserveTask(OpenGitHubAsync());
+    }
+
+    private async Task OpenGitHubAsync()
+    {
         try
         {
-            _externalUrlOpener.Open("https://github.com/alper-han/CrossMacro");
+            await _externalUrlOpener.OpenAsync(RepositoryUri).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "Failed to open GitHub URL");
+            Log.LogError(ex, "Failed to open GitHub URL");
         }
+    }
+
+    private static void ObserveTask(Task task)
+    {
+        _ = task.ContinueWith(
+            static completedTask => _ = completedTask.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private bool TryPersistSettings(Action rollback, params string[] propertyNames)
     {
+        return TryPersistSettings(rollback, onSuccess: null, propertyNames);
+    }
+
+    private bool TryPersistSettings(Action rollback, Func<Task>? onSuccess, params string[] propertyNames)
+    {
+        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
+        _ = TryPersistSettingsAsync(changeVersion, rollback, onSuccess, propertyNames);
+        return onSuccess is null;
+    }
+
+    private async Task TryPersistSettingsAsync(int changeVersion, Action rollback, Func<Task>? onSuccess, string[] propertyNames)
+    {
+        Task? saveTask = null;
+        var saveCompleted = false;
+
         try
         {
-            _settingsService.Save();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            rollback();
-            foreach (var propertyName in propertyNames)
+            saveTask = _settingsService.SaveAfterIdleAsync();
+            _saveRollbackTracker.Track(saveTask, rollback, propertyNames);
+            await saveTask.ConfigureAwait(false);
+            saveCompleted = true;
+            if (onSuccess is not null)
             {
-                OnPropertyChanged(propertyName);
+                await onSuccess().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Action? trackedRollback = null;
+            var isTracked = false;
+            var isCoalescedSave = !saveCompleted
+                && _saveRollbackTracker.TryTakeRollback(
+                    saveTask,
+                    propertyNames,
+                    out trackedRollback,
+                    out isTracked);
+            var coalescedRollback = isCoalescedSave ? trackedRollback : null;
+
+            if (coalescedRollback is not null
+                || (Volatile.Read(ref _settingsChangeVersion) == changeVersion && !isTracked))
+            {
+                await RunOnUiThreadAsync(() =>
+                {
+                    (coalescedRollback ?? rollback)();
+                    foreach (var propertyName in propertyNames)
+                    {
+                        OnPropertyChanged(propertyName);
+                    }
+                }).ConfigureAwait(false);
             }
 
-            Log.Error(ex, "Failed to persist settings change");
-            return false;
+            Log.LogError(ex, "Failed to persist settings change");
         }
     }
 }

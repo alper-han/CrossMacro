@@ -1,87 +1,69 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using CrossMacro.Infrastructure.Linux.Native;
-using CrossMacro.Infrastructure.Linux.Native.UInput;
-using CrossMacro.Infrastructure.Linux.Native.Evdev;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Daemon.Services;
 
-public class InputCaptureManager : IInputCaptureManager
+internal sealed class InputCaptureManager : IInputCaptureManager
 {
-    private readonly List<ILinuxCaptureReader> _readers = new();
+    private static readonly TimeSpan RescanInterval = TimeSpan.FromSeconds(1);
+    private readonly Dictionary<string, ILinuxCaptureReader> _readers = new(StringComparer.Ordinal);
     private readonly Lock _lock = new();
+    private readonly Lock _reportForwardLock = new();
     private readonly Func<IReadOnlyList<InputDeviceHelper.InputDevice>> _deviceEnumerator;
+    private readonly Func<IReadOnlyList<InputDeviceHelper.InputDevice>> _rescanDeviceEnumerator;
     private readonly Func<InputDeviceHelper.InputDevice, ILinuxCaptureReader> _readerFactory;
+    private readonly TimeSpan _rescanInterval;
+    private CancellationTokenSource? _rescanCancellation;
+    private CaptureConfiguration? _configuration;
 
     public InputCaptureManager()
         : this(
             () => InputDeviceHelper.GetAvailableDevices(),
-            device => new EvdevCaptureReaderAdapter(new EvdevReader(device.Path, device.Name)))
-    {
-    }
+            device => new EvdevCaptureReaderAdapter(new EvdevReader(device.Path, device.Name)),
+            () => InputDeviceHelper.GetAvailableDevices(logSummary: false))
+    { /* Empty */ }
 
     internal InputCaptureManager(
         Func<IReadOnlyList<InputDeviceHelper.InputDevice>> deviceEnumerator,
-        Func<InputDeviceHelper.InputDevice, ILinuxCaptureReader> readerFactory)
+        Func<InputDeviceHelper.InputDevice, ILinuxCaptureReader> readerFactory,
+        Func<IReadOnlyList<InputDeviceHelper.InputDevice>>? rescanDeviceEnumerator = null,
+        TimeSpan? rescanInterval = null)
     {
         _deviceEnumerator = deviceEnumerator ?? throw new ArgumentNullException(nameof(deviceEnumerator));
+        _rescanDeviceEnumerator = rescanDeviceEnumerator ?? _deviceEnumerator;
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
+        _rescanInterval = rescanInterval ?? RescanInterval;
+        if (_rescanInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(rescanInterval), "Rescan interval must be positive.");
+        }
     }
 
     public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent)
     {
         lock (_lock)
         {
-            StopCapture(); // Clear existing
+            StopCapture_NoLock();
 
-            var devices = _deviceEnumerator();
-            var targetDevices = devices.Where(d => ShouldCaptureDevice(d, captureMouse, captureKeyboard)).ToList();
-            
+            var configuration = new CaptureConfiguration(captureMouse, captureKeyboard, onEvent);
+            var targetDevices = GetTargetDevices(configuration, _deviceEnumerator);
+
             Log.Information("[InputCaptureManager] Starting capture on {Count} devices", targetDevices.Count);
 
-            if (targetDevices.Count == 0)
+            if (targetDevices.Count is 0)
             {
                 return CaptureStartResult.Failed("No matching input devices found.");
             }
 
-            foreach (var dev in targetDevices)
-            {
-                try 
-                {
-                    var evReader = _readerFactory(dev);
-                    evReader.EventReceived += (sender, e) => 
-                    {
-                        // Invoke callback. 
-                        // Note: This runs on EvdevReader's thread.
-                        // Callback must handle synchronization.
-                        try 
-                        {
-                            if (ShouldForwardEvent(e, captureMouse, captureKeyboard))
-                            {
-                                onEvent(e);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Verbose(ex, "[InputCaptureManager] Error in event callback");
-                        }
-                    };
-                    evReader.Start();
-                    _readers.Add(evReader);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning("Failed to open {Path}: {Msg}", dev.Path, ex.Message);
-                }
-            }
+            AddReaders(targetDevices, configuration);
 
-            if (_readers.Count == 0)
+            if (_readers.Count is 0)
             {
                 return CaptureStartResult.Failed("Failed to open any input devices.");
             }
 
+            _configuration = configuration;
+            var rescanCancellation = new CancellationTokenSource();
+            _rescanCancellation = rescanCancellation;
+            _ = Task.Run(() => RescanLoopAsync(rescanCancellation), CancellationToken.None);
             return CaptureStartResult.Started(_readers.Count);
         }
     }
@@ -90,15 +72,7 @@ public class InputCaptureManager : IInputCaptureManager
     {
         lock (_lock)
         {
-             if (_readers.Count > 0)
-             {
-                 foreach (var r in _readers)
-                 {
-                     r.Dispose();
-                 }
-                 _readers.Clear();
-                 Log.Information("[InputCaptureManager] Stopped capture");
-             }
+            StopCapture_NoLock();
         }
     }
 
@@ -107,33 +81,195 @@ public class InputCaptureManager : IInputCaptureManager
         StopCapture();
     }
 
-    private static bool ShouldForwardEvent(UInputNative.input_event inputEvent, bool captureMouse, bool captureKeyboard)
+    private static IReadOnlyList<InputDeviceHelper.InputDevice> GetTargetDevices(
+        CaptureConfiguration configuration,
+        Func<IReadOnlyList<InputDeviceHelper.InputDevice>> deviceEnumerator)
     {
-        return inputEvent.type switch
-        {
-            UInputNative.EV_KEY when UInputNative.IsMouseButton(inputEvent.code) => captureMouse,
-            UInputNative.EV_KEY => captureKeyboard,
-            UInputNative.EV_REL => captureMouse,
-            UInputNative.EV_ABS when inputEvent.code == UInputNative.ABS_X || inputEvent.code == UInputNative.ABS_Y => captureMouse,
-            UInputNative.EV_SYN => captureMouse,
-            _ => false
-        };
+        return deviceEnumerator()
+            .Where(device => DaemonInputCapturePolicy.ShouldCaptureDevice(
+                device,
+                configuration.CaptureMouse,
+                configuration.CaptureKeyboard))
+            .ToArray();
     }
 
-    private static bool ShouldCaptureDevice(InputDeviceHelper.InputDevice device, bool captureMouse, bool captureKeyboard)
+    private async Task RescanLoopAsync(CancellationTokenSource cancellation)
     {
-        if (VirtualDeviceConstants.IsCrossMacroVirtualDevice(device.Name, device.VendorId, device.ProductId))
+        var cancellationToken = cancellation.Token;
+        using var timer = new PeriodicTimer(_rescanInterval);
+        try
         {
-            return false;
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                try
+                {
+                    lock (_lock)
+                    {
+                        if (_configuration is null || cancellationToken.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
+                        ReconcileReaders(_configuration);
+                    }
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    Log.Warning(ex, "[InputCaptureManager] Input-device rescan failed; retrying on the next interval");
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Capture stopped or replaced.
+        }
+        finally
+        {
+            cancellation.Dispose();
+        }
+    }
+
+    private void ReconcileReaders(CaptureConfiguration configuration)
+    {
+        IReadOnlyList<InputDeviceHelper.InputDevice> devices;
+        try
+        {
+            devices = GetTargetDevices(configuration, _rescanDeviceEnumerator);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[InputCaptureManager] Failed to enumerate input devices during rescan");
+            return;
         }
 
-        return (captureMouse && device.IsMouse) || (captureKeyboard && device.IsKeyboard);
+        var targetPaths = devices.Select(device => device.Path).ToHashSet(StringComparer.Ordinal);
+        foreach (var (path, reader) in _readers.ToArray())
+        {
+            if (targetPaths.Contains(path) && reader.IsListening)
+            {
+                continue;
+            }
+
+            RemoveReader(path, reader);
+        }
+
+        AddReaders(devices, configuration);
     }
+
+    private void AddReaders(IEnumerable<InputDeviceHelper.InputDevice> devices, CaptureConfiguration configuration)
+    {
+        foreach (var device in devices.Where(device => !_readers.ContainsKey(device.Path)))
+        {
+            ILinuxCaptureReader? reader = null;
+            try
+            {
+                reader = _readerFactory(device);
+                var reportAccumulator = new InputCaptureReportAccumulator(
+                    configuration.CaptureMouse,
+                    configuration.CaptureKeyboard);
+                reader.EventReceived += (_, inputEvent) => ForwardCapturedEvent(
+                    reportAccumulator,
+                    configuration.OnEvent,
+                    inputEvent);
+                reader.Start();
+                _readers.Add(device.Path, reader);
+                Log.Information("[InputCaptureManager] Capturing {Name} ({Path})", device.Name, device.Path);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                DisposeReader(reader, device.Path);
+                Log.Warning("Failed to open {Path}: {Msg}", device.Path, ex.Message);
+            }
+        }
+    }
+
+    private void ForwardCapturedEvent(
+        InputCaptureReportAccumulator reportAccumulator,
+        Action<UInputNative.input_event> onEvent,
+        UInputNative.input_event inputEvent)
+    {
+        try
+        {
+            if (!reportAccumulator.TryAppend(inputEvent, out var completedReport))
+            {
+                return;
+            }
+
+            try
+            {
+                lock (_reportForwardLock)
+                {
+                    foreach (var reportEvent in completedReport!)
+                    {
+                        onEvent(reportEvent);
+                    }
+                }
+            }
+            finally
+            {
+                reportAccumulator.ResetCompletedReport();
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Verbose(ex, "[InputCaptureManager] Error in event callback");
+        }
+    }
+
+    private void StopCapture_NoLock()
+    {
+        var rescanCancellation = _rescanCancellation;
+        _rescanCancellation = null;
+        _configuration = null;
+        rescanCancellation?.Cancel();
+
+        if (_readers.Count is 0)
+        {
+            return;
+        }
+
+        foreach (var (path, reader) in _readers)
+        {
+            DisposeReader(reader, path);
+        }
+        _readers.Clear();
+        Log.Information("[InputCaptureManager] Stopped capture");
+    }
+
+    private void RemoveReader(string path, ILinuxCaptureReader reader)
+    {
+        _ = _readers.Remove(path);
+        DisposeReader(reader, path);
+        Log.Information("[InputCaptureManager] Stopped capture for disconnected device {Path}", path);
+    }
+
+    private static void DisposeReader(ILinuxCaptureReader? reader, string path)
+    {
+        if (reader is null)
+        {
+            return;
+        }
+
+        try
+        {
+            reader.Dispose();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning("Failed to dispose capture reader for {Path}: {Msg}", path, ex.Message);
+        }
+    }
+
+    private sealed record CaptureConfiguration(
+        bool CaptureMouse,
+        bool CaptureKeyboard,
+        Action<UInputNative.input_event> OnEvent);
 
     internal interface ILinuxCaptureReader : IDisposable
     {
-        event Action<ILinuxCaptureReader, UInputNative.input_event>? EventReceived;
-        void Start();
+        public event Action<ILinuxCaptureReader, UInputNative.input_event>? EventReceived;
+        public bool IsListening { get; }
+        public void Start();
     }
 
     private sealed class EvdevCaptureReaderAdapter : ILinuxCaptureReader
@@ -148,6 +284,8 @@ public class InputCaptureManager : IInputCaptureManager
 
         public event Action<ILinuxCaptureReader, UInputNative.input_event>? EventReceived;
 
+        public bool IsListening => _reader.IsListening;
+
         public void Start() => _reader.Start();
 
         public void Dispose()
@@ -156,9 +294,9 @@ public class InputCaptureManager : IInputCaptureManager
             _reader.Dispose();
         }
 
-        private void OnReaderEventReceived(EvdevReader reader, UInputNative.input_event inputEvent)
+        private void OnReaderEventReceived(object? sender, EvdevInputEventArgs e)
         {
-            EventReceived?.Invoke(this, inputEvent);
+            EventReceived?.Invoke(this, e.Event);
         }
     }
 }

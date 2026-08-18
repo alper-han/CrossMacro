@@ -1,8 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
@@ -94,7 +89,7 @@ internal sealed class ScreenReadingSelectorFixture
     {
         return new ScreenReadingSelectorFixture(
             new FakeLinuxEnvironmentDetector(isWayland: false, isX11: false, CompositorType.Unknown),
-            new FakeRuntimeContext(false),
+            new FakeRuntimeContext(isFlatpak: false),
             new FakeLinuxScreenReaderCapabilityDetector(default),
             new FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult.Unsupported("not x11")));
     }
@@ -103,7 +98,7 @@ internal sealed class ScreenReadingSelectorFixture
     {
         return new ScreenReadingSelectorFixture(
             new FakeLinuxEnvironmentDetector(isWayland: false, isX11: true, CompositorType.X11),
-            new FakeRuntimeContext(false),
+            new FakeRuntimeContext(isFlatpak: false),
             new FakeLinuxScreenReaderCapabilityDetector(default),
             new FakeX11ScreenCaptureSupportProbe(support));
     }
@@ -117,28 +112,16 @@ internal sealed class ScreenReadingSelectorFixture
         return new NamedScreenFrameProvider(providerName, support);
     }
 
-    private sealed class FakeLinuxEnvironmentDetector : ILinuxEnvironmentDetector
+    private sealed class FakeLinuxEnvironmentDetector(bool isWayland, bool isX11, CompositorType compositor) : ILinuxEnvironmentDetector
     {
-        public FakeLinuxEnvironmentDetector(bool isWayland, bool isX11, CompositorType compositor)
-        {
-            IsWayland = isWayland;
-            IsX11 = isX11;
-            DetectedCompositor = compositor;
-        }
-
-        public CompositorType DetectedCompositor { get; }
-        public bool IsWayland { get; }
-        public bool IsX11 { get; }
+        public CompositorType DetectedCompositor { get; } = compositor;
+        public bool IsWayland { get; } = isWayland;
+        public bool IsX11 { get; } = isX11;
     }
 
-    private sealed class FakeX11ScreenCaptureSupportProbe : IX11ScreenCaptureSupportProbe
+    private sealed class FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult support) : IX11ScreenCaptureSupportProbe
     {
-        private readonly X11ScreenCaptureSupportResult _support;
-
-        public FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult support)
-        {
-            _support = support;
-        }
+        private readonly X11ScreenCaptureSupportResult _support = support;
 
         public int ProbeCalls { get; private set; }
 
@@ -149,61 +132,56 @@ internal sealed class ScreenReadingSelectorFixture
         }
     }
 
-    private sealed class FakeRuntimeContext : IRuntimeContext
+    private sealed class FakeRuntimeContext(bool isFlatpak) : IRuntimeContext
     {
-        public FakeRuntimeContext(bool isFlatpak)
-        {
-            IsFlatpak = isFlatpak;
-        }
-
         public bool IsLinux => true;
         public bool IsWindows => false;
         public bool IsMacOS => false;
-        public bool IsFlatpak { get; }
+        public bool IsFlatpak { get; } = isFlatpak;
         public string? SessionType => "wayland";
     }
 
-    private sealed class FakeLinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapabilityDetector
+    private sealed class FakeLinuxScreenReaderCapabilityDetector(LinuxScreenReaderCapabilitySnapshot snapshot) : ILinuxScreenReaderCapabilityDetector
     {
-        private readonly LinuxScreenReaderCapabilitySnapshot _snapshot;
-
-        public FakeLinuxScreenReaderCapabilityDetector(LinuxScreenReaderCapabilitySnapshot snapshot)
-        {
-            _snapshot = snapshot;
-        }
+        private readonly LinuxScreenReaderCapabilitySnapshot _snapshot = snapshot;
 
         public int SnapshotCalls { get; private set; }
+
+        public bool IsGnomeSession => false;
 
         public LinuxScreenReaderCapabilitySnapshot GetSnapshot()
         {
             SnapshotCalls++;
             return _snapshot;
         }
-    }
 
-    private sealed class NamedScreenFrameProvider : IScreenFrameProvider
-    {
-        private readonly X11ScreenCaptureSupportResult? _support;
-
-        public NamedScreenFrameProvider(string providerName, X11ScreenCaptureSupportResult? support)
+        public void InvalidateCache()
         {
-            ProviderName = providerName;
-            _support = support;
         }
 
-        public string ProviderName { get; }
+        public Task EnsureReadyAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NamedScreenFrameProvider(string providerName, X11ScreenCaptureSupportResult? support) : IScreenFrameProvider
+    {
+        private readonly X11ScreenCaptureSupportResult? _support = support;
+
+        public string ProviderName { get; } = providerName;
         public bool IsSupported => _support?.IsSupported ?? true;
 
         public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
         {
             if (_support is { IsSupported: false } support)
             {
-                return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+                return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                     support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                     support.ErrorMessage ?? "Test provider is unavailable."));
             }
 
-            return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Test provider does not capture frames."));
         }

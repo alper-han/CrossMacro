@@ -1,13 +1,25 @@
-using System;
-using System.Threading;
 
 namespace CrossMacro.Platform.Abstractions;
 
 public readonly record struct ScreenReadOptions
 {
-    public static readonly ScreenReadOptions Default = new();
+    public static readonly ScreenReadOptions Default;
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(50);
 
-    public ScreenReadOptions(TimeSpan? timeout = null, TimeSpan? pollInterval = null, CancellationToken cancellationToken = default)
+    public ScreenReadOptions(
+        TimeSpan? timeout = null,
+        TimeSpan? pollInterval = null,
+        CancellationToken cancellationToken = default)
+        : this(timeout, pollInterval, pollUntilMatch: false, cancellationToken)
+    {
+    }
+
+    public ScreenReadOptions(
+        TimeSpan? timeout,
+        TimeSpan? pollInterval,
+        bool pollUntilMatch,
+        CancellationToken cancellationToken = default)
     {
         if (timeout is { } timeoutValue && timeoutValue < TimeSpan.Zero)
         {
@@ -22,6 +34,7 @@ public readonly record struct ScreenReadOptions
         Timeout = timeout;
         PollInterval = pollInterval;
         CancellationToken = cancellationToken;
+        PollUntilMatch = pollUntilMatch;
     }
 
     public TimeSpan? Timeout { get; }
@@ -29,4 +42,9 @@ public readonly record struct ScreenReadOptions
     public TimeSpan? PollInterval { get; }
 
     public CancellationToken CancellationToken { get; }
+
+    /// <summary>
+    /// Requests repeated matching attempts until <see cref="Timeout"/> expires.
+    /// </summary>
+    public bool PollUntilMatch { get; }
 }

@@ -1,12 +1,7 @@
-using CrossMacro.Platform.MacOS.Services;
-using CrossMacro.Platform.MacOS.Native;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-public class MacOSInputSimulatorTests
+public sealed class MacOSInputSimulatorTests
 {
     [Fact]
     public void ProviderName_IsExpected()
@@ -29,9 +24,9 @@ public class MacOSInputSimulatorTests
     {
         var simulator = new MacOSInputSimulator();
 
-        Assert.IsAssignableFrom<IUnicodeTextInputSimulator>(simulator);
-        Assert.IsAssignableFrom<ITaggedKeyboardInputSimulator>(simulator);
-        Assert.IsAssignableFrom<ITaggedUnicodeTextInputSimulator>(simulator);
+        _ = Assert.IsAssignableFrom<IUnicodeTextInputSimulator>(simulator);
+        _ = Assert.IsAssignableFrom<ITaggedKeyboardInputSimulator>(simulator);
+        _ = Assert.IsAssignableFrom<ITaggedUnicodeTextInputSimulator>(simulator);
         Assert.Equal(simulator.IsSupported, simulator.SupportsUnicodeTextInput);
         Assert.Equal(simulator.IsSupported, simulator.SupportsTaggedKeyboardInput);
     }
@@ -41,7 +36,7 @@ public class MacOSInputSimulatorTests
     {
         var simulator = new MacOSInputSimulator();
 
-        Assert.IsAssignableFrom<IPlatformPasteShortcutProvider>(simulator);
+        _ = Assert.IsAssignableFrom<IPlatformPasteShortcutProvider>(simulator);
         Assert.True(simulator.UsesMetaKeyForStandardPaste);
     }
 
@@ -68,8 +63,8 @@ public class MacOSInputSimulatorTests
         var exception = Assert.Throws<InputInjectionPermissionRequiredException>(
             () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
 
-        Assert.Contains("Accessibility", exception.Message);
-        Assert.Contains("Input Monitoring", exception.Message);
+        Assert.Contains("Accessibility", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Input Monitoring", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,9 +79,9 @@ public class MacOSInputSimulatorTests
             },
             isMacOS: () => true);
 
-        Assert.Throws<InputInjectionPermissionRequiredException>(
+        _ = Assert.Throws<InputInjectionPermissionRequiredException>(
             () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
-        Assert.Throws<InputInjectionPermissionRequiredException>(
+        _ = Assert.Throws<InputInjectionPermissionRequiredException>(
             () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
 
         Assert.Equal(2, postRequests);
@@ -100,11 +95,11 @@ public class MacOSInputSimulatorTests
             () =>
             {
                 postRequests++;
-                return postRequests == 2;
+                return postRequests is 2;
             },
             isMacOS: () => true);
 
-        Assert.Throws<InputInjectionPermissionRequiredException>(
+        _ = Assert.Throws<InputInjectionPermissionRequiredException>(
             () => simulator.KeyPress(InputEventCode.KEY_A, pressed: true));
         simulator.KeyPress(InputEventCode.KEY_F21, pressed: true);
         simulator.KeyPress(InputEventCode.KEY_F21, pressed: false);
@@ -117,7 +112,7 @@ public class MacOSInputSimulatorTests
     {
         var flags = MacOSInputSimulator.CreateKeyboardFlags([InputEventCode.KEY_LEFTMETA]);
 
-        Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Command));
+        Assert.True(flags.HasFlag(CoreGraphics.CGEventModifiers.Command));
     }
 
     [Fact]
@@ -127,13 +122,13 @@ public class MacOSInputSimulatorTests
             [
                 InputEventCode.KEY_LEFTCTRL,
                 InputEventCode.KEY_LEFTSHIFT,
-                InputEventCode.KEY_LEFTALT
+                InputEventCode.KEY_LEFTALT,
             ]);
 
-        Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Control));
-        Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Shift));
-        Assert.True(flags.HasFlag(CoreGraphics.CGEventFlags.Alternate));
-        Assert.False(flags.HasFlag(CoreGraphics.CGEventFlags.Command));
+        Assert.True(flags.HasFlag(CoreGraphics.CGEventModifiers.Control));
+        Assert.True(flags.HasFlag(CoreGraphics.CGEventModifiers.Shift));
+        Assert.True(flags.HasFlag(CoreGraphics.CGEventModifiers.Alternate));
+        Assert.False(flags.HasFlag(CoreGraphics.CGEventModifiers.Command));
     }
 
     [Fact]
@@ -146,10 +141,10 @@ public class MacOSInputSimulatorTests
         var vUp = simulator.UpdateKeyboardFlags(InputEventCode.KEY_V, pressed: false);
         var metaUp = simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTMETA, pressed: false);
 
-        Assert.True(metaDown.HasFlag(CoreGraphics.CGEventFlags.Command));
-        Assert.True(vDown.HasFlag(CoreGraphics.CGEventFlags.Command));
-        Assert.True(vUp.HasFlag(CoreGraphics.CGEventFlags.Command));
-        Assert.False(metaUp.HasFlag(CoreGraphics.CGEventFlags.Command));
+        Assert.True(metaDown.HasFlag(CoreGraphics.CGEventModifiers.Command));
+        Assert.True(vDown.HasFlag(CoreGraphics.CGEventModifiers.Command));
+        Assert.True(vUp.HasFlag(CoreGraphics.CGEventModifiers.Command));
+        Assert.False(metaUp.HasFlag(CoreGraphics.CGEventModifiers.Command));
     }
 
     [Fact]
@@ -157,13 +152,13 @@ public class MacOSInputSimulatorTests
     {
         var simulator = new MacOSInputSimulator();
 
-        simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTSHIFT, pressed: true);
-        simulator.UpdateKeyboardFlags(InputEventCode.KEY_RIGHTSHIFT, pressed: true);
+        _ = simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTSHIFT, pressed: true);
+        _ = simulator.UpdateKeyboardFlags(InputEventCode.KEY_RIGHTSHIFT, pressed: true);
         var leftShiftUp = simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTSHIFT, pressed: false);
         var rightShiftUp = simulator.UpdateKeyboardFlags(InputEventCode.KEY_RIGHTSHIFT, pressed: false);
 
-        Assert.True(leftShiftUp.HasFlag(CoreGraphics.CGEventFlags.Shift));
-        Assert.False(rightShiftUp.HasFlag(CoreGraphics.CGEventFlags.Shift));
+        Assert.True(leftShiftUp.HasFlag(CoreGraphics.CGEventModifiers.Shift));
+        Assert.False(rightShiftUp.HasFlag(CoreGraphics.CGEventModifiers.Shift));
     }
 
     [Fact]
@@ -172,11 +167,11 @@ public class MacOSInputSimulatorTests
         var simulator = new MacOSInputSimulator();
 
         var initial = simulator.UpdateKeyboardFlags(InputEventCode.KEY_V, pressed: true);
-        simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTCTRL, pressed: true);
+        _ = simulator.UpdateKeyboardFlags(InputEventCode.KEY_LEFTCTRL, pressed: true);
         var afterNonModifier = simulator.UpdateKeyboardFlags(InputEventCode.KEY_V, pressed: false);
 
         Assert.Equal(default, initial);
-        Assert.True(afterNonModifier.HasFlag(CoreGraphics.CGEventFlags.Control));
+        Assert.True(afterNonModifier.HasFlag(CoreGraphics.CGEventModifiers.Control));
     }
 
     [Theory]
@@ -244,10 +239,10 @@ public class MacOSInputSimulatorTests
         var payload = MacOSSystemKeyEventFactory.CreatePayload(
             0,
             pressed: true,
-            CoreGraphics.CGEventFlags.Command | CoreGraphics.CGEventFlags.Shift);
+            CoreGraphics.CGEventModifiers.Command | CoreGraphics.CGEventModifiers.Shift);
 
-        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventFlags.Command));
-        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventFlags.Shift));
+        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventModifiers.Command));
+        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventModifiers.Shift));
         Assert.True(((ulong)payload.Flags & 0x0A00) == 0x0A00);
     }
 
@@ -265,10 +260,10 @@ public class MacOSInputSimulatorTests
         var payload = MacOSSystemKeyEventFactory.CreatePayload(
             16,
             pressed: true,
-            CoreGraphics.CGEventFlags.Command);
+            CoreGraphics.CGEventModifiers.Command);
 
         Assert.Equal(CoreGraphics.CGEventType.SystemDefined, payload.EventType);
-        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventFlags.Command));
+        Assert.True(payload.Flags.HasFlag(CoreGraphics.CGEventModifiers.Command));
         Assert.True(((ulong)payload.Flags & 0x0A00) == 0x0A00);
         Assert.Equal(8, payload.Subtype);
         Assert.Equal((16 << 16) | 0x0A00, payload.Data1);
@@ -289,14 +284,9 @@ public class MacOSInputSimulatorTests
     [Fact]
     public void SystemKeyFactory_IncludesNSEventBridgeImplementation()
     {
-        var bridgeType = typeof(MacOSSystemKeyEventFactory).Assembly.GetType(
-            "CrossMacro.Platform.MacOS.Services.MacOSSystemKeyNSEventBridge");
-        var createMethod = bridgeType?.GetMethod(
-            "TryCreateSystemDefinedCGEvent",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        TryCreateSystemDefinedCGEventDelegate createEvent = MacOSSystemKeyNSEventBridge.TryCreateSystemDefinedCGEvent;
 
-        Assert.NotNull(bridgeType);
-        Assert.NotNull(createMethod);
+        Assert.NotNull(createEvent);
     }
 
     [Fact]
@@ -337,4 +327,183 @@ public class MacOSInputSimulatorTests
         Assert.Equal(-1, nxKeyType);
         Assert.Equal(0xFFFF, virtualKeyCode);
     }
+
+    [Theory]
+    [InlineData(MouseButtonCode.Left, true, (int)CoreGraphics.CGEventType.LeftMouseDown, 0)]
+    [InlineData(MouseButtonCode.Right, false, (int)CoreGraphics.CGEventType.RightMouseUp, 1)]
+    [InlineData(MouseButtonCode.Middle, true, (int)CoreGraphics.CGEventType.OtherMouseDown, 2)]
+    [InlineData(MouseButtonCode.Side1, false, (int)CoreGraphics.CGEventType.OtherMouseUp, 3)]
+    [InlineData(MouseButtonCode.Side2, true, (int)CoreGraphics.CGEventType.OtherMouseDown, 4)]
+    public void TryResolveMouseButton_ShouldUseCoreGraphicsButtonNumbers(
+        int button,
+        bool pressed,
+        int expectedEventType,
+        long expectedButtonNumber)
+    {
+        var resolved = MacOSInputSimulator.TryResolveMouseButton(
+            button,
+            pressed,
+            out var macButton,
+            out var eventType,
+            out var buttonNumber);
+
+        Assert.True(resolved);
+        Assert.Equal((CoreGraphics.CGEventType)expectedEventType, eventType);
+        Assert.Equal(expectedButtonNumber, buttonNumber);
+        Assert.Equal((CoreGraphics.CGMouseButton)expectedButtonNumber, macButton);
+    }
+
+    [Theory]
+    [InlineData(MouseButtonCode.Left, (int)CoreGraphics.CGEventType.LeftMouseDragged, 0)]
+    [InlineData(MouseButtonCode.Right, (int)CoreGraphics.CGEventType.RightMouseDragged, 1)]
+    [InlineData(MouseButtonCode.Middle, (int)CoreGraphics.CGEventType.OtherMouseDragged, 2)]
+    [InlineData(MouseButtonCode.Side1, (int)CoreGraphics.CGEventType.OtherMouseDragged, 3)]
+    [InlineData(MouseButtonCode.Side2, (int)CoreGraphics.CGEventType.OtherMouseDragged, 4)]
+    public void ResolveMouseMovement_WhenButtonHeld_ShouldEmitMatchingDrag(
+        int button,
+        int expectedEventType,
+        long expectedButtonNumber)
+    {
+        var movement = MacOSInputSimulator.ResolveMouseMovement(new HashSet<int> { button });
+
+        Assert.Equal((CoreGraphics.CGEventType)expectedEventType, movement.EventType);
+        Assert.Equal(expectedButtonNumber, movement.ButtonNumber);
+    }
+
+    [Fact]
+    public void MoveRelative_WhenEventsArePostedBackToBack_UsesLastPostedTarget()
+    {
+        var postedPositions = new List<(int X, int Y)>();
+        var cursorQueries = 0;
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: () =>
+            {
+                cursorQueries++;
+                return new CoreGraphics.CGPoint { X = 100, Y = 80 };
+            },
+            postMouseMovement: (x, y, _) =>
+            {
+                postedPositions.Add((x, y));
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MoveRelative(10, -5);
+        simulator.MoveRelative(4, 7);
+
+        Assert.Equal(1, cursorQueries);
+        Assert.Equal([(110, 75), (114, 82)], postedPositions);
+    }
+
+    [Fact]
+    public void MoveRelative_WhenTargetOverflows_SaturatesPostedPosition()
+    {
+        (int X, int Y)? postedPosition = null;
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: static () => new CoreGraphics.CGPoint
+            {
+                X = int.MaxValue,
+                Y = int.MinValue,
+            },
+            postMouseMovement: (x, y, _) =>
+            {
+                postedPosition = (x, y);
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MoveRelative(1, -1);
+
+        Assert.Equal((int.MaxValue, int.MinValue), postedPosition);
+    }
+
+    [Fact]
+    public void MouseButton_AfterPostedMovement_UsesPostedTargetInsteadOfStaleCursorQuery()
+    {
+        (int X, int Y)? buttonPosition = null;
+        var cursorQueries = 0;
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: () =>
+            {
+                cursorQueries++;
+                return new CoreGraphics.CGPoint { X = 10, Y = 20 };
+            },
+            postMouseMovement: static (_, _, _) => true,
+            postMouseButton: (_, _, x, y) =>
+            {
+                buttonPosition = (x, y);
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MoveAbsolute(500, 600);
+        simulator.MouseButton(MouseButtonCode.Left, pressed: true);
+
+        Assert.Equal(1, cursorQueries);
+        Assert.Equal((500, 600), buttonPosition);
+    }
+
+    [Fact]
+    public void MouseButton_WithoutPostedMovement_UsesLiveCursorPosition()
+    {
+        (int X, int Y)? buttonPosition = null;
+        var cursorPositions = new Queue<CoreGraphics.CGPoint>(
+        [
+            new CoreGraphics.CGPoint { X = 10, Y = 20 },
+            new CoreGraphics.CGPoint { X = 30, Y = 40 },
+        ]);
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: () => cursorPositions.Dequeue(),
+            postMouseMovement: static (_, _, _) => true,
+            postMouseButton: (_, _, x, y) =>
+            {
+                buttonPosition = (x, y);
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MouseButton(MouseButtonCode.Left, pressed: true);
+
+        Assert.Equal((30, 40), buttonPosition);
+    }
+
+    [Fact]
+    public void MouseButton_ReleaseAfterPress_ReusesTrackedPressPosition()
+    {
+        var buttonPositions = new List<(bool Pressed, int X, int Y)>();
+        var cursorQueries = 0;
+        var simulator = new MacOSInputSimulator(
+            requestPostEventAccess: static () => true,
+            isMacOS: static () => true,
+            getCursorPosition: () =>
+            {
+                cursorQueries++;
+                return new CoreGraphics.CGPoint { X = 70, Y = 80 };
+            },
+            postMouseMovement: static (_, _, _) => true,
+            postMouseButton: (_, pressed, x, y) =>
+            {
+                buttonPositions.Add((pressed, x, y));
+                return true;
+            });
+        simulator.Initialize();
+
+        simulator.MouseButton(MouseButtonCode.Left, pressed: true);
+        simulator.MouseButton(MouseButtonCode.Left, pressed: false);
+
+        Assert.Equal(2, cursorQueries);
+        Assert.Equal([(true, 70, 80), (false, 70, 80)], buttonPositions);
+    }
+
+    private delegate bool TryCreateSystemDefinedCGEventDelegate(
+        MacOSSystemKeyEventPayload payload,
+        out IntPtr eventRef);
 }

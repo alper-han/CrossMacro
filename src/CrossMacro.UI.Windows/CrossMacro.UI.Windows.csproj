@@ -4,13 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>CrossMacro.UI</AssemblyName>
     <Nullable>enable</Nullable>
+    <PublishAot Condition="'$(PublishAot)' == ''">false</PublishAot>
     <ApplicationManifest>..\CrossMacro.UI\app.manifest</ApplicationManifest>
     <ApplicationIcon>..\CrossMacro.UI\Assets\mouse-icon.ico</ApplicationIcon>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
-    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
@@ -20,6 +21,7 @@
     <ProjectReference Include="..\CrossMacro.UI\CrossMacro.UI.csproj" />
     <ProjectReference Include="..\CrossMacro.Platform.Windows\CrossMacro.Platform.Windows.csproj" />
     <ProjectReference Include="..\CrossMacro.Cli\CrossMacro.Cli.csproj" />
+    <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
   </ItemGroup>
 
@@ -36,16 +38,13 @@
     <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
     <TrimmerRootAssembly Include="Avalonia.Fonts.Inter" />
     <TrimmerRootAssembly Include="Avalonia.Win32" />
-    <TrimmerRootAssembly Include="Svg.Controls.Skia.Avalonia" />
-    <TrimmerRootAssembly Include="Svg.Animation" />
-    <TrimmerRootAssembly Include="Svg.Custom" />
-    <TrimmerRootAssembly Include="Svg.Skia" />
-    <TrimmerRootAssembly Include="Svg.SceneGraph" />
-    <TrimmerRootAssembly Include="Svg.Model" />
-    <TrimmerRootAssembly Include="ShimSkiaSharp" />
     <TrimmerRootAssembly Include="Serilog" />
     <TrimmerRootAssembly Include="Serilog.Sinks.Console" />
     <TrimmerRootAssembly Include="Serilog.Sinks.File" />
     <TrimmerRootAssembly Include="Serilog.Sinks.Async" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/GuiHostBootstrap.cs" Link="GuiHostBootstrap.cs" />
+  </ItemGroup>
+
 </Project>

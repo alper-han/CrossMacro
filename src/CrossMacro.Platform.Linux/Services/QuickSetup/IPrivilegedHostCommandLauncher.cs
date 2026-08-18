@@ -1,10 +1,9 @@
-using System.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
 internal interface IPrivilegedHostCommandLauncher
 {
-    bool IsAvailable(out string failureMessage);
+    public ValueTask<(bool IsAvailable, string FailureMessage)> IsAvailableAsync(CancellationToken cancellationToken = default);
 
-    ProcessStartInfo CreateStartInfo(string hostScript, LinuxQuickSetupIdentity identity);
+    public ProcessStartInfo CreateStartInfo(string hostScript, LinuxQuickSetupIdentity identity);
 }

@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
@@ -10,18 +8,23 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
     private readonly IPortalScreenCastSupportProbe _portalScreenCastProbe;
     private readonly IKWinScreenShotSupportProbe _kWinScreenShotProbe;
     private readonly GnomePositionProvider _gnomePositionProvider;
+    private readonly Lock _readinessLock = new();
 
-    public LinuxScreenReaderCapabilityDetector(GnomePositionProvider gnomePositionProvider)
+    private Lazy<LinuxScreenReaderCapabilitySnapshot> _snapshot;
+    private Task? _readinessTask;
+
+    private static readonly TimeSpan GnomeInitializationTimeout = TimeSpan.FromSeconds(5);
+
+    internal LinuxScreenReaderCapabilityDetector(GnomePositionProvider gnomePositionProvider)
         : this(
             WaylandExtImageCopySupportProbe.Instance,
             new WlrScreencopyCapture(),
             PortalScreenCastSupportProbe.Instance,
             new KWinScreenShotCapture(),
             gnomePositionProvider)
-    {
-    }
+    { /* Empty */ }
 
-    public LinuxScreenReaderCapabilityDetector(
+    internal LinuxScreenReaderCapabilityDetector(
         IExtImageCopySupportProbe extImageCopyProbe,
         GnomePositionProvider gnomePositionProvider)
         : this(
@@ -30,17 +33,14 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
             PortalScreenCastSupportProbe.Instance,
             new KWinScreenShotCapture(),
             gnomePositionProvider)
-    {
-    }
+    { /* Empty */ }
 
-    public LinuxScreenReaderCapabilityDetector(
+    internal LinuxScreenReaderCapabilityDetector(
         IExtImageCopySupportProbe extImageCopyProbe,
         IWlrScreencopySupportProbe wlrScreencopyProbe,
         IPortalScreenCastSupportProbe portalScreenCastProbe,
         IKWinScreenShotSupportProbe kWinScreenShotProbe)
-        : this(extImageCopyProbe, wlrScreencopyProbe, portalScreenCastProbe, kWinScreenShotProbe, new GnomePositionProvider())
-    {
-    }
+        : this(extImageCopyProbe, wlrScreencopyProbe, portalScreenCastProbe, kWinScreenShotProbe, new GnomePositionProvider()) { /* Empty */ }
 
     public LinuxScreenReaderCapabilityDetector(
         IExtImageCopySupportProbe extImageCopyProbe,
@@ -54,16 +54,73 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
         _portalScreenCastProbe = portalScreenCastProbe ?? throw new ArgumentNullException(nameof(portalScreenCastProbe));
         _kWinScreenShotProbe = kWinScreenShotProbe ?? throw new ArgumentNullException(nameof(kWinScreenShotProbe));
         _gnomePositionProvider = gnomePositionProvider ?? throw new ArgumentNullException(nameof(gnomePositionProvider));
+
+        _snapshot = new Lazy<LinuxScreenReaderCapabilitySnapshot>(CreateSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
+        _gnomePositionProvider.ExtensionStatusUpdated += OnGnomeExtensionStatusUpdated;
     }
 
-    public LinuxScreenReaderCapabilitySnapshot GetSnapshot()
+    public bool IsGnomeSession => _gnomePositionProvider.IsSupported;
+
+    public LinuxScreenReaderCapabilitySnapshot GetSnapshot() => _snapshot.Value;
+
+    public Task EnsureReadyAsync(CancellationToken cancellationToken = default)
     {
-        var extSupport = _extImageCopyProbe.ProbeSupport();
-        var wlrSupport = _wlrScreencopyProbe.ProbeSupport();
+        if (!IsGnomeSession)
+        {
+            return Task.CompletedTask;
+        }
+
+        Task readinessTask;
+        lock (_readinessLock)
+        {
+            _readinessTask ??= WaitForGnomeInitializationAsync();
+            readinessTask = _readinessTask;
+        }
+
+        return readinessTask.WaitAsync(cancellationToken);
+    }
+
+    public void InvalidateCache()
+    {
+        _snapshot = new Lazy<LinuxScreenReaderCapabilitySnapshot>(CreateSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    private async Task WaitForGnomeInitializationAsync()
+    {
+        try
+        {
+            _ = await _gnomePositionProvider.InitializationTask
+                .WaitAsync(GnomeInitializationTimeout, TimeProvider.System, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            Log.Warning(
+                "[LinuxScreenReaderCapabilityDetector] GNOME extension initialization did not complete within {TimeoutSeconds}s; using the configured fallback order",
+                GnomeInitializationTimeout.TotalSeconds);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[LinuxScreenReaderCapabilityDetector] GNOME extension readiness check failed; using the configured fallback order");
+        }
+        finally
+        {
+            InvalidateCache();
+        }
+    }
+
+    private void OnGnomeExtensionStatusUpdated(object? sender, ExtensionStatusChangedEventArgs args)
+    {
+        InvalidateCache();
+    }
+
+    private LinuxScreenReaderCapabilitySnapshot CreateSnapshot()
+    {
+        var extSupport = ProbeExtImageCopySupport();
+        var wlrSupport = ProbeWlrScreencopySupport();
         var portalSupport = _portalScreenCastProbe.ProbeSupport();
         var kWinSupport = _kWinScreenShotProbe.ProbeSupport();
-        var isGnomeExtensionAvailable = _gnomePositionProvider.IsSupported && 
-            _gnomePositionProvider.CurrentExtensionStatus?.Code == CrossMacro.Core.Services.ExtensionStatusCode.Enabled;
+        var isGnomeExtensionAvailable = _gnomePositionProvider.IsSupported && (_gnomePositionProvider.CurrentExtensionStatus?.Code) is CrossMacro.Core.Services.ExtensionStatusCode.Enabled;
 
         return new LinuxScreenReaderCapabilitySnapshot(
             kWinSupport.IsSupported
@@ -85,16 +142,41 @@ public sealed class LinuxScreenReaderCapabilityDetector : ILinuxScreenReaderCapa
                     wlrSupport.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                     wlrSupport.ErrorMessage ?? "wlr-screencopy screen reading backend is unavailable."),
             portalSupport.IsSupported
-                ? LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal)
+                ? LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal, portalSupport.Diagnostic)
                 : LinuxScreenReaderBackendCapability.Unavailable(
                     LinuxScreenReaderBackend.Portal,
                     portalSupport.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-                    portalSupport.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable."),
+                    portalSupport.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable.",
+                    portalSupport.Diagnostic),
             isGnomeExtensionAvailable
                 ? LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.GnomeExtension)
                 : LinuxScreenReaderBackendCapability.Unavailable(
                     LinuxScreenReaderBackend.GnomeExtension,
                     ScreenReadErrorKind.BackendUnavailable,
                     "GNOME Shell extension backend is unavailable or not enabled."));
+    }
+
+    private ExtImageCopySupportResult ProbeExtImageCopySupport()
+    {
+        try
+        {
+            return _extImageCopyProbe.ProbeSupport();
+        }
+        catch (IOException ex)
+        {
+            return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+        }
+    }
+
+    private WlrScreencopySupportResult ProbeWlrScreencopySupport()
+    {
+        try
+        {
+            return _wlrScreencopyProbe.ProbeSupport();
+        }
+        catch (IOException ex)
+        {
+            return WlrScreencopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+        }
     }
 }

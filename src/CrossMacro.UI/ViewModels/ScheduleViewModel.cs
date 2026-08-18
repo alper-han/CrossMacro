@@ -1,16 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Avalonia.Threading;
-using CommunityToolkit.Mvvm.Input;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -21,44 +8,45 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 {
     private readonly ISchedulerService _schedulerService;
     private readonly IDialogService _dialogService;
-    private readonly ITimeProvider _timeProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly ILocalizationService _localizationService;
-    private readonly object _initializeLock = new();
+    private readonly IManageSchedule? _manageSchedule;
+    private readonly IProfileRuntimeState? _profileRuntimeState;
+    private readonly Lock _initializeLock = new();
     private Task? _initializeTask;
-    private ScheduledTask? _selectedTask;
+    private readonly Dictionary<Guid, ScheduledTaskEditor> _editors = [];
     private bool _isIntervalSelected = true;
     private bool _isDateTimeSelected;
     private bool _isWeeklySelected;
-    private bool _useCustomWeeklyDays;
     private bool _disposed;
 
-    public ObservableCollection<ScheduledTask> Tasks => _schedulerService.Tasks ?? new ObservableCollection<ScheduledTask>();
+    public ObservableCollection<ScheduledTaskEditor> Tasks { get; } = [];
 
-    public IReadOnlyList<IntervalUnitOption> IntervalUnitOptions => new[]
-    {
+    public IReadOnlyList<IntervalUnitOption> IntervalUnitOptions =>
+    [
         new IntervalUnitOption(IntervalUnit.Seconds, _localizationService["Schedule_Seconds"]),
         new IntervalUnitOption(IntervalUnit.Minutes, _localizationService["Schedule_Minutes"]),
-        new IntervalUnitOption(IntervalUnit.Hours, _localizationService["Schedule_Hours"])
-    };
+        new IntervalUnitOption(IntervalUnit.Hours, _localizationService["Schedule_Hours"]),
+    ];
 
-    public IReadOnlyList<WeeklyPresetOption> WeeklyPresetOptions => new[]
-    {
+    public IReadOnlyList<WeeklyPresetOption> WeeklyPresetOptions =>
+    [
         new WeeklyPresetOption(ScheduleDays.EveryDay, _localizationService["Schedule_WeeklyEveryDay"]),
         new WeeklyPresetOption(ScheduleDays.Weekdays, _localizationService["Schedule_WeeklyWeekdays"]),
         new WeeklyPresetOption(ScheduleDays.Weekends, _localizationService["Schedule_WeeklyWeekends"]),
-        new WeeklyPresetOption(null, _localizationService["Schedule_WeeklyCustom"])
-    };
+        new WeeklyPresetOption(Value: null, _localizationService["Schedule_WeeklyCustom"]),
+    ];
 
-    public IReadOnlyList<WeeklyDayOption> WeeklyDayOptions => new WeeklyDayOption[]
-    {
+    public IReadOnlyList<WeeklyDayOption> WeeklyDayOptions =>
+    [
         new(this, ScheduleDays.Monday, _localizationService["Schedule_Monday"]),
         new(this, ScheduleDays.Tuesday, _localizationService["Schedule_Tuesday"]),
         new(this, ScheduleDays.Wednesday, _localizationService["Schedule_Wednesday"]),
         new(this, ScheduleDays.Thursday, _localizationService["Schedule_Thursday"]),
         new(this, ScheduleDays.Friday, _localizationService["Schedule_Friday"]),
         new(this, ScheduleDays.Saturday, _localizationService["Schedule_Saturday"]),
-        new(this, ScheduleDays.Sunday, _localizationService["Schedule_Sunday"])
-    };
+        new(this, ScheduleDays.Sunday, _localizationService["Schedule_Sunday"]),
+    ];
 
     public string TaskCountText => string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_ItemsText"], Tasks.Count);
 
@@ -67,31 +55,24 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         get => IntervalUnitOptions.FirstOrDefault(option => option.Value == SelectedTask?.IntervalUnit);
         set
         {
-            if (SelectedTask != null && value != null && SelectedTask.IntervalUnit != value.Value)
+            if (SelectedTask is not null && value != null && SelectedTask.IntervalUnit != value.Value)
             {
                 SelectedTask.IntervalUnit = value.Value;
                 OnPropertyChanged();
             }
         }
     }
-    
-    public ScheduledTask? SelectedTask
-    {
-        get => _selectedTask;
-        set
-        {
-            if (_selectedTask != value)
-            {
-                if (_selectedTask != null)
-                {
-                    _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
-                }
 
-                _selectedTask = value;
-                if (_selectedTask != null)
-                {
-                    _selectedTask.PropertyChanged += OnSelectedTaskPropertyChanged;
-                }
+    public ScheduledTaskEditor? SelectedTask
+    {
+        get; set
+        {
+            if (field != value)
+            {
+                field?.PropertyChanged -= OnSelectedTaskPropertyChanged;
+
+                field = value;
+                field?.PropertyChanged += OnSelectedTaskPropertyChanged;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasSelectedTask));
                 OnPropertyChanged(nameof(SelectedMacroFilePath));
@@ -105,13 +86,13 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     private void OnSelectedTaskPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ScheduledTask.LastRunTime) or nameof(ScheduledTask.NextRunTime) or nameof(ScheduledTask.LastStatus))
+        if (e.PropertyName is nameof(ScheduledTaskEditor.LastRunTime) or nameof(ScheduledTaskEditor.NextRunTime) or nameof(ScheduledTaskEditor.LastStatus))
         {
-            RaiseOnUiThread(OnSelectedTaskStatusChanged);
+            PostToUiThread(OnSelectedTaskStatusChanged);
             return;
         }
 
-        if (sender is ScheduledTask task
+        if (sender is ScheduledTaskEditor task
             && task.IsEnabled
             && e.PropertyName is nameof(ScheduledTask.IntervalValue)
                 or nameof(ScheduledTask.IntervalUnit)
@@ -123,34 +104,34 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
                 or nameof(ScheduledTask.WeeklyTime)
                 or nameof(ScheduledTask.Type))
         {
-            RaiseOnUiThread(() =>
+            PostToUiThread(() =>
             {
-                if (e.PropertyName == nameof(ScheduledTask.IntervalUnit))
+                if (string.Equals(e.PropertyName, nameof(ScheduledTask.IntervalUnit), StringComparison.Ordinal))
                 {
                     OnPropertyChanged(nameof(SelectedIntervalUnit));
                 }
 
-                if (e.PropertyName == nameof(ScheduledTask.WeeklyDays))
+                if (string.Equals(e.PropertyName, nameof(ScheduledTask.WeeklyDays), StringComparison.Ordinal))
                 {
                     SyncWeeklyPresetFromSelectedTask();
                     OnWeeklyDaySelectionChanged();
                     OnPropertyChanged(nameof(SelectedTask));
                 }
 
-                task.CalculateNextRunTime(_timeProvider.UtcNow);
+                task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
                 OnSelectedTaskStatusChanged();
             });
         }
     }
-    
-    public bool HasSelectedTask => SelectedTask != null;
-    
+
+    public bool HasSelectedTask => SelectedTask is not null;
+
     public string? SelectedMacroFilePath
     {
         get => string.IsNullOrEmpty(SelectedTask?.MacroFilePath) ? null : SelectedTask.MacroFilePath;
         set
         {
-            if (SelectedTask != null && SelectedTask.MacroFilePath != (value ?? ""))
+            if (SelectedTask is not null && !string.Equals(SelectedTask.MacroFilePath, value ?? "", StringComparison.Ordinal))
             {
                 SelectedTask.MacroFilePath = value ?? "";
                 OnPropertyChanged();
@@ -160,10 +141,10 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
-    public string SelectedMacroFileName => 
-        string.IsNullOrEmpty(SelectedTask?.MacroFilePath) 
-            ? _localizationService["Schedule_NoFileSelected"] 
+
+    public string SelectedMacroFileName =>
+        string.IsNullOrEmpty(SelectedTask?.MacroFilePath)
+            ? _localizationService["Schedule_NoFileSelected"]
             : Path.GetFileName(SelectedTask.MacroFilePath);
 
     public string SelectedLastRunText => SelectedTask?.LastRunTime?.ToLocalTime().ToString("G", _localizationService.CurrentCulture)
@@ -174,7 +155,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)
         ? _localizationService["Schedule_StatusPlaceholder"]
-        : SelectedTask.LastStatus!;
+        : SelectedTask.LastStatus;
 
     public bool IsIntervalSelected
     {
@@ -185,7 +166,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             {
                 _isIntervalSelected = value;
                 OnPropertyChanged();
-                if (value && SelectedTask != null)
+                if (value && SelectedTask is not null)
                 {
                     SelectedTask.Type = ScheduleType.Interval;
                     _isDateTimeSelected = false;
@@ -196,7 +177,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     public bool IsDateTimeSelected
     {
         get => _isDateTimeSelected;
@@ -206,7 +187,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             {
                 _isDateTimeSelected = value;
                 OnPropertyChanged();
-                if (value && SelectedTask != null)
+                if (value && SelectedTask is not null)
                 {
                     SelectedTask.Type = ScheduleType.SpecificTime;
                     _isIntervalSelected = false;
@@ -227,7 +208,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             {
                 _isWeeklySelected = value;
                 OnPropertyChanged();
-                if (value && SelectedTask != null)
+                if (value && SelectedTask is not null)
                 {
                     SelectedTask.Type = ScheduleType.Weekly;
                     _isIntervalSelected = false;
@@ -238,29 +219,44 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             }
         }
     }
-    
+
     // Events for global status
     public event EventHandler<string>? StatusChanged;
-    
+
     public ScheduleViewModel(
         ISchedulerService schedulerService,
         IDialogService dialogService,
-        ITimeProvider timeProvider,
-        ILocalizationService localizationService)
+        TimeProvider timeProvider,
+        ILocalizationService localizationService,
+        IProfileRuntimeState? profileRuntimeState = null)
     {
         _schedulerService = schedulerService ?? throw new ArgumentNullException(nameof(schedulerService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _localizationService = localizationService;
+        _profileRuntimeState = profileRuntimeState;
         _localizationService.CultureChanged += OnCultureChanged;
-        
+
         // Subscribe to task execution events
         _schedulerService.TaskStarting += OnTaskStarting;
         _schedulerService.TaskExecuted += OnTaskExecuted;
         _schedulerService.Tasks?.CollectionChanged += OnTasksCollectionChanged;
-        
+        RemapEditors();
+
     }
-    
+
+    public ScheduleViewModel(
+        IManageSchedule manageSchedule,
+        ISchedulerService schedulerService,
+        IDialogService dialogService,
+        TimeProvider timeProvider,
+        ILocalizationService localizationService,
+        IProfileRuntimeState? profileRuntimeState = null)
+        : this(schedulerService, dialogService, timeProvider, localizationService, profileRuntimeState)
+    {
+        _manageSchedule = manageSchedule;
+    }
+
     public Task InitializeAsync()
     {
         lock (_initializeLock)
@@ -272,6 +268,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     public void RefreshProfileData()
     {
+        RemapEditors();
         SelectedTask = Tasks.FirstOrDefault();
         OnPropertyChanged(nameof(Tasks));
         OnPropertyChanged(nameof(TaskCountText));
@@ -287,32 +284,38 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _schedulerService.LoadAsync();
+            // ProfileRuntimeCoordinator owns the initial profile load before the shell is composed.
+            if (_profileRuntimeState?.IsInitialized is not true)
+            {
+                await _schedulerService.LoadAsync().ConfigureAwait(false);
+            }
+
             _schedulerService.Start();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusInitFailed"], ex.Message));
+            var status = string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusInitFailed"], ex.Message);
+            await RunOnUiThreadAsync(() => RaiseStatus(status)).ConfigureAwait(false);
         }
     }
-    
+
     public DateTimeOffset? ScheduledDate
     {
         get => SelectedTask?.ScheduledDateTime == null ? null : new DateTimeOffset(SelectedTask.ScheduledDateTime.Value);
         set
         {
-            if (SelectedTask != null && value.HasValue)
+            if (SelectedTask is not null && value is not null)
             {
-                var current = SelectedTask.ScheduledDateTime ?? _timeProvider.Now;
+                var current = SelectedTask.ScheduledDateTime ?? _timeProvider.GetUtcNow().LocalDateTime;
                 // Preserve time, change date
                 var newDateTime = value.Value.Date + current.TimeOfDay;
-                
+
                 if (SelectedTask.ScheduledDateTime != newDateTime)
                 {
                     SelectedTask.ScheduledDateTime = newDateTime;
                     if (SelectedTask.IsEnabled)
                     {
-                        SelectedTask.CalculateNextRunTime();
+                        SelectedTask.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
                     }
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(SelectedTask)); // Update NextRunTime display
@@ -326,18 +329,18 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         get => SelectedTask?.ScheduledDateTime?.TimeOfDay;
         set
         {
-            if (SelectedTask != null && value.HasValue)
+            if (SelectedTask is not null && value is not null)
             {
-                var current = SelectedTask.ScheduledDateTime ?? _timeProvider.Now;
+                var current = SelectedTask.ScheduledDateTime ?? _timeProvider.GetUtcNow().LocalDateTime;
                 // Preserve date, change time (including seconds)
                 var newDateTime = current.Date + value.Value;
-                
+
                 if (SelectedTask.ScheduledDateTime != newDateTime)
                 {
                     SelectedTask.ScheduledDateTime = newDateTime;
                     if (SelectedTask.IsEnabled)
                     {
-                        SelectedTask.CalculateNextRunTime();
+                        SelectedTask.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
                     }
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(SelectedTask)); // Update NextRunTime display
@@ -351,12 +354,12 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         get => SelectedTask?.WeeklyTime;
         set
         {
-            if (SelectedTask != null && value.HasValue && SelectedTask.WeeklyTime != value.Value)
+            if (SelectedTask is not null && value is not null && SelectedTask.WeeklyTime != value.Value)
             {
                 SelectedTask.WeeklyTime = value.Value;
                 if (SelectedTask.IsEnabled)
                 {
-                    SelectedTask.CalculateNextRunTime(_timeProvider.UtcNow);
+                    SelectedTask.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
                 }
 
                 OnPropertyChanged();
@@ -369,35 +372,35 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         get
         {
-            if (SelectedTask == null)
+            if (SelectedTask is null)
             {
                 return null;
             }
 
-            if (_useCustomWeeklyDays)
+            if (IsWeeklyCustomSelected)
             {
-                return WeeklyPresetOptions.FirstOrDefault(option => option.Value == null);
+                return WeeklyPresetOptions.FirstOrDefault(option => option.Value is null);
             }
 
             return WeeklyPresetOptions.FirstOrDefault(option => option.Value == SelectedTask.WeeklyDays)
-                ?? WeeklyPresetOptions.FirstOrDefault(option => option.Value == null);
+                ?? WeeklyPresetOptions.FirstOrDefault(option => option.Value is null);
         }
         set
         {
-            if (SelectedTask == null || value == null)
+            if (SelectedTask is null || value == null)
             {
                 return;
             }
 
-            if (value.Value == null)
+            if (value.Value is null)
             {
-                _useCustomWeeklyDays = true;
+                IsWeeklyCustomSelected = true;
                 OnPropertyChanged();
                 OnWeeklyDaySelectionChanged();
                 return;
             }
 
-            _useCustomWeeklyDays = false;
+            IsWeeklyCustomSelected = false;
             if (SelectedTask.WeeklyDays != value.Value.Value)
             {
                 SelectedTask.WeeklyDays = value.Value.Value;
@@ -408,15 +411,15 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool IsWeeklyCustomSelected => _useCustomWeeklyDays;
+    public bool IsWeeklyCustomSelected { get; private set; }
 
     private void UpdateScheduleTypeSelection()
     {
-        if (SelectedTask != null)
+        if (SelectedTask is not null)
         {
-            _isIntervalSelected = SelectedTask.Type == ScheduleType.Interval;
-            _isDateTimeSelected = SelectedTask.Type == ScheduleType.SpecificTime;
-            _isWeeklySelected = SelectedTask.Type == ScheduleType.Weekly;
+            _isIntervalSelected = SelectedTask.Type is ScheduleType.Interval;
+            _isDateTimeSelected = SelectedTask.Type is ScheduleType.SpecificTime;
+            _isWeeklySelected = SelectedTask.Type is ScheduleType.Weekly;
             SyncWeeklyPresetFromSelectedTask();
             OnPropertyChanged(nameof(IsIntervalSelected));
             OnPropertyChanged(nameof(IsDateTimeSelected));
@@ -431,17 +434,17 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     private void SyncWeeklyPresetFromSelectedTask()
     {
-        _useCustomWeeklyDays = SelectedTask?.WeeklyDays is not (ScheduleDays.EveryDay or ScheduleDays.Weekdays or ScheduleDays.Weekends);
+        IsWeeklyCustomSelected = SelectedTask?.WeeklyDays is not (ScheduleDays.EveryDay or ScheduleDays.Weekdays or ScheduleDays.Weekends);
     }
 
     internal bool HasWeeklyDay(ScheduleDays day)
     {
-        return SelectedTask?.WeeklyDays.HasFlag(day) == true;
+        return (SelectedTask?.WeeklyDays.HasFlag(day)) is true;
     }
 
     internal void SetWeeklyDay(ScheduleDays day, bool selected)
     {
-        if (SelectedTask == null)
+        if (SelectedTask is null)
         {
             return;
         }
@@ -455,7 +458,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _useCustomWeeklyDays = true;
+        IsWeeklyCustomSelected = true;
         SelectedTask.WeeklyDays = nextDays;
         OnPropertyChanged(nameof(SelectedWeeklyPreset));
         OnWeeklyDaySelectionChanged();
@@ -470,105 +473,172 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             option.RefreshSelection();
         }
     }
-    
+
     [RelayCommand]
-    private void AddTask()
+    private async Task AddTaskAsync()
     {
         var task = new ScheduledTask
         {
             Name = string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_DefaultTaskName"], Tasks.Count + 1),
             Type = ScheduleType.Interval,
             IntervalValue = 30,
-            IntervalUnit = IntervalUnit.Seconds
+            IntervalUnit = IntervalUnit.Seconds,
         };
-        _schedulerService.AddTask(task);
-        SelectedTask = task;
-        OnPropertyChanged(nameof(TaskCountText));
+        if (_manageSchedule is not null)
+        {
+            _ = await _manageSchedule.AddAsync(task, default).ConfigureAwait(false);
+        }
+        else
+        {
+            _schedulerService.AddTask(task);
+        }
+        await RunOnUiThreadAsync(() =>
+        {
+            RemapEditors();
+            SelectedTask = _editors[task.Id];
+            OnPropertyChanged(nameof(TaskCountText));
+        }).ConfigureAwait(false);
     }
-    
+
     [RelayCommand]
-    private async Task RemoveTaskAsync(ScheduledTask? task)
+    private async Task RemoveTaskAsync(ScheduledTaskEditor? task)
     {
-        if (task == null) return;
-        
+        if (task is null)
+        {
+            return;
+        }
+
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["Schedule_DeleteTitle"],
-            string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_DeleteMessage"], task.Name));
-            
-        if (!confirmed) return;
-        
-        _schedulerService.RemoveTask(task.Id);
-        if (SelectedTask?.Id == task.Id)
+            string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_DeleteMessage"], task.Name)).ConfigureAwait(false);
+
+        if (!confirmed)
         {
-            SelectedTask = Tasks.FirstOrDefault();
+            return;
         }
-        await SaveChangesAsync(showSuccessStatus: false);
-        OnPropertyChanged(nameof(TaskCountText));
+
+        if (_manageSchedule is not null)
+        {
+            var selectedTaskId = SelectedTask?.Id;
+            _ = await _manageSchedule.RemoveAsync(new TaskRequest(task.Id), default).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
+            {
+                RemapEditors();
+                SelectedTask = selectedTaskId is Guid id
+                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
+                    : Tasks.FirstOrDefault();
+                OnPropertyChanged(nameof(TaskCountText));
+            }).ConfigureAwait(false);
+            return;
+        }
+
+        var coreTask = _schedulerService.Tasks.First(candidate => candidate.Id == task.Id);
+        var wasSelected = SelectedTask?.Id == task.Id;
+        await RunOnUiThreadAsync(() =>
+        {
+            _schedulerService.RemoveTask(task.Id);
+            if (wasSelected)
+            {
+                SelectedTask = Tasks.FirstOrDefault();
+            }
+        }).ConfigureAwait(false);
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
+        {
+            _schedulerService.AddTask(coreTask);
+            if (wasSelected)
+            {
+                SelectedTask = task;
+            }
+        }).ConfigureAwait(false);
+        await RunOnUiThreadAsync(() => OnPropertyChanged(nameof(TaskCountText))).ConfigureAwait(false);
     }
-    
+
     [RelayCommand]
-    private void SelectTask(ScheduledTask? task)
+    private void SelectTask(ScheduledTaskEditor? task)
     {
-        if (task != null)
+        if (task is not null)
         {
             SelectedTask = task;
         }
     }
-    
+
     [RelayCommand]
     private async Task BrowseMacroAsync()
     {
-        if (SelectedTask == null) return;
-        
+        if (SelectedTask is null)
+        {
+            return;
+        }
+
         var filters = new FileDialogFilter[]
         {
-            new FileDialogFilter { Name = _localizationService["Schedule_OpenMacroDialogFilter"], Extensions = new[] { "macro" } }
+            new FileDialogFilter { Name = _localizationService["Schedule_OpenMacroDialogFilter"], Extensions = ["macro"] },
         };
-        
+
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
             _localizationService["Schedule_OpenMacroDialogTitle"],
-            filters);
-        
+            filters).ConfigureAwait(false);
+
         if (!string.IsNullOrEmpty(filePath))
         {
-            SelectedMacroFilePath = filePath;
+            await RunOnUiThreadAsync(() => SelectedMacroFilePath = filePath).ConfigureAwait(false);
         }
     }
-    
+
     [RelayCommand]
     private async Task SaveAsync()
     {
-        await SaveChangesAsync(showSuccessStatus: true);
+        await SaveChangesAsync(showSuccessStatus: true).ConfigureAwait(false);
     }
 
-    private async Task SaveChangesAsync(bool showSuccessStatus)
+    private async Task SaveChangesAsync(bool showSuccessStatus, Action? rollback = null)
     {
         try
         {
-            await _schedulerService.SaveAsync();
+            if (_manageSchedule is not null && SelectedTask is not null)
+            {
+                _ = await _manageSchedule.UpdateAsync(SelectedTask.ToCore(), default).ConfigureAwait(false);
+            }
+            else
+            {
+                await RunOnUiThreadAsync(() =>
+                {
+                    foreach (var editor in Tasks)
+                    {
+                        editor.ApplyToCore(_schedulerService.Tasks.First(task => task.Id == editor.Id));
+                    }
+                }).ConfigureAwait(false);
+                await _schedulerService.SaveAsync().ConfigureAwait(false);
+            }
             if (showSuccessStatus)
             {
-                RaiseStatus(_localizationService["Schedule_StatusChangesSaved"]);
+                await RunOnUiThreadAsync(() => RaiseStatus(_localizationService["Schedule_StatusChangesSaved"])).ConfigureAwait(false);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "[ScheduleViewModel] Failed to save scheduled tasks");
+            Log.LogError(ex, "[ScheduleViewModel] Failed to save scheduled tasks");
             var status = string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusSaveFailed"], ex.Message);
-            RaiseStatus(status);
+            await RunOnUiThreadAsync(() =>
+            {
+                SelectedTask?.Rollback();
+                rollback?.Invoke();
+                RaiseStatus(status);
+            }).ConfigureAwait(false);
             try
             {
-                await _dialogService.ShowMessageAsync(_localizationService["Schedule_SaveFailedTitle"], status);
+                await _dialogService.ShowMessageAsync(_localizationService["Schedule_SaveFailedTitle"], status).ConfigureAwait(false);
             }
-            catch (Exception dialogEx)
+            catch (Exception dialogEx) when (dialogEx is not OutOfMemoryException)
             {
                 Log.Warning(dialogEx, "[ScheduleViewModel] Failed to show save error dialog");
             }
         }
     }
-    
-    public void OnTaskEnabledChanged(ScheduledTask task)
+
+    public void OnTaskEnabledChanged(ScheduledTaskEditor task)
     {
+        ArgumentNullException.ThrowIfNull(task);
         if (task.IsEnabled &&
             !string.IsNullOrWhiteSpace(task.MacroFilePath) &&
             !task.MacroFilePath.EndsWith(".macro", StringComparison.OrdinalIgnoreCase))
@@ -576,44 +646,77 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             RaiseStatus(_localizationService["Schedule_StatusExtensionWarning"]);
         }
 
-        _schedulerService.SetTaskEnabled(task.Id, task.IsEnabled);
+        if (_manageSchedule is null)
+        {
+            _schedulerService.SetTaskEnabled(task.Id, task.IsEnabled);
+        }
     }
 
     [RelayCommand]
-    private async Task TaskEnabledChangedAsync(ScheduledTask task)
+    private async Task TaskEnabledChangedAsync(ScheduledTaskEditor task)
     {
+        var previousEnabled = !task.IsEnabled;
         OnTaskEnabledChanged(task);
-        await SaveChangesAsync(showSuccessStatus: false);
+        if (_manageSchedule is not null)
+        {
+            var selectedTaskId = SelectedTask?.Id;
+            try
+            {
+                _ = await _manageSchedule.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled), default).ConfigureAwait(false);
+            }
+            finally
+            {
+                await RunOnUiThreadAsync(() =>
+                {
+                    RemapEditors();
+                    SelectedTask = selectedTaskId is Guid id
+                        ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
+                        : null;
+                }).ConfigureAwait(false);
+            }
+            return;
+        }
+
+        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _schedulerService.SetTaskEnabled(task.Id, previousEnabled)).ConfigureAwait(false);
     }
-    
-    private void OnTaskStarting(object? sender, ScheduledTask task)
+
+    private void OnTaskStarting(object? sender, ScheduledTaskStartingEventArgs e)
     {
+        var task = e.Task;
         Dispatcher.UIThread.Post(() =>
         {
             RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusRunning"], task.Name));
-            
+
             // Refresh the selected task to update status display
             if (SelectedTask?.Id == task.Id)
             {
+                if (_editors.TryGetValue(task.Id, out var editor))
+                {
+                    editor.SyncRuntimeStatus(task.LastRunTime, task.NextRunTime, "Running...", task.IsEnabled);
+                }
                 OnPropertyChanged(nameof(SelectedTask));
                 OnSelectedTaskStatusChanged();
             }
         });
     }
-    
+
     private void OnTaskExecuted(object? sender, TaskExecutedEventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
         {
             // Update global status
-            var statusText = e.Success 
+            var statusText = e.Success
                 ? string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusCompleted"], e.Task.Name)
                 : string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusFailedExecution"], e.Task.Name, e.Message);
             RaiseStatus(statusText);
-            
+
             // Refresh the selected task to update LastRunTime display
             if (SelectedTask?.Id == e.Task.Id)
             {
+                if (_editors.TryGetValue(e.Task.Id, out var editor))
+                {
+                    editor.SyncRuntimeStatus(e.Task.LastRunTime, e.Task.NextRunTime, e.Task.LastStatus, e.Task.IsEnabled);
+                }
                 OnPropertyChanged(nameof(SelectedTask));
                 OnSelectedTaskStatusChanged();
             }
@@ -627,20 +730,9 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedStatusText));
     }
 
-    private static void RaiseOnUiThread(Action action)
-    {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            return;
-        }
-
-        Dispatcher.UIThread.Post(action);
-    }
-
     private void RaiseStatus(string message)
     {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
         {
             StatusChanged?.Invoke(this, message);
             return;
@@ -651,70 +743,78 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        OnPropertyChanged(nameof(Tasks));
-        OnPropertyChanged(nameof(TaskCountText));
-        OnPropertyChanged(nameof(SelectedMacroFileName));
-        OnPropertyChanged(nameof(IntervalUnitOptions));
-        OnPropertyChanged(nameof(SelectedIntervalUnit));
-        OnPropertyChanged(nameof(WeeklyPresetOptions));
-        OnPropertyChanged(nameof(WeeklyDayOptions));
-        OnPropertyChanged(nameof(SelectedWeeklyPreset));
-        OnPropertyChanged(nameof(SelectedTask));
-        OnWeeklyDaySelectionChanged();
-        OnSelectedTaskStatusChanged();
+        PostToUiThread(() =>
+        {
+            OnPropertyChanged(nameof(Tasks));
+            OnPropertyChanged(nameof(TaskCountText));
+            OnPropertyChanged(nameof(SelectedMacroFileName));
+            OnPropertyChanged(nameof(IntervalUnitOptions));
+            OnPropertyChanged(nameof(SelectedIntervalUnit));
+            OnPropertyChanged(nameof(WeeklyPresetOptions));
+            OnPropertyChanged(nameof(WeeklyDayOptions));
+            OnPropertyChanged(nameof(SelectedWeeklyPreset));
+            OnPropertyChanged(nameof(SelectedTask));
+            OnWeeklyDaySelectionChanged();
+            OnSelectedTaskStatusChanged();
+        });
     }
 
     private void OnTasksCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        OnPropertyChanged(nameof(Tasks));
-        OnPropertyChanged(nameof(TaskCountText));
+        PostToUiThread(() =>
+        {
+            RemapEditors();
+            OnPropertyChanged(nameof(Tasks));
+            OnPropertyChanged(nameof(TaskCountText));
+        });
     }
-    
+
+    private void RemapEditors()
+    {
+        var tasks = _schedulerService.Tasks ?? [];
+        var current = tasks.ToDictionary(task => task.Id);
+        foreach (var task in tasks)
+        {
+            if (!_editors.TryGetValue(task.Id, out var editor))
+            {
+                editor = new ScheduledTaskEditor();
+                _editors[task.Id] = editor;
+            }
+            editor.Load(task);
+            if (!Tasks.Contains(editor))
+            {
+                Tasks.Add(editor);
+            }
+        }
+
+        foreach (var editor in Tasks.Where(editor => !current.ContainsKey(editor.Id)).ToArray())
+        {
+            _ = Tasks.Remove(editor);
+            _ = _editors.Remove(editor.Id);
+        }
+    }
+
     public void Dispose()
     {
-        if (_disposed) return;
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
-        
+
         // Unsubscribe from events to prevent memory leaks
         _schedulerService.TaskStarting -= OnTaskStarting;
         _schedulerService.TaskExecuted -= OnTaskExecuted;
-        if (_selectedTask != null)
-        {
-            _selectedTask.PropertyChanged -= OnSelectedTaskPropertyChanged;
-        }
+        SelectedTask?.PropertyChanged -= OnSelectedTaskPropertyChanged;
         _schedulerService.Tasks?.CollectionChanged -= OnTasksCollectionChanged;
         _localizationService.CultureChanged -= OnCultureChanged;
     }
 
-}
-
-public sealed record IntervalUnitOption(IntervalUnit Value, string DisplayName);
-
-public sealed record WeeklyPresetOption(ScheduleDays? Value, string DisplayName);
-
-public sealed class WeeklyDayOption : ViewModelBase
-{
-    private readonly ScheduleViewModel _owner;
-
-    public WeeklyDayOption(ScheduleViewModel owner, ScheduleDays value, string displayName)
-    {
-        _owner = owner;
-        Value = value;
-        DisplayName = displayName;
-    }
-
-    public ScheduleDays Value { get; }
-
-    public string DisplayName { get; }
-
-    public bool IsSelected
-    {
-        get => _owner.HasWeeklyDay(Value);
-        set => _owner.SetWeeklyDay(Value, value);
-    }
-
-    internal void RefreshSelection()
-    {
-        OnPropertyChanged(nameof(IsSelected));
-    }
 }

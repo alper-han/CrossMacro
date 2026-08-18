@@ -1,15 +1,12 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer;
 
-using CrossMacro.Platform.Linux.DisplayServer;
 
-public class IBusLayoutSourceTests
+public sealed class IBusLayoutSourceTests
 {
     [Fact]
     public void DetectLayout_ShouldNotThrow()
     {
-        var source = new IBusLayoutSource();
-
-        var ex = Record.Exception(source.DetectLayout);
+        var ex = Record.Exception(IBusLayoutSource.DetectLayout);
 
         Assert.Null(ex);
     }

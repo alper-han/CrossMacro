@@ -1,30 +1,21 @@
-using System;
-using System.Threading.Tasks;
-using CrossMacro.Core;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class MacroScheduledTaskExecutorTests
+public sealed class MacroScheduledTaskExecutorTests
 {
     private readonly IMacroFileManager _fileManager;
     private readonly IMacroPlayer _player;
-    private readonly ITimeProvider _timeProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly MacroScheduledTaskExecutor _executor;
 
     public MacroScheduledTaskExecutorTests()
     {
         _fileManager = Substitute.For<IMacroFileManager>();
         _player = Substitute.For<IMacroPlayer>();
-        _timeProvider = Substitute.For<ITimeProvider>();
-        
+        _timeProvider = Substitute.For<TimeProvider>();
+
         // Mock time
-        _timeProvider.UtcNow.Returns(new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+        _ = _timeProvider.GetUtcNow().Returns(new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         _executor = new MacroScheduledTaskExecutor(
             _fileManager,
@@ -42,13 +33,13 @@ public class MacroScheduledTaskExecutorTests
         // However, we can test the behavior when the file is missing by providing a path that definitely doesn't exist 
         // OR by relying on the fact that we are in a unit test environment where that file likely doesn't exist.
         // A better approach for the future would be IFileSystem, but for now we assume it doesn't exist.
-        
+
         // Act
         await _executor.ExecuteAsync(task);
 
         // Assert
-        task.LastStatus.Should().Be("Macro file not found");
-        task.LastRunTime.Should().Be(_timeProvider.UtcNow);
+        _ = task.LastStatus.Should().Be("Macro file not found");
+        _ = task.LastRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
     }
 
     [Fact]
@@ -58,7 +49,7 @@ public class MacroScheduledTaskExecutorTests
         // We need to bake a real file or use a path that exists? 
         // The current implementation of MacroScheduledTaskExecutor checks File.Exists(task.MacroFilePath).
         // If we can't mock File.Exists, we can't fully test the success path or load failure path *unless* we create a temp file.
-        
+
         var tempFile = Path.GetTempFileName();
         try
         {
@@ -66,20 +57,24 @@ public class MacroScheduledTaskExecutorTests
             {
                 MacroFilePath = tempFile,
                 Type = ScheduleType.SpecificTime,
-                IsEnabled = true
+                IsEnabled = true,
             };
-            _fileManager.LoadAsync(tempFile).Returns((MacroSequence)null!);
+            MacroSequence? missingMacro = null;
+            _ = _fileManager.LoadAsync(tempFile).Returns(missingMacro);
 
             // Act
             await _executor.ExecuteAsync(task);
 
             // Assert
-            task.LastStatus.Should().Be("Failed to load macro");
-            task.NextRunTime.Should().BeNull();
+            _ = task.LastStatus.Should().Be("Failed to load macro");
+            _ = task.NextRunTime.Should().BeNull();
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -90,37 +85,40 @@ public class MacroScheduledTaskExecutorTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var task = new ScheduledTask 
-            { 
+            var task = new ScheduledTask
+            {
                 MacroFilePath = tempFile,
                 Type = ScheduleType.Interval,
                 IntervalValue = 10,
                 IntervalUnit = IntervalUnit.Seconds,
-                IsEnabled = true
+                IsEnabled = true,
             };
-            
+
             var macro = new MacroSequence { Name = "Test MacroSequence" };
-            _fileManager.LoadAsync(tempFile).Returns(macro);
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
             // Act
             await _executor.ExecuteAsync(task);
 
             // Assert
             await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>());
-            task.LastStatus.Should().Be("Success");
-            task.LastRunTime.Should().Be(_timeProvider.UtcNow);
-            
+            _ = task.LastStatus.Should().Be("Success");
+            _ = task.LastRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
+
             // Should verify next run time calculation
             // The NextRunTime logic depends on current time + interval. 
             // Since we mocked UtcNow, it should be predictable.
-            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(10));
+            _ = task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(10));
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
-    
+
     [Fact]
     public async Task ExecuteAsync_WhenOneTimeTaskSuccess_DisablesTask()
     {
@@ -128,27 +126,30 @@ public class MacroScheduledTaskExecutorTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var task = new ScheduledTask 
-            { 
+            var task = new ScheduledTask
+            {
                 MacroFilePath = tempFile,
                 Type = ScheduleType.SpecificTime,
-                IsEnabled = true
+                IsEnabled = true,
             };
-            
+
             var macro = new MacroSequence();
-            _fileManager.LoadAsync(tempFile).Returns(macro);
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
             // Act
             await _executor.ExecuteAsync(task);
 
             // Assert
-            task.IsEnabled.Should().BeFalse();
-            task.NextRunTime.Should().BeNull();
-            task.LastStatus.Should().Be("Success");
+            _ = task.IsEnabled.Should().BeFalse();
+            _ = task.NextRunTime.Should().BeNull();
+            _ = task.LastStatus.Should().Be("Success");
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -159,30 +160,33 @@ public class MacroScheduledTaskExecutorTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var task = new ScheduledTask 
-            { 
+            var task = new ScheduledTask
+            {
                 MacroFilePath = tempFile,
                 Type = ScheduleType.SpecificTime,
-                IsEnabled = true 
+                IsEnabled = true,
             };
-            
+
             var macro = new MacroSequence();
-            _fileManager.LoadAsync(tempFile).Returns(macro);
-            
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
+
             _player.When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>()))
-                   .Do(x => throw new Exception("Unexpected crash"));
+                   .Do(x => throw new InvalidOperationException("Unexpected crash"));
 
             // Act
             await _executor.ExecuteAsync(task);
 
             // Assert
-            task.LastStatus.Should().Contain("Error");
-            task.LastStatus.Should().Contain("Unexpected crash");
-            task.NextRunTime.Should().BeNull();
+            _ = task.LastStatus.Should().Contain("Error");
+            _ = task.LastStatus.Should().Contain("Unexpected crash");
+            _ = task.NextRunTime.Should().BeNull();
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -197,11 +201,11 @@ public class MacroScheduledTaskExecutorTests
             {
                 MacroFilePath = tempFile,
                 PlaybackSpeed = 0.0,
-                IsEnabled = true
+                IsEnabled = true,
             };
 
             var macro = new MacroSequence { Events = { new MacroEvent { Type = EventType.MouseMove, X = 0, Y = 0 } } };
-            _fileManager.LoadAsync(tempFile).Returns(macro);
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
             // Act
             await _executor.ExecuteAsync(task);
@@ -213,7 +217,10 @@ public class MacroScheduledTaskExecutorTests
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -229,19 +236,23 @@ public class MacroScheduledTaskExecutorTests
                 Type = ScheduleType.Interval,
                 IntervalValue = 15,
                 IntervalUnit = IntervalUnit.Seconds,
-                IsEnabled = true
+                IsEnabled = true,
             };
 
-            _fileManager.LoadAsync(tempFile).Returns((MacroSequence)null!);
+            MacroSequence? missingIntervalMacro = null;
+            _ = _fileManager.LoadAsync(tempFile).Returns(missingIntervalMacro);
 
             await _executor.ExecuteAsync(task);
 
-            task.LastStatus.Should().Be("Failed to load macro");
-            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(15));
+            _ = task.LastStatus.Should().Be("Failed to load macro");
+            _ = task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(15));
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -257,23 +268,26 @@ public class MacroScheduledTaskExecutorTests
                 Type = ScheduleType.Interval,
                 IntervalValue = 30,
                 IntervalUnit = IntervalUnit.Seconds,
-                IsEnabled = true
+                IsEnabled = true,
             };
 
             var macro = new MacroSequence();
-            _fileManager.LoadAsync(tempFile).Returns(macro);
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
             _player
                 .When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>()))
-                .Do(_ => throw new Exception("Unexpected crash"));
+                .Do(_ => throw new InvalidOperationException("Unexpected crash"));
 
             await _executor.ExecuteAsync(task);
 
-            task.LastStatus.Should().Contain("Unexpected crash");
-            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(30));
+            _ = task.LastStatus.Should().Contain("Unexpected crash");
+            _ = task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(30));
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -283,30 +297,33 @@ public class MacroScheduledTaskExecutorTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var nextLocalTime = _timeProvider.UtcNow.ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30));
+            var nextLocalTime = _timeProvider.GetUtcNow().ToLocalTime().TimeOfDay.Add(TimeSpan.FromMinutes(30));
             var task = new ScheduledTask
             {
                 MacroFilePath = tempFile,
                 Type = ScheduleType.Weekly,
                 WeeklyDays = ScheduleDays.EveryDay,
                 WeeklyTime = nextLocalTime,
-                IsEnabled = true
+                IsEnabled = true,
             };
 
             var macro = new MacroSequence();
-            _fileManager.LoadAsync(tempFile).Returns(macro);
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
             await _executor.ExecuteAsync(task);
 
             await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>());
-            task.LastStatus.Should().Be("Success");
-            task.NextRunTime.Should().NotBeNull();
-            task.NextRunTime!.Value.Should().BeAfter(_timeProvider.UtcNow);
-            task.IsEnabled.Should().BeTrue();
+            _ = task.LastStatus.Should().Be("Success");
+            _ = task.NextRunTime.Should().NotBeNull();
+            _ = task.NextRunTime!.Value.Should().BeAfter(_timeProvider.GetUtcNow().UtcDateTime);
+            _ = task.IsEnabled.Should().BeTrue();
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
@@ -324,30 +341,33 @@ public class MacroScheduledTaskExecutorTests
                 Type = ScheduleType.Interval,
                 IntervalValue = 20,
                 IntervalUnit = IntervalUnit.Seconds,
-                IsEnabled = true
+                IsEnabled = true,
             };
 
             var macro = new MacroSequence();
             var playbackStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _fileManager.LoadAsync(tempFile).Returns(macro);
-            _player.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
+            _ = _player.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
                 .Returns(ci =>
                 {
-                    playbackStarted.TrySetResult(true);
+                    _ = playbackStarted.TrySetResult(true);
                     return Task.Delay(Timeout.Infinite, ci.ArgAt<CancellationToken>(2));
                 });
 
             var executionTask = _executor.ExecuteAsync(task, cts.Token);
-            await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            _ = await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
             cts.Cancel();
             await executionTask;
 
-            task.LastStatus.Should().Be("Cancelled");
-            task.NextRunTime.Should().Be(_timeProvider.UtcNow.AddSeconds(20));
+            _ = task.LastStatus.Should().Be("Cancelled");
+            _ = task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(20));
         }
         finally
         {
-            if (File.Exists(tempFile)) File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 }

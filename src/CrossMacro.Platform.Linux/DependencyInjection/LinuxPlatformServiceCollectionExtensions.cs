@@ -1,180 +1,246 @@
-using System;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Packaging.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.X11;
-using CrossMacro.Platform.Linux.Ipc;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.Factories;
-using CrossMacro.Platform.Linux.Services.Factories.Selectors;
-using CrossMacro.Platform.Linux.Services.Keyboard;
-using CrossMacro.Platform.Linux.Services.QuickSetup;
-using CrossMacro.Platform.Linux.Services.ScreenReading;
-using CrossMacro.Platform.Linux.Strategies;
-using CrossMacro.Platform.Linux.Strategies.Selectors;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Linux.DependencyInjection;
 
 internal static class LinuxPlatformServiceCollectionExtensions
 {
-    internal static void AddLinuxCoreServices(this IServiceCollection services)
+    internal static void AddLinuxCoreServices(this IServiceCollection services, LinuxEnvironmentSnapshot environment)
     {
-        services.AddSingleton<ILinuxLayoutDetector, LinuxLayoutDetector>();
-        services.AddSingleton<IXkbStateManager, XkbStateManager>();
-        services.AddSingleton<ILinuxKeyCodeMapper>(sp =>
+        _ = services.AddSingleton<ILinuxLayoutDetector, LinuxLayoutDetector>();
+        _ = services.AddSingleton<IXkbStateManager, XkbStateManager>();
+        _ = services.AddSingleton<IKeyCodeMapper, KeyCodeMapper>();
+        _ = services.AddSingleton<ILinuxKeyCodeMapper>(sp =>
             new LinuxKeyCodeMapper(sp.GetRequiredService<IXkbStateManager>()));
-        services.AddSingleton<IKeyboardLayoutService, LinuxKeyboardLayoutService>();
-        services.AddSingleton<IpcClient>();
+        _ = services.AddSingleton<IKeyboardLayoutService, LinuxKeyboardLayoutService>();
+        _ = services.AddSingleton<IpcClient>();
+        _ = services.AddSingleton<LinuxNativeClipboardService>();
 
-        services.AddSingleton<ILinuxEnvironmentVariables, LinuxEnvironmentVariables>();
-        services.AddSingleton<ILinuxEnvironmentDetector, LinuxEnvironmentDetector>();
-        services.AddSingleton<ILinuxDaemonHandshakeProbe, LinuxDaemonHandshakeProbe>();
-        services.AddSingleton<ILinuxDaemonSocketAccessProbe, LinuxDaemonSocketAccessProbe>();
-        services.AddSingleton<ILinuxInputCapabilitySnapshotProvider, LinuxInputCapabilitySnapshotProvider>();
-        services.AddSingleton<ILinuxInputCapabilityDetector, LinuxInputCapabilityDetector>();
-        services.AddSingleton<IExtImageCopySupportProbe>(_ => WaylandExtImageCopySupportProbe.Instance);
-        services.AddTransient<IExtImageCopyCapture, ExtImageCopyCapture>();
-        services.AddSingleton<IKWinScreenShotSupportProbe, KWinScreenShotCapture>();
-        services.AddTransient<IKWinScreenShotCapture, KWinScreenShotCapture>();
-        services.AddSingleton<IWlrScreencopySupportProbe, WlrScreencopyCapture>();
-        services.AddTransient<IWlrScreencopyCapture, WlrScreencopyCapture>();
-        services.AddSingleton<IPortalScreenCastSupportProbe>(_ => PortalScreenCastSupportProbe.Instance);
-        services.AddSingleton<IPortalScreenCastRestoreTokenStore, PortalScreenCastRestoreTokenStore>();
-        services.AddSingleton<IPortalScreenCastSessionFactory>(sp =>
+        _ = services.AddSingleton<ILinuxEnvironmentVariables>(new LinuxEnvironmentVariables(environment));
+        _ = services.AddSingleton<ILinuxEnvironmentDetector>(sp => new LinuxEnvironmentDetector(
+            sp.GetRequiredService<ILinuxEnvironmentVariables>()));
+        var daemonEnabled = !environment.UsesPortableDirectInput;
+        if (daemonEnabled)
+        {
+            _ = services.AddSingleton<ILinuxDaemonHandshakeProbe, LinuxDaemonHandshakeProbe>();
+            _ = services.AddSingleton<ILinuxDaemonSocketAccessProbe, LinuxDaemonSocketAccessProbe>();
+        }
+
+        _ = services.AddSingleton<ILinuxInputCapabilitySnapshotProvider>(
+            new LinuxInputCapabilitySnapshotProvider(daemonEnabled));
+        _ = services.AddSingleton<ILinuxInputCapabilityDetector>(
+            new LinuxInputCapabilityDetector(daemonEnabled));
+        AddLinuxCaptureServices(services, environment);
+        _ = services.AddSingleton<IEnvironmentInfoProvider>(sp => new LinuxEnvironmentInfoProvider(
+            sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
+        _ = services.AddSingleton<IMousePositionProvider>(sp =>
+            sp.GetRequiredService<LinuxPositionProviderFactory>().Create());
+
+        AddLinuxQuickSetupServices(services);
+        AddLinuxWindowServices(services);
+
+        _ = services.AddSingleton<IExtensionStatusNotifier>(sp =>
+        {
+            var provider = sp.GetRequiredService<IMousePositionProvider>();
+            return provider as IExtensionStatusNotifier ?? CrossMacro.Core.Services.NullExtensionStatusNotifier.Instance;
+        });
+
+        _ = services.AddSingleton<IPermissionChecker, LinuxPermissionChecker>();
+        _ = services.AddSingleton<IDisplaySessionService>(sp => new LinuxDisplaySessionService(
+            sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>(),
+            sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
+    }
+
+    private static void AddLinuxCaptureServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
+    {
+        _ = services.AddSingleton<IExtImageCopySupportProbe>(_ =>
+            new WaylandExtImageCopySupportProbe(() => WaylandExtImageCopyRegistryProbe.Probe(environment)));
+        _ = services.AddTransient<IExtImageCopyCapture, ExtImageCopyCapture>();
+        _ = services.AddSingleton<IKWinScreenShotSupportProbe>(sp => new KWinScreenShotCapture(
+            sp.GetRequiredService<ILinuxEnvironmentVariables>().CaptureSnapshot()));
+        _ = services.AddTransient<IKWinScreenShotCapture>(sp => new KWinScreenShotCapture(
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment));
+        _ = services.AddSingleton<IWlrScreencopySupportProbe, WlrScreencopyCapture>();
+        _ = services.AddTransient<IWlrScreencopyCapture, WlrScreencopyCapture>();
+        _ = services.AddSingleton<IPortalScreenCastSupportProbe>(_ => PortalScreenCastSupportProbe.Instance);
+        _ = services.AddSingleton<PortalScreenCastRestoreTokenStore>();
+        _ = services.AddSingleton<IPortalScreenCastRestoreTokenStore>(sp => sp.GetRequiredService<PortalScreenCastRestoreTokenStore>());
+        _ = services.AddSingleton<IPortalScreenCastRestoreStateService>(sp => sp.GetRequiredService<PortalScreenCastRestoreTokenStore>());
+        _ = services.AddSingleton<IPortalScreenCastSessionFactory>(sp =>
             new PortalScreenCastDbusSessionFactory(sp.GetRequiredService<IPortalScreenCastRestoreTokenStore>()));
-        services.AddSingleton<IPortalPipeWireFrameCaptureFactory>(_ => PortalPipeWireFrameCaptureFactory.Instance);
-        services.AddTransient<IPortalScreenCastCapture, PortalScreenCastCapture>();
-        services.AddSingleton<IX11ScreenCaptureSupportProbe>(_ => X11ScreenCaptureSupportProbe.Instance);
-        services.AddTransient<IX11ScreenCapture, X11ScreenCapture>();
-        services.AddSingleton<GnomePositionProvider>();
-        services.AddSingleton<ILinuxScreenReaderCapabilityDetector>(sp => new LinuxScreenReaderCapabilityDetector(
+        _ = services.AddSingleton<IPortalPipeWireFrameCaptureFactory>(_ => PortalPipeWireFrameCaptureFactory.Instance);
+        _ = services.AddTransient<IPortalScreenCastCapture, PortalScreenCastCapture>();
+        _ = services.AddSingleton<IX11ScreenCaptureSupportProbe>(_ =>
+            new X11ScreenCaptureSupportProbe(X11NativeApi.Instance, environment));
+        _ = services.AddTransient<IX11ScreenCapture, X11ScreenCapture>();
+        _ = services.AddSingleton<GnomePositionProvider>(_ => new GnomePositionProvider(environment));
+        _ = services.AddSingleton<KdePositionProvider>(_ => new KdePositionProvider(environment));
+        _ = services.AddSingleton<ILinuxScreenReaderCapabilityDetector>(sp => new LinuxScreenReaderCapabilityDetector(
             sp.GetRequiredService<IExtImageCopySupportProbe>(),
             sp.GetRequiredService<IWlrScreencopySupportProbe>(),
             sp.GetRequiredService<IPortalScreenCastSupportProbe>(),
             sp.GetRequiredService<IKWinScreenShotSupportProbe>(),
             sp.GetRequiredService<GnomePositionProvider>()));
-        services.AddSingleton<IScreenReadingDiagnosticProvider, LinuxScreenReadingDiagnosticProvider>();
-        services.AddSingleton<IPlatformStartupNotificationProvider, GsrCompatibilityService>();
-        services.AddSingleton<LinuxQuickSetupIdentityResolver>();
-        services.AddSingleton<LinuxQuickSetupScriptBuilder>();
-        services.AddSingleton<LinuxQuickSetupExecutor>();
-        services.AddSingleton<FlatpakHostCommandLauncher>();
-        services.AddSingleton<DirectPkexecHostCommandLauncher>();
-        services.AddSingleton<IPlaybackBehaviorPolicy>(
-            _ => new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: true));
-        services.AddSingleton<IFlatpakQuickSetupService>(sp =>
-            new FlatpakQuickSetupService(
-                Environment.GetEnvironmentVariable,
-                sp.GetRequiredService<LinuxQuickSetupExecutor>(),
-                sp.GetRequiredService<FlatpakHostCommandLauncher>()));
-        services.AddSingleton<IAppImageQuickSetupService>(sp =>
-            new AppImageQuickSetupService(
-                sp.GetRequiredService<ILinuxInputCapabilityDetector>(),
-                Environment.GetEnvironmentVariable,
-                sp.GetRequiredService<LinuxQuickSetupExecutor>(),
-                sp.GetRequiredService<DirectPkexecHostCommandLauncher>()));
+        _ = services.AddSingleton<ILinuxCapabilitySnapshotProvider>(sp => new LinuxCapabilitySnapshotProvider(
+            sp.GetRequiredService<ILinuxEnvironmentVariables>(),
+            sp.GetRequiredService<ILinuxInputCapabilityDetector>(),
+            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>()));
+        _ = services.AddSingleton<IScreenReadingCapabilityReadiness>(sp => new LinuxScreenReadingCapabilityReadiness(
+            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>()));
+        _ = services.AddSingleton<IScreenReadingDiagnosticProvider>(sp => new LinuxScreenReadingDiagnosticProvider(
+            sp.GetRequiredService<ILinuxEnvironmentDetector>(),
+            sp.GetRequiredService<IRuntimeContext>(),
+            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
+            sp.GetRequiredService<IX11ScreenCaptureSupportProbe>()));
+    }
 
-        services.AddSingleton<IEnvironmentInfoProvider, LinuxEnvironmentInfoProvider>();
-        services.AddSingleton<IMousePositionProvider>(sp =>
-            sp.GetRequiredService<LinuxPositionProviderFactory>().Create());
+    private static void AddLinuxQuickSetupServices(IServiceCollection services)
+    {
+        _ = services.AddSingleton<IPlatformStartupNotificationProvider, GsrCompatibilityService>();
+        _ = services.AddSingleton<LinuxQuickSetupIdentityResolver>();
+        _ = services.AddSingleton<LinuxQuickSetupExecutor>();
+        _ = services.AddSingleton<FlatpakHostCommandLauncher>();
+        _ = services.AddSingleton<DirectPolkitHostCommandLauncher>();
+        _ = services.AddSingleton<IFlatpakQuickSetupService>(sp => new FlatpakQuickSetupService(
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment,
+            sp.GetRequiredService<LinuxQuickSetupExecutor>(),
+            sp.GetRequiredService<FlatpakHostCommandLauncher>(),
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>()));
+        _ = services.AddSingleton<IAppImageQuickSetupService>(sp => new AppImageQuickSetupService(
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
+            sp.GetRequiredService<LinuxQuickSetupExecutor>(),
+            sp.GetRequiredService<DirectPolkitHostCommandLauncher>()));
+    }
 
-        services.AddSingleton<IExtensionStatusNotifier>(sp =>
+    private static void AddLinuxWindowServices(IServiceCollection services)
+    {
+        _ = services.AddSingleton<INiriIpcClient>(sp => new NiriIpcClient(sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
+        _ = services.AddSingleton<ISwayIpcClient>(sp => new SwayIpcClient(sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
+        _ = services.AddSingleton<HyprlandIpcClient>(sp => new HyprlandIpcClient(sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
+        _ = services.AddSingleton<IWindowManager>(sp =>
         {
-            var provider = sp.GetRequiredService<IMousePositionProvider>();
-            return provider as IExtensionStatusNotifier ?? NullExtensionStatusNotifier.Instance;
-        });
+            var ipcClient = sp.GetRequiredService<HyprlandIpcClient>();
+            if (ipcClient.IsAvailable)
+            {
+                return new HyprlandWindowManager(ipcClient);
+            }
 
-        services.AddSingleton<IPermissionChecker, LinuxPermissionChecker>();
-        services.AddSingleton<IDisplaySessionService, LinuxDisplaySessionService>();
+            var swayClient = sp.GetRequiredService<ISwayIpcClient>();
+            if (swayClient.IsAvailable)
+            {
+                return new DisplayServer.Wayland.SwayWindowManager(swayClient);
+            }
+
+            var niriClient = sp.GetRequiredService<INiriIpcClient>();
+            if (niriClient.IsAvailable)
+            {
+                return new DisplayServer.Wayland.NiriWindowManager(niriClient);
+            }
+
+            var desktop = sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment.CurrentDesktop;
+            if (desktop is not null)
+            {
+                if (desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return new DisplayServer.Wayland.KdeWindowManager();
+                }
+                if (desktop.Contains("GNOME", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return new DisplayServer.Wayland.GnomeWindowManager();
+                }
+            }
+
+            return new NullWindowManager(op =>
+                Log.Warning("[NullWindowManager] Window management is not supported on this platform. Operation: {Op}", op));
+        });
     }
 
     internal static void AddLinuxLegacyImplementations(this IServiceCollection services)
     {
-        services.AddTransient<LinuxInputSimulator>();
-        services.AddSingleton<Func<LinuxInputSimulator>>(sp =>
+        _ = services.AddTransient<LinuxInputSimulator>();
+        _ = services.AddSingleton<Func<LinuxInputSimulator>>(sp =>
             () => sp.GetRequiredService<LinuxInputSimulator>());
 
-        services.AddTransient<LinuxInputCapture>();
-        services.AddSingleton<Func<LinuxInputCapture>>(sp =>
+        _ = services.AddTransient<LinuxInputCapture>();
+        _ = services.AddSingleton<Func<LinuxInputCapture>>(sp =>
             () => sp.GetRequiredService<LinuxInputCapture>());
     }
 
     internal static void AddLinuxIpcImplementations(this IServiceCollection services)
     {
-        services.AddTransient<LinuxIpcInputSimulator>(sp =>
+        _ = services.AddTransient<LinuxIpcInputSimulator>(sp =>
             new LinuxIpcInputSimulator(
                 sp.GetRequiredService<IpcClient>(),
                 () => sp.GetRequiredService<ILinuxInputCapabilityDetector>().CanConnectToDaemon));
-        services.AddSingleton<Func<LinuxIpcInputSimulator>>(sp =>
+        _ = services.AddSingleton<Func<LinuxIpcInputSimulator>>(sp =>
             () => sp.GetRequiredService<LinuxIpcInputSimulator>());
 
-        services.AddTransient<LinuxIpcInputCapture>(sp =>
+        _ = services.AddTransient<LinuxIpcInputCapture>(sp =>
             new LinuxIpcInputCapture(
                 sp.GetRequiredService<IpcClient>(),
                 isSupportedProbe: () => sp.GetRequiredService<ILinuxInputCapabilityDetector>().CanConnectToDaemon));
-        services.AddSingleton<Func<LinuxIpcInputCapture>>(sp =>
+        _ = services.AddSingleton<Func<LinuxIpcInputCapture>>(sp =>
             () => sp.GetRequiredService<LinuxIpcInputCapture>());
     }
 
     internal static void AddLinuxX11Implementations(this IServiceCollection services)
     {
-        services.AddTransient<X11InputSimulator>();
-        services.AddSingleton<Func<X11InputSimulator>>(sp =>
+        _ = services.AddTransient<X11InputSimulator>();
+        _ = services.AddSingleton<Func<X11InputSimulator>>(sp =>
             () => sp.GetRequiredService<X11InputSimulator>());
 
-        services.AddTransient<X11AbsoluteCapture>();
-        services.AddTransient<X11RelativeCapture>();
+        _ = services.AddTransient<X11AbsoluteCapture>();
+        _ = services.AddTransient<X11RelativeCapture>();
 
-        services.AddTransient<X11InputCapture>();
-        services.AddSingleton<Func<X11InputCapture>>(sp =>
+        _ = services.AddTransient<X11InputCapture>();
+        _ = services.AddSingleton<Func<X11InputCapture>>(sp =>
             () => sp.GetRequiredService<X11InputCapture>());
     }
 
     internal static void AddLinuxFactories(this IServiceCollection services)
     {
-        services.AddSingleton<LinuxPositionProviderFactory>();
+        _ = services.AddSingleton<LinuxPositionProviderFactory>(sp => new LinuxPositionProviderFactory(
+            sp.GetServices<IPositionProviderSelector>(),
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
+            static () => WaylandCursorPositionProvider.TryCreate(CancellationToken.None)));
 
-        services.AddSingleton<LinuxSimulatorFactory>(sp => new LinuxSimulatorFactory(
-            sp.GetRequiredService<ILinuxEnvironmentDetector>(),
-            sp.GetRequiredService<ILinuxInputCapabilityDetector>(),
+        _ = services.AddSingleton<LinuxSimulatorFactory>(sp => new LinuxSimulatorFactory(
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
             sp.GetRequiredService<Func<LinuxInputSimulator>>(),
             sp.GetRequiredService<Func<LinuxIpcInputSimulator>>(),
-            sp.GetRequiredService<Func<X11InputSimulator>>()));
+            sp.GetRequiredService<Func<X11InputSimulator>>(),
+            sp.GetRequiredService<IMousePositionProvider>()));
 
-        services.AddSingleton<LinuxCaptureFactory>(sp => new LinuxCaptureFactory(
-            sp.GetRequiredService<ILinuxEnvironmentDetector>(),
-            sp.GetRequiredService<ILinuxInputCapabilityDetector>(),
+        _ = services.AddSingleton<LinuxCaptureFactory>(sp => new LinuxCaptureFactory(
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
             sp.GetRequiredService<Func<LinuxInputCapture>>(),
             sp.GetRequiredService<Func<LinuxIpcInputCapture>>(),
             sp.GetRequiredService<Func<X11InputCapture>>()));
 
-         services.AddSingleton<LinuxScreenFrameProviderFactory>(sp => new LinuxScreenFrameProviderFactory(
-             sp.GetRequiredService<ILinuxEnvironmentDetector>(),
-             sp.GetRequiredService<IRuntimeContext>(),
-             sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
-             support => new ExtImageCopyScreenFrameProvider(sp.GetRequiredService<IExtImageCopyCapture>(), support),
-             support => new WlrScreencopyScreenFrameProvider(sp.GetRequiredService<IWlrScreencopyCapture>(), support),
-             support => new PortalScreenCastScreenFrameProvider(sp.GetRequiredService<IPortalScreenCastCapture>(), support),
-             support => new KWinScreenShotScreenFrameProvider(sp.GetRequiredService<IKWinScreenShotCapture>(), support),
-             support => new GnomeExtensionScreenFrameProvider(sp.GetRequiredService<GnomePositionProvider>(), support),
-             sp.GetRequiredService<IX11ScreenCaptureSupportProbe>(),
-             support => new X11ScreenFrameProvider(sp.GetRequiredService<IX11ScreenCapture>(), support)));
-        services.AddSingleton<IScreenFrameProvider>(sp => sp.GetRequiredService<LinuxScreenFrameProviderFactory>().Create());
+        _ = services.AddSingleton<LinuxScreenFrameProviderFactory>(sp => new LinuxScreenFrameProviderFactory(
+            sp.GetRequiredService<ILinuxEnvironmentDetector>(),
+            sp.GetRequiredService<IRuntimeContext>(),
+            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
+            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
+            support => new ExtImageCopyScreenFrameProvider(sp.GetRequiredService<IExtImageCopyCapture>(), support),
+            support => new WlrScreencopyScreenFrameProvider(sp.GetRequiredService<IWlrScreencopyCapture>(), support),
+            support => new PortalScreenCastScreenFrameProvider(sp.GetRequiredService<IPortalScreenCastCapture>(), support),
+            support => new KWinScreenShotScreenFrameProvider(sp.GetRequiredService<IKWinScreenShotCapture>(), support),
+            support => new GnomeExtensionScreenFrameProvider(sp.GetRequiredService<GnomePositionProvider>(), support),
+            sp.GetRequiredService<IX11ScreenCaptureSupportProbe>(),
+            support => new X11ScreenFrameProvider(sp.GetRequiredService<IX11ScreenCapture>(), support)));
+        _ = services.AddSingleton<IScreenFrameProvider>(sp => sp.GetRequiredService<LinuxScreenFrameProviderFactory>().Create());
     }
 
     internal static void AddLinuxInputFactories(this IServiceCollection services)
     {
-        services.AddTransient<Func<IInputSimulator>>(sp =>
+        _ = services.AddTransient<Func<IInputSimulator>>(sp =>
         {
             var factory = sp.GetRequiredService<LinuxSimulatorFactory>();
-            return () => factory.Create();
+            return factory.Create;
         });
 
-        services.AddTransient<Func<IInputCapture>>(sp =>
+        _ = services.AddTransient<Func<IInputCapture>>(sp =>
         {
             var factory = sp.GetRequiredService<LinuxCaptureFactory>();
             return () => factory.Create();
@@ -183,58 +249,36 @@ internal static class LinuxPlatformServiceCollectionExtensions
 
     internal static void AddLinuxStrategySelectors(this IServiceCollection services)
     {
-        services.AddSingleton<ICoordinateStrategySelector, ForceRelativeStrategySelector>();
-        services.AddSingleton<ICoordinateStrategySelector, WaylandAbsoluteStrategySelector>();
-        services.AddSingleton<ICoordinateStrategySelector, WaylandRelativeStrategySelector>();
-        services.AddSingleton<ICoordinateStrategySelector, X11AbsoluteStrategySelector>();
-        services.AddSingleton<ICoordinateStrategySelector, X11RelativeStrategySelector>();
+        _ = services.AddSingleton<ICoordinateStrategySelector, ForceRelativeStrategySelector>();
+        _ = services.AddSingleton<ICoordinateStrategySelector, WaylandAbsoluteStrategySelector>();
+        _ = services.AddSingleton<ICoordinateStrategySelector, WaylandRelativeStrategySelector>();
+        _ = services.AddSingleton<ICoordinateStrategySelector, X11AbsoluteStrategySelector>();
+        _ = services.AddSingleton<ICoordinateStrategySelector, X11RelativeStrategySelector>();
     }
 
     internal static void AddLinuxPositionProviderSelectors(this IServiceCollection services)
     {
-        services.AddSingleton<IPositionProviderSelector, X11PositionProviderSelector>();
-        services.AddSingleton<IPositionProviderSelector, GnomePositionProviderSelector>();
-        services.AddSingleton<IPositionProviderSelector, KdePositionProviderSelector>();
-        services.AddSingleton<IPositionProviderSelector, HyprlandPositionProviderSelector>();
-        services.AddSingleton<IPositionProviderSelector, WayfirePositionProviderSelector>();
-        services.AddSingleton<IPositionProviderSelector, NiriPositionProviderSelector>();
-        services.AddSingleton<IPositionProviderSelector, CosmicPositionProviderSelector>();
+        _ = services.AddSingleton<IPositionProviderSelector, X11PositionProviderSelector>();
+        _ = services.AddSingleton<IPositionProviderSelector, GnomePositionProviderSelector>();
+        _ = services.AddSingleton<IPositionProviderSelector, KdePositionProviderSelector>();
+        _ = services.AddSingleton<IPositionProviderSelector, HyprlandPositionProviderSelector>();
+        _ = services.AddSingleton<IPositionProviderSelector, WayfirePositionProviderSelector>();
+        _ = services.AddSingleton<IPositionProviderSelector, NiriPositionProviderSelector>();
+        _ = services.AddSingleton<IPositionProviderSelector, CosmicPositionProviderSelector>();
+        _ = services.AddSingleton<IPositionProviderSelector, SwayPositionProviderSelector>();
     }
 
     internal static void AddLinuxCoordinateStrategy(this IServiceCollection services)
     {
-        services.AddSingleton<ICoordinateStrategyFactory, LinuxCoordinateStrategyFactory>();
+        _ = services.AddSingleton<ICoordinateStrategyFactory, LinuxCoordinateStrategyFactory>();
     }
 
     internal static void AddLinuxInputSimulatorPool(this IServiceCollection services)
     {
-        services.AddSingleton<InputSimulatorPool>(sp =>
+        _ = services.AddSingleton<IInputSimulatorPool>(static sp =>
         {
             var factory = sp.GetRequiredService<Func<IInputSimulator>>();
             return new InputSimulatorPool(factory);
         });
-    }
-
-    private sealed class NullExtensionStatusNotifier : IExtensionStatusNotifier
-    {
-        public static NullExtensionStatusNotifier Instance { get; } = new();
-
-        public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated
-        {
-            add { }
-            remove { }
-        }
-
-        public event EventHandler<string>? ExtensionStatusChanged
-        {
-            add { }
-            remove { }
-        }
-
-        public ExtensionStatusChangedEventArgs? CurrentExtensionStatus => null;
-
-        private NullExtensionStatusNotifier()
-        {
-        }
     }
 }

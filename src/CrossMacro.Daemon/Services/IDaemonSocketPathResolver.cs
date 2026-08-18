@@ -1,6 +1,6 @@
 namespace CrossMacro.Daemon.Services;
 
-public interface IDaemonSocketPathResolver
+internal interface IDaemonSocketPathResolver
 {
-    string ResolveSocketPath();
+    public string ResolveSocketPath();
 }

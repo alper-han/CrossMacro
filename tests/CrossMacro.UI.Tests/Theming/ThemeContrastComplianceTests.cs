@@ -1,11 +1,7 @@
-using System;
-using System.Globalization;
-using System.IO;
-using FluentAssertions;
 
 namespace CrossMacro.UI.Tests.Theming;
 
-public class ThemeContrastComplianceTests
+public sealed class ThemeContrastComplianceTests
 {
     [Theory]
     [InlineData("PrimaryColor", "TextOnPrimaryColor", 4.5)]
@@ -24,18 +20,18 @@ public class ThemeContrastComplianceTests
     [InlineData("SurfaceColor", "TextSecondaryColor", 3.0)]
     public void ThemeColors_ShouldMeetContrastTargets(string backgroundKey, string foregroundKey, double minRatio)
     {
-        var themeFiles = ThemeTestFileHelper.GetThemeFiles();
-        themeFiles.Should().NotBeEmpty();
+        var themes = ThemeTestFileHelper.GetBuiltInThemes();
+        _ = themes.Should().NotBeEmpty();
 
-        foreach (var themeFile in themeFiles)
+        foreach (var theme in themes)
         {
-            var background = ThemeTestFileHelper.ReadColorValue(themeFile, backgroundKey);
-            var foreground = ThemeTestFileHelper.ReadColorValue(themeFile, foregroundKey);
+            var background = ThemeTestFileHelper.ReadColorValue(theme, backgroundKey);
+            var foreground = ThemeTestFileHelper.ReadColorValue(theme, foregroundKey);
             var ratio = ContrastRatio(background, foreground);
-            ratio.Should().BeGreaterThanOrEqualTo(
+            _ = ratio.Should().BeGreaterThanOrEqualTo(
                 minRatio,
                 because:
-                $"{Path.GetFileName(themeFile)} must satisfy contrast for {foregroundKey} on {backgroundKey}");
+                $"{theme.Name} must satisfy contrast for {foregroundKey} on {backgroundKey}");
         }
     }
 
@@ -51,17 +47,17 @@ public class ThemeContrastComplianceTests
     private static (double R, double G, double B) ParseColor(string hex)
     {
         var normalized = hex.Trim();
-        if (normalized.StartsWith("#", StringComparison.Ordinal))
+        if (normalized.StartsWith('#'))
         {
             normalized = normalized[1..];
         }
 
-        if (normalized.Length == 8)
+        if (normalized.Length is 8)
         {
             normalized = normalized[2..];
         }
 
-        if (normalized.Length != 6)
+        if (normalized.Length is not 6)
         {
             throw new InvalidOperationException($"Unsupported color format: '{hex}'");
         }
@@ -74,7 +70,7 @@ public class ThemeContrastComplianceTests
 
     private static double RelativeLuminance((double R, double G, double B) color)
     {
-        return 0.2126 * Linearize(color.R) + 0.7152 * Linearize(color.G) + 0.0722 * Linearize(color.B);
+        return (0.2126 * Linearize(color.R)) + (0.7152 * Linearize(color.G)) + (0.0722 * Linearize(color.B));
     }
 
     private static double Linearize(double channel)

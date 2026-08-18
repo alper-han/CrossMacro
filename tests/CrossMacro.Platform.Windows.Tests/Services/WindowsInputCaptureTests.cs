@@ -1,16 +1,61 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Windows.Native;
-using CrossMacro.Platform.Windows.Services;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
-public class WindowsInputCaptureTests
+public sealed class WindowsInputCaptureTests
 {
+    [Fact]
+    public void GetEvdevCode_WhenVirtualKeyIsNormalReturn_MapsToKeyEnter()
+    {
+        var evdevCode = CrossMacro.Platform.Windows.Helpers.WindowsKeyMap.GetEvdevCode(0x0D);
+
+        Assert.Equal(InputEventCode.KEY_ENTER, evdevCode);
+        Assert.NotEqual(InputEventCode.KEY_KPENTER, evdevCode);
+    }
+
+    [Fact]
+    public void MapKeyboardEvent_WhenReturnIsExtended_MapsToKeypadEnter()
+    {
+        var evdevCode = WindowsInputCapture.MapKeyboardEvent(0x0D, 0x01);
+
+        Assert.Equal(InputEventCode.KEY_KPENTER, evdevCode);
+    }
+
+    [Theory]
+    [InlineData(User32.WM_XBUTTONDOWN, 1, InputEventCode.BTN_SIDE, 1)]
+    [InlineData(User32.WM_XBUTTONUP, 1, InputEventCode.BTN_SIDE, 0)]
+    [InlineData(User32.WM_XBUTTONDOWN, 2, InputEventCode.BTN_EXTRA, 1)]
+    [InlineData(User32.WM_XBUTTONUP, 2, InputEventCode.BTN_EXTRA, 0)]
+    public void TryMapMouseButtonOrScroll_WhenXButtonMessage_MapsButtonState(uint message, ushort xButton, ushort expectedCode, int expectedValue)
+    {
+        var mapped = WindowsInputCapture.TryMapMouseButtonOrScroll(message, (uint)xButton << 16, out var code, out var value, out var type);
+
+        Assert.True(mapped);
+        Assert.Equal(expectedCode, code);
+        Assert.Equal(expectedValue, value);
+        Assert.Equal(InputEventCode.EV_KEY, type);
+    }
+
+    [Fact]
+    public void TryMapMouseButtonOrScroll_WhenXButtonIsUnknown_ReturnsFalse()
+    {
+        var mapped = WindowsInputCapture.TryMapMouseButtonOrScroll(User32.WM_XBUTTONDOWN, 3u << 16, out _, out _, out _);
+
+        Assert.False(mapped);
+    }
+
+    [Theory]
+    [InlineData(0xFF88u, -120)]
+    [InlineData(0xFFFFu, -1)]
+    public void TryMapMouseButtonOrScroll_WhenHorizontalWheelHasNegativeDelta_MapsSignedHorizontalScroll(uint encodedDelta, int expectedValue)
+    {
+        var mapped = WindowsInputCapture.TryMapMouseButtonOrScroll(User32.WM_MOUSEHWHEEL, encodedDelta << 16, out var code, out var value, out var type);
+
+        Assert.True(mapped);
+        Assert.Equal(InputEventCode.REL_HWHEEL, code);
+        Assert.Equal(expectedValue, value);
+        Assert.Equal(InputEventCode.EV_REL, type);
+    }
+
     [Theory]
     [InlineData(0u, 0L, false)]
     [InlineData(0x10u, 0L, false)]
@@ -32,13 +77,52 @@ public class WindowsInputCaptureTests
         Assert.Equal(expected, WindowsInputCapture.IsSessionRecoveryMessage(message, new IntPtr(reason)));
     }
 
+    [Theory]
+    [InlineData(true, InputEventCode.ABS_X, 120, InputEventCode.ABS_Y, -30)]
+    [InlineData(false, InputEventCode.REL_X, 20, InputEventCode.REL_Y, -10)]
+    public void ResolveMouseMovement_UsesConfiguredCoordinateMode(
+        bool useAbsoluteCoordinates,
+        ushort expectedXCode,
+        int expectedXValue,
+        ushort expectedYCode,
+        int expectedYValue)
+    {
+        var movement = WindowsInputCapture.ResolveMouseMovement(
+            useAbsoluteCoordinates,
+            currentX: 120,
+            currentY: -30,
+            previousX: 100,
+            previousY: -20);
+
+        Assert.Equal(expectedXCode, movement.XCode);
+        Assert.Equal(expectedXValue, movement.XValue);
+        Assert.Equal(expectedYCode, movement.YCode);
+        Assert.Equal(expectedYValue, movement.YValue);
+    }
+
+    [Fact]
+    public void ResolveMouseMovement_WhenDeltaOverflows_SaturatesRelativeCoordinates()
+    {
+        var movement = WindowsInputCapture.ResolveMouseMovement(
+            useAbsoluteCoordinates: false,
+            currentX: int.MaxValue,
+            currentY: int.MinValue,
+            previousX: int.MinValue,
+            previousY: int.MaxValue);
+
+        Assert.Equal(int.MaxValue, movement.XValue);
+        Assert.Equal(int.MinValue, movement.YValue);
+    }
+
     [WindowsFact]
     public async Task StartAsync_WhenMouseHookInstallFails_ThrowsInvalidOperationException()
     {
-        using var capture = new FailingWindowsInputCapture(failMouse: true, failKeyboard: false);
+        var hookInstaller = new FailingHookInstaller(failMouse: true, failKeyboard: false);
+        using var capture = new WindowsInputCapture(hookInstaller);
         capture.Configure(captureMouse: true, captureKeyboard: false);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => capture.StartAsync(CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => capture.StartAsync(CancellationToken.None));
 
         Assert.Contains("mouse hook", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -46,10 +130,12 @@ public class WindowsInputCaptureTests
     [WindowsFact]
     public async Task StartAsync_WhenKeyboardHookInstallFails_ThrowsInvalidOperationException()
     {
-        using var capture = new FailingWindowsInputCapture(failMouse: false, failKeyboard: true);
+        var hookInstaller = new FailingHookInstaller(failMouse: false, failKeyboard: true);
+        using var capture = new WindowsInputCapture(hookInstaller);
         capture.Configure(captureMouse: false, captureKeyboard: true);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => capture.StartAsync(CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => capture.StartAsync(CancellationToken.None));
 
         Assert.Contains("keyboard hook", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -58,60 +144,62 @@ public class WindowsInputCaptureTests
     public async Task StartAsync_WhenCancelledDuringStartup_CancelsPromptly()
     {
         using var cts = new CancellationTokenSource();
-        using var capture = new BlockingWindowsInputCapture();
+        var hookInstaller = new BlockingHookInstaller();
+        using var capture = new WindowsInputCapture(hookInstaller);
         capture.Configure(captureMouse: true, captureKeyboard: false);
 
         var startTask = capture.StartAsync(cts.Token);
-        await capture.HookInstallStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await hookInstaller.HookInstallStarted.Task
+            .WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token)
+            ;
 
-        cts.Cancel();
-        capture.ReleaseHookInstall();
+        await cts.CancelAsync();
+        hookInstaller.ReleaseHookInstall();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => startTask);
     }
 
-    private sealed class FailingWindowsInputCapture : WindowsInputCapture
+    private sealed class FailingHookInstaller(bool failMouse, bool failKeyboard) : IWindowsHookInstaller
     {
-        private readonly bool _failMouse;
-        private readonly bool _failKeyboard;
+        private static readonly IntPtr SuccessfulHookHandle = new(1);
 
-        public FailingWindowsInputCapture(bool failMouse, bool failKeyboard)
-        {
-            _failMouse = failMouse;
-            _failKeyboard = failKeyboard;
-        }
+        private readonly bool _failMouse = failMouse;
+        private readonly bool _failKeyboard = failKeyboard;
 
-        protected override IntPtr InstallMouseHook(IntPtr moduleHandle)
-            => _failMouse ? IntPtr.Zero : base.InstallMouseHook(moduleHandle);
+        public IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc)
+            => _failMouse ? IntPtr.Zero : SuccessfulHookHandle;
 
-        protected override IntPtr InstallKeyboardHook(IntPtr moduleHandle)
-            => _failKeyboard ? IntPtr.Zero : base.InstallKeyboardHook(moduleHandle);
+        public IntPtr InstallKeyboardHook(IntPtr moduleHandle, User32.HookProc hookProc)
+            => _failKeyboard ? IntPtr.Zero : SuccessfulHookHandle;
     }
 
-    private sealed class BlockingWindowsInputCapture : WindowsInputCapture
+    private sealed class BlockingHookInstaller : IWindowsHookInstaller
     {
-        private readonly TaskCompletionSource _releaseHookInstall = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseHookInstall =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource HookInstallStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        protected override IntPtr InstallMouseHook(IntPtr moduleHandle)
+        public IntPtr InstallMouseHook(IntPtr moduleHandle, User32.HookProc hookProc)
         {
-            HookInstallStarted.TrySetResult();
+            _ = HookInstallStarted.TrySetResult();
+
             if (!_releaseHookInstall.Task.Wait(TimeSpan.FromSeconds(2)))
             {
-                throw new TimeoutException("Timed out waiting for the blocking hook-install fake to be released.");
+                throw new TimeoutException(
+                    "Timed out waiting for the blocking hook-install fake to be released.");
             }
 
             return IntPtr.Zero;
         }
 
-        public void ReleaseHookInstall() => _releaseHookInstall.TrySetResult();
+        public IntPtr InstallKeyboardHook(IntPtr moduleHandle, User32.HookProc hookProc)
+            => throw new InvalidOperationException(
+                "Keyboard hook installation was not expected during this test.");
 
-        public new void Dispose()
-        {
-            ReleaseHookInstall();
-            base.Dispose();
-        }
+        public void ReleaseHookInstall()
+            => _releaseHookInstall.TrySetResult();
     }
 }

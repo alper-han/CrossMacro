@@ -1,9 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="using:CrossMacro.UI.Converters"
-             xmlns:vm="using:CrossMacro.UI.ViewModels"
-             xmlns:core="using:CrossMacro.Core.Models"
-             xmlns:local="using:CrossMacro.UI.Views.Tabs"
+              xmlns:vm="using:CrossMacro.UI.ViewModels"
+              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
+              xmlns:local="using:CrossMacro.UI.Views.Tabs"
+             xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -13,7 +14,7 @@
              x:DataType="vm:ScheduleViewModel">
 
     <Design.DataContext>
-        <vm:DesignScheduleViewModel/>
+        <designVm:DesignScheduleViewModel/>
     </Design.DataContext>
 
     <ScrollViewer Padding="10">
@@ -51,7 +52,7 @@
 
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="core:ScheduledTask">
+                             <DataTemplate x:DataType="vm:ScheduledTaskEditor">
                                 <Border Padding="10,8"
                                         CornerRadius="8"
                                         Margin="0,2"
@@ -76,7 +77,7 @@
                                                 <TextBlock FontSize="11"
                                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                                           TextTrimming="CharacterEllipsis"
-                                                          Text="{Binding Converter={x:Static local:ScheduleTaskConverters.SummaryText}}"/>
+                                                          Text="{Binding Converter={x:Static conv:ScheduleTaskConverters.SummaryText}}"/>
                                             </StackPanel>
                                         </Button>
 
@@ -135,7 +136,7 @@
                     <!-- Task Name -->
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Loc Schedule_Name}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}"
+                        <TextBox Text="{Binding SelectedTask?.Name, Mode=TwoWay, FallbackValue=''}"
                                 PlaceholderText="{localization:Loc Schedule_NamePlaceholder}"/>
                     </StackPanel>
 
@@ -144,12 +145,12 @@
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Classes="label" Text="{localization:Loc Schedule_PlaybackSpeed}"/>
                             <TextBlock Grid.Column="1"
-                                      Text="{Binding SelectedTask.PlaybackSpeed, StringFormat='{}{0:0.0}x', FallbackValue='1.0x'}"
+                                      Text="{Binding SelectedTask?.PlaybackSpeed, StringFormat='{}{0:0.0}x', FallbackValue='1.0x'}"
                                       FontWeight="Medium"
                                       FontSize="16"
                                       Foreground="{DynamicResource PrimaryBrush}"/>
                         </Grid>
-                        <Slider Value="{Binding SelectedTask.PlaybackSpeed, Mode=TwoWay, FallbackValue=1.0}"
+                        <Slider Value="{Binding SelectedTask?.PlaybackSpeed, Mode=TwoWay, FallbackValue=1.0}"
                                Minimum="0.1"
                                Maximum="10.0"
                                TickFrequency="0.1"
@@ -226,14 +227,14 @@
                               Foreground="{DynamicResource TextSecondaryBrush}"
                               FontSize="12"/>
                     <CheckBox Content="{localization:Loc Schedule_RandomizeInterval}"
-                              IsChecked="{Binding SelectedTask.UseRandomIntervalDelay, Mode=TwoWay}"/>
+                              IsChecked="{Binding SelectedTask?.UseRandomIntervalDelay, Mode=TwoWay}"/>
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Loc Schedule_RunEvery}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   IsVisible="{Binding !SelectedTask.UseRandomIntervalDelay}"/>
+                                   IsVisible="{Binding !SelectedTask?.UseRandomIntervalDelay}"/>
                         <TextBlock Text="{localization:Loc Schedule_RunEveryRange}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   IsVisible="{Binding SelectedTask.UseRandomIntervalDelay}"/>
-                        <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding !SelectedTask.UseRandomIntervalDelay}">
-                            <NumericUpDown Value="{Binding SelectedTask.IntervalValue, Mode=TwoWay, FallbackValue=1, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                   IsVisible="{Binding SelectedTask?.UseRandomIntervalDelay}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding !SelectedTask?.UseRandomIntervalDelay}">
+                            <NumericUpDown Value="{Binding SelectedTask?.IntervalValue, Mode=TwoWay, FallbackValue=1, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
                                           Minimum="1" Maximum="9999"
                                           Width="120"/>
                             <ComboBox ItemsSource="{Binding IntervalUnitOptions}"
@@ -247,10 +248,10 @@
                             </ComboBox>
                         </StackPanel>
                         <Grid ColumnDefinitions="120,Auto,120,12,120" ColumnSpacing="8" HorizontalAlignment="Left"
-                              IsVisible="{Binding SelectedTask.UseRandomIntervalDelay}">
-                            <NumericUpDown Value="{Binding SelectedTask.IntervalMinValue, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="1" Maximum="9999" FormatString="0"/>
+                              IsVisible="{Binding SelectedTask?.UseRandomIntervalDelay}">
+                            <NumericUpDown Value="{Binding SelectedTask?.IntervalMinValue, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="1" Maximum="9999" FormatString="0"/>
                             <TextBlock Grid.Column="1" Text="{localization:Loc Schedule_RangeTo}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask.IntervalMaxValue, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="1" Maximum="9999" FormatString="0"/>
+                            <NumericUpDown Grid.Column="2" Value="{Binding SelectedTask?.IntervalMaxValue, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}" Minimum="1" Maximum="9999" FormatString="0"/>
                             <ComboBox Grid.Column="4"
                                       ItemsSource="{Binding IntervalUnitOptions}"
                                       SelectedItem="{Binding SelectedIntervalUnit, Mode=TwoWay}"

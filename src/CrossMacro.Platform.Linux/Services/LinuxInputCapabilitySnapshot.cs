@@ -1,6 +1,3 @@
-using System;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Services;
 
@@ -11,7 +8,8 @@ public readonly record struct LinuxInputCapabilitySnapshot(
     bool DaemonHandshakeTimedOut,
     bool CanUseDirectUInput,
     bool CanReadInputEvents,
-    LinuxDaemonHandshakeProbeResult? DaemonHandshakeDiagnostic = null)
+    LinuxDaemonHandshakeProbeResult? DaemonHandshakeDiagnostic = null,
+    InputProviderMode? ResolvedMode = null)
 {
     public bool HasDirectInputAccess => CanUseDirectUInput && CanReadInputEvents;
 
@@ -21,15 +19,25 @@ public readonly record struct LinuxInputCapabilitySnapshot(
     private LinuxDaemonHandshakeProbeResult CreateLegacyDaemonHandshake()
     {
         var socketPath = ResolvedSocketPath ?? IpcProtocol.DefaultSocketPath;
-        var status = DaemonHandshakeSucceeded
-            ? LinuxDaemonHandshakeStatus.Success
-            : DaemonHandshakeTimedOut
-                ? LinuxDaemonHandshakeStatus.Timeout
-                : DaemonSocketExists
-                    ? LinuxDaemonHandshakeStatus.UnexpectedError
-                    : LinuxDaemonHandshakeStatus.MissingSocket;
+        LinuxDaemonHandshakeStatus status;
+        if (DaemonHandshakeSucceeded)
+        {
+            status = LinuxDaemonHandshakeStatus.Success;
+        }
+        else if (DaemonHandshakeTimedOut)
+        {
+            status = LinuxDaemonHandshakeStatus.Timeout;
+        }
+        else if (DaemonSocketExists)
+        {
+            status = LinuxDaemonHandshakeStatus.UnexpectedError;
+        }
+        else
+        {
+            status = LinuxDaemonHandshakeStatus.MissingSocket;
+        }
 
-        return status == LinuxDaemonHandshakeStatus.Success
+        return status is LinuxDaemonHandshakeStatus.Success
             ? LinuxDaemonHandshakeProbeResult.Success(socketPath, TimeSpan.Zero)
             : LinuxDaemonHandshakeProbeResult.Failed(socketPath, TimeSpan.Zero, status);
     }

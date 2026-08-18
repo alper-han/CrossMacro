@@ -1,7 +1,7 @@
 Name:           crossmacro
 Version:        %{version}
 Release:        %{?release}%{!?release:1}
-Summary:        Mouse and Keyboard Macro Automation Tool
+Summary:        Mouse and keyboard macro recorder and automation
 
 License:        GPL-3.0-only
 URL:            https://github.com/alper-han/CrossMacro
@@ -26,14 +26,16 @@ Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs, systemd-l
 BuildRequires:  checkpolicy, policycoreutils
 
 Requires(post): systemd
+Requires(post): systemd-udev
 Requires(post): policycoreutils
+Requires(post): shadow-utils
+Requires(pre): shadow-utils
 Requires(preun): systemd
 Requires(postun): systemd
 Requires(postun): policycoreutils
 
 %description
-A powerful cross-platform mouse and keyboard macro automation tool.
-Supports text expansion and works on Linux (Wayland/X11), Windows, and macOS.
+Mouse and keyboard macro recorder and automation for Linux, with Wayland/X11 support, a macro editor, hotkeys, scheduling, text expansion, screen recognition, and CLI control.
 
 %prep
 # No prep needed as we are using pre-built binaries
@@ -74,7 +76,7 @@ install -m 0644 %{_sourcedir}/50-crossmacro.rules %{buildroot}/usr/share/polkit-
 mkdir -p %{buildroot}/usr/lib/modules-load.d
 install -m 0644 %{_sourcedir}/crossmacro-modules.conf %{buildroot}/usr/lib/modules-load.d/crossmacro.conf
 
-ln -s ../lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
+ln -s /usr/lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
 # Copy icons
 cp -r %{_sourcedir}/icons/* %{buildroot}/usr/share/icons/hicolor/
 cp %{_sourcedir}/CrossMacro.desktop %{buildroot}/usr/share/applications/CrossMacro.desktop
@@ -153,12 +155,16 @@ elif [ -n "${PKEXEC_UID:-}" ] && [ "${PKEXEC_UID}" != "0" ]; then
 fi
 
 if [ -n "$installer_user" ] && getent passwd "$installer_user" >/dev/null 2>&1; then
-    usermod -aG crossmacro "$installer_user" >/dev/null 2>&1 || :
-    echo "CrossMacro installed. Added '$installer_user' to 'crossmacro' group."
-    echo "Re-login (or reboot) is required for group change to take effect."
+    if gpasswd -a "$installer_user" crossmacro >/dev/null 2>&1; then
+        echo "CrossMacro installed. Added '$installer_user' to 'crossmacro' group."
+        echo "Re-login (or reboot) is required for group change to take effect."
+    else
+        echo "CrossMacro installed, but could not add '$installer_user' to 'crossmacro' group automatically." >&2
+        echo "Run: sudo gpasswd -a <your-username> crossmacro" >&2
+    fi
 else
     echo "CrossMacro installed. To use the daemon, add yourself to the 'crossmacro' group:"
-    echo "sudo usermod -aG crossmacro \$USER"
+    echo "sudo gpasswd -a \$USER crossmacro"
 fi
 
 %preun

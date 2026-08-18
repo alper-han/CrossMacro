@@ -1,234 +1,288 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Daemon.Contracts.Ipc;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Ipc;
 
-public class IpcClient : IDisposable
+/// <summary>
+/// Facade over the daemon IPC stack. Owns the public API, events and disposal orchestration;
+/// delegates connection lifecycle to <see cref="IpcTransport"/>, capture-session state to
+/// <see cref="IpcCaptureController"/> and simulation traffic to <see cref="IpcSimulationChannel"/>.
+/// </summary>
+public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCallbacks
 {
-    private readonly Func<string> _socketPathResolver;
-    private readonly bool _autoReconnect;
-    private Socket? _socket;
-    private NetworkStream? _stream;
-    private BinaryReader? _reader;
-    private BinaryWriter? _writer;
-    private CancellationTokenSource? _cts;
-    private readonly CancellationTokenSource _reconnectCts = new();
-    private readonly SemaphoreSlim _connectGate = new(1, 1);
-    private readonly Lock _reconnectLock = new();
-    private Task? _readTask;
-    private Task? _reconnectTask;
-    private readonly Lock _writeLock = new();
-    private readonly CaptureSubscriptionCoordinator _captureCoordinator = new();
-    private readonly SemaphoreSlim _captureCommandGate = new(1, 1);
-    private readonly PendingCaptureStartRegistry _pendingCaptureStarts = new();
-    private readonly Lock _simulationBatchLock = new();
-    private readonly Dictionary<int, TaskCompletionSource<bool>> _pendingSimulationBatches = [];
-    private int _nextSimulationBatchRequestId;
-    private bool _disposed;
-    private bool _reconnectEnabled = true;
     private const string DefaultConsumerId = "default";
-    private const int HandshakeTimeoutMs = 5000;
-    private static readonly TimeSpan SimulationBatchAckGracePeriod = TimeSpan.FromSeconds(2);
 
-    public event EventHandler<InputCaptureEventArgs>? InputReceived;
-    public event EventHandler<string>? ErrorOccurred;
-
-    public bool IsConnected => _socket?.Connected ?? false;
-    internal bool AutoReconnectEnabled => _autoReconnect;
+    private readonly IpcTransport _transport;
+    private readonly IpcCaptureController _capture;
+    private readonly IpcSimulationChannel _simulation;
+    private readonly Lock _disposeLock = new();
 
     public IpcClient(Func<string>? socketPathResolver = null, bool autoReconnect = true)
     {
-        _socketPathResolver = socketPathResolver ?? ResolveSocketPath;
-        _autoReconnect = autoReconnect;
+        _transport = new IpcTransport(socketPathResolver ?? ResolveSocketPath, autoReconnect, this, this);
+        _capture = new IpcCaptureController(_transport, ThrowIfDisposed, RaiseErrorOccurredSafely, RaiseErrorOccurredDeferred);
+        _simulation = new IpcSimulationChannel(_transport);
     }
 
-    public async Task ConnectAsync(CancellationToken token)
+    public event EventHandler<CapturedInputEventArgs>? InputReceived;
+    public event EventHandler<InputCaptureErrorEventArgs>? ErrorOccurred;
+
+    public bool IsConnected => _transport.IsConnected;
+    internal bool AutoReconnectEnabled => _transport.AutoReconnectEnabled;
+
+    // Internal seams so tests exercise gate ordering without reflection.
+    internal SemaphoreSlim WriteGate => _transport.WriteGate;
+    internal SemaphoreSlim ConnectGate => _transport.ConnectGate;
+    internal SemaphoreSlim CaptureCommandGate => _capture.CommandGate;
+    internal PendingCaptureStartRegistry PendingCaptureStarts => _capture.PendingCaptureStarts;
+    internal Task? DisposeTask { get; private set; }
+
+    internal void HandleSendFailureForSession(Exception ex, IpcOpCode op, bool throwOnFailure, int? sessionGeneration)
+        => _transport.HandleSendFailure(ex, op, throwOnFailure, sessionGeneration);
+
+    internal Task StartDeferredCaptureReconcileAsync()
+        => _capture.StartDeferredCaptureReconcileAsync();
+
+    public Task ConnectAsync(CancellationToken token) => _transport.ConnectAsync(token);
+
+    public void StartCapture(bool mouse, bool keyboard) => _capture.StartCapture(DefaultConsumerId, mouse, keyboard);
+
+    public void StartCapture(string consumerId, bool mouse, bool keyboard) => _capture.StartCapture(consumerId, mouse, keyboard);
+
+    public Task StartCaptureAsync(bool mouse, bool keyboard, CancellationToken token = default)
+        => _capture.StartCaptureAsync(DefaultConsumerId, mouse, keyboard, token);
+
+    public Task StartCaptureAsync(string consumerId, bool mouse, bool keyboard, CancellationToken token = default)
+        => _capture.StartCaptureAsync(consumerId, mouse, keyboard, token);
+
+    public void StopCapture() => _capture.StopCapture(DefaultConsumerId);
+
+    public void StopCapture(string consumerId) => _capture.StopCapture(consumerId);
+
+    public Task StopCaptureAsync() => _capture.StopCaptureAsync(DefaultConsumerId, CancellationToken.None);
+
+    public Task StopCaptureAsync(string consumerId, CancellationToken token = default)
+        => _capture.StopCaptureAsync(consumerId, token);
+
+    public void SimulateEvent(ushort type, ushort code, int value) => _simulation.SimulateEvent(type, code, value);
+
+    public void SimulateEvents(ReadOnlySpan<(ushort Type, ushort Code, int Value)> events) => _simulation.SimulateEvents(events);
+
+    public void SimulateEventBatch(ReadOnlySpan<InputSimulationStep> steps) => _simulation.SimulateEventBatch(steps);
+
+    public Task SimulateEventBatchAsync(IReadOnlyList<InputSimulationStep> steps, CancellationToken cancellationToken = default)
+        => _simulation.SimulateEventBatchAsync(steps, cancellationToken);
+
+    public void ConfigureResolution(int width, int height)
     {
-        ThrowIfDisposed();
-        var gateAcquired = false;
-        try
+        _ = _transport.Send(IpcOpCode.ConfigureResolution, w =>
         {
-            await _connectGate.WaitAsync(token);
-            gateAcquired = true;
+            w.Write(width);
+            w.Write(height);
+        }, throwOnFailure: true);
+    }
 
-            if (IsConnected) return;
+    public void Cleanup() => _transport.Cleanup(clearSubscriptions: true, disableReconnect: true);
 
-            var socketPath = _socketPathResolver();
+    void IIpcTransportCallbacks.OnMessage(BinaryReader reader, IpcOpCode opcode)
+    {
+        switch (opcode)
+        {
+            case IpcOpCode.InputEvent:
+                DispatchInputEvent(reader);
+                break;
 
+            case IpcOpCode.CaptureStarted:
+                _capture.HandleCaptureStartedMessage(reader.ReadInt32());
+                break;
+
+            case IpcOpCode.CaptureStartFailed:
+                _capture.HandleCaptureStartFailedMessage(reader.ReadInt32(), reader.ReadString());
+                break;
+
+            case IpcOpCode.SimulationBatchCompleted:
+                _simulation.HandleBatchCompletedMessage(
+                    reader.ReadInt32(),
+                    reader.ReadInt32());
+                break;
+
+            case IpcOpCode.SimulationBatchFailed:
+                _simulation.HandleBatchFailedMessage(reader.ReadInt32(), reader.ReadString());
+                break;
+
+            case IpcOpCode.Error:
+                var msg = reader.ReadString();
+                Log.Warning("[IpcClient] RX: Error from daemon: {Message}", msg);
+                RaiseErrorOccurredSafely(msg);
+                break;
+
+            default:
+                Log.Warning("[IpcClient] RX: Unknown opcode: {Op}", opcode);
+                break;
+        }
+    }
+
+    Task IIpcTransportCallbacks.ReplayAfterConnectAsync(CancellationToken token)
+        => _capture.ReplayAfterConnectAsync(token);
+
+    void IIpcTransportCallbacks.OnTransportDropped(bool deferErrorNotifications)
+    {
+        _simulation.FailAllPending(new IpcClientException(
+            IpcClientFailureReason.ConnectFailed,
+            "Daemon connection was lost while waiting for simulation batch acknowledgement."));
+
+        _capture.OnTransportDropped(deferErrorNotifications);
+    }
+
+    void IIpcTransportCallbacks.OnReadLoopFailure(Exception exception)
+    {
+        _capture.OnReadLoopFailure(exception);
+        _simulation.FailAllPending(new IpcClientException(
+            IpcClientFailureReason.ConnectFailed,
+            "Daemon connection was lost while waiting for simulation batch acknowledgement.",
+            exception));
+    }
+
+    void IIpcTransportCallbacks.OnSendFailure(IpcOpCode opcode, Exception exception)
+        => _capture.OnSendFailure(opcode, exception);
+
+    void IIpcTransportCallbacks.OnCleanupSubscriptions(bool clearSubscriptions)
+        => _capture.OnCleanupSubscriptions(clearSubscriptions);
+
+    private void DispatchInputEvent(BinaryReader reader)
+    {
+        var type = (InputEventType)reader.ReadByte();
+        var code = reader.ReadInt32();
+        var value = reader.ReadInt32();
+        var timestampMicroseconds = reader.ReadInt64();
+
+        Log.Debug("[IpcClient] RX: InputEvent Type={Type} Code={Code} Value={Value}", type, code, value);
+
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(new CapturedInputEvent
+        {
+            Type = type,
+            Code = code,
+            Value = value,
+            TimestampMicroseconds = timestampMicroseconds,
+            DeviceName = "Daemon Device",
+        }));
+    }
+
+    internal void RaiseErrorOccurredDeferred(string message)
+    {
+        if (_transport.IsDisposed)
+        {
+            return;
+        }
+
+        var handler = ErrorOccurred;
+        if (handler is null)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            if (_transport.IsDisposed)
+            {
+                return;
+            }
+
+            var gateAcquired = false;
             try
             {
-                _socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-                await _socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), token);
-
-                // Handshake uses explicit timeout to avoid hanging forever on partial connections.
-                _socket.ReceiveTimeout = HandshakeTimeoutMs;
-                _socket.SendTimeout = HandshakeTimeoutMs;
-                
-                _stream = new NetworkStream(_socket);
-                _reader = new BinaryReader(_stream);
-                _writer = new BinaryWriter(_stream);
-
-                // Handshake
-                lock (_writeLock)
+                // Ensure callbacks are dispatched only after any in-flight capture command
+                // exits its gate, avoiding re-entrant waits on the same gate.
+                await _capture.EnterCommandGateAsync(CancellationToken.None).ConfigureAwait(false);
+                gateAcquired = true;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The client is being torn down; the pending event has nowhere to
+                // go, and finally will not release the gate since gateAcquired is
+                // still false at this point.
+            }
+            finally
+            {
+                if (gateAcquired)
                 {
-                    _writer.Write((byte)IpcOpCode.Handshake);
-                    _writer.Write(IpcProtocol.ProtocolVersion);
-                    _stream.Flush();
-                }
-
-                using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                handshakeCts.CancelAfter(HandshakeTimeoutMs);
-                var handshakeToken = handshakeCts.Token;
-
-                var opcode = (IpcOpCode)await ReadHandshakeByteAsync(_stream, handshakeToken);
-                if (opcode == IpcOpCode.Error)
-                {
-                    var msg = await ReadHandshakeStringAsync(_stream, handshakeToken);
-                    throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {msg}");
-                }
-                if (opcode != IpcOpCode.Handshake)
-                {
-                    throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}");
-                }
-                var version = await ReadHandshakeInt32Async(_stream, handshakeToken);
-                if (version != IpcProtocol.ProtocolVersion)
-                {
-                    throw new IpcClientException(
-                        IpcClientFailureReason.ProtocolMismatch,
-                        $"Protocol version mismatch. Daemon: {version}, Client: {IpcProtocol.ProtocolVersion}");
-                }
-
-                // Reset to infinite timeout for normal long-running event stream reads.
-                _socket.ReceiveTimeout = 0;
-                _socket.SendTimeout = 0;
-
-                Log.Information("Connected to CrossMacro Daemon");
-
-                // Start read loop
-                _cts = new CancellationTokenSource();
-                _readTask = Task.Run(() => ReadLoop(_cts.Token));
-
-                await _captureCommandGate.WaitAsync(token);
-                try
-                {
-                    PendingCaptureStartRegistration? replayPendingStart = null;
-                    CaptureCommand replayCommand = default;
-
-                    lock (_captureLock)
-                    {
-                        _captureCoordinator.ResetTransportState();
-                        var command = _captureCoordinator.GetRequiredCommand();
-                        if (command.Type != CaptureCommandType.None)
-                        {
-                            if (command.Type == CaptureCommandType.Start)
-                            {
-                                var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                                if (_pendingCaptureStarts.TryReissueCurrent(
-                                        command,
-                                        notifyOnFailure: true,
-                                        forceReconcileOnFailure: true,
-                                        previousTransportCommand: previousTransportCommand,
-                                        out var reissuedPendingStart))
-                                {
-                                    replayPendingStart = reissuedPendingStart;
-                                    Log.Debug("[IpcClient] Reissued pending capture start for reconnect replay");
-                                }
-                                else
-                                {
-                                    replayPendingStart = _pendingCaptureStarts.Begin(
-                                        command,
-                                        notifyOnFailure: true,
-                                        forceReconcileOnFailure: true,
-                                        previousTransportCommand: previousTransportCommand);
-                                }
-                            }
-
-                            _captureCoordinator.MarkCommandIssued(command);
-                            replayCommand = command;
-                        }
-                    }
-
-                    if (replayCommand.Type != CaptureCommandType.None)
-                    {
-                        try
-                        {
-                            SendCaptureCommand(
-                                replayCommand,
-                                requestId: replayPendingStart?.RequestId ?? 0,
-                                throwOnFailure: replayCommand.Type == CaptureCommandType.Start);
-                        }
-                        catch
-                        {
-                            lock (_captureLock)
-                            {
-                                _captureCoordinator.MarkTransportStopped();
-                            }
-
-                            _pendingCaptureStarts.ClearCurrent(replayPendingStart?.RequestId ?? 0);
-                            throw;
-                        }
-                    }
-                }
-                finally
-                {
-                    _captureCommandGate.Release();
+                    _capture.ExitCommandGate();
                 }
             }
-            catch (OperationCanceledException ex) when (!token.IsCancellationRequested)
+
+            if (!_transport.IsDisposed)
             {
-                Cleanup(clearSubscriptions: false, disableReconnect: false);
-                throw new IpcClientException(
-                    IpcClientFailureReason.Timeout,
-                    "Timed out while connecting to or handshaking with CrossMacro daemon.",
-                    ex);
+                InvokeErrorOccurredHandlersSafely(handler, message, "deferred notification");
             }
-            catch (OperationCanceledException)
-            {
-                Cleanup(clearSubscriptions: false, disableReconnect: false);
-                throw;
-            }
-            catch (Exception ex) when (IsPermissionDeniedException(ex))
-            {
-                Cleanup(clearSubscriptions: false, disableReconnect: false);
-                throw new IpcClientException(
-                    IpcClientFailureReason.PermissionDenied,
-                    "Permission denied while connecting to or handshaking with CrossMacro daemon.",
-                    ex);
-            }
-            catch (IpcClientException)
-            {
-                Cleanup(clearSubscriptions: false, disableReconnect: false);
-                throw;
-            }
-            catch (Exception ex) when (IsTimeoutException(ex))
-            {
-                Cleanup(clearSubscriptions: false, disableReconnect: false);
-                throw new IpcClientException(
-                    IpcClientFailureReason.Timeout,
-                    "Timed out while connecting to or handshaking with CrossMacro daemon.",
-                    ex);
-            }
-            catch (Exception ex)
-            {
-                Cleanup(clearSubscriptions: false, disableReconnect: false);
-                throw new IpcClientException(IpcClientFailureReason.ConnectFailed, "Failed to connect to daemon.", ex);
-            }
-        }
-        finally
+        }, CancellationToken.None);
+    }
+
+    private void RaiseErrorOccurredSafely(string message)
+    {
+        var handler = ErrorOccurred;
+        if (handler is null)
         {
-            if (gateAcquired)
+            return;
+        }
+
+        InvokeErrorOccurredHandlersSafely(handler, message, "notification");
+    }
+
+    private void InvokeErrorOccurredHandlersSafely(
+        EventHandler<InputCaptureErrorEventArgs> handlers,
+        string message,
+        string notificationContext)
+    {
+        var args = new InputCaptureErrorEventArgs(message);
+        foreach (var d in handlers.GetInvocationList())
+        {
+            if (d is not EventHandler<InputCaptureErrorEventArgs> handler)
             {
-                _connectGate.Release();
+                continue;
+            }
+            try
+            {
+                handler(this, args);
+            }
+            catch (Exception callbackError) when (callbackError is not OutOfMemoryException)
+            {
+                Log.Warning(
+                    callbackError,
+                    "[IpcClient] Error callback threw during {NotificationContext}",
+                    notificationContext);
             }
         }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_transport.IsDisposed, this);
+    }
+
+    public void Dispose()
+    {
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        lock (_disposeLock)
+        {
+            if (DisposeTask is null)
+            {
+                _transport.MarkDisposed();
+                DisposeTask = DisposeCoreAsync();
+            }
+
+            return new ValueTask(DisposeTask);
+        }
+    }
+
+    private async Task DisposeCoreAsync()
+    {
+        await _transport.ShutdownAsync().ConfigureAwait(false);
+        await _capture.WaitForDeferredReconcilesAsync().ConfigureAwait(false);
+
+        _capture.Dispose();
+        _transport.Dispose();
     }
 
     private static string ResolveSocketPath()
@@ -257,1323 +311,37 @@ public class IpcClient : IDisposable
                 $"Daemon socket access denied: {IpcProtocol.DefaultSocketPath}",
                 ex);
         }
-        catch (IOException ex) when (IsPermissionDeniedException(ex))
+        catch (IOException ex) when (IpcTransport.IsPermissionDeniedException(ex))
         {
             throw new IpcClientException(
                 IpcClientFailureReason.PermissionDenied,
                 $"Daemon socket access denied: {IpcProtocol.DefaultSocketPath}",
                 ex);
         }
+        catch (IOException ex)
+        {
+            // FileNotFound/DirectoryNotFound from the probe mean the daemon is down
+            // (it unlinks the socket on stop and recreates it on start).
+            throw new IpcClientException(
+                IpcClientFailureReason.SocketNotFound,
+                SocketNotFoundMessage(),
+                ex);
+        }
 
         throw new IpcClientException(
             IpcClientFailureReason.SocketNotFound,
-            $"Daemon socket not found. Checked:\n" +
+            SocketNotFoundMessage());
+    }
+
+    private static string SocketNotFoundMessage()
+    {
+        return "Daemon socket not found. Checked:\n" +
             $"  - {IpcProtocol.DefaultSocketPath}\n" +
-            $"Is the CrossMacro daemon service running?");
+            "Is the CrossMacro daemon service running?";
     }
 
     private static void ProbeSocketPathAccess(string socketPath)
     {
         _ = File.GetAttributes(socketPath);
-    }
-
-    private static bool IsTimeoutException(Exception ex)
-    {
-        if (ex is TimeoutException)
-        {
-            return true;
-        }
-
-        if (ex is IOException ioEx &&
-            ioEx.InnerException is SocketException ioSocketEx &&
-            ioSocketEx.SocketErrorCode == SocketError.TimedOut)
-        {
-            return true;
-        }
-
-        if (ex is SocketException socketEx &&
-            socketEx.SocketErrorCode == SocketError.TimedOut)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool IsPermissionDeniedException(Exception ex)
-    {
-        if (ex is UnauthorizedAccessException)
-        {
-            return true;
-        }
-
-        if (ex is SocketException socketEx)
-        {
-            return socketEx.SocketErrorCode == SocketError.AccessDenied;
-        }
-
-        if (ex is IOException ioEx && ioEx.InnerException is SocketException ioSocketEx)
-        {
-            return ioSocketEx.SocketErrorCode == SocketError.AccessDenied;
-        }
-
-        return false;
-    }
-
-    private static async Task<byte> ReadHandshakeByteAsync(Stream stream, CancellationToken token)
-    {
-        var buffer = new byte[1];
-        await ReadHandshakeExactlyAsync(stream, buffer, token);
-        return buffer[0];
-    }
-
-    private static async Task<int> ReadHandshakeInt32Async(Stream stream, CancellationToken token)
-    {
-        var buffer = new byte[sizeof(int)];
-        await ReadHandshakeExactlyAsync(stream, buffer, token);
-        return BitConverter.ToInt32(buffer);
-    }
-
-    private static async Task<string> ReadHandshakeStringAsync(Stream stream, CancellationToken token)
-    {
-        var byteCount = await ReadHandshake7BitEncodedIntAsync(stream, token);
-        if (byteCount < 0)
-        {
-            throw new IOException("Invalid handshake string length.");
-        }
-
-        if (byteCount == 0)
-        {
-            return string.Empty;
-        }
-
-        var buffer = new byte[byteCount];
-        await ReadHandshakeExactlyAsync(stream, buffer, token);
-        return Encoding.UTF8.GetString(buffer);
-    }
-
-    private static async Task<int> ReadHandshake7BitEncodedIntAsync(Stream stream, CancellationToken token)
-    {
-        var result = 0;
-        var shift = 0;
-
-        for (var index = 0; index < 5; index++)
-        {
-            var currentByte = await ReadHandshakeByteAsync(stream, token);
-            result |= (currentByte & 0x7F) << shift;
-            if ((currentByte & 0x80) == 0)
-            {
-                return result;
-            }
-
-            shift += 7;
-        }
-
-        throw new FormatException("Invalid 7-bit encoded handshake string length.");
-    }
-
-    private static async Task ReadHandshakeExactlyAsync(Stream stream, byte[] buffer, CancellationToken token)
-    {
-        var offset = 0;
-        while (offset < buffer.Length)
-        {
-            var read = await stream.ReadAsync(buffer.AsMemory(offset, buffer.Length - offset), token);
-            if (read == 0)
-            {
-                throw new EndOfStreamException("Daemon closed the connection during handshake.");
-            }
-
-            offset += read;
-        }
-    }
-
-    private void ReadLoop(CancellationToken token)
-    {
-        try
-        {
-            while (!token.IsCancellationRequested && _reader != null)
-            {
-                var opcode = (IpcOpCode)_reader.ReadByte();
-
-                switch (opcode)
-                {
-                    case IpcOpCode.InputEvent:
-                        var type = (InputEventType)_reader.ReadByte();
-                        var code = _reader.ReadInt32();
-                        var value = _reader.ReadInt32();
-                        var timestamp = _reader.ReadInt64();
-
-                        Log.Debug("[IpcClient] RX: InputEvent Type={Type} Code={Code} Value={Value}", type, code, value);
-
-                        InputReceived?.Invoke(this, new InputCaptureEventArgs
-                        {
-                            Type = type,
-                            Code = code,
-                            Value = value,
-                            Timestamp = timestamp,
-                            DeviceName = "Daemon Device"
-                        });
-                        break;
-
-                    case IpcOpCode.CaptureStarted:
-                        HandleCaptureStartedMessage(_reader.ReadInt32());
-                        break;
-
-                    case IpcOpCode.CaptureStartFailed:
-                        HandleCaptureStartFailedMessage(_reader.ReadInt32(), _reader.ReadString());
-                        break;
-
-                    case IpcOpCode.SimulationBatchCompleted:
-                        HandleSimulationBatchCompletedMessage(_reader.ReadInt32());
-                        break;
-
-                    case IpcOpCode.SimulationBatchFailed:
-                        HandleSimulationBatchFailedMessage(_reader.ReadInt32(), _reader.ReadString());
-                        break;
-
-                    case IpcOpCode.Error:
-                        var msg = _reader.ReadString();
-                        Log.Warning("[IpcClient] RX: Error from daemon: {Message}", msg);
-                        RaiseErrorOccurredSafely(msg);
-                        break;
-
-                    default:
-                        Log.Warning("[IpcClient] RX: Unknown opcode: {Op}", opcode);
-                        break;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            if (!token.IsCancellationRequested)
-            {
-                Log.Error(ex, "[IpcClient] Read loop error");
-                var failedPendingStart = _pendingCaptureStarts.TryFailCurrent(
-                    new IpcClientException(
-                        IpcClientFailureReason.ConnectFailed,
-                        "Daemon connection was lost during capture startup.",
-                        ex),
-                    out var notifyOnFailure);
-                if (notifyOnFailure || !failedPendingStart)
-                {
-                    RaiseErrorOccurredSafely("Connection lost: " + ex.Message);
-                }
-                FailPendingSimulationBatches(new IpcClientException(
-                    IpcClientFailureReason.ConnectFailed,
-                    "Daemon connection was lost while waiting for simulation batch acknowledgement.",
-                    ex));
-                Cleanup(clearSubscriptions: false, disableReconnect: false);
-                StartReconnectLoop();
-            }
-        }
-    }
-
-    private readonly Lock _captureLock = new();
-
-    private void EnterCaptureCommandGate()
-    {
-        _captureCommandGate.Wait();
-    }
-
-    private async Task EnterCaptureCommandGateAsync(CancellationToken token)
-    {
-        await _captureCommandGate.WaitAsync(token);
-    }
-
-    private void ExitCaptureCommandGate()
-    {
-        _captureCommandGate.Release();
-    }
-
-    public void StartCapture(bool mouse, bool keyboard)
-    {
-        StartCapture(DefaultConsumerId, mouse, keyboard);
-    }
-
-    public void StartCapture(string consumerId, bool mouse, bool keyboard)
-    {
-        if (string.IsNullOrWhiteSpace(consumerId))
-        {
-            throw new ArgumentException("Consumer id cannot be null or whitespace.", nameof(consumerId));
-        }
-
-        CaptureCommand commandToSend = default;
-        PendingCaptureStartRegistration? pendingStart = null;
-        var shouldSend = false;
-
-        EnterCaptureCommandGate();
-        try
-        {
-            lock (_captureLock)
-            {
-                _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
-
-                if (_pendingCaptureStarts.TryGetPendingTask() != null)
-                {
-                    _pendingCaptureStarts.RequestFailureNotification();
-                    return;
-                }
-
-                var command = _captureCoordinator.GetRequiredCommand();
-                if (command.Type != CaptureCommandType.None)
-                {
-                    if (command.Type == CaptureCommandType.Start && !IsConnected)
-                    {
-                        return;
-                    }
-
-                        if (command.Type == CaptureCommandType.Start)
-                        {
-                            var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                            pendingStart = _pendingCaptureStarts.Begin(
-                                command,
-                                notifyOnFailure: true,
-                                forceReconcileOnFailure: true,
-                                previousTransportCommand: previousTransportCommand);
-                        }
-
-                    _captureCoordinator.MarkCommandIssued(command);
-                    commandToSend = command;
-                    shouldSend = true;
-                }
-            }
-
-            if (shouldSend)
-            {
-                try
-                {
-                    if (!SendCaptureCommand(commandToSend, requestId: pendingStart?.RequestId ?? 0))
-                    {
-                        lock (_captureLock)
-                        {
-                            _captureCoordinator.MarkTransportStopped();
-                        }
-
-                        _pendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
-                    }
-                }
-                catch
-                {
-                    lock (_captureLock)
-                    {
-                        _captureCoordinator.MarkTransportStopped();
-                    }
-
-                    _pendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
-                    throw;
-                }
-            }
-        }
-        finally
-        {
-            ExitCaptureCommandGate();
-        }
-    }
-
-    public Task StartCaptureAsync(bool mouse, bool keyboard, CancellationToken token = default)
-    {
-        return StartCaptureAsync(DefaultConsumerId, mouse, keyboard, token);
-    }
-
-    public async Task StartCaptureAsync(string consumerId, bool mouse, bool keyboard, CancellationToken token = default)
-    {
-        if (string.IsNullOrWhiteSpace(consumerId))
-        {
-            throw new ArgumentException("Consumer id cannot be null or whitespace.", nameof(consumerId));
-        }
-
-        ThrowIfDisposed();
-        token.ThrowIfCancellationRequested();
-
-        var subscriptionRegistered = false;
-        bool hadPreviousSubscription = false;
-        bool previousCaptureMouse = false;
-        bool previousCaptureKeyboard = false;
-
-        while (true)
-        {
-            Task? waitTask = null;
-            PendingCaptureStartRegistration? createdPendingStart = null;
-            CaptureCommand commandToSend = default;
-            var joinedExistingPendingStart = false;
-
-            await EnterCaptureCommandGateAsync(token);
-            try
-            {
-                lock (_captureLock)
-                {
-                    if (!subscriptionRegistered)
-                    {
-                        hadPreviousSubscription = _captureCoordinator.TryGetSubscription(
-                            consumerId,
-                            out previousCaptureMouse,
-                            out previousCaptureKeyboard);
-                        _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
-                        subscriptionRegistered = true;
-                    }
-
-                    waitTask = _pendingCaptureStarts.TryGetPendingTask();
-                    if (waitTask == null)
-                    {
-                        var command = _captureCoordinator.GetRequiredCommand();
-                        if (command.Type == CaptureCommandType.None)
-                        {
-                            return;
-                        }
-
-                        if (command.Type == CaptureCommandType.Start)
-                        {
-                            var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                            createdPendingStart = _pendingCaptureStarts.Begin(
-                                command,
-                                notifyOnFailure: false,
-                                forceReconcileOnFailure: false,
-                                previousTransportCommand: previousTransportCommand,
-                                originConsumerId: consumerId,
-                                originHadPreviousSubscription: hadPreviousSubscription,
-                                originCaptureMouse: previousCaptureMouse,
-                                originCaptureKeyboard: previousCaptureKeyboard);
-                            waitTask = createdPendingStart.Value.Completion.Task;
-                        }
-
-                        _captureCoordinator.MarkCommandIssued(command);
-                        commandToSend = command;
-                    }
-                    else
-                    {
-                        _pendingCaptureStarts.RegisterAsyncParticipant(
-                            consumerId,
-                            hadPreviousSubscription,
-                            previousCaptureMouse,
-                            previousCaptureKeyboard);
-                        joinedExistingPendingStart = true;
-                    }
-                }
-
-                if (commandToSend.Type != CaptureCommandType.None)
-                {
-                    try
-                    {
-                        SendCaptureCommand(
-                            commandToSend,
-                            requestId: createdPendingStart?.RequestId ?? 0,
-                            throwOnFailure: commandToSend.Type == CaptureCommandType.Start);
-                    }
-                    catch
-                    {
-                        lock (_captureLock)
-                        {
-                            RestoreSubscription_NoLock(
-                                consumerId,
-                                hadPreviousSubscription,
-                                previousCaptureMouse,
-                                previousCaptureKeyboard);
-                            _captureCoordinator.MarkTransportStopped();
-                        }
-
-                        _pendingCaptureStarts.ClearCurrent(createdPendingStart?.RequestId ?? 0);
-                        throw;
-                    }
-
-                    if (commandToSend.Type == CaptureCommandType.Stop)
-                    {
-                        return;
-                    }
-                }
-            }
-            finally
-            {
-                ExitCaptureCommandGate();
-            }
-
-            if (waitTask == null)
-            {
-                return;
-            }
-
-            try
-            {
-                await waitTask.WaitAsync(token);
-            }
-            catch (Exception ex) when (ShouldRetrySharedPendingStartFailure(
-                ex,
-                joinedExistingPendingStart,
-                consumerId,
-                mouse,
-                keyboard))
-            {
-                continue;
-            }
-        }
-    }
-
-    public void StopCapture()
-    {
-        StopCapture(DefaultConsumerId);
-    }
-
-    public void StopCapture(string consumerId)
-    {
-        if (string.IsNullOrWhiteSpace(consumerId))
-        {
-            return;
-        }
-
-        CaptureCommand commandToSend = default;
-        PendingCaptureStartRegistration? pendingStart = null;
-
-        EnterCaptureCommandGate();
-        try
-        {
-            lock (_captureLock)
-            {
-                _captureCoordinator.RemoveSubscription(consumerId);
-
-                if (_pendingCaptureStarts.TryGetPendingTask() != null)
-                {
-                    _pendingCaptureStarts.MarkSubscriptionRemoved(consumerId);
-
-                    if (!_captureCoordinator.HasSubscriptions)
-                    {
-                        AbortPendingCaptureStart_NoLock();
-                    }
-
-                    if (_captureCoordinator.HasSubscriptions)
-                    {
-                        return;
-                    }
-                }
-                else
-                {
-                    var command = _captureCoordinator.GetRequiredCommand();
-                    if (command.Type != CaptureCommandType.None)
-                    {
-                        if (command.Type == CaptureCommandType.Start)
-                        {
-                            var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                            pendingStart = _pendingCaptureStarts.Begin(
-                                command,
-                                notifyOnFailure: true,
-                                forceReconcileOnFailure: true,
-                                previousTransportCommand: previousTransportCommand);
-                        }
-
-                        _captureCoordinator.MarkCommandIssued(command);
-                        commandToSend = command;
-                    }
-                }
-            }
-
-            if (commandToSend.Type != CaptureCommandType.None)
-            {
-                try
-                {
-                    if (!SendCaptureCommand(commandToSend, requestId: pendingStart?.RequestId ?? 0))
-                    {
-                        lock (_captureLock)
-                        {
-                            _captureCoordinator.MarkTransportStopped();
-                        }
-
-                        _pendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
-                    }
-                }
-                catch
-                {
-                    lock (_captureLock)
-                    {
-                        _captureCoordinator.MarkTransportStopped();
-                    }
-
-                    _pendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
-                    throw;
-                }
-            }
-        }
-        finally
-        {
-            ExitCaptureCommandGate();
-        }
-    }
-
-    private bool SendCaptureCommand(CaptureCommand command, int requestId = 0, bool throwOnFailure = false)
-    {
-        switch (command.Type)
-        {
-            case CaptureCommandType.Start:
-                Log.Debug(
-                    "[IpcClient] TX: StartCapture RequestId={RequestId} Mouse={Mouse} Keyboard={Keyboard}",
-                    requestId,
-                    command.CaptureMouse,
-                    command.CaptureKeyboard);
-                return Send(IpcOpCode.StartCapture, w =>
-                {
-                    w.Write(requestId);
-                    w.Write(command.CaptureMouse);
-                    w.Write(command.CaptureKeyboard);
-                }, throwOnFailure);
-            case CaptureCommandType.Stop:
-                Log.Debug("[IpcClient] TX: StopCapture");
-                return Send(IpcOpCode.StopCapture, throwOnFailure: throwOnFailure);
-            default:
-                return false;
-        }
-    }
-
-    public void SimulateEvent(ushort type, ushort code, int value)
-    {
-        Log.Debug("[IpcClient] TX: SimulateEvent Type={Type} Code={Code} Value={Value}", type, code, value);
-        Send(IpcOpCode.SimulateEvent, w =>
-        {
-            w.Write(type);
-            w.Write(code);
-            w.Write(value);
-        }, throwOnFailure: true);
-    }
-
-    public void SimulateEvents(ReadOnlySpan<(ushort Type, ushort Code, int Value)> events)
-    {
-        if (!IsConnected)
-        {
-            throw new IpcClientException(
-                IpcClientFailureReason.ConnectFailed,
-                "Failed to send simulated events because the daemon connection is not available.");
-        }
-
-        lock (_writeLock)
-        {
-            try
-            {
-                foreach (var (type, code, value) in events)
-                {
-                    _writer!.Write((byte)IpcOpCode.SimulateEvent);
-                    _writer.Write(type);
-                    _writer.Write(code);
-                    _writer.Write(value);
-                }
-                _stream!.Flush();
-            }
-            catch (Exception ex)
-            {
-                HandleSendFailure(ex, IpcOpCode.SimulateEvent, throwOnFailure: true);
-            }
-        }
-    }
-
-    public void SimulateEventBatch(ReadOnlySpan<InputSimulationStep> steps)
-    {
-        if (steps.IsEmpty)
-        {
-            return;
-        }
-
-        if (steps.Length > IpcProtocol.MaxSimulationBatchEvents)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(steps),
-                $"Simulation batch contains {steps.Length} events, exceeding the maximum of {IpcProtocol.MaxSimulationBatchEvents}.");
-        }
-
-        if (!IsConnected)
-        {
-            throw new IpcClientException(
-                IpcClientFailureReason.ConnectFailed,
-                "Failed to send simulation batch because the daemon connection is not available.");
-        }
-
-        var requestId = Interlocked.Increment(ref _nextSimulationBatchRequestId);
-        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        lock (_simulationBatchLock)
-        {
-            _pendingSimulationBatches[requestId] = completion;
-        }
-
-        try
-        {
-            lock (_writeLock)
-            {
-                try
-                {
-                    _writer!.Write((byte)IpcOpCode.SimulateEventBatch);
-                    _writer.Write(requestId);
-                    _writer.Write(steps.Length);
-                    foreach (var step in steps)
-                    {
-                        _writer.Write(step.Type);
-                        _writer.Write(step.Code);
-                        _writer.Write(step.Value);
-                        _writer.Write(step.DelayAfterMs);
-                    }
-
-                    _stream!.Flush();
-                }
-                catch (Exception ex)
-                {
-                    RemovePendingSimulationBatch(requestId);
-                    HandleSendFailure(ex, IpcOpCode.SimulateEventBatch, throwOnFailure: true);
-                }
-            }
-
-            var acknowledgementTimeout = TimeSpan.FromMilliseconds(IpcProtocol.MaxSimulationBatchTotalDelayMs) +
-                SimulationBatchAckGracePeriod;
-            var timeoutTask = Task.Delay(acknowledgementTimeout);
-            if (Task.WhenAny(completion.Task, timeoutTask).GetAwaiter().GetResult() != completion.Task)
-            {
-                throw new IpcClientException(
-                    IpcClientFailureReason.Timeout,
-                    $"Timed out waiting for simulation batch acknowledgement after {acknowledgementTimeout.TotalMilliseconds:0}ms.");
-            }
-
-            completion.Task.GetAwaiter().GetResult();
-        }
-        finally
-        {
-            RemovePendingSimulationBatch(requestId);
-        }
-    }
-
-    public void ConfigureResolution(int width, int height)
-    {
-        Send(IpcOpCode.ConfigureResolution, w =>
-        {
-            w.Write(width);
-            w.Write(height);
-        }, throwOnFailure: true);
-    }
-
-    private bool Send(
-        IpcOpCode op,
-        Action<BinaryWriter>? writerAction = null,
-        bool throwOnFailure = false)
-    {
-        if (!IsConnected)
-        {
-            if (throwOnFailure)
-            {
-                throw new IpcClientException(
-                    IpcClientFailureReason.ConnectFailed,
-                    $"Failed to send '{op}' because the daemon connection is not available.");
-            }
-            return false;
-        }
-
-        lock (_writeLock)
-        {
-            try
-            {
-                _writer!.Write((byte)op);
-                writerAction?.Invoke(_writer);
-                _stream!.Flush();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                HandleSendFailure(ex, op, throwOnFailure);
-                return false;
-            }
-        }
-    }
-
-    public void Cleanup()
-    {
-        Cleanup(clearSubscriptions: true, disableReconnect: true);
-    }
-
-    private void Cleanup(bool clearSubscriptions, bool disableReconnect)
-    {
-        DropTransport();
-
-        if (disableReconnect)
-        {
-            lock (_reconnectLock)
-            {
-                _reconnectEnabled = false;
-            }
-            _reconnectCts.Cancel();
-        }
-
-        lock (_captureLock)
-        {
-            if (clearSubscriptions)
-            {
-                _captureCoordinator.Clear();
-            }
-            else
-            {
-                _captureCoordinator.ResetTransportState();
-            }
-        }
-    }
-
-    private void HandleSendFailure(Exception ex, IpcOpCode op, bool throwOnFailure)
-    {
-        Log.Error(ex, "Failed to send IPC message: {OpCode}", op);
-        lock (_captureLock)
-        {
-            _captureCoordinator.MarkTransportStopped();
-        }
-
-        var failedPendingStart = _pendingCaptureStarts.TryFailCurrent(
-            new IpcClientException(
-                IpcClientFailureReason.ConnectFailed,
-                $"Failed to send IPC command '{op}'.",
-                ex),
-            out var notifyOnFailure);
-        if (notifyOnFailure || !failedPendingStart)
-        {
-            RaiseErrorOccurredDeferred($"IPC send failed ({op}): {ex.Message}");
-        }
-
-        DropTransport(deferErrorNotifications: true);
-        StartReconnectLoop();
-
-        if (throwOnFailure)
-        {
-            throw new IpcClientException(
-                IpcClientFailureReason.ConnectFailed,
-                $"Failed to send IPC command '{op}'.",
-                ex);
-        }
-    }
-
-    private void HandleSimulationBatchCompletedMessage(int requestId)
-    {
-        TaskCompletionSource<bool>? completion;
-        lock (_simulationBatchLock)
-        {
-            _pendingSimulationBatches.TryGetValue(requestId, out completion);
-        }
-
-        completion?.TrySetResult(true);
-    }
-
-    private void HandleSimulationBatchFailedMessage(int requestId, string message)
-    {
-        TaskCompletionSource<bool>? completion;
-        lock (_simulationBatchLock)
-        {
-            _pendingSimulationBatches.TryGetValue(requestId, out completion);
-        }
-
-        completion?.TrySetException(new IpcClientException(
-            IpcClientFailureReason.ConnectFailed,
-            $"Simulation batch failed: {message}"));
-    }
-
-    private void RemovePendingSimulationBatch(int requestId)
-    {
-        lock (_simulationBatchLock)
-        {
-            _pendingSimulationBatches.Remove(requestId);
-        }
-    }
-
-    private void FailPendingSimulationBatches(Exception exception)
-    {
-        List<TaskCompletionSource<bool>> pending;
-        lock (_simulationBatchLock)
-        {
-            pending = [.. _pendingSimulationBatches.Values];
-            _pendingSimulationBatches.Clear();
-        }
-
-        foreach (var completion in pending)
-        {
-            completion.TrySetException(exception);
-        }
-    }
-
-    private void DropTransport(bool deferErrorNotifications = false)
-    {
-        FailPendingSimulationBatches(new IpcClientException(
-            IpcClientFailureReason.ConnectFailed,
-            "Daemon connection was lost while waiting for simulation batch acknowledgement."));
-
-        lock (_captureLock)
-        {
-            _captureCoordinator.MarkTransportStopped();
-        }
-
-        var failedPendingStart = _pendingCaptureStarts.TryFailCurrent(
-            new IpcClientException(
-                IpcClientFailureReason.ConnectFailed,
-                "Daemon connection was lost during capture startup."),
-            out var notifyOnFailure);
-        if (notifyOnFailure && failedPendingStart)
-        {
-            if (deferErrorNotifications)
-            {
-                RaiseErrorOccurredDeferred("Daemon connection was lost during capture startup.");
-            }
-            else
-            {
-                RaiseErrorOccurredSafely("Daemon connection was lost during capture startup.");
-            }
-        }
-
-        // DropTransport can run concurrently from read/send failure paths and Dispose().
-        // Detaching references first avoids double-cancel/double-dispose races.
-        var cts = Interlocked.Exchange(ref _cts, null);
-        var reader = Interlocked.Exchange(ref _reader, null);
-        var writer = Interlocked.Exchange(ref _writer, null);
-        var stream = Interlocked.Exchange(ref _stream, null);
-        var socket = Interlocked.Exchange(ref _socket, null);
-
-        CancelSafely(cts);
-        SafeDispose(reader);
-        SafeDispose(writer);
-        SafeDispose(stream);
-        SafeDispose(socket);
-        SafeDispose(cts);
-
-        _readTask = null;
-    }
-
-    private void RaiseErrorOccurredDeferred(string message)
-    {
-        var handler = ErrorOccurred;
-        if (handler is null)
-        {
-            return;
-        }
-
-        _ = Task.Run(async () =>
-        {
-            var gateAcquired = false;
-            try
-            {
-                // Ensure callbacks are dispatched only after any in-flight capture command
-                // exits its gate, avoiding re-entrant waits on the same gate.
-                await EnterCaptureCommandGateAsync(CancellationToken.None);
-                gateAcquired = true;
-            }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
-            finally
-            {
-                if (gateAcquired)
-                {
-                    ExitCaptureCommandGate();
-                }
-            }
-
-            InvokeErrorOccurredHandlersSafely(handler, message, "deferred notification");
-        });
-    }
-
-    private void RaiseErrorOccurredSafely(string message)
-    {
-        var handler = ErrorOccurred;
-        if (handler is null)
-        {
-            return;
-        }
-
-        InvokeErrorOccurredHandlersSafely(handler, message, "notification");
-    }
-
-    private void InvokeErrorOccurredHandlersSafely(
-        EventHandler<string> handlers,
-        string message,
-        string notificationContext)
-    {
-        foreach (EventHandler<string> handler in handlers.GetInvocationList())
-        {
-            try
-            {
-                handler(this, message);
-            }
-            catch (Exception callbackError)
-            {
-                Log.Warning(
-                    callbackError,
-                    "[IpcClient] Error callback threw during {NotificationContext}",
-                    notificationContext);
-            }
-        }
-    }
-
-    private static void CancelSafely(CancellationTokenSource? cts)
-    {
-        if (cts is null)
-        {
-            return;
-        }
-
-        try
-        {
-            cts.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-    }
-
-    private static void SafeDispose(IDisposable? disposable)
-    {
-        if (disposable is null)
-        {
-            return;
-        }
-
-        try
-        {
-            disposable.Dispose();
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-    }
-
-    private void StartReconnectLoop()
-    {
-        if (!_autoReconnect)
-        {
-            return;
-        }
-
-        lock (_reconnectLock)
-        {
-            if (!_reconnectEnabled || _disposed)
-            {
-                return;
-            }
-
-            if (_reconnectTask is { IsCompleted: false })
-            {
-                return;
-            }
-
-            _reconnectTask = Task.Run(() => ReconnectLoopAsync(_reconnectCts.Token));
-        }
-    }
-
-    private async Task ReconnectLoopAsync(CancellationToken token)
-    {
-        var delay = TimeSpan.FromMilliseconds(250);
-        var maxDelay = TimeSpan.FromSeconds(5);
-
-        try
-        {
-            while (!token.IsCancellationRequested)
-            {
-                try
-                {
-                    await ConnectAsync(token);
-                    Log.Information("[IpcClient] Reconnected to daemon");
-                    return;
-                }
-                catch (OperationCanceledException) when (token.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "[IpcClient] Reconnect attempt failed");
-                }
-
-                await Task.Delay(delay, token);
-                delay = TimeSpan.FromMilliseconds(Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2));
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        finally
-        {
-            lock (_reconnectLock)
-            {
-                _reconnectTask = null;
-            }
-        }
-    }
-
-    private void ThrowIfDisposed()
-    {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(IpcClient));
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        Cleanup();
-        _reconnectCts.Dispose();
-        _captureCommandGate.Dispose();
-        _connectGate.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
-    private bool ShouldRetrySharedPendingStartFailure(
-        Exception exception,
-        bool joinedExistingPendingStart,
-        string consumerId,
-        bool mouse,
-        bool keyboard)
-    {
-        if (!joinedExistingPendingStart || exception is not InvalidOperationException)
-        {
-            return false;
-        }
-
-        lock (_captureLock)
-        {
-            return _captureCoordinator.TryGetSubscription(
-                consumerId,
-                out var currentCaptureMouse,
-                out var currentCaptureKeyboard) &&
-                currentCaptureMouse == mouse &&
-                currentCaptureKeyboard == keyboard;
-        }
-    }
-
-    private void AbortPendingCaptureStart_NoLock()
-    {
-        _captureCoordinator.MarkTransportStopped();
-
-        _ = _pendingCaptureStarts.TryFailCurrent(
-            new OperationCanceledException("Capture startup was cancelled before daemon acknowledgement."),
-            out _);
-
-        // Keep the shared socket alive. StopCapture is queued after the stale start and
-        // tears daemon capture down once that delayed start completes.
-        SendCaptureCommand(new CaptureCommand(CaptureCommandType.Stop));
-    }
-
-    private bool TryReconcileCaptureStateNow()
-    {
-        if (_disposed || !_captureCommandGate.Wait(0))
-        {
-            return false;
-        }
-
-        try
-        {
-            return TryDispatchReconcileCommandUnderGate();
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[IpcClient] Immediate capture reconcile failed");
-            return true;
-        }
-        finally
-        {
-            ExitCaptureCommandGate();
-        }
-    }
-
-    private Task StartDeferredCaptureReconcile()
-    {
-        var transportToken = _cts?.Token ?? _reconnectCts.Token;
-
-        return Task.Run(async () =>
-        {
-            try
-            {
-                if (_disposed)
-                {
-                    return;
-                }
-
-                await EnterCaptureCommandGateAsync(transportToken);
-                try
-                {
-                    _ = TryDispatchReconcileCommandUnderGate();
-                }
-                finally
-                {
-                    ExitCaptureCommandGate();
-                }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "[IpcClient] Failed to reconcile capture state");
-            }
-        });
-    }
-
-    private void HandleCaptureStartedMessage(int startedRequestId)
-    {
-        Log.Debug("[IpcClient] RX: CaptureStarted RequestId={RequestId}", startedRequestId);
-        if (_pendingCaptureStarts.TryComplete(startedRequestId, out var completedStart))
-        {
-            _ = completedStart.Completion.TrySetResult(true);
-            StartDeferredCaptureReconcile();
-            return;
-        }
-
-        Log.Debug("[IpcClient] Ignoring stale CaptureStarted for RequestId={RequestId}", startedRequestId);
-    }
-
-    private void HandleCaptureStartFailedMessage(int failedRequestId, string failureMessage)
-    {
-        var failureException = new InvalidOperationException(failureMessage);
-        Log.Warning(
-            "[IpcClient] RX: CaptureStartFailed RequestId={RequestId} Message={Message}",
-            failedRequestId,
-            failureMessage);
-
-        var hasFailedPendingStart = _pendingCaptureStarts.TryFail(
-            failedRequestId,
-            out var failureContext);
-        if (!hasFailedPendingStart)
-        {
-            Log.Debug("[IpcClient] Ignoring stale CaptureStartFailed for RequestId={RequestId}", failedRequestId);
-            return;
-        }
-
-        var removedConsumersSinceStart = failureContext.RemovedConsumersSinceStart.Length == 0
-            ? null
-            : new HashSet<string>(failureContext.RemovedConsumersSinceStart, StringComparer.Ordinal);
-        bool shouldReconcile;
-        var rollbackChangedSubscriptions = false;
-        lock (_captureLock)
-        {
-            _captureCoordinator.MarkTransportStopped();
-            foreach (var participant in failureContext.FailedAsyncParticipants)
-            {
-                if (!participant.ShouldRestoreOnFailure)
-                {
-                    continue;
-                }
-
-                if (removedConsumersSinceStart?.Contains(participant.ConsumerId) == true)
-                {
-                    continue;
-                }
-
-                rollbackChangedSubscriptions |= RestoreSubscription_NoLock(
-                    participant.ConsumerId,
-                    participant.HadPreviousSubscription,
-                    participant.PreviousCaptureMouse,
-                    participant.PreviousCaptureKeyboard);
-            }
-
-            var currentRequiredCommand = _captureCoordinator.GetRequiredCommand();
-            shouldReconcile = failureContext.ForceReconcileOnFailure ||
-                CaptureStartFailureReconciler.ShouldReconcile(
-                    currentRequiredCommand,
-                    failureContext.FailedCommand,
-                    failureContext.FailedAsyncParticipants.Length == 0 &&
-                        failureContext.FailedPreviousTransportCommand.Type == CaptureCommandType.Start,
-                    failureContext.SubscriptionRemovedSinceStart,
-                    rollbackChangedSubscriptions);
-        }
-
-        if (shouldReconcile && !TryReconcileCaptureStateNow())
-        {
-            StartDeferredCaptureReconcile();
-        }
-
-        if (failureContext.NotifyOnFailure)
-        {
-            try
-            {
-                RaiseErrorOccurredSafely(failureMessage);
-            }
-            finally
-            {
-                _ = failureContext.Completion.TrySetException(failureException);
-            }
-            return;
-        }
-
-        _ = failureContext.Completion.TrySetException(failureException);
-    }
-
-    private bool TryDispatchReconcileCommandUnderGate()
-    {
-        PendingCaptureStartRegistration? deferredPendingStart = null;
-        CaptureCommand deferredCommand;
-
-        lock (_captureLock)
-        {
-            if (_pendingCaptureStarts.TryGetPendingTask() != null)
-            {
-                return true;
-            }
-
-            deferredCommand = _captureCoordinator.GetRequiredCommand();
-            if (deferredCommand.Type == CaptureCommandType.None)
-            {
-                return true;
-            }
-
-            if (deferredCommand.Type == CaptureCommandType.Start)
-            {
-                deferredPendingStart = _pendingCaptureStarts.Begin(deferredCommand, notifyOnFailure: true);
-            }
-
-            _captureCoordinator.MarkCommandIssued(deferredCommand);
-        }
-
-        try
-        {
-            SendCaptureCommand(
-                deferredCommand,
-                requestId: deferredPendingStart?.RequestId ?? 0,
-                throwOnFailure: deferredCommand.Type == CaptureCommandType.Start);
-        }
-        catch
-        {
-            lock (_captureLock)
-            {
-                _captureCoordinator.MarkTransportStopped();
-            }
-
-            _pendingCaptureStarts.ClearCurrent(deferredPendingStart?.RequestId ?? 0);
-            throw;
-        }
-
-        return true;
-    }
-
-    private bool RestoreSubscription_NoLock(
-        string consumerId,
-        bool hadPreviousSubscription,
-        bool previousCaptureMouse,
-        bool previousCaptureKeyboard)
-    {
-        var hasCurrentSubscription = _captureCoordinator.TryGetSubscription(
-            consumerId,
-            out var currentCaptureMouse,
-            out var currentCaptureKeyboard);
-
-        if (hadPreviousSubscription)
-        {
-            if (hasCurrentSubscription &&
-                currentCaptureMouse == previousCaptureMouse &&
-                currentCaptureKeyboard == previousCaptureKeyboard)
-            {
-                return false;
-            }
-
-            _captureCoordinator.SetSubscription(consumerId, previousCaptureMouse, previousCaptureKeyboard);
-            return true;
-        }
-
-        if (!hasCurrentSubscription)
-        {
-            return false;
-        }
-
-        _captureCoordinator.RemoveSubscription(consumerId);
-        return true;
     }
 }

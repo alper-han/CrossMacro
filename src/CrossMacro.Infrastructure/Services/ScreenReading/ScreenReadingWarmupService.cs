@@ -1,49 +1,53 @@
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
-public sealed class ScreenReadingWarmupService : IScreenReadingWarmupService
+public sealed class ScreenReadingWarmupService(
+    IScreenFrameProvider frameProvider,
+    IScreenReadingDiagnosticProvider? diagnosticProvider = null,
+    IScreenReadingCapabilityReadiness? capabilityReadiness = null) : IScreenReadingWarmupService
 {
-    private static readonly ScreenRect WarmupRegion = new(0, 0, 1, 1);
     private static readonly TimeSpan WarmupTimeout = TimeSpan.FromSeconds(15);
 
-    private readonly IScreenFrameProvider _frameProvider;
-    private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider;
+    private readonly IScreenFrameProvider _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
+    private readonly IScreenReadingDiagnosticProvider? _diagnosticProvider = diagnosticProvider;
+    private readonly IScreenReadingCapabilityReadiness? _capabilityReadiness = capabilityReadiness;
     private readonly Lock _lock = new();
     private Task? _warmupTask;
 
-    public ScreenReadingWarmupService(
-        IScreenFrameProvider frameProvider,
-        IScreenReadingDiagnosticProvider? diagnosticProvider = null)
+    public async Task WarmUpPortalSessionAsync(CancellationToken cancellationToken = default)
     {
-        _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
-        _diagnosticProvider = diagnosticProvider;
-    }
+        if (_capabilityReadiness is not null)
+        {
+            await _capabilityReadiness.EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+        }
 
-    public Task WarmUpPortalSessionAsync(CancellationToken cancellationToken = default)
-    {
         if (!ShouldWarmUpPortalSession())
         {
-            return Task.CompletedTask;
+            return;
         }
 
+        Task warmupTask;
         lock (_lock)
         {
-            if (_warmupTask is { IsCompleted: false } || _warmupTask is { IsCompletedSuccessfully: true })
+            if (_warmupTask is
+            { IsCompleted: false } or
+            { IsCompletedSuccessfully: true })
             {
-                return _warmupTask;
+                warmupTask = _warmupTask;
             }
-
-            _warmupTask = WarmUpCoreAsync(cancellationToken);
-            return _warmupTask;
+            else
+            {
+                _warmupTask = WarmUpCoreAsync(cancellationToken);
+                warmupTask = _warmupTask;
+            }
         }
+
+        await warmupTask.ConfigureAwait(false);
     }
 
     private bool ShouldWarmUpPortalSession()
     {
-        if (_diagnosticProvider == null)
+        if (_diagnosticProvider is null)
         {
             return false;
         }
@@ -53,7 +57,7 @@ public sealed class ScreenReadingWarmupService : IScreenReadingWarmupService
             var snapshot = _diagnosticProvider.GetSnapshot();
             return string.Equals(snapshot.SelectedBackend, "Portal", StringComparison.Ordinal);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[ScreenReadingWarmupService] Screen-reading diagnostics failed; skipping Portal warm-up");
             return false;
@@ -65,8 +69,8 @@ public sealed class ScreenReadingWarmupService : IScreenReadingWarmupService
         try
         {
             var result = await _frameProvider.CaptureFrameAsync(
-                WarmupRegion,
-                new ScreenReadOptions(WarmupTimeout, ScreenReadOptions.Default.PollInterval, cancellationToken)).ConfigureAwait(false);
+                region: null,
+                options: new ScreenReadOptions(WarmupTimeout, ScreenReadOptions.DefaultPollInterval, cancellationToken)).ConfigureAwait(false);
 
             if (!result.IsSuccess)
             {
@@ -84,7 +88,7 @@ public sealed class ScreenReadingWarmupService : IScreenReadingWarmupService
         {
             Log.Debug("[ScreenReadingWarmupService] Portal screen-reading warm-up cancelled");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[ScreenReadingWarmupService] Portal screen-reading warm-up failed");
         }

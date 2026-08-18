@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Core.Services;
 
@@ -11,30 +9,41 @@ public interface ISettingsService
     /// <summary>
     /// Gets the current application settings
     /// </summary>
-    AppSettings Current { get; }
-    
+    public AppSettings Current { get; }
+
     /// <summary>
     /// Loads settings from disk asynchronously
     /// </summary>
-    Task<AppSettings> LoadAsync();
+    public Task<AppSettings> LoadAsync();
 
     /// <summary>
     /// Loads settings from disk synchronously
     /// </summary>
-    AppSettings Load();
-    
+    public AppSettings Load();
+
     /// <summary>
     /// Saves current settings to disk
     /// </summary>
-    Task SaveAsync();
+    public Task SaveAsync();
+
+    /// <summary>
+    /// Schedules a settings save after the current burst of changes has settled.
+    /// Implementations may coalesce consecutive requests.
+    /// </summary>
+    public Task SaveAfterIdleAsync() => SaveAsync();
+
+    /// <summary>
+    /// Flushes a pending idle save before a profile switch or shutdown.
+    /// </summary>
+    public Task FlushPendingSaveAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     /// <summary>
     /// Reloads profile-specific settings from a profile configuration directory.
     /// </summary>
-    Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
-    
+    public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
+
     /// <summary>
     /// Saves current settings to disk synchronously
     /// </summary>
-    void Save();
+    public void Save();
 }

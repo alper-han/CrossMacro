@@ -1,7 +1,12 @@
 namespace CrossMacro.Daemon.Contracts.Ipc;
 
-public enum IpcOpCode : byte
+public enum IpcOpCode
 {
+    /// <summary>
+    /// No operation. This value is reserved and is not valid on the wire.
+    /// </summary>
+    None = 0x00,
+
     /// <summary>
     /// Initial handshake to verify version.
     /// Payload: int (Protocol Version)
@@ -46,13 +51,13 @@ public enum IpcOpCode : byte
 
     /// <summary>
     /// Request to simulate an ordered batch of input events (Client to Daemon).
-    /// Payload: int (Request Id), int (Event Count), repeated ushort (Type), ushort (Code), int (Value), int (Delay After Ms)
+    /// Payload: request ID, event count, and repeated type/code/value/delay tuples.
     /// </summary>
     SimulateEventBatch = 0x09,
 
     /// <summary>
     /// Simulation batch acknowledgement sent from Daemon to Client.
-    /// Payload: int (Request Id)
+    /// Payload: request ID and decoded event count.
     /// </summary>
     SimulationBatchCompleted = 0x0A,
 
@@ -72,5 +77,5 @@ public enum IpcOpCode : byte
     /// Configure virtual device resolution.
     /// Payload: int (Width), int (Height)
     /// </summary>
-    ConfigureResolution = 0x06
+    ConfigureResolution = 0x06,
 }

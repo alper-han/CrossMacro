@@ -31,7 +31,7 @@ Publishes the Windows portable CrossMacro artifact:
 
 Options:
   -Version <version>  Assembly/package version. Defaults to VERSION at repository root.
-  -OutputDir <path>  Publish output directory. Defaults to <repo>/publish-windows.
+  -OutputDir <path>  Publish output directory. Defaults to <repo>/artifacts/packages/windows/portable.
   -Architecture      Windows architecture to publish: x64 or arm64. Defaults to x64.
   -NoCli             Skip executable CLI smoke after structure checks.
   -Help              Show this help.
@@ -75,7 +75,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
-    $OutputDir = Join-Path $projectRoot 'publish-windows'
+    $OutputDir = Join-Path $projectRoot 'artifacts/packages/windows/portable'
 }
 
 $runtimeIdentifier = switch ($Architecture) {
@@ -101,17 +101,7 @@ $publishArgs = @(
     'publish', $projectPath,
     '-c', 'Release',
     '-r', $runtimeIdentifier,
-    '--self-contained', 'true',
-    '-p:PublishSingleFile=true',
-    '-p:PublishTrimmed=true',
-    '-p:TrimMode=partial',
-    '-p:PublishAot=false',
-    '-p:IncludeNativeLibrariesForSelfExtract=true',
-    '-p:EnableCompressionInSingleFile=true',
-    '-p:PublishReadyToRun=false',
-    '-p:DebugType=None',
-    '-p:DebugSymbols=false',
-    '-p:ErrorOnDuplicatePublishOutputFiles=true',
+    '-p:CrossMacroPublishProfile=portable-trimmed',
     "-p:Version=$Version",
     '-o', $resolvedOutputDir
 )

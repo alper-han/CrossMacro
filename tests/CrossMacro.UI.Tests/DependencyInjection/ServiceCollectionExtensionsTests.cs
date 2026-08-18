@@ -1,28 +1,14 @@
-using System.Threading;
-using System.Threading.Tasks;
-using System.Reflection;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Cli.DependencyInjection;
-using CrossMacro.Cli.Services;
-using CrossMacro.Cli;
-using CrossMacro.UI.DependencyInjection;
-using CrossMacro.UI.Services;
-using CrossMacro.UI.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
 
-public class ServiceCollectionExtensionsTests
+public sealed class ServiceCollectionExtensionsTests
 {
     [Fact]
     public void AddCrossMacroCliRuntimeServices_DoesNotRegisterGuiOnlyServices()
     {
         var services = new ServiceCollection();
 
-        services.AddCrossMacroCliRuntimeServices(new NoOpPlatformServiceRegistrar());
+        _ = services.AddCrossMacroCliRuntimeServices(new NoOpPlatformServiceRegistrar());
 
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(ITrayIconService));
         Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IDialogService));
@@ -33,11 +19,24 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
+    public void AddCrossMacroCliRuntimeServices_ResolvesScreenshotCliService()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddCrossMacroCliRuntimeServices(new NoOpPlatformServiceRegistrar());
+        _ = services.AddCliServices();
+
+        using var provider = services.BuildServiceProvider();
+
+        _ = Assert.IsType<ScreenshotCliService>(provider.GetRequiredService<IScreenshotCliService>());
+    }
+
+    [Fact]
     public void AddCrossMacroGuiRuntimeServices_RegistersGuiOnlyServices()
     {
         var services = new ServiceCollection();
 
-        services.AddCrossMacroGuiRuntimeServices(new NoOpPlatformServiceRegistrar());
+        ComposeGuiServices(services, new NoOpPlatformServiceRegistrar());
 
         Assert.Contains(services, sd => sd.ServiceType == typeof(ITrayIconService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IDialogService));
@@ -46,82 +45,120 @@ public class ServiceCollectionExtensionsTests
         Assert.Contains(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IThemeService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IDesktopStartupCoordinator));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(ProfileLoadedMacroSessionPersistenceService));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(IProfileRuntimeParticipant));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IRuntimeLogLevelService));
+    }
+
+    [Fact]
+    public void AddCrossMacroGuiRuntimeServices_RegistersImageAssetPorts()
+    {
+        var services = new ServiceCollection();
+
+        ComposeGuiServices(services, new NoOpPlatformServiceRegistrar());
+
+        Assert.Contains(services, sd => sd.ServiceType == typeof(IImageAssetCodec));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(IImageAssetPreviewDecoder));
     }
 
     [Fact]
     public void AddCrossMacroServices_ResolvesShortcutViewModelWithHotkeyDependency()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroServices(new PoolAwarePlatformServiceRegistrar());
+        ComposeGuiServices(services, new PoolAwarePlatformServiceRegistrar());
 
         using var provider = services.BuildServiceProvider();
         var viewModel = provider.GetRequiredService<ShortcutViewModel>();
 
         Assert.Same(provider.GetRequiredService<IGlobalHotkeyService>(), viewModel.GlobalHotkeyService);
         Assert.Same(provider.GetRequiredService<ILocalizationService>(), viewModel.LocalizationService);
-        Assert.IsType<MacroFileManager>(provider.GetRequiredService<IMacroFileManager>());
+        _ = Assert.IsType<MacroFileManager>(provider.GetRequiredService<IMacroFileManager>());
     }
 
     [Fact]
-    public void AddCrossMacroCliRuntimeServices_UsesNonAvaloniaClipboardBinding()
+    public void AddCrossMacroServices_ResolvesTextExpansionViewModelThroughManagedPort()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroCliRuntimeServices(new WindowsLikePlatformServiceRegistrar());
+        ComposeGuiServices(services, new PoolAwarePlatformServiceRegistrar());
+        _ = services.AddSingleton<IClipboardService>(_ => new DummyClipboardService());
+        _ = services.AddSingleton<IImageClipboardService>(_ => new DummyImageClipboardService());
+        _ = services.AddSingleton<IEnvironmentInfoProvider>(Substitute.For<IEnvironmentInfoProvider>());
 
         using var provider = services.BuildServiceProvider();
-        var clipboard = provider.GetRequiredService<IClipboardService>();
+        var viewModel = provider.GetRequiredService<TextExpansionViewModel>();
+        var managedPort = typeof(TextExpansionViewModel)
+            .GetField("_manageTextExpansion", BindingFlags.Instance | BindingFlags.NonPublic);
 
-        Assert.NotNull(clipboard);
-        Assert.IsNotType<AvaloniaClipboardService>(clipboard);
-        Assert.IsNotType<CompositeClipboardService>(clipboard);
-
-        Assert.False(clipboard.IsSupported);
+        Assert.NotNull(managedPort);
+        Assert.Same(provider.GetRequiredService<IManageTextExpansion>(), managedPort!.GetValue(viewModel));
     }
 
     [Fact]
-    public void AddCrossMacroGuiRuntimeServices_UsesGuiClipboardBinding()
+    public void AddCrossMacroCliRuntimeServices_LeavesClipboardCompositionToExecutableRoot()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroGuiRuntimeServices(new WindowsLikePlatformServiceRegistrar());
+        _ = services.AddCrossMacroCliRuntimeServices(new WindowsLikePlatformServiceRegistrar());
 
         using var provider = services.BuildServiceProvider();
-        var clipboard = provider.GetRequiredService<IClipboardService>();
-
-        Assert.NotNull(clipboard);
-        Assert.IsType<AvaloniaClipboardService>(clipboard);
+        _ = Assert.IsType<DummyClipboardService>(provider.GetRequiredService<IClipboardService>());
+        _ = Assert.IsType<ShellCommandRunner>(provider.GetRequiredService<IShellCommandRunner>());
     }
 
     [Fact]
-    public void AddCrossMacroCliRuntimeServices_UsesLinuxClipboardBinding_WhenRegistrarRequestsLinuxMode()
+    public void AddCrossMacroGuiRuntimeServices_LeavesClipboardCompositionToExecutableRoot()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroCliRuntimeServices(new LinuxLikePlatformServiceRegistrar());
+        ComposeGuiServices(services, new WindowsLikePlatformServiceRegistrar());
 
         using var provider = services.BuildServiceProvider();
-        var clipboard = provider.GetRequiredService<IClipboardService>();
-
-        Assert.IsType<LinuxShellClipboardService>(clipboard);
+        _ = Assert.IsType<DummyClipboardService>(provider.GetRequiredService<IClipboardService>());
+        _ = Assert.IsType<ShellCommandRunner>(provider.GetRequiredService<IShellCommandRunner>());
     }
 
     [Fact]
-    public void AddCrossMacroGuiRuntimeServices_UsesCompositeClipboardBinding_WhenRegistrarRequestsLinuxMode()
+    public void AddCrossMacroCliRuntimeServices_LeavesLinuxClipboardCompositionToExecutableRoot()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroGuiRuntimeServices(new LinuxLikePlatformServiceRegistrar());
+        _ = services.AddCrossMacroCliRuntimeServices(new LinuxLikePlatformServiceRegistrar());
+
+        Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IClipboardService));
+    }
+
+    [Fact]
+    public void AddCrossMacroGuiRuntimeServices_LeavesLinuxClipboardCompositionToExecutableRoot()
+    {
+        var services = new ServiceCollection();
+        ComposeGuiServices(services, new LinuxLikePlatformServiceRegistrar());
+
+        Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IClipboardService));
+    }
+
+    [Fact]
+    public void AddCrossMacroGuiRuntimeServices_LeavesLinuxImageClipboardCompositionToExecutableRoot()
+    {
+        var services = new ServiceCollection();
+        ComposeGuiServices(services, new LinuxLikePlatformServiceRegistrar());
+
+        Assert.DoesNotContain(services, sd => sd.ServiceType == typeof(IImageClipboardService));
+    }
+
+    [Fact]
+    public void AddCrossMacroGuiRuntimeServices_LeavesScreenshotClipboardCompositionToExecutableRoot()
+    {
+        var services = new ServiceCollection();
+        ComposeGuiServices(services, new LinuxLikePlatformServiceRegistrar());
 
         using var provider = services.BuildServiceProvider();
-        var clipboard = provider.GetRequiredService<IClipboardService>();
-
-        Assert.IsType<CompositeClipboardService>(clipboard);
+        _ = Assert.IsType<ScreenshotCaptureService>(provider.GetRequiredService<IScreenshotCaptureService>());
+        Assert.Null(provider.GetService<IImageClipboardService>());
     }
 
     [Fact]
     public void AddCliServices_ResolvesPreflightService_WhenPlatformRegistersFactoryBasedInput()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroCliRuntimeServices(new FactoryInputPlatformServiceRegistrar());
-        services.AddCliServices();
+        _ = services.AddCrossMacroCliRuntimeServices(new FactoryInputPlatformServiceRegistrar());
+        _ = services.AddCliServices();
 
         using var provider = services.BuildServiceProvider();
         var preflight = provider.GetRequiredService<ICliPreflightService>();
@@ -130,89 +167,164 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddCrossMacroCliRuntimeServices_OneShot_DoesNotInjectPoolIntoMacroPlayer()
+    public async Task AddCrossMacroCliRuntimeServices_OneShot_DoesNotInjectPoolIntoMacroPlayer()
     {
+        var simulatorPool = new TrackingInputSimulatorPool();
         var services = new ServiceCollection();
-        services.AddCrossMacroCliRuntimeServices(
-            new PoolAwarePlatformServiceRegistrar(),
+        _ = services.AddCrossMacroCliRuntimeServices(
+            new PoolAwarePlatformServiceRegistrar(simulatorPool),
             CliRuntimeProfile.OneShot);
 
         using var provider = services.BuildServiceProvider();
-        var player = Assert.IsType<MacroPlayer>(provider.GetRequiredService<IMacroPlayer>());
-        var poolField = typeof(MacroPlayer).GetField("_simulatorPool", BindingFlags.Instance | BindingFlags.NonPublic);
+        var player = provider.GetRequiredService<IMacroPlayer>();
 
-        Assert.NotNull(poolField);
-        Assert.Null(poolField.GetValue(player));
+        await player.PlayAsync(CreatePlayableMacro(), cancellationToken: CancellationToken.None);
+
+        Assert.Equal(0, simulatorPool.AcquireCount);
+        Assert.Equal(0, simulatorPool.ReleaseCount);
     }
 
     [Fact]
-    public void AddCrossMacroCliRuntimeServices_Persistent_InjectsPoolIntoMacroPlayer()
+    public async Task AddCrossMacroCliRuntimeServices_Persistent_InjectsPoolIntoMacroPlayer()
     {
+        var simulatorPool = new TrackingInputSimulatorPool();
         var services = new ServiceCollection();
-        services.AddCrossMacroCliRuntimeServices(
-            new PoolAwarePlatformServiceRegistrar(),
+        _ = services.AddCrossMacroCliRuntimeServices(
+            new PoolAwarePlatformServiceRegistrar(simulatorPool),
             CliRuntimeProfile.Persistent);
 
         using var provider = services.BuildServiceProvider();
-        var player = Assert.IsType<MacroPlayer>(provider.GetRequiredService<IMacroPlayer>());
-        var poolField = typeof(MacroPlayer).GetField("_simulatorPool", BindingFlags.Instance | BindingFlags.NonPublic);
+        var player = provider.GetRequiredService<IMacroPlayer>();
 
-        Assert.NotNull(poolField);
-        Assert.NotNull(poolField.GetValue(player));
+        await player.PlayAsync(CreatePlayableMacro(), cancellationToken: CancellationToken.None);
+
+        Assert.Equal(1, simulatorPool.AcquireCount);
+        Assert.Equal(1, simulatorPool.ReleaseCount);
+        Assert.NotNull(simulatorPool.AcquiredSimulator);
+        Assert.Same(simulatorPool.AcquiredSimulator, simulatorPool.ReleasedSimulator);
+    }
+
+    private static MacroSequence CreatePlayableMacro()
+    {
+        return new MacroSequence
+        {
+            Events = { new MacroEvent { Type = EventType.MouseMove, X = 1, Y = 1 } },
+        };
+    }
+
+    private static void ComposeGuiServices(IServiceCollection services, IPlatformServiceRegistrar registrar)
+    {
+        registrar.RegisterPlatformServices(services);
+        _ = services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
+        _ = services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(sp => sp.GetService<IInputSimulatorPool>());
+        _ = services.AddSingleton<IUpdateService, GitHubUpdateService>();
+        _ = services.AddCrossMacroServices();
     }
 
     private sealed class NoOpPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
+            _ = services.AddSingleton<IRuntimeContext>(_ => new TestRuntimeContext());
         }
     }
 
     private sealed class WindowsLikePlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Windows;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
+            _ = services.AddSingleton<IRuntimeContext>(_ => new TestRuntimeContext());
+            _ = services.AddSingleton<IClipboardService>(_ => new DummyClipboardService());
+            _ = services.AddSingleton<IImageClipboardService>(_ => new DummyImageClipboardService());
         }
     }
 
     private sealed class LinuxLikePlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Linux;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
+            _ = services.AddSingleton<IRuntimeContext>(_ => new TestRuntimeContext());
         }
     }
 
     private sealed class FactoryInputPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
 
         public void RegisterPlatformServices(IServiceCollection services)
         {
-            services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
-            services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
-            services.AddTransient<Func<IInputCapture>>(_ => () => new DummyInputCapture());
+            _ = services.AddSingleton<IRuntimeContext>(_ => new TestRuntimeContext());
+            _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+            _ = services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
+            _ = services.AddTransient<Func<IInputCapture>>(_ => () => new DummyInputCapture());
         }
     }
 
-    private sealed class PoolAwarePlatformServiceRegistrar : IPlatformServiceRegistrar
+    private sealed class PoolAwarePlatformServiceRegistrar(IInputSimulatorPool? inputSimulatorPool = null) : IPlatformServiceRegistrar
     {
-        public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Default;
-
         public void RegisterPlatformServices(IServiceCollection services)
         {
-            services.AddSingleton<IKeyboardLayoutService, DummyKeyboardLayoutService>();
-            services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
-            services.AddSingleton<IMousePositionProvider, DummyMousePositionProvider>();
-            services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
-            services.AddTransient<Func<IInputCapture>>(_ => () => new DummyInputCapture());
-            services.AddSingleton(sp => new InputSimulatorPool(sp.GetRequiredService<Func<IInputSimulator>>()));
+            _ = services.AddSingleton<IRuntimeContext>(_ => new TestRuntimeContext());
+            _ = services.AddSingleton<IKeyboardLayoutService>(_ => new DummyKeyboardLayoutService());
+            _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+            _ = services.AddSingleton<IMousePositionProvider>(_ => new DummyMousePositionProvider());
+            _ = services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
+            _ = services.AddTransient<Func<IInputCapture>>(_ => () => new DummyInputCapture());
+            _ = services.AddSingleton<IInputSimulatorPool>(sp => inputSimulatorPool ?? new CrossMacro.Platform.Linux.Services.InputSimulatorPool(sp.GetRequiredService<Func<IInputSimulator>>()));
         }
+    }
+
+    private sealed class TrackingInputSimulatorPool : IInputSimulatorPool
+    {
+        public int AcquireCount { get; private set; }
+        public int ReleaseCount { get; private set; }
+        public IInputSimulator? AcquiredSimulator { get; private set; }
+        public IInputSimulator? ReleasedSimulator { get; private set; }
+        public bool HasWarmDevice => false;
+        public Task Completion => Task.CompletedTask;
+
+        public Task WarmUpAsync(
+            int screenWidth = 0,
+            int screenHeight = 0,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<IInputSimulator> AcquireAsync(
+            int screenWidth,
+            int screenHeight,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Acquire(screenWidth, screenHeight));
+        }
+
+        public IInputSimulator Acquire(int screenWidth, int screenHeight)
+        {
+            AcquireCount++;
+            AcquiredSimulator = new DummyInputSimulator();
+            return AcquiredSimulator;
+        }
+
+        public void Release(IInputSimulator device, int screenWidth = 0, int screenHeight = 0)
+        {
+            ReleaseCount++;
+            ReleasedSimulator = device;
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class TestRuntimeContext : IRuntimeContext
+    {
+        public bool IsLinux => false;
+        public bool IsWindows => true;
+        public bool IsMacOS => false;
+        public bool IsFlatpak => false;
+        public string? SessionType => null;
     }
 
     private sealed class DummyInputSimulator : IInputSimulator
@@ -220,6 +332,12 @@ public class ServiceCollectionExtensionsTests
         public string ProviderName => "dummy-sim";
         public bool IsSupported => true;
         public void Initialize(int screenWidth = 0, int screenHeight = 0) { }
+        public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Initialize(screenWidth, screenHeight);
+            return Task.CompletedTask;
+        }
         public void MoveAbsolute(int x, int y) { }
         public void MoveRelative(int dx, int dy) { }
         public void MouseButton(int button, bool pressed) { }
@@ -257,13 +375,11 @@ public class ServiceCollectionExtensionsTests
     {
         public string ProviderName => "dummy-cap";
         public bool IsSupported => true;
-#pragma warning disable CS0067
-        public event EventHandler<InputCaptureEventArgs>? InputReceived;
-        public event EventHandler<string>? Error;
-#pragma warning restore CS0067
+        public event EventHandler<CapturedInputEventArgs>? InputReceived { add { } remove { } }
+        public event EventHandler<InputCaptureErrorEventArgs>? CaptureError { add { } remove { } }
         public void Configure(bool captureMouse, bool captureKeyboard) { }
         public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
-        public void Stop() { }
+        public void StopCapture() { }
         public void Dispose() { }
     }
 
@@ -281,5 +397,24 @@ public class ServiceCollectionExtensionsTests
         public void Dispose()
         {
         }
+    }
+
+    private sealed class DummyClipboardService : IClipboardService
+    {
+        public bool IsSupported => false;
+
+        public Task SetTextAsync(string text, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<string?> GetTextAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
+    }
+
+    private sealed class DummyImageClipboardService : IImageClipboardService
+    {
+        public bool IsSupported => false;
+
+        public Task SetPngAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }

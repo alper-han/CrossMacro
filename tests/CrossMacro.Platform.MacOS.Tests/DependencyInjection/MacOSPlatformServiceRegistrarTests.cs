@@ -1,20 +1,8 @@
-using System;
-using System.Linq;
-using System.Runtime.Versioning;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.DependencyInjection;
-using CrossMacro.Platform.MacOS.Services;
-using CrossMacro.Platform.MacOS.Services.ScreenReading;
-using CrossMacro.Platform.MacOS.Strategies;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.DependencyInjection;
 
 [SupportedOSPlatform("macos")]
-public class MacOSPlatformServiceRegistrarTests
+public sealed class MacOSPlatformServiceRegistrarTests
 {
     [Fact]
     public void RegisterPlatformServices_RegistersCorePlatformServices()
@@ -43,13 +31,11 @@ public class MacOSPlatformServiceRegistrarTests
         var strategyFactory = provider.GetRequiredService<ICoordinateStrategyFactory>();
         var displaySession = provider.GetRequiredService<IDisplaySessionService>();
         var notifier = provider.GetService<IExtensionStatusNotifier>();
-        var policy = provider.GetRequiredService<IPlaybackBehaviorPolicy>();
 
-        Assert.IsType<MacOSInputCapture>(captureFactory());
-        Assert.IsType<MacOSInputSimulator>(simulatorFactory());
-        Assert.IsType<MacOSCoordinateStrategyFactory>(strategyFactory);
-        Assert.IsType<GenericDisplaySessionService>(displaySession);
+        _ = Assert.IsType<MacOSInputCapture>(captureFactory());
+        _ = Assert.IsType<MacOSInputSimulator>(simulatorFactory());
+        _ = Assert.IsType<MacOSCoordinateStrategyFactory>(strategyFactory);
+        _ = Assert.IsType<GenericDisplaySessionService>(displaySession);
         Assert.Null(notifier);
-        Assert.False(policy.UseHybridAbsoluteDragMovement);
     }
 }

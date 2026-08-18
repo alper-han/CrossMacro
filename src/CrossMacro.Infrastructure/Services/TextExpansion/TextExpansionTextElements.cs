@@ -1,30 +1,16 @@
-using System;
-using System.Collections.Generic;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
-
-internal readonly record struct TextExpansionTextElement(
-    int StartIndex,
-    int Length,
-    int CodePoint,
-    char? KeyboardLayoutCharacter,
-    bool IsNewLine)
-{
-    public bool CanUseKeyboardLayoutMapping => KeyboardLayoutCharacter.HasValue;
-
-    public string GetText(string source)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        return source.Substring(StartIndex, Length);
-    }
-}
 
 internal static class TextExpansionTextElements
 {
     public static IEnumerable<TextExpansionTextElement> Enumerate(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
+        return EnumerateImpl(text);
+    }
 
+    private static IEnumerable<TextExpansionTextElement> EnumerateImpl(string text)
+    {
         for (int i = 0; i < text.Length; i++)
         {
             var current = text[i];
@@ -36,7 +22,7 @@ internal static class TextExpansionTextElements
 
             if (current == '\n')
             {
-                yield return new TextExpansionTextElement(i, 1, current, null, true);
+                yield return new TextExpansionTextElement(i, 1, current, KeyboardLayoutCharacter: null, IsNewLine: true);
                 continue;
             }
 
@@ -54,7 +40,7 @@ internal static class TextExpansionTextElements
                 continue;
             }
 
-            yield return new TextExpansionTextElement(i, 1, current, current, false);
+            yield return new TextExpansionTextElement(i, 1, current, current, IsNewLine: false);
         }
     }
 }

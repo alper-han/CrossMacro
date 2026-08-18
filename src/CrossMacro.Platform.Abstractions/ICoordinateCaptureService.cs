@@ -1,5 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CrossMacro.Platform.Abstractions;
 
@@ -14,22 +12,22 @@ public interface ICoordinateCaptureService
     /// </summary>
     /// <param name="ct">Cancellation token to abort capture.</param>
     /// <returns>Tuple of (X, Y) coordinates, or null if cancelled.</returns>
-    Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default);
+    public Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Captures the next keyboard key pressed by the user.
     /// </summary>
     /// <param name="ct">Cancellation token to abort capture.</param>
     /// <returns>The key code, or null if cancelled.</returns>
-    Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default);
+    public Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Gets whether a capture operation is currently in progress.
     /// </summary>
-    bool IsCapturing { get; }
+    public bool IsCapturing { get; }
 
     /// <summary>
     /// Cancels any ongoing capture operation.
     /// </summary>
-    void CancelCapture();
+    public void CancelCapture();
 }

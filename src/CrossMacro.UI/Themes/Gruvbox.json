@@ -1,0 +1,33 @@
+{
+  "name": "Gruvbox",
+  "palette": {
+    "primaryColor": "#d79921",
+    "primaryHoverColor": "#e0a636",
+    "primaryPressedColor": "#b4801c",
+    "successColor": "#98971a",
+    "successHoverColor": "#b2b11e",
+    "successPressedColor": "#98971a",
+    "dangerColor": "#cc241d",
+    "dangerHoverColor": "#D4261E",
+    "dangerPressedColor": "#cc241d",
+    "backgroundColor": "#282828",
+    "surfaceColor": "#3c3836",
+    "surfaceHoverColor": "#504945",
+    "textPrimaryColor": "#ebdbb2",
+    "textSecondaryColor": "#bdae93",
+    "warningColor": "#fe8019",
+    "warningHoverColor": "#fe9137",
+    "accentColor": "#b16286",
+    "systemAccentColor": "#d79921",
+    "systemAccentColorDark1": "#b4801c",
+    "systemAccentColorDark2": "#b4801c",
+    "systemAccentColorDark3": "#b4801c",
+    "systemAccentColorLight1": "#e0a636",
+    "systemAccentColorLight2": "#e0a636",
+    "systemAccentColorLight3": "#e0a636",
+    "textOnPrimaryColor": "#1d2021",
+    "textOnSuccessColor": "#1d2021",
+    "textOnDangerColor": "#fbf1c7",
+    "textOnWarningColor": "#1d2021"
+  }
+}

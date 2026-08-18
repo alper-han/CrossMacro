@@ -1,6 +1,3 @@
-using System.Text.Json;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 
@@ -12,9 +9,7 @@ internal sealed class NiriLayoutSource
     private readonly Func<string, string?> _resolveLayoutName;
 
     internal NiriLayoutSource()
-        : this(() => new NiriIpcClient(), new XkbLayoutNameResolver().TryResolveLayoutCode)
-    {
-    }
+        : this(static () => new NiriIpcClient(), new XkbLayoutNameResolver().TryResolveLayoutCode) { /* Empty */ }
 
     internal NiriLayoutSource(Func<INiriIpcClient> createIpcClient, Func<string, string?> resolveLayoutName)
     {
@@ -22,17 +17,24 @@ internal sealed class NiriLayoutSource
         _resolveLayoutName = resolveLayoutName ?? throw new ArgumentNullException(nameof(resolveLayoutName));
     }
 
-    public string? DetectLayout()
+    public async Task<string?> DetectLayoutAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             using var ipcClient = _createIpcClient();
-            if (!ipcClient.IsAvailable) return null;
+            if (!ipcClient.IsAvailable)
+            {
+                return null;
+            }
 
-            var response = ipcClient.SendRequestAsync(KeyboardLayoutsRequestJson).GetAwaiter().GetResult();
+            var response = await ipcClient.SendRequestAsync(KeyboardLayoutsRequestJson, cancellationToken).ConfigureAwait(false);
             return TryParseLayout(response, _resolveLayoutName);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Debug(ex, "[NiriLayoutSource] Niri IPC failed");
             return null;
@@ -41,14 +43,20 @@ internal sealed class NiriLayoutSource
 
     internal static string? TryParseLayout(string? response, Func<string, string?> resolveLayoutName)
     {
-        if (string.IsNullOrWhiteSpace(response)) return null;
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            return null;
+        }
 
         try
         {
             using var document = JsonDocument.Parse(response);
             var root = document.RootElement;
 
-            if (root.ValueKind != JsonValueKind.Object) return null;
+            if (root.ValueKind is not JsonValueKind.Object)
+            {
+                return null;
+            }
 
             var keyboardLayouts = root;
             if (root.TryGetProperty("Ok", out var okElement))
@@ -56,15 +64,14 @@ internal sealed class NiriLayoutSource
                 keyboardLayouts = okElement;
             }
 
-            if (keyboardLayouts.ValueKind == JsonValueKind.Object &&
-                keyboardLayouts.TryGetProperty("KeyboardLayouts", out var nestedKeyboardLayouts))
+            if (keyboardLayouts.ValueKind is JsonValueKind.Object && keyboardLayouts.TryGetProperty("KeyboardLayouts", out var nestedKeyboardLayouts))
             {
                 keyboardLayouts = nestedKeyboardLayouts;
             }
 
-            if (keyboardLayouts.ValueKind != JsonValueKind.Object ||
+            if (keyboardLayouts.ValueKind is not JsonValueKind.Object ||
                 !keyboardLayouts.TryGetProperty("names", out var names) ||
-                names.ValueKind != JsonValueKind.Array ||
+                names.ValueKind is not JsonValueKind.Array ||
                 !keyboardLayouts.TryGetProperty("current_idx", out var currentIndex) ||
                 !currentIndex.TryGetInt32(out var index) ||
                 index < 0 ||
@@ -74,7 +81,10 @@ internal sealed class NiriLayoutSource
             }
 
             var activeName = names[index].GetString();
-            if (string.IsNullOrWhiteSpace(activeName)) return null;
+            if (string.IsNullOrWhiteSpace(activeName))
+            {
+                return null;
+            }
 
             return resolveLayoutName(activeName);
         }

@@ -1,35 +1,50 @@
-using System;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Windows.Services;
-using CrossMacro.Platform.Windows.Services.ScreenReading;
-using CrossMacro.Platform.Windows.Strategies;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Windows.DependencyInjection;
 
+[SupportedOSPlatform("windows")]
 public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
-    public PlatformClipboardRegistration ClipboardRegistration => PlatformClipboardRegistration.Windows;
+    public static void RegisterCliClipboardServices(IServiceCollection services)
+    {
+        RegisterNativeClipboardServices(services, "CrossMacro_WindowsNativeClipboard");
+    }
+
+    public static void RegisterGuiClipboardServices(IServiceCollection services)
+    {
+        RegisterNativeClipboardServices(services, "CrossMacro_WindowsGuiClipboard");
+    }
+
+    private static void RegisterNativeClipboardServices(IServiceCollection services, string threadName)
+    {
+        RegisterStaClipboardThread(services, threadName);
+        _ = services.AddSingleton<IClipboardService, WindowsNativeClipboardService>();
+        _ = services.AddSingleton<IImageClipboardService, WindowsNativeImageClipboardService>();
+    }
+
+    private static void RegisterStaClipboardThread(IServiceCollection services, string name)
+    {
+        _ = services.AddSingleton(_ => new StaMessageThread(name));
+        _ = services.AddSingleton(sp => new Lazy<StaMessageThread>(
+            sp.GetRequiredService<StaMessageThread>,
+            LazyThreadSafetyMode.ExecutionAndPublication));
+    }
 
     public void RegisterPlatformServices(IServiceCollection services)
     {
-        services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();
-        services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
-        services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
-        services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
-        services.AddSingleton<IPlaybackBehaviorPolicy>(
-            _ => new PlaybackBehaviorPolicy(useHybridAbsoluteDragMovement: false));
-
+        _ = services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();
+        _ = services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
+        _ = services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
+        _ = services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
+        _ = services.AddSingleton<IWindowManager, WindowsWindowManager>();
 #pragma warning disable CS8634 // Intentionally nullable for optional service
-        services.AddSingleton<IExtensionStatusNotifier?>(sp => null);
+        _ = services.AddSingleton<IExtensionStatusNotifier?>(_ => null);
 #pragma warning restore CS8634
 
-        services.AddTransient<Func<IInputSimulator>>(sp => () => new WindowsInputSimulator());
-        services.AddTransient<Func<IInputCapture>>(sp => () => new WindowsInputCapture());
+        _ = services.AddTransient<Func<IInputSimulator>>(sp => () => new WindowsInputSimulator());
+        _ = services.AddTransient<Func<IInputCapture>>(sp => () => new WindowsInputCapture());
 
-        services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
-        services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+        _ = services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
+        _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+
     }
 }

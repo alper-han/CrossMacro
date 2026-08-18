@@ -7,11 +7,11 @@ internal static class LinuxScreenFrameCaptureModes
 
     private static bool SupportsFullFrame(LinuxScreenReaderBackend backend) => backend switch
     {
-        LinuxScreenReaderBackend.KWinScreenShot2 => false,
+        LinuxScreenReaderBackend.KWinScreenShot2 => true,
         LinuxScreenReaderBackend.ExtImageCopy => true,
         LinuxScreenReaderBackend.WlrScreencopy => true,
         LinuxScreenReaderBackend.Portal => true,
         LinuxScreenReaderBackend.GnomeExtension => true,
-        _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend.")
+        _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, "Unknown Linux screen reader backend."),
     };
 }

@@ -1,8 +1,4 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.MacOS.Services;
-using Microsoft.Extensions.DependencyInjection;
 
-using System.Runtime.Versioning;
 
 namespace CrossMacro.Platform.MacOS;
 
@@ -11,18 +7,15 @@ public static class ServiceCollectionExtensions
     [SupportedOSPlatform("macos")]
     public static IServiceCollection AddMacOSServices(this IServiceCollection services)
     {
-        services.AddTransient<IInputCapture>(sp =>
-        {
-            var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
-            return new MacOSInputCapture(MacOSPermissionRequestDelegates.RequestListenEventAccess(permissionChecker));
-        });
-        services.AddTransient<IInputSimulator>(sp =>
-        {
-            var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
-            return new MacOSInputSimulator(MacOSPermissionRequestDelegates.RequestPostEventAccess(permissionChecker));
-        });
-        services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
-        services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
+        ArgumentNullException.ThrowIfNull(services);
+
+        // MacOSPlatformServiceRegistrar is the canonical composition path used by
+        // the macOS hosts. Keep this legacy extension as an explicit compatibility
+        // wrapper, then expose the historical direct services without duplicating
+        // their construction policy.
+        new DependencyInjection.MacOSPlatformServiceRegistrar().RegisterPlatformServices(services);
+        _ = services.AddTransient<IInputCapture>(sp => sp.GetRequiredService<Func<IInputCapture>>()());
+        _ = services.AddTransient<IInputSimulator>(sp => sp.GetRequiredService<Func<IInputSimulator>>()());
         return services;
     }
 }

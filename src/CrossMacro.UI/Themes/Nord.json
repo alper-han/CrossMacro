@@ -1,0 +1,33 @@
+{
+  "name": "Nord",
+  "palette": {
+    "primaryColor": "#88c0d0",
+    "primaryHoverColor": "#9eccd9",
+    "primaryPressedColor": "#6bb1c4",
+    "successColor": "#a3be8c",
+    "successHoverColor": "#b3c9a0",
+    "successPressedColor": "#a3be8c",
+    "dangerColor": "#bf616a",
+    "dangerHoverColor": "#c8777f",
+    "dangerPressedColor": "#bf616a",
+    "backgroundColor": "#2e3440",
+    "surfaceColor": "#3b4252",
+    "surfaceHoverColor": "#434c5e",
+    "textPrimaryColor": "#eceff4",
+    "textSecondaryColor": "#d8dee9",
+    "warningColor": "#d08770",
+    "warningHoverColor": "#d89a87",
+    "accentColor": "#81a1c1",
+    "systemAccentColor": "#88c0d0",
+    "systemAccentColorDark1": "#6bb1c4",
+    "systemAccentColorDark2": "#6bb1c4",
+    "systemAccentColorDark3": "#6bb1c4",
+    "systemAccentColorLight1": "#9eccd9",
+    "systemAccentColorLight2": "#9eccd9",
+    "systemAccentColorLight3": "#9eccd9",
+    "textOnPrimaryColor": "#020617",
+    "textOnSuccessColor": "#020617",
+    "textOnDangerColor": "#020617",
+    "textOnWarningColor": "#020617"
+  }
+}

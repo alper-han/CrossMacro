@@ -8,8 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Update="Fixtures/**/*.macro" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" >
@@ -19,18 +24,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Application\CrossMacro.Application.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\TestInfrastructure\PlatformFactAttributes.cs" Link="TestInfrastructure\PlatformFactAttributes.cs" />
+    <Compile Include="..\TestInfrastructure\ConditionalSkipMessage.cs" Link="TestInfrastructure\ConditionalSkipMessage.cs" />
+    <Compile Include="..\TestInfrastructure\LinuxFactAttribute.cs" Link="TestInfrastructure\LinuxFactAttribute.cs" />
     <Compile Include="..\TestInfrastructure\AsyncSignal.cs" Link="TestInfrastructure\AsyncSignal.cs" />
+    <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
+    <Compile Include="..\TestInfrastructure\FluentTestAssertions.cs" Link="TestInfrastructure\FluentTestAssertions.cs" />
   </ItemGroup>
 
 </Project>

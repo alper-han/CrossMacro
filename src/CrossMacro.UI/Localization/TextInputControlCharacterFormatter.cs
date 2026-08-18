@@ -1,5 +1,3 @@
-using System;
-using System.Text;
 
 namespace CrossMacro.UI.Localization;
 
@@ -13,10 +11,10 @@ internal static class TextInputControlCharacterFormatter
         }
 
         return text
-            .Replace("\b", "⌫", StringComparison.Ordinal)
-            .Replace("\r", "↵", StringComparison.Ordinal)
-            .Replace("\n", "↵", StringComparison.Ordinal)
-            .Replace("\t", "⇥", StringComparison.Ordinal);
+            .Replace('\b', '⌫')
+            .Replace('\r', '↵')
+            .Replace('\n', '↵')
+            .Replace('\t', '⇥');
     }
 
     public static string Unescape(string? text)
@@ -30,12 +28,12 @@ internal static class TextInputControlCharacterFormatter
         for (var index = 0; index < text.Length; index++)
         {
             var ch = text[index];
-            builder.Append(ch switch
+            _ = builder.Append(ch switch
             {
                 '⌫' => '\b',
                 '↵' => '\r',
                 '⇥' => '\t',
-                _ => ch
+                _ => ch,
             });
         }
 

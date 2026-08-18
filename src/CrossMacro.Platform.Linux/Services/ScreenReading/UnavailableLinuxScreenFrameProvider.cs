@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
@@ -25,10 +24,8 @@ public sealed class UnavailableLinuxScreenFrameProvider : IScreenFrameProvider
 
     public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
-        return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(ErrorKind, FailureMessage));
+        return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(ErrorKind, FailureMessage));
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 }

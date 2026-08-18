@@ -1,29 +1,15 @@
-using System;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Infrastructure.DependencyInjection;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Abstractions.Diagnostics;
-using CrossMacro.Platform.Linux.DependencyInjection;
-using CrossMacro.TestInfrastructure;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit.Abstractions;
+
+using System.Globalization;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 [Collection("EnvironmentVariableSensitive")]
-public sealed class LiveWaylandScreenReadingSmokeTests
+public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
 {
     private static readonly TimeSpan SmokeTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan OperationTimeout = TimeSpan.FromSeconds(4);
 
-    private readonly ITestOutputHelper _output;
-
-    public LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
+    private readonly ITestOutputHelper _output = output;
 
     [WaylandLiveSmokeFact]
     public async Task Smoke_WhenEnabled_ReportsBackendDiagnostics_AndRunsBoundedPixelChecks()
@@ -65,40 +51,42 @@ public sealed class LiveWaylandScreenReadingSmokeTests
     private static ServiceProvider BuildServices()
     {
         var services = new ServiceCollection();
-        services.AddCrossMacroCommonRuntimeServices();
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
-        services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
+        var environment = LinuxEnvironmentVariables.CaptureCurrentSnapshot();
+        _ = services.AddCrossMacroCommonRuntimeServices();
+        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
+        _ = services.AddSingleton<IRuntimeContext>(new LinuxRuntimeContext(environment));
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
         return services.BuildServiceProvider();
     }
 
     private static string DescribeDiagnostics(ScreenReadingDiagnosticSnapshot diagnostics)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"SessionKind: {diagnostics.SessionKind}");
-        builder.AppendLine($"PolicyName: {diagnostics.PolicyName}");
-        builder.AppendLine($"PolicyOrder: {string.Join(", ", diagnostics.PolicyOrder)}");
-        builder.AppendLine($"SelectedBackend: {diagnostics.SelectedBackend ?? "<none>"}");
-        builder.AppendLine($"Failure: {DescribeFailure(diagnostics.FailureBackend, diagnostics.FailureKind, diagnostics.FailureMessage)}");
-        builder.AppendLine("Backends:");
+        _ = builder.AppendLine(CultureInfo.InvariantCulture, $"SessionKind: {diagnostics.SessionKind}");
+        _ = builder.AppendLine(CultureInfo.InvariantCulture, $"PolicyName: {diagnostics.PolicyName}");
+        _ = builder.AppendLine(CultureInfo.InvariantCulture, $"PolicyOrder: {string.Join(", ", diagnostics.PolicyOrder)}");
+        _ = builder.AppendLine(CultureInfo.InvariantCulture, $"SelectedBackend: {diagnostics.SelectedBackend ?? "<none>"}");
+        _ = builder.AppendLine(CultureInfo.InvariantCulture, $"Failure: {DescribeFailure(diagnostics.FailureBackend, diagnostics.FailureKind, diagnostics.FailureMessage)}");
+        _ = builder.AppendLine("Backends:");
 
         foreach (var backend in diagnostics.Backends)
         {
-            builder.AppendLine($"- {backend.Backend}: {(backend.IsAvailable ? "available" : $"unavailable ({backend.ErrorKind}: {backend.ErrorMessage})")}");
+            _ = builder.AppendLine(CultureInfo.InvariantCulture, $"- {backend.Backend}: {(backend.IsAvailable ? "available" : $"unavailable ({backend.ErrorKind}: {backend.ErrorMessage})")}");
         }
 
-        builder.AppendLine($"Remediation: {diagnostics.Remediation ?? "<none>"}");
+        _ = builder.AppendLine(CultureInfo.InvariantCulture, $"Remediation: {diagnostics.Remediation ?? "<none>"}");
         return builder.ToString();
     }
 
     private static string DescribePixelResult(string operation, ScreenPoint point, ScreenReadResult<ScreenPixelColor> result) =>
         result.IsSuccess
             ? $"{operation} at {point}: {result.Value}"
-            : $"{operation} at {point}: {DescribeFailure(null, result.ErrorKind, result.ErrorMessage)}";
+            : $"{operation} at {point}: {DescribeFailure(backend: null, result.ErrorKind, result.ErrorMessage)}";
 
     private static string DescribeSearchResult(ScreenRect region, ScreenPixelColor color, ScreenReadResult<ScreenPixelSearchMatch> result) =>
         result.IsSuccess
             ? $"SearchPixel in {region} for {color}: {result.Value}"
-            : $"SearchPixel in {region} for {color}: {DescribeFailure(null, result.ErrorKind, result.ErrorMessage)}";
+            : $"SearchPixel in {region} for {color}: {DescribeFailure(backend: null, result.ErrorKind, result.ErrorMessage)}";
 
     private static string DescribeFailure(ScreenReadingDiagnosticSnapshot? diagnostics, string operation, ScreenPoint point, ScreenReadErrorKind? errorKind, string? errorMessage) =>
         $"{operation} at {point} failed: {DescribeFailure(diagnostics?.FailureBackend, errorKind, errorMessage)}";
@@ -109,15 +97,15 @@ public sealed class LiveWaylandScreenReadingSmokeTests
     private static string DescribeFailure(string? backend, ScreenReadErrorKind? errorKind, string? errorMessage)
     {
         var builder = new StringBuilder();
-        builder.Append(errorKind?.ToString() ?? "<none>");
-        builder.Append(": ");
-        builder.Append(errorMessage ?? "<none>");
+        _ = builder.Append(errorKind?.ToString() ?? "<none>");
+        _ = builder.Append(": ");
+        _ = builder.Append(errorMessage ?? "<none>");
 
         if (!string.IsNullOrWhiteSpace(backend))
         {
-            builder.Append(" (backend: ");
-            builder.Append(backend);
-            builder.Append(')');
+            _ = builder.Append(" (backend: ");
+            _ = builder.Append(backend);
+            _ = builder.Append(')');
         }
 
         return builder.ToString();

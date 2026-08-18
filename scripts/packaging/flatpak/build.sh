@@ -16,7 +16,11 @@ FLATPAK_ARCH="${FLATPAK_ARCH:-$(to_flatpak_arch "$TARGET_ARCH_RESOLVED")}"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 FLATPAK_DIR="$PROJECT_ROOT/flatpak"
-BUILD_DIR="$SCRIPTS_DIR/flatpak-source"
+ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
+FLATPAK_OUTPUT_DIR="${FLATPAK_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/flatpak}"
+FLATPAK_WORK_DIR="${FLATPAK_WORK_DIR:-$ARTIFACT_ROOT/work/flatpak}"
+BUILD_DIR="$FLATPAK_WORK_DIR/build-dir"
+REPO_DIR="$FLATPAK_WORK_DIR/repo"
 OUTPUT_BUNDLE="$APP_ID-$PACKAGE_VERSION-$FLATPAK_ARCH.flatpak"
 
 echo "=== CrossMacro Flatpak Builder ==="
@@ -25,8 +29,8 @@ echo "App ID: $APP_ID"
 echo "Target architecture: $TARGET_ARCH_RESOLVED (Flatpak: $FLATPAK_ARCH)"
 
 # Clean previous build
-rm -rf "$BUILD_DIR" "$FLATPAK_DIR/crossmacro-flatpak-source.tar.gz"
-mkdir -p "$BUILD_DIR"
+rm -rf "$BUILD_DIR" "$REPO_DIR" "$FLATPAK_DIR/crossmacro-flatpak-source.tar.gz"
+mkdir -p "$BUILD_DIR" "$FLATPAK_OUTPUT_DIR" "$FLATPAK_WORK_DIR"
 
 # Build Flatpak (dir source, no archive needed)
 
@@ -46,22 +50,22 @@ flatpak-builder --force-clean --user \
     --arch="$FLATPAK_ARCH" \
     --install-deps-from=flathub \
     --disable-updates \
-    build-dir "$APP_ID.yml"
+    "$BUILD_DIR" "$APP_ID.yml"
 
 # Create repo and bundle
 echo "Creating Flatpak bundle..."
-flatpak-builder --repo=repo --force-clean --disable-updates --arch="$FLATPAK_ARCH" build-dir "$APP_ID.yml"
-flatpak build-bundle --arch="$FLATPAK_ARCH" repo "$OUTPUT_BUNDLE" "$APP_ID"
+flatpak-builder --repo="$REPO_DIR" --force-clean --disable-updates --arch="$FLATPAK_ARCH" "$BUILD_DIR" "$APP_ID.yml"
+flatpak build-bundle --arch="$FLATPAK_ARCH" "$REPO_DIR" "$FLATPAK_OUTPUT_DIR/$OUTPUT_BUNDLE" "$APP_ID"
 
 # Cleanup
-rm -rf build-dir repo "$BUILD_DIR" crossmacro-flatpak-source.tar.gz
+rm -rf "$BUILD_DIR" "$REPO_DIR" "$FLATPAK_DIR/crossmacro-flatpak-source.tar.gz"
 
 echo ""
 echo "=== Build Complete ==="
-echo "Output: $FLATPAK_DIR/$OUTPUT_BUNDLE"
+echo "Output: $FLATPAK_OUTPUT_DIR/$OUTPUT_BUNDLE"
 echo ""
 echo "To install locally:"
-echo "  flatpak --user install $FLATPAK_DIR/$OUTPUT_BUNDLE"
+echo "  flatpak --user install $FLATPAK_OUTPUT_DIR/$OUTPUT_BUNDLE"
 echo ""
 echo "To run:"
 echo "  flatpak run $APP_ID"

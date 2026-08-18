@@ -14,7 +14,7 @@ param(
     [string]$AssetsPath = "",
 
     [Parameter(ParameterSetName = 'Build')]
-    [string]$OutputDir = "msix-content",
+    [string]$OutputDir = "",
 
     [Parameter(ParameterSetName = 'Build')]
     [ValidateSet("x64", "arm64")]
@@ -35,7 +35,7 @@ Options:
   -Version <version>         Three-part package version written as <version>.0.
   -ManifestPath <path>       Source AppxManifest.xml. Defaults to scripts/msix/AppxManifest.xml.
   -AssetsPath <path>         Source MSIX assets directory. Defaults to scripts/msix/Assets.
-  -OutputDir <path>          Staged MSIX content directory. Defaults to msix-content.
+  -OutputDir <path>          Staged MSIX content directory. Defaults to <repo>/artifacts/work/msix/content.
   -Architecture <x64|arm64>  ProcessorArchitecture written to the manifest. Defaults to x64.
   -Help                      Show this help.
 '@
@@ -58,6 +58,10 @@ if ([string]::IsNullOrWhiteSpace($AssetsPath)) {
     $AssetsPath = Join-Path $ScriptsDir "msix/Assets"
 }
 
+if ([string]::IsNullOrWhiteSpace($OutputDir)) {
+    $OutputDir = Join-Path $ProjectRoot "artifacts/work/msix/content"
+}
+
 if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
     throw "Manifest file not found: $ManifestPath"
 }
@@ -69,8 +73,35 @@ if (-not (Test-Path -LiteralPath $AssetsPath -PathType Container)) {
 $msixVersion = "$Version.0"
 $Architecture = $Architecture.ToLowerInvariant()
 
+$stagedAssetsPath = Join-Path $OutputDir "Assets"
+$manifestOutputPath = Join-Path $OutputDir "AppxManifest.xml"
+$resolvedAssetsPath = [System.IO.Path]::GetFullPath($AssetsPath)
+$resolvedStagedAssetsPath = [System.IO.Path]::GetFullPath($stagedAssetsPath)
+$resolvedManifestPath = [System.IO.Path]::GetFullPath($ManifestPath)
+$resolvedManifestOutputPath = [System.IO.Path]::GetFullPath($manifestOutputPath)
+
+if ([System.StringComparer]::OrdinalIgnoreCase.Equals($resolvedAssetsPath, $resolvedStagedAssetsPath)) {
+    throw "OutputDir cannot replace the source MSIX assets directory: $OutputDir"
+}
+
+if ([System.StringComparer]::OrdinalIgnoreCase.Equals($resolvedManifestPath, $resolvedManifestOutputPath)) {
+    throw "OutputDir cannot replace the source MSIX manifest: $OutputDir"
+}
+
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-Copy-Item -Path $AssetsPath -Destination (Join-Path $OutputDir "Assets") -Recurse -Force
+
+# Keep repeated preparation safe without deleting caller-owned files in the
+# output directory. Only the two files owned by this staging operation are
+# replaced.
+if (Test-Path -LiteralPath $stagedAssetsPath -PathType Container) {
+    Remove-Item -LiteralPath $stagedAssetsPath -Recurse -Force
+}
+
+if (Test-Path -LiteralPath $manifestOutputPath -PathType Leaf) {
+    Remove-Item -LiteralPath $manifestOutputPath -Force
+}
+
+Copy-Item -Path $AssetsPath -Destination $stagedAssetsPath -Recurse -Force
 
 [xml]$manifest = Get-Content -LiteralPath $ManifestPath -Raw
 $namespaceManager = New-Object System.Xml.XmlNamespaceManager($manifest.NameTable)
@@ -84,7 +115,6 @@ if ($null -eq $identity) {
 $identity.SetAttribute("Version", $msixVersion)
 $identity.SetAttribute("ProcessorArchitecture", $Architecture)
 
-$manifestOutputPath = Join-Path $OutputDir "AppxManifest.xml"
 $writerSettings = New-Object System.Xml.XmlWriterSettings
 $writerSettings.Encoding = New-Object System.Text.UTF8Encoding($false)
 $writerSettings.Indent = $true

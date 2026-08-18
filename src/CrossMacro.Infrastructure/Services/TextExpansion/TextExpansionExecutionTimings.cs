@@ -1,4 +1,3 @@
-using System;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
@@ -24,7 +23,7 @@ internal static class TextExpansionExecutionTimings
     public static readonly TimeSpan LinuxUnicodeComposeCompletionDelay = TimeSpan.FromMilliseconds(1);
     public static readonly TimeSpan KeyPressReleaseDelay = TimeSpan.FromMilliseconds(1);
     public static readonly TimeSpan ModifierReleaseTimeout = TimeSpan.FromMilliseconds(2000);
-    public static readonly TimeSpan ModifierReleasePollInterval = TimeSpan.FromMilliseconds(50);
+    public static readonly TimeSpan ModifierReleasePollInterval = DirectTypingInterElementDelay;
     public static readonly TimeSpan ClipboardRestoreDelay = TimeSpan.Zero;
     public static readonly TimeSpan ClipboardRestoreTimeout = TimeSpan.FromMilliseconds(1500);
 }

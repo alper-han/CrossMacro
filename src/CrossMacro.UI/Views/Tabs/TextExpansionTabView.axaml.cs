@@ -1,6 +1,3 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
 
 namespace CrossMacro.UI.Views.Tabs;
 

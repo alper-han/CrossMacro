@@ -1,7 +1,7 @@
-using System;
 
 namespace CrossMacro.Platform.Abstractions;
 
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public readonly record struct ScreenPixelColor(byte R, byte G, byte B)
 {
     public const int HexLength = 6;
@@ -49,9 +49,9 @@ public readonly record struct ScreenPixelColor(byte R, byte G, byte B)
         }
 
         color = new ScreenPixelColor(
-            (byte)((redHigh << 4) | redLow),
-            (byte)((greenHigh << 4) | greenLow),
-            (byte)((blueHigh << 4) | blueLow));
+            byte.CreateChecked((redHigh << 4) | redLow),
+            byte.CreateChecked((greenHigh << 4) | greenLow),
+            byte.CreateChecked((blueHigh << 4) | blueLow));
         return true;
     }
 
@@ -79,7 +79,7 @@ public readonly record struct ScreenPixelColor(byte R, byte G, byte B)
         >= '0' and <= '9' => value - '0',
         >= 'A' and <= 'F' => value - 'A' + 10,
         >= 'a' and <= 'f' => value - 'a' + 10,
-        _ => -1
+        _ => -1,
     };
 
     private static void WriteByte(Span<char> target, byte value)
@@ -88,5 +88,5 @@ public readonly record struct ScreenPixelColor(byte R, byte G, byte B)
         target[1] = WriteHex(value & 0x0F);
     }
 
-    private static char WriteHex(int value) => (char)(value < 10 ? '0' + value : 'A' + value - 10);
+    private static char WriteHex(int value) => Convert.ToChar(value < 10 ? '0' + value : 'A' + value - 10);
 }

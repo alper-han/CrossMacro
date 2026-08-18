@@ -9,7 +9,7 @@ public static class UIStrings
     /// Permission dialog title.
     /// </summary>
     public const string PermissionRequiredTitle = "Permission Required";
-    
+
     /// <summary>
     /// Startup permission block message for the first macOS permission step.
     /// </summary>
@@ -46,7 +46,7 @@ public static class UIStrings
         "CrossMacro will open the system screen-sharing portal dialog next so it can read screen pixels for screen-reading macros.\n\n" +
         "In the portal dialog, choose monitor or screen sources and select every monitor the macro needs. CrossMacro cannot choose or force those sources for you.\n\n" +
         "After you approve the portal dialog, your saved permission may be reused on future starts.";
-    
+
     /// <summary>
     /// Open settings button text.
     /// </summary>

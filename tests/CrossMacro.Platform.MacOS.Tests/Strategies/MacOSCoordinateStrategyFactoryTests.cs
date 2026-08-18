@@ -1,9 +1,7 @@
-using CrossMacro.Platform.MacOS.Strategies;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Strategies;
 
-public class MacOSCoordinateStrategyFactoryTests
+public sealed class MacOSCoordinateStrategyFactoryTests
 {
     [Fact]
     public void Create_WhenAbsoluteRequested_ReturnsMacOSAbsoluteStrategy()
@@ -12,7 +10,7 @@ public class MacOSCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
 
-        Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
+        _ = Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
     }
 
     [Fact]
@@ -22,7 +20,7 @@ public class MacOSCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: true, skipInitialZero: false);
 
-        Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
+        _ = Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
     }
 
     [Fact]
@@ -32,7 +30,7 @@ public class MacOSCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
 
-        Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
+        _ = Assert.IsType<MacOSRelativeCoordinateStrategy>(strategy);
     }
 
     [Fact]
@@ -42,6 +40,44 @@ public class MacOSCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
 
-        Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
+        _ = Assert.IsType<MacOSAbsoluteCoordinateStrategy>(strategy);
+    }
+
+    [Fact]
+    public async Task Create_WhenProviderIsInjected_UsesProviderForAbsoluteInitialization()
+    {
+        using var provider = new StubMousePositionProvider((321, 654));
+        var factory = new MacOSCoordinateStrategyFactory(provider);
+        using var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
+
+        await strategy.InitializeAsync(CancellationToken.None);
+        var sample = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.Key,
+            Code = InputEventCode.KEY_A,
+            Value = 1,
+        });
+
+        Assert.Equal(CoordinateSample.Create(321, 654), sample);
+        Assert.Equal(1, provider.AbsolutePositionQueries);
+    }
+
+    private sealed class StubMousePositionProvider((int X, int Y)? position) : IMousePositionProvider
+    {
+        private readonly (int X, int Y)? _position = position;
+
+        public int AbsolutePositionQueries { get; private set; }
+        public string ProviderName => "test";
+        public bool IsSupported => true;
+
+        public Task<(int X, int Y)?> GetAbsolutePositionAsync()
+        {
+            AbsolutePositionQueries++;
+            return Task.FromResult(_position);
+        }
+
+        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>(null);
+
+        public void Dispose() { /* Test provider has no resources. */ }
     }
 }

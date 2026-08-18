@@ -1,19 +1,15 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Core.Services;
 
 public interface IMacroRecorder : IDisposable
 {
-    bool IsRecording { get; }
-    
-    event EventHandler<MacroEvent>? EventRecorded;
+    public bool IsRecording { get; }
 
-    Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default);
-    
-    MacroSequence StopRecording();
-    
-    MacroSequence? GetCurrentRecording();
+    public event EventHandler<MacroEventRecordedEventArgs>? EventRecorded;
+
+    public Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default);
+
+    public MacroSequence StopRecording();
+
+    public MacroSequence? GetCurrentRecording();
 }

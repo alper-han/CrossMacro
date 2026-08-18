@@ -1,8 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="using:CrossMacro.UI.Converters"
-             xmlns:vm="using:CrossMacro.UI.ViewModels"
-             xmlns:localization="using:CrossMacro.UI.Localization"
+              xmlns:vm="using:CrossMacro.UI.ViewModels"
+              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
+              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -11,7 +12,7 @@
              x:DataType="vm:PlaybackViewModel">
 
     <Design.DataContext>
-        <vm:DesignPlaybackViewModel/>
+        <designVm:DesignPlaybackViewModel/>
     </Design.DataContext>
 
     <Panel>
@@ -29,6 +30,99 @@
                     <Slider Minimum="0.1" Maximum="10.0" Value="{Binding PlaybackSpeed}"
                             TickFrequency="0.1" IsSnapToTickEnabled="True"
                             IsEnabled="{Binding !IsPlaying}"/>
+                </StackPanel>
+
+                <!-- Motion fidelity -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{localization:Loc Playback_MotionMode}"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                    <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <Grid Grid.Row="0" ColumnDefinitions="*,24,*">
+                            <RadioButton Grid.Column="0"
+                                         GroupName="MotionMode"
+                                         IsChecked="{Binding IsPrecisionMotionMode}"
+                                         IsEnabled="{Binding !IsPlaying}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{localization:Loc Playback_MotionModePrecision}"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{localization:Loc Playback_PrecisionMotionRateHint}"
+                                               Classes="caption"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+
+                            <RadioButton Grid.Column="2"
+                                         GroupName="MotionMode"
+                                         IsChecked="{Binding IsStrictSpeedMotionMode}"
+                                         IsEnabled="{Binding !IsPlaying}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{localization:Loc Playback_MotionModeStrictSpeed}"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{localization:Loc Playback_StrictSpeedMotionRateHint}"
+                                               Classes="caption"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </Grid>
+
+                        <StackPanel Grid.Row="1"
+                                    Spacing="4"
+                                    IsVisible="{Binding ShowPrecisionMotionRate}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Classes="label"
+                                           Text="{localization:Loc Playback_StrictSpeedMotionRate}"/>
+                                <TextBlock Classes="caption" Text="/ s"/>
+                            </StackPanel>
+                            <NumericUpDown
+                                Value="{Binding PrecisionMotionEventsPerSecond, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                Minimum="60"
+                                Maximum="10000"
+                                Increment="50"
+                                FormatString="0"
+                                HorizontalAlignment="Stretch"
+                                IsEnabled="{Binding !IsPlaying}"/>
+                        </StackPanel>
+
+                        <Grid Grid.Row="1"
+                              ColumnDefinitions="*,8,*"
+                              IsVisible="{Binding ShowStrictSpeedMotionRate}">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Classes="label"
+                                               Text="{localization:Loc Playback_StrictSpeedMotionRate}"/>
+                                    <TextBlock Classes="caption" Text="/ s"/>
+                                </StackPanel>
+                                <NumericUpDown
+                                               Value="{Binding StrictSpeedMotionEventsPerSecond, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                               Minimum="60"
+                                               Maximum="10000"
+                                               Increment="100"
+                                               FormatString="0"
+                                               HorizontalAlignment="Stretch"
+                                               IsEnabled="{Binding !IsPlaying}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Classes="label"
+                                               Text="{localization:Loc Playback_MaximumMotionPathError}"/>
+                                    <TextBlock Classes="caption" Text="(px)"/>
+                                </StackPanel>
+                                <NumericUpDown
+                                               Value="{Binding MaximumMotionErrorPixels, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                               Minimum="0.25"
+                                               Maximum="500"
+                                               Increment="0.25"
+                                               FormatString="0.##"
+                                               HorizontalAlignment="Stretch"
+                                               IsEnabled="{Binding !IsPlaying}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
                 </StackPanel>
 
                 <!-- Loop Controls -->

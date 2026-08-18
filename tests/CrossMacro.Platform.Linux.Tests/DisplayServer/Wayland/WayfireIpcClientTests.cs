@@ -1,13 +1,8 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-using System.Buffers.Binary;
-using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 [Collection("EnvironmentVariableSensitive")]
-public class WayfireIpcClientTests
+public sealed class WayfireIpcClientTests
 {
     private static readonly TimeSpan SocketOperationTimeout = TimeSpan.FromSeconds(2);
 
@@ -17,11 +12,11 @@ public class WayfireIpcClientTests
         const string envSocket = "/tmp/wayfire-env.socket";
 
         using var client = new WayfireIpcClient(
-            key => key == "WAYFIRE_SOCKET" ? envSocket : null,
-            path => path == envSocket,
+            key => key is "WAYFIRE_SOCKET" ? envSocket : null,
+            path => string.Equals(path, envSocket, StringComparison.Ordinal),
             _ => false,
             (_, _) => [],
-            path => path == envSocket);
+            path => string.Equals(path, envSocket, StringComparison.Ordinal));
 
         Assert.True(client.IsAvailable);
         Assert.Equal(envSocket, client.SocketPath);
@@ -41,20 +36,20 @@ public class WayfireIpcClientTests
             {
                 "WAYFIRE_SOCKET" => null,
                 "XDG_RUNTIME_DIR" => runtimeDir,
-                _ => null
+                _ => null,
             },
-            (string path) => path == runtimeStaleSocket || path == tmpSocket,
-            (string directory) => directory == runtimeDir || directory == tempDir,
+            (string path) => string.Equals(path, runtimeStaleSocket, StringComparison.Ordinal) || string.Equals(path, tmpSocket, StringComparison.Ordinal),
+            (string directory) => string.Equals(directory, runtimeDir, StringComparison.Ordinal) || string.Equals(directory, tempDir, StringComparison.Ordinal),
             (string directory, string _) =>
             {
-                if (directory == runtimeDir)
+                if (string.Equals(directory, runtimeDir, StringComparison.Ordinal))
                 {
-                    return new[] { runtimeStaleSocket };
+                    return [runtimeStaleSocket];
                 }
 
-                if (directory == tempDir)
+                if (string.Equals(directory, tempDir, StringComparison.Ordinal))
                 {
-                    return new[] { tmpSocket };
+                    return [tmpSocket];
                 }
 
                 return [];
@@ -62,7 +57,7 @@ public class WayfireIpcClientTests
             (string path) =>
             {
                 callOrder.Add($"connect:{path}");
-                return path == tmpSocket;
+                return string.Equals(path, tmpSocket, StringComparison.Ordinal);
             });
 
         Assert.True(client.IsAvailable);
@@ -70,7 +65,7 @@ public class WayfireIpcClientTests
         Assert.Equal(
             [
                 $"connect:{runtimeStaleSocket}",
-                $"connect:{tmpSocket}"
+                $"connect:{tmpSocket}",
             ],
             callOrder);
     }
@@ -88,16 +83,16 @@ public class WayfireIpcClientTests
             {
                 "WAYFIRE_SOCKET" => null,
                 "XDG_RUNTIME_DIR" => null,
-                _ => null
+                _ => null,
             },
-            (string path) => path == tmpSocket,
-            (string directory) => directory == tempDir,
+            (string path) => string.Equals(path, tmpSocket, StringComparison.Ordinal),
+            (string directory) => string.Equals(directory, tempDir, StringComparison.Ordinal),
             (string directory, string _) =>
             {
                 checkedDirectories.Add(directory);
-                return directory == tempDir ? new[] { tmpSocket } : [];
+                return string.Equals(directory, tempDir, StringComparison.Ordinal) ? [tmpSocket] : [];
             },
-            (string path) => path == tmpSocket);
+            (string path) => string.Equals(path, tmpSocket, StringComparison.Ordinal));
 
         Assert.True(client.IsAvailable);
         Assert.Equal(tmpSocket, client.SocketPath);
@@ -116,12 +111,12 @@ public class WayfireIpcClientTests
             {
                 "WAYFIRE_SOCKET" => null,
                 "XDG_RUNTIME_DIR" => runtimeDir,
-                _ => null
+                _ => null,
             },
             path => path is staleSocket or liveSocket,
-            directory => directory == runtimeDir,
+            directory => string.Equals(directory, runtimeDir, StringComparison.Ordinal),
             (_, _) => [staleSocket, liveSocket],
-            path => path == liveSocket);
+            path => string.Equals(path, liveSocket, StringComparison.Ordinal));
 
         Assert.True(client.IsAvailable);
         Assert.Equal(liveSocket, client.SocketPath);
@@ -139,12 +134,12 @@ public class WayfireIpcClientTests
             {
                 "WAYFIRE_SOCKET" => staleEnvSocket,
                 "XDG_RUNTIME_DIR" => runtimeDir,
-                _ => null
+                _ => null,
             },
             path => path is staleEnvSocket or liveRuntimeSocket,
-            directory => directory == runtimeDir,
+            directory => string.Equals(directory, runtimeDir, StringComparison.Ordinal),
             (_, _) => [liveRuntimeSocket],
-            path => path == liveRuntimeSocket);
+            path => string.Equals(path, liveRuntimeSocket, StringComparison.Ordinal));
 
         Assert.True(client.IsAvailable);
         Assert.Equal(liveRuntimeSocket, client.SocketPath);
@@ -167,18 +162,18 @@ public class WayfireIpcClientTests
                 using var connection = await server.AcceptAsync(timeoutCts.Token);
                 var requestPayload = await ReadFramedMessageAsync(connection, timeoutCts.Token);
 
-                var responsePayload = "{\"result\":\"ok\"}";
+                const string responsePayload = "{\"result\":\"ok\"}";
                 await WriteFramedMessageAsync(connection, responsePayload, timeoutCts.Token);
 
                 return requestPayload;
             });
 
             using var client = new WayfireIpcClient(
-                key => key == "WAYFIRE_SOCKET" ? socketPath : null,
-                path => path == socketPath,
+                key => key is "WAYFIRE_SOCKET" ? socketPath : null,
+                path => string.Equals(path, socketPath, StringComparison.Ordinal),
                 _ => false,
                 (_, _) => [],
-                path => path == socketPath);
+                path => string.Equals(path, socketPath, StringComparison.Ordinal));
 
             var response = await client.SendRequestAsync("window-rules/get_cursor_position").WaitAsync(SocketOperationTimeout);
             var requestPayload = await serverTask.WaitAsync(SocketOperationTimeout);

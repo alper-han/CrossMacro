@@ -96,31 +96,19 @@ if [ ! -d "$directory" ]; then
     exit 1
 fi
 
-mapfile -t expected_files < <(
-    python3 - "$SCRIPT_DIR" "$manifest_path" "$attach_flatpak" "$attach_msix" "$version" <<'PY'
-import pathlib
-import sys
-
-script_dir = pathlib.Path(sys.argv[1])
-manifest_path = pathlib.Path(sys.argv[2])
-attach_flatpak = sys.argv[3].lower() == 'true'
-attach_msix = sys.argv[4].lower() == 'true'
-version = sys.argv[5] or None
-sys.path.insert(0, str(script_dir))
-import verify_artifacts
-
-manifest = verify_artifacts.rewrite_manifest_for_version(verify_artifacts.load_manifest(manifest_path), version)
-
-files = []
-for asset in verify_artifacts.expected_assets(manifest, attach_flatpak, attach_msix):
-    file_name = asset.get('file')
-    if isinstance(file_name, str) and file_name and file_name != 'SHA256SUMS':
-        files.append(file_name)
-
-for file_name in files:
-    print(file_name)
-PY
-)
+expected_files_output="$(
+    dotnet run --file "$SCRIPT_DIR/CrossMacroCI.cs" -- \
+        expected-artifacts \
+        --repo-root "$SCRIPT_DIR/../.." \
+        --manifest "$manifest_path" \
+        --attach-flatpak "$attach_flatpak" \
+        --attach-msix "$attach_msix" \
+        --version "$version"
+)" || {
+    echo "Error: could not resolve expected artifact names with the .NET CI contract tool" >&2
+    exit 1
+}
+mapfile -t expected_files <<< "$expected_files_output"
 
 if [ "${#expected_files[@]}" -eq 0 ]; then
     echo "Error: manifest produced no checksum inputs" >&2
@@ -139,7 +127,6 @@ if [ "$missing" -ne 0 ]; then
     exit 1
 fi
 
-checksum_file="$directory/SHA256SUMS"
 tmp_file="$directory/SHA256SUMS.tmp"
 trap 'rm -f "$tmp_file"' EXIT
 

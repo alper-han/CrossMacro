@@ -1,25 +1,17 @@
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Windows.Helpers;
-using CrossMacro.Platform.Windows.Native;
 
 namespace CrossMacro.Platform.Windows.Services;
 
-public class WindowsInputSimulator :
+public sealed class WindowsInputSimulator :
     IInputSimulator,
     IInputSimulatorCapabilities,
-    IUnicodeTextInputSimulator,
     ITaggedKeyboardInputSimulator,
     ITaggedUnicodeTextInputSimulator
 {
-    private int _screenWidth;
-    private int _screenHeight;
-    
+    private ScreenRect? _desktopBounds;
+
     // ThreadStatic ensures each thread has its own buffer - thread-safe without locking
-    [ThreadStatic]
-    private static INPUT[]? _inputBuffer;
-    
-    private static INPUT[] InputBuffer => _inputBuffer ??= new INPUT[1];
+    [field: ThreadStatic]
+    private static InputStruct[] InputBuffer { get => field ??= new InputStruct[1]; }
 
     public string ProviderName => "Windows SendInput";
     public bool IsSupported => OperatingSystem.IsWindows();
@@ -29,53 +21,38 @@ public class WindowsInputSimulator :
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {
-        _screenWidth = screenWidth;
-        _screenHeight = screenHeight;
-        
-        if (_screenWidth <= 0 || _screenHeight <= 0)
-        {
-            _screenWidth = User32.GetSystemMetrics(User32.SM_CXSCREEN);
-            _screenHeight = User32.GetSystemMetrics(User32.SM_CYSCREEN);
-        }
+        _desktopBounds = WindowsMousePositionProvider.ReadDesktopBounds(User32.GetSystemMetrics)
+            ?? (screenWidth > 0 && screenHeight > 0 ? new ScreenRect(0, 0, screenWidth, screenHeight) : null);
+    }
+
+    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Initialize(screenWidth, screenHeight);
+        return Task.CompletedTask;
     }
 
     public void MoveAbsolute(int x, int y)
     {
-        var input = new INPUT
-        {
-            type = InputType.INPUT_MOUSE,
-            U = new InputUnion
-            {
-                mi = new MOUSEINPUT
-                {
-                    dx = CalculateAbsoluteCoordinate(x, _screenWidth),
-                    dy = CalculateAbsoluteCoordinate(y, _screenHeight),
-                    dwFlags = MouseEventFlags.MOUSEEVENTF_ABSOLUTE | MouseEventFlags.MOUSEEVENTF_MOVE,
-                    time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
-            }
-        };
-
-        SendInput(input);
+        SendInput(CreateAbsoluteMouseInput(x, y, _desktopBounds));
     }
 
     public void MoveRelative(int dx, int dy)
     {
-        var input = new INPUT
+        var input = new InputStruct
         {
             type = InputType.INPUT_MOUSE,
             U = new InputUnion
             {
-                mi = new MOUSEINPUT
+                mi = new MouseInput
                 {
                     dx = dx,
                     dy = dy,
-                    dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE,
+                    dwFlags = MouseEventFlags.MOUSEEVENTF_MOVE | MouseEventFlags.MOUSEEVENTF_MOVE_NOCOALESCE,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
-            }
+                    dwExtraInfo = IntPtr.Zero,
+                },
+            },
         };
 
         SendInput(input);
@@ -83,8 +60,17 @@ public class WindowsInputSimulator :
 
     public void MouseButton(int button, bool pressed)
     {
-        uint flags = 0;
-        
+        if (TryCreateMouseButtonInput(button, pressed, out var input))
+        {
+            SendInput(input);
+        }
+    }
+
+    internal static bool TryCreateMouseButtonInput(int button, bool pressed, out InputStruct input)
+    {
+        uint flags;
+        uint mouseData = 0;
+
         switch (button)
         {
             case InputEventCode.BTN_LEFT:
@@ -96,57 +82,69 @@ public class WindowsInputSimulator :
             case InputEventCode.BTN_MIDDLE:
                 flags = pressed ? MouseEventFlags.MOUSEEVENTF_MIDDLEDOWN : MouseEventFlags.MOUSEEVENTF_MIDDLEUP;
                 break;
+            case InputEventCode.BTN_SIDE:
+                flags = pressed ? MouseEventFlags.MOUSEEVENTF_XDOWN : MouseEventFlags.MOUSEEVENTF_XUP;
+                mouseData = User32.XBUTTON1;
+                break;
+            case InputEventCode.BTN_EXTRA:
+                flags = pressed ? MouseEventFlags.MOUSEEVENTF_XDOWN : MouseEventFlags.MOUSEEVENTF_XUP;
+                mouseData = User32.XBUTTON2;
+                break;
             default:
-                return;
+                input = default;
+                return false;
         }
 
-        var input = new INPUT
+        input = new InputStruct
         {
             type = InputType.INPUT_MOUSE,
             U = new InputUnion
             {
-                mi = new MOUSEINPUT
+                mi = new MouseInput
                 {
+                    mouseData = mouseData,
                     dwFlags = flags,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
-            }
+                    dwExtraInfo = IntPtr.Zero,
+                },
+            },
         };
-        
-        SendInput(input);
+        return true;
     }
 
     private const int WHEEL_DELTA = 120;
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
+        SendInput(CreateScrollInput(delta, isHorizontal));
+    }
+
+    internal static InputStruct CreateScrollInput(int delta, bool isHorizontal)
+    {
         int normalizedDelta = Math.Abs(delta) <= 10 ? delta * WHEEL_DELTA : delta;
-        
-        var input = new INPUT
+
+        return new InputStruct
         {
             type = InputType.INPUT_MOUSE,
             U = new InputUnion
             {
-                mi = new MOUSEINPUT
+                mi = new MouseInput
                 {
                     mouseData = (uint)normalizedDelta,
                     dwFlags = isHorizontal ? MouseEventFlags.MOUSEEVENTF_HWHEEL : MouseEventFlags.MOUSEEVENTF_WHEEL,
                     time = 0,
-                    dwExtraInfo = IntPtr.Zero
-                }
-            }
+                    dwExtraInfo = IntPtr.Zero,
+                },
+            },
         };
-        
-        SendInput(input);
     }
 
     private static readonly HashSet<ushort> ExtendedKeys = new()
     {
-        0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 
-        0x2D, 0x2E, 
-        0x5B, 0x5C, 
-        0xA3, 0xA5, 
+        0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+        0x2D, 0x2E,
+        0x5B, 0x5C,
+        0xA3, 0xA5,
     };
 
     public void KeyPress(int keyCode, bool pressed)
@@ -169,27 +167,55 @@ public class WindowsInputSimulator :
         TypeTextCore(text, tag);
     }
 
-    public void Sync()
+    public void Sync() { /* Empty */ }
+
+    public void Dispose() { /* Empty */ }
+
+    private static void SendKeyPress(int keyCode, bool pressed, long? marker)
     {
+        if (TryCreateKeyboardInput(keyCode, pressed, marker, out var input))
+        {
+            SendInput(input);
+        }
     }
 
-    public void Dispose()
+    internal static bool TryCreateKeyboardInput(int keyCode, bool pressed, long? marker, out InputStruct input)
     {
-    }
-
-    private void SendKeyPress(int keyCode, bool pressed, long? marker)
-    {
-        ushort vk = WindowsKeyMap.GetVirtualKey(keyCode);
-        if (vk == 0) return;
+        ushort virtualKey = WindowsKeyMap.GetVirtualKey(keyCode);
+        if (virtualKey is 0)
+        {
+            input = default;
+            return false;
+        }
 
         uint flags = pressed ? 0u : KeyEventFlags.KEYEVENTF_KEYUP;
 
-        if (ExtendedKeys.Contains(vk))
+        if (ExtendedKeys.Contains(virtualKey) || keyCode == InputEventCode.KEY_KPENTER)
         {
             flags |= KeyEventFlags.KEYEVENTF_EXTENDEDKEY;
         }
 
-        SendKeyboardInput(vk, 0, flags, marker);
+        input = new InputStruct
+        {
+            type = InputType.INPUT_KEYBOARD,
+            U = new InputUnion
+            {
+                ki = new KeybdInput
+                {
+                    wVk = virtualKey,
+                    wScan = 0,
+                    dwFlags = flags,
+                    time = 0,
+                    dwExtraInfo = marker is not null ? InputEventMarkers.ToIntPtr(marker.Value) : IntPtr.Zero,
+                },
+            },
+        };
+        return true;
+    }
+
+    internal static bool TryCreateKeyboardInput(int keyCode, bool pressed, out InputStruct input)
+    {
+        return TryCreateKeyboardInput(keyCode, pressed, marker: null, out input);
     }
 
     private static void TypeTextCore(string text, long? marker)
@@ -203,17 +229,71 @@ public class WindowsInputSimulator :
         }
     }
 
-    private static int CalculateAbsoluteCoordinate(int val, int max)
+    internal static InputStruct CreateAbsoluteMouseInput(int x, int y, ScreenRect? desktopBounds)
     {
-        if (max <= 0) return 0; 
-        return (val * 65535) / max;
+        var bounds = desktopBounds ?? new ScreenRect(0, 0, 1, 1);
+        return new InputStruct
+        {
+            type = InputType.INPUT_MOUSE,
+            U = new InputUnion
+            {
+                mi = new MouseInput
+                {
+                    dx = CalculateAbsoluteCoordinate(x, bounds.X, bounds.Width),
+                    dy = CalculateAbsoluteCoordinate(y, bounds.Y, bounds.Height),
+                    dwFlags = MouseEventFlags.MOUSEEVENTF_ABSOLUTE
+                        | MouseEventFlags.MOUSEEVENTF_VIRTUALDESK
+                        | MouseEventFlags.MOUSEEVENTF_MOVE
+                        | MouseEventFlags.MOUSEEVENTF_MOVE_NOCOALESCE,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero,
+                },
+            },
+        };
     }
 
-    private static void SendInput(INPUT input)
+    private static int CalculateAbsoluteCoordinate(int value, int origin, int extent)
+    {
+        if (extent <= 1)
+        {
+            return 0;
+        }
+
+        long offset = Math.Clamp((long)value - origin, 0, extent - 1L);
+        return (int)Math.Round(offset * 65535d / (extent - 1L), MidpointRounding.AwayFromZero);
+    }
+
+    private static void SendInput(InputStruct input)
     {
         var buffer = InputBuffer;
         buffer[0] = input;
-        User32.SendInput(1, buffer, INPUT.Size);
+        var injectedInputs = User32.SendInput(1, buffer, InputStruct.Size);
+        if (injectedInputs is not 1)
+        {
+            EnsureInputWasAccepted(1, injectedInputs, Marshal.GetLastWin32Error());
+        }
+    }
+
+    internal static void EnsureInputWasAccepted(uint requestedInputs, uint injectedInputs, int nativeErrorCode)
+    {
+        if (injectedInputs == requestedInputs)
+        {
+            return;
+        }
+
+        var nativeErrorMessage = nativeErrorCode is 0
+            ? "No Win32 error was reported."
+            : new Win32Exception(nativeErrorCode).Message;
+        var message = string.Create(
+            CultureInfo.InvariantCulture,
+            $"Windows SendInput accepted {injectedInputs} of {requestedInputs} requested input event(s). "
+            + $"Win32 error {nativeErrorCode}: {nativeErrorMessage}");
+        Log.Error(
+            "[WindowsInputSimulator] {Message}. The target application may require the same elevation level.",
+            message);
+        throw new InputInjectionFailedException(
+            $"{message} The target application may require the same elevation level.",
+            nativeErrorCode);
     }
 
     private static void SendUnicodeInput(char codeUnit, bool keyUp, long? marker)
@@ -227,20 +307,20 @@ public class WindowsInputSimulator :
 
     private static void SendKeyboardInput(ushort virtualKey, ushort scanCode, uint flags, long? marker)
     {
-        var input = new INPUT
+        var input = new InputStruct
         {
             type = InputType.INPUT_KEYBOARD,
             U = new InputUnion
             {
-                ki = new KEYBDINPUT
+                ki = new KeybdInput
                 {
                     wVk = virtualKey,
                     wScan = scanCode,
                     dwFlags = flags,
                     time = 0,
-                    dwExtraInfo = marker.HasValue ? InputEventMarkers.ToIntPtr(marker.Value) : IntPtr.Zero
-                }
-            }
+                    dwExtraInfo = marker is not null ? InputEventMarkers.ToIntPtr(marker.Value) : IntPtr.Zero,
+                },
+            },
         };
 
         SendInput(input);

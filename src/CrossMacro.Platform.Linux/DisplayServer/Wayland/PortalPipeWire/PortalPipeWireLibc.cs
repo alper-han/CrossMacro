@@ -1,24 +1,33 @@
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 
 internal static partial class PortalPipeWireLibc
 {
-    [DllImport("libc.so.6", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
-    public static extern int dup(int oldfd);
+    [LibraryImport("libc.so.6", SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int dup(int oldfd);
 
-    [DllImport("libc.so.6", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
-    public static extern int memfd_create(string name, uint flags);
+    [LibraryImport("libc.so.6", SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int dup(SafeHandle oldfd);
 
-    [DllImport("libc.so.6", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
-    public static extern int ftruncate(int fd, int length);
+    [LibraryImport("libc.so.6", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int memfd_create(string name, uint flags);
 
-    [DllImport("libc.so.6", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
-    public static extern IntPtr mmap(IntPtr addr, UIntPtr length, int prot, int flags, int fd, IntPtr offset);
+    [LibraryImport("libc.so.6", SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int ftruncate(int fd, int length);
 
-    [DllImport("libc.so.6", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
-    public static extern int munmap(IntPtr addr, UIntPtr length);
+    [LibraryImport("libc.so.6", SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr mmap(IntPtr addr, UIntPtr length, int prot, int flags, int fd, IntPtr offset);
 
-    [DllImport("libc.so.6", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
-    public static extern int close(int fd);
+    [LibraryImport("libc.so.6", SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int munmap(IntPtr addr, UIntPtr length);
+
+    [LibraryImport("libc.so.6", SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int close(int fd);
 }

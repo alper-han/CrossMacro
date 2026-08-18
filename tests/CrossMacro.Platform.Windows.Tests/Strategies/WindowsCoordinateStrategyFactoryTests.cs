@@ -1,14 +1,7 @@
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services.Recording.Strategies;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Windows.Strategies;
-using CrossMacro.TestInfrastructure;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.Strategies;
 
-public class WindowsCoordinateStrategyFactoryTests
+public sealed class WindowsCoordinateStrategyFactoryTests
 {
     [WindowsFact]
     public void Create_WhenForceRelativeTrue_ReturnsRelativeStrategy()
@@ -18,7 +11,7 @@ public class WindowsCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: true, skipInitialZero: false);
 
-        Assert.IsType<RelativeCoordinateStrategy>(strategy);
+        _ = Assert.IsType<CrossMacro.Platform.Abstractions.Recording.Strategies.RelativeCoordinateStrategy>(strategy);
     }
 
     [WindowsFact]
@@ -29,7 +22,7 @@ public class WindowsCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
 
-        Assert.IsType<WindowsAbsoluteCoordinateStrategy>(strategy);
+        _ = Assert.IsType<WindowsAbsoluteCoordinateStrategy>(strategy);
     }
 
     [WindowsFact]
@@ -40,7 +33,7 @@ public class WindowsCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
 
-        Assert.IsType<RelativeCoordinateStrategy>(strategy);
+        _ = Assert.IsType<CrossMacro.Platform.Abstractions.Recording.Strategies.RelativeCoordinateStrategy>(strategy);
     }
 
     [WindowsFact]
@@ -51,6 +44,6 @@ public class WindowsCoordinateStrategyFactoryTests
 
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
 
-        Assert.IsType<WindowsAbsoluteCoordinateStrategy>(strategy);
+        _ = Assert.IsType<WindowsAbsoluteCoordinateStrategy>(strategy);
     }
 }

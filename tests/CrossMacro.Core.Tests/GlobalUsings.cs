@@ -1,0 +1,11 @@
+global using CrossMacro.Core.Diagnostics;
+global using CrossMacro.Core.Models;
+global using CrossMacro.Core.Services;
+global using CrossMacro.Core.Services.Playback;
+global using CrossMacro.Platform.Abstractions.Recording.Strategies;
+global using CrossMacro.Platform.Abstractions;
+global using FluentAssertions;
+global using System.ComponentModel;
+global using System.Text.RegularExpressions;
+global using System.Xml.Linq;
+global using Xunit;

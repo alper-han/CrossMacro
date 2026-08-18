@@ -1,10 +1,7 @@
-using CrossMacro.Platform.Linux.Ipc;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-public class CaptureSubscriptionCoordinatorTests
+public sealed class CaptureSubscriptionCoordinatorTests
 {
     private static CaptureCommand SetSubscription(
         CaptureSubscriptionCoordinator coordinator,
@@ -14,7 +11,7 @@ public class CaptureSubscriptionCoordinatorTests
     {
         coordinator.SetSubscription(consumerId, captureMouse, captureKeyboard);
         var command = coordinator.GetRequiredCommand();
-        if (command.Type != CaptureCommandType.None)
+        if (command.Type is not CaptureCommandType.None)
         {
             coordinator.MarkCommandIssued(command);
         }
@@ -26,7 +23,7 @@ public class CaptureSubscriptionCoordinatorTests
     {
         coordinator.RemoveSubscription(consumerId);
         var command = coordinator.GetRequiredCommand();
-        if (command.Type != CaptureCommandType.None)
+        if (command.Type is not CaptureCommandType.None)
         {
             coordinator.MarkCommandIssued(command);
         }
@@ -38,7 +35,7 @@ public class CaptureSubscriptionCoordinatorTests
     {
         coordinator.ResetTransportState();
         var command = coordinator.GetRequiredCommand();
-        if (command.Type != CaptureCommandType.None)
+        if (command.Type is not CaptureCommandType.None)
         {
             coordinator.MarkCommandIssued(command);
         }
@@ -51,7 +48,7 @@ public class CaptureSubscriptionCoordinatorTests
         var sent = new List<CaptureCommand>();
         foreach (var command in commands)
         {
-            if (command.Type != CaptureCommandType.None)
+            if (command.Type is not CaptureCommandType.None)
             {
                 sent.Add(command);
             }

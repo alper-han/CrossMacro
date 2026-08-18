@@ -1,23 +1,61 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
-using CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
-public class GnomePositionProviderTests
+public sealed class GnomePositionProviderTests
 {
+    [Fact]
+    public void Constructor_OnGnomeX11_DoesNotEnableShellExtensionProvider()
+    {
+        var environment = default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = "x11",
+            Display = ":0",
+            CurrentDesktop = "GNOME",
+            GdmSession = "gnome-xorg",
+        };
+
+        using var provider = new GnomePositionProvider(environment);
+
+        Assert.False(provider.IsSupported);
+    }
+
+    [Fact]
+    public void EmbeddedExtension_ShouldPublishCapturedPointerMotion()
+    {
+        const string resourceName = "CrossMacro.Platform.Linux.DisplayServer.Wayland.GnomePositionProvider.js";
+        using var stream = typeof(GnomePositionProvider).Assembly.GetManifestResourceStream(resourceName);
+        Assert.NotNull(stream);
+        using var reader = new StreamReader(stream);
+        var script = reader.ReadToEnd();
+
+        Assert.Contains("<signal name=\"PositionChanged\">", script, StringComparison.Ordinal);
+        Assert.Contains("global.stage.connect('captured-event'", script, StringComparison.Ordinal);
+        Assert.Contains("event.type() === Clutter.EventType.MOTION", script, StringComparison.Ordinal);
+        Assert.Contains("this._dbusImpl.emit_signal(", script, StringComparison.Ordinal);
+        Assert.Contains("new GLib.Variant('(ii)', [x, y])", script, StringComparison.Ordinal);
+        Assert.True(typeof(IMousePositionChangeSource).IsAssignableFrom(typeof(GnomePositionProvider)));
+    }
+
+    [Fact]
+    public void ReadPositionChangedSignal_ReturnsCoordinates()
+    {
+        var body = DbusWrapperProtocolTestHelpers.EncodeInt32Body(-1920)
+            .Concat(DbusWrapperProtocolTestHelpers.EncodeInt32Body(540))
+            .ToArray();
+        var message = DbusWrapperProtocolTestHelpers.CreateBodyOnlyMessage(body);
+
+        var position = GnomeTrackerClient.ReadPositionChangedSignal(message, state: null);
+
+        Assert.Equal((-1920, 540), position);
+    }
+
     [Fact]
     public void TryReadEnabledState_ReturnsTrue_ForActiveExtensionInfo()
     {
         var info = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["state"] = (uint)1,
-            ["name"] = "Cursor Spy"
+            ["name"] = "Cursor Spy",
         };
 
         var enabled = GnomePositionProvider.TryReadEnabledState(info);
@@ -34,7 +72,7 @@ public class GnomePositionProviderTests
                 ("name", "Cursor Spy"),
                 ("enabled", true)));
 
-        var info = GnomeShellExtensionsClient.ReadGetExtensionInfoReply(reply, null);
+        var info = GnomeShellExtensionsClient.ReadGetExtensionInfoReply(reply, _: null);
 
         var enabled = GnomePositionProvider.TryReadEnabledState(info);
 
@@ -48,7 +86,7 @@ public class GnomePositionProviderTests
     {
         var info = new Dictionary<string, object>(StringComparer.Ordinal)
         {
-            ["state"] = state
+            ["state"] = state,
         };
 
         var enabled = GnomePositionProvider.TryReadEnabledState(info);
@@ -62,7 +100,7 @@ public class GnomePositionProviderTests
         var enabled = await GnomePositionProvider.IsExtensionEnabledAsync(
             () => Task.FromResult<IDictionary<string, object>>(new Dictionary<string, object>(StringComparer.Ordinal)
             {
-                ["state"] = 1d
+                ["state"] = 1d,
             }));
 
         Assert.True(enabled);
@@ -100,7 +138,7 @@ public class GnomePositionProviderTests
         var result = await GnomePositionProvider.TryGetScreenResolutionAsync(
             () =>
             {
-                Interlocked.Increment(ref calls);
+                _ = Interlocked.Increment(ref calls);
                 return Task.FromResult((width: 3840, height: 2160));
             },
             cached,
@@ -173,7 +211,7 @@ public class GnomePositionProviderTests
 
         public TempDirectory()
         {
-            Directory.CreateDirectory(Path);
+            _ = Directory.CreateDirectory(Path);
         }
 
         public void Dispose()

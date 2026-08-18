@@ -1,8 +1,3 @@
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.Services.QuickSetup;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
@@ -13,7 +8,6 @@ public sealed class LinuxQuickSetupExecutorTests
     {
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
-            new LinuxQuickSetupScriptBuilder(),
             (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
 
         var result = await executor.RunAsync(
@@ -23,7 +17,7 @@ public sealed class LinuxQuickSetupExecutorTests
             "unexpected");
 
         Assert.False(result.Success);
-        Assert.Contains("pkexec is missing", result.Message);
+        Assert.Contains("pkexec is missing", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -32,7 +26,6 @@ public sealed class LinuxQuickSetupExecutorTests
         ProcessStartInfo? capturedStartInfo = null;
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
-            new LinuxQuickSetupScriptBuilder(),
             (startInfo, _) =>
             {
                 capturedStartInfo = startInfo;
@@ -46,36 +39,51 @@ public sealed class LinuxQuickSetupExecutorTests
             "unexpected");
 
         Assert.True(result.Success);
-        Assert.Contains("Applied session ACLs for 1000: uinput=1, input-events=4.", result.Message);
+        Assert.Contains("Applied session ACLs for 1000: uinput=1, input-events=4.", result.Message, StringComparison.Ordinal);
         Assert.NotNull(capturedStartInfo);
         Assert.Equal("fake-launcher", capturedStartInfo!.FileName);
         Assert.Equal("1000", capturedStartInfo.ArgumentList[^1]);
-        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2]);
-        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2]);
+        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
+        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
     }
 
-    private sealed class FakeLauncher : IPrivilegedHostCommandLauncher
+    [Fact]
+    public async Task RunAsync_WhenPolkitAgentIsUnavailable_ShouldReturnActionableMessage()
     {
-        private readonly bool _isAvailable;
-        private readonly string _failureMessage;
+        var executor = new LinuxQuickSetupExecutor(
+            new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
+            (_, _) => Task.FromResult((
+                127,
+                string.Empty,
+                "Error creating textual authentication agent: Error opening current controlling terminal for the process (`/dev/tty'): No such device or address")));
 
-        public FakeLauncher(bool isAvailable = true, string failureMessage = "")
-        {
-            _isAvailable = isAvailable;
-            _failureMessage = failureMessage;
-        }
+        var result = await executor.RunAsync(
+            new FakeLauncher(),
+            LinuxQuickSetupScriptOptions.Strict,
+            "TestQuickSetup",
+            "unexpected");
 
-        public bool IsAvailable(out string failureMessage)
+        Assert.False(result.Success);
+        Assert.Contains("No usable polkit authentication agent is available", result.Message, StringComparison.Ordinal);
+        Assert.Contains("pkexec can prompt there", result.Message, StringComparison.Ordinal);
+        Assert.Contains("/dev/tty", result.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class FakeLauncher(bool isAvailable = true, string failureMessage = "") : IPrivilegedHostCommandLauncher
+    {
+        private readonly bool _isAvailable = isAvailable;
+        private readonly string _failureMessage = failureMessage;
+
+        public ValueTask<(bool IsAvailable, string FailureMessage)> IsAvailableAsync(CancellationToken cancellationToken = default)
         {
-            failureMessage = _failureMessage;
-            return _isAvailable;
+            return ValueTask.FromResult((_isAvailable, _failureMessage));
         }
 
         public ProcessStartInfo CreateStartInfo(string hostScript, LinuxQuickSetupIdentity identity)
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = "fake-launcher"
+                FileName = "fake-launcher",
             };
 
             startInfo.ArgumentList.Add("sh");

@@ -1,30 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CrossMacro.Platform.Linux.Ipc;
-
-internal readonly record struct PendingCaptureStartRegistration(
-    int RequestId,
-    TaskCompletionSource<bool> Completion);
-
-internal readonly record struct PendingCaptureStartFailureContext(
-    bool NotifyOnFailure,
-    bool ForceReconcileOnFailure,
-    CaptureCommand FailedCommand,
-    PendingAsyncParticipantSnapshot[] FailedAsyncParticipants,
-    CaptureCommand FailedPreviousTransportCommand,
-    bool SubscriptionRemovedSinceStart,
-    string[] RemovedConsumersSinceStart,
-    TaskCompletionSource<bool> Completion);
-
-internal readonly record struct PendingAsyncParticipantSnapshot(
-    string ConsumerId,
-    bool HadPreviousSubscription,
-    bool PreviousCaptureMouse,
-    bool PreviousCaptureKeyboard,
-    bool ShouldRestoreOnFailure);
 
 internal sealed class PendingCaptureStartRegistry
 {
@@ -187,14 +162,14 @@ internal sealed class PendingCaptureStartRegistry
         }
     }
 
-    public Task? TryGetPendingTask()
+    public Task TryGetPendingTaskAsync()
     {
         lock (_lock)
         {
             if (_pending is not { Completion: { Task: { IsCompleted: false } } } pendingStart)
             {
                 _pending = null;
-                return null;
+                return Task.CompletedTask;
             }
 
             return pendingStart.Completion.Task;
@@ -310,7 +285,7 @@ internal sealed class PendingCaptureStartRegistry
 
         public string[] GetRemovedConsumerIdsSnapshot()
         {
-            if (_removedConsumersSinceStart.Count == 0)
+            if (_removedConsumersSinceStart.Count is 0)
             {
                 return [];
             }
@@ -328,7 +303,7 @@ internal sealed class PendingCaptureStartRegistry
                 return;
             }
 
-            _removedConsumersSinceStart.Add(consumerId);
+            _ = _removedConsumersSinceStart.Add(consumerId);
         }
     }
 }

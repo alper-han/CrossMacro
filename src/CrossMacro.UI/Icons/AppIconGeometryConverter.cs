@@ -1,6 +1,3 @@
-using System;
-using System.Globalization;
-using Avalonia.Data.Converters;
 
 namespace CrossMacro.UI.Icons;
 
@@ -8,9 +5,7 @@ public sealed class AppIconGeometryConverter : IValueConverter
 {
     public static readonly AppIconGeometryConverter Instance = new();
 
-    private AppIconGeometryConverter()
-    {
-    }
+    private AppIconGeometryConverter() { /* Empty */ }
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {

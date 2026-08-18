@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
@@ -8,7 +7,8 @@ public readonly record struct LinuxScreenReaderBackendCapability
         LinuxScreenReaderBackend backend,
         bool isAvailable,
         ScreenReadErrorKind? errorKind,
-        string? errorMessage)
+        string? errorMessage,
+        string? details)
     {
         if (!isAvailable && string.IsNullOrWhiteSpace(errorMessage))
         {
@@ -19,6 +19,7 @@ public readonly record struct LinuxScreenReaderBackendCapability
         IsAvailable = isAvailable;
         ErrorKind = errorKind;
         ErrorMessage = errorMessage;
+        Details = details;
     }
 
     public LinuxScreenReaderBackend Backend { get; }
@@ -29,12 +30,15 @@ public readonly record struct LinuxScreenReaderBackendCapability
 
     public string? ErrorMessage { get; }
 
-    public static LinuxScreenReaderBackendCapability Available(LinuxScreenReaderBackend backend) =>
-        new(backend, true, null, null);
+    public string? Details { get; }
+
+    public static LinuxScreenReaderBackendCapability Available(LinuxScreenReaderBackend backend, string? details = null) =>
+        new(backend, isAvailable: true, errorKind: null, errorMessage: null, details);
 
     public static LinuxScreenReaderBackendCapability Unavailable(
         LinuxScreenReaderBackend backend,
         ScreenReadErrorKind errorKind,
-        string errorMessage) =>
-        new(backend, false, errorKind, errorMessage);
+        string errorMessage,
+        string? details = null) =>
+        new(backend, isAvailable: false, errorKind, errorMessage, details);
 }

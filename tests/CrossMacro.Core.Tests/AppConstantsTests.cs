@@ -1,44 +1,41 @@
 namespace CrossMacro.Core.Tests;
 
-using CrossMacro.Core;
-using FluentAssertions;
 
-public class AppConstantsTests
+public sealed class AppConstantsTests
 {
     [Fact]
     public void AppName_IsCorrect()
     {
-        AppConstants.AppName.Should().Be("CrossMacro");
+        _ = AppConstants.AppName.Should().Be("CrossMacro");
     }
 
     [Fact]
     public void AppIdentifier_IsLowercase()
     {
-        AppConstants.AppIdentifier.Should().Be("crossmacro");
-        AppConstants.AppIdentifier.Should().Be(AppConstants.AppIdentifier.ToLowerInvariant());
+        _ = AppConstants.AppIdentifier.Should().Be("crossmacro");
     }
 
     [Fact]
     public void DBusNamespace_HasCorrectFormat()
     {
-        AppConstants.DBusNamespace.Should().Be("io.github.alper_han.crossmacro");
-        AppConstants.DBusNamespace.Should().StartWith("io.");
+        _ = AppConstants.DBusNamespace.Should().Be("io.github.alper_han.crossmacro");
+        _ = AppConstants.DBusNamespace.Should().StartWith("io.");
     }
 
     [Fact]
     public void DefaultHotkeys_AreNotEmpty()
     {
-        AppConstants.DefaultRecordingHotkey.Should().NotBeNullOrEmpty();
-        AppConstants.DefaultPlaybackHotkey.Should().NotBeNullOrEmpty();
-        AppConstants.DefaultPauseHotkey.Should().NotBeNullOrEmpty();
+        _ = AppConstants.DefaultRecordingHotkey.Should().NotBeNullOrEmpty();
+        _ = AppConstants.DefaultPlaybackHotkey.Should().NotBeNullOrEmpty();
+        _ = AppConstants.DefaultPauseHotkey.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
     public void DefaultHotkeys_AreFunctionKeys()
     {
-        AppConstants.DefaultRecordingHotkey.Should().Be("F8");
-        AppConstants.DefaultPlaybackHotkey.Should().Be("F9");
-        AppConstants.DefaultPauseHotkey.Should().Be("F10");
+        _ = AppConstants.DefaultRecordingHotkey.Should().Be("F8");
+        _ = AppConstants.DefaultPlaybackHotkey.Should().Be("F9");
+        _ = AppConstants.DefaultPauseHotkey.Should().Be("F10");
     }
 
     [Fact]
@@ -48,9 +45,9 @@ public class AppConstantsTests
         {
             AppConstants.DefaultRecordingHotkey,
             AppConstants.DefaultPlaybackHotkey,
-            AppConstants.DefaultPauseHotkey
+            AppConstants.DefaultPauseHotkey,
         };
 
-        hotkeys.Should().OnlyHaveUniqueItems();
+        _ = hotkeys.Should().OnlyHaveUniqueItems();
     }
 }

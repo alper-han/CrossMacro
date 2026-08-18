@@ -1,0 +1,327 @@
+
+namespace CrossMacro.Cli.Services;
+
+public sealed class MacroExecutionService(
+    IMacroFileManager macroFileManager,
+    Func<IMacroPlayer> macroPlayerFactory,
+    IPlaybackValidator validator) : IMacroExecutionService
+{
+    private readonly IMacroFileManager _macroFileManager = macroFileManager ?? throw new ArgumentNullException(nameof(macroFileManager));
+    private readonly Func<IMacroPlayer> _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
+    private readonly IPlaybackValidator _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+
+    public Task<MacroExecutionResult> ValidateAsync(string macroFilePath, CancellationToken cancellationToken)
+    {
+        return ExecuteCoreAsync(macroFilePath, dryRun: true, options: null, countdownSeconds: 0, cancellationToken);
+    }
+
+    public async Task<MacroExecutionResult> GetInfoAsync(string macroFilePath, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(macroFilePath) || !File.Exists(macroFilePath))
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.FileError,
+                Message = "Macro file not found.",
+                Errors = [$"File does not exist: {macroFilePath}"],
+            };
+        }
+
+        MacroSequence? macro;
+        try
+        {
+            macro = await _macroFileManager.LoadAsync(macroFilePath).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.FileError,
+                Message = "Failed to read macro file.",
+                Errors = [ex.Message],
+            };
+        }
+
+        if (macro is null)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.ValidationError,
+                Message = "Macro file could not be loaded.",
+            };
+        }
+
+        var validation = _validator.Validate(macro);
+        var data = BuildInfoData(macroFilePath, macro);
+        var message = validation.IsValid
+            ? "Macro info loaded."
+            : "Macro info loaded with validation errors.";
+
+        if (!validation.IsValid)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.ValidationError,
+                Message = message,
+                Errors = validation.Errors,
+                Warnings = validation.Warnings,
+                Data = data,
+            };
+        }
+
+        return new MacroExecutionResult
+        {
+            Success = true,
+            ExitCode = CliExitCode.Success,
+            Message = message,
+            Warnings = validation.Warnings,
+            Data = data,
+        };
+    }
+
+    public Task<MacroExecutionResult> ExecuteAsync(MacroExecutionRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var playbackOptions = new PlaybackOptions
+        {
+            SpeedMultiplier = request.SpeedMultiplier,
+            Loop = request.Loop,
+            RepeatCount = request.RepeatCount,
+            RepeatDelayMs = request.RepeatDelayMs,
+            MotionMode = request.MotionMode,
+            StrictSpeedMotionEventsPerSecond = request.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = request.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = request.MaximumMotionErrorPixels,
+        };
+
+        return ExecuteCoreAsync(
+            request.MacroFilePath,
+            request.DryRun,
+            playbackOptions,
+            request.CountdownSeconds,
+            cancellationToken);
+    }
+
+    private async Task<MacroExecutionResult> ExecuteCoreAsync(
+        string macroFilePath,
+        bool dryRun,
+        PlaybackOptions? options,
+        int countdownSeconds,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(macroFilePath) || !File.Exists(macroFilePath))
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.FileError,
+                Message = "Macro file not found.",
+                Errors = [$"File does not exist: {macroFilePath}"],
+            };
+        }
+
+        MacroSequence? macro;
+        try
+        {
+            macro = await _macroFileManager.LoadAsync(macroFilePath).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.FileError,
+                Message = "Failed to read macro file.",
+                Errors = [ex.Message],
+            };
+        }
+
+        if (macro is null)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.ValidationError,
+                Message = "Macro file could not be loaded.",
+            };
+        }
+
+        var validation = _validator.Validate(macro);
+        if (!validation.IsValid)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.ValidationError,
+                Message = "Macro validation failed.",
+                Errors = validation.Errors,
+                Warnings = validation.Warnings,
+                Data = new MacroValidationData(macroFilePath, macro.EventCount),
+            };
+        }
+
+        if (dryRun)
+        {
+            return new MacroExecutionResult
+            {
+                Success = true,
+                ExitCode = CliExitCode.Success,
+                Message = "Macro is valid.",
+                Warnings = validation.Warnings,
+                Data = BuildSummaryData(macroFilePath, macro),
+            };
+        }
+
+        try
+        {
+            if (countdownSeconds > 0)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(countdownSeconds), TimeProvider.System, cancellationToken).ConfigureAwait(false);
+            }
+
+            using var player = _macroPlayerFactory();
+            using var stopRegistration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    player.StopPlayback();
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException) { /* Empty */ }
+            });
+
+            await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);
+
+            return new MacroExecutionResult
+            {
+                Success = true,
+                ExitCode = CliExitCode.Success,
+                Message = "Playback complete.",
+                Warnings = validation.Warnings,
+                Data = BuildSummaryData(macroFilePath, macro),
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.Cancelled,
+                Message = "Playback cancelled.",
+            };
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            if (ex is AbsolutePlaybackUnsupportedException)
+            {
+                return new MacroExecutionResult
+                {
+                    Success = false,
+                    ExitCode = CliExitCode.RuntimeError,
+                    Message = "Absolute coordinate playback is not supported in this session.",
+                    Errors = ["This macro contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or edit the macro to use relative coordinates."],
+                    Warnings = validation.Warnings,
+                    Data = BuildSummaryData(macroFilePath, macro),
+                };
+            }
+
+            if (ex is InputInjectionPermissionRequiredException)
+            {
+                return new MacroExecutionResult
+                {
+                    Success = false,
+                    ExitCode = CliExitCode.EnvironmentError,
+                    Message = "Playback permission is missing.",
+                    Errors = [ex.Message],
+                    Warnings = validation.Warnings,
+                    Data = BuildSummaryData(macroFilePath, macro),
+                };
+            }
+
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.RuntimeError,
+                Message = "Playback failed.",
+                Errors = [ex.Message],
+                Warnings = validation.Warnings,
+                Data = BuildSummaryData(macroFilePath, macro),
+            };
+        }
+    }
+
+    private static MacroSummaryData BuildSummaryData(string macroFilePath, MacroSequence macro)
+    {
+        var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
+        {
+            CoordinateModeSummary.Absolute => "absolute",
+            CoordinateModeSummary.Relative => "relative",
+            CoordinateModeSummary.Mixed => "mixed",
+            CoordinateModeSummary.None => "none",
+            _ => "none",
+        };
+
+        return new MacroSummaryData(
+            macroFilePath,
+            macro.Name,
+            macro.EventCount,
+            macro.TotalDurationMs,
+            coordinateMode,
+            macro.IsAbsoluteCoordinates
+        );
+    }
+
+    private static MacroInfoData BuildInfoData(string macroFilePath, MacroSequence macro)
+    {
+        var totalDuration = macro.TotalDurationMs;
+        if (totalDuration <= 0)
+        {
+            macro.CalculateDuration();
+            totalDuration = macro.TotalDurationMs;
+        }
+
+        var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
+        {
+            CoordinateModeSummary.Absolute => "absolute",
+            CoordinateModeSummary.Relative => "relative",
+            CoordinateModeSummary.Mixed => "mixed",
+            CoordinateModeSummary.None => "none",
+            _ => "none",
+        };
+
+        var eventBreakdown = new MacroEventBreakdownData(
+            macro.Events.Count(e => e.Type is EventType.MouseMove),
+            macro.Events.Count(e => e.Type is EventType.ButtonPress),
+            macro.Events.Count(e => e.Type is EventType.ButtonRelease),
+            macro.Events.Count(e => e.Type is EventType.Click),
+            macro.Events.Count(e => e.Type is EventType.KeyPress),
+            macro.Events.Count(e => e.Type is EventType.KeyRelease)
+        );
+
+        return new MacroInfoData(
+            macroFilePath,
+            macro.Name,
+            macro.CreatedAt,
+            macro.EventCount,
+            totalDuration,
+            coordinateMode,
+            macro.IsAbsoluteCoordinates,
+            macro.SkipInitialZeroZero,
+            macro.TrailingDelayMicroseconds,
+            macro.TrailingDelayMs,
+            macro.HasTrailingRandomDelay,
+            macro.TrailingDelayMinMs,
+            macro.TrailingDelayMaxMs,
+            eventBreakdown
+        );
+    }
+
+}

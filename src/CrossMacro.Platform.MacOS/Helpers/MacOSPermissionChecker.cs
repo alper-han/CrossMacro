@@ -1,6 +1,3 @@
-using CrossMacro.Platform.MacOS.Native;
-using CrossMacro.Platform.Abstractions;
-using System.Diagnostics;
 
 namespace CrossMacro.Platform.MacOS.Helpers;
 
@@ -74,7 +71,7 @@ public static class MacOSPermissionChecker
             requestAccess: CoreGraphics.CGRequestPostEventAccess)
             || PromptAccessibilityPermission();
     }
-    
+
     public static bool PromptAccessibilityPermission()
     {
         if (!OperatingSystem.IsMacOS())
@@ -95,25 +92,25 @@ public static class MacOSPermissionChecker
             return false;
         }
     }
-    
+
     public static void OpenAccessibilitySettings()
     {
         // Opens System Settings directly to Accessibility privacy section
-        Process.Start(new ProcessStartInfo
+        _ = Process.Start(new ProcessStartInfo
         {
-            FileName = "open",
+            FileName = "/usr/bin/open",
             Arguments = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-            UseShellExecute = false
+            UseShellExecute = false,
         });
     }
 
     public static void OpenInputMonitoringSettings()
     {
-        Process.Start(new ProcessStartInfo
+        _ = Process.Start(new ProcessStartInfo
         {
-            FileName = "open",
+            FileName = "/usr/bin/open",
             Arguments = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
-            UseShellExecute = false
+            UseShellExecute = false,
         });
     }
 

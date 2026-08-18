@@ -12,7 +12,8 @@ source "$SCRIPTS_DIR/lib/platform.sh"
 VERSION="$(get_version)"
 PACKAGE_VERSION="$(to_filename_version)"
 PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
-OUTPUT_DIR="${OUTPUT_DIR:-$SCRIPTS_DIR/macos_output}"
+ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
+OUTPUT_DIR="${OUTPUT_DIR:-$ARTIFACT_ROOT/packages/macos}"
 APP_BUNDLE="$OUTPUT_DIR/$APP_NAME.app"
 
 echo "=== CrossMacro macOS Build Script ==="
@@ -35,14 +36,7 @@ PUBLISH_DIR="$OUTPUT_DIR/publish"
 dotnet publish "$PROJECT_ROOT/src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj" \
     -c Release \
     -r "$RID" \
-    --self-contained true \
-    -p:PublishAot=true \
-    -p:PublishReadyToRun=true \
-    -p:OptimizationPreference=Speed \
-    -p:StripSymbols=true \
-    -p:IlcTrimMetadata=true \
-    -p:DebugType=None \
-    -p:DebugSymbols=false \
+    -p:CrossMacroPublishProfile=native-aot \
     -p:Version="$VERSION" \
     -o "$PUBLISH_DIR"
 

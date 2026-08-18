@@ -11,7 +11,7 @@ Usage: appimage.sh <CrossMacro.AppImage> [--no-cli]
 Validates a CrossMacro AppImage:
   - verifies the AppImage exists and is executable
   - extracts the AppDir with APPIMAGE_EXTRACT_AND_RUN=1
-  - checks AppRun, CrossMacro.UI, crossmacro CLI symlink, desktop metadata, and bundled ICU/native libraries where possible
+  - checks AppRun, CrossMacro.UI, crossmacro CLI symlink, canonical desktop/AppStream metadata, and bundled ICU/native libraries where possible
   - runs shared CLI smoke through an APPIMAGE_EXTRACT_AND_RUN=1 AppImage wrapper unless --no-cli is supplied
 
 Options:
@@ -68,9 +68,18 @@ appdir="$work_dir/squashfs-root"
 [ -x "$appdir/AppRun" ] || fail "extracted AppRun is missing or not executable"
 [ -x "$appdir/usr/bin/CrossMacro.UI" ] || fail "extracted CrossMacro.UI is missing or not executable"
 [ -e "$appdir/usr/bin/crossmacro" ] || fail "extracted crossmacro CLI link is missing"
-[ -f "$appdir/CrossMacro.desktop" ] || [ -f "$appdir/usr/share/applications/CrossMacro.desktop" ] || fail "desktop file is missing"
+desktop_id="io.github.alper_han.crossmacro"
+desktop_file="$appdir/$desktop_id.desktop"
+root_desktop_count="$(find "$appdir" -maxdepth 1 -type f -name '*.desktop' -print | wc -l | tr -d ' ')"
+[ "$root_desktop_count" -eq 1 ] || fail "expected exactly one root desktop file, found: $root_desktop_count"
+[ -f "$desktop_file" ] || fail "canonical AppImage desktop file is missing: $desktop_id.desktop"
+[ -f "$appdir/usr/share/applications/$desktop_id.desktop" ] || fail "installed desktop file is missing: $desktop_id.desktop"
 
-grep -R "^Exec=AppRun" "$appdir/CrossMacro.desktop" "$appdir/usr/share/applications" >/dev/null 2>&1 || fail "desktop metadata does not use AppRun"
+grep -q '^Exec=AppRun$' "$desktop_file" || fail "desktop metadata does not use AppRun"
+metainfo_file="$appdir/usr/share/metainfo/$desktop_id.metainfo.xml"
+[ -f "$metainfo_file" ] || fail "canonical AppImage metainfo file is missing: $desktop_id.metainfo.xml"
+grep -q "<id>$desktop_id</id>" "$metainfo_file" || fail "AppImage metainfo ID does not match desktop ID"
+grep -q "<launchable type=\"desktop-id\">$desktop_id.desktop</launchable>" "$metainfo_file" || fail "AppImage launchable does not match desktop ID"
 
 lib_dir="$appdir/usr/lib"
 [ -d "$lib_dir" ] || fail "extracted usr/lib directory is missing"

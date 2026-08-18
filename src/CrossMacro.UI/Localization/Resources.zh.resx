@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -114,6 +114,12 @@
   <data name="Settings_ThemeDescription" xml:space="preserve">
     <value>选择应用程序视觉主题</value>
   </data>
+  <data name="Settings_OpenThemesFolder" xml:space="preserve">
+    <value>打开主题文件夹</value>
+  </data>
+  <data name="Settings_RefreshThemes" xml:space="preserve">
+    <value>刷新主题</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>语言</value>
   </data>
@@ -164,6 +170,9 @@
   </data>
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>在 GitHub 上加星标</value>
+  </data>
+  <data name="Settings_HotkeyAlreadyAssignedTo" xml:space="preserve">
+    <value>此快捷键已分配给 {0}</value>
   </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>热键已分配</value>
@@ -264,6 +273,42 @@
   <data name="Playback_PlaybackSpeed" xml:space="preserve">
     <value>播放速度</value>
   </data>
+  <data name="Playback_MotionMode" xml:space="preserve">
+    <value>移动保真度</value>
+  </data>
+  <data name="Playback_MotionModeHint" xml:space="preserve">
+    <value>控制高速播放时如何发送密集的绝对鼠标轨迹。</value>
+  </data>
+  <data name="Playback_MotionModePrecision" xml:space="preserve">
+    <value>精确度（推荐）</value>
+  </data>
+  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
+    <value>保留每个捕获的点，并降低实际速度以保持在所选质量上限内。</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
+    <value>严格速度</value>
+  </data>
+  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
+    <value>以固定报告速率上限重新采样异常密集的轨迹。</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
+    <value>报告上限</value>
+  </data>
+  <data name="Playback_PrecisionMotionRateHint" xml:space="preserve">
+    <value>优先保持最平滑的路径；实际速度可能降低。</value>
+  </data>
+  <data name="Playback_StrictSpeedMotionRateHint" xml:space="preserve">
+    <value>保持请求的时长；密集路径可能被简化。</value>
+  </data>
+  <data name="Playback_MaximumMotionPathError" xml:space="preserve">
+    <value>路径容差</value>
+  </data>
+  <data name="Editor_DelayDuration" xml:space="preserve">
+    <value>延迟（ms 或 us）</value>
+  </data>
+  <data name="Editor_DelayDurationPlaceholder" xml:space="preserve">
+    <value>例如：20ms 或 250us</value>
+  </data>
   <data name="Playback_LoopPlayback" xml:space="preserve">
     <value>循环播放</value>
   </data>
@@ -291,6 +336,27 @@
   <data name="Playback_LoopTip" xml:space="preserve">
     <value>提示：循环次数为 0 表示无限循环</value>
   </data>
+  <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
+    <value>快速循环警告</value>
+  </data>
+  <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
+    <value>低于 100 毫秒的循环延迟会非常快速地重复宏操作。很高的循环次数或无限循环可能会使应用程序或桌面暂时失去响应。宏内等待可以降低此风险，但无法预先预测其运行时行为。</value>
+  </data>
+  <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
+    <value>保留设置</value>
+  </data>
+  <data name="Playback_FastLoopWarningPlay" xml:space="preserve">
+    <value>仍要播放</value>
+  </data>
+  <data name="Playback_FastLoopWarningCancel" xml:space="preserve">
+    <value>还原</value>
+  </data>
+  <data name="Playback_FastLoopWarningAbort" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Playback_FastLoopWarningSuppress" xml:space="preserve">
+    <value>不再显示此警告</value>
+  </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedTitle" xml:space="preserve">
     <value>无法开始播放</value>
   </data>
@@ -304,7 +370,7 @@
     <value>需要播放权限</value>
   </data>
   <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
-    <value>macOS 需要 Accessibility 权限，CrossMacro 才能回放鼠标和键盘事件。Input Monitoring 只允许录制。打开 System Settings > Privacy &amp; Security > Accessibility，允许 CrossMacro，然后再次尝试播放。</value>
+    <value>macOS 需要 Accessibility 权限，CrossMacro 才能回放鼠标和键盘事件。Input Monitoring 只允许录制。打开 System Settings &gt; Privacy &amp; Security &gt; Accessibility，允许 CrossMacro，然后再次尝试播放。</value>
   </data>
   <data name="Playback_StatusPermissionRequired" xml:space="preserve">
     <value>无法播放：请授予 macOS Accessibility 权限以进行播放。</value>
@@ -672,6 +738,21 @@
   <data name="Shortcut_Browse" xml:space="preserve">
     <value>浏览</value>
   </data>
+  <data name="Shortcut_WindowScope" xml:space="preserve">
+    <value>仅在以下窗口中启用</value>
+  </data>
+  <data name="Shortcut_WindowScopeHint" xml:space="preserve">
+    <value>留空可全局运行。添加规则后，当前焦点窗口匹配任一规则时快捷键才会运行。</value>
+  </data>
+  <data name="Shortcut_AddWindowRule" xml:space="preserve">
+    <value>添加窗口规则</value>
+  </data>
+  <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
+    <value>删除窗口规则</value>
+  </data>
+  <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
+    <value>Firefox、org.mozilla.firefox 或正则表达式</value>
+  </data>
   <data name="Shortcut_Status" xml:space="preserve">
     <value>状态</value>
   </data>
@@ -725,6 +806,132 @@
   </data>
   <data name="Shortcut_StatusFailed" xml:space="preserve">
     <value>快捷方式：{0} - {1}</value>
+  </data>
+  <data name="Navigation_Triggers" xml:space="preserve">
+    <value>触发器</value>
+  </data>
+  <data name="Trigger_ItemsText" xml:space="preserve">
+    <value>{0} 项</value>
+  </data>
+  <data name="Trigger_DefaultTaskName" xml:space="preserve">
+    <value>触发器 {0}</value>
+  </data>
+  <data name="Trigger_Title" xml:space="preserve">
+    <value>触发器</value>
+  </data>
+  <data name="Trigger_Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Trigger_Name" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="Trigger_NamePlaceholder" xml:space="preserve">
+    <value>触发器名称</value>
+  </data>
+  <data name="Trigger_Field" xml:space="preserve">
+    <value>字段</value>
+  </data>
+  <data name="Trigger_MatchMode" xml:space="preserve">
+    <value>匹配模式</value>
+  </data>
+  <data name="Trigger_Value" xml:space="preserve">
+    <value>值</value>
+  </data>
+  <data name="Trigger_ValuePlaceholder" xml:space="preserve">
+    <value>要匹配的文本</value>
+  </data>
+  <data name="Trigger_Action" xml:space="preserve">
+    <value>操作</value>
+  </data>
+  <data name="Trigger_TargetProfile" xml:space="preserve">
+    <value>目标配置</value>
+  </data>
+  <data name="Trigger_TargetProfilePlaceholder" xml:space="preserve">
+    <value>选择配置</value>
+  </data>
+  <data name="Trigger_MacroFile" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Trigger_MacroFilePlaceholder" xml:space="preserve">
+    <value>未选择文件</value>
+  </data>
+  <data name="Trigger_MacroFileBrowse" xml:space="preserve">
+    <value>浏览</value>
+  </data>
+  <data name="Trigger_OpenMacroDialogTitle" xml:space="preserve">
+    <value>选择宏文件</value>
+  </data>
+  <data name="Trigger_OpenMacroDialogFilter" xml:space="preserve">
+    <value>宏文件</value>
+  </data>
+  <data name="Trigger_FireMode" xml:space="preserve">
+    <value>触发模式</value>
+  </data>
+  <data name="Trigger_DebounceMs" xml:space="preserve">
+    <value>去抖 (ms)</value>
+  </data>
+  <data name="Trigger_CooldownMs" xml:space="preserve">
+    <value>冷却 (ms)</value>
+  </data>
+  <data name="Trigger_WindowPickerRefresh" xml:space="preserve">
+    <value>刷新</value>
+  </data>
+  <data name="Trigger_WindowPickerPlaceholder" xml:space="preserve">
+    <value>从运行中的窗口选择…</value>
+  </data>
+  <data name="Trigger_Status" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="Trigger_LastTriggered" xml:space="preserve">
+    <value>最后触发</value>
+  </data>
+  <data name="Trigger_StatusLabel" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="Trigger_StatusPlaceholder" xml:space="preserve">
+    <value>空闲</value>
+  </data>
+  <data name="Trigger_Never" xml:space="preserve">
+    <value>从未</value>
+  </data>
+  <data name="Trigger_SaveAll" xml:space="preserve">
+    <value>全部保存</value>
+  </data>
+  <data name="Trigger_NoSelected" xml:space="preserve">
+    <value>未选择触发器</value>
+  </data>
+  <data name="Trigger_SelectHint" xml:space="preserve">
+    <value>添加或选择触发器进行配置</value>
+  </data>
+  <data name="Trigger_EditTooltip" xml:space="preserve">
+    <value>编辑</value>
+  </data>
+  <data name="Trigger_DeleteTooltip" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="Trigger_DeleteTitle" xml:space="preserve">
+    <value>删除触发器</value>
+  </data>
+  <data name="Trigger_DeleteMessage" xml:space="preserve">
+    <value>删除触发器“{0}”？</value>
+  </data>
+  <data name="Trigger_StatusInitFailed" xml:space="preserve">
+    <value>初始化触发器失败：{0}</value>
+  </data>
+  <data name="Trigger_StatusChangesSaved" xml:space="preserve">
+    <value>触发器更改已保存</value>
+  </data>
+  <data name="Trigger_StatusSaveFailed" xml:space="preserve">
+    <value>保存触发器失败：{0}</value>
+  </data>
+  <data name="Trigger_SaveFailedTitle" xml:space="preserve">
+    <value>触发器保存失败</value>
+  </data>
+  <data name="Trigger_StatusFired" xml:space="preserve">
+    <value>触发器已触发：{0} -> {1}</value>
+  </data>
+  <data name="Trigger_StatusFailed" xml:space="preserve">
+    <value>触发器失败：{0} - {1}</value>
   </data>
   <data name="Files_StatusReady" xml:space="preserve">
     <value>准备好</value>
@@ -903,6 +1110,18 @@
   <data name="Editor_MacroFileDialogName" xml:space="preserve">
     <value>宏文件</value>
   </data>
+  <data name="Editor_StatusImageImportCancelled" xml:space="preserve">
+    <value>Image import cancelled</value>
+  </data>
+  <data name="Editor_StatusImageImported" xml:space="preserve">
+    <value>Imported image asset: {0}</value>
+  </data>
+  <data name="Editor_StatusImageImportError" xml:space="preserve">
+    <value>Image import failed: {0}</value>
+  </data>
+  <data name="Editor_StatusImagePreviewError" xml:space="preserve">
+    <value>Image preview unavailable: {0}</value>
+  </data>
   <data name="Editor_DialogTitleNoActions" xml:space="preserve">
     <value>无任何操作</value>
   </data>
@@ -924,13 +1143,27 @@
   <data name="Editor_StatusCapturedKey" xml:space="preserve">
     <value>已捕获：{0}（代码：{1}）</value>
   </data>
-  <data name="Editor_StatusPixelReaderUnavailable" xml:space="preserve"><value>Screen pixel reader is unavailable</value></data>
-  <data name="Editor_StatusCaptureColorPrompt" xml:space="preserve"><value>Click a screen pixel to capture its color (Esc to cancel)...</value></data>
-  <data name="Editor_StatusCaptureColorFailed" xml:space="preserve"><value>Color capture failed: {0}</value></data>
-  <data name="Editor_StatusCapturedColor" xml:space="preserve"><value>Captured color {0} at ({1}, {2})</value></data>
-  <data name="Editor_StatusCapturedRegionTopLeft" xml:space="preserve"><value>Captured search region top-left: ({0}, {1})</value></data>
-  <data name="Editor_StatusCapturedRegionBottomRight" xml:space="preserve"><value>Captured search region bottom-right: ({0}, {1})</value></data>
-  <data name="Editor_StatusCaptureRegionInvalidBottomRight" xml:space="preserve"><value>Bottom-right must be below and to the right of the search region top-left</value></data>
+  <data name="Editor_StatusPixelReaderUnavailable" xml:space="preserve">
+    <value>Screen pixel reader is unavailable</value>
+  </data>
+  <data name="Editor_StatusCaptureColorPrompt" xml:space="preserve">
+    <value>Click a screen pixel to capture its color (Esc to cancel)...</value>
+  </data>
+  <data name="Editor_StatusCaptureColorFailed" xml:space="preserve">
+    <value>Color capture failed: {0}</value>
+  </data>
+  <data name="Editor_StatusCapturedColor" xml:space="preserve">
+    <value>Captured color {0} at ({1}, {2})</value>
+  </data>
+  <data name="Editor_StatusCapturedRegionTopLeft" xml:space="preserve">
+    <value>Captured search region top-left: ({0}, {1})</value>
+  </data>
+  <data name="Editor_StatusCapturedRegionBottomRight" xml:space="preserve">
+    <value>Captured search region bottom-right: ({0}, {1})</value>
+  </data>
+  <data name="Editor_StatusCaptureRegionInvalidBottomRight" xml:space="preserve">
+    <value>Bottom-right must be below and to the right of the search region top-left</value>
+  </data>
   <data name="Editor_StatusValidationFailed" xml:space="preserve">
     <value>验证失败：{0} 个错误</value>
   </data>
@@ -1003,11 +1236,191 @@
   <data name="Editor_AddNewAction" xml:space="preserve">
     <value>添加新动作</value>
   </data>
+  <data name="Editor_ActionGroupLabel" xml:space="preserve">
+    <value>类别</value>
+  </data>
+  <data name="Editor_ActionChoiceLabel" xml:space="preserve">
+    <value>动作</value>
+  </data>
+  <data name="Editor_ActionGroup_Mouse" xml:space="preserve">
+    <value>鼠标</value>
+  </data>
+  <data name="Editor_ActionGroup_Keyboard" xml:space="preserve">
+    <value>键盘</value>
+  </data>
+  <data name="Editor_ActionGroup_Timing" xml:space="preserve">
+    <value>定时</value>
+  </data>
+  <data name="Editor_ActionGroup_Text" xml:space="preserve">
+    <value>文本</value>
+  </data>
+  <data name="Editor_ActionGroup_Variables" xml:space="preserve">
+    <value>变量</value>
+  </data>
+  <data name="Editor_ActionGroup_FlowControl" xml:space="preserve">
+    <value>流程控制</value>
+  </data>
+  <data name="Editor_ActionGroup_ScreenReading" xml:space="preserve">
+    <value>屏幕读取</value>
+  </data>
+  <data name="Editor_ActionGroup_Screenshot" xml:space="preserve">
+    <value>Screenshot</value>
+  </data>
+  <data name="Editor_ActionGroup_Clipboard" xml:space="preserve">
+    <value>剪贴板</value>
+  </data>
+  <data name="Editor_ActionGroup_Shell" xml:space="preserve">
+    <value>Shell</value>
+  </data>
   <data name="Editor_AddAction" xml:space="preserve">
     <value>添加动作</value>
   </data>
   <data name="Editor_SelectedActionProperties" xml:space="preserve">
     <value>选定的操作属性</value>
+  </data>
+  <data name="Editor_ClipboardDestinationVariable" xml:space="preserve">
+    <value>剪贴板目标变量</value>
+  </data>
+  <data name="Editor_ClipboardGetHint" xml:space="preserve">
+    <value>将当前剪贴板文本读取到此变量。</value>
+  </data>
+  <data name="Editor_ClipboardText" xml:space="preserve">
+    <value>剪贴板文本</value>
+  </data>
+  <data name="Editor_ClipboardTextPlaceholder" xml:space="preserve">
+    <value>输入要复制到剪贴板的文本</value>
+  </data>
+  <data name="Editor_ClipboardSetHint" xml:space="preserve">
+    <value>将此文本写入剪贴板。播放期间会替换 $name 等运行时变量。</value>
+  </data>
+  <data name="Editor_ActionType_ClipboardGet" xml:space="preserve">
+    <value>读取剪贴板</value>
+  </data>
+  <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
+    <value>写入剪贴板</value>
+  </data>
+  <data name="Editor_Action_ClipboardGet" xml:space="preserve">
+    <value>将剪贴板读入 {0}</value>
+  </data>
+  <data name="Editor_Action_ClipboardSet" xml:space="preserve">
+    <value>将剪贴板设为“{0}”</value>
+  </data>
+  <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
+    <value>设置剪贴板文本</value>
+  </data>
+  <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
+    <value>Shell Command</value>
+  </data>
+  <data name="Editor_Action_ShellCommand" xml:space="preserve">
+    <value>Run shell "{0}"</value>
+  </data>
+  <data name="Editor_Action_ShellCapture" xml:space="preserve">
+    <value>Run shell "{0}" -&gt; {1}, {2}, {3}</value>
+  </data>
+  <data name="Editor_Action_ShellInput" xml:space="preserve">
+    <value>Run shell with input "{0}"</value>
+  </data>
+  <data name="Editor_Action_ShellCaptureInput" xml:space="preserve">
+    <value>Run shell with input "{0}" -&gt; {1}, {2}, {3}</value>
+  </data>
+  <data name="Editor_Action_ShellCommandEmpty" xml:space="preserve">
+    <value>command</value>
+  </data>
+  <data name="Editor_ShellMode" xml:space="preserve">
+    <value>Shell mode</value>
+  </data>
+  <data name="Editor_ShellCommand" xml:space="preserve">
+    <value>Command</value>
+  </data>
+  <data name="Editor_ShellCommandPlaceholder" xml:space="preserve">
+    <value>echo hello</value>
+  </data>
+  <data name="Editor_ShellStandardInput" xml:space="preserve">
+    <value>Standard input</value>
+  </data>
+  <data name="Editor_ShellStandardInputPlaceholder" xml:space="preserve">
+    <value>Text sent to stdin</value>
+  </data>
+  <data name="Editor_ShellCaptureTargets" xml:space="preserve">
+    <value>Capture targets</value>
+  </data>
+  <data name="Editor_ShellExitVariable" xml:space="preserve">
+    <value>exit var</value>
+  </data>
+  <data name="Editor_ShellStdoutVariable" xml:space="preserve">
+    <value>stdout var</value>
+  </data>
+  <data name="Editor_ShellStderrVariable" xml:space="preserve">
+    <value>stderr var</value>
+  </data>
+  <data name="Editor_ShellCaptureHint" xml:space="preserve">
+    <value>Use _ for a capture target you want to ignore.</value>
+  </data>
+  <data name="Editor_ShellOptions" xml:space="preserve">
+    <value>Options: retries, backoff_ms, timeout_ms</value>
+  </data>
+  <data name="Editor_ShellRetries" xml:space="preserve">
+    <value>retries</value>
+  </data>
+  <data name="Editor_ShellBackoffMs" xml:space="preserve">
+    <value>backoff ms</value>
+  </data>
+  <data name="Editor_ShellTimeoutMs" xml:space="preserve">
+    <value>timeout ms</value>
+  </data>
+  <data name="Editor_ShellWarning" xml:space="preserve">
+    <value>Shell actions run arbitrary commands. Flatpak confines them to a restricted nested sandbox. Review commands before saving or sharing macros.</value>
+  </data>
+  <data name="Editor_ActionType_Screenshot" xml:space="preserve">
+    <value>Screenshot</value>
+  </data>
+  <data name="Editor_Action_Screenshot" xml:space="preserve">
+    <value>Screenshot -&gt; {0}</value>
+  </data>
+  <data name="Editor_Action_ScreenshotRegion" xml:space="preserve">
+    <value>Screenshot ({0}, {1}, {2}x{3}) -&gt; {4}</value>
+  </data>
+  <data name="Editor_ScreenshotClipboardDestination" xml:space="preserve">
+    <value>clipboard</value>
+  </data>
+  <data name="Editor_ScreenshotFileAndClipboardDestination" xml:space="preserve">
+    <value>{0} + clipboard</value>
+  </data>
+  <data name="Editor_ScreenshotDestinationRequired" xml:space="preserve">
+    <value>destination required</value>
+  </data>
+  <data name="Editor_ScreenshotAction" xml:space="preserve">
+    <value>Screenshot:</value>
+  </data>
+  <data name="Editor_ScreenshotOutputPathPlaceholder" xml:space="preserve">
+    <value>Output path, e.g. ./shot.png</value>
+  </data>
+  <data name="Editor_ScreenshotBrowse" xml:space="preserve">
+    <value>Browse</value>
+  </data>
+  <data name="Editor_ScreenshotSaveDialogTitle" xml:space="preserve">
+    <value>Save screenshot</value>
+  </data>
+  <data name="Editor_ScreenshotFileDialogName" xml:space="preserve">
+    <value>PNG files</value>
+  </data>
+  <data name="Editor_ScreenshotDefaultFileName" xml:space="preserve">
+    <value>screenshot.png</value>
+  </data>
+  <data name="Editor_ScreenshotCopyToClipboard" xml:space="preserve">
+    <value>Copy image to clipboard</value>
+  </data>
+  <data name="Editor_ScreenshotUseRegion" xml:space="preserve">
+    <value>Capture region</value>
+  </data>
+  <data name="Editor_ScreenshotRegion" xml:space="preserve">
+    <value>Region</value>
+  </data>
+  <data name="Editor_ScreenshotHint" xml:space="preserve">
+    <value>Output files overwrite the target path.</value>
+  </data>
+  <data name="Editor_ScreenshotWarning" xml:space="preserve">
+    <value>Image clipboard support depends on the platform and desktop session.</value>
   </data>
   <data name="Editor_Type" xml:space="preserve">
     <value>类型：</value>
@@ -1024,9 +1437,15 @@
   <data name="Editor_CapturePosition" xml:space="preserve">
     <value>捕获位置</value>
   </data>
-  <data name="Editor_CaptureTargetColor" xml:space="preserve"><value>Pick Color</value></data>
-  <data name="Editor_CaptureRegionTopLeft" xml:space="preserve"><value>Top-Left</value></data>
-  <data name="Editor_CaptureRegionBottomRight" xml:space="preserve"><value>Bottom-Right</value></data>
+  <data name="Editor_CaptureTargetColor" xml:space="preserve">
+    <value>Pick Color</value>
+  </data>
+  <data name="Editor_CaptureRegionTopLeft" xml:space="preserve">
+    <value>Top-Left</value>
+  </data>
+  <data name="Editor_CaptureRegionBottomRight" xml:space="preserve">
+    <value>Bottom-Right</value>
+  </data>
   <data name="Editor_CancelCapture" xml:space="preserve">
     <value>取消捕捉</value>
   </data>
@@ -1081,51 +1500,186 @@
   <data name="Editor_ScrollHint" xml:space="preserve">
     <value>(+) 上/右，(-) 下/左</value>
   </data>
-  <data name="Editor_PixelColorAction" xml:space="preserve"><value>Pixel Color:</value></data>
-  <data name="Editor_WaitColorAction" xml:space="preserve"><value>Wait Color:</value></data>
-  <data name="Editor_PixelSearchAction" xml:space="preserve"><value>Pixel Search:</value></data>
-  <data name="Editor_ScreenPoint" xml:space="preserve"><value>Screen Point</value></data>
-  <data name="Editor_SearchRegion" xml:space="preserve"><value>Search Region</value></data>
-  <data name="Editor_TargetColorHex" xml:space="preserve"><value>Target Color (RRGGBB)</value></data>
-  <data name="Editor_TargetColorSource" xml:space="preserve"><value>Target color source</value></data>
-  <data name="Editor_TargetColorSourceManualHex" xml:space="preserve"><value>Manual hex</value></data>
-  <data name="Editor_TargetColorSourceVariable" xml:space="preserve"><value>Variable</value></data>
-  <data name="Editor_TargetColorVariable" xml:space="preserve"><value>Target color variable</value></data>
-  <data name="Editor_ColorVariableNamePlaceholder" xml:space="preserve"><value>Color variable name</value></data>
-  <data name="Editor_TimeoutMs" xml:space="preserve"><value>Timeout (ms)</value></data>
-  <data name="Editor_Left" xml:space="preserve"><value>Left</value></data>
-  <data name="Editor_Top" xml:space="preserve"><value>Top</value></data>
-  <data name="Editor_Width" xml:space="preserve"><value>Width</value></data>
-  <data name="Editor_Height" xml:space="preserve"><value>Height</value></data>
-  <data name="Editor_FoundVariables" xml:space="preserve"><value>Found Position Variables</value></data>
-  <data name="Editor_FoundVariableName" xml:space="preserve"><value>Found variable (true/false)</value></data>
-  <data name="Editor_FoundXVariableNamePlaceholder" xml:space="preserve"><value>Found X variable</value></data>
-  <data name="Editor_FoundYVariableNamePlaceholder" xml:space="preserve"><value>Found Y variable</value></data>
-  <data name="Editor_Tolerance" xml:space="preserve"><value>Tolerance</value></data>
-  <data name="Editor_Operator" xml:space="preserve"><value>Operator</value></data>
-  <data name="Editor_ConditionColorHint" xml:space="preserve"><value>For color checks, set the operand type to Color (RRGGBB), then enter a 6-digit color such as 00FF00.</value></data>
-  <data name="Editor_RawScreenReadingHint_PixelColor" xml:space="preserve"><value>pixelcolor: stores the pixel color in a variable. Use 'pixelcolor rel dx dy var' for cursor-relative reads.</value></data>
-  <data name="Editor_RawScreenReadingHint_WaitColor" xml:space="preserve"><value>waitcolor: waits for x/y to match RRGGBB or $variable before continuing.</value></data>
-  <data name="Editor_RawScreenReadingHint_PixelSearch" xml:space="preserve"><value>pixelsearch: searches a region for RRGGBB or $variable; tolerance accepts 0-255 per RGB channel.</value></data>
-  <data name="Editor_ScriptOperand_VariableReference" xml:space="preserve"><value>Variable</value></data>
-  <data name="Editor_ScriptOperand_Number" xml:space="preserve"><value>Number</value></data>
-  <data name="Editor_ScriptOperand_Text" xml:space="preserve"><value>Text</value></data>
-  <data name="Editor_ScriptOperand_Color" xml:space="preserve"><value>Color (RRGGBB)</value></data>
-  <data name="Editor_ScriptOperand_Boolean" xml:space="preserve"><value>True / False</value></data>
-  <data name="Editor_ScriptConditionOperator_Equals" xml:space="preserve"><value>Equals (=)</value></data>
-  <data name="Editor_ScriptConditionOperator_NotEquals" xml:space="preserve"><value>Not equals (!=)</value></data>
-  <data name="Editor_ScriptConditionOperator_GreaterThan" xml:space="preserve"><value>Greater than (&gt;)</value></data>
-  <data name="Editor_ScriptConditionOperator_GreaterThanOrEqual" xml:space="preserve"><value>Greater than or equal (&gt;=)</value></data>
-  <data name="Editor_ScriptConditionOperator_LessThan" xml:space="preserve"><value>Less than (&lt;)</value></data>
-  <data name="Editor_ScriptConditionOperator_LessThanOrEqual" xml:space="preserve"><value>Less than or equal (&lt;=)</value></data>
-  <data name="Editor_Action_PixelColorAbsolute" xml:space="preserve"><value>Pixel color at ({0}, {1}) -> {2}</value></data>
-  <data name="Editor_Action_PixelColorRelative" xml:space="preserve"><value>Pixel color rel ({0:+#;-#;0}, {1:+#;-#;0}) -> {2}</value></data>
-  <data name="Editor_Action_WaitColor" xml:space="preserve"><value>Wait color {2} at ({0}, {1}) -> {3}</value></data>
-  <data name="Editor_Action_PixelSearch" xml:space="preserve"><value>Pixel search {4} in ({0}, {1}, {2}x{3}) -> {5}, {6}, {7}</value></data>
-  <data name="Editor_ResultVariableName" xml:space="preserve"><value>Result variable name</value></data>
-  <data name="Editor_ActionType_PixelColor" xml:space="preserve"><value>Pixel Color</value></data>
-  <data name="Editor_ActionType_WaitColor" xml:space="preserve"><value>Wait Color</value></data>
-  <data name="Editor_ActionType_PixelSearch" xml:space="preserve"><value>Pixel Search</value></data>
+  <data name="Editor_PixelColorAction" xml:space="preserve">
+    <value>Pixel Color:</value>
+  </data>
+  <data name="Editor_WaitColorAction" xml:space="preserve">
+    <value>Wait Color:</value>
+  </data>
+  <data name="Editor_PixelSearchAction" xml:space="preserve">
+    <value>Pixel Search:</value>
+  </data>
+  <data name="Editor_ImageSearchAction" xml:space="preserve">
+    <value>Image Search:</value>
+  </data>
+  <data name="Editor_ImageAsset" xml:space="preserve">
+    <value>Image asset</value>
+  </data>
+  <data name="Editor_ImageAssetPreview" xml:space="preserve">
+    <value>图像预览</value>
+  </data>
+  <data name="Editor_ImportImageAsset" xml:space="preserve">
+    <value>Import PNG asset</value>
+  </data>
+  <data name="Editor_ImageAssetImportHint" xml:space="preserve">
+    <value>Import a PNG image asset before selecting an Image Search target. JPG import is not available without adding an image decoder package.</value>
+  </data>
+  <data name="Editor_ImageAssetImportDialogTitle" xml:space="preserve">
+    <value>Import Image Asset</value>
+  </data>
+  <data name="Editor_ImageAssetFileDialogName" xml:space="preserve">
+    <value>PNG Images</value>
+  </data>
+  <data name="Editor_ImageSearchSimilarity" xml:space="preserve">
+    <value>Similarity (0-1)</value>
+  </data>
+  <data name="Editor_ScreenPoint" xml:space="preserve">
+    <value>Screen Point</value>
+  </data>
+  <data name="Editor_SearchRegion" xml:space="preserve">
+    <value>Search Region</value>
+  </data>
+  <data name="Editor_TargetColorHex" xml:space="preserve">
+    <value>Target Color (RRGGBB)</value>
+  </data>
+  <data name="Editor_TargetColorSource" xml:space="preserve">
+    <value>Target color source</value>
+  </data>
+  <data name="Editor_TargetColorSourceManualHex" xml:space="preserve">
+    <value>Manual hex</value>
+  </data>
+  <data name="Editor_TargetColorSourceVariable" xml:space="preserve">
+    <value>Variable</value>
+  </data>
+  <data name="Editor_TargetColorVariable" xml:space="preserve">
+    <value>Target color variable</value>
+  </data>
+  <data name="Editor_ColorVariableNamePlaceholder" xml:space="preserve">
+    <value>Color variable name</value>
+  </data>
+  <data name="Editor_TimeoutMs" xml:space="preserve">
+    <value>Timeout (ms)</value>
+  </data>
+  <data name="Editor_Left" xml:space="preserve">
+    <value>Left</value>
+  </data>
+  <data name="Editor_Top" xml:space="preserve">
+    <value>Top</value>
+  </data>
+  <data name="Editor_Width" xml:space="preserve">
+    <value>Width</value>
+  </data>
+  <data name="Editor_Height" xml:space="preserve">
+    <value>Height</value>
+  </data>
+  <data name="Editor_FoundVariables" xml:space="preserve">
+    <value>Found Position Variables</value>
+  </data>
+  <data name="Editor_FoundVariableName" xml:space="preserve">
+    <value>Found variable (true/false)</value>
+  </data>
+  <data name="Editor_FoundXVariableNamePlaceholder" xml:space="preserve">
+    <value>Found X variable</value>
+  </data>
+  <data name="Editor_FoundYVariableNamePlaceholder" xml:space="preserve">
+    <value>Found Y variable</value>
+  </data>
+  <data name="Editor_Tolerance" xml:space="preserve">
+    <value>Tolerance</value>
+  </data>
+  <data name="Editor_Operator" xml:space="preserve">
+    <value>Operator</value>
+  </data>
+  <data name="Editor_ConditionColorHint" xml:space="preserve">
+    <value>For color checks, set the operand type to Color (RRGGBB), then enter a 6-digit color such as 00FF00.</value>
+  </data>
+  <data name="Editor_RawScreenReadingHint_PixelColor" xml:space="preserve">
+    <value>pixelcolor: stores the pixel color in a variable. Use 'pixelcolor rel dx dy var' for cursor-relative reads.</value>
+  </data>
+  <data name="Editor_RawScreenReadingHint_WaitColor" xml:space="preserve">
+    <value>waitcolor: waits for x/y to match RRGGBB or $variable before continuing.</value>
+  </data>
+  <data name="Editor_RawScreenReadingHint_PixelSearch" xml:space="preserve">
+    <value>pixelsearch: searches a region for RRGGBB or $variable; tolerance accepts 0-255 per RGB channel.</value>
+  </data>
+  <data name="Editor_RawScreenReadingHint_ImageSearch" xml:space="preserve">
+    <value>imagesearch: searches for a named imported PNG asset; automatic matching defaults to 0.95 similarity. Optional explicit modes are first and best.</value>
+  </data>
+  <data name="Editor_RawScriptHint_Clipboard" xml:space="preserve">
+    <value>clipboard: try 'clipboard set "hello"' or 'clipboard get clipText'.</value>
+  </data>
+  <data name="Editor_RawScriptHint_Shell" xml:space="preserve">
+    <value>shell: try 'shell "notify-send done" 1 250 5000'.</value>
+  </data>
+  <data name="Editor_RawScriptHint_Window" xml:space="preserve">
+    <value>window: try 'window active title activeTitle' or 'window focus title "Firefox"'.</value>
+  </data>
+  <data name="Editor_ScriptOperand_VariableReference" xml:space="preserve">
+    <value>Variable</value>
+  </data>
+  <data name="Editor_ScriptOperand_Number" xml:space="preserve">
+    <value>Number</value>
+  </data>
+  <data name="Editor_ScriptOperand_Text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Editor_ScriptOperand_Color" xml:space="preserve">
+    <value>Color (RRGGBB)</value>
+  </data>
+  <data name="Editor_ScriptOperand_Boolean" xml:space="preserve">
+    <value>True / False</value>
+  </data>
+  <data name="Editor_ScriptConditionOperator_Equals" xml:space="preserve">
+    <value>Equals (=)</value>
+  </data>
+  <data name="Editor_ScriptConditionOperator_NotEquals" xml:space="preserve">
+    <value>Not equals (!=)</value>
+  </data>
+  <data name="Editor_ScriptConditionOperator_GreaterThan" xml:space="preserve">
+    <value>Greater than (&gt;)</value>
+  </data>
+  <data name="Editor_ScriptConditionOperator_GreaterThanOrEqual" xml:space="preserve">
+    <value>Greater than or equal (&gt;=)</value>
+  </data>
+  <data name="Editor_ScriptConditionOperator_LessThan" xml:space="preserve">
+    <value>Less than (&lt;)</value>
+  </data>
+  <data name="Editor_ScriptConditionOperator_LessThanOrEqual" xml:space="preserve">
+    <value>Less than or equal (&lt;=)</value>
+  </data>
+  <data name="Editor_Action_PixelColorAbsolute" xml:space="preserve">
+    <value>Pixel color at ({0}, {1}) -&gt; {2}</value>
+  </data>
+  <data name="Editor_Action_PixelColorRelative" xml:space="preserve">
+    <value>Pixel color rel ({0:+#;-#;0}, {1:+#;-#;0}) -&gt; {2}</value>
+  </data>
+  <data name="Editor_Action_WaitColor" xml:space="preserve">
+    <value>Wait color {2} at ({0}, {1}) -&gt; {3}</value>
+  </data>
+  <data name="Editor_Action_PixelSearch" xml:space="preserve">
+    <value>Pixel search {4} in ({0}, {1}, {2}x{3}) -&gt; {5}, {6}, {7}</value>
+  </data>
+  <data name="Editor_Action_ImageSearch" xml:space="preserve">
+    <value>Find image {0} in ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} sim {8}</value>
+  </data>
+  <data name="Editor_Action_ImageClick" xml:space="preserve">
+    <value>Image click {0} in ({1}, {2}, {3}x{4})</value>
+  </data>
+  <data name="Editor_Action_WaitImage" xml:space="preserve">
+    <value>Wait image {0} in ({1}, {2}, {3}x{4}) for {5}ms</value>
+  </data>
+  <data name="Editor_ResultVariableName" xml:space="preserve">
+    <value>Result variable name</value>
+  </data>
+  <data name="Editor_ActionType_PixelColor" xml:space="preserve">
+    <value>Pixel Color</value>
+  </data>
+  <data name="Editor_ActionType_WaitColor" xml:space="preserve">
+    <value>Wait Color</value>
+  </data>
+  <data name="Editor_ActionType_PixelSearch" xml:space="preserve">
+    <value>Pixel Search</value>
+  </data>
   <data name="Editor_SetVariable" xml:space="preserve">
     <value>设置变量：</value>
   </data>
@@ -1145,7 +1699,7 @@
     <value>金额/变量</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
-    <value>增量/减量可以是数字或变量引用。</value>
+    <value>数量可以是数字或变量引用。</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
     <value>重复块：</value>
@@ -1182,6 +1736,15 @@
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
     <value>使用显式步骤</value>
+  </data>
+  <data name="Editor_AdvancedArithmetic" xml:space="preserve">
+    <value>高级算术</value>
+  </data>
+  <data name="Editor_ExpressionRightOperand" xml:space="preserve">
+    <value>右操作数</value>
+  </data>
+  <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
+    <value>在宏运行时将值与第二个操作数组合。运算符：+ − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>步</value>
@@ -1363,6 +1926,9 @@
   <data name="Editor_Action_Delay" xml:space="preserve">
     <value>等待 {0} 毫秒</value>
   </data>
+  <data name="Editor_Action_DelayPrecise" xml:space="preserve">
+    <value>等待 {0}</value>
+  </data>
   <data name="Editor_Action_ScrollUp" xml:space="preserve">
     <value>向上滚动{0}</value>
   </data>
@@ -1389,6 +1955,12 @@
   </data>
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
     <value>递减变量</value>
+  </data>
+  <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
+    <value>变量乘法</value>
+  </data>
+  <data name="Editor_Action_DivideVariableShort" xml:space="preserve">
+    <value>变量除法</value>
   </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
     <value>重复</value>
@@ -1465,6 +2037,12 @@
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
     <value>递减变量</value>
   </data>
+  <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
+    <value>变量乘法</value>
+  </data>
+  <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
+    <value>变量除法</value>
+  </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
     <value>重复块开始</value>
   </data>
@@ -1488,6 +2066,15 @@
   </data>
   <data name="Editor_ActionType_Continue" xml:space="preserve">
     <value>继续</value>
+  </data>
+  <data name="Editor_ActionType_ImageSearch" xml:space="preserve">
+    <value>Image Search</value>
+  </data>
+  <data name="Editor_ActionType_ImageClick" xml:space="preserve">
+    <value>Image Click</value>
+  </data>
+  <data name="Editor_ActionType_WaitImage" xml:space="preserve">
+    <value>Wait Image</value>
   </data>
   <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
     <value>原始脚本步骤</value>
@@ -1570,4 +2157,179 @@
   <data name="Editor_SelectedActionsFormat" xml:space="preserve">
     <value>已选择 {0} 项</value>
   </data>
+  <data name="Editor_RunTest" xml:space="preserve">
+    <value>Run Test</value>
+  </data>
+  <data name="Editor_StopTest" xml:space="preserve">
+    <value>Stop Test</value>
+  </data>
+  <data name="Editor_StatusTestRunning" xml:space="preserve">
+    <value>Test playback running...</value>
+  </data>
+  <data name="Editor_StatusTestComplete" xml:space="preserve">
+    <value>Test playback completed successfully.</value>
+  </data>
+  <data name="Editor_StatusTestCancelled" xml:space="preserve">
+    <value>Test playback stopped.</value>
+  </data>
+  <data name="Editor_StatusTestError" xml:space="preserve">
+    <value>Test error: {0}</value>
+  </data>
+  <data name="Editor_ActionGroup_Window" xml:space="preserve">
+    <value>Window</value>
+  </data>
+  <data name="Editor_ActionType_WindowCommand" xml:space="preserve">
+    <value>Window Command</value>
+  </data>
+  <data name="Editor_WindowMode" xml:space="preserve">
+    <value>Window mode</value>
+  </data>
+  <data name="Editor_WindowSelectorKind" xml:space="preserve">
+    <value>Selector kind</value>
+  </data>
+  <data name="Editor_WindowSelectorValue" xml:space="preserve">
+    <value>Window title, class, or address</value>
+  </data>
+  <data name="Editor_WindowActiveField" xml:space="preserve">
+    <value>Active window field</value>
+  </data>
+  <data name="Editor_WindowOutputVariable" xml:space="preserve">
+    <value>Output variable</value>
+  </data>
+  <data name="Editor_WindowTimeout" xml:space="preserve">
+    <value>Timeout (ms)</value>
+  </data>
+  <data name="Editor_WindowWorkspace" xml:space="preserve">
+    <value>Workspace</value>
+  </data>
+  <data name="Editor_WindowAddress" xml:space="preserve">
+    <value>Window address</value>
+  </data>
+  <data name="Editor_WindowX" xml:space="preserve">
+    <value>X</value>
+  </data>
+  <data name="Editor_WindowY" xml:space="preserve">
+    <value>Y</value>
+  </data>
+  <data name="Editor_WindowWidth" xml:space="preserve">
+    <value>Width</value>
+  </data>
+  <data name="Editor_WindowHeight" xml:space="preserve">
+    <value>Height</value>
+  </data>
+  <data name="Editor_WindowHint" xml:space="preserve">
+    <value>Window commands use the existing run-script window runtime. Unsupported platforms report at playback time.</value>
+  </data>
+  <data name="Editor_Action_WindowActive" xml:space="preserve">
+    <value>Get active window {0} -&gt; {1}</value>
+  </data>
+  <data name="Editor_Action_WindowSearch" xml:space="preserve">
+    <value>Search window by {0} "{1}" -&gt; {2}</value>
+  </data>
+  <data name="Editor_Action_WindowWait" xml:space="preserve">
+    <value>Wait for window {0} "{1}" ({2}ms) -&gt; {3}</value>
+  </data>
+  <data name="Editor_Action_WindowFocus" xml:space="preserve">
+    <value>Focus window by {0} "{1}"</value>
+  </data>
+  <data name="Editor_Action_WindowFocusActive" xml:space="preserve">
+    <value>Focus active window</value>
+  </data>
+  <data name="Editor_Action_WindowClose" xml:space="preserve">
+    <value>Close window by {0} "{1}"</value>
+  </data>
+  <data name="Editor_Action_WindowCloseActive" xml:space="preserve">
+    <value>Close active window</value>
+  </data>
+  <data name="Editor_Action_WindowMove" xml:space="preserve">
+    <value>Move active window to {0}, {1}</value>
+  </data>
+  <data name="Editor_Action_WindowResize" xml:space="preserve">
+    <value>Resize active window to {0}x{1}</value>
+  </data>
+  <data name="Editor_Action_WindowCenter" xml:space="preserve">
+    <value>Center active window</value>
+  </data>
+  <data name="Editor_Action_WindowMaximize" xml:space="preserve">
+    <value>Maximize active window</value>
+  </data>
+  <data name="Editor_Action_WindowFullscreen" xml:space="preserve">
+    <value>Fullscreen active window</value>
+  </data>
+  <data name="Editor_Action_WindowFloat" xml:space="preserve">
+    <value>Float active window</value>
+  </data>
+  <data name="Editor_Action_WindowWorkspaceGet" xml:space="preserve">
+    <value>Get active workspace -&gt; {0}</value>
+  </data>
+  <data name="Editor_Action_WindowWorkspaceSwitch" xml:space="preserve">
+    <value>Switch to workspace {0}</value>
+  </data>
+  <data name="Editor_Action_WindowWorkspaceMoveActive" xml:space="preserve">
+    <value>Move active window to workspace {0}</value>
+  </data>
+  <data name="Editor_Action_WindowWorkspaceMoveWindow" xml:space="preserve">
+    <value>Move window {0} to workspace {1}</value>
+  </data>
+  <data name="Enum_ShellCommandMode_Shell" xml:space="preserve">
+    <value>Run Command</value>
+  </data>
+  <data name="Enum_ShellCommandMode_ShellCapture" xml:space="preserve">
+    <value>Run and Capture Output</value>
+  </data>
+  <data name="Enum_ShellCommandMode_ShellInput" xml:space="preserve">
+    <value>Feed Input to Command</value>
+  </data>
+  <data name="Enum_ShellCommandMode_ShellCaptureInput" xml:space="preserve">
+    <value>Feed Input and Capture Output</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Active" xml:space="preserve">
+    <value>Query Active Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Search" xml:space="preserve">
+    <value>Search for Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Wait" xml:space="preserve">
+    <value>Wait for Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Focus" xml:space="preserve">
+    <value>Focus Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Close" xml:space="preserve">
+    <value>Close Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Move" xml:space="preserve">
+    <value>Move Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Resize" xml:space="preserve">
+    <value>Resize Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Center" xml:space="preserve">
+    <value>Center Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Maximize" xml:space="preserve">
+    <value>Maximize Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Fullscreen" xml:space="preserve">
+    <value>Fullscreen Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_Float" xml:space="preserve">
+    <value>Float Window</value>
+  </data>
+  <data name="Enum_WindowCommandMode_WorkspaceGet" xml:space="preserve">
+    <value>Get Current Workspace</value>
+  </data>
+  <data name="Enum_WindowCommandMode_WorkspaceSwitch" xml:space="preserve">
+    <value>Switch Workspace</value>
+  </data>
+  <data name="Enum_WindowCommandMode_WorkspaceMoveActive" xml:space="preserve">
+    <value>Move Active Window to Workspace</value>
+  </data>
+  <data name="Enum_WindowCommandMode_WorkspaceMoveWindow" xml:space="preserve">
+    <value>Move Target Window to Workspace</value>
+  </data>
+  <data name="Editor_ImageMatchMode" xml:space="preserve"><value>图像匹配模式</value></data>
+  <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>自动（推荐）</value></data>
+  <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>第一个阈值匹配</value></data>
+  <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>最佳匹配</value></data>
 </root>

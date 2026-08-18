@@ -1,313 +1,168 @@
-using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-
 namespace CrossMacro.Core.Models;
 
-/// <summary>
-/// Type of schedule for a scheduled task
-/// </summary>
-public enum ScheduleType
+/// <summary>Persisted state and runtime schedule inputs for a macro task.</summary>
+public class ScheduledTask
 {
-    /// <summary>
-    /// Repeats at regular intervals (seconds, minutes, hours)
-    /// </summary>
-    Interval,
-    
-    /// <summary>
-    /// Runs once at a specific date and time
-    /// </summary>
-    SpecificTime,
+    private int _intervalMinValue = 1;
+    private int _intervalMaxValue = 30;
 
-    /// <summary>
-    /// Repeats weekly on selected days at a specific local time
-    /// </summary>
-    Weekly
-}
-
-/// <summary>
-/// Days of week used by weekly scheduled tasks.
-/// </summary>
-[Flags]
-public enum ScheduleDays
-{
-    None = 0,
-    Monday = 1 << 0,
-    Tuesday = 1 << 1,
-    Wednesday = 1 << 2,
-    Thursday = 1 << 3,
-    Friday = 1 << 4,
-    Saturday = 1 << 5,
-    Sunday = 1 << 6,
-
-    Weekdays = Monday | Tuesday | Wednesday | Thursday | Friday,
-    Weekends = Saturday | Sunday,
-    EveryDay = Weekdays | Weekends
-}
-
-/// <summary>
-/// Unit of time for interval-based scheduling
-/// </summary>
-public enum IntervalUnit
-{
-    Seconds,
-    Minutes,
-    Hours
-}
-
-/// <summary>
-/// Represents a scheduled macro task
-/// </summary>
-public class ScheduledTask : INotifyPropertyChanged
-{
-    public event PropertyChangedEventHandler? PropertyChanged;
-    
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-    /// <summary>
-    /// Unique identifier for this scheduled task
-    /// </summary>
     public Guid Id { get; set; } = Guid.NewGuid();
-    
-    /// <summary>
-    /// Display name for the task
-    /// </summary>
-    private string _name = "New Task";
-    public string Name
-    {
-        get => _name;
-        set { _name = value; OnPropertyChanged(); }
-    }
-    
-    /// <summary>
-    /// Path to the macro file to execute
-    /// </summary>
-    private string _macroFilePath = string.Empty;
-    public string MacroFilePath 
-    { 
-        get => _macroFilePath;
-        set 
-        { 
-            _macroFilePath = value; 
-            OnPropertyChanged(); 
-            RefreshEnableState();
-        }
-    }
-    
-    /// <summary>
-    /// Type of schedule (Interval, DateTime, or Weekly)
-    /// </summary>
-    private ScheduleType _type = ScheduleType.Interval;
+    public string Name { get; set; } = "New Task";
+    public string MacroFilePath { get; set; } = string.Empty;
+
     public ScheduleType Type
     {
-        get => _type;
+        get;
         set
         {
-            _type = value;
-            OnPropertyChanged();
-            RefreshEnableState();
+            field = value;
+            MaintainEnablementInvariant();
         }
-    }
-    
-    /// <summary>
-    /// Playback speed multiplier (0.1 = 10x slower, 1.0 = normal, 10.0 = 10x faster)
-    /// </summary>
-    private double _playbackSpeed = 1.0;
-    public double PlaybackSpeed 
-    { 
-        get => _playbackSpeed;
+    } = ScheduleType.Interval;
+
+    public double PlaybackSpeed { get; set; } = PlaybackOptions.DefaultSpeedMultiplier;
+
+    public bool IsEnabled
+    {
+        get;
         set
         {
-            var normalized = PlaybackOptions.NormalizeSpeedMultiplier(value);
-            if (Math.Abs(_playbackSpeed - normalized) > double.Epsilon)
-            {
-                _playbackSpeed = normalized;
-                OnPropertyChanged();
-            }
-        }
-    }
-    
-    /// <summary>
-    /// Whether the task is enabled
-    /// </summary>
-    private bool _isEnabled;
-    public bool IsEnabled 
-    { 
-        get => _isEnabled;
-        set
-        {
-            // Can only enable if required schedule inputs are set
             if (value && !CanBeEnabled)
             {
-                return; // Don't allow enabling without required inputs
+                field = false;
+                NextRunTime = null;
+                return;
             }
-            
-            _isEnabled = value;
-            OnPropertyChanged();
-            if (value)
-            {
-                CalculateNextRunTime();
-            }
-            else
+
+            field = value;
+            if (!value)
             {
                 NextRunTime = null;
+                return;
             }
+
+            CalculateNextRunTime();
         }
     }
-    
-    /// <summary>
-    /// Whether the task can be enabled (has a macro file path)
-    /// </summary>
-    public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
-        && (Type != ScheduleType.Weekly || WeeklyDays != ScheduleDays.None);
-    
-    // Interval settings
-    
-    /// <summary>
-    /// Interval value (used with IntervalUnit)
-    /// </summary>
-    private int _intervalValue = 30;
-    public int IntervalValue
-    {
-        get => _intervalValue;
-        set { _intervalValue = value; OnPropertyChanged(); }
-    }
-    
-    /// <summary>
-    /// Unit for the interval (Seconds, Minutes, Hours)
-    /// </summary>
-    private IntervalUnit _intervalUnit = IntervalUnit.Seconds;
-    public IntervalUnit IntervalUnit
-    {
-        get => _intervalUnit;
-        set { _intervalUnit = value; OnPropertyChanged(); }
-    }
 
-    private bool _useRandomIntervalDelay;
-    public bool UseRandomIntervalDelay
-    {
-        get => _useRandomIntervalDelay;
-        set { _useRandomIntervalDelay = value; OnPropertyChanged(); }
-    }
+    public int IntervalValue { get; set; } = 30;
+    public IntervalUnit IntervalUnit { get; set; } = IntervalUnit.Seconds;
+    public bool UseRandomIntervalDelay { get; set; }
 
-    private int _intervalMinValue = 1;
     public int IntervalMinValue
     {
         get => _intervalMinValue;
         set
         {
-            var (min, max) = NormalizeIntervalRange(value, _intervalMaxValue);
-            _intervalMinValue = min;
-            _intervalMaxValue = max;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IntervalMaxValue));
+            var normalized = NormalizeIntervalRange(value, _intervalMaxValue);
+            _intervalMinValue = normalized.Min;
+            _intervalMaxValue = normalized.Max;
         }
     }
 
-    private int _intervalMaxValue = 30;
     public int IntervalMaxValue
     {
         get => _intervalMaxValue;
         set
         {
-            var (min, max) = NormalizeIntervalRange(_intervalMinValue, value);
-            _intervalMinValue = min;
-            _intervalMaxValue = max;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IntervalMinValue));
+            var normalized = NormalizeIntervalRange(_intervalMinValue, value);
+            _intervalMinValue = normalized.Min;
+            _intervalMaxValue = normalized.Max;
         }
     }
-    
-    // DateTime settings
-    
-    /// <summary>
-    /// Scheduled date and time for DateTime type
-    /// </summary>
-    private DateTime? _scheduledDateTime;
-    public DateTime? ScheduledDateTime
-    {
-        get => _scheduledDateTime;
-        set { _scheduledDateTime = value; OnPropertyChanged(); }
-    }
 
-    // Weekly settings
+    public DateTime? ScheduledDateTime { get; set; }
 
-    /// <summary>
-    /// Days on which a weekly task should run.
-    /// </summary>
-    private ScheduleDays _weeklyDays = ScheduleDays.Weekdays;
     public ScheduleDays WeeklyDays
     {
-        get => _weeklyDays;
+        get;
         set
         {
-            _weeklyDays = value;
-            OnPropertyChanged();
-            RefreshEnableState();
+            field = value;
+            MaintainEnablementInvariant();
+        }
+    } = ScheduleDays.Weekdays;
+
+    public TimeSpan WeeklyTime { get; set; } = new(9, 0, 0);
+    public DateTime? LastRunTime { get; set; }
+    public DateTime? NextRunTime { get; set; }
+    public string? LastStatus { get; set; }
+
+    public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
+        && (Type is not ScheduleType.Weekly || WeeklyDays is not ScheduleDays.None);
+
+    /// <summary>
+    /// Normalizes scalar fields that lack setter-level guards and re-checks the
+    /// enablement invariant. Required after bulk load (deserialization, DB read,
+    /// or migration) before the task is used at runtime.
+    /// </summary>
+    public void Normalize()
+    {
+        PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed);
+        IntervalValue = Math.Max(1, IntervalValue);
+        WeeklyTime = NormalizeTimeOfDay(WeeklyTime);
+        // Interval pair is already guarded by its setters; re-normalize in case
+        // the backing fields were bypassed (e.g. reflection-based deserialization).
+        (IntervalMinValue, IntervalMaxValue) = NormalizeIntervalRange(IntervalMinValue, IntervalMaxValue);
+        MaintainEnablementInvariant();
+    }
+
+    /// <summary>
+    /// Attempts to enable/disable the task, returning <langword>false</langword>
+    /// when the task cannot be enabled (e.g. weekly task with no selected days).
+    /// Equivalent to <see cref="IsEnabled"/> setter but reports the rejection
+    /// instead of silently leaving the task disabled.
+    /// </summary>
+    public bool TrySetEnabled(bool enabled)
+    {
+        if (enabled && !CanBeEnabled)
+        {
+            IsEnabled = false;
+            return false;
+        }
+
+        IsEnabled = enabled;
+        return true;
+    }
+
+    private void MaintainEnablementInvariant()
+    {
+        if (IsEnabled && !CanBeEnabled)
+        {
+            IsEnabled = false;
         }
     }
 
-    private void RefreshEnableState()
+    public TimeSpan GetInterval() => GetIntervalForValue(IntervalValue);
+
+    public int GetIntervalMs()
     {
-        OnPropertyChanged(nameof(CanBeEnabled));
-        if (_isEnabled && !CanBeEnabled)
+        var interval = GetInterval();
+        var maxIntMilliseconds = TimeSpan.FromMilliseconds(int.MaxValue);
+        return interval >= maxIntMilliseconds ? int.MaxValue : Convert.ToInt32(Math.Truncate(interval.TotalMilliseconds));
+    }
+
+    public void CalculateNextRunTime(DateTime? now = null)
+    {
+        var baseTime = now ?? DateTime.UtcNow;
+        if (Type is ScheduleType.Interval)
         {
-            _isEnabled = false;
-            OnPropertyChanged(nameof(IsEnabled));
+            NextRunTime = AddIntervalClamped(baseTime, GetNextIntervalDelay());
+        }
+        else if (Type is ScheduleType.SpecificTime && ScheduledDateTime is not null)
+        {
+            NextRunTime = ScheduledDateTime.Value.Kind is DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(ScheduledDateTime.Value, DateTimeKind.Local).ToUniversalTime()
+                : ScheduledDateTime.Value.ToUniversalTime();
+        }
+        else if (Type is ScheduleType.Weekly)
+        {
+            NextRunTime = CalculateNextWeeklyRunTime(baseTime);
+        }
+        else
+        {
             NextRunTime = null;
         }
-    }
-
-    /// <summary>
-    /// Local time of day at which a weekly task should run.
-    /// </summary>
-    private TimeSpan _weeklyTime = new(9, 0, 0);
-    public TimeSpan WeeklyTime
-    {
-        get => _weeklyTime;
-        set { _weeklyTime = NormalizeTimeOfDay(value); OnPropertyChanged(); }
-    }
-    
-    // State
-    
-    /// <summary>
-    /// When the task was last executed
-    /// </summary>
-    private DateTime? _lastRunTime;
-    public DateTime? LastRunTime 
-    { 
-        get => _lastRunTime;
-        set { _lastRunTime = value; OnPropertyChanged(); }
-    }
-    
-    /// <summary>
-    /// When the task is scheduled to run next
-    /// </summary>
-    private DateTime? _nextRunTime;
-    public DateTime? NextRunTime 
-    { 
-        get => _nextRunTime;
-        set { _nextRunTime = value; OnPropertyChanged(); }
-    }
-    
-    /// <summary>
-    /// Status message from last execution
-    /// </summary>
-    private string? _lastStatus;
-    public string? LastStatus 
-    { 
-        get => _lastStatus;
-        set { _lastStatus = value; OnPropertyChanged(); }
-    }
-    
-    /// <summary>
-    /// Calculates the interval as <see cref="TimeSpan"/>.
-    /// </summary>
-    public TimeSpan GetInterval()
-    {
-        return GetIntervalForValue(IntervalValue);
     }
 
     private TimeSpan GetIntervalForValue(long intervalValue)
@@ -318,71 +173,17 @@ public class ScheduledTask : INotifyPropertyChanged
             IntervalUnit.Seconds => TimeSpan.TicksPerSecond,
             IntervalUnit.Minutes => TimeSpan.TicksPerMinute,
             IntervalUnit.Hours => TimeSpan.TicksPerHour,
-            _ => TimeSpan.TicksPerSecond
+            _ => TimeSpan.TicksPerSecond,
         };
-
         long totalTicks;
-        try
-        {
-            totalTicks = checked(normalizedIntervalValue * ticksPerUnit);
-        }
-        catch (OverflowException)
-        {
-            totalTicks = TimeSpan.MaxValue.Ticks;
-        }
-
-        if (totalTicks > TimeSpan.MaxValue.Ticks)
-        {
-            totalTicks = TimeSpan.MaxValue.Ticks;
-        }
-
-        return TimeSpan.FromTicks(totalTicks);
-    }
-
-    /// <summary>
-    /// Calculates the interval in milliseconds.
-    /// </summary>
-    public int GetIntervalMs()
-    {
-        var interval = GetInterval();
-        var maxIntMilliseconds = TimeSpan.FromMilliseconds(int.MaxValue);
-
-        if (interval >= maxIntMilliseconds)
-        {
-            return int.MaxValue;
-        }
-
-        return (int)interval.TotalMilliseconds;
-    }
-    
-    /// <summary>
-    /// Calculates the next run time based on schedule type
-    /// </summary>
-    public void CalculateNextRunTime(DateTime? now = null)
-    {
-        var baseTime = now ?? DateTime.UtcNow;
-        if (Type == ScheduleType.Interval)
-        {
-            NextRunTime = AddIntervalClamped(baseTime, GetNextIntervalDelay());
-        }
-        else if (Type == ScheduleType.SpecificTime && ScheduledDateTime.HasValue)
-        {
-            // Ensure comparison uses UTC
-            var scheduledUtc = ScheduledDateTime.Value.Kind == DateTimeKind.Unspecified 
-                ? DateTime.SpecifyKind(ScheduledDateTime.Value, DateTimeKind.Local).ToUniversalTime() 
-                : ScheduledDateTime.Value.ToUniversalTime();
-
-            NextRunTime = scheduledUtc;
-        }
-        else if (Type == ScheduleType.Weekly)
-        {
-            NextRunTime = CalculateNextWeeklyRunTime(baseTime);
-        }
+        try { totalTicks = checked(normalizedIntervalValue * ticksPerUnit); }
+        catch (OverflowException) { totalTicks = TimeSpan.MaxValue.Ticks; }
+        return TimeSpan.FromTicks(Math.Min(totalTicks, TimeSpan.MaxValue.Ticks));
     }
 
     private DateTime? CalculateNextWeeklyRunTime(DateTime baseTime)
     {
-        if (WeeklyDays == ScheduleDays.None)
+        if (WeeklyDays is ScheduleDays.None)
         {
             return null;
         }
@@ -391,10 +192,10 @@ public class ScheduledTask : INotifyPropertyChanged
         {
             DateTimeKind.Local => baseTime,
             DateTimeKind.Utc => baseTime.ToLocalTime(),
-            _ => DateTime.SpecifyKind(baseTime, DateTimeKind.Local)
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(baseTime, DateTimeKind.Local),
+            _ => DateTime.SpecifyKind(baseTime, DateTimeKind.Local),
         };
         var normalizedWeeklyTime = NormalizeTimeOfDay(WeeklyTime);
-
         for (var dayOffset = 0; dayOffset <= 7; dayOffset++)
         {
             var candidateDate = localBaseTime.Date.AddDays(dayOffset);
@@ -409,24 +210,39 @@ public class ScheduledTask : INotifyPropertyChanged
                 return candidateLocal.ToUniversalTime();
             }
         }
-
         return null;
     }
 
-    private static ScheduleDays ToScheduleDay(DayOfWeek dayOfWeek)
+    private TimeSpan GetNextIntervalDelay()
     {
-        return dayOfWeek switch
+        if (!UseRandomIntervalDelay)
         {
-            DayOfWeek.Monday => ScheduleDays.Monday,
-            DayOfWeek.Tuesday => ScheduleDays.Tuesday,
-            DayOfWeek.Wednesday => ScheduleDays.Wednesday,
-            DayOfWeek.Thursday => ScheduleDays.Thursday,
-            DayOfWeek.Friday => ScheduleDays.Friday,
-            DayOfWeek.Saturday => ScheduleDays.Saturday,
-            DayOfWeek.Sunday => ScheduleDays.Sunday,
-            _ => ScheduleDays.None
-        };
+            return GetInterval();
+        }
+
+        var (min, max) = NormalizeIntervalRange(IntervalMinValue, IntervalMaxValue);
+        var intervalValue = min == max ? min : RandomNumberGeneratorUtility.GetInt32Inclusive(min, max);
+        return GetIntervalForValue(intervalValue);
     }
+
+    private static (int Min, int Max) NormalizeIntervalRange(int min, int max)
+    {
+        min = Math.Max(1, min);
+        max = Math.Max(1, max);
+        return (min, Math.Max(min, max));
+    }
+
+    private static ScheduleDays ToScheduleDay(DayOfWeek dayOfWeek) => dayOfWeek switch
+    {
+        DayOfWeek.Monday => ScheduleDays.Monday,
+        DayOfWeek.Tuesday => ScheduleDays.Tuesday,
+        DayOfWeek.Wednesday => ScheduleDays.Wednesday,
+        DayOfWeek.Thursday => ScheduleDays.Thursday,
+        DayOfWeek.Friday => ScheduleDays.Friday,
+        DayOfWeek.Saturday => ScheduleDays.Saturday,
+        DayOfWeek.Sunday => ScheduleDays.Sunday,
+        _ => ScheduleDays.None,
+    };
 
     private static TimeSpan NormalizeTimeOfDay(TimeSpan time)
     {
@@ -440,42 +256,12 @@ public class ScheduledTask : INotifyPropertyChanged
             : time;
     }
 
-    private TimeSpan GetNextIntervalDelay()
-    {
-        if (!UseRandomIntervalDelay)
-        {
-            return GetInterval();
-        }
-
-        var (min, max) = NormalizeIntervalRange(IntervalMinValue, IntervalMaxValue);
-        var intervalValue = min == max ? min : Random.Shared.NextInt64(min, (long)max + 1);
-        return GetIntervalForValue(intervalValue);
-    }
-
-    private static (int Min, int Max) NormalizeIntervalRange(int min, int max)
-    {
-        min = Math.Max(1, min);
-        max = Math.Max(1, max);
-
-        if (max < min)
-        {
-            max = min;
-        }
-
-        return (min, max);
-    }
-
     private static DateTime AddIntervalClamped(DateTime baseTime, TimeSpan interval)
     {
-        try
-        {
-            return baseTime + interval;
-        }
+        try { return baseTime + interval; }
         catch (ArgumentOutOfRangeException)
         {
-            return interval >= TimeSpan.Zero
-                ? new DateTime(DateTime.MaxValue.Ticks, baseTime.Kind)
-                : new DateTime(DateTime.MinValue.Ticks, baseTime.Kind);
+            return new DateTime(interval >= TimeSpan.Zero ? DateTime.MaxValue.Ticks : DateTime.MinValue.Ticks, baseTime.Kind);
         }
     }
 }

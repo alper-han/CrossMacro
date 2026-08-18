@@ -1,11 +1,7 @@
 namespace CrossMacro.UI.Tests.Services;
 
-using System.Threading.Tasks;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Services;
-using NSubstitute;
 
-public class DialogServiceTests
+public sealed class DialogServiceTests
 {
     [Fact(Timeout = 5000)]
     public async Task ShowConfirmationAsync_WhenNoDesktopLifetime_ReturnsFalse()
@@ -25,6 +21,16 @@ public class DialogServiceTests
         var ex = await Record.ExceptionAsync(() => service.ShowMessageAsync("Title", "Message"));
 
         Assert.Null(ex);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ShowFastLoopWarningAsync_WhenNoDesktopLifetime_ReturnsCancelled()
+    {
+        var service = new DialogService(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>());
+
+        var result = await service.ShowFastLoopWarningAsync("Title", "Message", "Continue", "Cancel", "Suppress");
+
+        Assert.Equal(FastLoopWarningResult.Cancelled, result);
     }
 
     [Fact(Timeout = 5000)]

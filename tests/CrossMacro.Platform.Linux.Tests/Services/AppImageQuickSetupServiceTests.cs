@@ -1,12 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Linux.Services;
-using CrossMacro.Platform.Linux.Services.QuickSetup;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
@@ -15,11 +6,11 @@ public sealed class AppImageQuickSetupServiceTests
     [LinuxFact]
     public void IsApplicable_WhenAppImageWayland_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -36,11 +27,11 @@ public sealed class AppImageQuickSetupServiceTests
     [Fact]
     public void ShouldPrompt_WhenCapabilityModeIsNone_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -55,34 +46,13 @@ public sealed class AppImageQuickSetupServiceTests
     }
 
     [Fact]
-    public void ShouldPrompt_WhenLegacyModeButInputEventsAreUnreadable_ShouldReturnTrue()
-    {
-        var env = new Dictionary<string, string?>
-        {
-            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
-            ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
-        };
-
-        var service = CreateService(
-            env,
-            InputProviderMode.Legacy,
-            canReadInputEvents: false,
-            userName: "alice",
-            effectiveUid: 1000,
-            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
-
-        Assert.True(service.ShouldPrompt());
-    }
-
-    [Fact]
     public void ShouldPrompt_WhenLegacyModeButNoUsableInputDevices_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -96,15 +66,35 @@ public sealed class AppImageQuickSetupServiceTests
         Assert.True(service.ShouldPrompt());
     }
 
-
     [Fact]
-    public async Task RunAsync_WhenPkexecMissing_ShouldFailWithoutRunningCommand()
+    public void ShouldPrompt_WhenHostDaemonIsAvailableButDirectAccessIsMissing_ReturnsTrue()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
+        };
+        var service = CreateService(
+            env,
+            InputProviderMode.Daemon,
+            canReadInputEvents: false,
+            userName: "alice",
+            effectiveUid: 1000,
+            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+
+        Assert.True(service.ShouldPrompt());
+    }
+
+
+    [Fact]
+    public async Task RunAsync_WhenNoPrivilegeCommandIsAvailable_ShouldFailWithoutRunningCommand()
+    {
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
+            ["FLATPAK_ID"] = null,
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var commandWasRun = false;
@@ -119,30 +109,29 @@ public sealed class AppImageQuickSetupServiceTests
                 commandWasRun = true;
                 return Task.FromResult((0, string.Empty, string.Empty));
             },
-            commandExists: _ => false);
+            commandExists: (_, _) => ValueTask.FromResult(false));
 
         var result = await service.RunAsync();
 
         Assert.False(result.Success);
         Assert.False(commandWasRun);
-        Assert.Contains("pkexec is missing", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Neither pkexec nor systemd run0", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task RunAsync_WhenUidAvailable_ShouldUseUidAndInvalidateCacheOnSuccess()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var detector = new FakeCapabilityDetector(InputProviderMode.None, canReadInputEvents: false);
         ProcessStartInfo? capturedStartInfo = null;
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => "alice", () => 1042),
-            new LinuxQuickSetupScriptBuilder(),
             (startInfo, _) =>
             {
                 capturedStartInfo = startInfo;
@@ -153,28 +142,30 @@ public sealed class AppImageQuickSetupServiceTests
             detector,
             key => env.TryGetValue(key, out var value) ? value : null,
             executor,
-            new DirectPkexecHostCommandLauncher(_ => true));
+            new DirectPolkitHostCommandLauncher(
+                (_, _) => ValueTask.FromResult(true),
+                _ => ValueTask.FromResult(true)));
 
         var result = await service.RunAsync();
 
         Assert.True(result.Success);
-        Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=3.", result.Message);
+        Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=3.", result.Message, StringComparison.Ordinal);
         Assert.Equal(1, detector.InvalidateCallCount);
         Assert.NotNull(capturedStartInfo);
         Assert.Equal("pkexec", capturedStartInfo!.FileName);
         Assert.Equal("1042", capturedStartInfo.ArgumentList[^1]);
-        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2]);
-        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2]);
+        Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
+        Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task RunAsync_WhenCommandFails_ShouldReturnErrorMessage()
     {
-        var env = new Dictionary<string, string?>
+        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
             ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland"
+            ["XDG_SESSION_TYPE"] = "wayland",
         };
 
         var service = CreateService(
@@ -198,34 +189,28 @@ public sealed class AppImageQuickSetupServiceTests
         string userName,
         uint? effectiveUid,
         Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcess,
-        Func<string, bool>? commandExists = null)
+        Func<string, CancellationToken, ValueTask<bool>>? commandExists = null)
     {
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => userName, () => effectiveUid),
-            new LinuxQuickSetupScriptBuilder(),
             runProcess);
 
         return new AppImageQuickSetupService(
             new FakeCapabilityDetector(mode, canReadInputEvents),
             key => env.TryGetValue(key, out var value) ? value : null,
             executor,
-            new DirectPkexecHostCommandLauncher(commandExists ?? (_ => true)));
+            new DirectPolkitHostCommandLauncher(
+                commandExists ?? ((_, _) => ValueTask.FromResult(true)),
+                _ => ValueTask.FromResult(true)));
     }
 
-    private sealed class FakeCapabilityDetector : ILinuxInputCapabilityDetector
+    private sealed class FakeCapabilityDetector(InputProviderMode mode, bool canReadInputEvents) : ILinuxInputCapabilityDetector
     {
-        private readonly InputProviderMode _mode;
-        private readonly bool _canReadInputEvents;
-
-        public FakeCapabilityDetector(InputProviderMode mode, bool canReadInputEvents)
-        {
-            _mode = mode;
-            _canReadInputEvents = canReadInputEvents;
-        }
+        private readonly InputProviderMode _mode = mode;
 
         public bool CanConnectToDaemon => false;
-        public bool CanUseDirectUInput => false;
-        public bool CanReadInputEvents => _canReadInputEvents;
+        public bool CanUseDirectUInput => _mode is InputProviderMode.Legacy;
+        public bool CanReadInputEvents { get; } = canReadInputEvents;
         public int InvalidateCallCount { get; private set; }
 
         public LinuxInputCapabilitySnapshot GetSnapshot()
@@ -234,8 +219,8 @@ public sealed class AppImageQuickSetupServiceTests
                 DaemonSocketExists: false,
                 DaemonHandshakeSucceeded: false,
                 DaemonHandshakeTimedOut: false,
-                CanUseDirectUInput: _mode == InputProviderMode.Legacy,
-                CanReadInputEvents: _canReadInputEvents);
+                CanUseDirectUInput: _mode is InputProviderMode.Legacy,
+                CanReadInputEvents: CanReadInputEvents);
 
         public InputProviderMode DetermineMode() => _mode;
 

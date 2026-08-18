@@ -1,7 +1,3 @@
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Windows.Services.ScreenReading;
-using Xunit;
 
 namespace CrossMacro.Platform.Windows.Tests.Services.ScreenReading;
 
@@ -43,11 +39,11 @@ public sealed class WindowsScreenFrameProviderTests
     {
         var backend = new RecordingCaptureBackend
         {
-            VirtualScreenBounds = new ScreenRect(-10, -20, 30, 40)
+            VirtualScreenBounds = new ScreenRect(-10, -20, 30, 40),
         };
         using var provider = new WindowsScreenFrameProvider(backend, () => true);
 
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
         Assert.Equal(new ScreenRect(-10, -20, 30, 40), backend.LastRegion);
@@ -59,7 +55,7 @@ public sealed class WindowsScreenFrameProviderTests
     {
         var backend = new RecordingCaptureBackend
         {
-            VirtualScreenBounds = new ScreenRect(-100, -50, 300, 200)
+            VirtualScreenBounds = new ScreenRect(-100, -50, 300, 200),
         };
         using var provider = new WindowsScreenFrameProvider(backend, () => true);
 
@@ -78,7 +74,7 @@ public sealed class WindowsScreenFrameProviderTests
     {
         var backend = new RecordingCaptureBackend
         {
-            VirtualScreenBounds = new ScreenRect(0, 0, 10, 10)
+            VirtualScreenBounds = new ScreenRect(0, 0, 10, 10),
         };
         using var provider = new WindowsScreenFrameProvider(backend, () => true);
 
@@ -106,20 +102,22 @@ public sealed class WindowsScreenFrameProviderTests
 
     public static TheoryData<Exception> KnownCaptureExceptions => new()
     {
-        new ArgumentException("bad region"),
+        CreateArgumentException("region"),
         new ArithmeticException("overflow"),
-        new ExternalException("gdi failed"),
+        new Win32Exception(0, "gdi failed"),
         new Win32Exception(5, "access denied"),
-        new InvalidOperationException("invalid screen")
+        new InvalidOperationException("invalid screen"),
     };
 
     [Theory]
     [MemberData(nameof(KnownCaptureExceptions))]
     public async Task CaptureFrameAsync_WhenBackendThrowsKnownCaptureException_ReturnsCaptureFailed(Exception exception)
     {
+        ArgumentNullException.ThrowIfNull(exception);
+
         var backend = new RecordingCaptureBackend
         {
-            CaptureException = exception
+            CaptureException = exception,
         };
         using var provider = new WindowsScreenFrameProvider(backend, () => true);
 
@@ -129,6 +127,9 @@ public sealed class WindowsScreenFrameProviderTests
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
         Assert.Contains(exception.Message, result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static ArgumentException CreateArgumentException(string region) =>
+        new($"bad {region}", nameof(region));
 
     private sealed class RecordingCaptureBackend : IWindowsScreenCaptureBackend
     {

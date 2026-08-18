@@ -1,12 +1,7 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
-using System;
-using System.IO;
-using CrossMacro.Daemon.Services;
-using CrossMacro.Infrastructure.Linux.Native;
-using CrossMacro.TestInfrastructure;
 
-public class LinuxPermissionServiceTests
+public sealed class LinuxPermissionServiceTests
 {
     private const string SocketPath = "/run/crossmacro/crossmacro.sock";
 
@@ -48,7 +43,7 @@ public class LinuxPermissionServiceTests
         var chownCalls = new List<(string Path, int Owner, int Group)>();
         var modePaths = new List<string>();
         var service = new LinuxPermissionService(
-            fileExists: path => path == LinuxSystemPaths.GroupFile,
+            fileExists: path => string.Equals(path, LinuxSystemPaths.GroupFile, StringComparison.Ordinal),
             readLines: path =>
             {
                 Assert.Equal(LinuxSystemPaths.GroupFile, path);

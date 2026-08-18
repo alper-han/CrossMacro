@@ -1,16 +1,9 @@
-using System;
-using System.Collections.Concurrent;
-using System.Linq;
-using CoreLogging = CrossMacro.Core.Logging;
-using CrossMacro.Platform.Linux.Extensions;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Extensions;
 
-public class LoggingExtensionsTests
+public sealed class LoggingExtensionsTests
 {
-    private static readonly object LoggerSync = new();
+    private static readonly Lock LoggerSync = new();
 
     private sealed class TestCoreLogger : CoreLogging.ICoreLogger
     {
@@ -19,37 +12,37 @@ public class LoggingExtensionsTests
         public bool IsEnabled(CoreLogging.CoreLogLevel level) => true;
 
         public void Verbose(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Debug(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Information(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Warning(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
-        public void Error(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+        public void LogError(string messageTemplate, params object?[] propertyValues) =>
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
-        public void Error(Exception exception, string messageTemplate, params object?[] propertyValues) =>
+        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
 
         public void Fatal(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(null, messageTemplate, propertyValues));
+            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
 
         public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) =>
             Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
@@ -63,17 +56,17 @@ public class LoggingExtensionsTests
         lock (LoggerSync)
         {
             var logger = new TestCoreLogger();
-            using var _ = CoreLogging.Log.PushLogger(logger);
+            using var loggingScope = CoreLogging.Log.PushLogger(logger);
 
             var key = Guid.NewGuid().ToString();
             var message = $"Test message {Guid.NewGuid():N} {{0}}";
-            var arg = "Arg";
+            const string arg = "Arg";
 
             LoggingExtensions.LogOnce(key, message, arg);
             LoggingExtensions.LogOnce(key, message, arg);
             LoggingExtensions.LogOnce(key, message, arg);
 
-            Assert.Single(logger.Entries, e => e.MessageTemplate == message);
+            _ = Assert.Single(logger.Entries, e => string.Equals(e.MessageTemplate, message, StringComparison.Ordinal));
         }
     }
 
@@ -88,12 +81,12 @@ public class LoggingExtensionsTests
             var key1 = Guid.NewGuid().ToString();
             var key2 = Guid.NewGuid().ToString();
             var message = $"Test message {Guid.NewGuid():N} {{0}}";
-            var arg = "Arg";
+            const string arg = "Arg";
 
             LoggingExtensions.LogOnce(key1, message, arg);
             LoggingExtensions.LogOnce(key2, message, arg);
 
-            Assert.Equal(2, logger.Entries.Count(e => e.MessageTemplate == message));
+            Assert.Equal(2, logger.Entries.Count(e => string.Equals(e.MessageTemplate, message, StringComparison.Ordinal)));
         }
     }
 }

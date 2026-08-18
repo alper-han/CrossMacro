@@ -1,0 +1,14 @@
+global using CrossMacro.Core.Services;
+global using CrossMacro.Platform.Abstractions;
+global using CrossMacro.Platform.Windows.DependencyInjection;
+global using CrossMacro.Platform.Windows.Native;
+global using CrossMacro.Platform.Windows.Services;
+global using CrossMacro.Platform.Windows.Services.ScreenReading;
+global using CrossMacro.Platform.Windows.Strategies;
+global using CrossMacro.TestInfrastructure;
+global using Microsoft.Extensions.DependencyInjection;
+global using NSubstitute;
+global using System.ComponentModel;
+global using System.Runtime.InteropServices;
+global using System.Runtime.Versioning;
+global using Xunit;

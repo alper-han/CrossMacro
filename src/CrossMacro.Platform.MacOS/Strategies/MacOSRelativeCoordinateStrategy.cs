@@ -1,17 +1,12 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Strategies;
 
 /// <summary>
 /// Converts macOS CoreGraphics absolute mouse samples into relative deltas.
 /// </summary>
-public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
+public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? currentPositionProvider = null) : IRelativeCoordinateStrategy
 {
-    private readonly Func<(int X, int Y)?>? _currentPositionProvider;
+    private readonly Func<(int X, int Y)?>? _currentPositionProvider = currentPositionProvider;
     private int _lastX;
     private int _lastY;
     private int _pendingX;
@@ -20,15 +15,15 @@ public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
     private bool _hasPendingX;
     private bool _hasPendingY;
 
-    public MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? currentPositionProvider = null)
-    {
-        _currentPositionProvider = currentPositionProvider;
-    }
+    public bool ProducesLogicalCoordinates => true;
+
+    public bool ProducesRelativeCoordinates => true;
 
     public Task InitializeAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var position = _currentPositionProvider?.Invoke() ?? GetCurrentPosition();
-        if (position.HasValue)
+        if (position is not null)
         {
             _lastX = position.Value.X;
             _lastY = position.Value.Y;
@@ -48,9 +43,9 @@ public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
         return Task.CompletedTask;
     }
 
-    public (int X, int Y) ProcessPosition(InputCaptureEventArgs e)
+    public CoordinateSample ProcessPosition(CapturedInputEvent e)
     {
-        if (e.Type == InputEventType.MouseMove)
+        if (e.Type is InputEventType.MouseMove)
         {
             if (e.Code == InputEventCode.ABS_X)
             {
@@ -65,35 +60,33 @@ public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
                 _hasPendingY = true;
             }
 
-            return (0, 0);
+            return CoordinateSample.None;
         }
 
-        if (e.Type == InputEventType.Sync)
+        if (e.Type is InputEventType.Sync)
         {
             return FlushPendingDelta();
         }
 
-        if (e.Type == InputEventType.MouseButton && _hasPendingX && _hasPendingY)
+        if (e.Type is InputEventType.MouseButton && _hasPendingX && _hasPendingY)
         {
             return FlushPendingDelta();
         }
 
-        return (0, 0);
+        return CoordinateSample.None;
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { /* Empty */ }
 
-    private (int X, int Y) FlushPendingDelta()
+    private CoordinateSample FlushPendingDelta()
     {
         if (!_hasPendingPosition)
         {
-            return (0, 0);
+            return CoordinateSample.None;
         }
 
-        int deltaX = _pendingX - _lastX;
-        int deltaY = _pendingY - _lastY;
+        int deltaX = (int)Math.Clamp((long)_pendingX - _lastX, int.MinValue, int.MaxValue);
+        int deltaY = (int)Math.Clamp((long)_pendingY - _lastY, int.MinValue, int.MaxValue);
 
         _lastX = _pendingX;
         _lastY = _pendingY;
@@ -101,7 +94,9 @@ public class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
         _hasPendingX = false;
         _hasPendingY = false;
 
-        return (deltaX, deltaY);
+        return deltaX is 0 && deltaY is 0
+            ? CoordinateSample.None
+            : CoordinateSample.Create(deltaX, deltaY);
     }
 
     private static (int X, int Y)? GetCurrentPosition()

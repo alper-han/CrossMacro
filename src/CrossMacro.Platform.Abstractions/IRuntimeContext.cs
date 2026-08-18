@@ -2,9 +2,9 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IRuntimeContext
 {
-    bool IsLinux { get; }
-    bool IsWindows { get; }
-    bool IsMacOS { get; }
-    bool IsFlatpak { get; }
-    string? SessionType { get; }
+    public bool IsLinux { get; }
+    public bool IsWindows { get; }
+    public bool IsMacOS { get; }
+    public bool IsFlatpak { get; }
+    public string? SessionType { get; }
 }

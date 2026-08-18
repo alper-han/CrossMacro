@@ -1,6 +1,5 @@
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-using CrossMacro.Platform.Linux.DisplayServer;
 
 internal static class LinuxScreenReaderBackendPolicy
 {
@@ -9,7 +8,7 @@ internal static class LinuxScreenReaderBackendPolicy
         LinuxScreenReaderBackend.KWinScreenShot2,
         LinuxScreenReaderBackend.ExtImageCopy,
         LinuxScreenReaderBackend.WlrScreencopy,
-        LinuxScreenReaderBackend.Portal
+        LinuxScreenReaderBackend.Portal,
     ];
 
     private static readonly LinuxScreenReaderBackend[] NativeWaylandOrder =
@@ -17,20 +16,29 @@ internal static class LinuxScreenReaderBackendPolicy
         LinuxScreenReaderBackend.GnomeExtension,
         LinuxScreenReaderBackend.ExtImageCopy,
         LinuxScreenReaderBackend.WlrScreencopy,
-        LinuxScreenReaderBackend.Portal
+        LinuxScreenReaderBackend.Portal,
     ];
 
     private static readonly LinuxScreenReaderBackend[] FlatpakWaylandOrder =
     [
-        LinuxScreenReaderBackend.GnomeExtension,
         LinuxScreenReaderBackend.Portal,
-        LinuxScreenReaderBackend.ExtImageCopy,
-        LinuxScreenReaderBackend.WlrScreencopy
     ];
 
-    public static IReadOnlyList<LinuxScreenReaderBackend> GetOrder(bool isFlatpak, CompositorType compositor) =>
-        isFlatpak ? FlatpakWaylandOrder : compositor == CompositorType.KDE ? NativeKdeWaylandOrder : NativeWaylandOrder;
+    public static IReadOnlyList<LinuxScreenReaderBackend> GetOrder(bool isFlatpak, CompositorType compositor)
+    {
+        if (isFlatpak)
+        {
+            return FlatpakWaylandOrder;
+        }
+        return compositor is CompositorType.KDE ? NativeKdeWaylandOrder : NativeWaylandOrder;
+    }
 
-    public static string GetPolicyName(bool isFlatpak, CompositorType compositor) =>
-        isFlatpak ? "Flatpak" : compositor == CompositorType.KDE ? "NativeKDE" : "Native";
+    public static string GetPolicyName(bool isFlatpak, CompositorType compositor)
+    {
+        if (isFlatpak)
+        {
+            return "Flatpak";
+        }
+        return compositor is CompositorType.KDE ? "NativeKDE" : "Native";
+    }
 }

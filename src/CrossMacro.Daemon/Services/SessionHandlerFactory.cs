@@ -1,22 +1,14 @@
-using System;
 
 namespace CrossMacro.Daemon.Services;
 
-public sealed class SessionHandlerFactory : ISessionHandlerFactory
+internal sealed class SessionHandlerFactory(
+    ISecurityService security,
+    IVirtualDeviceManager virtualDevice,
+    IInputCaptureManager inputCapture) : ISessionHandlerFactory
 {
-    private readonly ISecurityService _security;
-    private readonly IVirtualDeviceManager _virtualDevice;
-    private readonly IInputCaptureManager _inputCapture;
-
-    public SessionHandlerFactory(
-        ISecurityService security,
-        IVirtualDeviceManager virtualDevice,
-        IInputCaptureManager inputCapture)
-    {
-        _security = security;
-        _virtualDevice = virtualDevice;
-        _inputCapture = inputCapture;
-    }
+    private readonly ISecurityService _security = security;
+    private readonly IVirtualDeviceManager _virtualDevice = virtualDevice;
+    private readonly IInputCaptureManager _inputCapture = inputCapture;
 
     public ISessionHandler Create()
     {

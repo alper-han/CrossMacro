@@ -1,6 +1,3 @@
-using System;
-using System.Globalization;
-using CrossMacro.UI.Localization;
 
 namespace CrossMacro.UI.Tests.Localization;
 

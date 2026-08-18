@@ -130,32 +130,20 @@ dist/
 
 # DEB packages
 *.deb
-scripts/build_deb_output/
-scripts/deb_package/
 
 # RPM packages
 *.rpm
-scripts/build_rpm_output/
-scripts/rpm_build/
 
 # Arch Linux packages
 *.pkg.tar.zst
 *.pkg.tar.xz
-scripts/build_arch_output/
 
 # AppImage
 *.AppImage
-scripts/build_appimage_output/
-scripts/AppDir/
 
 # Flatpak
 .flatpak-builder/
 flatpak/.flatpak-builder/
-flatpak/build-dir/
-flatpak/repo/
-flatpak/*.flatpak
-scripts/flatpak-source/
-repo/
 
 # SELinux build artifacts
 *.pp
@@ -298,12 +286,6 @@ TestResults/
 *.lock
 !flake.lock
 !package-lock.json
-
-##########################
-# Python
-##########################
-__pycache__/
-*.pyc
 
 ##########################
 # Binary Files

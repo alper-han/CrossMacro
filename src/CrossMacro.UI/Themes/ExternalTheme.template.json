@@ -1,0 +1,33 @@
+{
+  "name": "Aurora",
+  "palette": {
+    "primaryColor": "#7c3aed",
+    "primaryHoverColor": "#8b5cf6",
+    "primaryPressedColor": "#6d28d9",
+    "successColor": "#10b981",
+    "successHoverColor": "#34d399",
+    "successPressedColor": "#059669",
+    "dangerColor": "#ef4444",
+    "dangerHoverColor": "#f87171",
+    "dangerPressedColor": "#dc2626",
+    "backgroundColor": "#0f172a",
+    "surfaceColor": "#111827",
+    "surfaceHoverColor": "#1f2937",
+    "textPrimaryColor": "#e5eefb",
+    "textSecondaryColor": "#94a3b8",
+    "warningColor": "#f59e0b",
+    "warningHoverColor": "#fbbf24",
+    "accentColor": "#22d3ee",
+    "systemAccentColor": "#7c3aed",
+    "systemAccentColorDark1": "#6d28d9",
+    "systemAccentColorDark2": "#6d28d9",
+    "systemAccentColorDark3": "#6d28d9",
+    "systemAccentColorLight1": "#8b5cf6",
+    "systemAccentColorLight2": "#8b5cf6",
+    "systemAccentColorLight3": "#8b5cf6",
+    "textOnPrimaryColor": "#f8fafc",
+    "textOnSuccessColor": "#052e1a",
+    "textOnDangerColor": "#fff7f7",
+    "textOnWarningColor": "#1c1917"
+  }
+}

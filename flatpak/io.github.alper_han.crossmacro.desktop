@@ -1,13 +1,13 @@
 [Desktop Entry]
 Name=CrossMacro
-GenericName=Macro Automation Tool
-Comment=Mouse and keyboard macro automation tool for Linux, Windows, and macOS
-Keywords=macro;keyboard;mouse;automation;wayland;x11;
+GenericName=Macro Recorder and Automation
+Comment=Record, edit, and replay mouse and keyboard macros with hotkeys and schedules
+Keywords=macro;macro recorder;macro player;keyboard;mouse;automation;hotkeys;scheduling;text expansion;screen recognition;image recognition;wayland;x11;linux;cli;headless;profiles;themes;screenshot;screen capture;pixel search;image search;
 Exec=crossmacro
 Icon=io.github.alper_han.crossmacro
 Type=Application
 Categories=Utility;Accessibility;
 Terminal=false
 StartupNotify=true
-StartupWMClass=CrossMacro
+StartupWMClass=CrossMacro.UI
 X-Flatpak=io.github.alper_han.crossmacro

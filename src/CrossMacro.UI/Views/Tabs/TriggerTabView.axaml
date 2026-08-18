@@ -1,0 +1,324 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
+              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
+             xmlns:conv="using:CrossMacro.UI.Converters"
+              xmlns:core="using:CrossMacro.Core.Models"
+             xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:icons="using:CrossMacro.UI.Icons"
+             xmlns:converters="using:CrossMacro.UI.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
+             x:Class="CrossMacro.UI.Views.Tabs.TriggerTabView"
+             x:DataType="vm:TriggerViewModel">
+
+    <Design.DataContext>
+        <designVm:DesignTriggerViewModel/>
+    </Design.DataContext>
+
+    <ScrollViewer Padding="10">
+        <StackPanel Spacing="16" Margin="0,0,0,50">
+
+            <!-- Trigger List Section -->
+            <Border Background="{DynamicResource SurfaceColor}" CornerRadius="12" Padding="16"
+                    x:Name="TriggerListBorder">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto,Auto">
+                        <TextBlock Grid.Column="0"
+                                   Text="{localization:Loc Trigger_Title}"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding TaskCountText}"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,0,12,0"/>
+                        <Button Grid.Column="2"
+                                Command="{Binding AddTaskCommand}"
+                                Background="{DynamicResource SurfaceHoverBrush}"
+                                CornerRadius="6"
+                                Padding="8,4"
+                                Cursor="Hand">
+                            <PathIcon Data="{icons:AppIcon Add}"
+                                      Width="18"
+                                      Height="18"
+                                      Foreground="{DynamicResource PrimaryBrush}"/>
+                        </Button>
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding Tasks}">
+                        <ItemsControl.ItemTemplate>
+                                 <DataTemplate x:DataType="vm:TriggerTaskEditor">
+                                <Border Padding="10,8"
+                                        CornerRadius="8"
+                                        Margin="0,2"
+                                        Classes="row-item no-hover"
+                                        Background="{DynamicResource BackgroundBrush}">
+                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                        <!-- Trigger Info (clickable area for selection) -->
+                                        <Button Grid.Column="0"
+                                                Classes="flat row-select"
+                                                Background="Transparent"
+                                                Padding="0"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Left"
+                                                Command="{Binding #TriggerListBorder.((vm:TriggerViewModel)DataContext).SelectTaskCommand}"
+                                                CommandParameter="{Binding}"
+                                                Cursor="Hand">
+                                            <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontWeight="Medium"
+                                                           FontSize="13"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                                            CornerRadius="4"
+                                                            Padding="6,2">
+                                                        <TextBlock Text="{Binding Field}"
+                                                                   FontSize="11"
+                                                                   FontFamily="Consolas, monospace"
+                                                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding Value}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxWidth="200"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Toggle Switch -->
+                                        <ToggleSwitch Grid.Column="1"
+                                                      IsChecked="{Binding IsEnabled}"
+                                                      IsEnabled="{Binding CanBeEnabled}"
+                                                      Command="{Binding #TriggerListBorder.((vm:TriggerViewModel)DataContext).TaskEnabledChangedCommand}"
+                                                      CommandParameter="{Binding}"
+                                                      OnContent="" OffContent=""
+                                                      VerticalAlignment="Center"
+                                                      Margin="0,0,4,0"/>
+
+                                        <!-- Edit Button -->
+                                        <Button Grid.Column="2"
+                                                Classes="flat row-action"
+                                                Background="Transparent"
+                                                Padding="6"
+                                                Command="{Binding #TriggerListBorder.((vm:TriggerViewModel)DataContext).SelectTaskCommand}"
+                                                CommandParameter="{Binding}"
+                                                Cursor="Hand"
+                                                ToolTip.Tip="{localization:Loc Trigger_EditTooltip}">
+                                            <icons:EmojiAppIcon Icon="Edit" Width="14" Height="14"/>
+                                        </Button>
+
+                                        <!-- Delete Button -->
+                                        <Button Grid.Column="3"
+                                                Classes="flat row-action danger"
+                                                Background="Transparent"
+                                                Padding="6"
+                                                Command="{Binding #TriggerListBorder.((vm:TriggerViewModel)DataContext).RemoveTaskCommand}"
+                                                CommandParameter="{Binding}"
+                                                Cursor="Hand"
+                                                ToolTip.Tip="{localization:Loc Trigger_DeleteTooltip}">
+                                            <icons:EmojiAppIcon Icon="Delete" Width="14" Height="14" Opacity="0.85"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Trigger Settings Section (visible when trigger selected) -->
+            <Border Background="{DynamicResource SurfaceColor}"
+                    CornerRadius="12"
+                    Padding="16"
+                    IsVisible="{Binding HasSelectedTask}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="{localization:Loc Trigger_Settings}"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               FontSize="12"/>
+
+                    <!-- Trigger Name -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{localization:Loc Trigger_Name}" Classes="caption"/>
+                        <TextBox Text="{Binding SelectedTask.Name, Mode=TwoWay, FallbackValue=''}"
+                                PlaceholderText="{localization:Loc Trigger_NamePlaceholder}"/>
+                    </StackPanel>
+
+                    <!-- Field + Match Mode — side by side -->
+                    <Grid ColumnDefinitions="*,8,*">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="{localization:Loc Trigger_Field}" Classes="caption"/>
+                            <ComboBox SelectedItem="{Binding SelectedTask.Field, Mode=TwoWay}"
+                                       ItemsSource="{x:Static core:TriggerEnums.AvailableFields}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                        <!-- Match Mode (hidden when Field = None/Interval) -->
+                        <StackPanel Grid.Column="2" Spacing="4"
+                                    IsVisible="{Binding SelectedTask.Field, Converter={x:Static conv:TriggerTabConverters.NeedsMatchValueConverter}}">
+                            <TextBlock Text="{localization:Loc Trigger_MatchMode}" Classes="caption"/>
+                            <ComboBox SelectedItem="{Binding SelectedTask.MatchMode, Mode=TwoWay}"
+                                      ItemsSource="{x:Static core:TriggerEnums.AvailableMatchModes}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Match Value (hidden when Field = None/Interval) -->
+                    <StackPanel Spacing="4"
+                                IsVisible="{Binding SelectedTask.Field, Converter={x:Static conv:TriggerTabConverters.NeedsMatchValueConverter}}">
+                        <TextBlock Text="{localization:Loc Trigger_Value}" Classes="caption"/>
+
+                        <!-- Primary: manual text entry -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding SelectedTask.Value, Mode=TwoWay, FallbackValue=''}"
+                                     PlaceholderText="{localization:Loc Trigger_ValuePlaceholder}"/>
+                            <!-- Refresh icon — fetches running windows into the picker below -->
+                            <Button Grid.Column="1"
+                                    Classes="secondary"
+                                    Command="{Binding RefreshWindowsCommand}"
+                                    IsEnabled="{Binding !IsRefreshingWindows}"
+                                    Margin="8,0,0,0"
+                                    Padding="8"
+                                    ToolTip.Tip="{localization:Loc Trigger_WindowPickerRefresh}">
+                                <PathIcon Data="{icons:AppIcon Refresh}" Width="14" Height="14"/>
+                            </Button>
+                        </Grid>
+
+                        <!-- Secondary: window picker — only visible after Refresh -->
+                        <ComboBox ItemsSource="{Binding AvailableWindowValues}"
+                                  PlaceholderText="{localization:Loc Trigger_WindowPickerPlaceholder}"
+                                  SelectedItem="{Binding SelectedWindowValue, Mode=TwoWay}"
+                                  IsVisible="{Binding AvailableWindowValues.Count, Converter={x:Static conv:TriggerTabConverters.IsNonZeroConverter}}"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+
+                    <!-- Action + Fire Mode — side by side -->
+                    <Grid ColumnDefinitions="*,8,*">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="{localization:Loc Trigger_Action}" Classes="caption"/>
+                            <ComboBox SelectedItem="{Binding SelectedTask.Action, Mode=TwoWay}"
+                                       ItemsSource="{x:Static core:TriggerEnums.AvailableActions}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="4">
+                            <TextBlock Text="{localization:Loc Trigger_FireMode}" Classes="caption"/>
+                            <ComboBox SelectedItem="{Binding SelectedTask.FireMode, Mode=TwoWay}"
+                                       ItemsSource="{x:Static core:TriggerEnums.AvailableFireModes}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Target Profile (visible when Action = SwitchProfile) -->
+                    <StackPanel Spacing="4"
+                                IsVisible="{Binding SelectedTask.Action, Converter={x:Static conv:TriggerTabConverters.IsSwitchProfileConverter}, FallbackValue=False}">
+                        <TextBlock Text="{localization:Loc Trigger_TargetProfile}" Classes="caption"/>
+                        <ComboBox SelectedItem="{Binding TargetProfileInfo, Mode=TwoWay}"
+                                  ItemsSource="{Binding AvailableProfiles}"
+                                  PlaceholderText="{localization:Loc Trigger_TargetProfilePlaceholder}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Macro File (visible when Action = RunMacro) -->
+                    <StackPanel Spacing="4"
+                                IsVisible="{Binding SelectedTask.Action, Converter={x:Static conv:TriggerTabConverters.IsRunMacroConverter}, FallbackValue=False}">
+                        <TextBlock Text="{localization:Loc Trigger_MacroFile}" Classes="caption"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding SelectedTask.MacroFilePath, Mode=TwoWay}"
+                                     PlaceholderText="{localization:Loc Trigger_MacroFilePlaceholder}"
+                                     IsReadOnly="True"/>
+                            <Button Grid.Column="1"
+                                    Classes="secondary"
+                                    Command="{Binding BrowseMacroCommand}"
+                                    Margin="8,0,0,0">
+                                <TextBlock Text="{localization:Loc Trigger_MacroFileBrowse}"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Debounce / Cooldown (0 = disabled) -->
+                    <Grid ColumnDefinitions="*,8,*">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="{localization:Loc Trigger_DebounceMs}" Classes="caption"/>
+                            <NumericUpDown Value="{Binding SelectedTask.DebounceMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                           Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                           PlaceholderText="0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="4">
+                            <TextBlock Text="{localization:Loc Trigger_CooldownMs}" Classes="caption"/>
+                            <NumericUpDown Value="{Binding SelectedTask.CooldownMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                           Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
+                                           PlaceholderText="0"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Status Section -->
+            <Border Background="{DynamicResource SurfaceColor}"
+                    CornerRadius="12"
+                    Padding="16"
+                    IsVisible="{Binding HasSelectedTask}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{localization:Loc Trigger_Status}"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               FontSize="12"/>
+                    <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" RowSpacing="4">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Loc Trigger_LastTriggered}" Classes="caption"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                   Text="{Binding SelectedLastTriggeredText}"
+                                   FontSize="12"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Loc Trigger_StatusLabel}" Classes="caption"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Text="{Binding SelectedStatusText}"
+                                   FontSize="12"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Save Button -->
+            <Button Command="{Binding SaveCommand}"
+                    Classes="primary"
+                    HorizontalAlignment="Right"
+                    IsVisible="{Binding HasSelectedTask}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
+                    <TextBlock Text="{localization:Loc Trigger_SaveAll}"/>
+                </StackPanel>
+            </Button>
+
+            <!-- Empty State -->
+            <Border Background="{DynamicResource SurfaceColor}"
+                    CornerRadius="12"
+                    Padding="32"
+                    IsVisible="{Binding !HasSelectedTask}">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                    <icons:EmojiAppIcon Icon="Keyboard" Width="48" Height="48" Opacity="0.8" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{localization:Loc Trigger_NoSelected}"
+                               FontSize="16"
+                               FontWeight="Medium"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{localization:Loc Trigger_SelectHint}"
+                               Classes="caption"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

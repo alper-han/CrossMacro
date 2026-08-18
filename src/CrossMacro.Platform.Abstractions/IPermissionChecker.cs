@@ -2,9 +2,12 @@ namespace CrossMacro.Platform.Abstractions;
 
 public interface IPermissionChecker
 {
-    bool IsSupported { get; }
-    bool RequiresStartupPermissionGate { get; }
-    bool IsAccessibilityTrusted();
-    bool CheckUInputAccess();
-    void OpenAccessibilitySettings();
+    public bool IsSupported { get; }
+    public bool RequiresStartupPermissionGate { get; }
+    public bool IsAccessibilityTrusted();
+    public bool CheckUInputAccess();
+
+    public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default);
+
+    public void OpenAccessibilitySettings();
 }

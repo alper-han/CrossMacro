@@ -1,7 +1,3 @@
-using System;
-using CrossMacro.Core.Logging;
-using Serilog.Events;
-using SerilogLog = Serilog.Log;
 
 namespace CrossMacro.Infrastructure.Logging;
 
@@ -52,12 +48,12 @@ public sealed class SerilogCoreLogger : ICoreLogger
         SerilogLog.Warning(exception, messageTemplate, propertyValues);
     }
 
-    public void Error(string messageTemplate, params object?[] propertyValues)
+    public void LogError(string messageTemplate, params object?[] propertyValues)
     {
         SerilogLog.Error(messageTemplate, propertyValues);
     }
 
-    public void Error(Exception exception, string messageTemplate, params object?[] propertyValues)
+    public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues)
     {
         SerilogLog.Error(exception, messageTemplate, propertyValues);
     }
@@ -82,7 +78,7 @@ public sealed class SerilogCoreLogger : ICoreLogger
             CoreLogLevel.Warning => LogEventLevel.Warning,
             CoreLogLevel.Error => LogEventLevel.Error,
             CoreLogLevel.Fatal => LogEventLevel.Fatal,
-            _ => LogEventLevel.Information
+            _ => LogEventLevel.Information,
         };
     }
 }

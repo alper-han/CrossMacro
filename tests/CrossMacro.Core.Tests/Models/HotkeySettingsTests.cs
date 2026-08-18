@@ -1,10 +1,7 @@
 namespace CrossMacro.Core.Tests.Models;
 
-using CrossMacro.Core;
-using CrossMacro.Core.Models;
-using FluentAssertions;
 
-public class HotkeySettingsTests
+public sealed class HotkeySettingsTests
 {
     [Fact]
     public void NewHotkeySettings_HasCorrectDefaultHotkeys()
@@ -13,9 +10,9 @@ public class HotkeySettingsTests
         var settings = new HotkeySettings();
 
         // Assert
-        settings.RecordingHotkey.Should().Be(AppConstants.DefaultRecordingHotkey);
-        settings.PlaybackHotkey.Should().Be(AppConstants.DefaultPlaybackHotkey);
-        settings.PauseHotkey.Should().Be(AppConstants.DefaultPauseHotkey);
+        _ = settings.RecordingHotkey.Should().Be(AppConstants.DefaultRecordingHotkey);
+        _ = settings.PlaybackHotkey.Should().Be(AppConstants.DefaultPlaybackHotkey);
+        _ = settings.PauseHotkey.Should().Be(AppConstants.DefaultPauseHotkey);
     }
 
     [Fact]
@@ -25,7 +22,7 @@ public class HotkeySettingsTests
         var settings = new HotkeySettings();
 
         // Assert
-        settings.RecordingHotkey.Should().Be("F8");
+        _ = settings.RecordingHotkey.Should().Be("F8");
     }
 
     [Fact]
@@ -35,7 +32,7 @@ public class HotkeySettingsTests
         var settings = new HotkeySettings();
 
         // Assert
-        settings.PlaybackHotkey.Should().Be("F9");
+        _ = settings.PlaybackHotkey.Should().Be("F9");
     }
 
     [Fact]
@@ -45,33 +42,35 @@ public class HotkeySettingsTests
         var settings = new HotkeySettings();
 
         // Assert
-        settings.PauseHotkey.Should().Be("F10");
+        _ = settings.PauseHotkey.Should().Be("F10");
     }
 
     [Fact]
     public void HotkeySettings_CanSetCustomRecordingHotkey()
     {
         // Arrange
-        var settings = new HotkeySettings();
-
-        // Act
-        settings.RecordingHotkey = "Ctrl+Shift+R";
+        var settings = new HotkeySettings
+        {
+            // Act
+            RecordingHotkey = "Ctrl+Shift+R",
+        };
 
         // Assert
-        settings.RecordingHotkey.Should().Be("Ctrl+Shift+R");
+        _ = settings.RecordingHotkey.Should().Be("Ctrl+Shift+R");
     }
 
     [Fact]
     public void HotkeySettings_CanSetCustomPlaybackHotkey()
     {
         // Arrange
-        var settings = new HotkeySettings();
-
-        // Act
-        settings.PlaybackHotkey = "Super+P";
+        var settings = new HotkeySettings
+        {
+            // Act
+            PlaybackHotkey = "Super+P",
+        };
 
         // Assert
-        settings.PlaybackHotkey.Should().Be("Super+P");
+        _ = settings.PlaybackHotkey.Should().Be("Super+P");
     }
 
     [Theory]
@@ -83,13 +82,13 @@ public class HotkeySettingsTests
     public void HotkeySettings_AcceptsVariousHotkeyFormats(string hotkey)
     {
         // Arrange
-        var settings = new HotkeySettings();
-
-        // Act
-        settings.RecordingHotkey = hotkey;
+        var settings = new HotkeySettings
+        {
+            // Act
+            RecordingHotkey = hotkey,
+        };
 
         // Assert
-        settings.RecordingHotkey.Should().Be(hotkey);
+        _ = settings.RecordingHotkey.Should().Be(hotkey);
     }
 }
-

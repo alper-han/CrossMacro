@@ -1,0 +1,136 @@
+
+namespace CrossMacro.Platform.Linux.Native.UInput;
+
+public static partial class UInputNative
+{
+    private const string LibC = "libc";
+
+    public const int O_WRONLY = 1;
+    public const int O_NONBLOCK = 2048;
+
+    public const uint UI_SET_EVBIT = 0x40045564;
+    public const uint UI_SET_KEYBIT = 0x40045565;
+    public const uint UI_SET_RELBIT = 0x40045566;
+    public const uint UI_SET_ABSBIT = 0x40045567;
+    public const uint UI_DEV_CREATE = 0x5501;
+    public const uint UI_DEV_DESTROY = 0x5502;
+    public const uint UI_SET_PROPBIT = 0x4004556e;
+    public const uint UI_GET_SYSNAME_64 = 0x8040552c;
+
+    public const ushort EV_SYN = 0x00;
+    public const ushort EV_KEY = 0x01;
+    public const ushort EV_REL = 0x02;
+    public const ushort EV_ABS = 0x03;
+
+    public const ushort REL_X = 0x00;
+    public const ushort REL_Y = 0x01;
+    public const ushort REL_HWHEEL = 0x06;
+    public const ushort REL_WHEEL = 0x08;
+    public const ushort REL_WHEEL_HI_RES = 0x0B;
+    public const ushort REL_HWHEEL_HI_RES = 0x0C;
+
+    public const ushort ABS_X = 0x00;
+    public const ushort ABS_Y = 0x01;
+
+    public const ushort BTN_LEFT = 0x110;
+    public const ushort BTN_RIGHT = 0x111;
+    public const ushort BTN_MIDDLE = 0x112;
+    public const ushort BTN_SIDE = 0x113;
+    public const ushort BTN_EXTRA = 0x114;
+    public const ushort BTN_FORWARD = 0x115;
+    public const ushort BTN_BACK = 0x116;
+    public const ushort BTN_TASK = 0x117;
+
+    public const ushort BTN_TOUCH = 0x14a;
+    public const ushort BTN_TOOL_FINGER = 0x145;
+
+    public const ushort ABS_MT_SLOT = 0x2f;
+    public const ushort ABS_MT_POSITION_X = 0x35;
+    public const ushort ABS_MT_POSITION_Y = 0x36;
+
+    public const ushort SYN_REPORT = 0;
+    public const ushort SYN_DROPPED = 3;
+
+    public const ushort INPUT_PROP_POINTER = 0x00;
+    public const ushort INPUT_PROP_DIRECT = 0x01;
+
+    public const ushort BUS_USB = 0x03;
+    public const ushort BUS_VIRTUAL = 0x06;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct input_event
+    {
+        public IntPtr time_sec;
+        public IntPtr time_usec;
+        public ushort type;
+        public ushort code;
+        public int value;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct uinput_user_dev
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
+        public string name;
+        public ushort id_bustype;
+        public ushort id_vendor;
+        public ushort id_product;
+        public ushort id_version;
+        public int ff_effects_max;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
+        public int[] absmax;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
+        public int[] absmin;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
+        public int[] absfuzz;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
+        public int[] absflat;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct uinput_setup
+    {
+        public input_id id;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
+        public string name;
+        public uint ff_effects_max;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct input_id
+    {
+        public ushort bustype;
+        public ushort vendor;
+        public ushort product;
+        public ushort version;
+    }
+
+    [LibraryImport(LibC, SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int open(string pathname, int flags);
+
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int close(int fd);
+
+    [LibraryImport(LibC, SetLastError = true, EntryPoint = "write")]
+    public static partial IntPtr write_setup(int fd, IntPtr buf, IntPtr count);
+
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial IntPtr write(int fd, ref input_event buf, IntPtr count);
+
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial IntPtr write(int fd, IntPtr buf, IntPtr count);
+
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int ioctl(int fd, uint request, int value);
+
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int ioctl(int fd, uint request, IntPtr value);
+
+    [LibraryImport(LibC, SetLastError = true, EntryPoint = "ioctl")]
+    public static partial int ioctl(int fd, uint request, [Out] byte[] value);
+
+    public static bool IsMouseButton(ushort code)
+    {
+        return code is >= BTN_LEFT and <= BTN_TASK;
+    }
+}

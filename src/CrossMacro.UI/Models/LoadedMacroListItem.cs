@@ -1,11 +1,3 @@
-using System;
-using System.Globalization;
-using System.IO;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.Models;
 
@@ -13,7 +5,6 @@ public sealed class LoadedMacroListItem : ObservableObject
 {
     private const int MinimumSequenceRepeatCount = 1;
     private string _name;
-    private int _sequenceRepeatCount = MinimumSequenceRepeatCount;
     private readonly ILocalizationService? _localizationService;
     private bool _usesGeneratedName;
 
@@ -41,7 +32,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         {
             _usesGeneratedName = string.IsNullOrWhiteSpace(value);
             var normalized = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : value.Trim();
-            if (_name == normalized)
+            if (string.Equals(_name, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -50,25 +41,29 @@ public sealed class LoadedMacroListItem : ObservableObject
             Macro.Name = normalized;
             OnPropertyChanged();
             OnPropertyChanged(nameof(Description));
+            StateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
     public int SequenceRepeatCount
     {
-        get => _sequenceRepeatCount;
+        get;
         set
         {
             var normalized = Math.Max(MinimumSequenceRepeatCount, value);
-            if (_sequenceRepeatCount == normalized)
+            if (field == normalized)
             {
                 return;
             }
 
-            _sequenceRepeatCount = normalized;
+            field = normalized;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SequenceRepeatSummary));
+            StateChanged?.Invoke(this, EventArgs.Empty);
         }
-    }
+    } = MinimumSequenceRepeatCount;
+
+    internal event EventHandler? StateChanged;
 
     public int EventCount => MacroPlayableActionCounter.CountPlayableActions(Macro);
 
@@ -82,12 +77,10 @@ public sealed class LoadedMacroListItem : ObservableObject
 
     public LoadedMacroListItem CreateSnapshot()
     {
-        var snapshot = new LoadedMacroListItem(Macro.Clone(), SourcePath, SessionId, _localizationService)
+        return new LoadedMacroListItem(Macro.Clone(), SourcePath, SessionId, _localizationService)
         {
-            SequenceRepeatCount = SequenceRepeatCount
+            SequenceRepeatCount = SequenceRepeatCount,
         };
-
-        return snapshot;
     }
 
     public void UpdateSourcePath(string? sourcePath)
@@ -101,6 +94,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         OnPropertyChanged(nameof(SourcePath));
         OnPropertyChanged(nameof(SourceDescription));
         OnPropertyChanged(nameof(Description));
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void UpdateMacro(MacroSequence macro, string? sourcePath = null)
@@ -108,7 +102,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         ArgumentNullException.ThrowIfNull(macro);
 
         Macro = macro;
-        if (sourcePath != null)
+        if (sourcePath is not null)
         {
             UpdateSourcePath(sourcePath);
         }
@@ -117,7 +111,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         var normalized = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : macro.Name.Trim();
         Macro.Name = normalized;
 
-        var nameChanged = _name != normalized;
+        var nameChanged = !string.Equals(_name, normalized, StringComparison.Ordinal);
         _name = normalized;
 
         if (nameChanged)
@@ -128,6 +122,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         OnPropertyChanged(nameof(Macro));
         OnPropertyChanged(nameof(EventCount));
         OnPropertyChanged(nameof(Description));
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void RefreshLocalizedProperties()
@@ -135,7 +130,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         if (_usesGeneratedName)
         {
             var localizedName = GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName);
-            if (_name != localizedName)
+            if (!string.Equals(_name, localizedName, StringComparison.Ordinal))
             {
                 _name = localizedName;
                 Macro.Name = localizedName;

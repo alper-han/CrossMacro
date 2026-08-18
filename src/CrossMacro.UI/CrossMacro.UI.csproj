@@ -4,10 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>CrossMacro.UI.Core</AssemblyName>
     <Nullable>enable</Nullable>
+    <PublishAot Condition="'$(PublishAot)' == ''">false</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Description>Cross-platform mouse and keyboard macro automation tool with text expansion support.</Description>
+    <Description>Cross-platform mouse and keyboard macro recorder and automation tool with a macro editor, scheduling, text expansion, and screen recognition.</Description>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -18,7 +20,7 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
     <SelfContained>true</SelfContained>
     <PublishTrimmed>true</PublishTrimmed>
-    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <TrimMode>partial</TrimMode>
   </PropertyGroup>
@@ -28,6 +30,13 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <!-- Built-in themes and the user-facing sample/template are embedded resources:
+       the runtime catalog and the theme-folder provisioner stream them from the assembly. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Themes\*.json" />
+    <EmbeddedResource Include="Themes\UserThemes.README.md" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,13 +64,15 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Serilog" />
-    <PackageReference Include="Svg.Controls.Skia.Avalonia" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
-    <ProjectReference Include="../CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../CrossMacro.Application/CrossMacro.Application.csproj" />
     <ProjectReference Include="../CrossMacro.Packaging.Abstractions/CrossMacro.Packaging.Abstractions.csproj" />
     <ProjectReference Include="../CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CrossMacro.UI.Tests" />
   </ItemGroup>
 </Project>

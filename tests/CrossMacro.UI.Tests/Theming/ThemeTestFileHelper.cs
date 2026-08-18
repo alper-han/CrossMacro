@@ -1,23 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace CrossMacro.UI.Tests.Theming;
 
 internal static partial class ThemeTestFileHelper
 {
-    private static readonly Regex ResourceKeyRegex = ResourceKeyRegexFactory();
-    private static readonly Regex DynamicResourceRegex = DynamicResourceRegexFactory();
+    private static readonly Regex DynamicResourceRegex = DynamicResourceRegexFactory;
 
     public static string FindRepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current != null)
+        while (current is not null)
         {
-            var marker = Path.Combine(current.FullName, "src", "CrossMacro.UI", "Themes");
-            if (Directory.Exists(marker))
+            var marker = Path.Combine(current.FullName, "src", "CrossMacro.UI", "CrossMacro.UI.csproj");
+            if (File.Exists(marker))
             {
                 return current.FullName;
             }
@@ -33,36 +27,36 @@ internal static partial class ThemeTestFileHelper
         return Path.Combine(FindRepositoryRoot(), "src", "CrossMacro.UI", "Themes");
     }
 
-    public static IReadOnlyList<string> GetThemeFiles()
+    public static IReadOnlyList<string> GetBuiltInThemeFileNames()
     {
         return Directory
-            .GetFiles(GetThemeDirectory(), "*.axaml", SearchOption.TopDirectoryOnly)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .GetFiles(GetThemeDirectory(), "*.json", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(name => name is not null
+                && !name.StartsWith('_')
+                && !name.EndsWith(".template", StringComparison.OrdinalIgnoreCase))
+            .Select(name => name!)
             .ToArray();
     }
 
-    public static HashSet<string> ReadResourceKeys(string filePath)
+    public static IReadOnlyList<ThemeDescriptor> GetBuiltInThemes()
     {
-        var content = File.ReadAllText(filePath);
-        return ResourceKeyRegex.Matches(content)
-            .Select(match => match.Groups[1].Value)
-            .Where(key => !string.IsNullOrWhiteSpace(key))
+        return ThemeCatalog.Themes;
+    }
+
+    public static HashSet<string> ReadGeneratedResourceKeys(ThemeDescriptor theme)
+    {
+        return ThemeResourceDictionaryFactory.Create(theme)
+            .Keys
+            .OfType<string>()
             .ToHashSet(StringComparer.Ordinal);
     }
 
-    public static string ReadColorValue(string filePath, string colorKey)
+    public static string ReadColorValue(ThemeDescriptor theme, string colorKey)
     {
-        var content = File.ReadAllText(filePath);
-        var colorRegex = new Regex(
-            $"<Color\\s+x:Key=\"{Regex.Escape(colorKey)}\">([^<]+)</Color>",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
-        var match = colorRegex.Match(content);
-        if (!match.Success)
-        {
-            throw new InvalidOperationException($"Color key '{colorKey}' not found in {Path.GetFileName(filePath)}");
-        }
-
-        return match.Groups[1].Value.Trim();
+        return theme.Palette.EnumerateColorValues()
+                   .FirstOrDefault(entry => string.Equals(entry.Key, colorKey, StringComparison.Ordinal)).Value
+               ?? throw new InvalidOperationException($"Color key '{colorKey}' not found in theme '{theme.Name}'.");
     }
 
     public static HashSet<string> ExtractDynamicResourceKeys(IEnumerable<string> axamlFiles)
@@ -73,16 +67,12 @@ internal static partial class ThemeTestFileHelper
             var content = File.ReadAllText(file);
             foreach (Match match in DynamicResourceRegex.Matches(content))
             {
-                keys.Add(match.Groups[1].Value);
+                _ = keys.Add(match.Groups[1].Value);
             }
         }
 
         return keys;
     }
-
-    [GeneratedRegex("x:Key=\"([^\"]+)\"", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
-    private static partial Regex ResourceKeyRegexFactory();
-
-    [GeneratedRegex(@"\{DynamicResource\s+([A-Za-z0-9\._\-]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
-    private static partial Regex DynamicResourceRegexFactory();
+    [GeneratedRegex(@"\{DynamicResource\s+(?<key>[A-Za-z0-9\._\-]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    private static partial Regex DynamicResourceRegexFactory { get; }
 }

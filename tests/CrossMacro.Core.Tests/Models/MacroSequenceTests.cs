@@ -1,11 +1,7 @@
 namespace CrossMacro.Core.Tests.Models;
 
-using System;
-using System.Collections.Generic;
-using CrossMacro.Core.Models;
-using FluentAssertions;
 
-public class MacroSequenceTests
+public sealed class MacroSequenceTests
 {
     [Fact]
     public void IsValid_EmptyEvents_ReturnsFalse()
@@ -17,68 +13,49 @@ public class MacroSequenceTests
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
     public void IsValid_WithScriptStepsAndEmptyEvents_ReturnsTrue()
     {
         // Arrange
-        var macro = new MacroSequence
-        {
-            ScriptSteps = new List<string> { "pixelcolor 10 20 color" }
-        };
+        var macro = new MacroSequence();
+        macro.ReplaceScriptSteps(["pixelcolor 10 20 color"]);
 
         // Act
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeTrue();
+        _ = result.Should().BeTrue();
     }
 
     [Fact]
     public void IsValid_WithMalformedScriptStepsAndEmptyEvents_ReturnsTrueForStructuralValidationOnly()
     {
         // Arrange
-        var macro = new MacroSequence
-        {
-            ScriptSteps = new List<string> { "pixelcolor 1" }
-        };
+        var macro = new MacroSequence();
+        macro.ReplaceScriptSteps(["pixelcolor 1"]);
 
         // Act
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeTrue();
+        _ = result.Should().BeTrue();
     }
 
     [Fact]
     public void IsValid_WithOnlyBlankScriptStepsAndEmptyEvents_ReturnsFalse()
     {
         // Arrange
-        var macro = new MacroSequence
-        {
-            ScriptSteps = new List<string> { " ", "" }
-        };
+        var macro = new MacroSequence();
+        macro.ReplaceScriptSteps([" ", ""]);
 
         // Act
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsValid_NullEvents_ReturnsFalse()
-    {
-        // Arrange
-        var macro = new MacroSequence { Events = null! };
-
-        // Act
-        var result = macro.IsValid();
-
-        // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -87,17 +64,17 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
-                new() { Type = EventType.MouseMove, Timestamp = -1, DelayMs = 0 }
-            }
+                new() { Type = EventType.MouseMove, Timestamp = -1, DelayMs = 0 },
+            },
         };
 
         // Act
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -106,17 +83,17 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
-                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = -100 }
-            }
+                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = -100 },
+            },
         };
 
         // Act
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -125,7 +102,7 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
                 new()
                 {
@@ -134,16 +111,16 @@ public class MacroSequenceTests
                     DelayMs = 0,
                     HasRandomDelay = true,
                     RandomDelayMinMs = 200,
-                    RandomDelayMaxMs = 100
-                }
-            }
+                    RandomDelayMaxMs = 100,
+                },
+            },
         };
 
         // Act
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -155,17 +132,17 @@ public class MacroSequenceTests
             HasTrailingRandomDelay = true,
             TrailingDelayMinMs = 300,
             TrailingDelayMaxMs = 100,
-            Events = new List<MacroEvent>
+            Events =
             {
-                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0 }
-            }
+                new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0 },
+            },
         };
 
         // Act
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -174,19 +151,19 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
                 new() { Type = EventType.MouseMove, Timestamp = 0, DelayMs = 0, X = 100, Y = 200 },
-                new() { Type = EventType.ButtonPress, Timestamp = 100, DelayMs = 100, Button = MouseButton.Left },
-                new() { Type = EventType.ButtonRelease, Timestamp = 150, DelayMs = 50, Button = MouseButton.Left }
-            }
+                new() { Type = EventType.ButtonPress, Timestamp = 100, DelayMs = 100, Button = MacroMouseButton.Left },
+                new() { Type = EventType.ButtonRelease, Timestamp = 150, DelayMs = 50, Button = MacroMouseButton.Left },
+            },
         };
 
         // Act
         var result = macro.IsValid();
 
         // Assert
-        result.Should().BeTrue();
+        _ = result.Should().BeTrue();
     }
 
     [Fact]
@@ -199,7 +176,7 @@ public class MacroSequenceTests
         macro.CalculateDuration();
 
         // Assert
-        macro.TotalDurationMs.Should().Be(0);
+        _ = macro.TotalDurationMs.Should().Be(0);
     }
 
     [Fact]
@@ -208,19 +185,19 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
                 new() { Timestamp = 0 },
                 new() { Timestamp = 500 },
-                new() { Timestamp = 1500 }
-            }
+                new() { Timestamp = 1500 },
+            },
         };
 
         // Act
         macro.CalculateDuration();
 
         // Assert
-        macro.TotalDurationMs.Should().Be(1500);
+        _ = macro.TotalDurationMs.Should().Be(1500);
     }
 
     [Fact]
@@ -229,14 +206,14 @@ public class MacroSequenceTests
         // Arrange
         var macro = new MacroSequence
         {
-            Events = new List<MacroEvent>
+            Events =
             {
-                new(), new(), new(), new(), new()
-            }
+                new(), new(), new(), new(), new(),
+            },
         };
 
         // Act & Assert
-        macro.EventCount.Should().Be(5);
+        _ = macro.EventCount.Should().Be(5);
     }
 
     [Fact]
@@ -247,8 +224,7 @@ public class MacroSequenceTests
         {
             Id = Guid.NewGuid(),
             Name = "Original",
-            Events = new List<MacroEvent>
-            {
+            Events = {
                 new()
                 {
                     Type = EventType.MouseMove,
@@ -256,13 +232,13 @@ public class MacroSequenceTests
                     Y = 20,
                     Timestamp = 30,
                     DelayMs = 40,
-                    CoordinateMode = MouseCoordinateMode.Absolute
-                }
+                    CoordinateMode = MouseCoordinateMode.Absolute,
+                },
             },
-            ScriptSteps = new List<string> { "move 10 20" },
-            TextInputBoundaries = new List<TextInputBoundary>
+            ScriptSteps = { "move 10 20" },
+            TextInputBoundaries =
             {
-                new(0, 2, "hello")
+                new(0, 2, "hello"),
             },
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             TotalDurationMs = 30,
@@ -276,29 +252,29 @@ public class MacroSequenceTests
             TrailingDelayMs = 100,
             HasTrailingRandomDelay = true,
             TrailingDelayMinMs = 50,
-            TrailingDelayMaxMs = 150
+            TrailingDelayMaxMs = 150,
         };
 
         // Act
         var clone = original.Clone();
 
         // Assert
-        clone.Should().NotBeSameAs(original);
-        clone.Should().BeEquivalentTo(original);
-        clone.Events.Should().NotBeSameAs(original.Events);
-        clone.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
-        clone.ScriptSteps.Should().NotBeSameAs(original.ScriptSteps);
-        clone.TextInputBoundaries.Should().NotBeSameAs(original.TextInputBoundaries);
+        _ = clone.Should().NotBeSameAs(original);
+        _ = clone.Should().BeEquivalentTo(original);
+        _ = clone.Events.Should().NotBeSameAs(original.Events);
+        _ = clone.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
+        _ = clone.ScriptSteps.Should().NotBeSameAs(original.ScriptSteps);
+        _ = clone.TextInputBoundaries.Should().NotBeSameAs(original.TextInputBoundaries);
 
         clone.Name = "Updated";
         clone.Events.Add(new MacroEvent { Type = EventType.KeyPress });
         clone.ScriptSteps.Add("press a");
         clone.TextInputBoundaries.Add(new TextInputBoundary(2, 2, "world"));
 
-        original.Name.Should().Be("Original");
-        original.Events.Should().HaveCount(1);
-        original.ScriptSteps.Should().ContainSingle();
-        original.TextInputBoundaries.Should().ContainSingle();
+        _ = original.Name.Should().Be("Original");
+        _ = original.Events.Should().HaveCount(1);
+        _ = original.ScriptSteps.Should().ContainSingle();
+        _ = original.TextInputBoundaries.Should().ContainSingle();
     }
 
     [Fact]
@@ -308,10 +284,33 @@ public class MacroSequenceTests
         var macro = new MacroSequence();
 
         // Assert
-        macro.Id.Should().NotBeEmpty();
-        macro.Name.Should().Be("Unnamed Macro");
-        macro.Events.Should().NotBeNull();
-        macro.Events.Should().BeEmpty();
-        macro.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        _ = macro.Id.Should().NotBeEmpty();
+        _ = macro.Name.Should().Be("Unnamed Macro");
+        _ = macro.Events.Should().NotBeNull();
+        _ = macro.Events.Should().BeEmpty();
+        _ = macro.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void ReplaceCollections_PreservesCollectionIdentityAndOrdering()
+    {
+        var macro = new MacroSequence();
+        var events = macro.Events;
+        var scriptSteps = macro.ScriptSteps;
+        var boundaries = macro.TextInputBoundaries;
+        var images = macro.Images;
+
+        macro.ReplaceEvents([new MacroEvent { KeyCode = 30 }, new MacroEvent { KeyCode = 31 }]);
+        macro.ReplaceScriptSteps(["move 1 2", "click left"]);
+        macro.ReplaceTextInputBoundaries([new TextInputBoundary(0, 2, "hi")]);
+        macro.ReplaceImages([new KeyValuePair<string, string>("Target", "encoded")]);
+
+        _ = macro.Events.Should().BeSameAs(events);
+        _ = macro.ScriptSteps.Should().BeSameAs(scriptSteps);
+        _ = macro.TextInputBoundaries.Should().BeSameAs(boundaries);
+        _ = macro.Images.Should().BeSameAs(images);
+        _ = macro.Events.Select(item => item.KeyCode).Should().Equal(30, 31);
+        _ = macro.ScriptSteps.Should().Equal("move 1 2", "click left");
+        _ = macro.Images["Target"].Should().Be("encoded");
     }
 }

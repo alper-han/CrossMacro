@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
 
 namespace CrossMacro.Core.Services;
 
@@ -11,10 +9,10 @@ public interface IMacroFileManager
     /// <summary>
     /// Saves a macro sequence to a file
     /// </summary>
-    Task SaveAsync(MacroSequence macro, string filePath);
-    
+    public Task SaveAsync(MacroSequence macro, string filePath);
+
     /// <summary>
     /// Loads a macro sequence from a file
     /// </summary>
-    Task<MacroSequence?> LoadAsync(string filePath);
+    public Task<MacroSequence?> LoadAsync(string filePath);
 }

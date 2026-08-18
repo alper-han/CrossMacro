@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
@@ -12,11 +10,19 @@ internal sealed class LinuxDbusSession : IDisposable
         _connection = connection;
     }
 
-    public static async Task<LinuxDbusSession> ConnectAsync()
+    public static async Task<LinuxDbusSession> ConnectAsync(CancellationToken cancellationToken = default)
     {
         var connection = LinuxDbusTransportBoundary.CreateSessionConnection();
-        await connection.ConnectAsync().ConfigureAwait(false);
-        return new LinuxDbusSession(connection);
+        try
+        {
+            await connection.ConnectAsync().AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+            return new LinuxDbusSession(connection);
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
     }
 
     public GnomeShellExtensionsClient CreateGnomeShellExtensionsClient()
@@ -31,7 +37,7 @@ internal sealed class LinuxDbusSession : IDisposable
     public KWinScriptingClient CreateKWinScriptingClient()
         => new(_connection);
 
-    public KWinScriptClient CreateKWinScriptClient(string scriptId)
+    public KWinScriptClient CreateKWinScriptClient(int scriptId)
         => new(_connection, scriptId);
 
     public void Dispose()

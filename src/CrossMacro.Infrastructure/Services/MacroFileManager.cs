@@ -1,154 +1,166 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using CrossMacro.Core.Logging;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Serialization;
-using CrossMacro.Platform.Abstractions;
+
+using CrossMacro.Infrastructure.Persistence.Macros;
+using static CrossMacro.Infrastructure.Persistence.Macros.MacroFileLimits;
 
 namespace CrossMacro.Infrastructure.Services;
 
 /// <summary>
 /// Handles saving and loading macro sequences from files
 /// </summary>
-public class MacroFileManager : IMacroFileManager
+public class MacroFileManager(
+    Func<IKeyCodeMapper> keyCodeMapperFactory,
+    IImageAssetCodec? imageAssetCodec = null,
+    IScriptValidationService? scriptValidationService = null) : IMacroFileManager
 {
-    private const string TrailingDelayHeader = "# TrailingDelayMs: ";
-    private const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
-    private const string TextInputBoundaryHeader = "# TextInputBoundaryBase64: ";
-    private const string ReadableFormatHeader = "# Format: CrossMacroFormatV2";
-    private const string ScriptSectionHeader = "[Script]";
-    private const string EventsSectionHeader = "[Events]";
-    private const string ScriptContinuationPrefix = "| ";
-    private readonly Func<IKeyCodeMapper> _keyCodeMapperFactory;
+    private readonly Func<IKeyCodeMapper> _keyCodeMapperFactory = keyCodeMapperFactory ?? throw new ArgumentNullException(nameof(keyCodeMapperFactory));
+    private readonly IScriptValidationService? _scriptValidationService = scriptValidationService;
+    private readonly MacroAssetValidator _assetValidator = new(imageAssetCodec ?? new ImageAssetCodec());
 
     private enum MacroFileReadSection
     {
         Header,
         Script,
-        Events
+        Events,
     }
 
-    public MacroFileManager(Func<IKeyCodeMapper> keyCodeMapperFactory)
-    {
-        _keyCodeMapperFactory = keyCodeMapperFactory ?? throw new ArgumentNullException(nameof(keyCodeMapperFactory));
-    }
-    
     /// <summary>
     /// Saves a macro sequence to a custom text file (.macro)
     /// </summary>
     public async Task SaveAsync(MacroSequence macro, string filePath)
     {
-        if (macro == null)
-            throw new ArgumentNullException(nameof(macro));
-            
+        var document = PersistedMacroCodec.Encode(macro);
+        await SaveDocumentAsync(document, filePath).ConfigureAwait(false);
+    }
+
+    private async Task SaveDocumentAsync(PersistedMacroDocument document, string filePath)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        var macro = PersistedMacroCodec.Decode(document);
+
         if (string.IsNullOrWhiteSpace(filePath))
+        {
             throw new ArgumentException("File path cannot be empty", nameof(filePath));
-        
+        }
+
         if (!macro.IsValid())
+        {
             throw new InvalidOperationException("Cannot save invalid macro sequence");
+        }
 
         ValidateScriptStepsBeforeSave(macro);
-        
-        // Ensure directory exists
+        var imageAssets = await ValidateImagesBeforeSaveAsync(macro).ConfigureAwait(false);
+
         var directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
-            Directory.CreateDirectory(directory);
+            _ = Directory.CreateDirectory(directory);
         }
-        
-        using var writer = new StreamWriter(filePath);
-        
-        // Write Header
-        // TODO: Deprecate # IsAbsolute once all supported .macro files carry explicit per-event coordinate mode tokens.
-        // It must remain for now as the legacy fallback for old token-less coordinate events.
-        var legacyHeaderIsAbsolute = GetLegacyHeaderCoordinateMode(macro);
-        await writer.WriteLineAsync($"# Name: {macro.Name}");
-        await writer.WriteLineAsync($"# Created: {macro.CreatedAt:O}");
-        await writer.WriteLineAsync($"# DurationMs: {macro.TotalDurationMs}");
-        await writer.WriteLineAsync($"# IsAbsolute: {legacyHeaderIsAbsolute}");
-        await writer.WriteLineAsync($"# SkipInitialZero: {macro.SkipInitialZeroZero}");
-        if (macro.TrailingDelayMs > 0)
+
+        var temporaryPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
+        try
         {
-            await writer.WriteLineAsync($"{TrailingDelayHeader}{macro.TrailingDelayMs}");
-        }
-        if (macro.HasTrailingRandomDelay)
-        {
-            await writer.WriteLineAsync($"{TrailingRandomDelayHeader}{macro.TrailingDelayMinMs},{macro.TrailingDelayMaxMs}");
-        }
-        foreach (var boundary in macro.TextInputBoundaries)
-        {
-            if (boundary.EventCount <= 0 || boundary.StartEventIndex < 0)
+            var temporaryStream = new FileStream(
+                temporaryPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                65536,
+                FileOptions.Asynchronous | FileOptions.WriteThrough);
+            await using (temporaryStream.ConfigureAwait(false))
             {
-                continue;
+                using (var writer = new StreamWriter(temporaryStream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1024, leaveOpen: true))
+                {
+                    await writer.WriteLineAsync($"# Name: {macro.Name}").ConfigureAwait(false);
+                    await writer.WriteLineAsync($"# Created: {macro.CreatedAt:O}").ConfigureAwait(false);
+                    await writer.WriteLineAsync($"# DurationMs: {macro.TotalDurationMs.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                    await writer.WriteLineAsync($"# IsAbsolute: {macro.IsAbsoluteCoordinates}").ConfigureAwait(false);
+                    await writer.WriteLineAsync($"# SkipInitialZero: {macro.SkipInitialZeroZero}").ConfigureAwait(false);
+                    if (macro.TrailingDelayMicroseconds > 0)
+                    {
+                        await writer.WriteLineAsync($"{TrailingDelayMicrosecondsHeader}{macro.TrailingDelayMicroseconds.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                    }
+                    if (macro.HasTrailingRandomDelay)
+                    {
+                        await writer.WriteLineAsync($"{TrailingRandomDelayHeader}{macro.TrailingDelayMinMs.ToString(CultureInfo.InvariantCulture)},{macro.TrailingDelayMaxMs.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                    }
+                    foreach (var boundary in macro.TextInputBoundaries)
+                    {
+                        if (boundary.EventCount <= 0 || boundary.StartEventIndex < 0)
+                        {
+                            continue;
+                        }
+
+                        var json = JsonSerializer.Serialize(boundary, MacroFileJsonContext.Default.TextInputBoundary);
+                        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+                        await writer.WriteLineAsync($"{TextInputBoundaryHeader}{encoded}").ConfigureAwait(false);
+                    }
+                    foreach (var image in imageAssets)
+                    {
+                        await writer.WriteLineAsync($"{ImageHeader}{image.Key} = {image.Value}").ConfigureAwait(false);
+                    }
+
+                    await writer.WriteLineAsync($"# Format: {document.Format}").ConfigureAwait(false);
+                    await writer.WriteLineAsync(ScriptSectionHeader).ConfigureAwait(false);
+                    foreach (var scriptStep in macro.ScriptSteps.Where(step => !string.IsNullOrWhiteSpace(step)))
+                    {
+                        await WriteScriptStepAsync(writer, scriptStep).ConfigureAwait(false);
+                    }
+
+                    await writer.WriteLineAsync(EventsSectionHeader).ConfigureAwait(false);
+                    foreach (var ev in macro.Events)
+                    {
+                        if (ev.DelayMicroseconds > 0)
+                        {
+                            await writer.WriteLineAsync($"WU,{ev.DelayMicroseconds.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                        }
+                        if (ev.HasRandomDelay)
+                        {
+                            await writer.WriteLineAsync($"WR,{ev.RandomDelayMinMs.ToString(CultureInfo.InvariantCulture)},{ev.RandomDelayMaxMs.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                        }
+
+                        switch (ev.Type)
+                        {
+                            case EventType.MouseMove:
+                                await writer.WriteLineAsync(BuildMouseMoveLine(ev)).ConfigureAwait(false);
+                                break;
+                            case EventType.ButtonPress:
+                                await writer.WriteLineAsync(BuildMouseButtonLine("P", ev)).ConfigureAwait(false);
+                                break;
+                            case EventType.ButtonRelease:
+                                await writer.WriteLineAsync(BuildMouseButtonLine("R", ev)).ConfigureAwait(false);
+                                break;
+                            case EventType.Click:
+                                await writer.WriteLineAsync(BuildMouseButtonLine("C", ev)).ConfigureAwait(false);
+                                break;
+                            case EventType.KeyPress:
+                                await writer.WriteLineAsync($"KP,{ev.KeyCode.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                                break;
+                            case EventType.KeyRelease:
+                                await writer.WriteLineAsync($"KR,{ev.KeyCode.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
+                                break;
+                        }
+                    }
+
+                    await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+
+                await temporaryStream.FlushAsync(CancellationToken.None).ConfigureAwait(false);
             }
 
-            var json = JsonSerializer.Serialize(boundary, MacroFileJsonContext.Default.TextInputBoundary);
-            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
-            await writer.WriteLineAsync($"{TextInputBoundaryHeader}{encoded}");
+            if (File.Exists(filePath))
+            {
+                File.Replace(temporaryPath, filePath, destinationBackupFileName: null);
+            }
+            else
+            {
+                File.Move(temporaryPath, filePath, overwrite: true);
+            }
         }
-
-        await writer.WriteLineAsync(ReadableFormatHeader);
-        await writer.WriteLineAsync(ScriptSectionHeader);
-        foreach (var scriptStep in macro.ScriptSteps)
+        finally
         {
-            if (string.IsNullOrWhiteSpace(scriptStep))
+            if (File.Exists(temporaryPath))
             {
-                continue;
-            }
-
-            await WriteScriptStepAsync(writer, scriptStep);
-        }
-
-        await writer.WriteLineAsync(EventsSectionHeader);
-        
-        // Write Events
-        foreach (var ev in macro.Events)
-        {
-            // Write Delay as separate line if > 0
-            if (ev.DelayMs > 0)
-            {
-                await writer.WriteLineAsync($"W,{ev.DelayMs}");
-            }
-            if (ev.HasRandomDelay)
-            {
-                await writer.WriteLineAsync($"WR,{ev.RandomDelayMinMs},{ev.RandomDelayMaxMs}");
-            }
-
-            switch (ev.Type)
-            {
-                case EventType.MouseMove:
-                    await writer.WriteLineAsync(BuildMouseMoveLine(ev));
-                    break;
-                    
-                case EventType.ButtonPress:
-                    // Format: P,X,Y,Button
-                    await writer.WriteLineAsync(BuildMouseButtonLine("P", ev));
-                    break;
-                    
-                case EventType.ButtonRelease:
-                    // Format: R,X,Y,Button
-                    await writer.WriteLineAsync(BuildMouseButtonLine("R", ev));
-                    break;
-                    
-                case EventType.Click:
-                    // Format: C,X,Y,Button (Used for Scroll)
-                    await writer.WriteLineAsync(BuildMouseButtonLine("C", ev));
-                    break;
-                    
-                case EventType.KeyPress:
-                    // Format: KP,KeyCode
-                    await writer.WriteLineAsync($"KP,{ev.KeyCode}");
-                    break;
-                    
-                case EventType.KeyRelease:
-                    // Format: KR,KeyCode
-                    await writer.WriteLineAsync($"KR,{ev.KeyCode}");
-                    break;
+                File.Delete(temporaryPath);
             }
         }
     }
@@ -157,52 +169,36 @@ public class MacroFileManager : IMacroFileManager
     {
         if (ev.UseCurrentPosition)
         {
-            return $"{command},{ev.X},{ev.Y},{ev.Button},CurrentPosition";
+            return $"{command},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)},{ev.Button},CurrentPosition";
         }
 
-        if (MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev) && ev.CoordinateMode.HasValue)
+        if (MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev) && ev.CoordinateMode is not null)
         {
-            return $"{command},{ToCoordinateModeToken(ev.CoordinateMode.Value)},{ev.X},{ev.Y},{ev.Button}";
+            return $"{command},{ToCoordinateModeToken(ev)},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)},{ev.Button}";
         }
 
-        return $"{command},{ev.X},{ev.Y},{ev.Button}";
+        return $"{command},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)},{ev.Button}";
     }
 
     private static string BuildMouseMoveLine(MacroEvent ev)
     {
-        return ev.CoordinateMode.HasValue
-            ? $"M,{ToCoordinateModeToken(ev.CoordinateMode.Value)},{ev.X},{ev.Y}"
-            : $"M,{ev.X},{ev.Y}";
+        return ev.CoordinateMode is not null ? $"M,{ToCoordinateModeToken(ev)},{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)}"
+            : $"M,{ev.X.ToString(CultureInfo.InvariantCulture)},{ev.Y.ToString(CultureInfo.InvariantCulture)}";
     }
 
-    private static bool GetLegacyHeaderCoordinateMode(MacroSequence macro)
+    private static string ToCoordinateModeToken(MacroEvent ev)
     {
-        if (macro.Events.Any(ev => MacroPositionSemantics.IsCoordinateBearing(ev)
-            && !MacroPositionSemantics.HasExplicitCoordinateMode(ev)))
+        if (ev.CoordinateMode is MouseCoordinateMode.Absolute)
         {
-            return macro.IsAbsoluteCoordinates;
+            return "abs";
         }
 
-        // Event-level coordinate mode wins; the header remains legacy/default metadata.
-        foreach (var ev in macro.Events)
-        {
-            if (MacroPositionSemantics.HasExplicitCoordinateMode(ev))
-            {
-                return ev.CoordinateMode == MouseCoordinateMode.Absolute;
-            }
-        }
-
-        return macro.IsAbsoluteCoordinates;
-    }
-
-    private static string ToCoordinateModeToken(MouseCoordinateMode mode)
-    {
-        return mode == MouseCoordinateMode.Absolute ? "abs" : "rel";
+        return ev.CoordinateSpace is MouseCoordinateSpace.LogicalDesktop ? "rel-logical" : "rel-raw";
     }
 
     private void ValidateScriptStepsBeforeSave(MacroSequence macro)
     {
-        if (macro.ScriptSteps == null)
+        if (macro.ScriptSteps is null)
         {
             return;
         }
@@ -219,27 +215,28 @@ public class MacroFileManager : IMacroFileManager
             steps.Add(new RunScriptStep(step, SourceIndex: index));
         }
 
-        if (steps.Count == 0)
+        if (steps.Count is 0)
         {
             return;
         }
 
-        var compiler = new RunScriptCompiler(_keyCodeMapperFactory());
-        var result = compiler.Compile(steps);
-        if (!result.Success)
+        var validationService = _scriptValidationService ?? new ScriptValidationService(_keyCodeMapperFactory());
+        var diagnostics = validationService.Validate(steps);
+        var diagnostic = diagnostics.Count > 0 ? diagnostics[0] : null;
+        if (diagnostic is not null)
         {
-            throw new InvalidOperationException($"Cannot save invalid macro script steps: {result.ErrorMessage}");
+            throw new InvalidOperationException($"Cannot save invalid macro script steps: {diagnostic.Message}");
         }
     }
 
     private static async Task WriteScriptStepAsync(TextWriter writer, string scriptStep)
     {
-        var normalized = scriptStep.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
+        var normalized = scriptStep.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         var lines = normalized.Split('\n');
-        await writer.WriteLineAsync(lines[0]);
+        await writer.WriteLineAsync(lines[0]).ConfigureAwait(false);
         for (var index = 1; index < lines.Length; index++)
         {
-            await writer.WriteLineAsync($"{ScriptContinuationPrefix}{lines[index]}");
+            await writer.WriteLineAsync($"{ScriptContinuationPrefix}{lines[index]}").ConfigureAwait(false);
         }
     }
 
@@ -248,36 +245,75 @@ public class MacroFileManager : IMacroFileManager
     /// </summary>
     public async Task<MacroSequence?> LoadAsync(string filePath)
     {
+        return await LoadRuntimeAsync(filePath).ConfigureAwait(false);
+    }
+
+    private async Task<MacroSequence?> LoadRuntimeAsync(string filePath)
+    {
         if (string.IsNullOrWhiteSpace(filePath))
+        {
             throw new ArgumentException("File path cannot be empty", nameof(filePath));
-        
+        }
+
         if (!File.Exists(filePath))
+        {
             throw new FileNotFoundException("Macro file not found", filePath);
-        
+        }
+
+        ValidateMacroFile(filePath);
         var macro = new MacroSequence();
-        var lines = await File.ReadAllLinesAsync(filePath);
-        
-        int currentDelay = 0;
+        var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var fileStreamDisposal = fileStream.ConfigureAwait(false);
+        using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 65536);
+        var lineReader = new BoundedLineReader(reader, MaxMacroLineChars);
+
+        long currentDelayMicroseconds = 0;
         bool currentHasRandomDelay = false;
         int currentRandomDelayMinMs = 0;
         int currentRandomDelayMaxMs = 0;
         var section = MacroFileReadSection.Header;
-        string? pendingScriptStep = null;
+        StringBuilder? pendingScriptStep = null;
+        var totalEncodedImageChars = 0L;
+        var lineNumber = 0;
+        var scriptStepCount = 0;
+
+        void ResetPendingEventTiming()
+        {
+            currentDelayMicroseconds = 0;
+            currentHasRandomDelay = false;
+            currentRandomDelayMinMs = 0;
+            currentRandomDelayMaxMs = 0;
+        }
 
         void CommitPendingScriptStep()
         {
-            if (!string.IsNullOrWhiteSpace(pendingScriptStep))
+            var scriptStep = pendingScriptStep?.ToString();
+            if (!string.IsNullOrWhiteSpace(scriptStep))
             {
-                macro.ScriptSteps.Add(pendingScriptStep);
+                if (++scriptStepCount > MaxMacroScriptSteps)
+                {
+                    throw new InvalidDataException($"Macro script exceeds the maximum of {MaxMacroScriptSteps} steps.");
+                }
+
+                macro.ScriptSteps.Add(scriptStep);
             }
 
             pendingScriptStep = null;
         }
-        
-        foreach (var line in lines)
+
+        while (await lineReader.ReadLineAsync().ConfigureAwait(false) is { } line)
         {
+            lineNumber++;
+            if (lineNumber > MaxMacroFileLines)
+            {
+                throw new InvalidDataException($"Macro file exceeds the maximum of {MaxMacroFileLines} lines.");
+            }
+
             var trimmed = line.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed)) continue;
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                continue;
+            }
 
             if (string.Equals(trimmed, ScriptSectionHeader, StringComparison.Ordinal))
             {
@@ -293,9 +329,9 @@ public class MacroFileManager : IMacroFileManager
                 continue;
             }
 
-            if (section == MacroFileReadSection.Script)
+            if (section is MacroFileReadSection.Script)
             {
-                if (trimmed.StartsWith("#", StringComparison.Ordinal))
+                if (trimmed.StartsWith('#'))
                 {
                     continue;
                 }
@@ -308,42 +344,60 @@ public class MacroFileManager : IMacroFileManager
                         continue;
                     }
 
-                    pendingScriptStep += "\n" + line[ScriptContinuationPrefix.Length..];
+                    _ = pendingScriptStep.Append('\n').Append(line[ScriptContinuationPrefix.Length..]);
                     continue;
                 }
 
                 CommitPendingScriptStep();
-                pendingScriptStep = line;
+                pendingScriptStep = new StringBuilder(line);
                 continue;
             }
 
-            if (trimmed.StartsWith("#", StringComparison.Ordinal))
+            if (trimmed.StartsWith('#'))
             {
-                if (section != MacroFileReadSection.Header)
+                if (section is not MacroFileReadSection.Header)
                 {
                     continue;
                 }
 
                 // Parse Header
-                if (line.StartsWith("# Name: "))
+                if (line.StartsWith("# Name: ", StringComparison.Ordinal))
+                {
                     macro.Name = line.Substring(8).Trim();
-                else if (line.StartsWith("# Created: ") && DateTime.TryParse(line.Substring(11).Trim(), out var date))
+                }
+                else if (line.StartsWith("# Created: ", StringComparison.Ordinal) && DateTime.TryParse(line.Substring(11).Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                {
                     macro.CreatedAt = date;
-                else if (line.StartsWith("# DurationMs: ") && long.TryParse(line.Substring(14).Trim(), out var duration))
+                }
+                else if (line.StartsWith("# DurationMs: ", StringComparison.Ordinal) && long.TryParse(line.Substring(14).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var duration))
+                {
                     macro.TotalDurationMs = duration;
-                else if (line.StartsWith("# IsAbsolute: ") && bool.TryParse(line.Substring(14).Trim(), out var isAbs))
-                    macro.IsAbsoluteCoordinates = isAbs;
-                else if (line.StartsWith("# SkipInitialZero: ") && bool.TryParse(line.Substring(19).Trim(), out var skipZero))
+                }
+                else if (line.StartsWith("# IsAbsolute: ", StringComparison.Ordinal) && bool.TryParse(line.Substring(14).Trim(), out var isAbsolute))
+                {
+                    macro.IsAbsoluteCoordinates = isAbsolute;
+                }
+                else if (line.StartsWith("# SkipInitialZero: ", StringComparison.Ordinal) && bool.TryParse(line.Substring(19).Trim(), out var skipZero))
+                {
                     macro.SkipInitialZeroZero = skipZero;
+                }
+                else if (line.StartsWith(TrailingDelayMicrosecondsHeader, StringComparison.Ordinal)
+                                    && long.TryParse(line.Substring(TrailingDelayMicrosecondsHeader.Length).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingDelayMicroseconds)
+                                    && trailingDelayMicroseconds >= 0)
+                {
+                    macro.TrailingDelayMicroseconds = trailingDelayMicroseconds;
+                }
                 else if (line.StartsWith(TrailingDelayHeader, StringComparison.Ordinal)
-                    && int.TryParse(line.Substring(TrailingDelayHeader.Length).Trim(), out var trailingDelay))
+                                    && int.TryParse(line.Substring(TrailingDelayHeader.Length).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingDelay))
+                {
                     macro.TrailingDelayMs = trailingDelay;
+                }
                 else if (line.StartsWith(TrailingRandomDelayHeader, StringComparison.Ordinal))
                 {
                     var trailingRandomParts = line.Substring(TrailingRandomDelayHeader.Length).Trim().Split(',');
                     if (trailingRandomParts.Length >= 2
-                        && int.TryParse(trailingRandomParts[0], out var trailingRandomMin)
-                        && int.TryParse(trailingRandomParts[1], out var trailingRandomMax))
+                        && int.TryParse(trailingRandomParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingRandomMin)
+                        && int.TryParse(trailingRandomParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var trailingRandomMax))
                     {
                         macro.HasTrailingRandomDelay = true;
                         macro.TrailingDelayMinMs = trailingRandomMin;
@@ -371,33 +425,50 @@ public class MacroFileManager : IMacroFileManager
                         }
                     }
                 }
-                
+                else if (line.StartsWith(ImageHeader, StringComparison.Ordinal))
+                {
+                    totalEncodedImageChars = await _assetValidator.AddImageMetadataAsync(macro, line, totalEncodedImageChars).ConfigureAwait(false);
+                }
+
                 continue;
             }
 
-            if (section == MacroFileReadSection.Script)
+            if (section is MacroFileReadSection.Script)
             {
                 continue;
             }
-            
+
             // Parse Event
             var parts = line.Split(',');
-            if (parts.Length == 0) continue;
-            
-            string type = parts[0].ToUpperInvariant();
-            
-            // Handle Wait
-            if ((type == "W" || type == "WAIT") && parts.Length >= 2)
+            if (parts.Length is 0)
             {
-                if (int.TryParse(parts[1], out int delay))
+                continue;
+            }
+
+            string type = parts[0].ToUpperInvariant();
+
+            // Handle Wait
+            if ((type is "W" or "WAIT") && parts.Length >= 2)
+            {
+                if (int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int delay))
                 {
-                    currentDelay += delay;
+                    currentDelayMicroseconds = checked(
+                        currentDelayMicroseconds + ((long)delay * MacroTiming.MicrosecondsPerMillisecond));
                 }
                 continue;
             }
-            if ((type == "WR" || type == "WAITRANDOM") && parts.Length >= 3)
+            if ((type is "WU" or "WAITUS" or "WAITMICROSECONDS") && parts.Length >= 2)
             {
-                if (int.TryParse(parts[1], out int randomMinDelay) && int.TryParse(parts[2], out int randomMaxDelay))
+                if (long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long delayMicroseconds)
+                    && delayMicroseconds >= 0)
+                {
+                    currentDelayMicroseconds = checked(currentDelayMicroseconds + delayMicroseconds);
+                }
+                continue;
+            }
+            if ((type is "WR" or "WAITRANDOM") && parts.Length >= 3)
+            {
+                if (int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int randomMinDelay) && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int randomMaxDelay))
                 {
                     currentHasRandomDelay = true;
                     currentRandomDelayMinMs += randomMinDelay;
@@ -405,148 +476,175 @@ public class MacroFileManager : IMacroFileManager
                 }
                 continue;
             }
-            
+
             try
             {
                 var ev = new MacroEvent
                 {
-                    DelayMs = currentDelay,
+                    DelayMicroseconds = currentDelayMicroseconds,
                     HasRandomDelay = currentHasRandomDelay,
                     RandomDelayMinMs = currentRandomDelayMinMs,
-                    RandomDelayMaxMs = currentRandomDelayMaxMs
+                    RandomDelayMaxMs = currentRandomDelayMaxMs,
                 };
                 bool validEvent = false;
 
                 // Handle Move
-                if ((type == "M" || type == "MOVE") && parts.Length >= 3)
+                if ((type is "M" or "MOVE") && parts.Length >= 3)
                 {
                     var coordinateIndex = 1;
-                    if (!int.TryParse(parts[coordinateIndex], out var x))
+                    if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
                     {
-                        if (parts.Length < 4 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode))
+                        if (parts.Length < 4 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode, out var space))
                         {
                             throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
                         }
 
                         ev.CoordinateMode = mode;
+                        ev.CoordinateSpace = space;
                         coordinateIndex++;
-                        x = int.Parse(parts[coordinateIndex]);
+                        x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     }
 
                     ev.Type = EventType.MouseMove;
                     ev.X = x;
-                    ev.Y = int.Parse(parts[coordinateIndex + 1]);
-                    ev.Button = MouseButton.None;
+                    ev.Y = int.Parse(parts[coordinateIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture);
+                    ev.Button = MacroMouseButton.None;
                     validEvent = true;
                 }
                 // Handle Button Events
-                else if ((type == "P" || type == "PRESS" || 
-                          type == "R" || type == "RELEASE" || 
-                          type == "C" || type == "CLICK") && parts.Length >= 4)
+                else if ((type is "P" or "PRESS" or "R" or "RELEASE" or "C" or "CLICK") && parts.Length >= 4)
                 {
                     var coordinateIndex = 1;
                     MouseCoordinateMode? coordinateMode = null;
-                    if (!int.TryParse(parts[coordinateIndex], out var x))
+                    MouseCoordinateSpace? coordinateSpace = null;
+                    if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
                     {
-                        if (parts.Length < 5 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode))
+                        if (parts.Length < 5 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode, out var space))
                         {
                             throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
                         }
 
                         coordinateMode = mode;
+                        coordinateSpace = space;
                         coordinateIndex++;
-                        x = int.Parse(parts[coordinateIndex]);
+                        x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
                     }
 
-                    ev.Type = type switch 
+                    ev.Type = type switch
                     {
                         "P" or "PRESS" => EventType.ButtonPress,
                         "R" or "RELEASE" => EventType.ButtonRelease,
                         "C" or "CLICK" => EventType.Click,
-                        _ => EventType.Click
+                        _ => EventType.Click,
                     };
                     ev.X = x;
-                    ev.Y = int.Parse(parts[coordinateIndex + 1]);
-                    ev.Button = Enum.Parse<MouseButton>(parts[coordinateIndex + 2]);
+                    ev.Y = int.Parse(parts[coordinateIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture);
+                    ev.Button = Enum.Parse<MacroMouseButton>(parts[coordinateIndex + 2], ignoreCase: true);
                     ev.UseCurrentPosition = parts.Length > coordinateIndex + 3 && IsCurrentPositionToken(parts[coordinateIndex + 3]);
                     if (!ev.UseCurrentPosition && MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
                     {
                         ev.CoordinateMode = coordinateMode;
+                        ev.CoordinateSpace = coordinateSpace;
                     }
 
                     validEvent = true;
                 }
                 // Handle Keyboard Events
-                else if ((type == "KP" || type == "KEYPRESS") && parts.Length >= 2)
+                else if ((type is "KP" or "KEYPRESS") && parts.Length >= 2)
                 {
                     ev.Type = EventType.KeyPress;
-                    ev.KeyCode = int.Parse(parts[1]);
-                    ev.Button = MouseButton.None;
+                    ev.KeyCode = int.Parse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture);
+                    ev.Button = MacroMouseButton.None;
                     ev.X = 0;
                     ev.Y = 0;
                     validEvent = true;
                 }
-                else if ((type == "KR" || type == "KEYRELEASE") && parts.Length >= 2)
+                else if ((type is "KR" or "KEYRELEASE") && parts.Length >= 2)
                 {
                     ev.Type = EventType.KeyRelease;
-                    ev.KeyCode = int.Parse(parts[1]);
-                    ev.Button = MouseButton.None;
+                    ev.KeyCode = int.Parse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture);
+                    ev.Button = MacroMouseButton.None;
                     ev.X = 0;
                     ev.Y = 0;
                     validEvent = true;
                 }
-                
+
                 if (validEvent)
                 {
-                    // Reconstruct timestamp
+                    if (macro.Events.Count >= MaxMacroEvents)
+                    {
+                        throw new InvalidDataException($"Macro events exceed the maximum of {MaxMacroEvents} events at line {lineNumber.ToString(CultureInfo.InvariantCulture)}.");
+                    }
+
                     if (macro.Events.Count > 0)
                     {
-                        ev.Timestamp = macro.Events[^1].Timestamp + ev.DelayMs;
-                        if (ev.HasRandomDelay)
-                        {
-                            ev.Timestamp += ev.RandomDelayMinMs;
-                        }
+                        var lastEvent = macro.Events[^1];
+                        ev.TimestampMicroseconds = checked(
+                            lastEvent.TimestampMicroseconds
+                            + ev.DelayMicroseconds
+                            + (ev.HasRandomDelay
+                                ? (long)ev.RandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond
+                                : 0));
                     }
                     else
                     {
-                        ev.Timestamp = 0;
+                        ev.TimestampMicroseconds = 0;
                     }
-                    
+
                     macro.Events.Add(ev);
-                    currentDelay = 0; // Reset delay after consuming it
-                    currentHasRandomDelay = false;
-                    currentRandomDelayMinMs = 0;
-                    currentRandomDelayMaxMs = 0;
+                    ResetPendingEventTiming();
                 }
                 else
                 {
                     Log.Warning("Ignoring unsupported or malformed event line: {Line}", line);
-                    currentDelay = 0;
-                    currentHasRandomDelay = false;
-                    currentRandomDelayMinMs = 0;
-                    currentRandomDelayMaxMs = 0;
+                    ResetPendingEventTiming();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.Warning(ex, "Error parsing line: {Line}", line);
-                currentDelay = 0;
-                currentHasRandomDelay = false;
-                currentRandomDelayMinMs = 0;
-                currentRandomDelayMaxMs = 0;
+                ResetPendingEventTiming();
             }
         }
 
         CommitPendingScriptStep();
 
         MarkLegacyCurrentPositionEvents(macro);
-        
+
         // Recalculate stats
         macro.CalculateDuration();
-        macro.MouseMoveCount = macro.Events.Count(e => e.Type == EventType.MouseMove);
-        macro.ClickCount = macro.Events.Count(e => e.Type != EventType.MouseMove);
-        
+        macro.MouseMoveCount = macro.Events.Count(e => e.Type is EventType.MouseMove);
+        macro.ClickCount = macro.Events.Count(e => e.Type is not EventType.MouseMove);
+
+        MacroAssetValidator.ValidateReferences(macro.ScriptSteps, macro.Images, "Loaded macro");
         return macro;
+    }
+
+    private static void ValidateMacroFile(string filePath)
+    {
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Attributes.HasFlag(FileAttributes.Directory)
+            || fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new InvalidDataException("Macro path must refer to a regular file.");
+        }
+
+        long length;
+        try
+        {
+            length = fileInfo.Length;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            throw new InvalidDataException("Macro path must refer to a regular file.", ex);
+        }
+
+        if (length is <= 0 or > MaxMacroFileBytes)
+        {
+            throw new InvalidDataException(length <= 0
+                ? "Macro file is empty."
+                : $"Macro file exceeds the maximum size of {MaxMacroFileBytes} bytes.");
+        }
     }
 
     private static bool IsCurrentPositionToken(string token)
@@ -558,13 +656,69 @@ public class MacroFileManager : IMacroFileManager
             || token.Trim().Equals("1", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool TryParseCoordinateMode(string token, out MouseCoordinateMode mode)
+    private Task<List<KeyValuePair<string, string>>> ValidateImagesBeforeSaveAsync(MacroSequence macro)
+        => _assetValidator.ValidateBeforeSaveAsync(macro);
+
+    private sealed class BoundedLineReader(StreamReader reader, int maxChars)
+    {
+        private readonly StreamReader _reader = reader;
+        private readonly int _maxChars = maxChars;
+        private readonly char[] _buffer = new char[4096];
+        private int _bufferPosition;
+        private int _bufferLength;
+
+        public async Task<string?> ReadLineAsync()
+        {
+            var builder = new StringBuilder();
+            while (true)
+            {
+                if (_bufferPosition == _bufferLength)
+                {
+                    _bufferLength = await _reader.ReadAsync(_buffer.AsMemory(), CancellationToken.None).ConfigureAwait(false);
+                    _bufferPosition = 0;
+                    if (_bufferLength is 0)
+                    {
+                        return builder.Length is 0 ? null : builder.ToString();
+                    }
+                }
+
+                var lineEnd = Array.IndexOf(_buffer, '\n', _bufferPosition, _bufferLength - _bufferPosition);
+                var segmentEnd = lineEnd >= 0 ? lineEnd : _bufferLength;
+                var segmentLength = segmentEnd - _bufferPosition;
+                if (builder.Length + segmentLength > _maxChars)
+                {
+                    throw new InvalidDataException($"Macro line exceeds the maximum of {_maxChars.ToString(CultureInfo.InvariantCulture)} characters.");
+                }
+
+                _ = builder.Append(_buffer, _bufferPosition, segmentLength);
+                _bufferPosition = segmentEnd;
+                if (lineEnd < 0)
+                {
+                    continue;
+                }
+
+                _bufferPosition++;
+                if (builder.Length > 0 && builder[^1] == '\r')
+                {
+                    builder.Length--;
+                }
+
+                return builder.ToString();
+            }
+        }
+    }
+
+    private static bool TryParseCoordinateMode(
+        string token,
+        out MouseCoordinateMode mode,
+        out MouseCoordinateSpace? space)
     {
         var normalized = token.Trim();
         if (normalized.Equals("abs", StringComparison.OrdinalIgnoreCase)
             || normalized.Equals("absolute", StringComparison.OrdinalIgnoreCase))
         {
             mode = MouseCoordinateMode.Absolute;
+            space = MouseCoordinateSpace.LogicalDesktop;
             return true;
         }
 
@@ -572,10 +726,26 @@ public class MacroFileManager : IMacroFileManager
             || normalized.Equals("relative", StringComparison.OrdinalIgnoreCase))
         {
             mode = MouseCoordinateMode.Relative;
+            space = null;
+            return true;
+        }
+
+        if (normalized.Equals("rel-logical", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = MouseCoordinateMode.Relative;
+            space = MouseCoordinateSpace.LogicalDesktop;
+            return true;
+        }
+
+        if (normalized.Equals("rel-raw", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = MouseCoordinateMode.Relative;
+            space = MouseCoordinateSpace.RawDevice;
             return true;
         }
 
         mode = default;
+        space = null;
         return false;
     }
 
@@ -594,9 +764,9 @@ public class MacroFileManager : IMacroFileManager
         {
             var ev = macro.Events[index];
 
-            if (ev.Type == EventType.MouseMove)
+            if (ev.Type is EventType.MouseMove)
             {
-                if (ev.X != 0 || ev.Y != 0)
+                if (ev.X is not 0 || ev.Y is not 0)
                 {
                     break;
                 }
@@ -614,7 +784,7 @@ public class MacroFileManager : IMacroFileManager
                 break;
             }
 
-            if (ev.X != 0 || ev.Y != 0)
+            if (ev.X is not 0 || ev.Y is not 0)
             {
                 if (!markedAny)
                 {

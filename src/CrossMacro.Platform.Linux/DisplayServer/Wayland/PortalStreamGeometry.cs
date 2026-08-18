@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
@@ -6,9 +5,9 @@ internal static class PortalStreamGeometry
 {
     private const uint MonitorSourceType = 1;
 
-    public static PortalStreamValidationResult ValidateMonitorStreams(IReadOnlyList<PortalStream> streams, ScreenRect? requestedRegion = null)
+    public static PortalStreamValidationResult ValidateMonitorStreams(IReadOnlyList<PortalStreamDescriptor> streams, ScreenRect? requestedRegion = null)
     {
-        if (streams.Count == 0)
+        if (streams.Count is 0)
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
@@ -33,14 +32,14 @@ internal static class PortalStreamGeometry
             {
                 return PortalStreamValidationResult.Failure(
                     ScreenReadErrorKind.CaptureFailed,
-                    $"GNOME portal returned duplicate monitor stream id '{monitor.Id}'. CrossMacro rejects duplicate monitor metadata to avoid ambiguous coordinate routing.");
+                    $"ScreenCast portal returned duplicate monitor stream id '{monitor.Id}'. CrossMacro rejects duplicate monitor metadata to avoid ambiguous coordinate routing.");
             }
 
             if (!bounds.Add(monitor.Bounds))
             {
                 return PortalStreamValidationResult.Failure(
                     ScreenReadErrorKind.CaptureFailed,
-                    $"GNOME portal returned duplicate monitor stream bounds {FormatBounds(monitor.Bounds)}. CrossMacro rejects duplicate monitor metadata to avoid ambiguous coordinate routing.");
+                    $"ScreenCast portal returned duplicate monitor stream bounds {FormatBounds(monitor.Bounds)}. CrossMacro rejects duplicate monitor metadata to avoid ambiguous coordinate routing.");
             }
 
             monitors.Add(monitor);
@@ -50,7 +49,7 @@ internal static class PortalStreamGeometry
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.OutOfBounds,
-                $"Requested region {FormatBounds(requestedRegion.Value)} is outside validated XDG Desktop Portal monitor coverage {FormatBounds(monitors)}. CrossMacro cannot force GNOME portal to select all monitors or a specific monitor; retry and select the monitor containing the requested coordinates.");
+                $"Requested region {FormatBounds(requestedRegion.Value)} is outside validated XDG Desktop Portal monitor coverage {FormatBounds(monitors)}. CrossMacro cannot force the portal to select all monitors or a specific monitor; retry and select the monitor containing the requested coordinates.");
         }
 
         return PortalStreamValidationResult.Success(monitors, GetUnionBounds(monitors));
@@ -58,15 +57,7 @@ internal static class PortalStreamGeometry
 
     public static IReadOnlyList<PortalMonitorStream> GetIntersectingStreams(IReadOnlyList<PortalMonitorStream> streams, ScreenRect region)
     {
-        var result = new List<PortalMonitorStream>();
-        foreach (var stream in streams)
-        {
-            if (Intersects(stream.Bounds, region))
-            {
-                result.Add(stream);
-            }
-        }
-
+        var result = streams.Where(stream => Intersects(stream.Bounds, region)).ToList();
         return result;
     }
 
@@ -86,35 +77,35 @@ internal static class PortalStreamGeometry
         return true;
     }
 
-    private static PortalStreamValidationResult ValidateMonitorStream(PortalStream stream, int index)
+    private static PortalStreamValidationResult ValidateMonitorStream(PortalStreamDescriptor stream, int index)
     {
         var properties = stream.Properties;
         if (!TryReadSourceType(properties, out var sourceType))
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
-                $"Portal stream {index} did not include source_type. CrossMacro cannot route coordinates without monitor source metadata.");
+                $"Portal stream {index.ToString(CultureInfo.InvariantCulture)} did not include source_type. CrossMacro cannot route coordinates without monitor source metadata.");
         }
 
         if (sourceType != MonitorSourceType)
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
-                $"GNOME portal returned a non-monitor stream with source_type={sourceType}. CrossMacro requests monitor sources only, but cannot force GNOME portal selections; select monitor sources only.");
+                $"ScreenCast portal returned a non-monitor stream with source_type={sourceType}. CrossMacro requests monitor sources only, but cannot force portal selections; select monitor sources only.");
         }
 
         if (!TryReadPosition(properties, out var x, out var y))
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
-                $"Portal monitor stream {index} did not include a valid position. CrossMacro cannot route coordinates without monitor geometry.");
+                $"Portal monitor stream {index.ToString(CultureInfo.InvariantCulture)} did not include a valid position. CrossMacro cannot route coordinates without monitor geometry.");
         }
 
         if (!TryReadSize(properties, out var width, out var height))
         {
             return PortalStreamValidationResult.Failure(
                 ScreenReadErrorKind.CaptureFailed,
-                $"Portal monitor stream {index} did not include a valid positive size. CrossMacro cannot route coordinates without monitor geometry.");
+                $"Portal monitor stream {index.ToString(CultureInfo.InvariantCulture)} did not include a valid positive size. CrossMacro cannot route coordinates without monitor geometry.");
         }
 
         return PortalStreamValidationResult.Success(new PortalMonitorStream(stream, TryReadId(properties), new ScreenRect(x, y, width, height)));
@@ -160,7 +151,7 @@ internal static class PortalStreamGeometry
             Array { Length: >= 2 } items => TryToInt32(items.GetValue(0), allowNegative, out first) && TryToInt32(items.GetValue(1), allowNegative, out second),
             ValueTuple<object, object> tuple => TryToInt32(tuple.Item1, allowNegative, out first) && TryToInt32(tuple.Item2, allowNegative, out second),
             Tuple<object, object> tuple => TryToInt32(tuple.Item1, allowNegative, out first) && TryToInt32(tuple.Item2, allowNegative, out second),
-            _ => false
+            _ => false,
         };
     }
 
@@ -196,7 +187,7 @@ internal static class PortalStreamGeometry
         }
     }
 
-    private static ScreenRect GetUnionBounds(IReadOnlyList<PortalMonitorStream> streams)
+    private static ScreenRect GetUnionBounds(List<PortalMonitorStream> streams)
     {
         var left = streams[0].Bounds.X;
         var top = streams[0].Bounds.Y;
@@ -223,9 +214,8 @@ internal static class PortalStreamGeometry
             var nextY = region.Bottom;
             var intervals = new List<(int Left, int Right)>();
 
-            foreach (var stream in streams)
+            foreach (var bounds in streams.Select(static stream => stream.Bounds))
             {
-                var bounds = stream.Bounds;
                 if (bounds.Y > currentY && bounds.Y < nextY)
                 {
                     nextY = bounds.Y;
@@ -279,48 +269,8 @@ internal static class PortalStreamGeometry
         first.X < second.Right && first.Right > second.X && first.Y < second.Bottom && first.Bottom > second.Y;
 
     private static string FormatBounds(IReadOnlyList<PortalMonitorStream> streams) =>
-        string.Join(", ", streams.Select(stream => FormatBounds(stream.Bounds)));
+        string.Join(", ", streams.Select(static stream => FormatBounds(stream.Bounds)));
 
     private static string FormatBounds(ScreenRect bounds) =>
-        $"({bounds.X},{bounds.Y},{bounds.Width}x{bounds.Height})";
-}
-
-internal readonly record struct PortalMonitorStream(PortalStream Stream, string? Id, ScreenRect Bounds);
-
-internal sealed class PortalStreamValidationResult
-{
-    private PortalStreamValidationResult(
-        IReadOnlyList<PortalMonitorStream> streams,
-        ScreenRect? selectedBounds,
-        ScreenReadErrorKind? errorKind,
-        string? errorMessage)
-    {
-        Streams = streams;
-        SelectedBounds = selectedBounds;
-        ErrorKind = errorKind;
-        ErrorMessage = errorMessage;
-    }
-
-    public bool IsSuccess => ErrorKind is null;
-
-    public IReadOnlyList<PortalMonitorStream> Streams { get; }
-
-    public ScreenRect? SelectedBounds { get; }
-
-    public ScreenReadErrorKind? ErrorKind { get; }
-
-    public string? ErrorMessage { get; }
-
-    public PortalMonitorStream Stream => Streams.Count == 1
-        ? Streams[0]
-        : throw new InvalidOperationException("Portal stream validation did not contain exactly one stream.");
-
-    public static PortalStreamValidationResult Success(PortalMonitorStream stream) =>
-        new([stream], stream.Bounds, null, null);
-
-    public static PortalStreamValidationResult Success(IReadOnlyList<PortalMonitorStream> streams, ScreenRect selectedBounds) =>
-        new(streams, selectedBounds, null, null);
-
-    public static PortalStreamValidationResult Failure(ScreenReadErrorKind errorKind, string errorMessage) =>
-        new([], null, errorKind, errorMessage);
+        $"({bounds.X.ToString(CultureInfo.InvariantCulture)},{bounds.Y.ToString(CultureInfo.InvariantCulture)},{bounds.Width.ToString(CultureInfo.InvariantCulture)}x{bounds.Height.ToString(CultureInfo.InvariantCulture)})";
 }

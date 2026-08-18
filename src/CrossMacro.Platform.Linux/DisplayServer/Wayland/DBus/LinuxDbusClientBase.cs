@@ -1,33 +1,19 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Tmds.DBus.Protocol;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
-internal delegate void MessageWriterAction(ref MessageWriter writer);
-
-internal abstract class LinuxDbusClientBase
+internal abstract class LinuxDbusClientBase(DBusConnection connection, string serviceName, string objectPath, string interfaceName)
 {
-    private readonly DBusConnection _connection;
+    protected DBusConnection Connection { get; } = connection;
 
-    protected LinuxDbusClientBase(DBusConnection connection, string serviceName, string objectPath, string interfaceName)
-    {
-        _connection = connection;
-        ServiceName = serviceName;
-        ObjectPath = objectPath;
-        InterfaceName = interfaceName;
-    }
+    protected string ServiceName { get; } = serviceName;
 
-    protected string ServiceName { get; }
+    protected string ObjectPath { get; } = objectPath;
 
-    protected string ObjectPath { get; }
-
-    protected string InterfaceName { get; }
+    protected string InterfaceName { get; } = interfaceName;
 
     protected MessageBuffer CreateMethodCall(string member, string? signature = null, MessageWriterAction? writeBody = null)
     {
-        var writer = _connection.GetMessageWriter();
+        var writer = Connection.GetMessageWriter();
         writer.WriteMethodCallHeader(
             destination: ServiceName,
             path: ObjectPath,
@@ -39,17 +25,17 @@ internal abstract class LinuxDbusClientBase
         return writer.CreateMessage();
     }
 
+    protected Task CallAsync(string member, string? signature = null, MessageWriterAction? writeBody = null)
+        => Connection.CallMethodAsync(CreateMethodCall(member, signature, writeBody));
+
+    protected Task<TResult> CallAsync<TResult>(string member, MessageValueReader<TResult> reader, string? signature = null, MessageWriterAction? writeBody = null)
+        => Connection.CallMethodAsync(CreateMethodCall(member, signature, writeBody), reader);
+
     protected MessageBuffer CreateMethodCallByRef(string member, string? signature = null, MessageWriterAction? writeBody = null)
         => CreateMethodCall(member, signature, writeBody);
 
-    protected Task CallAsync(string member, string? signature = null, MessageWriterAction? writeBody = null)
-        => _connection.CallMethodAsync(CreateMethodCall(member, signature, writeBody));
-
-    protected Task CallAsyncByRef(string member, string? signature = null, MessageWriterAction? writeBody = null)
-        => _connection.CallMethodAsync(CreateMethodCallByRef(member, signature, writeBody));
-
-    protected Task<TResult> CallAsync<TResult>(string member, MessageValueReader<TResult> reader, string? signature = null, MessageWriterAction? writeBody = null)
-        => _connection.CallMethodAsync(CreateMethodCall(member, signature, writeBody), reader);
+    protected Task CallAsyncByRefAsync(string member, string? signature = null, MessageWriterAction? writeBody = null)
+        => Connection.CallMethodAsync(CreateMethodCallByRef(member, signature, writeBody));
 
     protected static object UnboxVariant(VariantValue value)
     {
@@ -71,7 +57,9 @@ internal abstract class LinuxDbusClientBase
             VariantValueType.Struct => UnboxStruct(value),
             VariantValueType.Dictionary => UnboxDictionary(value),
             VariantValueType.Variant => UnboxVariant(value.GetVariantValue()),
-            _ => value.ToString() ?? string.Empty
+            VariantValueType.Invalid => value.ToString() ?? string.Empty,
+            VariantValueType.UnixFd => value.ToString() ?? string.Empty,
+            _ => value.ToString() ?? string.Empty,
         };
     }
 
@@ -88,7 +76,16 @@ internal abstract class LinuxDbusClientBase
             VariantValueType.Int64 => value.GetArray<long>(),
             VariantValueType.UInt64 => value.GetArray<ulong>(),
             VariantValueType.Double => value.GetArray<double>(),
-            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray()
+            VariantValueType.Invalid => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            VariantValueType.Int16 => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            VariantValueType.UInt16 => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            VariantValueType.Signature => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            VariantValueType.Array => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            VariantValueType.Struct => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            VariantValueType.Variant => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            VariantValueType.Dictionary => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            VariantValueType.UnixFd => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
+            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         };
     }
 
@@ -99,11 +96,11 @@ internal abstract class LinuxDbusClientBase
             0 => Array.Empty<object>(),
             2 => (UnboxVariant(value.GetItem(0)), UnboxVariant(value.GetItem(1))),
             3 => (UnboxVariant(value.GetItem(0)), UnboxVariant(value.GetItem(1)), UnboxVariant(value.GetItem(2))),
-            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray()
+            _ => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
         };
     }
 
-    private static object UnboxDictionary(VariantValue value)
+    private static Dictionary<string, object> UnboxDictionary(VariantValue value)
     {
         var dictionary = new Dictionary<string, object>(StringComparer.Ordinal);
         for (int i = 0; i < value.Count; i++)

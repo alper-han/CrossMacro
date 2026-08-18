@@ -1,5 +1,3 @@
-using CrossMacro.Platform.MacOS.Services.ScreenReading;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services.ScreenReading;
 
@@ -105,11 +103,11 @@ public sealed class MacOSScreenFrameProviderTests
     {
         var backend = new RecordingCaptureBackend
         {
-            VirtualScreenBounds = new ScreenRect(-10, -20, 30, 40)
+            VirtualScreenBounds = new ScreenRect(-10, -20, 30, 40),
         };
         using var provider = new MacOSScreenFrameProvider(backend, new RecordingPermission(), () => true);
 
-        var result = await provider.CaptureFrameAsync(null, ScreenReadOptions.Default);
+        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
         Assert.Equal(new ScreenRect(-10, -20, 30, 40), backend.LastRegion);
@@ -143,13 +141,17 @@ public sealed class MacOSScreenFrameProviderTests
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
     }
 
-    [Theory]
-    [InlineData(typeof(ArgumentException))]
-    [InlineData(typeof(ArithmeticException))]
-    [InlineData(typeof(InvalidOperationException))]
-    public async Task CaptureFrameAsync_WhenBackendThrowsKnownCaptureException_ReturnsCaptureFailed(Type exceptionType)
+    public static TheoryData<Exception> KnownCaptureExceptions => new()
     {
-        var exception = (Exception)Activator.CreateInstance(exceptionType, "capture failed")!;
+        CreateArgumentException("capture failed"),
+        new ArithmeticException("capture failed"),
+        new InvalidOperationException("capture failed"),
+    };
+
+    [Theory]
+    [MemberData(nameof(KnownCaptureExceptions))]
+    public async Task CaptureFrameAsync_WhenBackendThrowsKnownCaptureException_ReturnsCaptureFailed(Exception exception)
+    {
         var backend = new RecordingCaptureBackend { CaptureException = exception };
         using var provider = new MacOSScreenFrameProvider(backend, new RecordingPermission(), () => true);
 
@@ -159,6 +161,9 @@ public sealed class MacOSScreenFrameProviderTests
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
         Assert.Contains("capture failed", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static ArgumentException CreateArgumentException(string message) =>
+        new(message, nameof(message));
 
     private sealed class RecordingPermission : IMacOSScreenCapturePermission
     {

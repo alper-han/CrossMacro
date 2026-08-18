@@ -7,11 +7,11 @@ public enum EditorActionVisualKind
 {
     Noise,
     Movement,
-    Pointer,
+    PointerInput,
     Keyboard,
     Text,
     Timing,
     ControlFlow,
     Variable,
-    Raw
+    Raw,
 }

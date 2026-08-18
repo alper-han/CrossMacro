@@ -1,7 +1,3 @@
-using System;
-using System.Globalization;
-using System.Resources;
-using CrossMacro.Core.Services;
 
 namespace CrossMacro.UI.Localization;
 
@@ -11,7 +7,7 @@ public sealed class LocalizationService : ILocalizationService
 
     public LocalizationService()
     {
-        CurrentCulture = ResolveCulture(null);
+        CurrentCulture = ResolveCulture(cultureName: null);
     }
 
     public CultureInfo CurrentCulture { get; private set; }

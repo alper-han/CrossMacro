@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Linux.Tests.PlatformAbstractions;
 
-public class ScreenFrameTests
+public sealed class ScreenFrameTests
 {
     [Fact]
     public void GetPixel_UsesStrideAndGlobalLogicalCoordinates()
@@ -12,7 +12,7 @@ public class ScreenFrameTests
             new byte[]
             {
                 0xFF, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0x99, 0x99,
-                0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x88, 0x88
+                0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x88, 0x88,
             });
 
         var first = frame.GetPixel(new ScreenPoint(10, 20));
@@ -48,6 +48,48 @@ public class ScreenFrameTests
     }
 
     [Fact]
+    public void Constructor_NormalizesOpaqueFormatsAndCompactsAllValidMask()
+    {
+        using var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[6],
+            validPixelMask: new byte[] { 1, 1 });
+
+        Assert.Equal(ScreenAlphaMode.Opaque, frame.AlphaMode);
+        Assert.True(frame.IsFullyValid);
+        Assert.Empty(frame.ValidPixelMask.ToArray());
+    }
+
+    [Fact]
+    public void TryGetAlpha_ReturnsDeclaredAlphaForStraightFrame()
+    {
+        using var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 1, 1),
+            stride: 4,
+            ScreenPixelFormat.Bgra8888,
+            new byte[] { 0x56, 0x34, 0x12, 0x80 },
+            alphaMode: ScreenAlphaMode.Straight);
+
+        Assert.True(frame.TryGetAlpha(new ScreenPoint(0, 0), out var alpha));
+        Assert.Equal(0x80, alpha);
+    }
+
+    [Fact]
+    public void Constructor_RejectsAlphaMetadataForRgbFrame()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new ScreenFrame(
+            new ScreenRect(0, 0, 1, 1),
+            stride: 3,
+            ScreenPixelFormat.Rgb24,
+            new byte[3],
+            alphaMode: ScreenAlphaMode.Straight));
+
+        Assert.Equal("alphaMode", exception.ParamName);
+    }
+
+    [Fact]
     public void SearchPixel_ReturnsFirstRowMajorMatchInGlobalCoordinates()
     {
         var expected = new ScreenPixelColor(0x10, 0x20, 0x30);
@@ -64,7 +106,7 @@ public class ScreenFrameTests
                 0x30, 0x20, 0x10, 0xAA,
                 0x00, 0x00, 0x00, 0xFF,
                 0x30, 0x20, 0x10, 0x55,
-                0x66, 0x66, 0x66, 0x66
+                0x66, 0x66, 0x66, 0x66,
             });
 
         var found = frame.SearchPixel(new ScreenRect(100, 50, 3, 2), expected);
@@ -123,6 +165,176 @@ public class ScreenFrameTests
     }
 
     [Fact]
+    public void TryGetPixel_ReturnsFalseForInvalidMaskedPixelInsideBounds()
+    {
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[] { 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00 },
+            validPixelMask: new byte[] { 0, 1 });
+
+        var invalidFound = frame.TryGetPixel(new ScreenPoint(0, 0), out var invalidColor);
+        var validFound = frame.TryGetPixel(new ScreenPoint(1, 0), out var validColor);
+
+        Assert.False(invalidFound);
+        Assert.Equal(default, invalidColor);
+        Assert.True(validFound);
+        Assert.Equal(new ScreenPixelColor(0xFF, 0x00, 0x00), validColor);
+    }
+
+    [Fact]
+    public void SearchPixel_SkipsInvalidMaskedPixelsThatMatchColor()
+    {
+        var expected = new ScreenPixelColor(0x00, 0x00, 0x00);
+        var frame = new ScreenFrame(
+            new ScreenRect(5, 6, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+            validPixelMask: new byte[] { 0, 1 });
+
+        var found = frame.SearchPixel(new ScreenRect(5, 6, 2, 1), expected);
+
+        Assert.Equal(new ScreenPixelSearchMatch(new ScreenPoint(6, 6), expected), found);
+    }
+
+    [Fact]
+    public void ContainsAnyValidPixel_ReturnsFalseWhenRegionIsOnlyInvalidMaskedPixels()
+    {
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[6],
+            validPixelMask: new byte[] { 0, 1 });
+
+        var containsValidPixel = frame.ContainsAnyValidPixel(new ScreenRect(0, 0, 1, 1));
+
+        Assert.False(containsValidPixel);
+    }
+
+    [Fact]
+    public void IsRectangleFullyValid_UsesFastPathForUnmaskedFrame()
+    {
+        using var frame = new ScreenFrame(
+            new ScreenRect(10, 20, 2, 2),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[12]);
+
+        Assert.True(frame.IsFullyValid);
+        Assert.False(frame.HasValidityIndex);
+        Assert.True(frame.IsRectangleFullyValid(new ScreenRect(10, 20, 2, 2)));
+    }
+
+    [Fact]
+    public void IsRectangleFullyValid_RejectsGapUsingIndexedMask()
+    {
+        using var index = ScreenFrameValidityIndex.Create([1, 0, 1, 1], 2, 2);
+        using var frame = new ScreenFrame(
+            new ScreenRect(-3, 7, 2, 2),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[12],
+            validPixelMask: new byte[] { 1, 0, 1, 1 },
+            validityIndex: index);
+
+        Assert.False(frame.IsFullyValid);
+        Assert.True(frame.HasValidityIndex);
+        Assert.False(frame.IsRectangleFullyValid(new ScreenRect(-3, 7, 2, 1)));
+        Assert.True(frame.IsRectangleFullyValid(new ScreenRect(-3, 8, 2, 1)));
+    }
+
+    [Fact]
+    public void ValidityIndex_InitializesLeftPrefixSentinelsFromReusedPool()
+    {
+        var pool = new PoisonedArrayPool(9);
+        var bounds = new ScreenRect(0, 0, 2, 2);
+        using var index = ScreenFrameValidityIndex.Create([1, 1, 1, 1], bounds.Width, bounds.Height, pool);
+
+        Assert.True(index.IsRectangleFullyValid(new ScreenRect(0, 1, 1, 1), bounds));
+        Assert.True(index.IsPixelValid(new ScreenPoint(0, 1), bounds));
+    }
+
+    [Fact]
+    public void PixelAndSearchQueries_UseIndexedValidityMask()
+    {
+        using var index = ScreenFrameValidityIndex.Create([1, 0], 2, 1);
+        using var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[6],
+            validityIndex: index);
+
+        Assert.True(frame.IsPixelValid(new ScreenPoint(0, 0)));
+        Assert.False(frame.IsPixelValid(new ScreenPoint(1, 0)));
+        Assert.False(frame.TryGetPixel(new ScreenPoint(1, 0), out _));
+        Assert.False(frame.ContainsAnyValidPixel(new ScreenRect(1, 0, 1, 1)));
+        Assert.Null(frame.SearchPixel(new ScreenRect(1, 0, 1, 1), default));
+    }
+
+    [Fact]
+    public void Dispose_ReleasesValidityIndexOwnership()
+    {
+        var index = ScreenFrameValidityIndex.Create([1, 0], 2, 1);
+        var frame = new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[6],
+            validPixelMask: new byte[] { 1, 0 },
+            validityIndex: index);
+
+        frame.Dispose();
+
+        _ = Assert.Throws<ObjectDisposedException>(() => index.IsRectangleFullyValid(
+            new ScreenRect(0, 0, 1, 1),
+            new ScreenRect(0, 0, 2, 1)));
+    }
+
+    private sealed class PoisonedArrayPool(int length) : ArrayPool<int>
+    {
+        private readonly int[] _buffer = CreateBuffer(length);
+
+        public override int[] Rent(int minimumLength)
+        {
+            Assert.InRange(minimumLength, 0, _buffer.Length);
+            return _buffer;
+        }
+
+        public override void Return(int[] array, bool clearArray = false)
+        {
+            Assert.Same(_buffer, array);
+        }
+
+        private static int[] CreateBuffer(int length)
+        {
+            var buffer = new int[length];
+            for (var index = 0; index < buffer.Length; index++)
+            {
+                buffer[index] = index + 1;
+            }
+
+            return buffer;
+        }
+    }
+
+    [Fact]
+    public void Constructor_ThrowsWhenValidPixelMaskIsTooSmall()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new ScreenFrame(
+            new ScreenRect(0, 0, 2, 1),
+            stride: 6,
+            ScreenPixelFormat.Rgb24,
+            new byte[6],
+            validPixelMask: new byte[] { 1 }));
+
+        Assert.Equal("validPixelMask", exception.ParamName);
+    }
+
+    [Fact]
     public void TryGetPixel_ReturnsFalseForOutOfBoundsGlobalCoordinate()
     {
         var frame = new ScreenFrame(
@@ -173,7 +385,7 @@ public class ScreenFrameTests
         { ScreenPixelFormat.Xrgb8888, new byte[] { 0x56, 0x34, 0x12, 0x00 } },
         { ScreenPixelFormat.Bgra8888, new byte[] { 0x56, 0x34, 0x12, 0xFF } },
         { ScreenPixelFormat.Abgr8888, new byte[] { 0x12, 0x34, 0x56, 0x00 } },
-        { ScreenPixelFormat.Xbgr8888, new byte[] { 0x12, 0x34, 0x56, 0xFF } }
+        { ScreenPixelFormat.Xbgr8888, new byte[] { 0x12, 0x34, 0x56, 0xFF } },
     };
 
     public static TheoryData<ScreenPixelFormat, byte[], byte[]> FourthByteIgnoredCases => new()
@@ -181,6 +393,6 @@ public class ScreenFrameTests
         { ScreenPixelFormat.Xrgb8888, new byte[] { 0x56, 0x34, 0x12, 0x00 }, new byte[] { 0x56, 0x34, 0x12, 0xFF } },
         { ScreenPixelFormat.Bgra8888, new byte[] { 0x56, 0x34, 0x12, 0x00 }, new byte[] { 0x56, 0x34, 0x12, 0xFF } },
         { ScreenPixelFormat.Abgr8888, new byte[] { 0x12, 0x34, 0x56, 0x00 }, new byte[] { 0x12, 0x34, 0x56, 0xFF } },
-        { ScreenPixelFormat.Xbgr8888, new byte[] { 0x12, 0x34, 0x56, 0x00 }, new byte[] { 0x12, 0x34, 0x56, 0xFF } }
+        { ScreenPixelFormat.Xbgr8888, new byte[] { 0x12, 0x34, 0x56, 0x00 }, new byte[] { 0x12, 0x34, 0x56, 0xFF } },
     };
 }

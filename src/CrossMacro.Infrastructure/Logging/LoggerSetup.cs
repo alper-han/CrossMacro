@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using CrossMacro.Core;
-using Serilog;
-using Serilog.Core;
-using Serilog.Events;
 
 namespace CrossMacro.Infrastructure.Logging;
 
@@ -12,12 +6,10 @@ namespace CrossMacro.Infrastructure.Logging;
 /// </summary>
 public static class LoggerSetup
 {
-    private static LoggingLevelSwitch? _levelSwitch;
-
     /// <summary>
     /// Gets the logging level switch for runtime level changes.
     /// </summary>
-    public static LoggingLevelSwitch? LevelSwitch => _levelSwitch;
+    public static LoggingLevelSwitch? LevelSwitch { get; private set; }
 
     /// <summary>
     /// Initialize Serilog with cross-platform log directory support.
@@ -28,14 +20,14 @@ public static class LoggerSetup
         bool enableFileLogging = true,
         bool enableConsoleLogging = true)
     {
-        _levelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
+        LevelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
 
         var config = new LoggerConfiguration()
-            .MinimumLevel.ControlledBy(_levelSwitch);
+            .MinimumLevel.ControlledBy(LevelSwitch);
 
         if (enableConsoleLogging)
         {
-            config = config.WriteTo.Console();
+            config = config.WriteTo.Console(formatProvider: CultureInfo.InvariantCulture);
         }
 
         if (enableFileLogging)
@@ -43,19 +35,19 @@ public static class LoggerSetup
             try
             {
                 var logDir = GetLogDirectory();
-                Directory.CreateDirectory(logDir);
+                _ = Directory.CreateDirectory(logDir);
                 var logPath = Path.Combine(logDir, "log-.txt");
-                config = config.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day));
+                config = config.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, formatProvider: CultureInfo.InvariantCulture));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 WriteDiagnosticToStderr($"[LoggerSetup] File logging disabled: {ex.Message}");
             }
         }
 
-        Log.Logger = config.CreateLogger();
+        SerilogLog.Logger = config.CreateLogger();
         CrossMacro.Core.Logging.Log.Configure(new SerilogCoreLogger());
-        Log.Debug("Logger initialized. Level: {Level}", logLevel);
+        SerilogLog.Debug("Logger initialized. Level: {Level}", logLevel);
     }
 
     /// <summary>
@@ -64,28 +56,30 @@ public static class LoggerSetup
     /// <param name="logLevel">New log level (Debug, Information, Warning, Error).</param>
     public static void SetLogLevel(string logLevel)
     {
-        if (_levelSwitch == null)
+        if (LevelSwitch is null)
+        {
             return;
+        }
 
         var newLevel = ParseLogLevel(logLevel);
-        if (_levelSwitch.MinimumLevel != newLevel)
+        if (LevelSwitch.MinimumLevel != newLevel)
         {
-            _levelSwitch.MinimumLevel = newLevel;
-            Log.Information("Log level changed to {Level}", logLevel);
+            LevelSwitch.MinimumLevel = newLevel;
+            SerilogLog.Information("Log level changed to {Level}", logLevel);
         }
     }
 
     private static LogEventLevel ParseLogLevel(string level)
     {
-        return level?.ToLowerInvariant() switch
+        return level?.ToUpperInvariant() switch
         {
-            "verbose" => LogEventLevel.Verbose,
-            "debug" => LogEventLevel.Debug,
-            "information" => LogEventLevel.Information,
-            "warning" => LogEventLevel.Warning,
-            "error" => LogEventLevel.Error,
-            "fatal" => LogEventLevel.Fatal,
-            _ => LogEventLevel.Information
+            "VERBOSE" => LogEventLevel.Verbose,
+            "DEBUG" => LogEventLevel.Debug,
+            "INFORMATION" => LogEventLevel.Information,
+            "WARNING" => LogEventLevel.Warning,
+            "ERROR" => LogEventLevel.Error,
+            "FATAL" => LogEventLevel.Fatal,
+            _ => LogEventLevel.Information,
         };
     }
 
@@ -122,11 +116,7 @@ public static class LoggerSetup
         {
             Console.Error.WriteLine(message);
         }
-        catch (IOException)
-        {
-        }
-        catch (ObjectDisposedException)
-        {
-        }
+        catch (IOException) { /* Empty */ }
+        catch (ObjectDisposedException) { /* Empty */ }
     }
 }

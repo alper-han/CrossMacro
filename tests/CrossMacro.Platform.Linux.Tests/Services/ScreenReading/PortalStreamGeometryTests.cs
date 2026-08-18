@@ -1,5 +1,3 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
@@ -25,8 +23,8 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("non-monitor", result.ErrorMessage);
-        Assert.Contains("cannot force GNOME portal", result.ErrorMessage);
+        Assert.Contains("non-monitor", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("cannot force portal selections", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -38,7 +36,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("position", result.ErrorMessage);
+        Assert.Contains("position", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -52,7 +50,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("positive size", result.ErrorMessage);
+        Assert.Contains("positive size", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -65,7 +63,7 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("duplicate monitor stream id", result.ErrorMessage);
+        Assert.Contains("duplicate monitor stream id", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -90,7 +88,35 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureFailed, result.ErrorKind);
-        Assert.Contains("duplicate monitor stream bounds", result.ErrorMessage);
+        Assert.Contains("duplicate monitor stream bounds", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(123UL)]
+    [InlineData("123")]
+    public void PortalStreamDescriptor_WhenPipeWireSerialIsPresent_ParsesSerial(object serial)
+    {
+        var descriptor = new PortalStreamDescriptor(
+            42,
+            new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["pipewire-serial"] = serial,
+            });
+
+        Assert.Equal(123UL, descriptor.PipeWireSerial);
+    }
+
+    [Fact]
+    public void PortalStreamDescriptor_WhenPipeWireSerialIsMissingOrInvalid_UsesNodeIdFallback()
+    {
+        var descriptor = new PortalStreamDescriptor(
+            42,
+            new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["pipewire-serial"] = 0UL,
+            });
+
+        Assert.Null(descriptor.PipeWireSerial);
     }
 
     [Fact]
@@ -103,10 +129,10 @@ public sealed class PortalStreamGeometryTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.OutOfBounds, result.ErrorKind);
-        Assert.Contains("cannot force GNOME portal", result.ErrorMessage);
+        Assert.Contains("cannot force the portal to select", result.ErrorMessage, StringComparison.Ordinal);
     }
 
-    private static PortalStream Stream(
+    private static PortalStreamDescriptor Stream(
         uint nodeId,
         string? id = "monitor",
         uint sourceType = 1U,
@@ -116,10 +142,10 @@ public sealed class PortalStreamGeometryTests
         int height = 1080,
         bool includePosition = true)
     {
-        var properties = new Dictionary<string, object>
+        var properties = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["source_type"] = sourceType,
-            ["size"] = new object[] { width, height }
+            ["size"] = new object[] { width, height },
         };
 
         if (includePosition)
@@ -132,6 +158,6 @@ public sealed class PortalStreamGeometryTests
             properties["id"] = id;
         }
 
-        return new PortalStream(nodeId, properties);
+        return new PortalStreamDescriptor(nodeId, properties);
     }
 }

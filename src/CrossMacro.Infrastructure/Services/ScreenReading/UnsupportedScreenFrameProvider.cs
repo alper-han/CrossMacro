@@ -1,4 +1,3 @@
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
@@ -13,7 +12,7 @@ public sealed class UnsupportedScreenFrameProvider : IScreenFrameProvider
         _ = region;
         _ = options;
 
-        return Task.FromResult(ScreenReadResult<ScreenFrame>.Failure(
+        return Task.FromResult(ScreenReadResultFactory.Failure<ScreenFrame>(
             ScreenReadErrorKind.Unsupported,
             "Screen reading is not supported by the active platform registrar."));
     }

@@ -1,49 +1,39 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services;
 
-public class ValidationResult
+public class PlaybackValidator : IPlaybackValidator
 {
-    public bool IsValid => Errors.Count == 0;
-    public List<string> Warnings { get; set; } = new();
-    public List<string> Errors { get; set; } = new();
-
-    public void AddWarning(string message) => Warnings.Add(message);
-    public void AddError(string message) => Errors.Add(message);
-}
-
-public class PlaybackValidator
-{
+    private const bool IsSpecialControlEvent = false;
     private readonly IMousePositionProvider? _provider;
-    private readonly IKeyCodeMapper _keyCodeMapper;
+    private readonly PlaybackScriptValidator _scriptValidator;
 
-    public PlaybackValidator(IKeyCodeMapper keyCodeMapper, IMousePositionProvider? provider = null)
+    public PlaybackValidator(
+        IKeyCodeMapper keyCodeMapper,
+        IMousePositionProvider? provider = null,
+        PlaybackScriptValidator? scriptValidator = null,
+        IScriptValidationService? scriptValidationService = null)
     {
-        _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+        ArgumentNullException.ThrowIfNull(keyCodeMapper);
         _provider = provider;
+        _scriptValidator = scriptValidator ?? new PlaybackScriptValidator(keyCodeMapper, scriptValidationService);
     }
 
-    public ValidationResult Validate(MacroSequence macro)
+    public PlaybackValidationResult Validate(MacroSequence macro)
     {
-        var result = new ValidationResult();
+        var result = new PlaybackValidationResult();
 
-        if (macro == null || (macro.Events.Count == 0 && !HasScreenReadScriptSteps(macro)))
+        if (macro is null || (macro.Events.Count is 0 && !HasRuntimeScriptSteps(macro)))
         {
             result.AddError("Macro is empty or null");
             return result;
         }
 
-        if (macro.Events.Any(e => e.Type == EventType.None && !IsSpecialControlEvent(e)))
+        if (macro.Events.Any(e => e.Type is EventType.None && !IsSpecialControlEvent))
         {
             result.AddWarning("Macro contains events with Type 'None'");
         }
 
-        if (macro.Events.Any(e => !Enum.IsDefined(typeof(EventType), e.Type)))
+        if (macro.Events.Any(e => !Enum.IsDefined(e.Type)))
         {
             result.AddError("Macro contains invalid/undefined EventType values");
         }
@@ -51,7 +41,7 @@ public class PlaybackValidator
         ValidateScriptSteps(macro, result);
 
 
-        if (_provider == null)
+        if (_provider is null)
         {
             result.AddWarning("No position provider available - using fallback mode");
         }
@@ -60,24 +50,25 @@ public class PlaybackValidator
             result.AddWarning($"Position provider '{_provider.ProviderName}' is not supported on this system");
         }
 
+        long longDelayMicroseconds = 10 * MacroTiming.MicrosecondsPerMillisecond * 1000;
         var longDelays = macro.Events
-            .Where(e => e.DelayMs > 10000)
+            .Where(e => e.DelayMicroseconds > longDelayMicroseconds)
             .ToList();
 
-        if (longDelays.Any())
+        if (longDelays.Count > 0)
         {
-            var maxDelay = longDelays.Max(e => e.DelayMs);
-            result.AddWarning($"Macro contains {longDelays.Count} delay(s) > 10 seconds (max: {maxDelay / 1000f:F1}s)");
+            var maxDelayMicroseconds = longDelays.Max(e => e.DelayMicroseconds);
+            result.AddWarning($"Macro contains {longDelays.Count.ToString(CultureInfo.InvariantCulture)} delay(s) > 10 seconds (max: {(maxDelayMicroseconds / 1_000_000d).ToString("F1", CultureInfo.InvariantCulture)}s)");
         }
 
         if (macro.TotalDurationMs > 300000)
         {
-            result.AddWarning($"Macro is very long ({macro.TotalDurationMs / 1000f / 60f:F1} minutes)");
+            result.AddWarning($"Macro is very long ({(macro.TotalDurationMs / 1000f / 60f).ToString("F1", CultureInfo.InvariantCulture)} minutes)");
         }
 
         if (macro.Events.Count > 10000)
         {
-            result.AddWarning($"Macro has {macro.Events.Count} events - playback may be resource intensive");
+            result.AddWarning($"Macro has {macro.Events.Count.ToString(CultureInfo.InvariantCulture)} events - playback may be resource intensive");
         }
 
         AddSuspiciousAbsoluteButtonCoordinateWarning(macro, result);
@@ -87,32 +78,27 @@ public class PlaybackValidator
 
 
 
-    private bool IsSpecialControlEvent(MacroEvent e)
-    {
-        return false;
-    }
-
-    private static void AddSuspiciousAbsoluteButtonCoordinateWarning(MacroSequence macro, ValidationResult result)
+    private static void AddSuspiciousAbsoluteButtonCoordinateWarning(MacroSequence macro, PlaybackValidationResult result)
     {
         var buttonEvents = macro.Events
             .Where(ev => IsNonScrollButtonEvent(ev)
-                && MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) == MouseCoordinateMode.Absolute)
+&& MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Absolute)
             .ToList();
-        if (buttonEvents.Count == 0)
+        if (buttonEvents.Count is 0)
         {
             return;
         }
 
-        bool hasZeroZeroButtonEvent = buttonEvents.Any(e => e.X == 0 && e.Y == 0);
+        bool hasZeroZeroButtonEvent = buttonEvents.Exists(e => e.X is 0 && e.Y is 0);
         if (!hasZeroZeroButtonEvent)
         {
             return;
         }
 
-        bool hasNonZeroButtonEvent = buttonEvents.Any(e => e.X != 0 || e.Y != 0);
+        bool hasNonZeroButtonEvent = buttonEvents.Exists(e => e.X is not 0 || e.Y is not 0);
         bool hasNonZeroMouseMove = macro.Events.Any(e =>
-            e.Type == EventType.MouseMove
-            && (e.X != 0 || e.Y != 0));
+            e.Type is EventType.MouseMove
+&& (e.X is not 0 || e.Y is not 0));
 
         if (hasNonZeroButtonEvent || hasNonZeroMouseMove)
         {
@@ -128,33 +114,23 @@ public class PlaybackValidator
             return false;
         }
 
-        return ev.Button is not MouseButton.ScrollUp
-            and not MouseButton.ScrollDown
-            and not MouseButton.ScrollLeft
-            and not MouseButton.ScrollRight;
+        return ev.Button is not MacroMouseButton.ScrollUp
+            and not MacroMouseButton.ScrollDown
+            and not MacroMouseButton.ScrollLeft
+            and not MacroMouseButton.ScrollRight;
     }
 
-    private static bool HasScreenReadScriptSteps(MacroSequence macro)
+    private static bool HasRuntimeScriptSteps(MacroSequence macro)
     {
-        return macro.ScriptSteps.Any(RunScriptSyntax.IsScreenReadingStep);
+        return macro.ScriptSteps.Any(RunScriptRuntimeStepClassifier.IsRuntimeStep);
     }
 
-    private void ValidateScriptSteps(MacroSequence macro, ValidationResult result)
+    private void ValidateScriptSteps(MacroSequence macro, PlaybackValidationResult result)
     {
-        var scriptSteps = macro.ScriptSteps
-            .Where(step => !string.IsNullOrWhiteSpace(step))
-            .Select((step, index) => new RunScriptStep(step, SourceIndex: index))
-            .ToList();
-        if (scriptSteps.Count == 0)
+        var error = _scriptValidator.Validate(macro);
+        if (error is not null)
         {
-            return;
-        }
-
-        var compiler = new RunScriptCompiler(_keyCodeMapper);
-        var compileResult = compiler.Compile(scriptSteps);
-        if (!compileResult.Success)
-        {
-            result.AddError($"Macro script steps are invalid: {compileResult.ErrorMessage}");
+            result.AddError(error);
         }
     }
 

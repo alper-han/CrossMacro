@@ -1,7 +1,7 @@
-using System;
 
 namespace CrossMacro.Platform.Abstractions;
 
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public readonly record struct ScreenRect
 {
     public ScreenRect(int x, int y, int width, int height)
@@ -39,4 +39,13 @@ public readonly record struct ScreenRect
 
     public bool Contains(ScreenRect rectangle) =>
         rectangle.X >= X && rectangle.Right <= Right && rectangle.Y >= Y && rectangle.Bottom <= Bottom;
+
+    /// <summary>
+    /// Clamps a logical desktop coordinate to the last valid pixel in this rectangle.
+    /// Long inputs keep relative-coordinate arithmetic from overflowing before the
+    /// coordinate is normalized to the screen bounds.
+    /// </summary>
+    public ScreenPoint Clamp(long x, long y) => new(
+        checked((int)Math.Clamp(x, X, (long)Right - 1L)),
+        checked((int)Math.Clamp(y, Y, (long)Bottom - 1L)));
 }

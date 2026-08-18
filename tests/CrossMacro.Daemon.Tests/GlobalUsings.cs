@@ -1,0 +1,15 @@
+global using CrossMacro.Daemon.Contracts.Ipc;
+global using CrossMacro.Daemon.Security;
+global using CrossMacro.Daemon.Services;
+global using CrossMacro.Daemon.Logging;
+global using CrossMacro.Platform.Abstractions;
+global using CrossMacro.Platform.Linux.Native.Evdev;
+global using CrossMacro.Platform.Linux.Native;
+global using CrossMacro.Platform.Linux.Native.UInput;
+global using CrossMacro.TestInfrastructure;
+global using System.Collections.Concurrent;
+global using System.Globalization;
+global using System.Net.Sockets;
+global using System.Reflection;
+global using System.Runtime.InteropServices;
+global using Xunit;

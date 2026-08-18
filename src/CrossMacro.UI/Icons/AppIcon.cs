@@ -27,6 +27,7 @@ public enum AppIcon
     Play,
     Record,
     Redo,
+    Refresh,
     Save,
     Settings,
     Stop,
@@ -34,6 +35,7 @@ public enum AppIcon
     Timer,
     Tip,
     Tools,
+    Trigger,
     Undo,
-    Warning
+    Warning,
 }

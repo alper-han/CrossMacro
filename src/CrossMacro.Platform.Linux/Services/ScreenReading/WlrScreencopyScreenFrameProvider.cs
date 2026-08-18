@@ -1,24 +1,14 @@
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class WlrScreencopyScreenFrameProvider : IScreenFrameProvider
+public sealed class WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture, WlrScreencopySupportResult support) : IScreenFrameProvider
 {
-    private readonly IWlrScreencopyCapture _capture;
-    private readonly WlrScreencopySupportResult _support;
+    private readonly IWlrScreencopyCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+    private readonly WlrScreencopySupportResult _support = support;
     private bool _disposed;
 
     public WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture)))
-    {
-    }
-
-    public WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture, WlrScreencopySupportResult support)
-    {
-        _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-        _support = support;
-    }
+        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
 
     public string ProviderName => "Wayland wlr-screencopy-unstable-v1";
 
@@ -30,7 +20,7 @@ public sealed class WlrScreencopyScreenFrameProvider : IScreenFrameProvider
 
         if (!_support.IsSupported)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 _support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 _support.ErrorMessage ?? "wlr-screencopy-unstable-v1 is unavailable.");
         }
@@ -61,12 +51,12 @@ public sealed class WlrScreencopyScreenFrameProvider : IScreenFrameProvider
         var frame = captureResult.Frame;
         if (frame is null)
         {
-            return ScreenReadResult<ScreenFrame>.Failure(
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,
                 "Successful wlr-screencopy capture did not include a frame.");
         }
 
-        return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame);
+        return LinuxScreenFrameProviderResults.CreateSharedFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels, frame, frame.ValidPixelMask, frame.ValidityIndex);
     }
 
     public void Dispose()

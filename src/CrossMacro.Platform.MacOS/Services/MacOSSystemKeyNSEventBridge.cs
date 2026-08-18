@@ -1,10 +1,7 @@
-using System;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.MacOS.Native;
 
 namespace CrossMacro.Platform.MacOS.Services;
 
-internal static class MacOSSystemKeyNSEventBridge
+internal static partial class MacOSSystemKeyNSEventBridge
 {
     private const string AppKitLib = "/System/Library/Frameworks/AppKit.framework/AppKit";
     private const string FoundationLib = "/System/Library/Frameworks/Foundation.framework/Foundation";
@@ -120,21 +117,21 @@ internal static class MacOSSystemKeyNSEventBridge
     {
         if (autoreleasePool != IntPtr.Zero)
         {
-            objc_msgSend_IntPtr(autoreleasePool, DrainSelector.Value);
+            _ = objc_msgSend_IntPtr(autoreleasePool, DrainSelector.Value);
         }
     }
 
-    [DllImport(ObjCLib, EntryPoint = "objc_getClass")]
-    private static extern IntPtr objc_getClass(string name);
+    [LibraryImport(ObjCLib, EntryPoint = "objc_getClass", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr objc_getClass(string name);
 
-    [DllImport(ObjCLib, EntryPoint = "sel_registerName")]
-    private static extern IntPtr sel_registerName(string name);
+    [LibraryImport(ObjCLib, EntryPoint = "sel_registerName", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr sel_registerName(string name);
 
-    [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
-    private static extern IntPtr objc_msgSend_IntPtr(IntPtr receiver, IntPtr selector);
+    [LibraryImport(ObjCLib, EntryPoint = "objc_msgSend")]
+    private static partial IntPtr objc_msgSend_IntPtr(IntPtr receiver, IntPtr selector);
 
-    [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
-    private static extern IntPtr objc_msgSend_otherEventWithType(
+    [LibraryImport(ObjCLib, EntryPoint = "objc_msgSend")]
+    private static partial IntPtr objc_msgSend_otherEventWithType(
         IntPtr receiver,
         IntPtr selector,
         nuint type,

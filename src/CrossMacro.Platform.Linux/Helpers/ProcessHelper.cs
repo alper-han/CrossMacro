@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.Linux.Helpers;
 
@@ -14,7 +12,7 @@ public static class ProcessHelper
     /// </summary>
     public static string? ExecuteCommand(string fileName, string arguments = "")
     {
-        try 
+        try
         {
             var startInfo = new ProcessStartInfo
             {
@@ -22,25 +20,54 @@ public static class ProcessHelper
                 Arguments = arguments,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             };
 
             using var process = Process.Start(startInfo);
-            if (process != null)
+            if (process is not null)
             {
                 var output = process.StandardOutput.ReadToEnd();
                 process.WaitForExit();
-                if (process.ExitCode == 0) return output.Trim();
+                if (process.ExitCode is 0)
+                {
+                    return output.Trim();
+                }
             }
         }
         catch (System.ComponentModel.Win32Exception)
         {
             Log.Debug("Command not found: {Command}", fileName);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Error(ex, "Failed to execute command: {Command} {Arguments}", fileName, arguments);
+            Log.LogError(ex, "Failed to execute command: {Command} {Arguments}", fileName, arguments);
         }
         return null;
+    }
+
+    /// <summary>
+    /// Retrieves the process name for a given PID.
+    /// </summary>
+    public static string GetProcessName(int pid)
+    {
+        if (pid <= 0)
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var commPath = $"/proc/{pid.ToString(CultureInfo.InvariantCulture)}/comm";
+            if (System.IO.File.Exists(commPath))
+            {
+                return System.IO.File.ReadAllText(commPath).Trim();
+            }
+            using var process = Process.GetProcessById(pid);
+            return process.ProcessName;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return string.Empty;
+        }
     }
 }

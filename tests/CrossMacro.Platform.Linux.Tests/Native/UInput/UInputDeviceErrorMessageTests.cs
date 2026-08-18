@@ -1,9 +1,38 @@
-using CrossMacro.Infrastructure.Linux.Native.UInput;
 
 namespace CrossMacro.Platform.Linux.Tests.Native.UInput;
 
-public class UInputDeviceErrorMessageTests
+public sealed class UInputDeviceErrorMessageTests
 {
+    [Fact]
+    public void ThrowIfEventWriteIncomplete_WhenWriteIsPartial_ThrowsWithTransportDetails()
+    {
+        var exception = Assert.Throws<IOException>(() => UInputDevice.ThrowIfEventWriteIncomplete(
+            type: UInputNative.EV_ABS,
+            code: UInputNative.ABS_X,
+            value: 42,
+            expectedBytes: 24,
+            actualBytes: 12,
+            errno: 5));
+
+        Assert.Contains("ExpectedBytes=24", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("ActualBytes=12", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Errno=5", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ThrowIfEventWriteIncomplete_WhenWriteCompletes_DoesNotThrow()
+    {
+        var exception = Record.Exception(() => UInputDevice.ThrowIfEventWriteIncomplete(
+            type: UInputNative.EV_SYN,
+            code: UInputNative.SYN_REPORT,
+            value: 0,
+            expectedBytes: 24,
+            actualBytes: 24,
+            errno: 0));
+
+        Assert.Null(exception);
+    }
+
     [Fact]
     public void BuildOpenUInputErrorMessage_WhenErrnoIsNoEntry_ShouldMentionMissingDeviceNode()
     {

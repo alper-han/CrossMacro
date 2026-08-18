@@ -21,10 +21,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -57,7 +57,7 @@ jobs:
         flathub_lint_rc=$?
         set -e
         if [ "$flathub_lint_rc" -ne 0 ]; then
-          if ! printf '%s\n' "$flathub_lint_output" | python3 -c 'import json,sys; obj=json.loads(sys.stdin.read().strip()); errs=obj.get("errors", []); sys.exit(0 if errs == ["appid-filename-mismatch"] else 1)'; then
+          if ! printf '%s\n' "$flathub_lint_output" | jq -e '.errors == ["appid-filename-mismatch"]' >/dev/null; then
             printf '%s\n' "$flathub_lint_output"
             exit "$flathub_lint_rc"
           fi
@@ -69,6 +69,14 @@ jobs:
 
     - name: Validate man page source
       run: man -l docs/man/crossmacro.1 > /dev/null
+
+    - name: Validate release and documentation contracts
+      run: |
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-publish --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-flatpak --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --static-only --repo-root "$GITHUB_WORKSPACE"
+        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-docs --repo-root "$GITHUB_WORKSPACE"
 
     - name: Restore dependencies
       run: dotnet restore
@@ -121,6 +129,7 @@ jobs:
     - name: Run Tests (Linux-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
@@ -133,10 +142,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -167,6 +176,22 @@ jobs:
           throw "Prepared manifest version '$($identity.Version)' does not match expected '$version.0'."
         }
 
+        $defaultOutputDir = Join-Path (Get-Location) "artifacts/work/msix/content"
+        Remove-Item -LiteralPath $defaultOutputDir -Recurse -Force -ErrorAction SilentlyContinue
+        Push-Location $env:RUNNER_TEMP
+        try {
+          & "$env:GITHUB_WORKSPACE/scripts/msix/prepare-msix.ps1" -Version $version
+          & "$env:GITHUB_WORKSPACE/scripts/msix/prepare-msix.ps1" -Version $version
+        }
+        finally {
+          Pop-Location
+        }
+
+        if (-not (Test-Path -LiteralPath (Join-Path $defaultOutputDir "AppxManifest.xml") -PathType Leaf)) {
+          throw "CWD-independent default MSIX output was not created at '$defaultOutputDir'."
+        }
+        Remove-Item -LiteralPath $defaultOutputDir -Recurse -Force
+
     - name: CLI Smoke (Windows)
       shell: pwsh
       run: ./scripts/smoke/cli-smoke.ps1 -Project src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj
@@ -177,6 +202,7 @@ jobs:
         $ErrorActionPreference = 'Stop'
         $projects = @(
           "tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj",
+          "tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj",
           "tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj",
           "tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj",
           "tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj",
@@ -197,10 +223,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
@@ -217,8 +243,132 @@ jobs:
     - name: Run Tests (macOS-compatible suites)
       run: |
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
+
+  update-aur-git:
+    name: Update AUR Git Package
+    needs: source-linux
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.source-linux.result == 'success' }}
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+
+    steps:
+    - name: Install dependencies
+      run: |
+        pacman -Syu --noconfirm --needed \
+          git \
+          openssh \
+          dotnet-sdk \
+          clang \
+          zlib \
+          fontconfig \
+          libx11 \
+          libxcursor \
+          libxrandr \
+          polkit \
+          libxtst \
+          systemd-libs \
+          libxkbcommon \
+          icu \
+          openssl \
+          libarchive
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        fetch-depth: 0
+
+    - name: Prepare AUR package files
+      run: |
+        set -euo pipefail
+        source_revision="${GITHUB_SHA}"
+        pkgver="$(
+          (
+            set -o pipefail
+            git describe --long --tags --abbrev=7 "$source_revision" 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+          ) || printf 'r%s.%s' "$(git rev-list --count "$source_revision")" "$(git rev-parse --short=7 "$source_revision")"
+        )"
+        mkdir aur-package
+        sed \
+          -e "s/@PKGVER@/$pkgver/g" \
+          -e "s/@SOURCE_COMMIT@/$source_revision/g" \
+          scripts/packaging/arch/PKGBUILD-git.in > aur-package/PKGBUILD
+        cp scripts/packaging/arch/crossmacro.install aur-package/
+        cp scripts/packaging/arch/crossmacro.sysusers aur-package/
+        cp scripts/packaging/arch/crossmacro-modules.conf aur-package/
+
+    - name: Build and smoke AUR package
+      run: |
+        set -euo pipefail
+        useradd --create-home builduser
+        chown -R builduser:builduser aur-package
+        cd aur-package
+        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --verifysource --noconfirm"
+        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --printsrcinfo" > .SRCINFO
+        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --cleanbuild --force --noconfirm"
+
+        pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-git-*.pkg.tar.zst' -print -quit)"
+        test -n "$pkg_file"
+        bsdtar -tf "$pkg_file" | sort > package-files.txt
+        grep -Fx 'usr/bin/crossmacro' package-files.txt
+        grep -Fx 'usr/lib/crossmacro/CrossMacro.UI' package-files.txt
+        grep -Fx 'usr/lib/crossmacro/daemon/CrossMacro.Daemon' package-files.txt
+        grep -Fx 'usr/lib/systemd/system/crossmacro.service' package-files.txt
+        grep -Fx 'usr/lib/sysusers.d/crossmacro.conf' package-files.txt
+        grep -Fx 'usr/lib/modules-load.d/crossmacro.conf' package-files.txt
+        grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
+        grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
+        grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
+        grep -Fx 'usr/share/applications/CrossMacro.desktop' package-files.txt
+        grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
+        grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
+
+        pacman -U --noconfirm "$pkg_file"
+        ../scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
+        crossmacro --version | grep -F "${GITHUB_SHA:0:7}"
+
+    - name: Setup SSH for AUR
+      env:
+        AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+      run: |
+        umask 077
+        mkdir -p ~/.ssh
+        printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/id_aur
+        chmod 600 ~/.ssh/id_aur
+
+    - name: Add AUR host key
+      run: |
+        mkdir -p ~/.ssh
+        expected_fingerprint="SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
+        ssh-keyscan -t ed25519 aur.archlinux.org > ~/.ssh/known_hosts.raw
+        actual_fingerprint="$(ssh-keygen -lf ~/.ssh/known_hosts.raw | awk '{print $2}')"
+        test "$actual_fingerprint" = "$expected_fingerprint"
+        ssh-keygen -H -f ~/.ssh/known_hosts.raw
+        mv ~/.ssh/known_hosts.raw ~/.ssh/known_hosts
+        rm -f ~/.ssh/known_hosts.raw.old
+        chmod 600 ~/.ssh/known_hosts
+
+    - name: Update AUR repository
+      env:
+        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
+      run: |
+        set -euo pipefail
+        git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/crossmacro-git.git aur-repo
+        cp aur-package/PKGBUILD aur-package/.SRCINFO aur-package/crossmacro.install aur-package/crossmacro.sysusers aur-package/crossmacro-modules.conf aur-repo/
+        cd aur-repo
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
+        if ! git diff --quiet --cached; then
+          git commit -m "Update to ${GITHUB_SHA:0:7}"
+          git push origin master
+        fi
+
+    - name: Cleanup
+      if: always()
+      run: rm -rf ~/.ssh aur-package aur-repo

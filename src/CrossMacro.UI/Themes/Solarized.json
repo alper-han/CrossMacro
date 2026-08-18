@@ -1,0 +1,33 @@
+{
+  "name": "Solarized",
+  "palette": {
+    "primaryColor": "#2aa198",
+    "primaryHoverColor": "#299D94",
+    "primaryPressedColor": "#2A9F96",
+    "successColor": "#859900",
+    "successHoverColor": "#829600",
+    "successPressedColor": "#859900",
+    "dangerColor": "#dc322f",
+    "dangerHoverColor": "#DC312E",
+    "dangerPressedColor": "#dc322f",
+    "backgroundColor": "#fdf6e3",
+    "surfaceColor": "#f5efdc",
+    "surfaceHoverColor": "#eee8d5",
+    "textPrimaryColor": "#073642",
+    "textSecondaryColor": "#586e75",
+    "warningColor": "#b58900",
+    "warningHoverColor": "#B28700",
+    "accentColor": "#6c71c4",
+    "systemAccentColor": "#2aa198",
+    "systemAccentColorDark1": "#2A9F96",
+    "systemAccentColorDark2": "#2A9F96",
+    "systemAccentColorDark3": "#2A9F96",
+    "systemAccentColorLight1": "#299D94",
+    "systemAccentColorLight2": "#299D94",
+    "systemAccentColorLight3": "#299D94",
+    "textOnPrimaryColor": "#002b36",
+    "textOnSuccessColor": "#002b36",
+    "textOnDangerColor": "#000000",
+    "textOnWarningColor": "#002b36"
+  }
+}

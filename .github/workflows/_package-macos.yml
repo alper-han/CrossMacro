@@ -47,7 +47,6 @@ permissions:
 jobs:
   package-macos-dmg:
     name: Build and Smoke macOS DMG (${{ matrix.rid }})
-    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
@@ -55,23 +54,28 @@ jobs:
           - rid: osx-arm64
             target_arch: aarch64
             artifact_suffix: arm64
+            runner: macos-26
           - rid: osx-x64
             target_arch: x86_64
             artifact_suffix: x64
+            runner: macos-26-intel
+
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '10.0.x'
 
       - name: Install create-dmg
         run: |
+          brew untap aws/tap 2>/dev/null || true
           brew install create-dmg
 
       - name: Build DMG package
@@ -90,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x scripts/smoke/macos-dmg.sh
-          dmg_file="$(find scripts/macos_output -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          dmg_file="$(find artifacts/packages/macos -maxdepth 1 -type f -name '*.dmg' -print -quit)"
           test -n "$dmg_file"
           bash scripts/smoke/macos-dmg.sh "$dmg_file"
 
@@ -99,5 +103,5 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ inputs.release_mode && format('macos-{0}-package', matrix.artifact_suffix) || format('{0}-dmg-{1}-{2}', inputs.artifact_prefix, matrix.artifact_suffix, github.run_id) }}
-          path: scripts/macos_output/*.dmg
+          path: artifacts/packages/macos/*.dmg
           retention-days: ${{ inputs.retention_days }}

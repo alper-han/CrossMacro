@@ -1,10 +1,7 @@
-using CrossMacro.Infrastructure.Services;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class MouseButtonMapperTests
+public sealed class MouseButtonMapperTests
 {
     private readonly MouseButtonMapper _mapper;
 
@@ -27,33 +24,33 @@ public class MouseButtonMapperTests
     public void GetMouseButtonName_ShouldReturnCorrectName(int buttonCode, string expectedName)
     {
         var result = _mapper.GetMouseButtonName(buttonCode);
-        result.Should().Be(expectedName);
+        _ = result.Should().Be(expectedName);
     }
 
     [Fact]
     public void GetMouseButtonName_ShouldReturnGenericName_ForUnknownButton()
     {
         // Arrange - button code in valid range but not mapped
-        int unknownButton = 280;
+        const int unknownButton = 280;
 
         // Act
         var result = _mapper.GetMouseButtonName(unknownButton);
 
         // Assert - should return generic "Mouse9" (280 - 272 + 1 = 9)
-        result.Should().Be("Mouse9");
+        _ = result.Should().Be("Mouse9");
     }
 
     [Fact]
     public void GetMouseButtonName_ShouldReturnEmpty_ForOutOfRangeCode()
     {
         // Arrange - button code way out of range
-        int invalidCode = 100;
+        const int invalidCode = 100;
 
         // Act
         var result = _mapper.GetMouseButtonName(invalidCode);
 
         // Assert
-        result.Should().BeEmpty();
+        _ = result.Should().BeEmpty();
     }
 
     #endregion
@@ -69,22 +66,22 @@ public class MouseButtonMapperTests
     public void GetButtonCode_ShouldReturnCorrectCode(string buttonName, int expectedCode)
     {
         var result = _mapper.GetButtonCode(buttonName);
-        result.Should().Be(expectedCode);
+        _ = result.Should().Be(expectedCode);
     }
 
     [Fact]
     public void GetButtonCode_ShouldBeCaseInsensitive()
     {
-        _mapper.GetButtonCode("mouse left").Should().Be(272);
-        _mapper.GetButtonCode("MOUSE LEFT").Should().Be(272);
-        _mapper.GetButtonCode("Mouse Left").Should().Be(272);
+        _ = _mapper.GetButtonCode("mouse left").Should().Be(272);
+        _ = _mapper.GetButtonCode("MOUSE LEFT").Should().Be(272);
+        _ = _mapper.GetButtonCode("Mouse Left").Should().Be(272);
     }
 
     [Fact]
     public void GetButtonCode_ShouldReturnMinusOne_ForUnknownName()
     {
         var result = _mapper.GetButtonCode("Unknown Button");
-        result.Should().Be(-1);
+        _ = result.Should().Be(-1);
     }
 
     #endregion
@@ -98,7 +95,7 @@ public class MouseButtonMapperTests
     [InlineData(285, true)]  // Within range (279 + 10 = 289)
     public void IsMouseButton_ShouldReturnTrue_ForValidCodes(int code, bool expected)
     {
-        _mapper.IsMouseButton(code).Should().Be(expected);
+        _ = _mapper.IsMouseButton(code).Should().Be(expected);
     }
 
     [Theory]
@@ -107,7 +104,7 @@ public class MouseButtonMapperTests
     [InlineData(300)]  // Too high
     public void IsMouseButton_ShouldReturnFalse_ForInvalidCodes(int code)
     {
-        _mapper.IsMouseButton(code).Should().BeFalse();
+        _ = _mapper.IsMouseButton(code).Should().BeFalse();
     }
 
     #endregion

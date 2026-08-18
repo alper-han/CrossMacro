@@ -1,10 +1,7 @@
-using CrossMacro.Platform.Linux.Ipc;
-using CrossMacro.TestInfrastructure;
-using Xunit;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-public class PendingCaptureStartRegistryTests
+public sealed class PendingCaptureStartRegistryTests
 {
     [LinuxFact]
     public void RegisterAsyncParticipant_WhenSameConsumerJoinsPendingStart_ShouldPreserveOriginRollbackSnapshot()

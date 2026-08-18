@@ -1,16 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Input;
-using CommunityToolkit.Mvvm.Input;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Services;
-using CrossMacro.Infrastructure.Services;
-using CrossMacro.Platform.Abstractions;
-using CrossMacro.UI.Localization;
-using CrossMacro.UI.Services;
 
 namespace CrossMacro.UI.ViewModels;
 
@@ -19,17 +6,17 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 {
-    private readonly ITextExpansionStorageService _storageService;
+    private bool _disposed;
+
+    private readonly ITextExpansionStore? _storageService;
     private readonly IDialogService _dialogService;
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
     private readonly ILocalizationService _localizationService;
+    private readonly IManageTextExpansion? _manageTextExpansion;
+    private readonly Dictionary<TextExpansionEntry, bool> _managedEnabledState = new();
 
-    private string _triggerInput = string.Empty;
-    private string _replacementInput = string.Empty;
-    private ObservableCollection<TextExpansion> _expansions = new();
-    
     public TextExpansionViewModel(
-        ITextExpansionStorageService storageService, 
+        ITextExpansionStore storageService,
         IDialogService dialogService,
         IEnvironmentInfoProvider environmentInfoProvider,
         ILocalizationService localizationService)
@@ -39,88 +26,115 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         _environmentInfoProvider = environmentInfoProvider;
         _localizationService = localizationService;
         _localizationService.CultureChanged += OnCultureChanged;
-        
+
         // Load existing expansions asynchronously
         InitializationTask = LoadExpansionsAsync();
     }
 
-    public Task InitializationTask { get; private set; } = Task.CompletedTask;
-    
+    public TextExpansionViewModel(
+        IManageTextExpansion manageTextExpansion,
+        IDialogService dialogService,
+        IEnvironmentInfoProvider environmentInfoProvider,
+        ILocalizationService localizationService)
+    {
+        _manageTextExpansion = manageTextExpansion;
+        _dialogService = dialogService;
+        _environmentInfoProvider = environmentInfoProvider;
+        _localizationService = localizationService;
+        _localizationService.CultureChanged += OnCultureChanged;
+        InitializationTask = LoadExpansionsAsync();
+    }
+
+    public Task InitializationTask { get; private set; }
+
     public bool IsPasteMethodVisible => IsLinuxEnvironment(_environmentInfoProvider.CurrentEnvironment);
 
     public bool IsPasteMethodSelectorVisible =>
-        IsPasteMethodVisible && SelectedInsertionMode == TextInsertionMode.Paste;
+        IsPasteMethodVisible && SelectedInsertionMode is TextInsertionMode.Paste;
 
     public bool IsDirectTypingMethodSelectorVisible =>
-        SelectedInsertionMode == TextInsertionMode.DirectTyping;
+        SelectedInsertionMode is TextInsertionMode.DirectTyping;
 
     private static bool IsLinuxEnvironment(DisplayEnvironment env)
     {
-        return env == DisplayEnvironment.LinuxX11 ||
-               env == DisplayEnvironment.LinuxWayland ||
-               env == DisplayEnvironment.LinuxHyprland ||
-               env == DisplayEnvironment.LinuxWayfire ||
-               env == DisplayEnvironment.LinuxKDE ||
-               env == DisplayEnvironment.LinuxGnome;
+        return env is DisplayEnvironment.LinuxX11 or DisplayEnvironment.LinuxWayland or DisplayEnvironment.LinuxHyprland or DisplayEnvironment.LinuxWayfire or DisplayEnvironment.LinuxKDE or DisplayEnvironment.LinuxGnome;
     }
 
     private async Task LoadExpansionsAsync()
     {
-        var loadedExpansions = await _storageService.LoadAsync();
-        Expansions.Clear();
-        foreach (var expansion in loadedExpansions)
+        IReadOnlyList<TextExpansionEntry> loadedExpansions;
+        if (_storageService is ICachedTextExpansionStore storageService && storageService.IsLoaded)
         {
-            Expansions.Add(expansion);
+            loadedExpansions = storageService.GetCurrent().ToArray();
+        }
+        else if (_storageService is not null)
+        {
+            loadedExpansions = (IReadOnlyList<TextExpansionEntry>)await _storageService.LoadAsync().ConfigureAwait(false);
+        }
+        else if (_manageTextExpansion is not null)
+        {
+            loadedExpansions = await _manageTextExpansion.ListAsync(cancellationToken: default).ConfigureAwait(false);
+        }
+        else
+        {
+            loadedExpansions = [];
         }
 
-        OnPropertyChanged(nameof(HasExpansions));
-        OnPropertyChanged(nameof(ExpansionCountText));
+        await RunOnUiThreadAsync(() =>
+        {
+            Expansions.Clear();
+            _managedEnabledState.Clear();
+            foreach (var expansion in loadedExpansions)
+            {
+                Expansions.Add(expansion);
+                if (_manageTextExpansion is not null)
+                {
+                    _managedEnabledState[expansion] = expansion.IsEnabled;
+                }
+            }
+
+            OnPropertyChanged(nameof(HasExpansions));
+            OnPropertyChanged(nameof(ExpansionCountText));
+        }).ConfigureAwait(false);
     }
 
     public async Task RefreshProfileDataAsync()
     {
-        TriggerInput = string.Empty;
-        ReplacementInput = string.Empty;
-        SelectedInsertionMode = TextInsertionMode.Paste;
-        SelectedPasteMethod = PasteMethod.CtrlV;
-        SelectedDirectTypingMethod = DirectTypingMethod.FastBatch;
-        await LoadExpansionsAsync();
+        await LoadExpansionsAsync().ConfigureAwait(false);
+        await RunOnUiThreadAsync(ResetInputs).ConfigureAwait(false);
     }
 
-    private PasteMethod _selectedPasteMethod = PasteMethod.CtrlV;
-    private TextInsertionMode _selectedInsertionMode = TextInsertionMode.Paste;
-    private DirectTypingMethod _selectedDirectTypingMethod = DirectTypingMethod.FastBatch;
     private IReadOnlyList<TextInsertionMode> _insertionModes = Enum.GetValues<TextInsertionMode>();
     private IReadOnlyList<PasteMethod> _pasteMethods = Enum.GetValues<PasteMethod>();
     private IReadOnlyList<DirectTypingMethod> _directTypingMethods = Enum.GetValues<DirectTypingMethod>();
 
     public TextInsertionMode SelectedInsertionMode
     {
-        get => _selectedInsertionMode;
+        get;
         set
         {
-            if (SetProperty(ref _selectedInsertionMode, value))
+            if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(IsPasteMethodSelectorVisible));
                 OnPropertyChanged(nameof(IsDirectTypingMethodSelectorVisible));
             }
         }
-    }
+    } = TextInsertionMode.Paste;
 
     public PasteMethod SelectedPasteMethod
     {
-        get => _selectedPasteMethod;
-        set => SetProperty(ref _selectedPasteMethod, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = PasteMethod.CtrlV;
 
     public DirectTypingMethod SelectedDirectTypingMethod
     {
-        get => _selectedDirectTypingMethod;
-        set => SetProperty(ref _selectedDirectTypingMethod, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = DirectTypingMethod.FastBatch;
 
     public IEnumerable<TextInsertionMode> InsertionModes => _insertionModes;
-    
+
     // Expose enum values for UI
     public IEnumerable<PasteMethod> PasteMethods => _pasteMethods;
 
@@ -128,46 +142,49 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs e)
     {
-        _insertionModes = Enum.GetValues<TextInsertionMode>();
-        _pasteMethods = Enum.GetValues<PasteMethod>();
-        _directTypingMethods = Enum.GetValues<DirectTypingMethod>();
-        OnPropertyChanged(nameof(ExpansionCountText));
-        OnPropertyChanged(nameof(InsertionModes));
-        OnPropertyChanged(nameof(PasteMethods));
-        OnPropertyChanged(nameof(DirectTypingMethods));
+        PostToUiThread(() =>
+        {
+            _insertionModes = Enum.GetValues<TextInsertionMode>();
+            _pasteMethods = Enum.GetValues<PasteMethod>();
+            _directTypingMethods = Enum.GetValues<DirectTypingMethod>();
+            OnPropertyChanged(nameof(ExpansionCountText));
+            OnPropertyChanged(nameof(InsertionModes));
+            OnPropertyChanged(nameof(PasteMethods));
+            OnPropertyChanged(nameof(DirectTypingMethods));
+        });
     }
 
     public string TriggerInput
     {
-        get => _triggerInput;
+        get;
         set
         {
-            if (SetProperty(ref _triggerInput, value))
+            if (SetProperty(ref field, value))
             {
                 // Re-evaluate CanExecute for Add command
                 (AddExpansionCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
             }
         }
-    }
+    } = string.Empty;
 
     public string ReplacementInput
     {
-        get => _replacementInput;
+        get;
         set
         {
-            if (SetProperty(ref _replacementInput, value))
+            if (SetProperty(ref field, value))
             {
                 // Re-evaluate CanExecute for Add command
                 (AddExpansionCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
             }
         }
-    }
+    } = string.Empty;
 
-    public ObservableCollection<TextExpansion> Expansions
+    public ObservableCollection<TextExpansionEntry> Expansions
     {
-        get => _expansions;
-        set => SetProperty(ref _expansions, value);
-    }
+        get;
+        internal set => SetProperty(ref field, value);
+    } = new();
 
     public bool HasExpansions => Expansions.Count > 0;
 
@@ -178,78 +195,150 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 
     private bool CanAddExpansion()
     {
-        return !string.IsNullOrWhiteSpace(TriggerInput) && 
+        return !string.IsNullOrWhiteSpace(TriggerInput) &&
                !string.IsNullOrWhiteSpace(ReplacementInput);
     }
 
     [RelayCommand(CanExecute = nameof(CanAddExpansion))]
     private async Task AddExpansionAsync()
     {
-        var newExpansion = new TextExpansion(
+        var newExpansion = new TextExpansionEntry(
             TriggerInput,
             ReplacementInput,
-            true,
+isEnabled: true,
             SelectedPasteMethod,
             SelectedInsertionMode,
             SelectedDirectTypingMethod);
-        
-        // Add to UI collection
-        Expansions.Insert(0, newExpansion);
-        
-        // Save to storage
-        await _storageService.SaveAsync(Expansions);
-        
-        // Notify HasExpansions property changed
-        OnPropertyChanged(nameof(HasExpansions));
-        OnPropertyChanged(nameof(ExpansionCountText));
-        
-        // Clear inputs
-        TriggerInput = string.Empty;
-        ReplacementInput = string.Empty;
-        SelectedInsertionMode = TextInsertionMode.Paste;
-        // Reset method to default
-        SelectedPasteMethod = PasteMethod.CtrlV;
-        SelectedDirectTypingMethod = DirectTypingMethod.FastBatch;
+
+        if (_manageTextExpansion is not null)
+        {
+            var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion, profileIdentifier: null, default).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() => AddExpansionToUi(addedExpansion)).ConfigureAwait(false);
+        }
+        else if (_storageService is not null)
+        {
+            var expansionsToSave = new[] { newExpansion }.Concat(Expansions).ToArray();
+            await _storageService.SaveAsync(expansionsToSave).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() => AddExpansionToUi(newExpansion)).ConfigureAwait(false);
+        }
     }
 
 
     [RelayCommand]
-    private async Task RemoveExpansionAsync(TextExpansion? expansion)
+    private async Task RemoveExpansionAsync(TextExpansionEntry? expansion)
     {
-        if (expansion == null) return;
-        
+        if (expansion is null)
+        {
+            return;
+        }
+
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["TextExpansion_DeleteTitle"],
             string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["TextExpansion_DeleteMessage"],
-                expansion.Trigger));
-            
-        if (!confirmed) return;
+                expansion.Trigger)).ConfigureAwait(false);
 
-        if (Expansions.Remove(expansion))
+        if (!confirmed)
         {
-            await _storageService.SaveAsync(Expansions);
-            
-            // Notify HasExpansions property changed
-            OnPropertyChanged(nameof(HasExpansions));
-            OnPropertyChanged(nameof(ExpansionCountText));
+            return;
+        }
+
+        if (Expansions.Contains(expansion))
+        {
+            if (_manageTextExpansion is not null)
+            {
+                _ = await _manageTextExpansion.RemoveAsync(expansion.Trigger, cancellationToken: default).ConfigureAwait(false);
+                await RunOnUiThreadAsync(() => RemoveExpansionFromUi(expansion)).ConfigureAwait(false);
+            }
+            else if (_storageService is not null)
+            {
+                var expansionsToSave = Expansions.Where(candidate => candidate != expansion).ToArray();
+                await _storageService.SaveAsync(expansionsToSave).ConfigureAwait(false);
+                await RunOnUiThreadAsync(() => RemoveExpansionFromUi(expansion)).ConfigureAwait(false);
+            }
         }
     }
 
-    
     [RelayCommand]
-    private async Task ToggleExpansionAsync(TextExpansion? expansion)
+    private async Task ToggleExpansionAsync(TextExpansionEntry? expansion)
     {
-        if (expansion == null) return;
-        
-        // The IsEnabled property is bound TwoWay, so it's already updated in the object.
-        // We just need to persist the changes.
-        await _storageService.SaveAsync(Expansions);
+        if (expansion is null)
+        {
+            return;
+        }
+
+        if (_manageTextExpansion is not null)
+        {
+            var requestedEnabled = expansion.IsEnabled;
+            var previousEnabled = _managedEnabledState.TryGetValue(expansion, out var knownEnabled)
+                ? knownEnabled
+                : requestedEnabled;
+            try
+            {
+                var updatedExpansion = await _manageTextExpansion.SetEnabledAsync(expansion.Trigger, requestedEnabled, cancellationToken: default).ConfigureAwait(false);
+                await RunOnUiThreadAsync(() =>
+                {
+                    expansion.IsEnabled = updatedExpansion.IsEnabled;
+                    _managedEnabledState[expansion] = updatedExpansion.IsEnabled;
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                await RunOnUiThreadAsync(() => expansion.IsEnabled = previousEnabled).ConfigureAwait(false);
+                throw;
+            }
+        }
+        else if (_storageService is not null)
+        {
+            await _storageService.SaveAsync(Expansions).ConfigureAwait(false);
+        }
+    }
+
+    private void AddExpansionToUi(TextExpansionEntry expansion)
+    {
+        Expansions.Insert(0, expansion);
+        if (_manageTextExpansion is not null)
+        {
+            _managedEnabledState[expansion] = expansion.IsEnabled;
+        }
+
+        OnPropertyChanged(nameof(HasExpansions));
+        OnPropertyChanged(nameof(ExpansionCountText));
+        ResetInputs();
+    }
+
+    private void RemoveExpansionFromUi(TextExpansionEntry expansion)
+    {
+        _ = Expansions.Remove(expansion);
+        _ = _managedEnabledState.Remove(expansion);
+        OnPropertyChanged(nameof(HasExpansions));
+        OnPropertyChanged(nameof(ExpansionCountText));
+    }
+
+    private void ResetInputs()
+    {
+        TriggerInput = string.Empty;
+        ReplacementInput = string.Empty;
+        SelectedInsertionMode = TextInsertionMode.Paste;
+        SelectedPasteMethod = PasteMethod.CtrlV;
+        SelectedDirectTypingMethod = DirectTypingMethod.FastBatch;
     }
 
     public void Dispose()
     {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         _localizationService.CultureChanged -= OnCultureChanged;
     }
 }

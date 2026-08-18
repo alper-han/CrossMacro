@@ -1,10 +1,3 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using CrossMacro.Core.Models;
-using CrossMacro.Core.Logging;
-using CrossMacro.Platform.Abstractions;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
@@ -12,27 +5,99 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// Default playback coordinator implementation.
 /// Handles Corner Reset for relative mode and position sync for absolute mode.
 /// </summary>
-public class DefaultPlaybackCoordinator : IPlaybackCoordinator
+public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider = null) : IPlaybackCoordinator
 {
-    private readonly IMousePositionProvider? _positionProvider;
+    private static readonly TimeSpan CornerPositionSettleTimeout = TimeSpan.FromMilliseconds(250);
+    private const int CornerPositionTolerance = 1;
+    private static readonly TimeSpan RawMovementPositionRefreshInterval = TimeSpan.FromMilliseconds(4);
+    private const int RawMovementPositionRefreshAttempts = 5;
+    private const int RawMovementMinimumRefreshAttemptsWithoutReference = 3;
+
+    private readonly IMousePositionProvider? _positionProvider = positionProvider;
     public int CurrentX { get; private set; }
     public int CurrentY { get; private set; }
+    public bool HasKnownPosition { get; private set; }
+    private ScreenRect? _desktopBounds;
+    private (int X, int Y)? _positionBeforeRawMovement;
+    private bool _rawMovementMayBePending;
 
-    public DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider = null)
+    public void ConfigureDesktopBounds(ScreenRect? desktopBounds)
     {
-        _positionProvider = positionProvider;
+        _desktopBounds = desktopBounds;
     }
 
     public void UpdatePosition(int x, int y)
     {
         CurrentX = x;
         CurrentY = y;
+        HasKnownPosition = true;
+        _positionBeforeRawMovement = null;
+        _rawMovementMayBePending = false;
     }
 
-    public void AddDelta(int dx, int dy)
+    public void InvalidatePosition(bool movementMayBePending = false)
     {
-        CurrentX += dx;
-        CurrentY += dy;
+        if (movementMayBePending)
+        {
+            if (HasKnownPosition)
+            {
+                _positionBeforeRawMovement = (CurrentX, CurrentY);
+            }
+
+            _rawMovementMayBePending = true;
+        }
+        else
+        {
+            _positionBeforeRawMovement = null;
+            _rawMovementMayBePending = false;
+        }
+
+        HasKnownPosition = false;
+    }
+
+    public async Task<bool> TrySynchronizePositionAsync(CancellationToken cancellationToken)
+    {
+        if (HasKnownPosition)
+        {
+            return true;
+        }
+
+        if (_positionProvider is null || !_positionProvider.SupportsAbsolutePosition)
+        {
+            return false;
+        }
+
+        var position = _rawMovementMayBePending
+            ? await SynchronizeAfterRawMovementAsync(cancellationToken).ConfigureAwait(false)
+            : await QueryPositionAsync(cancellationToken).ConfigureAwait(false);
+        if (position is null)
+        {
+            return false;
+        }
+
+        UpdatePosition(position.Value.X, position.Value.Y);
+        return true;
+    }
+
+    public async Task<bool> WaitForPositionAsync(int expectedX, int expectedY, CancellationToken cancellationToken)
+    {
+        var result = await AbsoluteCursorPositionSynchronizer.WaitAsync(
+            _positionProvider,
+            expectedX,
+            expectedY,
+            cancellationToken).ConfigureAwait(false);
+        if (result.IsSettled)
+        {
+            return true;
+        }
+
+        Log.Warning(
+            "[PlaybackCoordinator] Absolute cursor move did not settle at ({ExpectedX},{ExpectedY}); last observed position is ({CurrentX},{CurrentY}).",
+            expectedX,
+            expectedY,
+            result.LastObservedPosition?.X ?? CurrentX,
+            result.LastObservedPosition?.Y ?? CurrentY);
+        return false;
     }
 
     public async Task InitializeAsync(
@@ -42,41 +107,32 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         int screenHeight,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(macro);
+        ArgumentNullException.ThrowIfNull(simulator);
         // Reset position
         CurrentX = 0;
         CurrentY = 0;
+        HasKnownPosition = false;
+        _positionBeforeRawMovement = null;
+        _rawMovementMayBePending = false;
 
         // Try to get current position from provider
-        if (_positionProvider != null && _positionProvider.IsSupported)
+        if (_positionProvider is not null
+            && _positionProvider.HasUsableAbsolutePosition()
+            && await TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false))
         {
-            try
-            {
-                var pos = await _positionProvider.GetAbsolutePositionAsync();
-                if (pos.HasValue)
-                {
-                    CurrentX = pos.Value.X;
-                    CurrentY = pos.Value.Y;
-                    Log.Information("[PlaybackCoordinator] Position initialized from provider: ({X}, {Y})", CurrentX, CurrentY);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[PlaybackCoordinator] Failed to get initial position from provider");
-            }
+            Log.Information("[PlaybackCoordinator] Position initialized from provider: ({X}, {Y})", CurrentX, CurrentY);
         }
 
-        var firstPositionRelevantMouseEvent = FindFirstPositionRelevantMouseEvent(macro);
-        var firstCoordinateMode = firstPositionRelevantMouseEvent.Type == EventType.None
-            ? null
-            : MacroPositionSemantics.ResolveCoordinateMode(firstPositionRelevantMouseEvent, macro.IsAbsoluteCoordinates);
+        var firstCoordinateMode = MacroPositionSemantics.ResolveInitialCoordinateMode(macro);
 
-        if (firstCoordinateMode == MouseCoordinateMode.Absolute)
+        if (firstCoordinateMode is MouseCoordinateMode.Absolute)
         {
             Log.Information("[PlaybackCoordinator] Absolute mode: first coordinate-bearing event will establish playback position");
         }
-        else if (firstCoordinateMode == MouseCoordinateMode.Relative)
+        else if (firstCoordinateMode is MouseCoordinateMode.Relative)
         {
-            await InitializeRelativeModeAsync(macro, simulator, cancellationToken);
+            await InitializeRelativeModeAsync(macro, simulator, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -91,12 +147,13 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
     {
         if (!macro.SkipInitialZeroZero)
         {
-            // Recording did Corner Reset, so we should too
-            Log.Information("[PlaybackCoordinator] Relative mode: Performing Corner Reset (0,0)...");
-            simulator.MoveRelative(-20000, -20000);
-            await Task.Delay(10, cancellationToken);
-            CurrentX = 0;
-            CurrentY = 0;
+            Log.Information("[PlaybackCoordinator] Relative mode: performing desktop corner reset...");
+            var previousPosition = GetTrackedPosition();
+            var expectedPosition = MouseCornerReset.MoveToDesktopOrigin(simulator, _desktopBounds);
+            await SynchronizeAfterCornerResetAsync(
+                previousPosition,
+                expectedPosition,
+                cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -113,54 +170,182 @@ public class DefaultPlaybackCoordinator : IPlaybackCoordinator
         int screenHeight,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(macro);
+        ArgumentNullException.ThrowIfNull(simulator);
         // First iteration is handled by InitializeAsync
-        if (iteration == 0)
+        if (iteration is 0)
+        {
             return;
+        }
 
-        var firstPositionRelevantMouseEvent = FindFirstPositionRelevantMouseEvent(macro);
-        var firstCoordinateMode = firstPositionRelevantMouseEvent.Type == EventType.None
-            ? null
-            : MacroPositionSemantics.ResolveCoordinateMode(firstPositionRelevantMouseEvent, macro.IsAbsoluteCoordinates);
+        var firstCoordinateMode = MacroPositionSemantics.ResolveInitialCoordinateMode(macro);
 
-        if (firstCoordinateMode == MouseCoordinateMode.Absolute)
+        if (firstCoordinateMode is MouseCoordinateMode.Absolute)
         {
             // Sync tracked position when possible; the first absolute event itself performs the movement.
-            if (_positionProvider != null && _positionProvider.IsSupported)
+            if (_positionProvider is not null && _positionProvider.HasUsableAbsolutePosition())
             {
-                try
+                InvalidatePosition();
+                if (await TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var pos = await _positionProvider.GetAbsolutePositionAsync();
-                    if (pos.HasValue)
-                    {
-                        CurrentX = pos.Value.X;
-                        CurrentY = pos.Value.Y;
-                        Log.Debug("[PlaybackCoordinator] Iteration {I}: Position synced ({X}, {Y})",
-                            iteration + 1, CurrentX, CurrentY);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "[PlaybackCoordinator] Failed to sync position from provider");
+                    Log.Debug("[PlaybackCoordinator] Iteration {I}: Position synced ({X}, {Y})",
+                        iteration + 1, CurrentX, CurrentY);
                 }
             }
         }
-        else if (firstCoordinateMode == MouseCoordinateMode.Relative
+        else if (firstCoordinateMode is MouseCoordinateMode.Relative
             && !macro.SkipInitialZeroZero)
         {
-            // Relative mode with Corner Reset
-            Log.Information("[PlaybackCoordinator] Iteration {I}: Performing Corner Reset (0,0)", iteration + 1);
-            simulator.MoveRelative(-20000, -20000);
-            await Task.Delay(10, cancellationToken);
-            CurrentX = 0;
-            CurrentY = 0;
+            Log.Information("[PlaybackCoordinator] Iteration {I}: performing desktop corner reset", iteration + 1);
+            var previousPosition = GetTrackedPosition();
+            var expectedPosition = MouseCornerReset.MoveToDesktopOrigin(simulator, _desktopBounds);
+            await SynchronizeAfterCornerResetAsync(
+                previousPosition,
+                expectedPosition,
+                cancellationToken).ConfigureAwait(false);
         }
         // If SkipInitialZeroZero=true, just continue from current position
     }
 
-    private static MacroEvent FindFirstPositionRelevantMouseEvent(MacroSequence macro)
+    private async Task SynchronizeAfterCornerResetAsync(
+        (int X, int Y)? previousPosition,
+        (int X, int Y)? expectedPosition,
+        CancellationToken cancellationToken)
     {
-        return macro.Events.FirstOrDefault(e =>
-            e.Type == EventType.MouseMove
-            || MacroPositionSemantics.IsNonScrollMouseButtonEvent(e));
+        InvalidatePosition();
+        var result = await AbsoluteCursorPositionSynchronizer.WaitUntilAsync(
+            _positionProvider,
+            position => IsCornerResetPosition(position, previousPosition, expectedPosition),
+            CornerPositionSettleTimeout,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.IsSettled)
+        {
+            if (result.LastObservedPosition is { } settledPosition)
+            {
+                UpdatePosition(settledPosition.X, settledPosition.Y);
+            }
+            else
+            {
+                UpdateUnobservedCornerPosition(expectedPosition);
+            }
+
+            return;
+        }
+
+        if (expectedPosition is not null || _desktopBounds is not null)
+        {
+            UpdateUnobservedCornerPosition(expectedPosition);
+        }
+        else if (result.LastObservedPosition is { } observedPosition)
+        {
+            Log.Warning(
+                "[PlaybackCoordinator] Corner reset settled at ({X}, {Y}) instead of the requested desktop origin",
+                observedPosition.X,
+                observedPosition.Y);
+            UpdatePosition(observedPosition.X, observedPosition.Y);
+        }
+        else
+        {
+            UpdateUnobservedCornerPosition(expectedPosition);
+        }
+    }
+
+    private bool IsCornerResetPosition(
+        (int X, int Y) position,
+        (int X, int Y)? previousPosition,
+        (int X, int Y)? expectedPosition)
+    {
+        if (expectedPosition is { } expected)
+        {
+            return IsWithinCornerTolerance(position, expected);
+        }
+
+        return IsPlausibleDesktopCorner(position)
+            || (_desktopBounds is null && (previousPosition is null || position != previousPosition));
+    }
+
+    private void UpdateUnobservedCornerPosition((int X, int Y)? expectedPosition)
+    {
+        if (expectedPosition is { } expected)
+        {
+            UpdatePosition(expected.X, expected.Y);
+        }
+        else if (_desktopBounds is { } bounds)
+        {
+            UpdatePosition(bounds.X, bounds.Y);
+        }
+    }
+
+    private (int X, int Y)? GetTrackedPosition() =>
+        HasKnownPosition ? (CurrentX, CurrentY) : null;
+
+    private bool IsPlausibleDesktopCorner((int X, int Y) position) =>
+        _desktopBounds is { } bounds
+        && IsWithinCornerTolerance(position, (bounds.X, bounds.Y));
+
+    private static bool IsWithinCornerTolerance(
+        (int X, int Y) position,
+        (int X, int Y) expected)
+    {
+        return Math.Abs((long)position.X - expected.X) <= CornerPositionTolerance
+            && Math.Abs((long)position.Y - expected.Y) <= CornerPositionTolerance;
+    }
+
+    private async Task<(int X, int Y)?> QueryPositionAsync(CancellationToken cancellationToken)
+    {
+        if (_positionProvider is null || !_positionProvider.HasUsableAbsolutePosition())
+        {
+            return null;
+        }
+
+        try
+        {
+            return await _positionProvider.GetAbsolutePositionAsync()
+                .WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[PlaybackCoordinator] Failed to synchronize cursor position");
+            return null;
+        }
+    }
+
+    private async Task<(int X, int Y)?> SynchronizeAfterRawMovementAsync(
+        CancellationToken cancellationToken)
+    {
+        (int X, int Y)? lastObservedPosition = null;
+
+        for (var attempt = 0; attempt < RawMovementPositionRefreshAttempts; attempt++)
+        {
+            var position = await QueryPositionAsync(cancellationToken).ConfigureAwait(false);
+            if (position is not null)
+            {
+                lastObservedPosition = position;
+                bool changedFromReference = _positionBeforeRawMovement is { } reference
+                    && position.Value != reference;
+                bool observedLongEnoughWithoutReference = _positionBeforeRawMovement is null
+                    && attempt + 1 >= RawMovementMinimumRefreshAttemptsWithoutReference;
+                if (changedFromReference || observedLongEnoughWithoutReference)
+                {
+                    return position;
+                }
+            }
+
+            if (attempt + 1 < RawMovementPositionRefreshAttempts)
+            {
+                await Task.Delay(
+                    RawMovementPositionRefreshInterval,
+                    TimeProvider.System,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return lastObservedPosition;
     }
 }

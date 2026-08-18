@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Linux.Tests.PlatformAbstractions;
 
-public class ScreenPixelColorTests
+public sealed class ScreenPixelColorTests
 {
     [Theory]
     [InlineData("FF0000", 255, 0, 0, "FF0000")]

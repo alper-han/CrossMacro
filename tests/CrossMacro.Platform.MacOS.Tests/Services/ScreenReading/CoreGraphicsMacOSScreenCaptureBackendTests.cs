@@ -1,6 +1,3 @@
-using CrossMacro.Platform.MacOS.Native;
-using CrossMacro.Platform.MacOS.Services.ScreenReading;
-using Xunit;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services.ScreenReading;
 
@@ -36,6 +33,46 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
         Assert.Equal(new ScreenPixelColor(20, 0, 0), screenFrame.GetPixel(new ScreenPoint(-1, 0)));
         Assert.Equal(new ScreenPixelColor(30, 0, 0), screenFrame.GetPixel(new ScreenPoint(0, 0)));
         Assert.Equal(new ScreenPixelColor(40, 0, 0), screenFrame.GetPixel(new ScreenPoint(1, 0)));
+    }
+
+    [Fact]
+    public void Capture_WhenDisplaysHaveGap_MarksGapAsInvalid()
+    {
+        var native = new FakeCoreGraphicsNative()
+            .AddDisplay(1, Rect(0, 0, 1, 1), SolidImage(1, 1, Pixel(10, 0, 0)))
+            .AddDisplay(2, Rect(2, 0, 1, 1), SolidImage(1, 1, Pixel(30, 0, 0)));
+        var backend = new CoreGraphicsMacOSScreenCaptureBackend(native);
+
+        var frame = backend.Capture(new ScreenRect(0, 0, 3, 1), CancellationToken.None);
+
+        Assert.Equal([1, 0, 1], frame.ValidPixelMask);
+    }
+
+    [Fact]
+    public void Capture_UnpremultipliesPremultipliedCoreGraphicsPixels()
+    {
+        var image = new MacOSCapturedImage(
+            1,
+            1,
+            8,
+            32,
+            4,
+            BgraBitmapInfo,
+            [20, 40, 80, 128]);
+        var native = new FakeCoreGraphicsNative().AddDisplay(1, Rect(0, 0, 1, 1), image);
+        var backend = new CoreGraphicsMacOSScreenCaptureBackend(native);
+
+        var frame = backend.Capture(new ScreenRect(0, 0, 1, 1), CancellationToken.None);
+
+        using var screenFrame = new ScreenFrame(
+            frame.LogicalBounds,
+            frame.Stride,
+            frame.PixelFormat,
+            frame.Pixels,
+            validPixelMask: frame.ValidPixelMask);
+        Assert.Equal(new ScreenPixelColor(159, 80, 40), screenFrame.GetPixel(new ScreenPoint(0, 0)));
+        Assert.True(screenFrame.TryGetAlpha(new ScreenPoint(0, 0), out var alpha));
+        Assert.Equal(byte.MaxValue, alpha);
     }
 
     [Fact]
@@ -93,7 +130,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
             .AddDisplay(1, Rect(0, 0, 1, 1), SolidImage(1, 1, Pixel(1, 1, 1)));
         var backend = new CoreGraphicsMacOSScreenCaptureBackend(native);
 
-        Assert.Throws<InvalidOperationException>(() => backend.Capture(new ScreenRect(2, 2, 1, 1), CancellationToken.None));
+        _ = Assert.Throws<InvalidOperationException>(() => backend.Capture(new ScreenRect(2, 2, 1, 1), CancellationToken.None));
     }
 
     [Fact]
@@ -123,7 +160,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
     private static CoreGraphics.CGRect Rect(double x, double y, double width, double height) => new()
     {
         origin = new CoreGraphics.CGPoint { X = x, Y = y },
-        size = new CoreGraphics.CGSize { width = width, height = height }
+        size = new CoreGraphics.CGSize { width = width, height = height },
     };
 
     private static byte[] Pixel(byte red, byte green, byte blue) => [blue, green, red, 0xFF];
@@ -146,7 +183,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
         {
             for (var x = 0; x < width; x++)
             {
-                WritePixel(sourcePixels, width, x, y, pixels[y * width + x], bytesPerRow);
+                WritePixel(sourcePixels, width, x, y, pixels[(y * width) + x], bytesPerRow);
             }
         }
 
@@ -155,7 +192,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
 
     private static void WritePixel(byte[] pixels, int width, int x, int y, byte[] pixel, int? bytesPerRow = null)
     {
-        var offset = y * (bytesPerRow ?? width * 4) + x * 4;
+        var offset = (y * (bytesPerRow ?? (width * 4))) + (x * 4);
         Array.Copy(pixel, 0, pixels, offset, 4);
     }
 

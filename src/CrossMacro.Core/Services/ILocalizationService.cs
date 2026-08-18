@@ -1,15 +1,13 @@
-using System;
-using System.Globalization;
 
 namespace CrossMacro.Core.Services;
 
 public interface ILocalizationService
 {
-    CultureInfo CurrentCulture { get; }
+    public CultureInfo CurrentCulture { get; }
 
-    string this[string key] { get; }
+    public string this[string key] { get; }
 
-    event EventHandler? CultureChanged;
+    public event EventHandler? CultureChanged;
 
-    void SetCulture(string? cultureName);
+    public void SetCulture(string? cultureName);
 }

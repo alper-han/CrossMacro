@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace CrossMacro.Core.Models;
 
@@ -16,17 +12,19 @@ public class EditorAction : INotifyPropertyChanged
     private EditorActionType _type;
     private int _x;
     private int _y;
+    private string? _coordinateXToken;
+    private string? _coordinateYToken;
     private bool _isAbsolute = true;
-    private MouseButton _button = MouseButton.Left;
+    private MouseCoordinateSpace _coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
+    private MacroMouseButton _button = MacroMouseButton.Left;
     private int _keyCode;
-    private int _delayMs;
+    private long _delayMicroseconds;
     private bool _useRandomDelay;
     private int _randomDelayMinMs;
     private int _randomDelayMaxMs;
     private bool _useCurrentPosition;
     private int _scrollAmount = 1;
     private string? _keyName;
-    private int _index;
     private string _text = string.Empty;
     private string _scriptVariableName = "i";
     private ScriptValueType _scriptValueType = ScriptValueType.Number;
@@ -61,17 +59,46 @@ public class EditorAction : INotifyPropertyChanged
     private string _screenFoundVariableName = "found";
     private string _screenFoundXVariableName = "found_x";
     private string _screenFoundYVariableName = "found_y";
-    private bool _preferLegacyScriptText;
+    private string _imageAssetName = string.Empty;
+    private double _imageSearchSimilarity = 0.95;
+    private EditorImageMatchMode _imageSearchMatchMode = EditorImageMatchMode.Automatic;
+    private ShellCommandMode _shellCommandMode = ShellCommandMode.Shell;
+    private string _shellCommand = string.Empty;
+    private string _shellStandardInput = string.Empty;
+    private string _shellExitCodeVariableName = "exit_code";
+    private string _shellStandardOutputVariableName = "stdout";
+    private string _shellStandardErrorVariableName = "stderr";
+    private int _shellRetries;
+    private int _shellBackoffMs;
+    private int _shellTimeoutMs;
+    private string _screenshotOutputPath = string.Empty;
+    private bool _screenshotCopyToClipboard;
+    private bool _screenshotUseRegion;
+    private string _screenshotRegionX = "0";
+    private string _screenshotRegionY = "0";
+    private string _screenshotRegionWidth = "100";
+    private string _screenshotRegionHeight = "100";
+    private WindowCommandMode _windowCommandMode = WindowCommandMode.Active;
+    private string _windowSelectorKind = "title";
+    private string _windowSelectorValue = string.Empty;
+    private string _windowActiveField = "title";
+    private string _windowOutputVariable = "windowResult";
+    private int _windowTimeoutMs = 5000;
+    private int _windowX;
+    private int _windowY;
+    private int _windowWidth = 1280;
+    private int _windowHeight = 720;
+    private string _windowWorkspace = string.Empty;
     private List<MacroEvent>? _preservedTextInputEvents;
     private string? _preservedTextInputText;
-    
+
     public event PropertyChangedEventHandler? PropertyChanged;
-    
+
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
-    
+
     /// <summary>
     /// Unique identifier for this action.
     /// </summary>
@@ -80,37 +107,37 @@ public class EditorAction : INotifyPropertyChanged
         get => _id;
         set { _id = value; OnPropertyChanged(); }
     }
-    
+
     /// <summary>
     /// Type of action to perform.
     /// </summary>
     public EditorActionType Type
     {
         get => _type;
-        set 
-        { 
+        set
+        {
             if (_type != value)
             {
-                _type = value; 
-                if (value != EditorActionType.TextInput)
+                _type = value;
+                if (value is not EditorActionType.TextInput)
                 {
                     ClearPreservedTextInputEvents();
                 }
 
-                if (!IsScriptPayloadAction(value))
+                if (!EditorActionValidationPolicy.IsScriptPayloadAction(value))
                 {
-                    _preferLegacyScriptText = false;
+                    PreferLegacyScriptText = false;
                 }
                 else if (!string.IsNullOrWhiteSpace(_text))
                 {
-                    _preferLegacyScriptText = true;
+                    PreferLegacyScriptText = true;
                 }
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// X coordinate (for mouse actions).
     /// For absolute: screen position. For relative: offset.
@@ -118,17 +145,19 @@ public class EditorAction : INotifyPropertyChanged
     public int X
     {
         get => _x;
-        set 
-        { 
-            if (_x != value)
+        set
+        {
+            if (_x != value || _coordinateXToken is not null)
             {
-                _x = value; 
+                _x = value;
+                _coordinateXToken = null;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CoordinateXToken));
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Y coordinate (for mouse actions).
     /// For absolute: screen position. For relative: offset.
@@ -136,17 +165,60 @@ public class EditorAction : INotifyPropertyChanged
     public int Y
     {
         get => _y;
-        set 
-        { 
-            if (_y != value)
+        set
+        {
+            if (_y != value || _coordinateYToken is not null)
             {
-                _y = value; 
+                _y = value;
+                _coordinateYToken = null;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CoordinateYToken));
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
+    /// <summary>
+    /// X coordinate token used by script-backed mouse actions.
+    /// Accepts an integer literal or a variable reference such as <c>$found_x</c>.
+    /// </summary>
+    public string CoordinateXToken
+    {
+        get => _coordinateXToken ?? _x.ToString(CultureInfo.InvariantCulture);
+        set => SetCoordinateToken(
+            value,
+            ref _coordinateXToken,
+            ref _x,
+            nameof(CoordinateXToken),
+            nameof(X));
+    }
+
+    /// <summary>
+    /// Y coordinate token used by script-backed mouse actions.
+    /// Accepts an integer literal or a variable reference such as <c>$found_y</c>.
+    /// </summary>
+    public string CoordinateYToken
+    {
+        get => _coordinateYToken ?? _y.ToString(CultureInfo.InvariantCulture);
+        set => SetCoordinateToken(
+            value,
+            ref _coordinateYToken,
+            ref _y,
+            nameof(CoordinateYToken),
+            nameof(Y));
+    }
+
+    public bool HasVariableCoordinates =>
+        IsVariableCoordinateToken(CoordinateXToken)
+        || IsVariableCoordinateToken(CoordinateYToken);
+
+    public bool TryGetLiteralCoordinates(out int x, out int y)
+    {
+        var hasX = int.TryParse(CoordinateXToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out x);
+        var hasY = int.TryParse(CoordinateYToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out y);
+        return hasX && hasY;
+    }
+
     /// <summary>
     /// Whether coordinates are absolute (true) or relative (false).
     /// Used by mouse actions with coordinates (MouseMove/MouseClick/MouseDown/MouseUp).
@@ -154,34 +226,53 @@ public class EditorAction : INotifyPropertyChanged
     public bool IsAbsolute
     {
         get => _isAbsolute;
-        set 
-        { 
+        set
+        {
             if (_isAbsolute != value)
             {
-                _isAbsolute = value; 
+                _isAbsolute = value;
+                _coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CoordinateSpace));
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
+    /// <summary>
+    /// Unit space for relative mouse coordinates. Newly authored editor actions
+    /// use logical desktop pixels; imported raw recordings retain their device units.
+    /// </summary>
+    public MouseCoordinateSpace CoordinateSpace
+    {
+        get => _coordinateSpace;
+        set
+        {
+            if (_coordinateSpace != value)
+            {
+                _coordinateSpace = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     /// <summary>
     /// Mouse button (for click/down/up actions).
     /// </summary>
-    public MouseButton Button
+    public MacroMouseButton Button
     {
         get => _button;
-        set 
-        { 
+        set
+        {
             if (_button != value)
             {
-                _button = value; 
+                _button = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Keyboard key code (for key actions).
     /// Uses Linux input key codes.
@@ -189,32 +280,54 @@ public class EditorAction : INotifyPropertyChanged
     public int KeyCode
     {
         get => _keyCode;
-        set 
-        { 
+        set
+        {
             if (_keyCode != value)
             {
-                _keyCode = value; 
+                _keyCode = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
-    /// <summary>
-    /// Delay in milliseconds (for Delay action or timing between actions).
-    /// </summary>
-    public int DelayMs
+
+    /// <summary>Precise delay in microseconds.</summary>
+    public long DelayMicroseconds
     {
-        get => _delayMs;
-        set 
-        { 
-            if (_delayMs != value)
+        get => _delayMicroseconds;
+        set
+        {
+            if (_delayMicroseconds != value)
             {
-                _delayMs = value; 
+                _delayMicroseconds = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(DelayMs));
+                OnPropertyChanged(nameof(DelayDuration));
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
+    }
+
+    /// <summary>User-facing delay text accepting legacy milliseconds or explicit ms/us units.</summary>
+    public string DelayDuration
+    {
+        get => DelayMicroseconds < 0
+            ? string.Create(CultureInfo.InvariantCulture, $"{DelayMicroseconds}us")
+            : MacroTiming.FormatDuration(DelayMicroseconds);
+        set
+        {
+            if (MacroTiming.TryParseDurationMicroseconds(value, out var microseconds))
+            {
+                DelayMicroseconds = microseconds;
+            }
+        }
+    }
+
+    /// <summary>Legacy millisecond projection of <see cref="DelayMicroseconds"/>.</summary>
+    public int DelayMs
+    {
+        get => MacroTiming.ToLegacyMilliseconds(DelayMicroseconds);
+        set => DelayMicroseconds = checked((long)value * MacroTiming.MicrosecondsPerMillisecond);
     }
 
     /// <summary>
@@ -286,57 +399,46 @@ public class EditorAction : INotifyPropertyChanged
             }
         }
     }
-    
+
     /// <summary>
     /// Scroll amount (positive = up/right, negative = down/left).
     /// </summary>
     public int ScrollAmount
     {
         get => _scrollAmount;
-        set 
-        { 
+        set
+        {
             if (_scrollAmount != value)
             {
-                _scrollAmount = value; 
+                _scrollAmount = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Human-readable key name for display purposes.
     /// </summary>
     public string? KeyName
     {
         get => _keyName;
-        set 
-        { 
-            if (_keyName != value)
+        set
+        {
+            if (!string.Equals(_keyName, value, StringComparison.Ordinal))
             {
-                _keyName = value; 
+                _keyName = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
-    
+
     /// <summary>
     /// Index of this action in the list (1-based for display).
     /// </summary>
-    public int Index
-    {
-        get => _index;
-        set 
-        { 
-            if (_index != value)
-            {
-                _index = value; 
-                OnPropertyChanged();
-            }
-        }
-    }
-    
+    public int Index { get; set; }
+
     /// <summary>
     /// Text content (for TextInput action).
     /// Each character will be converted to a KeyPress event when saving.
@@ -344,20 +446,20 @@ public class EditorAction : INotifyPropertyChanged
     public string Text
     {
         get => _text;
-        set 
-        { 
-            if (_text != value)
+        set
+        {
+            if (!string.Equals(_text, value, StringComparison.Ordinal))
             {
                 var normalized = value ?? string.Empty;
                 _text = normalized;
-                if (Type == EditorActionType.TextInput && _preservedTextInputText != normalized)
+                if (Type is EditorActionType.TextInput && !string.Equals(_preservedTextInputText, normalized, StringComparison.Ordinal))
                 {
                     ClearPreservedTextInputEvents();
                 }
 
-                if (IsScriptPayloadAction(Type))
+                if (EditorActionValidationPolicy.IsScriptPayloadAction(Type))
                 {
-                    _preferLegacyScriptText = !string.IsNullOrWhiteSpace(_text);
+                    PreferLegacyScriptText = !string.IsNullOrWhiteSpace(_text);
                 }
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DisplayName));
@@ -369,18 +471,14 @@ public class EditorAction : INotifyPropertyChanged
     /// Indicates whether script serialization should prefer legacy raw Text payload over structured fields.
     /// Used for fallback-parsed script actions until structured fields are edited.
     /// </summary>
-    public bool PreferLegacyScriptText
-    {
-        get => _preferLegacyScriptText;
-        set => _preferLegacyScriptText = value;
-    }
+    public bool PreferLegacyScriptText { get; set; }
 
     public IReadOnlyList<MacroEvent>? GetPreservedTextInputEvents()
     {
-        return Type == EditorActionType.TextInput
-            && _preservedTextInputEvents is { Count: > 0 }
-            && _preservedTextInputText == Text
-            ? _preservedTextInputEvents
+        return Type is EditorActionType.TextInput
+&& _preservedTextInputEvents is { Count: > 0 }
+&& string.Equals(_preservedTextInputText, Text
+, StringComparison.Ordinal) ? _preservedTextInputEvents
             : null;
     }
 
@@ -400,7 +498,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_scriptVariableName == normalized)
+            if (string.Equals(_scriptVariableName, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -441,7 +539,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value ?? string.Empty;
-            if (_scriptValue == normalized)
+            if (string.Equals(_scriptValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -482,7 +580,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_scriptNumericValue == normalized)
+            if (string.Equals(_scriptNumericValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -523,7 +621,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_scriptLeftOperand == normalized)
+            if (string.Equals(_scriptLeftOperand, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -584,7 +682,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_scriptRightOperand == normalized)
+            if (string.Equals(_scriptRightOperand, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -605,7 +703,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_forVariableName == normalized)
+            if (string.Equals(_forVariableName, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -646,7 +744,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_forStartValue == normalized)
+            if (string.Equals(_forStartValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -687,7 +785,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_forEndValue == normalized)
+            if (string.Equals(_forEndValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -748,7 +846,7 @@ public class EditorAction : INotifyPropertyChanged
         set
         {
             var normalized = value?.Trim() ?? string.Empty;
-            if (_forStepValue == normalized)
+            if (string.Equals(_forStepValue, normalized, StringComparison.Ordinal))
             {
                 return;
             }
@@ -850,6 +948,218 @@ public class EditorAction : INotifyPropertyChanged
         set => SetScreenField(ref _screenFoundYVariableName, value?.Trim() ?? string.Empty);
     }
 
+    public string ImageAssetName
+    {
+        get => _imageAssetName;
+        set => SetScreenField(ref _imageAssetName, value?.Trim() ?? string.Empty);
+    }
+
+    public double ImageSearchSimilarity
+    {
+        get => _imageSearchSimilarity;
+        set => SetScreenField(ref _imageSearchSimilarity, value);
+    }
+
+    public EditorImageMatchMode ImageSearchMatchMode
+    {
+        get => _imageSearchMatchMode;
+        set => SetScreenField(ref _imageSearchMatchMode, value);
+    }
+
+    public bool ImageSearchMatchModeWasExplicit { get; set; }
+
+    public void SetImageSearchMatchMode(EditorImageMatchMode value, bool wasExplicit = true)
+    {
+        ImageSearchMatchMode = value;
+        ImageSearchMatchModeWasExplicit = wasExplicit;
+        MarkStructuredScriptEdited();
+    }
+
+    public ShellCommandMode ShellCommandMode
+    {
+        get => _shellCommandMode;
+        set => SetScriptField(ref _shellCommandMode, value);
+    }
+
+    public string ShellCommand
+    {
+        get => _shellCommand;
+        set => SetScriptField(ref _shellCommand, value ?? string.Empty);
+    }
+
+    public string ShellStandardInput
+    {
+        get => _shellStandardInput;
+        set => SetScriptField(ref _shellStandardInput, value ?? string.Empty);
+    }
+
+    public string ShellExitCodeVariableName
+    {
+        get => _shellExitCodeVariableName;
+        set => SetScriptField(ref _shellExitCodeVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public string ShellStandardOutputVariableName
+    {
+        get => _shellStandardOutputVariableName;
+        set => SetScriptField(ref _shellStandardOutputVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public string ShellStandardErrorVariableName
+    {
+        get => _shellStandardErrorVariableName;
+        set => SetScriptField(ref _shellStandardErrorVariableName, value?.Trim() ?? string.Empty);
+    }
+
+    public int ShellRetries
+    {
+        get => _shellRetries;
+        set => SetScriptField(ref _shellRetries, value);
+    }
+
+    public int ShellBackoffMs
+    {
+        get => _shellBackoffMs;
+        set => SetScriptField(ref _shellBackoffMs, value);
+    }
+
+    public int ShellTimeoutMs
+    {
+        get => _shellTimeoutMs;
+        set => SetScriptField(ref _shellTimeoutMs, value);
+    }
+
+    public string ScreenshotOutputPath
+    {
+        get => _screenshotOutputPath;
+        set => SetScriptField(ref _screenshotOutputPath, value ?? string.Empty);
+    }
+
+    public bool ScreenshotCopyToClipboard
+    {
+        get => _screenshotCopyToClipboard;
+        set => SetScriptField(ref _screenshotCopyToClipboard, value);
+    }
+
+    public bool ScreenshotUseRegion
+    {
+        get => _screenshotUseRegion;
+        set => SetScriptField(ref _screenshotUseRegion, value);
+    }
+
+    public string ScreenshotRegionX
+    {
+        get => _screenshotRegionX;
+        set => SetScriptField(ref _screenshotRegionX, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenshotRegionY
+    {
+        get => _screenshotRegionY;
+        set => SetScriptField(ref _screenshotRegionY, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenshotRegionWidth
+    {
+        get => _screenshotRegionWidth;
+        set => SetScriptField(ref _screenshotRegionWidth, value?.Trim() ?? string.Empty);
+    }
+
+    public string ScreenshotRegionHeight
+    {
+        get => _screenshotRegionHeight;
+        set => SetScriptField(ref _screenshotRegionHeight, value?.Trim() ?? string.Empty);
+    }
+
+    public WindowCommandMode WindowCommandMode
+    {
+        get => _windowCommandMode;
+        set => SetScriptField(ref _windowCommandMode, value);
+    }
+
+    public string WindowSelectorKind
+    {
+        get => _windowSelectorKind;
+        set => SetScriptField(
+            ref _windowSelectorKind,
+            value?.Trim().ToUpperInvariant() switch
+            {
+                "ACTIVE" => "active",
+                "TITLE" => "title",
+                "CLASS" => "class",
+                "ADDRESS" => "address",
+                _ => value?.Trim() ?? string.Empty,
+            });
+    }
+
+    public string WindowSelectorValue
+    {
+        get => _windowSelectorValue;
+        set => SetScriptField(ref _windowSelectorValue, value ?? string.Empty);
+    }
+
+    public string WindowActiveField
+    {
+        get => _windowActiveField;
+        set => SetScriptField(
+            ref _windowActiveField,
+            value?.Trim().ToUpperInvariant() switch
+            {
+                "TITLE" => "title",
+                "CLASS" => "class",
+                "ADDRESS" => "address",
+                "FULLSCREEN" => "fullscreen",
+                "MAXIMIZE" => "maximize",
+                "FLOAT" => "float",
+                "PINNED" => "pinned",
+                "HIDDEN" => "hidden",
+                "GEOMETRY" => "geometry",
+                _ => value?.Trim() ?? string.Empty,
+            });
+    }
+
+    public string WindowOutputVariable
+    {
+        get => _windowOutputVariable;
+        set => SetScriptField(ref _windowOutputVariable, value?.Trim() ?? string.Empty);
+    }
+
+    public int WindowTimeoutMs
+    {
+        get => _windowTimeoutMs;
+        set => SetScriptField(ref _windowTimeoutMs, value);
+    }
+
+    public int WindowX
+    {
+        get => _windowX;
+        set => SetScriptField(ref _windowX, value);
+    }
+
+    public int WindowY
+    {
+        get => _windowY;
+        set => SetScriptField(ref _windowY, value);
+    }
+
+    public int WindowWidth
+    {
+        get => _windowWidth;
+        set => SetScriptField(ref _windowWidth, value);
+    }
+
+    public int WindowHeight
+    {
+        get => _windowHeight;
+        set => SetScriptField(ref _windowHeight, value);
+    }
+
+    public string WindowWorkspace
+    {
+        get => _windowWorkspace;
+        set => SetScriptField(ref _windowWorkspace, value ?? string.Empty);
+    }
+
     public bool TryGetScreenReadingPayload(out EditorActionScreenReadingPayload payload)
     {
         return EditorActionScreenReadingPayload.TryCreate(this, out payload);
@@ -879,8 +1189,22 @@ public class EditorAction : INotifyPropertyChanged
         ScreenFoundVariableName = payload.ScreenFoundVariableName;
         ScreenFoundXVariableName = payload.ScreenFoundXVariableName;
         ScreenFoundYVariableName = payload.ScreenFoundYVariableName;
+        ImageAssetName = payload.ImageAssetName;
+        ImageSearchSimilarity = payload.ImageSearchSimilarity;
+        ImageSearchMatchMode = payload.ImageSearchMatchMode;
+        ImageSearchMatchModeWasExplicit = payload.ImageSearchMatchModeWasExplicit;
+        Button = payload.Button;
     }
-    
+
+    public bool TryGetScreenshotPayload(out EditorActionScreenshotPayload payload) =>
+        EditorActionScreenshotPayload.TryCreate(this, out payload);
+
+    public bool TryGetShellPayload(out EditorActionShellPayload payload) =>
+        EditorActionShellPayload.TryCreate(this, out payload);
+
+    public bool TryGetWindowPayload(out EditorActionWindowPayload payload) =>
+        EditorActionWindowPayload.TryCreate(this, out payload);
+
     /// <summary>
     /// Gets a human-readable description of this action.
     /// </summary>
@@ -890,42 +1214,30 @@ public class EditorAction : INotifyPropertyChanged
     {
         return Type switch
         {
-            EditorActionType.MouseMove when IsAbsolute => $"Move to ({X}, {Y})",
-            EditorActionType.MouseMove => $"Move by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseMove when IsAbsolute => $"Move to ({CoordinateXToken}, {CoordinateYToken})",
+            EditorActionType.MouseMove => $"Move by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
             EditorActionType.MouseClick when UseCurrentPosition => $"Click {Button} at current position",
-            EditorActionType.MouseClick when IsAbsolute => $"Click {Button} at ({X}, {Y})",
-            EditorActionType.MouseClick => $"Click {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseClick when IsAbsolute => $"Click {Button} at ({CoordinateXToken}, {CoordinateYToken})",
+            EditorActionType.MouseClick => $"Click {Button} by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
             EditorActionType.MouseDown when UseCurrentPosition => $"Hold {Button} at current position",
-            EditorActionType.MouseDown when IsAbsolute => $"Hold {Button} at ({X}, {Y})",
-            EditorActionType.MouseDown => $"Hold {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
+            EditorActionType.MouseDown when IsAbsolute => $"Hold {Button} at ({CoordinateXToken}, {CoordinateYToken})",
+            EditorActionType.MouseDown => $"Hold {Button} by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
             EditorActionType.MouseUp when UseCurrentPosition => $"Release {Button} at current position",
-            EditorActionType.MouseUp when IsAbsolute => $"Release {Button} at ({X}, {Y})",
-            EditorActionType.MouseUp => $"Release {Button} by ({X:+#;-#;0}, {Y:+#;-#;0})",
-            EditorActionType.KeyPress => $"Press '{KeyName ?? KeyCode.ToString()}'",
-            EditorActionType.KeyDown => $"Hold '{KeyName ?? KeyCode.ToString()}'",
-            EditorActionType.KeyUp => $"Release '{KeyName ?? KeyCode.ToString()}'",
-            EditorActionType.Delay when UseRandomDelay => $"Wait {RandomDelayMinMs}-{RandomDelayMaxMs}ms (random)",
-            EditorActionType.Delay => $"Wait {DelayMs}ms",
-            EditorActionType.ScrollVertical => ScrollAmount > 0 ? $"Scroll Up {ScrollAmount}" : $"Scroll Down {Math.Abs(ScrollAmount)}",
-            EditorActionType.ScrollHorizontal => ScrollAmount > 0 ? $"Scroll Right {ScrollAmount}" : $"Scroll Left {Math.Abs(ScrollAmount)}",
-            EditorActionType.TextInput => string.IsNullOrEmpty(Text) 
-                ? "Text Input (empty)" 
-                : $"Type \"{(Text.Length > 25 ? Text[..25] + "..." : Text)}\"",
-            EditorActionType.SetVariable => UseLegacyScriptTextDisplay
-                ? $"Set {Text}"
-                : EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
-                    ? $"Set {ScriptVariableName} = {BuildSetValueToken()}"
-                    : "Set Variable",
-            EditorActionType.IncrementVariable => UseLegacyScriptTextDisplay
-                ? $"Inc {Text}"
-                : EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
-                    ? $"Inc {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
-                    : "Increment Variable",
-            EditorActionType.DecrementVariable => UseLegacyScriptTextDisplay
-                ? $"Dec {Text}"
-                : EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
-                    ? $"Dec {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
-                    : "Decrement Variable",
+            EditorActionType.MouseUp when IsAbsolute => $"Release {Button} at ({CoordinateXToken}, {CoordinateYToken})",
+            EditorActionType.MouseUp => $"Release {Button} by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
+            EditorActionType.KeyPress => $"Press '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
+            EditorActionType.KeyDown => $"Hold '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
+            EditorActionType.KeyUp => $"Release '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
+            EditorActionType.Delay when UseRandomDelay => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait {RandomDelayMinMs}-{RandomDelayMaxMs}ms (random)"),
+            EditorActionType.Delay => $"Wait {DelayDuration}",
+            EditorActionType.ScrollVertical => ScrollAmount > 0 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Up {ScrollAmount}") : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Down {Math.Abs(ScrollAmount)}"),
+            EditorActionType.ScrollHorizontal => ScrollAmount > 0 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Right {ScrollAmount}") : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Scroll Left {Math.Abs(ScrollAmount)}"),
+            EditorActionType.TextInput => GetTextInputDisplayName(),
+            EditorActionType.SetVariable => GetSetVariableDisplayName(),
+            EditorActionType.IncrementVariable => GetIncrementVariableDisplayName(),
+            EditorActionType.DecrementVariable => GetDecrementVariableDisplayName(),
+            EditorActionType.MultiplyVariable => GetMultiplyVariableDisplayName(),
+            EditorActionType.DivideVariable => GetDivideVariableDisplayName(),
             EditorActionType.RepeatBlockStart => UseLegacyScriptTextDisplay
                 ? $"Repeat ({Text})"
                 : $"Repeat ({BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)})",
@@ -939,96 +1251,183 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.ForBlockStart => UseLegacyScriptTextDisplay
                 ? $"For ({Text})"
                 : BuildForPreview(),
-            EditorActionType.PixelColor => BuildPixelColorDisplayName(GetScreenReadingPayload()),
-            EditorActionType.WaitColor => BuildWaitColorDisplayName(GetScreenReadingPayload()),
-            EditorActionType.PixelSearch => BuildPixelSearchDisplayName(GetScreenReadingPayload()),
+            EditorActionType.PixelColor => BuildPixelColorDisplayName(ScreenReadingPayload),
+            EditorActionType.WaitColor => BuildWaitColorDisplayName(ScreenReadingPayload),
+            EditorActionType.PixelSearch => BuildPixelSearchDisplayName(ScreenReadingPayload),
+            EditorActionType.ImageSearch => BuildImageSearchDisplayName(),
+            EditorActionType.ImageClick => BuildImageClickDisplayName(),
+            EditorActionType.WaitImage => BuildWaitImageDisplayName(),
+            EditorActionType.ShellCommand => GetShellCommandDisplayName(),
+            EditorActionType.Screenshot => BuildScreenshotDisplayName(),
+            EditorActionType.WindowCommand => BuildWindowCommandDisplayName(),
             EditorActionType.Break => "Break",
             EditorActionType.Continue => "Continue",
             EditorActionType.BlockEnd => "End Block",
-            EditorActionType.RawScriptStep => string.IsNullOrWhiteSpace(Text)
-                ? "Raw Script Step"
-                : $"Raw Script: {(Text.Length > 40 ? Text[..40] + "..." : Text)}",
-            _ => "Unknown Action"
+            EditorActionType.RawScriptStep => GetRawScriptStepDisplayName(),
+            EditorActionType.ClipboardGet or EditorActionType.ClipboardSet => "Unknown Action",
+            _ => "Unknown Action",
         };
     }
-    
+
+    private string GetTextInputDisplayName()
+    {
+        if (string.IsNullOrEmpty(Text))
+        {
+            return "Text Input (empty)";
+        }
+        var truncated = Text.Length > 25 ? Text[..25] + "..." : Text;
+        return $"Type \"{truncated}\"";
+    }
+
+    private string GetSetVariableDisplayName()
+    {
+        if (UseLegacyScriptTextDisplay)
+        {
+            return $"Set {Text}";
+        }
+        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
+            ? $"Set {ScriptVariableName} = {BuildSetValueToken()}"
+            : "Set Variable";
+    }
+
+    private string GetIncrementVariableDisplayName()
+    {
+        if (UseLegacyScriptTextDisplay)
+        {
+            return $"Inc {Text}";
+        }
+        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
+            ? $"Inc {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
+            : "Increment Variable";
+    }
+
+    private string GetDecrementVariableDisplayName()
+    {
+        if (UseLegacyScriptTextDisplay)
+        {
+            return $"Dec {Text}";
+        }
+        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
+            ? $"Dec {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
+            : "Decrement Variable";
+    }
+
+    private string GetMultiplyVariableDisplayName()
+    {
+        if (UseLegacyScriptTextDisplay)
+        {
+            return $"Mul {Text}";
+        }
+        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
+            ? $"Mul {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
+            : "Multiply Variable";
+    }
+
+    private string GetDivideVariableDisplayName()
+    {
+        if (UseLegacyScriptTextDisplay)
+        {
+            return $"Div {Text}";
+        }
+        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
+            ? $"Div {ScriptVariableName} by {BuildNumericToken(ScriptNumericSourceType, ScriptNumericValue)}"
+            : "Divide Variable";
+    }
+
+    private string GetShellCommandDisplayName()
+    {
+        if (string.IsNullOrWhiteSpace(ShellCommand))
+        {
+            return "Shell Command";
+        }
+        var commandText = ShellCommand.Length > 30 ? ShellCommand[..30] + "..." : ShellCommand;
+        return $"Shell {ShellCommandMode}: \"{commandText}\"";
+    }
+
+    private string GetRawScriptStepDisplayName()
+    {
+        if (string.IsNullOrWhiteSpace(Text))
+        {
+            return "Raw Script Step";
+        }
+        var stepText = Text.Length > 40 ? Text[..40] + "..." : Text;
+        return $"Raw Script: {stepText}";
+    }
+
+    private static bool IsVariableCoordinateToken(string token)
+    {
+        return EditorActionScriptTokens.TryParseNumericToken(token, out var sourceType, out _)
+            && sourceType is ScriptNumericSourceType.VariableReference;
+    }
+
+    private static string FormatRelativeCoordinateToken(string token)
+    {
+        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value.ToString("+#;-#;0", CultureInfo.InvariantCulture)
+            : token;
+    }
+
+    private void SetCoordinateToken(
+        string? value,
+        ref string? tokenOverride,
+        ref int coordinate,
+        string tokenPropertyName,
+        string coordinatePropertyName)
+    {
+        var previousToken = tokenOverride ?? coordinate.ToString(CultureInfo.InvariantCulture);
+        var token = value?.Trim() ?? string.Empty;
+        var coordinateChanged = false;
+
+        if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var literal))
+        {
+            coordinateChanged = coordinate != literal;
+            coordinate = literal;
+            tokenOverride = null;
+            token = literal.ToString(CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            tokenOverride = token;
+        }
+
+        if (!coordinateChanged && string.Equals(previousToken, token, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (coordinateChanged)
+        {
+            OnPropertyChanged(coordinatePropertyName);
+        }
+
+        OnPropertyChanged(tokenPropertyName);
+        OnPropertyChanged(nameof(DisplayName));
+    }
+
     /// <summary>
     /// Validates this action.
     /// </summary>
     /// <returns>True if valid, false otherwise.</returns>
     public bool IsValid()
-    {
-        return Type switch
-        {
-            EditorActionType.Delay when UseRandomDelay =>
-                RandomDelayMinMs >= 0
-                && RandomDelayMaxMs >= RandomDelayMinMs
-                && !(RandomDelayMinMs == 0 && RandomDelayMaxMs == 0),
-            EditorActionType.Delay => DelayMs >= 0,
-            EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => KeyCode > 0,
-            EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ScrollAmount != 0,
-            EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp when UseCurrentPosition => !IsAbsolute,
-            EditorActionType.TextInput => !string.IsNullOrEmpty(Text),
-            EditorActionType.SetVariable => UseLegacyScriptTextDisplay || ValidateSetVariableFields(),
-            EditorActionType.IncrementVariable or EditorActionType.DecrementVariable => UseLegacyScriptTextDisplay || ValidateIncDecFields(),
-            EditorActionType.RepeatBlockStart => UseLegacyScriptTextDisplay || ValidateRepeatFields(),
-            EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart => UseLegacyScriptTextDisplay || ValidateConditionFields(),
-            EditorActionType.ForBlockStart => UseLegacyScriptTextDisplay || ValidateForFields(),
-            EditorActionType.PixelColor => ValidatePixelColorFields(),
-            EditorActionType.WaitColor => ValidateWaitColorFields(),
-            EditorActionType.PixelSearch => ValidatePixelSearchFields(),
-            EditorActionType.RawScriptStep => !string.IsNullOrWhiteSpace(Text),
-            EditorActionType.ElseBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue => true,
-            _ => true
-        };
-    }
-    
+        => EditorActionValidationPolicy.IsValid(this);
+
     public EditorAction Clone()
     {
         var clone = new EditorAction
         {
             _id = Guid.NewGuid(), // New ID for clone
-            _type = Type,
-            _x = X,
-            _y = Y,
-            _isAbsolute = IsAbsolute,
-            _button = Button,
-            _keyCode = KeyCode,
-            _delayMs = DelayMs,
-            _useRandomDelay = UseRandomDelay,
-            _randomDelayMinMs = RandomDelayMinMs,
-            _randomDelayMaxMs = RandomDelayMaxMs,
-            _useCurrentPosition = UseCurrentPosition,
-            _scrollAmount = ScrollAmount,
-            _keyName = KeyName,
-            _text = Text,
-            _scriptVariableName = ScriptVariableName,
-            _scriptValueType = ScriptValueType,
-            _scriptValue = ScriptValue,
-            _scriptNumericSourceType = ScriptNumericSourceType,
-            _scriptNumericValue = ScriptNumericValue,
-            _scriptLeftOperandType = ScriptLeftOperandType,
-            _scriptLeftOperand = ScriptLeftOperand,
-            _scriptConditionOperator = ScriptConditionOperator,
-            _scriptRightOperandType = ScriptRightOperandType,
-            _scriptRightOperand = ScriptRightOperand,
-            _forVariableName = ForVariableName,
-            _forStartType = ForStartType,
-            _forStartValue = ForStartValue,
-            _forEndType = ForEndType,
-            _forEndValue = ForEndValue,
-            _forHasStep = ForHasStep,
-            _forStepType = ForStepType,
-            _forStepValue = ForStepValue,
-            _preferLegacyScriptText = PreferLegacyScriptText,
-            _preservedTextInputText = _preservedTextInputText,
-            _preservedTextInputEvents = _preservedTextInputEvents?.ToList()
         };
+        CopyInputFields(clone);
+        CopyScriptFields(clone);
+        CopyCommandFields(clone);
+        clone.PreferLegacyScriptText = PreferLegacyScriptText;
+        clone._preservedTextInputText = _preservedTextInputText;
+        clone._preservedTextInputEvents = _preservedTextInputEvents?.ToList();
 
         if (TryGetScreenReadingPayload(out var screenReadingPayload))
         {
             clone.ApplyScreenReadingPayload(screenReadingPayload);
-            clone._preferLegacyScriptText = PreferLegacyScriptText;
+            clone.PreferLegacyScriptText = PreferLegacyScriptText;
         }
         else
         {
@@ -1047,9 +1446,91 @@ public class EditorAction : INotifyPropertyChanged
             clone._screenFoundVariableName = ScreenFoundVariableName;
             clone._screenFoundXVariableName = ScreenFoundXVariableName;
             clone._screenFoundYVariableName = ScreenFoundYVariableName;
+            clone._imageAssetName = ImageAssetName;
+            clone._imageSearchSimilarity = ImageSearchSimilarity;
+            clone._imageSearchMatchMode = ImageSearchMatchMode;
+            clone.ImageSearchMatchModeWasExplicit = ImageSearchMatchModeWasExplicit;
         }
 
         return clone;
+    }
+
+    private void CopyInputFields(EditorAction clone)
+    {
+        clone._type = Type;
+        clone._x = X;
+        clone._y = Y;
+        clone._coordinateXToken = _coordinateXToken;
+        clone._coordinateYToken = _coordinateYToken;
+        clone._isAbsolute = IsAbsolute;
+        clone._coordinateSpace = CoordinateSpace;
+        clone._button = Button;
+        clone._keyCode = KeyCode;
+        clone._delayMicroseconds = DelayMicroseconds;
+        clone._useRandomDelay = UseRandomDelay;
+        clone._randomDelayMinMs = RandomDelayMinMs;
+        clone._randomDelayMaxMs = RandomDelayMaxMs;
+        clone._useCurrentPosition = UseCurrentPosition;
+        clone._scrollAmount = ScrollAmount;
+        clone._keyName = KeyName;
+        clone._text = Text;
+    }
+
+    private void CopyScriptFields(EditorAction clone)
+    {
+        clone._scriptVariableName = ScriptVariableName;
+        clone._scriptValueType = ScriptValueType;
+        clone._scriptValue = ScriptValue;
+        clone._scriptNumericSourceType = ScriptNumericSourceType;
+        clone._scriptNumericValue = ScriptNumericValue;
+        clone._scriptLeftOperandType = ScriptLeftOperandType;
+        clone._scriptLeftOperand = ScriptLeftOperand;
+        clone._scriptConditionOperator = ScriptConditionOperator;
+        clone._scriptRightOperandType = ScriptRightOperandType;
+        clone._scriptRightOperand = ScriptRightOperand;
+        clone._forVariableName = ForVariableName;
+        clone._forStartType = ForStartType;
+        clone._forStartValue = ForStartValue;
+        clone._forEndType = ForEndType;
+        clone._forEndValue = ForEndValue;
+        clone._forHasStep = ForHasStep;
+        clone._forStepType = ForStepType;
+        clone._forStepValue = ForStepValue;
+    }
+
+    private void CopyCommandFields(EditorAction clone)
+    {
+        clone._imageAssetName = ImageAssetName;
+        clone._imageSearchSimilarity = ImageSearchSimilarity;
+        clone._imageSearchMatchMode = ImageSearchMatchMode;
+        clone.ImageSearchMatchModeWasExplicit = ImageSearchMatchModeWasExplicit;
+        clone._shellCommandMode = ShellCommandMode;
+        clone._shellCommand = ShellCommand;
+        clone._shellStandardInput = ShellStandardInput;
+        clone._shellExitCodeVariableName = ShellExitCodeVariableName;
+        clone._shellStandardOutputVariableName = ShellStandardOutputVariableName;
+        clone._shellStandardErrorVariableName = ShellStandardErrorVariableName;
+        clone._shellRetries = ShellRetries;
+        clone._shellBackoffMs = ShellBackoffMs;
+        clone._shellTimeoutMs = ShellTimeoutMs;
+        clone._screenshotOutputPath = ScreenshotOutputPath;
+        clone._screenshotCopyToClipboard = ScreenshotCopyToClipboard;
+        clone._screenshotUseRegion = ScreenshotUseRegion;
+        clone._screenshotRegionX = ScreenshotRegionX;
+        clone._screenshotRegionY = ScreenshotRegionY;
+        clone._screenshotRegionWidth = ScreenshotRegionWidth;
+        clone._screenshotRegionHeight = ScreenshotRegionHeight;
+        clone._windowCommandMode = WindowCommandMode;
+        clone._windowSelectorKind = WindowSelectorKind;
+        clone._windowSelectorValue = WindowSelectorValue;
+        clone._windowActiveField = WindowActiveField;
+        clone._windowOutputVariable = WindowOutputVariable;
+        clone._windowTimeoutMs = WindowTimeoutMs;
+        clone._windowX = WindowX;
+        clone._windowY = WindowY;
+        clone._windowWidth = WindowWidth;
+        clone._windowHeight = WindowHeight;
+        clone._windowWorkspace = WindowWorkspace;
     }
 
     private bool UseLegacyScriptTextDisplay => PreferLegacyScriptText && !string.IsNullOrWhiteSpace(Text);
@@ -1062,25 +1543,10 @@ public class EditorAction : INotifyPropertyChanged
 
     private void MarkStructuredScriptEdited()
     {
-        if (IsScriptPayloadAction(Type))
+        if (EditorActionValidationPolicy.IsScriptPayloadAction(Type))
         {
-            _preferLegacyScriptText = false;
+            PreferLegacyScriptText = false;
         }
-    }
-
-    private static bool IsScriptPayloadAction(EditorActionType type)
-    {
-        return type is
-            EditorActionType.SetVariable
-            or EditorActionType.IncrementVariable
-            or EditorActionType.DecrementVariable
-            or EditorActionType.RepeatBlockStart
-            or EditorActionType.IfBlockStart
-            or EditorActionType.WhileBlockStart
-            or EditorActionType.ForBlockStart
-            or EditorActionType.PixelColor
-            or EditorActionType.WaitColor
-            or EditorActionType.PixelSearch;
     }
 
     private string BuildSetValueToken()
@@ -1111,114 +1577,128 @@ public class EditorAction : INotifyPropertyChanged
 
     private static string BuildNumericToken(ScriptNumericSourceType sourceType, string value)
     {
-        var token = string.IsNullOrWhiteSpace(value) ? "0" : value.Trim();
+        // Expression values are already stored in canonical form and render verbatim;
+        // the simple number and variable formatting path would corrupt them.
+        if (ScriptNumericExpression.TryParse(value, out var expression) && expression is { Op: not null })
+        {
+            return value.Trim();
+        }
+
         return EditorActionScriptTokens.FormatNumericToken(sourceType, value);
     }
 
     private static string BuildOperandToken(ScriptOperandType operandType, string value)
     {
+        if (operandType is ScriptOperandType.Number or ScriptOperandType.VariableReference
+            && ScriptNumericExpression.TryParse(value, out var expression) && expression is { Op: not null })
+        {
+            return value.Trim();
+        }
+
         return EditorActionScriptTokens.FormatOperandToken(operandType, value);
     }
 
-    private bool ValidateSetVariableFields()
+    private EditorActionScreenReadingPayload ScreenReadingPayload
     {
-        if (!EditorActionScriptTokens.IsValidVariableName(ScriptVariableName))
+        get
         {
-            return false;
+            if (!TryGetScreenReadingPayload(out var payload))
+            {
+                throw new InvalidOperationException("Action type does not contain a screen-reading payload.");
+            }
+
+            return payload;
         }
-
-        return ScriptValueType switch
-        {
-            ScriptValueType.Number => int.TryParse(ScriptValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
-            ScriptValueType.Boolean => bool.TryParse(ScriptValue, out _),
-            ScriptValueType.Text => !string.IsNullOrWhiteSpace(ScriptValue),
-            ScriptValueType.VariableReference => EditorActionScriptTokens.IsValidVariableName(ScriptValue),
-            _ => false
-        };
-    }
-
-    private bool ValidateIncDecFields()
-    {
-        return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
-            && EditorActionScriptTokens.ValidateNumericToken(ScriptNumericSourceType, ScriptNumericValue);
-    }
-
-    private bool ValidateRepeatFields()
-    {
-        return EditorActionScriptTokens.ValidateNumericToken(ScriptNumericSourceType, ScriptNumericValue);
-    }
-
-    private bool ValidateConditionFields()
-    {
-        return EditorActionScriptTokens.ValidateOperandToken(ScriptLeftOperandType, ScriptLeftOperand)
-            && EditorActionScriptTokens.ValidateOperandToken(ScriptRightOperandType, ScriptRightOperand);
-    }
-
-    private bool ValidateForFields()
-    {
-        if (!EditorActionScriptTokens.IsValidVariableName(ForVariableName))
-        {
-            return false;
-        }
-
-        if (!EditorActionScriptTokens.ValidateNumericToken(ForStartType, ForStartValue)
-            || !EditorActionScriptTokens.ValidateNumericToken(ForEndType, ForEndValue))
-        {
-            return false;
-        }
-
-        return !ForHasStep || EditorActionScriptTokens.ValidateNumericToken(ForStepType, ForStepValue);
-    }
-
-    private bool ValidatePixelColorFields()
-    {
-        return TryGetScreenReadingPayload(out var payload) && payload.HasValidColorVariableName();
-    }
-
-    private bool ValidateWaitColorFields()
-    {
-        return TryGetScreenReadingPayload(out var payload)
-            && payload.HasValidTargetColor()
-            && payload.ScreenTimeoutMs >= 0;
-    }
-
-    private bool ValidatePixelSearchFields()
-    {
-        return TryGetScreenReadingPayload(out var payload)
-            && payload.HasValidTargetColor()
-            && payload.HasPositiveSearchRegion()
-            && payload.HasValidTolerance()
-            && payload.HasValidFoundCoordinateVariableNames();
-    }
-
-    private EditorActionScreenReadingPayload GetScreenReadingPayload()
-    {
-        if (!TryGetScreenReadingPayload(out var payload))
-        {
-            throw new InvalidOperationException("Action type does not contain a screen-reading payload.");
-        }
-
-        return payload;
     }
 
     private static string BuildPixelColorDisplayName(EditorActionScreenReadingPayload payload)
     {
         return payload.IsAbsolute
-            ? $"Pixel color ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}"
-            : $"Pixel color rel ({payload.ScreenX:+#;-#;0}, {payload.ScreenY:+#;-#;0}) -> {payload.ScreenColorVariableName}";
+            ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel color ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}")
+            : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel color rel ({payload.ScreenX:+#;-#;0}, {payload.ScreenY:+#;-#;0}) -> {payload.ScreenColorVariableName}");
     }
 
     private static string BuildWaitColorDisplayName(EditorActionScreenReadingPayload payload)
     {
-        return $"Wait color {payload.FormatTargetColorToken()} at ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}";
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait color {payload.FormatTargetColorToken()} at ({payload.ScreenX}, {payload.ScreenY}) -> {payload.ScreenColorVariableName}");
     }
 
     private static string BuildPixelSearchDisplayName(EditorActionScreenReadingPayload payload)
     {
-        return $"Pixel search {payload.FormatTargetColorToken()} in ({payload.ScreenLeft}, {payload.ScreenTop}, {payload.ScreenWidth}x{payload.ScreenHeight}) -> {payload.ScreenFoundVariableName}, {payload.ScreenFoundXVariableName}, {payload.ScreenFoundYVariableName}";
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel search {payload.FormatTargetColorToken()} in ({payload.ScreenLeft}, {payload.ScreenTop}, {payload.ScreenWidth}x{payload.ScreenHeight}) -> {payload.ScreenFoundVariableName}, {payload.ScreenFoundXVariableName}, {payload.ScreenFoundYVariableName}");
+    }
+
+    private string BuildImageSearchDisplayName()
+    {
+        var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Image search {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight}) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}");
+    }
+
+    private string BuildImageClickDisplayName()
+    {
+        var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Image click {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight})");
+    }
+
+    private string BuildWaitImageDisplayName()
+    {
+        var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait image {imageName} ({ScreenTimeoutMs}ms) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}");
+    }
+
+    private string BuildScreenshotDisplayName()
+    {
+        string destination;
+        if (ScreenshotCopyToClipboard)
+        {
+            destination = string.IsNullOrWhiteSpace(ScreenshotOutputPath) ? "clipboard" : $"{ScreenshotOutputPath} + clipboard";
+        }
+        else
+        {
+            destination = string.IsNullOrWhiteSpace(ScreenshotOutputPath) ? "destination required" : ScreenshotOutputPath;
+        }
+
+        return ScreenshotUseRegion
+            ? $"Screenshot ({ScreenshotRegionX}, {ScreenshotRegionY}, {ScreenshotRegionWidth}x{ScreenshotRegionHeight}) -> {destination}"
+            : $"Screenshot -> {destination}";
+    }
+
+    private string BuildWindowCommandDisplayName()
+    {
+        return WindowCommandMode switch
+        {
+            WindowCommandMode.Active => $"Get active window {WindowActiveField} -> {WindowOutputVariable}",
+            WindowCommandMode.Search => $"Search window by {WindowSelectorKind} \"{WindowSelectorValue}\" -> {WindowOutputVariable}",
+            WindowCommandMode.Wait => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Wait for window {WindowSelectorKind} \"{WindowSelectorValue}\" ({WindowTimeoutMs}ms) -> {WindowOutputVariable}"),
+            WindowCommandMode.Focus => FormatWindowSelectorSummary("Focus"),
+            WindowCommandMode.Close => FormatWindowSelectorSummary("Close"),
+            WindowCommandMode.Move => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Move active window to {WindowX}, {WindowY}"),
+            WindowCommandMode.Resize => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Resize active window to {WindowWidth}x{WindowHeight}"),
+            WindowCommandMode.Center => "Center active window",
+            WindowCommandMode.Maximize => "Maximize active window",
+            WindowCommandMode.Fullscreen => "Fullscreen active window",
+            WindowCommandMode.Floating => "Float active window",
+            WindowCommandMode.WorkspaceGet => $"Get active workspace -> {WindowOutputVariable}",
+            WindowCommandMode.WorkspaceSwitch => $"Switch to workspace {WindowWorkspace}",
+            WindowCommandMode.WorkspaceMoveActive => $"Move active window to workspace {WindowWorkspace}",
+            WindowCommandMode.WorkspaceMoveWindow => $"Move window {WindowSelectorValue} to workspace {WindowWorkspace}",
+            _ => "Window Command",
+        };
+    }
+
+    private string FormatWindowSelectorSummary(string verb)
+    {
+        return string.Equals(WindowSelectorKind, "active", StringComparison.Ordinal)
+            ? $"{verb} active window"
+            : $"{verb} window by {WindowSelectorKind} \"{WindowSelectorValue}\"";
     }
 
     private void SetScreenField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        SetScriptField(ref field, value, propertyName);
+    }
+
+    private void SetScriptField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
         {

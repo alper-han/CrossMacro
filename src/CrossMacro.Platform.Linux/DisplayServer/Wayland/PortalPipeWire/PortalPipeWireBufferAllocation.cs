@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 
@@ -27,20 +26,20 @@ internal sealed class PortalPipeWireBufferAllocation : IDisposable
         var fd = PortalPipeWireLibc.memfd_create("crossmacro-portal-pipewire", MemfdCloexec);
         if (fd < 0)
         {
-            throw new InvalidOperationException($"memfd_create failed errno={Marshal.GetLastPInvokeError()}.");
+            throw new InvalidOperationException($"memfd_create failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
-        if (PortalPipeWireLibc.ftruncate(fd, size) != 0)
+        if (PortalPipeWireLibc.ftruncate(fd, size) is not 0)
         {
-            PortalPipeWireLibc.close(fd);
-            throw new InvalidOperationException($"ftruncate failed errno={Marshal.GetLastPInvokeError()}.");
+            _ = PortalPipeWireLibc.close(fd);
+            throw new InvalidOperationException($"ftruncate failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
         var address = PortalPipeWireLibc.mmap(IntPtr.Zero, (UIntPtr)size, ProtRead | ProtWrite, MapShared, fd, IntPtr.Zero);
         if (address == MapFailed)
         {
-            PortalPipeWireLibc.close(fd);
-            throw new InvalidOperationException($"mmap failed errno={Marshal.GetLastPInvokeError()}.");
+            _ = PortalPipeWireLibc.close(fd);
+            throw new InvalidOperationException($"mmap failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
         return new PortalPipeWireBufferAllocation(fd, address, size);
@@ -56,12 +55,12 @@ internal sealed class PortalPipeWireBufferAllocation : IDisposable
         _disposed = true;
         if (Address != IntPtr.Zero)
         {
-            PortalPipeWireLibc.munmap(Address, (UIntPtr)Size);
+            _ = PortalPipeWireLibc.munmap(Address, (UIntPtr)Size);
         }
 
         if (Fd >= 0)
         {
-            PortalPipeWireLibc.close(Fd);
+            _ = PortalPipeWireLibc.close(Fd);
         }
     }
 }

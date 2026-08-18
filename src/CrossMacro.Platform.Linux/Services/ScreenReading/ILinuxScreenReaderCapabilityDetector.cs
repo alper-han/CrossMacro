@@ -2,5 +2,11 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
 public interface ILinuxScreenReaderCapabilityDetector
 {
-    LinuxScreenReaderCapabilitySnapshot GetSnapshot();
+    public bool IsGnomeSession { get; }
+
+    public LinuxScreenReaderCapabilitySnapshot GetSnapshot();
+
+    public Task EnsureReadyAsync(CancellationToken cancellationToken = default);
+
+    public void InvalidateCache();
 }

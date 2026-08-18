@@ -1,11 +1,7 @@
-using CrossMacro.Core.Models;
-using CrossMacro.Infrastructure.Services.TextExpansion;
-using FluentAssertions;
-using Xunit;
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public class TextBufferStateTests
+public sealed class TextBufferStateTests
 {
     private readonly TextBufferState _buffer;
 
@@ -23,13 +19,13 @@ public class TextBufferStateTests
         _buffer.Append('c');
 
         // Assert - verify by matching
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
-            new() { IsEnabled = true, Trigger = "abc", Replacement = "test" }
+            new() { IsEnabled = true, Trigger = "abc", Replacement = "test" },
         };
-        
-        _buffer.TryGetMatch(expansions, out var match).Should().BeTrue();
-        match!.Trigger.Should().Be("abc");
+
+        _ = _buffer.TryGetMatch(expansions, out var match).Should().BeTrue();
+        _ = match!.Trigger.Should().Be("abc");
     }
 
     [Fact]
@@ -44,14 +40,14 @@ public class TextBufferStateTests
         _buffer.Backspace();
 
         // Assert - "ab" should remain, "abc" should not match
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
             new() { IsEnabled = true, Trigger = "abc", Replacement = "test" },
-            new() { IsEnabled = true, Trigger = "ab", Replacement = "test2" }
+            new() { IsEnabled = true, Trigger = "ab", Replacement = "test2" },
         };
-        
-        _buffer.TryGetMatch(expansions, out var match).Should().BeTrue();
-        match!.Trigger.Should().Be("ab");
+
+        _ = _buffer.TryGetMatch(expansions, out var match).Should().BeTrue();
+        _ = match!.Trigger.Should().Be("ab");
     }
 
     [Fact]
@@ -65,12 +61,12 @@ public class TextBufferStateTests
         _buffer.Clear();
 
         // Assert - no match possible after clear
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
-            new() { IsEnabled = true, Trigger = "xy", Replacement = "test" }
+            new() { IsEnabled = true, Trigger = "xy", Replacement = "test" },
         };
-        
-        _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
+
+        _ = _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
     }
 
     [Fact]
@@ -79,19 +75,19 @@ public class TextBufferStateTests
         // Arrange
         _buffer.Append('h');
         _buffer.Append('i');
-        
-        var expansions = new List<TextExpansion>
+
+        var expansions = new List<TextExpansionEntry>
         {
-            new() { IsEnabled = true, Trigger = "hi", Replacement = "hello" }
+            new() { IsEnabled = true, Trigger = "hi", Replacement = "hello" },
         };
 
         // Act
         var result = _buffer.TryGetMatch(expansions, out var match);
 
         // Assert
-        result.Should().BeTrue();
-        match.Should().NotBeNull();
-        match!.Replacement.Should().Be("hello");
+        _ = result.Should().BeTrue();
+        _ = match.Should().NotBeNull();
+        _ = match!.Replacement.Should().Be("hello");
     }
 
     [Fact]
@@ -100,18 +96,18 @@ public class TextBufferStateTests
         // Arrange
         _buffer.Append('x');
         _buffer.Append('y');
-        
-        var expansions = new List<TextExpansion>
+
+        var expansions = new List<TextExpansionEntry>
         {
-            new() { IsEnabled = true, Trigger = "ab", Replacement = "test" }
+            new() { IsEnabled = true, Trigger = "ab", Replacement = "test" },
         };
 
         // Act
         var result = _buffer.TryGetMatch(expansions, out var match);
 
         // Assert
-        result.Should().BeFalse();
-        match.Should().BeNull();
+        _ = result.Should().BeFalse();
+        _ = match.Should().BeNull();
     }
 
     [Fact]
@@ -120,17 +116,17 @@ public class TextBufferStateTests
         // Arrange
         _buffer.Append('h');
         _buffer.Append('i');
-        
-        var expansions = new List<TextExpansion>
+
+        var expansions = new List<TextExpansionEntry>
         {
-            new() { IsEnabled = false, Trigger = "hi", Replacement = "hello" }
+            new() { IsEnabled = false, Trigger = "hi", Replacement = "hello" },
         };
 
         // Act
         var result = _buffer.TryGetMatch(expansions, out _);
 
         // Assert
-        result.Should().BeFalse();
+        _ = result.Should().BeFalse();
     }
 
     [Fact]
@@ -141,18 +137,18 @@ public class TextBufferStateTests
         {
             _buffer.Append(c);
         }
-        
-        var expansions = new List<TextExpansion>
+
+        var expansions = new List<TextExpansionEntry>
         {
-            new() { IsEnabled = true, Trigger = "hi", Replacement = "hello" }
+            new() { IsEnabled = true, Trigger = "hi", Replacement = "hello" },
         };
 
         // Act
         var result = _buffer.TryGetMatch(expansions, out var match);
 
         // Assert - should match "hi" at end
-        result.Should().BeTrue();
-        match!.Trigger.Should().Be("hi");
+        _ = result.Should().BeTrue();
+        _ = match!.Trigger.Should().Be("hi");
     }
 
     [Fact]
@@ -163,11 +159,11 @@ public class TextBufferStateTests
         _buffer.Backspace();
 
         // Assert - still empty
-        var expansions = new List<TextExpansion>
+        var expansions = new List<TextExpansionEntry>
         {
-            new() { IsEnabled = true, Trigger = "", Replacement = "test" }
+            new() { IsEnabled = true, Trigger = "", Replacement = "test" },
         };
-        
-        _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
+
+        _ = _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
     }
 }

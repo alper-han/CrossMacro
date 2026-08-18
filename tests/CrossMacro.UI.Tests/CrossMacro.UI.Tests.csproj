@@ -19,7 +19,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,12 +26,16 @@
     <ProjectReference Include="..\..\src\CrossMacro.Cli\CrossMacro.Cli.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.UI.Linux\CrossMacro.UI.Linux.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Packaging.Abstractions\CrossMacro.Packaging.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\TestInfrastructure\PlatformFactAttributes.cs" Link="TestInfrastructure\PlatformFactAttributes.cs" />
+    <Compile Include="..\TestInfrastructure\ConditionalSkipMessage.cs" Link="TestInfrastructure\ConditionalSkipMessage.cs" />
+    <Compile Include="..\TestInfrastructure\LinuxFactAttribute.cs" Link="TestInfrastructure\LinuxFactAttribute.cs" />
+    <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
   </ItemGroup>
 
 </Project>

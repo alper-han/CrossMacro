@@ -1,8 +1,7 @@
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Windows.Native;
 
-internal static class Gdi32
+internal static partial class Gdi32
 {
     public const uint Srccopy = 0x00CC0020;
     public const uint CaptureBlt = 0x40000000;
@@ -11,32 +10,32 @@ internal static class Gdi32
 
     public static readonly IntPtr HbitmapError = new(-1);
 
-    [DllImport("gdi32.dll", SetLastError = true)]
-    public static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+    [LibraryImport("gdi32.dll", SetLastError = true)]
+    internal static partial IntPtr CreateCompatibleDC(IntPtr hdc);
 
-    [DllImport("gdi32.dll", SetLastError = true)]
+    [LibraryImport("gdi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool DeleteDC(IntPtr hdc);
+    internal static partial bool DeleteDC(IntPtr hdc);
 
-    [DllImport("gdi32.dll", SetLastError = true)]
-    public static extern IntPtr CreateDIBSection(
+    [LibraryImport("gdi32.dll", SetLastError = true)]
+    internal static partial IntPtr CreateDIBSection(
         IntPtr hdc,
-        ref BITMAPINFO pbmi,
+        ref BitmapInfo pbmi,
         uint usage,
         out IntPtr ppvBits,
         IntPtr hSection,
         uint offset);
 
-    [DllImport("gdi32.dll", SetLastError = true)]
-    public static extern IntPtr SelectObject(IntPtr hdc, IntPtr h);
+    [LibraryImport("gdi32.dll", SetLastError = true)]
+    internal static partial IntPtr SelectObject(IntPtr hdc, IntPtr h);
 
-    [DllImport("gdi32.dll", SetLastError = true)]
+    [LibraryImport("gdi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool DeleteObject(IntPtr ho);
+    internal static partial bool DeleteObject(IntPtr ho);
 
-    [DllImport("gdi32.dll", SetLastError = true)]
+    [LibraryImport("gdi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool BitBlt(
+    internal static partial bool BitBlt(
         IntPtr hdc,
         int x,
         int y,
@@ -47,7 +46,7 @@ internal static class Gdi32
         int y1,
         uint rop);
 
-    [DllImport("gdi32.dll", SetLastError = true)]
+    [LibraryImport("gdi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool GdiFlush();
+    internal static partial bool GdiFlush();
 }

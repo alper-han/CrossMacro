@@ -236,10 +236,11 @@ AppImage, `.deb`, `.rpm`, AUR, Nix/NixOS, MSIX/winget, and DMG.
 ## Pull Requests
 
 1. Fork the repository and create your branch from `dev`.
-2. Keep changes focused and follow existing code style and naming patterns.
-3. Run relevant build, test, smoke, and documentation checks.
-4. Fill out the pull request template carefully.
-5. Call out affected platforms, install channels, permission/daemon changes,
+2. Open pull requests against `dev`; `main` is updated only by the maintainer for releases.
+3. Keep changes focused and follow existing code style and naming patterns.
+4. Run relevant build, test, smoke, and documentation checks.
+5. Fill out the pull request template carefully.
+6. Call out affected platforms, install channels, permission/daemon changes,
    screenshots, logs, and breaking changes when relevant.
 
 The GitHub workflows validate source, CLI, packaging-adjacent metadata, and

@@ -100,6 +100,12 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             return screenshotError is not null ? RunScriptCompileResult.Fail($"{source}: {screenshotError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
+        if (RunScriptSyntax.IsMousePositionStep(trimmed))
+        {
+            var mousePositionError = RunScriptMousePositionExecutor.Validate(trimmed);
+            return mousePositionError is not null ? RunScriptCompileResult.Fail($"{source}: {mousePositionError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
+        }
+
         if (RunScriptSyntax.IsBreakCommand(trimmed) || RunScriptSyntax.IsContinueCommand(trimmed))
         {
             return loopDepth is 0
@@ -216,7 +222,8 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             || RunScriptSyntax.IsWindowStep(trimmed)
             || RunScriptSyntax.IsClipboardStep(trimmed)
             || RunScriptSyntax.IsShellStep(trimmed)
-            || RunScriptPlatformSyntax.IsScreenshotStep(trimmed);
+            || RunScriptPlatformSyntax.IsScreenshotStep(trimmed)
+            || RunScriptSyntax.IsMousePositionStep(trimmed);
     }
 
     private static bool IsRuntimeBackedCommand(string step)

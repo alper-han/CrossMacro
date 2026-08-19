@@ -114,7 +114,8 @@ public readonly record struct EditorActionScreenReadingPayload(
             EditorActionType.ImageSearch => ForImageSearch(),
             EditorActionType.ImageClick => ForImageClick(),
             EditorActionType.WaitImage => ForWaitImage(),
-            EditorActionType.MouseMove
+            EditorActionType.MousePosition
+                or EditorActionType.MouseMove
                 or EditorActionType.MouseClick
                 or EditorActionType.MouseDown
                 or EditorActionType.MouseUp
@@ -319,7 +320,7 @@ IsAbsolute: true,
                 EditorActionScreenReadingVariableRole.Number,
             EditorActionType.WaitImage when string.Equals(ScreenFoundYVariableName, variableName, StringComparison.Ordinal) =>
                 EditorActionScreenReadingVariableRole.Number,
-            EditorActionType.MouseMove or EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp or EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp or EditorActionType.Delay or EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal or EditorActionType.TextInput or EditorActionType.SetVariable or EditorActionType.IncrementVariable or EditorActionType.DecrementVariable or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable or EditorActionType.RepeatBlockStart or EditorActionType.IfBlockStart or EditorActionType.ElseBlockStart or EditorActionType.WhileBlockStart or EditorActionType.ForBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue or EditorActionType.ClipboardGet or EditorActionType.ClipboardSet or EditorActionType.ShellCommand or EditorActionType.Screenshot or EditorActionType.WindowCommand or EditorActionType.RawScriptStep => EditorActionScreenReadingVariableRole.None,
+            EditorActionType.MouseMove or EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp or EditorActionType.MousePosition or EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp or EditorActionType.Delay or EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal or EditorActionType.TextInput or EditorActionType.SetVariable or EditorActionType.IncrementVariable or EditorActionType.DecrementVariable or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable or EditorActionType.RepeatBlockStart or EditorActionType.IfBlockStart or EditorActionType.ElseBlockStart or EditorActionType.WhileBlockStart or EditorActionType.ForBlockStart or EditorActionType.BlockEnd or EditorActionType.Break or EditorActionType.Continue or EditorActionType.ClipboardGet or EditorActionType.ClipboardSet or EditorActionType.ShellCommand or EditorActionType.Screenshot or EditorActionType.WindowCommand or EditorActionType.RawScriptStep => EditorActionScreenReadingVariableRole.None,
             _ => EditorActionScreenReadingVariableRole.None,
         };
     }

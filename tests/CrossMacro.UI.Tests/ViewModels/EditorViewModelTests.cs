@@ -58,6 +58,7 @@ public sealed partial class EditorViewModelTests : IDisposable
         nameof(EditorViewModel.SelectedForVariableSuggestion),
         nameof(EditorViewModel.ShowSetVariablePicker),
         nameof(EditorViewModel.ShowClipboardGetFields),
+        nameof(EditorViewModel.ShowMousePositionFields),
         nameof(EditorViewModel.ShowClipboardVariablePicker),
         nameof(EditorViewModel.ShowScreenshotFields),
         nameof(EditorViewModel.ShowScreenshotRegionFields),

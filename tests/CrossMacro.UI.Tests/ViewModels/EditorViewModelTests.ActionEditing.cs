@@ -82,6 +82,19 @@ public sealed partial class EditorViewModelTests
         }
     }
 
+    [Fact]
+    public void AddAction_ForMousePosition_InitializesDestinationsAndShowsFields()
+    {
+        _viewModel.NewActionType = EditorActionType.MousePosition;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        _ = action.MousePositionXVariableName.Should().Be("mouse_x");
+        _ = action.MousePositionYVariableName.Should().Be("mouse_y");
+        _ = _viewModel.ShowMousePositionFields.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(EditorActionType.WaitColor)]
     [InlineData(EditorActionType.PixelSearch)]

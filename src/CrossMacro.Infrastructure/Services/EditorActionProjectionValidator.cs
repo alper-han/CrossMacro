@@ -39,6 +39,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             EditorActionType.WaitColor => ValidateWaitColor(action),
             EditorActionType.PixelSearch => ValidatePixelSearch(action),
             EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage => ValidateImageSearch(action),
+            EditorActionType.MousePosition => ValidateMousePosition(action),
             EditorActionType.ClipboardGet => ValidateClipboardGet(action),
             EditorActionType.ClipboardSet => ValidateClipboardSet(action),
             EditorActionType.ShellCommand => ValidateShellCommand(action),
@@ -276,6 +277,19 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             : (false, "Clipboard destination variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
     }
 
+    private static (bool IsValid, string? Error) ValidateMousePosition(EditorAction action)
+    {
+        if (!EditorActionScriptTokens.IsValidVariableName(action.MousePositionXVariableName)
+            || !EditorActionScriptTokens.IsValidVariableName(action.MousePositionYVariableName))
+        {
+            return (false, "Mouse position destination variable names are invalid. Allowed: letters, digits, underscore; cannot start with digit.");
+        }
+
+        return string.Equals(action.MousePositionXVariableName, action.MousePositionYVariableName, StringComparison.OrdinalIgnoreCase)
+            ? (false, "Mouse position X and Y destination variables must be different.")
+            : (true, null);
+    }
+
     private static (bool IsValid, string? Error) ValidateClipboardSet(EditorAction action)
     {
         return string.IsNullOrEmpty(action.Text)
@@ -295,6 +309,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             && !RunScriptSyntax.IsClipboardStep(text)
             && !RunScriptSyntax.IsShellStep(text)
             && !RunScriptSyntax.IsScreenReadingStep(text)
+            && !RunScriptSyntax.IsMousePositionStep(text)
             && !RunScriptPlatformSyntax.IsScreenshotStep(text))
         {
             return (true, null);
@@ -465,6 +480,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             EditorActionType.ImageSearch => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.ImageClick => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.WaitImage => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.MousePosition => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.ClipboardGet => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.ClipboardSet => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.ShellCommand => (false, ValidationMessages.ActionPayloadRequired),

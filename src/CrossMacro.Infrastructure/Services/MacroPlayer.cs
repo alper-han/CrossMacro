@@ -717,7 +717,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             windowExecutor,
             clipboardExecutor,
             shellExecutor,
-            screenshotExecutor);
+            screenshotExecutor,
+            new RunScriptMousePositionExecutor(_positionProvider));
         var executionRequest = new RunScriptRuntimeExecutionRequest(
             macro.ScriptSteps,
             macro.Images,

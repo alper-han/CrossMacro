@@ -204,6 +204,20 @@ internal static class RunCommandParser
             return true;
         }
 
+        if (string.Equals(token, RunScriptSyntax.MouseCommand, StringComparison.OrdinalIgnoreCase))
+        {
+            if (index + 3 >= args.Length
+                || !string.Equals(args[index + 1], RunScriptSyntax.MousePositionCommand, StringComparison.OrdinalIgnoreCase))
+            {
+                error = $"Invalid inline step syntax for {RunScriptSyntax.MouseCommand}. Expected: {RunScriptSyntax.MouseCommand} {RunScriptSyntax.MousePositionCommand} <x_variable> <y_variable>";
+                return false;
+            }
+
+            step = $"{RunScriptSyntax.MouseCommand} {RunScriptSyntax.MousePositionCommand} {args[index + 2]} {args[index + 3]}";
+            index += 3;
+            return true;
+        }
+
         if (string.Equals(token, "down", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "up", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "click", StringComparison.OrdinalIgnoreCase))
@@ -710,6 +724,7 @@ internal static class RunCommandParser
             || string.Equals(token, "delay", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "tap", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "type", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, RunScriptSyntax.MouseCommand, StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "set", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "inc", StringComparison.OrdinalIgnoreCase)
             || string.Equals(token, "dec", StringComparison.OrdinalIgnoreCase)

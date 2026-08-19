@@ -55,6 +55,8 @@ public partial class EditorViewModel
             && string.Equals(left.KeyName, right.KeyName, StringComparison.Ordinal)
             && string.Equals(left.Text, right.Text, StringComparison.Ordinal)
             && string.Equals(left.ScriptVariableName, right.ScriptVariableName, StringComparison.Ordinal)
+            && string.Equals(left.MousePositionXVariableName, right.MousePositionXVariableName, StringComparison.Ordinal)
+            && string.Equals(left.MousePositionYVariableName, right.MousePositionYVariableName, StringComparison.Ordinal)
             && left.ScriptValueType == right.ScriptValueType
             && string.Equals(left.ScriptValue, right.ScriptValue, StringComparison.Ordinal)
             && left.ScriptNumericSourceType == right.ScriptNumericSourceType
@@ -328,6 +330,8 @@ public partial class EditorViewModel
             or nameof(EditorAction.ForStartValue)
             or nameof(EditorAction.ForEndValue)
             or nameof(EditorAction.ForStepValue)
+            or nameof(EditorAction.MousePositionXVariableName)
+            or nameof(EditorAction.MousePositionYVariableName)
             or nameof(EditorAction.ScreenColorVariableName)
                 or nameof(EditorAction.ScreenFoundVariableName)
                 or nameof(EditorAction.ScreenFoundXVariableName)
@@ -397,6 +401,7 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowTextInput));
         OnPropertyChanged(nameof(ShowSetVariableFields));
         OnPropertyChanged(nameof(ShowClipboardGetFields));
+        OnPropertyChanged(nameof(ShowMousePositionFields));
         OnPropertyChanged(nameof(ShowClipboardVariablePicker));
         OnPropertyChanged(nameof(SelectedClipboardVariableSuggestion));
         OnPropertyChanged(nameof(ShowScreenshotFields));
@@ -619,6 +624,8 @@ public partial class EditorViewModel
             ScrollAmount = NewActionType is EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal ? 1 : 0,
             Text = NewActionType is EditorActionType.ClipboardSet ? "clipboard text" : string.Empty,
             ScriptVariableName = NewActionType is EditorActionType.ClipboardGet ? "clipboardText" : "i",
+            MousePositionXVariableName = "mouse_x",
+            MousePositionYVariableName = "mouse_y",
             ShellCommand = NewActionType is EditorActionType.ShellCommand ? "echo hello" : string.Empty,
             ScreenshotCopyToClipboard = NewActionType is EditorActionType.Screenshot,
             ShellStandardInput = string.Empty,

@@ -10,4 +10,10 @@ public sealed class RunScriptRuntimeStepClassifierTests
     {
         _ = RunScriptRuntimeStepClassifier.IsRuntimeStep(step).Should().BeTrue();
     }
+
+    [Fact]
+    public void IsRuntimeStep_WhenMousePositionStep_ReturnsTrue()
+    {
+        _ = RunScriptRuntimeStepClassifier.IsRuntimeStep("mouse position x y").Should().BeTrue();
+    }
 }

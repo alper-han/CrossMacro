@@ -10,7 +10,8 @@ internal sealed class RunScriptRuntimeExecutor(
     RunScriptWindowExecutor windowExecutor,
     RunScriptClipboardExecutor clipboardExecutor,
     RunScriptShellExecutor shellExecutor,
-    RunScriptScreenshotExecutor screenshotExecutor)
+    RunScriptScreenshotExecutor screenshotExecutor,
+    RunScriptMousePositionExecutor mousePositionExecutor)
 {
     private enum LoopControlSignal
     {
@@ -32,6 +33,7 @@ internal sealed class RunScriptRuntimeExecutor(
     private readonly RunScriptClipboardExecutor _clipboardExecutor = clipboardExecutor ?? throw new ArgumentNullException(nameof(clipboardExecutor));
     private readonly RunScriptShellExecutor _shellExecutor = shellExecutor ?? throw new ArgumentNullException(nameof(shellExecutor));
     private readonly RunScriptScreenshotExecutor _screenshotExecutor = screenshotExecutor ?? throw new ArgumentNullException(nameof(screenshotExecutor));
+    private readonly RunScriptMousePositionExecutor _mousePositionExecutor = mousePositionExecutor ?? throw new ArgumentNullException(nameof(mousePositionExecutor));
 
     public async Task ExecuteAsync(RunScriptRuntimeExecutionRequest request, CancellationToken cancellationToken)
     {
@@ -236,6 +238,12 @@ internal sealed class RunScriptRuntimeExecutor(
         if (RunScriptPlatformSyntax.IsScreenshotStep(step))
         {
             await _screenshotExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (RunScriptSyntax.IsMousePositionStep(step))
+        {
+            await _mousePositionExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
             return;
         }
 

@@ -97,6 +97,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 EditorActionType.MouseClick,
                 EditorActionType.MouseDown,
                 EditorActionType.MouseUp,
+                EditorActionType.MousePosition,
                 EditorActionType.ScrollVertical,
                 EditorActionType.ScrollHorizontal,
             }),
@@ -658,7 +659,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     {
         EditorActionType.MouseClick => Localize("Editor_CurrentPositionClick"),
         EditorActionType.MouseDown => Localize("Editor_CurrentPositionHold"),
-        EditorActionType.MouseUp => Localize("Editor_CurrentPositionRelease"),
+            EditorActionType.MouseUp => Localize("Editor_CurrentPositionRelease"),
+        EditorActionType.MousePosition => Localize("Editor_CurrentPositionUse"),
         EditorActionType.MouseMove => Localize("Editor_CurrentPositionUse"),
         EditorActionType.KeyPress => Localize("Editor_CurrentPositionUse"),
         EditorActionType.KeyDown => Localize("Editor_CurrentPositionUse"),
@@ -761,6 +763,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     }
     public bool ShowSetVariableFields => (SelectedAction?.Type) is EditorActionType.SetVariable;
     public bool ShowClipboardGetFields => (SelectedAction?.Type) is EditorActionType.ClipboardGet;
+    public bool ShowMousePositionFields => (SelectedAction?.Type) is EditorActionType.MousePosition;
     public bool ShowScreenshotFields => (SelectedAction?.Type) is EditorActionType.Screenshot;
     public bool ShowScreenshotRegionFields => ShowScreenshotFields && (SelectedAction?.ScreenshotUseRegion) is true;
     public bool ShowShellCommandFields => (SelectedAction?.Type) is EditorActionType.ShellCommand;
@@ -801,6 +804,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.MouseClick => Localize("Editor_TextToType"),
         EditorActionType.MouseDown => Localize("Editor_TextToType"),
         EditorActionType.MouseUp => Localize("Editor_TextToType"),
+        EditorActionType.MousePosition => Localize("Editor_TextToType"),
         EditorActionType.KeyPress => Localize("Editor_TextToType"),
         EditorActionType.KeyDown => Localize("Editor_TextToType"),
         EditorActionType.KeyUp => Localize("Editor_TextToType"),
@@ -843,6 +847,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.MouseClick => Localize("Editor_EnterTextToType"),
         EditorActionType.MouseDown => Localize("Editor_EnterTextToType"),
         EditorActionType.MouseUp => Localize("Editor_EnterTextToType"),
+        EditorActionType.MousePosition => Localize("Editor_EnterTextToType"),
         EditorActionType.KeyPress => Localize("Editor_EnterTextToType"),
         EditorActionType.KeyDown => Localize("Editor_EnterTextToType"),
         EditorActionType.KeyUp => Localize("Editor_EnterTextToType"),
@@ -887,6 +892,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.MouseClick => Localize("Editor_TextToTypeHint"),
         EditorActionType.MouseDown => Localize("Editor_TextToTypeHint"),
         EditorActionType.MouseUp => Localize("Editor_TextToTypeHint"),
+        EditorActionType.MousePosition => Localize("Editor_TextToTypeHint"),
         EditorActionType.KeyPress => Localize("Editor_TextToTypeHint"),
         EditorActionType.KeyDown => Localize("Editor_TextToTypeHint"),
         EditorActionType.KeyUp => Localize("Editor_TextToTypeHint"),
@@ -1272,6 +1278,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             or nameof(EditorAction.ForStartValue)
             or nameof(EditorAction.ForEndValue)
             or nameof(EditorAction.ForStepValue)
+            or nameof(EditorAction.MousePositionXVariableName)
+            or nameof(EditorAction.MousePositionYVariableName)
             or nameof(EditorAction.ScreenColorVariableName)
             or nameof(EditorAction.ScreenFoundVariableName)
             or nameof(EditorAction.ScreenFoundXVariableName)

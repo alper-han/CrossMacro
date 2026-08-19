@@ -97,6 +97,39 @@ public sealed partial class EditorActionConverterTests
     }
 
     [Fact]
+    public void ToAndFromMacroSequence_WhenMousePositionActionUsed_PreservesTypedAction()
+    {
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.MousePosition,
+                MousePositionXVariableName = "mouse_x",
+                MousePositionYVariableName = "mouse_y",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseMove,
+                IsAbsolute = true,
+                CoordinateXToken = "$mouse_x",
+                CoordinateYToken = "$mouse_y",
+            },
+        };
+
+        var sequence = _converter.ToMacroSequence(actions, "Mouse Position", isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        _ = sequence.Events.Should().BeEmpty();
+        _ = sequence.ScriptSteps.Should().Equal(
+            "mouse position mouse_x mouse_y",
+            "move abs $mouse_x $mouse_y");
+        _ = restored.Should().HaveCount(2);
+        _ = restored[0].Type.Should().Be(EditorActionType.MousePosition);
+        _ = restored[0].MousePositionXVariableName.Should().Be("mouse_x");
+        _ = restored[0].MousePositionYVariableName.Should().Be("mouse_y");
+    }
+
+    [Fact]
     public void ToMacroSequence_WhenClipboardSetUsesEscapedDollar_PreservesLiteralDollarEscape()
     {
         var actions = new[]

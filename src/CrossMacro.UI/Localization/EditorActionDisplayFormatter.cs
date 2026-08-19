@@ -51,6 +51,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.ImageSearch => FormatImageSearch(action),
             EditorActionType.ImageClick => FormatImageClick(action),
             EditorActionType.WaitImage => FormatWaitImage(action),
+            EditorActionType.MousePosition => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MousePosition"], action.MousePositionXVariableName, action.MousePositionYVariableName),
             EditorActionType.ClipboardGet => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ClipboardGet"], action.ScriptVariableName),
             EditorActionType.ClipboardSet => string.IsNullOrEmpty(action.Text)
                 ? localizationService["Editor_Action_ClipboardSetEmpty"]
@@ -102,6 +103,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.ImageSearch => localizationService["Editor_ActionType_ImageSearch"],
             EditorActionType.ImageClick => localizationService["Editor_ActionType_ImageClick"],
             EditorActionType.WaitImage => localizationService["Editor_ActionType_WaitImage"],
+            EditorActionType.MousePosition => localizationService["Editor_ActionType_MousePosition"],
             EditorActionType.ClipboardGet => localizationService["Editor_ActionType_ClipboardGet"],
             EditorActionType.ClipboardSet => localizationService["Editor_ActionType_ClipboardSet"],
             EditorActionType.ShellCommand => localizationService["Editor_ActionType_ShellCommand"],
@@ -153,6 +155,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.ImageSearch => localizationService["Editor_BlockName_Block"],
             EditorActionType.ImageClick => localizationService["Editor_BlockName_Block"],
             EditorActionType.WaitImage => localizationService["Editor_BlockName_Block"],
+            EditorActionType.MousePosition => localizationService["Editor_BlockName_Block"],
             EditorActionType.ClipboardGet => localizationService["Editor_BlockName_Block"],
             EditorActionType.ClipboardSet => localizationService["Editor_BlockName_Block"],
             EditorActionType.ShellCommand => localizationService["Editor_BlockName_Block"],

@@ -102,6 +102,22 @@ public sealed class EditorActionValidatorTests
         _ = result.Error.Should().Contain("Clipboard text");
     }
 
+    [Fact]
+    public void Validate_MousePositionWithDuplicateDestinations_ReturnsInvalid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MousePosition,
+            MousePositionXVariableName = "cursor",
+            MousePositionYVariableName = "cursor",
+        };
+
+        var result = _validator.Validate(action);
+
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Contain("must be different");
+    }
+
     [Theory]
     [InlineData("window", "window")]
     [InlineData("clipboard get", "clipboard")]
@@ -109,6 +125,7 @@ public sealed class EditorActionValidatorTests
     [InlineData("pixelcolor", "pixelcolor")]
     [InlineData("waitcolor 1 2", "waitcolor")]
     [InlineData("pixelsearch 1 2 3 4", "pixelsearch")]
+    [InlineData("mouse position x x", "different")]
     public void Validate_RawScriptStepWithMalformedRecognizedCommand_ReturnsCommandSpecificError(string text, string expected)
     {
         var action = new EditorAction { Type = EditorActionType.RawScriptStep, Text = text };

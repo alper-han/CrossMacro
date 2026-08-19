@@ -63,11 +63,13 @@ crossmacro setup
 ```
 
 The command reuses the GUI Quick Setup flow. Flatpak invokes the host helper
-through `flatpak-spawn`; the host authorization command is selected as `run0`
-when available and otherwise a usable setuid `pkexec`. AppImage uses the same
-`run0`/`pkexec` selection directly. It never falls back to an unvalidated
-`sudo` shell command. Use `--json` for scripts. The setup is temporary and may
-need to be repeated after reboot or device re-enumeration.
+through `flatpak-spawn`; the host authorization command is selected as a usable
+setuid `pkexec` and otherwise `run0`. AppImage uses the same `pkexec`/`run0`
+selection directly. A GUI-launched setup requires a host graphical polkit agent;
+Flatpak permissions do not provide one. When `pkexec` is selected, a setup run
+from a terminal can use its textual authentication prompt. It never falls back to
+an unvalidated `sudo` shell command. Use `--json` for scripts. The setup is
+temporary and may need to be repeated after reboot or device re-enumeration.
 
 `quick-setup` is accepted as an alias. On daemon-backed packages or sessions
 where this setup is not applicable, the command returns environment error code
@@ -555,6 +557,7 @@ pixelsearch 0 0 1920 1080 FF0000 found found_x found_y timeout 5000 tolerance 26
 imagesearch button found found_x found_y similarity 0.95
 imageclick button clicked click_x click_y button right similarity 0.95
 waitimage ready found found_x found_y timeout 10000
+mouse position mouse_x mouse_y
 ```
 
 - `pixelcolor <x> <y> [var]` samples one pixel at an absolute position.
@@ -568,6 +571,8 @@ waitimage ready found found_x found_y timeout 10000
   coordinates and playback continues; the `var_x var_y` form is fail-fast.
 - `clipboard get <var>` stores current clipboard text in a runtime variable.
 - `clipboard set <text>` replaces clipboard text after variable substitution.
+- `mouse position <x_var> <y_var>` stores the live global cursor coordinates
+  as signed integer runtime variables. The two destination names must differ.
 - `screenshot [region <x> <y> <width> <height>] [output <path>] [clipboard]`
   captures a screen frame. At least one destination, `output` or `clipboard`, is
   required; `output` overwrites the target PNG path.
@@ -608,6 +613,7 @@ below.
 Additional direct-run steps include:
 
 - `move abs <integer|$variable> <integer|$variable>`, `move rel <integer|$variable> <integer|$variable>`, `move rel-logical <integer|$variable> <integer|$variable>`, and `move rel-raw <integer|$variable> <integer|$variable>`
+- `mouse position <x_variable> <y_variable>`
 - `click <button>`, `down <button>`, and `up <button>`
 - `click current <button>`, `down current <button>`, and `up current <button>`
 - `scroll <up|down|left|right> [count]`
@@ -658,6 +664,13 @@ The macro editor accepts the same values in the X and Y fields for mouse move,
 click, hold, and release actions. When invoking the CLI from a shell, quote steps
 containing `$variable` references so the shell does not expand them first, for
 example `--step 'move abs $found_x $found_y'`.
+
+`mouse position <x_variable> <y_variable>` captures a single live global cursor
+sample without moving the pointer. It can feed later moves, conditions, and
+loops; for example, `move abs $mouse_x $mouse_y` restores a previously saved
+position. It does not create a separate background cursor, so any later move or
+click still affects the user's system pointer. The step fails when the active
+platform session cannot provide a global cursor position.
 
 The coordinate-space differences between `move rel`, `move rel-raw`, and
 `move rel-logical` are defined in the [Detailed CLI and Runtime

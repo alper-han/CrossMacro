@@ -1308,6 +1308,21 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Установить текст буфера обмена</value>
   </data>
+  <data name="Editor_ActionType_MousePosition" xml:space="preserve">
+    <value>Позиция мыши</value>
+  </data>
+  <data name="Editor_Action_MousePosition" xml:space="preserve">
+    <value>Сохранить позицию мыши в {0}, {1}</value>
+  </data>
+  <data name="Editor_MousePositionXVariable" xml:space="preserve">
+    <value>Переменная координаты X</value>
+  </data>
+  <data name="Editor_MousePositionYVariable" xml:space="preserve">
+    <value>Переменная координаты Y</value>
+  </data>
+  <data name="Editor_MousePositionHint" xml:space="preserve">
+    <value>Считывает текущую глобальную позицию курсора в две числовые переменные. В некоторых сеансах Wayland она может быть недоступна.</value>
+  </data>
   <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
     <value>Shell Command</value>
   </data>

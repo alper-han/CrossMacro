@@ -78,6 +78,31 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenRunWithInlineMousePosition_ReturnsRunOptions()
+    {
+        var result = CliCommandRouterAccessor.Parse([
+            "run",
+            "mouse", "position", "mouse_x", "mouse_y",
+            "click", "left",
+            "--dry-run",
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RunCliOptions>(result.Options);
+        Assert.True(options.DryRun);
+        Assert.Equal(["mouse position mouse_x mouse_y", "click left"], options.Steps);
+    }
+
+    [Fact]
+    public void Parse_WhenRunWithIncompleteInlineMousePosition_ReturnsError()
+    {
+        var result = CliCommandRouterAccessor.Parse(["run", "mouse", "position", "mouse_x"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Invalid inline step syntax for mouse", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Parse_WhenRunWithInlineRepeatAndSet_ReturnsRunOptions()
     {
         var result = CliCommandRouterAccessor.Parse([

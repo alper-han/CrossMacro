@@ -32,6 +32,7 @@ public static class EditorActionScriptClassifier
             or EditorActionType.ImageSearch
             or EditorActionType.ImageClick
             or EditorActionType.WaitImage
+            or EditorActionType.MousePosition
             or EditorActionType.ClipboardGet
             or EditorActionType.ClipboardSet
             or EditorActionType.ShellCommand

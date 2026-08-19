@@ -1308,6 +1308,21 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>设置剪贴板文本</value>
   </data>
+  <data name="Editor_ActionType_MousePosition" xml:space="preserve">
+    <value>鼠标位置</value>
+  </data>
+  <data name="Editor_Action_MousePosition" xml:space="preserve">
+    <value>将鼠标位置保存到 {0}、{1}</value>
+  </data>
+  <data name="Editor_MousePositionXVariable" xml:space="preserve">
+    <value>X 坐标变量</value>
+  </data>
+  <data name="Editor_MousePositionYVariable" xml:space="preserve">
+    <value>Y 坐标变量</value>
+  </data>
+  <data name="Editor_MousePositionHint" xml:space="preserve">
+    <value>将当前全局光标位置读取到两个数值变量中。在某些 Wayland 会话中可能不可用。</value>
+  </data>
   <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
     <value>Shell Command</value>
   </data>

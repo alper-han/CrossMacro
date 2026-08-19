@@ -21,6 +21,10 @@ public partial class EditorViewModel
                 case EditorActionType.ForBlockStart:
                     AddIfValidVariableName(names, action.ForVariableName);
                     break;
+                case EditorActionType.MousePosition:
+                    AddIfValidVariableName(names, action.MousePositionXVariableName);
+                    AddIfValidVariableName(names, action.MousePositionYVariableName);
+                    break;
                 case EditorActionType.ShellCommand when action.ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput:
                     AddIfValidVariableName(names, action.ShellExitCodeVariableName);
                     AddIfValidVariableName(names, action.ShellStandardOutputVariableName);

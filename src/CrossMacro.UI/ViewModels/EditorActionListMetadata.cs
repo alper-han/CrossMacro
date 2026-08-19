@@ -15,6 +15,7 @@ internal static class EditorActionListMetadata
             EditorActionType.TextInput or EditorActionType.ClipboardSet => EditorActionVisualKind.Text,
             EditorActionType.Delay => EditorActionVisualKind.Timing,
             EditorActionType.SetVariable or EditorActionType.ClipboardGet or EditorActionType.ShellCommand
+                or EditorActionType.MousePosition
                 or EditorActionType.IncrementVariable or EditorActionType.DecrementVariable
                 or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable => EditorActionVisualKind.Variable,
             EditorActionType.PixelColor or EditorActionType.WaitColor or EditorActionType.PixelSearch
@@ -68,6 +69,7 @@ internal static class EditorActionListMetadata
             EditorActionType.ImageClick => true,
             EditorActionType.WaitImage => true,
             EditorActionType.ClipboardGet => true,
+            EditorActionType.MousePosition => true,
             EditorActionType.ClipboardSet => true,
             EditorActionType.ShellCommand => true,
             EditorActionType.Screenshot => true,

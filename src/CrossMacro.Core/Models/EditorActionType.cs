@@ -187,4 +187,9 @@ public enum EditorActionType
     /// Preserved to avoid data loss during round-trip save.
     /// </summary>
     RawScriptStep,
+
+    /// <summary>
+    /// Captures the current mouse position into script variables.
+    /// </summary>
+    MousePosition,
 }

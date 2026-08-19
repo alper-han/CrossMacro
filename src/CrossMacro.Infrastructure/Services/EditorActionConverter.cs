@@ -231,6 +231,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.ImageSearch:
             case EditorActionType.ImageClick:
             case EditorActionType.WaitImage:
+            case EditorActionType.MousePosition:
             case EditorActionType.ClipboardGet:
             case EditorActionType.ClipboardSet:
             case EditorActionType.ShellCommand:
@@ -793,6 +794,10 @@ public class EditorActionConverter : IEditorActionConverter
 
             case EditorActionType.TextInput:
                 yield return $"type {action.Text}";
+                yield break;
+
+            case EditorActionType.MousePosition:
+                yield return $"{RunScriptSyntax.MouseCommand} {RunScriptSyntax.MousePositionCommand} {EditorActionScriptTokens.NormalizeVariableToken(action.MousePositionXVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.MousePositionYVariableName)}";
                 yield break;
 
             case EditorActionType.SetVariable:
@@ -1697,6 +1702,12 @@ public class EditorActionConverter : IEditorActionConverter
                 continue;
             }
 
+            if (TryParseMousePositionStep(step, out var mousePositionAction))
+            {
+                actions.Add(mousePositionAction);
+                continue;
+            }
+
             if (TryParseSetStep(step, out var setAction))
             {
                 actions.Add(setAction);
@@ -2177,6 +2188,33 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         text = step[5..];
+        return true;
+    }
+
+    private static bool TryParseMousePositionStep(string step, out EditorAction action)
+    {
+        action = new EditorAction();
+        if (!RunScriptSyntax.IsMousePositionStep(step))
+        {
+            return false;
+        }
+
+        var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length is not 4
+            || !parts[1].Equals(RunScriptSyntax.MousePositionCommand, StringComparison.OrdinalIgnoreCase)
+            || !TryNormalizeVariableName(parts[2], out var xVariable)
+            || !TryNormalizeVariableName(parts[3], out var yVariable)
+            || string.Equals(xVariable, yVariable, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        action = new EditorAction
+        {
+            Type = EditorActionType.MousePosition,
+            MousePositionXVariableName = xVariable,
+            MousePositionYVariableName = yVariable,
+        };
         return true;
     }
 

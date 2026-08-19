@@ -23,6 +23,7 @@ public sealed class EditorActionValidator(IEditorActionConverter validationConve
                 || RunScriptSyntax.IsClipboardStep(action.Text)
                 || RunScriptSyntax.IsShellStep(action.Text)
                 || RunScriptSyntax.IsScreenReadingStep(action.Text)
+                || RunScriptSyntax.IsMousePositionStep(action.Text)
                 || RunScriptPlatformSyntax.IsScreenshotStep(action.Text))
             ? _scriptAdapter.ValidateAction(action)
             : _projectionValidator.Validate(action);

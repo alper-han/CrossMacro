@@ -4,6 +4,24 @@ public sealed partial class EditorViewModelTests
 {
 
     [Fact]
+    public void Undo_WhenMousePositionOutputChangesBeforeAddingAction_PreservesEditedOutputs()
+    {
+        _viewModel.NewActionType = EditorActionType.MousePosition;
+        _viewModel.AddAction();
+        _viewModel.SelectedAction!.MousePositionXVariableName = "saved_x";
+        _viewModel.SelectedAction.MousePositionYVariableName = "saved_y";
+
+        _viewModel.NewActionType = EditorActionType.Delay;
+        _viewModel.AddAction();
+        _viewModel.Undo();
+
+        _ = _viewModel.Actions.Should().ContainSingle();
+        _ = _viewModel.Actions[0].Type.Should().Be(EditorActionType.MousePosition);
+        _ = _viewModel.Actions[0].MousePositionXVariableName.Should().Be("saved_x");
+        _ = _viewModel.Actions[0].MousePositionYVariableName.Should().Be("saved_y");
+    }
+
+    [Fact]
     public void DuplicateSelectedActions_WhenSingleRowSelected_DuplicatesSelectionAndSupportsUndo()
     {
         var first = new EditorAction { Type = EditorActionType.MouseClick, X = 1 };

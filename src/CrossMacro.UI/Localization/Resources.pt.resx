@@ -1308,6 +1308,21 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Definir texto da área de transferência</value>
   </data>
+  <data name="Editor_ActionType_MousePosition" xml:space="preserve">
+    <value>Posição do mouse</value>
+  </data>
+  <data name="Editor_Action_MousePosition" xml:space="preserve">
+    <value>Capturar posição do mouse em {0}, {1}</value>
+  </data>
+  <data name="Editor_MousePositionXVariable" xml:space="preserve">
+    <value>Variável da coordenada X</value>
+  </data>
+  <data name="Editor_MousePositionYVariable" xml:space="preserve">
+    <value>Variável da coordenada Y</value>
+  </data>
+  <data name="Editor_MousePositionHint" xml:space="preserve">
+    <value>Lê a posição global atual do cursor em duas variáveis numéricas. Pode não estar disponível em algumas sessões Wayland.</value>
+  </data>
   <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
     <value>Shell Command</value>
   </data>

@@ -18,6 +18,7 @@ public sealed class EditorActionListMetadataTests
     [InlineData(EditorActionType.MouseMove, EditorActionVisualKind.Movement)]
     [InlineData(EditorActionType.KeyPress, EditorActionVisualKind.Keyboard)]
     [InlineData(EditorActionType.Delay, EditorActionVisualKind.Timing)]
+    [InlineData(EditorActionType.MousePosition, EditorActionVisualKind.Variable)]
     [InlineData(EditorActionType.IfBlockStart, EditorActionVisualKind.ControlFlow)]
     public void GetVisualKind_PreservesActionTaxonomy(EditorActionType actionType, EditorActionVisualKind expected)
     {

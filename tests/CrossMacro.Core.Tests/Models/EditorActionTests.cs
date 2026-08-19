@@ -61,6 +61,8 @@ public sealed class EditorActionTests
             ScrollAmount = -2,
             Text = "hello",
             ScriptVariableName = "counter",
+            MousePositionXVariableName = "mouse_x",
+            MousePositionYVariableName = "mouse_y",
             ScriptValueType = ScriptValueType.Number,
             ScriptValue = "42",
             ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
@@ -123,6 +125,8 @@ public sealed class EditorActionTests
         _ = clone.ScrollAmount.Should().Be(source.ScrollAmount);
         _ = clone.Text.Should().Be(source.Text);
         _ = clone.ScriptVariableName.Should().Be(source.ScriptVariableName);
+        _ = clone.MousePositionXVariableName.Should().Be(source.MousePositionXVariableName);
+        _ = clone.MousePositionYVariableName.Should().Be(source.MousePositionYVariableName);
         _ = clone.ScriptValueType.Should().Be(source.ScriptValueType);
         _ = clone.ScriptValue.Should().Be(source.ScriptValue);
         _ = clone.ScriptNumericSourceType.Should().Be(source.ScriptNumericSourceType);

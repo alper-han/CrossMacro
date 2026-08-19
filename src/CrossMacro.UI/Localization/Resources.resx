@@ -1308,6 +1308,21 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Set clipboard text</value>
   </data>
+  <data name="Editor_ActionType_MousePosition" xml:space="preserve">
+    <value>Mouse Position</value>
+  </data>
+  <data name="Editor_Action_MousePosition" xml:space="preserve">
+    <value>Capture mouse position into {0}, {1}</value>
+  </data>
+  <data name="Editor_MousePositionXVariable" xml:space="preserve">
+    <value>X coordinate variable</value>
+  </data>
+  <data name="Editor_MousePositionYVariable" xml:space="preserve">
+    <value>Y coordinate variable</value>
+  </data>
+  <data name="Editor_MousePositionHint" xml:space="preserve">
+    <value>Reads the live global cursor position into two numeric variables. It may be unavailable on some Wayland sessions.</value>
+  </data>
   <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
     <value>Shell Command</value>
   </data>

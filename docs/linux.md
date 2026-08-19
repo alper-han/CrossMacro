@@ -108,6 +108,13 @@ package-provided service, udev, module, and group configuration. Treat manual
 `input` or `uinput` group changes for the service user as repair steps, not
 normal setup.
 
+While a daemon-backed capture session is active, the daemon rescans input event
+nodes once per second. A disconnected keyboard or mouse reader is removed, and
+a newly created node is opened without restarting CrossMacro or the daemon. This
+recovery applies only to daemon-backed installs; portable direct-input sessions
+still need Quick Setup again after replugging a device because its temporary ACL
+does not automatically apply to a new `/dev/input/event*` node.
+
 ## Flatpak on Wayland
 
 For Flatpak on Wayland, CrossMacro uses direct device mode. The portable package
@@ -116,11 +123,19 @@ granted to the user session when needed.
 
 If required permissions are missing, app startup shows **Wayland Setup Required**
 and can run Quick Setup automatically. Quick Setup uses `flatpak-spawn --host`
-with `pkexec`, or `run0` on hosts where the `pkexec` setuid wrapper is disabled,
-to apply session ACLs on the host:
+with a usable setuid `pkexec`, or `run0` as a fallback, to apply session ACLs on
+the host:
 
 - `rw` access to `/dev/uinput` or `/dev/input/uinput`
 - `r` access to `/dev/input/event*`
+
+Both host commands authorize through polkit. A Flatpak permission does not install
+or provide a host polkit authentication agent. The desktop session must have a
+graphical polkit agent registered; otherwise a GUI-launched setup cannot display
+an authorization prompt. A `/dev/tty` or `No authentication agent found` message
+means that authorization did not happen, not that `/dev/uinput` is missing. Start
+the desktop's polkit agent, or run `crossmacro setup` from a terminal so selected
+`pkexec` can use its textual authentication prompt.
 
 The same setup can be requested without starting the GUI:
 
@@ -131,9 +146,9 @@ crossmacro quick-setup
 ```
 
 Inside Flatpak this command uses `flatpak-spawn --host`; outside Flatpak it is
-available for AppImage Wayland sessions. The command selects `run0` or a usable
-setuid `pkexec`, reports authorization failures, and returns exit code `5` when
-the current package/session does not support temporary setup.
+available for AppImage Wayland sessions. The command selects a usable setuid
+`pkexec` or `run0` fallback, reports authorization failures, and returns exit
+code `5` when the current package/session does not support temporary setup.
 
 If Quick Setup is denied or fails, use doctor first. Manual ACL fallback, run on
 the Linux host rather than inside the Flatpak sandbox:
@@ -207,9 +222,8 @@ timeouts, and permissions still determine whether a live Wayland search can run.
 AppImage does not install the packaged daemon-backed service. On X11, CrossMacro
 uses native X11 backends when available. On Wayland, AppImage relies on direct
 device fallback and may show **Linux Input Setup Required** with Quick Setup.
-Quick Setup uses `pkexec`, or `run0` when the host provides it instead of a
-`pkexec` setuid wrapper, to grant temporary direct device access for the current
-user session:
+Quick Setup uses a usable setuid `pkexec`, or `run0` as a fallback, to grant
+temporary direct device access for the current user session:
 
 - `rw` access to `/dev/uinput` or `/dev/input/uinput`
 - `r` access to `/dev/input/event*`
@@ -310,6 +324,13 @@ Absolute and relative coordinate events can be mixed in one macro.
 Current-position clicks do not carry coordinates and execute at the live cursor
 position.
 
+Run scripts can save one live cursor sample with
+`mouse position <x_variable> <y_variable>`. The values use signed logical
+desktop coordinates and can feed later moves, conditions, or loop logic. This
+does not create a separate background cursor: later move/click steps still share
+the user's pointer. The step fails on sessions that do not expose a global
+cursor-position provider, including Niri, Sway, and affected COSMIC sessions.
+
 New relative recordings use logical desktop deltas whenever a global cursor
 provider is available. Playback converts those deltas back to exact logical
 targets, so pointer acceleration does not distort the path. Legacy relative
@@ -336,7 +357,8 @@ Log out and back in after first-time setup if prompted.
 ## Minimal systems and conflicts
 
 Daemon authorization and Quick Setup flows may require `polkit`, `pkcheck`, and
-`pkexec` on minimal systems:
+`pkexec` on minimal systems. Portable Quick Setup also requires a graphical polkit
+authentication agent for GUI-launched authorization:
 
 ```bash
 which pkcheck pkexec
@@ -344,6 +366,8 @@ pkcheck --version
 ```
 
 Install your distro's polkit package if these tools are missing.
+If authorization reports `No authentication agent found` or a `/dev/tty` error,
+start the desktop's polkit agent before retrying.
 
 Some applications can lock input devices exclusively. If capture or playback
 behaves inconsistently, pause conflicting tools, for example GPU Screen Recorder,

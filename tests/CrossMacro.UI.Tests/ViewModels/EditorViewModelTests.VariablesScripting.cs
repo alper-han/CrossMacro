@@ -176,6 +176,50 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
+    public void AvailableVariableNames_WhenMousePositionActionProducesOutputs_IncludesNumericVariables()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MousePosition,
+            MousePositionXVariableName = "mouse_x",
+            MousePositionYVariableName = "mouse_y",
+        };
+        var condition = new EditorAction
+        {
+            Type = EditorActionType.IfBlockStart,
+            ScriptLeftOperandType = ScriptOperandType.VariableReference,
+            ScriptLeftOperand = "mouse_x",
+            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
+            ScriptRightOperandType = ScriptOperandType.Number,
+            ScriptRightOperand = "0",
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.Actions.Add(condition);
+        _viewModel.SelectedAction = condition;
+
+        _ = _viewModel.AvailableVariableNames.Should().Contain(["mouse_x", "mouse_y"]);
+        _ = _viewModel.ScriptConditionOperators.Should().Contain(ScriptConditionOperator.GreaterThan);
+    }
+
+    [Fact]
+    public void AvailableVariableNames_WhenMousePositionOutputNamesChange_RefreshesSuggestions()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MousePosition,
+            MousePositionXVariableName = "mouse_x",
+            MousePositionYVariableName = "mouse_y",
+        };
+        _viewModel.Actions.Add(action);
+
+        action.MousePositionXVariableName = "cursor_x";
+        action.MousePositionYVariableName = "cursor_y";
+
+        _ = _viewModel.AvailableVariableNames.Should().Contain(["cursor_x", "cursor_y"]);
+        _ = _viewModel.AvailableVariableNames.Should().NotContain(["mouse_x", "mouse_y"]);
+    }
+
+    [Fact]
     public void SetVariableSuggestions_WhenSelectingSecondAction_DoesNotMutateFirstAction()
     {
         // Arrange

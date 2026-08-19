@@ -470,6 +470,30 @@
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
                                 <TextBlock Text="{localization:Loc Editor_ClipboardGetHint}"
+                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            FontSize="11"
+                                            TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <!-- Mouse position -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowMousePositionFields}">
+                                <TextBlock Text="{localization:Loc Editor_MousePositionXVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.MousePositionXVariableName, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="mouse_x"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <TextBlock Text="{localization:Loc Editor_MousePositionYVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.MousePositionYVariableName, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="mouse_y"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <TextBlock Text="{localization:Loc Editor_MousePositionHint}"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="11"
                                            TextWrapping="Wrap"/>

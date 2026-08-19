@@ -133,6 +133,23 @@ public sealed class ScreenReadingCliRuntimeTests
         Assert.Contains(runResult.Errors, error => error.Contains("Unsupported", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task Run_MousePosition_UsesCliRuntimeProviderAndReturnsVariables()
+    {
+        await using var provider = BuildProvider(new RecordingScreenPixelReader());
+        var runService = provider.GetRequiredService<IRunScriptExecutionService>();
+
+        var result = await runService.ExecuteAsync(new CliRunExecutionRequest
+        {
+            Steps = ["mouse position mouse_x mouse_y"],
+        }, CancellationToken.None);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        var data = Assert.IsType<RunScriptExecutionData>(result.Data);
+        Assert.Equal("100", data.RuntimeVariables["mouse_x"]);
+        Assert.Equal("100", data.RuntimeVariables["mouse_y"]);
+    }
+
     private static ServiceProvider BuildProvider(RecordingScreenPixelReader screenReader)
     {
         var services = new ServiceCollection();

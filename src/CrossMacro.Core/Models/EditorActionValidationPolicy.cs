@@ -29,6 +29,7 @@ internal static class EditorActionValidationPolicy
             or EditorActionType.ImageSearch
             or EditorActionType.ImageClick
             or EditorActionType.WaitImage
+            or EditorActionType.MousePosition
             or EditorActionType.ClipboardGet
             or EditorActionType.ClipboardSet
             or EditorActionType.ShellCommand
@@ -61,6 +62,7 @@ internal static class EditorActionValidationPolicy
             EditorActionType.WaitColor => ValidateWaitColorFields(action),
             EditorActionType.PixelSearch => ValidatePixelSearchFields(action),
             EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage => ValidateImageSearchFields(action),
+            EditorActionType.MousePosition => ValidateMousePositionFields(action),
             EditorActionType.ClipboardGet => EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName),
             EditorActionType.ClipboardSet => !string.IsNullOrEmpty(action.Text),
             EditorActionType.ShellCommand => ValidateShellCommandFields(action),
@@ -97,6 +99,13 @@ internal static class EditorActionValidationPolicy
     {
         return EditorActionScriptTokens.TryParseNumericToken(action.CoordinateXToken, out _, out _)
             && EditorActionScriptTokens.TryParseNumericToken(action.CoordinateYToken, out _, out _);
+    }
+
+    private static bool ValidateMousePositionFields(EditorAction action)
+    {
+        return EditorActionScriptTokens.IsValidVariableName(action.MousePositionXVariableName)
+            && EditorActionScriptTokens.IsValidVariableName(action.MousePositionYVariableName)
+            && !string.Equals(action.MousePositionXVariableName, action.MousePositionYVariableName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ValidateIncDecFields(EditorAction action)

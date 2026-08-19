@@ -25,6 +25,8 @@ public static class RunScriptSyntax
     public const string ClipboardCommand = "clipboard";
     public const string ShellCommand = "shell";
     public const string ScreenshotCommand = "screenshot";
+    public const string MouseCommand = "mouse";
+    public const string MousePositionCommand = "position";
 
     public static bool TryParseMouseMoveMode(
         string? token,
@@ -291,6 +293,16 @@ public static class RunScriptSyntax
         }
 
         return StartsWithCommandToken(step.TrimStart(), ScreenshotCommand);
+    }
+
+    public static bool IsMousePositionStep(string? step)
+    {
+        if (string.IsNullOrWhiteSpace(step))
+        {
+            return false;
+        }
+
+        return StartsWithCommandToken(step.TrimStart(), MouseCommand);
     }
 
     public static bool StartsWithCommandToken(string step, string command)

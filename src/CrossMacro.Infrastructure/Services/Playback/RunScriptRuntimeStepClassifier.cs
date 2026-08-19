@@ -11,6 +11,7 @@ internal static class RunScriptRuntimeStepClassifier
             || RunScriptSyntax.IsClipboardStep(trimmed)
             || RunScriptSyntax.IsShellStep(trimmed)
             || RunScriptPlatformSyntax.IsScreenshotStep(trimmed)
+            || RunScriptSyntax.IsMousePositionStep(trimmed)
             || IsRuntimeDelayStep(trimmed)
             || IsRuntimeVariableStep(trimmed)
             || trimmed.StartsWith("key ", StringComparison.OrdinalIgnoreCase)

@@ -9,6 +9,7 @@ public sealed class EditorActionDisplayFormatterTests
     [InlineData(EditorActionType.PixelSearch, "Editor_ActionType_PixelSearch", "Pixel Search")]
     [InlineData(EditorActionType.ImageClick, "Editor_ActionType_ImageClick", "Image Click")]
     [InlineData(EditorActionType.WaitImage, "Editor_ActionType_WaitImage", "Wait Image")]
+    [InlineData(EditorActionType.MousePosition, "Editor_ActionType_MousePosition", "Mouse Position")]
     [InlineData(EditorActionType.ClipboardGet, "Editor_ActionType_ClipboardGet", "Clipboard Get")]
     [InlineData(EditorActionType.ClipboardSet, "Editor_ActionType_ClipboardSet", "Clipboard Set")]
     [InlineData(EditorActionType.ShellCommand, "Editor_ActionType_ShellCommand", "Shell Command")]
@@ -32,6 +33,20 @@ public sealed class EditorActionDisplayFormatterTests
         var action = new EditorAction { Type = EditorActionType.ClipboardGet, ScriptVariableName = "clipText" };
 
         _ = formatter.Format(action).Should().Be("Read clipboard into clipText");
+    }
+
+    [Fact]
+    public void Format_ForMousePosition_IncludesDestinationVariables()
+    {
+        var formatter = CreateFormatter("Editor_Action_MousePosition", "Capture mouse position into {0}, {1}");
+        var action = new EditorAction
+        {
+            Type = EditorActionType.MousePosition,
+            MousePositionXVariableName = "mouse_x",
+            MousePositionYVariableName = "mouse_y",
+        };
+
+        _ = formatter.Format(action).Should().Be("Capture mouse position into mouse_x, mouse_y");
     }
 
     [Fact]

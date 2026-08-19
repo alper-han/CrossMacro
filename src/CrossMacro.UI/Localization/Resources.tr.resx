@@ -1308,6 +1308,21 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Pano metnini ayarla</value>
   </data>
+  <data name="Editor_ActionType_MousePosition" xml:space="preserve">
+    <value>Fare Konumu</value>
+  </data>
+  <data name="Editor_Action_MousePosition" xml:space="preserve">
+    <value>Fare konumunu {0}, {1} değişkenlerine al</value>
+  </data>
+  <data name="Editor_MousePositionXVariable" xml:space="preserve">
+    <value>X koordinatı değişkeni</value>
+  </data>
+  <data name="Editor_MousePositionYVariable" xml:space="preserve">
+    <value>Y koordinatı değişkeni</value>
+  </data>
+  <data name="Editor_MousePositionHint" xml:space="preserve">
+    <value>Canlı genel imleç konumunu iki sayısal değişkene okur. Bazı Wayland oturumlarında kullanılamayabilir.</value>
+  </data>
   <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
     <value>Shell Command</value>
   </data>

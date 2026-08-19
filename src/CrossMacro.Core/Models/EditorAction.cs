@@ -27,6 +27,8 @@ public class EditorAction : INotifyPropertyChanged
     private string? _keyName;
     private string _text = string.Empty;
     private string _scriptVariableName = "i";
+    private string _mousePositionXVariableName = "mouse_x";
+    private string _mousePositionYVariableName = "mouse_y";
     private ScriptValueType _scriptValueType = ScriptValueType.Number;
     private string _scriptValue = "0";
     private ScriptNumericSourceType _scriptNumericSourceType = ScriptNumericSourceType.Number;
@@ -508,6 +510,24 @@ public class EditorAction : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(DisplayName));
         }
+    }
+
+    /// <summary>
+    /// Variable name that receives the current logical cursor X coordinate.
+    /// </summary>
+    public string MousePositionXVariableName
+    {
+        get => _mousePositionXVariableName;
+        set => SetMousePositionVariableName(ref _mousePositionXVariableName, value, nameof(MousePositionXVariableName));
+    }
+
+    /// <summary>
+    /// Variable name that receives the current logical cursor Y coordinate.
+    /// </summary>
+    public string MousePositionYVariableName
+    {
+        get => _mousePositionYVariableName;
+        set => SetMousePositionVariableName(ref _mousePositionYVariableName, value, nameof(MousePositionYVariableName));
     }
 
     /// <summary>
@@ -1225,6 +1245,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.MouseUp when UseCurrentPosition => $"Release {Button} at current position",
             EditorActionType.MouseUp when IsAbsolute => $"Release {Button} at ({CoordinateXToken}, {CoordinateYToken})",
             EditorActionType.MouseUp => $"Release {Button} by ({FormatRelativeCoordinateToken(CoordinateXToken)}, {FormatRelativeCoordinateToken(CoordinateYToken)})",
+            EditorActionType.MousePosition => GetMousePositionDisplayName(),
             EditorActionType.KeyPress => $"Press '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
             EditorActionType.KeyDown => $"Hold '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
             EditorActionType.KeyUp => $"Release '{KeyName ?? KeyCode.ToString(CultureInfo.CurrentCulture)}'",
@@ -1288,6 +1309,14 @@ public class EditorAction : INotifyPropertyChanged
         return EditorActionScriptTokens.IsValidVariableName(ScriptVariableName)
             ? $"Set {ScriptVariableName} = {BuildSetValueToken()}"
             : "Set Variable";
+    }
+
+    private string GetMousePositionDisplayName()
+    {
+        return EditorActionScriptTokens.IsValidVariableName(MousePositionXVariableName)
+            && EditorActionScriptTokens.IsValidVariableName(MousePositionYVariableName)
+            ? $"Capture mouse position into {MousePositionXVariableName}, {MousePositionYVariableName}"
+            : "Capture Mouse Position";
     }
 
     private string GetIncrementVariableDisplayName()
@@ -1479,6 +1508,8 @@ public class EditorAction : INotifyPropertyChanged
     private void CopyScriptFields(EditorAction clone)
     {
         clone._scriptVariableName = ScriptVariableName;
+        clone._mousePositionXVariableName = MousePositionXVariableName;
+        clone._mousePositionYVariableName = MousePositionYVariableName;
         clone._scriptValueType = ScriptValueType;
         clone._scriptValue = ScriptValue;
         clone._scriptNumericSourceType = ScriptNumericSourceType;
@@ -1496,6 +1527,20 @@ public class EditorAction : INotifyPropertyChanged
         clone._forHasStep = ForHasStep;
         clone._forStepType = ForStepType;
         clone._forStepValue = ForStepValue;
+    }
+
+    private void SetMousePositionVariableName(ref string field, string? value, string propertyName)
+    {
+        var normalized = value?.Trim() ?? string.Empty;
+        if (string.Equals(field, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        field = normalized;
+        MarkStructuredScriptEdited();
+        OnPropertyChanged(propertyName);
+        OnPropertyChanged(nameof(DisplayName));
     }
 
     private void CopyCommandFields(EditorAction clone)

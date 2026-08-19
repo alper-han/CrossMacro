@@ -49,8 +49,6 @@ internal class ProfileManager : IProfileCatalog
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            ValidateRootAncestors(_configRootPath, "Configuration root");
-            ValidateRootAncestors(_profilesRootPath, "Profiles root");
             _ = Directory.CreateDirectory(_configRootPath);
             _ = Directory.CreateDirectory(_profilesRootPath);
 
@@ -238,17 +236,7 @@ internal class ProfileManager : IProfileCatalog
             throw new InvalidDataException($"Profile id '{profileId}' resolves outside the profiles directory.");
         }
 
-        var current = new DirectoryInfo(profileDirectory);
-        while (current is not null)
-        {
-            if (current.Exists && current.Attributes.HasFlag(FileAttributes.ReparsePoint))
-            {
-                throw new InvalidDataException($"Profile path for '{profileId}' must not contain a reparse point.");
-            }
-
-            current = current.Parent;
-        }
-
+        ValidateProfileDirectory(profileDirectory, profileId);
         return profileDirectory;
     }
 
@@ -273,17 +261,12 @@ internal class ProfileManager : IProfileCatalog
         }
     }
 
-    private static void ValidateRootAncestors(string path, string description)
+    private static void ValidateProfileDirectory(string profileDirectory, string profileId)
     {
-        var current = new DirectoryInfo(Path.GetFullPath(path));
-        while (current is not null)
+        var directory = new DirectoryInfo(profileDirectory);
+        if (directory.Exists && directory.Attributes.HasFlag(FileAttributes.ReparsePoint))
         {
-            if (current.Exists && current.Attributes.HasFlag(FileAttributes.ReparsePoint))
-            {
-                throw new InvalidDataException($"{description} path must not contain a reparse point.");
-            }
-
-            current = current.Parent;
+            throw new InvalidDataException($"Profile path for '{profileId}' must not be a reparse point.");
         }
     }
 

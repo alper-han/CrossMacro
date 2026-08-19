@@ -162,7 +162,7 @@ public sealed class ProfileManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task InitializeAsync_WhenConfigRootHasSymlinkedAncestor_RejectsBeforeCreatingOutsideRoot()
+    public async Task InitializeAsync_WhenConfigRootHasSymlinkedAncestor_UsesConfiguredTarget()
     {
         var outsideRoot = Path.Combine(_tempPath, "outside-target");
         var symlinkedAncestor = Path.Combine(_tempPath, "linked-parent");
@@ -172,12 +172,27 @@ public sealed class ProfileManagerTests : IDisposable
 
         var manager = new ProfileManager(configRoot);
 
-        var act = () => manager.InitializeAsync();
+        await manager.InitializeAsync();
 
-        _ = await act.Should().ThrowAsync<InvalidDataException>()
-            .WithMessage("*reparse point*");
-        _ = Directory.Exists(Path.Combine(outsideRoot, "config")).Should().BeFalse();
-        _ = File.Exists(Path.Combine(outsideRoot, ConfigFileNames.ProfileRegistry)).Should().BeFalse();
+        _ = manager.ActiveProfile.Id.Should().Be("default");
+        _ = Directory.Exists(Path.Combine(outsideRoot, "config", ConfigFileNames.ProfilesDirectory, "default")).Should().BeTrue();
+        _ = File.Exists(Path.Combine(outsideRoot, "config", ConfigFileNames.ProfileRegistry)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetProfileDirectory_WhenProfileDirectoryIsSymlink_RejectsIt()
+    {
+        var manager = new ProfileManager(_tempPath);
+        await manager.InitializeAsync();
+        var outsideRoot = Path.Combine(_tempPath, "outside-target");
+        var profilePath = Path.Combine(_tempPath, ConfigFileNames.ProfilesDirectory, "work");
+        _ = Directory.CreateDirectory(outsideRoot);
+        _ = Directory.CreateSymbolicLink(profilePath, outsideRoot);
+
+        var act = () => manager.GetProfileDirectory("work");
+
+        _ = act.Should().Throw<InvalidDataException>()
+            .WithMessage("*must not be a reparse point*");
     }
 
     [Fact]

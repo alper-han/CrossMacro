@@ -1,0 +1,22 @@
+name: Reject Pull Requests To Main
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  close:
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Close pull request
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: gh pr close "$PR_NUMBER"

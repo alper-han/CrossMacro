@@ -23,6 +23,8 @@ internal static class WorkflowContracts
     private const string ReleaseWorkflow = "release.yml";
     private const string CiWorkflow = "ci.yml";
     private const string PagesWorkflow = "pages.yml";
+    private const string MainPullRequestGuardWorkflow = "reject-main-pull-requests.yml";
+    private const string MainPullRequestGuardJob = "close";
     private const string ReleaseWriteJob = "create-release";
     private const string AurFingerprint = "SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4";
 
@@ -182,7 +184,10 @@ internal static class WorkflowContracts
             return errors;
         }
 
-        var forbidden = triggers.Intersect(["pull_request_target"]).OrderBy(value => value).ToArray();
+        var forbidden = triggers.Intersect(["pull_request_target"])
+            .Where(trigger => trigger != "pull_request_target" || !IsMainPullRequestGuard(path, text))
+            .OrderBy(value => value)
+            .ToArray();
         if (forbidden.Length > 0)
         {
             errors.Add($"{path}: forbidden trigger(s): {string.Join(", ", forbidden)}");
@@ -230,7 +235,7 @@ internal static class WorkflowContracts
         var triggers = ExtractTriggers(lines);
         var (permissions, hasPermissions) = PermissionsAtIndent(lines, 0);
 
-        if (text.Contains("pull_request_target", StringComparison.Ordinal))
+        if (text.Contains("pull_request_target", StringComparison.Ordinal) && !IsMainPullRequestGuard(path, text))
         {
             errors.Add($"{path}: pull_request_target is forbidden");
         }
@@ -264,7 +269,10 @@ internal static class WorkflowContracts
             var releaseWriteJob = IsReleaseWriteJob(path, jobName, jobText, triggers);
             var pagesDeployJob = IsPagesDeployJob(path, jobName, jobText, triggers, blockLines);
             var secretPublishJob = IsSecretPublishJob(path, jobName, jobText, triggers);
-            if (HasWritePermission(jobText) && !releaseWriteJob && !pagesDeployJob)
+            if (HasWritePermission(jobText)
+                && !releaseWriteJob
+                && !pagesDeployJob
+                && !IsMainPullRequestGuardJob(path, jobName, jobText))
             {
                 errors.Add($"{path}: job '{jobName}' requests write permissions outside the gated create-release job");
             }
@@ -325,6 +333,20 @@ internal static class WorkflowContracts
         && jobName.Equals(ReleaseWriteJob, StringComparison.Ordinal)
         && triggers.Contains("workflow_dispatch")
         && HasManualInputGate(text, "publish_release");
+
+    private static bool IsMainPullRequestGuard(string path, string text) =>
+        Path.GetFileName(path).Equals(MainPullRequestGuardWorkflow, StringComparison.OrdinalIgnoreCase)
+        && text.Contains("pull_request_target:", StringComparison.Ordinal)
+        && text.Contains("branches: [main]", StringComparison.Ordinal)
+        && text.Contains("gh pr close", StringComparison.Ordinal)
+        && !text.Contains("actions/checkout", StringComparison.Ordinal);
+
+    private static bool IsMainPullRequestGuardJob(string path, string jobName, string text) =>
+        Path.GetFileName(path).Equals(MainPullRequestGuardWorkflow, StringComparison.OrdinalIgnoreCase)
+        && jobName.Equals(MainPullRequestGuardJob, StringComparison.Ordinal)
+        && text.Contains("pull-requests: write", StringComparison.Ordinal)
+        && text.Contains("gh pr close", StringComparison.Ordinal)
+        && !text.Contains("actions/checkout", StringComparison.Ordinal);
 
     private static bool IsPagesDeployJob(string path, string jobName, string text, HashSet<string> triggers, IReadOnlyList<string> blockLines)
     {

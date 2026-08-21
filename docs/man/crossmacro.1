@@ -98,6 +98,9 @@ crossmacro \- keyboard and mouse macro automation CLI
 .br
 .B crossmacro
 \fB\-\-headless\fR [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBmcp\fR [\fB\-\-restricted\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .SH DESCRIPTION
 CrossMacro provides GUI and CLI workflows for macro playback, validation, recording,
 environment diagnostics, and background headless runtime.
@@ -166,6 +169,13 @@ Both forms are accepted and required for output path selection.
 .TP
 .B headless, \-\-headless
 Both forms start headless runtime mode.
+.TP
+.B mcp
+Starts a local stdio Model Context Protocol server. Standard output is reserved
+for MCP JSON-RPC messages; diagnostics are written to standard error and normal
+log files. MCP does not acquire the GUI/headless single-instance guard, so it can
+run alongside either runtime. It stops when its client closes standard input or
+interrupts the process.
 .SH VALUE RULES
 .TP
 .B play
@@ -450,6 +460,12 @@ until interrupted.
 Recording hotkey toggles capture start/stop.
 Playback hotkey toggles play/stop for the last macro recorded in the same headless session.
 Pause hotkey toggles pause/resume for active playback.
+.TP
+.B mcp
+Run CrossMacro as a local stdio Model Context Protocol server for an MCP-capable
+client. Standard output is reserved for MCP JSON-RPC messages; diagnostics use
+standard error and normal log files. The complete tool, security, and connection
+reference is available in the project MCP documentation.
 .SH EXIT STATUS
 .TP
 .B 0
@@ -506,6 +522,9 @@ Read clipboard text and print structured JSON.
 .TP
 .B crossmacro headless
 Start headless runtime and keep running until interrupted.
+.TP
+.B crossmacro mcp
+Start the local stdio MCP server for a configured MCP client.
 .TP
 .B crossmacro \-\-start-minimized
 Start GUI hidden to tray when tray icon support is available for the current session.

@@ -52,6 +52,9 @@ crossmacro --headless
 This mode still requires a desktop session. It is not intended for display-less
 server automation.
 
+For MCP-capable hosts, `crossmacro mcp` starts the local stdio server. See
+[`mcp.md`](mcp.md) for its tools, security model, and connection requirements.
+
 ## Temporary Wayland input setup
 
 Flatpak and AppImage use direct device access on Wayland. Grant the current
@@ -89,6 +92,10 @@ They use the same compiler, coordinate spaces, button/key names, and runtime
 preflight as `run`. Each command accepts `--dry-run`, `--json`, and
 `--log-level`. They do not support variables, conditions, loops, or multiple
 steps; use [`run`](#direct-run-examples) for those workflows.
+
+`mouse position <x_variable> <y_variable>` is not a top-level CLI command. It is
+a `run` script step that stores the current cursor coordinates in run-local
+variables.
 
 ### Mouse commands
 

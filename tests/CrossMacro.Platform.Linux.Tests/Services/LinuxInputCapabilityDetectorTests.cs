@@ -38,6 +38,50 @@ public sealed class LinuxInputCapabilityDetectorTests
     }
 
     [LinuxFact]
+    public void GetSnapshot_WhenDaemonHandshakeSucceeds_StillProbesDirectInputForSnapshotSemantics()
+    {
+        var directProbeCount = 0;
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
+            canOpenForWrite: _ => false,
+            hasUsableReadableInputDevices: () =>
+            {
+                directProbeCount++;
+                return false;
+            },
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
+            utcNow: () => DateTime.UtcNow);
+
+        var snapshot = detector.GetSnapshot();
+
+        Assert.Equal(InputProviderMode.Daemon, snapshot.ResolvedMode);
+        Assert.True(snapshot.DaemonHandshakeSucceeded);
+        Assert.False(snapshot.CanUseDirectUInput);
+        Assert.False(snapshot.CanReadInputEvents);
+        Assert.Equal(1, directProbeCount);
+    }
+
+    [LinuxFact]
+    public void GetSnapshot_WhenDaemonHandshakeFails_ProbesDirectInputFallback()
+    {
+        var directProbeCount = 0;
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: _ => false,
+            canOpenForWrite: _ => false,
+            hasUsableReadableInputDevices: () =>
+            {
+                directProbeCount++;
+                return false;
+            },
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
+            utcNow: () => DateTime.UtcNow);
+
+        _ = detector.GetSnapshot();
+
+        Assert.Equal(1, directProbeCount);
+    }
+
+    [LinuxFact]
     public void DetermineMode_WhenDaemonIsDisabled_SkipsSocketAndHandshakeProbes()
     {
         var socketProbeCount = 0;

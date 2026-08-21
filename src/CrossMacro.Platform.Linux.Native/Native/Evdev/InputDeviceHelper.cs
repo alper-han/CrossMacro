@@ -26,7 +26,7 @@ public static class InputDeviceHelper
         return GetAvailableDevices(logSummary: true);
     }
 
-    public static IReadOnlyList<InputDevice> GetAvailableDevices(bool logSummary)
+    public static IReadOnlyList<InputDevice> GetAvailableDevices(bool logSummary, bool logInaccessibleWarning = true)
     {
         List<InputDevice> devices = [];
         List<InputDevice> skippedDevices = [];
@@ -53,13 +53,20 @@ public static class InputDeviceHelper
 
         if (logSummary)
         {
-            LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors);
+            LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors, logInaccessibleWarning);
         }
 
         return devices;
     }
 
-    public static async Task<IReadOnlyList<InputDevice>> GetAvailableDevicesAsync(CancellationToken cancellationToken = default)
+    public static Task<IReadOnlyList<InputDevice>> GetAvailableDevicesAsync(CancellationToken cancellationToken = default)
+    {
+        return GetAvailableDevicesAsync(logInaccessibleWarning: true, cancellationToken);
+    }
+
+    public static async Task<IReadOnlyList<InputDevice>> GetAvailableDevicesAsync(
+        bool logInaccessibleWarning,
+        CancellationToken cancellationToken = default)
     {
         List<InputDevice> devices = [];
         List<InputDevice> skippedDevices = [];
@@ -81,7 +88,7 @@ public static class InputDeviceHelper
         var procDevicesContent = await ReadProcDevicesContentAsync(cancellationToken).ConfigureAwait(false);
         ScanDeviceFiles(files, procDevicesContent, devices, skippedDevices, inaccessibleDevices, ref readErrors);
 
-        LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors);
+        LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors, logInaccessibleWarning);
 
         return devices;
     }
@@ -91,7 +98,8 @@ public static class InputDeviceHelper
         List<InputDevice> devices,
         List<(InputDevice device, int errno)> inaccessibleDevices,
         List<InputDevice> skippedDevices,
-        int readErrors)
+        int readErrors,
+        bool logInaccessibleWarning)
     {
         Log.Information("[InputDeviceHelper] ========== Device Summary ==========");
         Log.Information("[InputDeviceHelper] Total: {Total} | Usable: {Usable} | Inaccessible: {Inaccessible} | Skipped: {Skipped} | ReadErrors: {ReadErrors}",
@@ -107,21 +115,26 @@ public static class InputDeviceHelper
             }
         }
 
-        LogInaccessibleDevices(inaccessibleDevices);
+        LogInaccessibleDevices(inaccessibleDevices, logInaccessibleWarning);
         LogSkippedDevices(skippedDevices);
         Log.Information("[InputDeviceHelper] ====================================");
     }
 
-    private static void LogInaccessibleDevices(List<(InputDevice device, int errno)> inaccessibleDevices)
+    private static void LogInaccessibleDevices(
+        List<(InputDevice device, int errno)> inaccessibleDevices,
+        bool logWarning)
     {
         if (inaccessibleDevices.Count is 0)
         {
             return;
         }
 
-        Log.Warning(
-            "[InputDeviceHelper] {Count} input device(s) are inaccessible; direct evdev access may be unavailable. Detailed device entries are available at Debug level.",
-            inaccessibleDevices.Count);
+        if (logWarning)
+        {
+            Log.Warning(
+                "[InputDeviceHelper] {Count} input device(s) are inaccessible; direct evdev access may be unavailable. Detailed device entries are available at Debug level.",
+                inaccessibleDevices.Count);
+        }
         foreach (var (dev, errno) in inaccessibleDevices)
         {
             if (errno is 16)

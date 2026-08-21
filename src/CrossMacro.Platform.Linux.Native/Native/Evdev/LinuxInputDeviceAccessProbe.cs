@@ -24,12 +24,12 @@ public sealed class LinuxInputDeviceAccessProbe(
 
     private static bool HasUsableReadableInputDeviceAccess()
     {
-        return InputDeviceHelper.GetAvailableDevices().Count > 0;
+        return InputDeviceHelper.GetAvailableDevices(logSummary: false, logInaccessibleWarning: false).Count > 0;
     }
 
     private static async ValueTask<bool> HasUsableReadableInputDeviceAccessAsync(CancellationToken cancellationToken)
     {
-        var devices = await InputDeviceHelper.GetAvailableDevicesAsync(cancellationToken).ConfigureAwait(false);
+        var devices = await InputDeviceHelper.GetAvailableDevicesAsync(logInaccessibleWarning: false, cancellationToken: cancellationToken).ConfigureAwait(false);
         return devices.Count > 0;
     }
 

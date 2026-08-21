@@ -42,6 +42,49 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     }
 
     [Fact]
+    public void InputSnapshot_WhenDaemonHandshakeSucceeds_StillProbesDirectInputForSnapshotSemantics()
+    {
+        var directProbeCount = 0;
+        var provider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
+            canOpenForWrite: _ => false,
+            hasUsableReadableInputDevices: () =>
+            {
+                directProbeCount++;
+                return false;
+            },
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
+            getInputEventCandidates: () => []);
+
+        var snapshot = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
+
+        Assert.True(snapshot.DaemonHandshakeSucceeded);
+        Assert.False(snapshot.CanUseDirectUInput);
+        Assert.False(snapshot.CanReadInputEvents);
+        Assert.Equal(1, directProbeCount);
+    }
+
+    [Fact]
+    public void InputSnapshot_WhenDaemonHandshakeFails_ProbesDirectInputFallback()
+    {
+        var directProbeCount = 0;
+        var provider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: _ => false,
+            canOpenForWrite: _ => false,
+            hasUsableReadableInputDevices: () =>
+            {
+                directProbeCount++;
+                return false;
+            },
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
+            getInputEventCandidates: () => []);
+
+        _ = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
+
+        Assert.Equal(1, directProbeCount);
+    }
+
+    [Fact]
     public void InvalidateCache_WhenSessionChangesToX11_SkipsWaylandScreenProbes()
     {
         var environment = new Dictionary<string, string?>(StringComparer.Ordinal)

@@ -77,6 +77,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.event.inputs.source_tag }}
+        fetch-depth: 0
 
     - name: Setup .NET for file-based CI contracts
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68

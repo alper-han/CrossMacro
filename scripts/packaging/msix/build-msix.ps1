@@ -224,7 +224,6 @@ $publishArgs = @(
     '-c', 'Release',
     '-r', $rid,
     '-p:CrossMacroPublishProfile=native-aot',
-    '-p:ErrorOnDuplicatePublishOutputFiles=true',
     "-p:Version=$Version",
     '-o', $resolvedOutputDir
 )

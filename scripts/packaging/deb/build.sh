@@ -289,4 +289,5 @@ if command -v dpkg-deb &> /dev/null; then
 else
     echo "Error: dpkg-deb not found. Cannot build .deb package."
     echo "The directory structure is ready in '$DEB_DIR'."
+    exit 1
 fi

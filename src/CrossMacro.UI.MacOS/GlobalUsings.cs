@@ -2,6 +2,7 @@ global using CrossMacro.Cli.Options;
 global using Avalonia;
 global using CrossMacro.Cli.Services;
 global using CrossMacro.Cli;
+global using CrossMacro.Mcp.DependencyInjection;
 global using CrossMacro.Core.Services;
 global using CrossMacro.Infrastructure.DependencyInjection;
 global using CrossMacro.Infrastructure.Logging;

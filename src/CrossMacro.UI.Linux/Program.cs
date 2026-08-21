@@ -54,6 +54,7 @@ internal static class Program
         _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
         _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
         _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
     }
 
     private static void ConfigureCliServices(
@@ -65,11 +66,13 @@ internal static class Program
         _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
         _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
         _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
         _ = services.AddCrossMacroCommonRuntimeServices();
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
+        _ = services.AddCrossMacroMcp();
     }
 
     internal static string SelectLinuxWindowingBackend(LinuxEnvironmentSnapshot environment) =>

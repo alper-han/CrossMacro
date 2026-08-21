@@ -18,7 +18,8 @@ public static class LoggerSetup
     public static void Initialize(
         string logLevel = "Information",
         bool enableFileLogging = true,
-        bool enableConsoleLogging = true)
+        bool enableConsoleLogging = true,
+        bool writeConsoleToStandardError = false)
     {
         LevelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
 
@@ -27,7 +28,9 @@ public static class LoggerSetup
 
         if (enableConsoleLogging)
         {
-            config = config.WriteTo.Console(formatProvider: CultureInfo.InvariantCulture);
+            config = config.WriteTo.Console(
+                formatProvider: CultureInfo.InvariantCulture,
+                standardErrorFromLevel: writeConsoleToStandardError ? LogEventLevel.Verbose : null);
         }
 
         if (enableFileLogging)

@@ -12,12 +12,24 @@ internal static class GuiHostBootstrap
 
     private static void ConfigureInitialLogging(CliParseResult parseResult)
     {
+        if (parseResult.Options is McpCliOptions)
+        {
+            var logLevel = string.IsNullOrWhiteSpace(parseResult.Options.LogLevel) ? "Warning" : parseResult.Options.LogLevel;
+            LoggerSetup.Initialize(logLevel, enableFileLogging: true, enableConsoleLogging: true, writeConsoleToStandardError: true);
+            return;
+        }
+
         var json = parseResult.PrefersJsonOutput;
         LoggerSetup.Initialize(json ? "Fatal" : SettingsService.TryLoadLogLevelEarly(), !json, !json);
     }
 
     private static void ConfigureCommandLogging(CliCommandOptions options)
     {
+        if (options is McpCliOptions)
+        {
+            return;
+        }
+
         var logLevel = "Fatal";
         if (!options.JsonOutput)
         {
@@ -29,6 +41,13 @@ internal static class GuiHostBootstrap
 
     private static void ConfigureHostLogging(CliCommandOptions options)
     {
+        if (options is McpCliOptions)
+        {
+            var logLevel = string.IsNullOrWhiteSpace(options.LogLevel) ? "Warning" : options.LogLevel;
+            LoggerSetup.Initialize(logLevel, enableFileLogging: true, enableConsoleLogging: true, writeConsoleToStandardError: true);
+            return;
+        }
+
         if (options.JsonOutput)
         {
             LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);

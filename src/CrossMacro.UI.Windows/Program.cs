@@ -52,6 +52,7 @@ internal static class Program
             sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
+        _ = services.AddCrossMacroMcp();
     }
 
 }

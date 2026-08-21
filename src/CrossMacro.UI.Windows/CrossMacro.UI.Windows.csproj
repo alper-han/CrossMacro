@@ -21,6 +21,7 @@
     <ProjectReference Include="..\CrossMacro.UI\CrossMacro.UI.csproj" />
     <ProjectReference Include="..\CrossMacro.Platform.Windows\CrossMacro.Platform.Windows.csproj" />
     <ProjectReference Include="..\CrossMacro.Cli\CrossMacro.Cli.csproj" />
+    <ProjectReference Include="..\CrossMacro.Mcp\CrossMacro.Mcp.csproj" />
     <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
   </ItemGroup>

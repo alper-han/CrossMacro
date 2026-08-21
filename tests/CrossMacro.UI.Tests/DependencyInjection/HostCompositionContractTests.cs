@@ -13,17 +13,20 @@ public sealed class HostCompositionContractTests
             "src/CrossMacro.UI.Linux/Program.cs",
             "LinuxPlatformServiceRegistrar.RegisterPlatformServices",
             "LinuxNativeClipboardService",
+            "LinuxNativeClipboardService",
             "LinuxEnvironmentSnapshot",
         ];
         yield return [
             "src/CrossMacro.UI.Windows/Program.cs",
             "new WindowsPlatformServiceRegistrar().RegisterPlatformServices",
             "WindowsPlatformServiceRegistrar.RegisterGuiClipboardServices",
+            "WindowsPlatformServiceRegistrar.RegisterCliClipboardServices",
             "RuntimeContext",
         ];
         yield return [
             "src/CrossMacro.UI.MacOS/Program.cs",
             "new MacOSPlatformServiceRegistrar().RegisterPlatformServices",
+            "NoOpImageClipboardService",
             "NoOpImageClipboardService",
             "RuntimeContext",
         ];
@@ -34,7 +37,8 @@ public sealed class HostCompositionContractTests
     public void HostProgram_UsesSharedLifecycleAndPlatformOwnedRegistrations(
         string relativePath,
         string platformRegistration,
-        string clipboardRegistration,
+        string guiClipboardRegistration,
+        string cliClipboardRegistration,
         string runtimeContext)
     {
         var source = ReadRepositoryFile(relativePath);
@@ -46,7 +50,9 @@ public sealed class HostCompositionContractTests
         Assert.Contains("AddCrossMacroCommonRuntimeServices()", source, StringComparison.Ordinal);
         Assert.Contains("AddCrossMacroSharedPostPlatformRuntimeServices", source, StringComparison.Ordinal);
         Assert.Contains(platformRegistration, source, StringComparison.Ordinal);
-        Assert.Contains(clipboardRegistration, source, StringComparison.Ordinal);
+        Assert.Contains(guiClipboardRegistration, source, StringComparison.Ordinal);
+        Assert.Contains(cliClipboardRegistration, source, StringComparison.Ordinal);
+        Assert.Contains("AddCrossMacroMcp()", source, StringComparison.Ordinal);
         Assert.Contains(runtimeContext, source, StringComparison.Ordinal);
         Assert.Contains("internal static class Program", source, StringComparison.Ordinal);
     }

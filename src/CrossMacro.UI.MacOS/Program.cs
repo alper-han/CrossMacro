@@ -42,6 +42,7 @@ internal static class Program
         GuiHostBootstrap.AddCommonGuiServices(services);
         _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
         _ = services.AddSingleton<IImageClipboardService, NoOpImageClipboardService>();
+        _ = services.AddSingleton<IImageClipboardReader>(sp => (NoOpImageClipboardService)sp.GetRequiredService<IImageClipboardService>());
     }
 
     private static void ConfigureCliServices(IServiceCollection services, CliRuntimeProfile runtimeProfile)
@@ -49,11 +50,13 @@ internal static class Program
         ConfigurePlatformServices(services);
         _ = services.AddSingleton<IClipboardService, CrossMacro.Cli.Services.NoOpClipboardService>();
         _ = services.AddSingleton<IImageClipboardService, NoOpImageClipboardService>();
+        _ = services.AddSingleton<IImageClipboardReader>(sp => (NoOpImageClipboardService)sp.GetRequiredService<IImageClipboardService>());
         _ = services.AddCrossMacroCommonRuntimeServices();
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
+        _ = services.AddCrossMacroMcp();
     }
 
 }

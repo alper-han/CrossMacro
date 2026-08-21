@@ -1,0 +1,86 @@
+namespace CrossMacro.Mcp.Contracts;
+
+/// <summary>
+/// Defines the stable names and intent of the CrossMacro MCP v1 tool surface.
+/// Tool registration remains explicit so Native AOT does not depend on assembly scanning.
+/// </summary>
+public static class CrossMacroMcpToolCatalog
+{
+    private static readonly McpToolDefinition[] Definitions =
+    [
+        new("status.get", "Get CrossMacro status", "Gets CrossMacro runtime, desktop-session, and capability status.", McpToolAccess.ReadOnly, [McpCapability.StatusRead]),
+        new("help.get", "Get CrossMacro MCP help", "Gets CrossMacro MCP tool guidance, limits, and automation safety notes.", McpToolAccess.ReadOnly, [McpCapability.StatusRead]),
+        new("setup.status", "Get setup status", "Gets whether temporary input setup applies to the current packaging/session.", McpToolAccess.ReadOnly, [McpCapability.StatusRead]),
+        new("setup.run", "Run temporary setup", "Runs the existing packaging-aware temporary input setup after explicit privilege policy approval.", McpToolAccess.Effectful, [McpCapability.PrivilegeElevation]),
+        new("daemon.status", "Get Linux daemon status", "Gets the bounded Linux daemon handshake and socket-access diagnostics.", McpToolAccess.ReadOnly, [McpCapability.StatusRead]),
+        new("settings.get", "Get settings", "Reads one or all supported CrossMacro settings with sensitive values redacted.", McpToolAccess.ReadOnly, [McpCapability.SettingsRead]),
+        new("settings.set", "Set a setting", "Updates one supported CrossMacro setting.", McpToolAccess.Effectful, [McpCapability.SettingsWrite]),
+        new("settings.list_keys", "List setting keys", "Lists supported CrossMacro settings keys.", McpToolAccess.ReadOnly, [McpCapability.SettingsRead]),
+        new("settings.reset", "Reset a setting", "Resets one supported CrossMacro setting to its default.", McpToolAccess.Effectful, [McpCapability.SettingsWrite]),
+        new("profile.list", "List profiles", "Lists available CrossMacro profiles and the active profile.", McpToolAccess.ReadOnly, [McpCapability.ProfileManage]),
+        new("profile.current", "Get current profile", "Gets the active CrossMacro profile.", McpToolAccess.ReadOnly, [McpCapability.ProfileManage]),
+        new("profile.create", "Create a profile", "Creates a CrossMacro profile.", McpToolAccess.Effectful, [McpCapability.ProfileManage]),
+        new("profile.switch", "Switch profile", "Switches the active CrossMacro profile.", McpToolAccess.Effectful, [McpCapability.ProfileManage]),
+        new("profile.rename", "Rename a profile", "Renames a CrossMacro profile.", McpToolAccess.Effectful, [McpCapability.ProfileManage]),
+        new("profile.delete", "Delete a profile", "Deletes a CrossMacro profile after explicit confirmation.", McpToolAccess.Effectful, [McpCapability.ProfileManage]),
+        new("text_expansion.list", "List text expansions", "Lists text expansions for the active or selected profile.", McpToolAccess.ReadOnly, [McpCapability.TextExpansionRead]),
+        new("text_expansion.add", "Add a text expansion", "Adds a text expansion to the active or selected profile.", McpToolAccess.Effectful, [McpCapability.TextExpansionWrite]),
+        new("text_expansion.remove", "Remove a text expansion", "Removes a text expansion from the active or selected profile.", McpToolAccess.Effectful, [McpCapability.TextExpansionWrite]),
+        new("text_expansion.enable", "Enable a text expansion", "Enables a text expansion in the active or selected profile.", McpToolAccess.Effectful, [McpCapability.TextExpansionWrite]),
+        new("text_expansion.disable", "Disable a text expansion", "Disables a text expansion in the active or selected profile.", McpToolAccess.Effectful, [McpCapability.TextExpansionWrite]),
+        new("text_expansion.test", "Test a text expansion", "Resolves a text expansion without sending input.", McpToolAccess.ReadOnly, [McpCapability.TextExpansionRead]),
+        new("schedule.list", "List schedules", "Lists configured schedule tasks.", McpToolAccess.ReadOnly, [McpCapability.TaskManage]),
+        new("schedule.run", "Run a schedule", "Runs one configured schedule task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead]),
+        new("schedule.add", "Add a schedule", "Adds a scheduled macro task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead]),
+        new("schedule.edit", "Edit a schedule", "Updates a scheduled macro task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead]),
+        new("schedule.remove", "Remove a schedule", "Removes a scheduled macro task.", McpToolAccess.Effectful, [McpCapability.TaskManage]),
+        new("schedule.enable", "Enable a schedule", "Enables a scheduled macro task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead]),
+        new("schedule.disable", "Disable a schedule", "Disables a scheduled macro task.", McpToolAccess.Effectful, [McpCapability.TaskManage]),
+        new("schedule.next", "Get next schedule run", "Gets the next run time for a schedule task.", McpToolAccess.ReadOnly, [McpCapability.TaskManage]),
+        new("shortcut.list", "List shortcuts", "Lists configured shortcut tasks.", McpToolAccess.ReadOnly, [McpCapability.TaskManage]),
+        new("shortcut.run", "Run a shortcut", "Runs one configured shortcut task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead]),
+        new("shortcut.add", "Add a shortcut", "Adds a shortcut task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead]),
+        new("shortcut.edit", "Edit a shortcut", "Updates a shortcut task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead]),
+        new("shortcut.remove", "Remove a shortcut", "Removes a shortcut task.", McpToolAccess.Effectful, [McpCapability.TaskManage]),
+        new("shortcut.enable", "Enable a shortcut", "Enables a shortcut task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead]),
+        new("shortcut.disable", "Disable a shortcut", "Disables a shortcut task.", McpToolAccess.Effectful, [McpCapability.TaskManage]),
+        new("shortcut.bind", "Bind a shortcut", "Changes a shortcut task hotkey.", McpToolAccess.Effectful, [McpCapability.TaskManage]),
+        new("trigger.list", "List triggers", "Lists configured trigger tasks.", McpToolAccess.ReadOnly, [McpCapability.TaskManage]),
+        new("trigger.add", "Add a trigger", "Adds a trigger task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation]),
+        new("trigger.edit", "Edit a trigger", "Updates a trigger task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation]),
+        new("trigger.remove", "Remove a trigger", "Removes a trigger task.", McpToolAccess.Effectful, [McpCapability.TaskManage]),
+        new("trigger.enable", "Enable a trigger", "Enables a trigger task.", McpToolAccess.Effectful, [McpCapability.TaskManage, McpCapability.InputAutomation]),
+        new("trigger.disable", "Disable a trigger", "Disables a trigger task.", McpToolAccess.Effectful, [McpCapability.TaskManage]),
+        new("command.execute", "Execute a CrossMacro command", "Executes one supported CLI command token with an argument array, for example command='move' and arguments=['abs','1','1']. Do not pass a whole shell command or run-step string. Run shell steps require the separate shell-execute capability.", McpToolAccess.Effectful, [McpCapability.CommandExecute]),
+        new(
+            "automation.start",
+            "Start automation",
+            "Starts one bounded operation. Use kind=play with macroPath for macro playback, kind=run with steps such as ['mouse position x y', 'move abs 1 1'] for inline automation, or kind=record with outputPath for recording. Returns an operation ID; poll with automation.get and stop with automation.stop.",
+            McpToolAccess.Effectful,
+            [McpCapability.InputAutomation, McpCapability.Recording],
+            McpCapabilityRequirement.Any,
+            [
+                new("play", [McpCapability.MacroRead, McpCapability.InputAutomation]),
+                new("run", [McpCapability.CommandExecute]),
+                new("record", [McpCapability.Recording, McpCapability.FileWrite]),
+            ]),
+        new("automation.get", "Get automation status", "Gets the status and redacted result of a CrossMacro automation operation.", McpToolAccess.ReadOnly, [McpCapability.StatusRead]),
+        new("automation.stop", "Stop automation", "Stops an active CrossMacro automation operation.", McpToolAccess.Effectful, [McpCapability.InputAutomation, McpCapability.Recording, McpCapability.CommandExecute], McpCapabilityRequirement.Any),
+        new("macro.list", "List macro files", "Lists macro files in a user-readable directory.", McpToolAccess.ReadOnly, [McpCapability.MacroRead]),
+        new("macro.inspect", "Inspect a macro", "Reads macro metadata and validation diagnostics.", McpToolAccess.ReadOnly, [McpCapability.MacroRead]),
+        new("macro.validate", "Validate a macro", "Validates a macro without playing it.", McpToolAccess.ReadOnly, [McpCapability.MacroRead]),
+        new("clipboard.get_text", "Read text clipboard", "Reads text from the system clipboard.", McpToolAccess.ReadOnly, [McpCapability.ClipboardRead]),
+        new("clipboard.set_text", "Set text clipboard", "Sets text on the system clipboard.", McpToolAccess.Effectful, [McpCapability.ClipboardWrite]),
+        new("clipboard.get_image", "Read image clipboard", "Reads a PNG image from the system clipboard when supported.", McpToolAccess.ReadOnly, [McpCapability.ClipboardRead]),
+        new("clipboard.set_image", "Set image clipboard", "Validates and sets a PNG image on the system image clipboard.", McpToolAccess.Effectful, [McpCapability.ClipboardWrite, McpCapability.FileRead]),
+        new("window.query", "Query windows", "Gets active, listed, searched, or waited-for desktop window state.", McpToolAccess.ReadOnly, [McpCapability.WindowRead]),
+        new("window.control", "Control windows", "Focuses, closes, moves, resizes, or changes supported desktop window state.", McpToolAccess.Effectful, [McpCapability.WindowControl]),
+        new("screen.read", "Read screen data", "Reads screen pixels or searches for colors in the active desktop session.", McpToolAccess.ReadOnly, [McpCapability.ScreenRead]),
+        new("cursor.position", "Read cursor position", "Reads the current logical global mouse position without moving the pointer. Returns an environment error when the active desktop provider cannot expose a global cursor position.", McpToolAccess.ReadOnly, [McpCapability.ScreenRead]),
+        new("screen.find_image", "Find an image on screen", "Searches the active desktop session for a validated PNG image.", McpToolAccess.ReadOnly, [McpCapability.ScreenRead, McpCapability.FileRead]),
+        new("image.read", "Read a PNG image", "Reads a validated PNG file as MCP image content.", McpToolAccess.ReadOnly, [McpCapability.FileRead]),
+        new("screenshot.capture", "Capture a screenshot", "Captures the full screen or a region inline, to disk, or to the clipboard.", McpToolAccess.Effectful, [McpCapability.ScreenRead]),
+    ];
+
+    public static IReadOnlyList<McpToolDefinition> V1 { get; } = Array.AsReadOnly(Definitions);
+}

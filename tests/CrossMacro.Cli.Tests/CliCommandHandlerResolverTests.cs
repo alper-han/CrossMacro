@@ -98,6 +98,7 @@ public sealed class CliCommandHandlerResolverTests
         yield return [new ScreenCliOptions(ScreenCliAction.Pixel, 1, 2), typeof(ScreenCommandHandler)];
         yield return [new ScreenshotCliOptions(ScreenshotCliAction.Capture, "shot.png"), typeof(ScreenshotCommandHandler)];
         yield return [new HeadlessCliOptions(), typeof(HeadlessCommandHandler)];
+        yield return [new McpCliOptions(), typeof(McpCommandHandler)];
     }
 
     private static HandlerSet CreateHandlers()
@@ -128,7 +129,8 @@ public sealed class CliCommandHandlerResolverTests
             new WindowCommandHandler(Substitute.For<IWindowCliService>()),
             new ScreenCommandHandler(Substitute.For<IScreenCliService>()),
             new ScreenshotCommandHandler(Substitute.For<IScreenshotCliService>()),
-            new HeadlessCommandHandler(Substitute.For<IHeadlessRuntimeService>(), Substitute.For<ICliPreflightService>()));
+            new HeadlessCommandHandler(Substitute.For<IHeadlessRuntimeService>(), Substitute.For<ICliPreflightService>()),
+            new McpCommandHandler(Substitute.For<IMcpServer>()));
     }
 
     private static CliCommandHandlerResolver CreateResolver(HandlerSet handlers)
@@ -161,6 +163,7 @@ public sealed class CliCommandHandlerResolverTests
             new CliCommandHandlerRegistration(typeof(ScreenCliOptions), () => handlers.Screen),
             new CliCommandHandlerRegistration(typeof(ScreenshotCliOptions), () => handlers.Screenshot),
             new CliCommandHandlerRegistration(typeof(HeadlessCliOptions), () => handlers.Headless),
+            new CliCommandHandlerRegistration(typeof(McpCliOptions), () => handlers.Mcp),
         ]);
     }
 
@@ -192,5 +195,6 @@ public sealed class CliCommandHandlerResolverTests
         WindowCommandHandler Window,
         ScreenCommandHandler Screen,
         ScreenshotCommandHandler Screenshot,
-        HeadlessCommandHandler Headless);
+        HeadlessCommandHandler Headless,
+        McpCommandHandler Mcp);
 }

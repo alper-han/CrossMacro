@@ -44,6 +44,9 @@ internal static class CliCommandCatalog
         "--address",
         "--title",
         "--class",
+        "--field",
+        "--value",
+        "--action",
         "--timeout-ms",
         "--relative",
         "--tolerance",
@@ -67,41 +70,23 @@ internal static class CliCommandCatalog
         "--hotkey",
         "--random-repeat-delay",
         "--run-while-held",
+        "--window-rule",
+        "--clear-window-rules",
         "--match-mode",
+        "--matchmode",
         "--cooldown-ms",
         "--debounce-ms",
         "--fire-mode",
+        "--restricted",
     };
 
     internal static readonly IReadOnlyList<RootCommandDescriptor> RootCommands =
-    [
-        new("macro", MacroCommandParser.Parse),
-        new("play", PlayCommandParser.Parse),
-        new("doctor", DoctorCommandParser.Parse),
-        new("setup", QuickSetupCommandParser.Parse, "quick-setup"),
-        new("settings", SettingsCommandParser.Parse),
-        new("profile", ProfileCommandParser.Parse),
-        new("text-expansion", TextExpansionCommandParser.Parse, "text"),
-        new("schedule", ScheduleCommandParser.Parse),
-        new("shortcut", ShortcutCommandParser.Parse),
-        new("trigger", TriggerCommandParser.Parse),
-        new("record", RecordCommandParser.Parse),
-        new("run", RunCommandParser.Parse),
-        new("move", InputCommandParser.Parse),
-        new("click", InputCommandParser.Parse),
-        new("down", InputCommandParser.Parse),
-        new("up", InputCommandParser.Parse),
-        new("scroll", InputCommandParser.Parse),
-        new("key", InputCommandParser.Parse),
-        new("tap", InputCommandParser.Parse),
-        new("type", InputCommandParser.Parse),
-        new("delay", InputCommandParser.Parse),
-        new("clipboard", ClipboardCommandParser.Parse),
-        new("window", WindowCommandParser.Parse),
-        new("screen", ScreenCommandParser.Parse),
-        new("screenshot", ScreenshotCommandParser.Parse),
-        new("headless", HeadlessCommandParser.Parse, "--headless"),
-    ];
+        CliCommandContractCatalog.RootCommands
+            .Select(static contract => new RootCommandDescriptor(
+                contract.CommandToken,
+                GetParser(contract.CommandToken),
+                contract.Aliases.ToArray()))
+            .ToArray();
 
     internal static readonly IReadOnlyDictionary<string, RootCommandDescriptor> RootCommandLookup = BuildRootCommandLookup();
 
@@ -146,6 +131,7 @@ internal static class CliCommandCatalog
         string.Empty,
         "  crossmacro headless [--json] [--log-level <level>]",
         "  crossmacro --headless [--json] [--log-level <level>]",
+        "  crossmacro mcp [--restricted] [--log-level <level>]",
     ];
 
     internal static readonly string TopLevelUsageText = BuildTopLevelUsageText();
@@ -197,4 +183,28 @@ internal static class CliCommandCatalog
 
         return lookup;
     }
+
+    private static ParseCommandDelegate GetParser(string commandToken) => commandToken switch
+    {
+        "macro" => MacroCommandParser.Parse,
+        "play" => PlayCommandParser.Parse,
+        "doctor" => DoctorCommandParser.Parse,
+        "setup" => QuickSetupCommandParser.Parse,
+        "settings" => SettingsCommandParser.Parse,
+        "profile" => ProfileCommandParser.Parse,
+        "text-expansion" => TextExpansionCommandParser.Parse,
+        "schedule" => ScheduleCommandParser.Parse,
+        "shortcut" => ShortcutCommandParser.Parse,
+        "trigger" => TriggerCommandParser.Parse,
+        "record" => RecordCommandParser.Parse,
+        "run" => RunCommandParser.Parse,
+        "move" or "click" or "down" or "up" or "scroll" or "key" or "tap" or "type" or "delay" => InputCommandParser.Parse,
+        "clipboard" => ClipboardCommandParser.Parse,
+        "window" => WindowCommandParser.Parse,
+        "screen" => ScreenCommandParser.Parse,
+        "screenshot" => ScreenshotCommandParser.Parse,
+        "headless" => HeadlessCommandParser.Parse,
+        "mcp" => McpCommandParser.Parse,
+        _ => throw new InvalidOperationException($"No parser registered for CLI command contract: {commandToken}"),
+    };
 }

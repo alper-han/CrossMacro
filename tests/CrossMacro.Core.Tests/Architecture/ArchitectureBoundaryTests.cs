@@ -39,6 +39,7 @@ public sealed partial class ArchitectureBoundaryTests
         "CrossMacro.Platform.Linux",
         "CrossMacro.Platform.Windows",
         "CrossMacro.Platform.MacOS",
+        "CrossMacro.Mcp",
     ];
 
     private static readonly string[] PlatformAbstractionsForbiddenImplementationPatterns =
@@ -109,6 +110,7 @@ public sealed partial class ArchitectureBoundaryTests
                     "Avalonia",
                     "CrossMacro.Infrastructure",
                     "CrossMacro.Platform.",
+                    "CrossMacro.Mcp",
                     "Microsoft.Extensions.DependencyInjection",
                     "Environment.",
                     "OperatingSystem",
@@ -127,6 +129,7 @@ public sealed partial class ArchitectureBoundaryTests
                 "CrossMacro.Platform.Linux",
                 "CrossMacro.Platform.Windows",
                 "CrossMacro.Platform.MacOS",
+                "CrossMacro.Mcp",
                 "Avalonia",
                 "Microsoft.Extensions.DependencyInjection",
                 "Environment.",
@@ -172,6 +175,9 @@ public sealed partial class ArchitectureBoundaryTests
                 "src/CrossMacro.Application/Profiles/ManageProfile.cs",
                 "src/CrossMacro.Application/Profiles/ProfileRequest.cs",
                 "src/CrossMacro.Application/Profiles/ProfileResult.cs",
+                "src/CrossMacro.Application/Runtime/ApprovalRequest.cs",
+                "src/CrossMacro.Application/Runtime/ApprovalResult.cs",
+                "src/CrossMacro.Application/Runtime/IApprovalService.cs",
                 "src/CrossMacro.Application/Runtime/IProfileLoadedMacroSessionStore.cs",
                 "src/CrossMacro.Application/Runtime/IProfileRuntimeParticipant.cs",
                 "src/CrossMacro.Application/Runtime/IRunExecutionService.cs",
@@ -398,6 +404,28 @@ public sealed partial class ArchitectureBoundaryTests
             TemporaryPlatformInfrastructureSourceFiles.Order(StringComparer.Ordinal),
             sourceReferences,
             StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void McpProject_ShouldReferenceOnlyCliAndRemainPlatformAgnostic()
+    {
+        var projectReferences = ReadProjectReferenceNames("src/CrossMacro.Mcp/CrossMacro.Mcp.csproj");
+
+        Assert.Equal(["CrossMacro.Cli"], projectReferences);
+
+        var violations = FindTextViolations(
+            "src/CrossMacro.Mcp",
+            [
+                "Avalonia",
+                "CrossMacro.Infrastructure",
+                "CrossMacro.Platform.Linux",
+                "CrossMacro.Platform.Windows",
+                "CrossMacro.Platform.MacOS",
+            ]);
+
+        AssertNoViolations(
+            violations,
+            "CrossMacro.Mcp is an outer CLI adapter and must not become a platform, Avalonia, or Infrastructure composition layer.");
     }
 
     [Fact]

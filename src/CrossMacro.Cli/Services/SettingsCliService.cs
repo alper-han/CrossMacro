@@ -241,6 +241,7 @@ public sealed class SettingsCliService(
             "ui.startMinimized",
             "updates.checkForUpdates",
             "screen.portalRestoreToken",
+             .. McpSettingsDescriptorCatalog.Keys,
     ];
 
     private async Task<Dictionary<string, object?>> BuildSettingsDictionaryAsync(AppSettings settings, CancellationToken cancellationToken)
@@ -270,6 +271,10 @@ public sealed class SettingsCliService(
         };
 
         values["screen.portalRestoreToken"] = await GetPortalRestoreStateValueAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var descriptor in McpSettingsDescriptorCatalog.Values)
+        {
+            values[descriptor.Key] = descriptor.GetValue(settings.McpSecurity);
+        }
         return values;
     }
 
@@ -338,6 +343,12 @@ public sealed class SettingsCliService(
                 value = settings.CheckForUpdates;
                 return true;
             default:
+                if (McpSettingsDescriptorCatalog.TryGet(key, out var descriptor))
+                {
+                    value = descriptor.GetValue(settings.McpSecurity);
+                    return true;
+                }
+
                 value = null;
                 return false;
         }
@@ -560,6 +571,11 @@ public sealed class SettingsCliService(
                 return true;
 
             default:
+                if (McpSettingsDescriptorCatalog.TryGet(key, out var descriptor))
+                {
+                    return descriptor.TrySetValue(settings.McpSecurity, rawValue, out errorMessage);
+                }
+
                 errorMessage = $"Unknown key: {key}";
                 return false;
         }
@@ -630,6 +646,12 @@ public sealed class SettingsCliService(
                 settings.CheckForUpdates = defaults.CheckForUpdates;
                 break;
             default:
+                if (McpSettingsDescriptorCatalog.TryGet(key, out var descriptor))
+                {
+                    descriptor.ResetValue(settings.McpSecurity, defaults.McpSecurity);
+                    break;
+                }
+
                 errorMessage = $"Unknown key: {key}";
                 return false;
         }
@@ -725,4 +747,5 @@ public sealed class SettingsCliService(
         result = false;
         return false;
     }
+
 }

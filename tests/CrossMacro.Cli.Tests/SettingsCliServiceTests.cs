@@ -166,6 +166,103 @@ public sealed class SettingsCliServiceTests
         var keys = Assert.IsType<List<string>>(result.Data);
         Assert.Contains("ui.theme", keys);
         Assert.Contains("updates.checkForUpdates", keys);
+        Assert.Contains("mcp.shellExecute", keys);
+        Assert.Contains("mcp.settingsWrite", keys);
+        Assert.Contains("mcp.profileManage", keys);
+        Assert.Contains("mcp.taskManage", keys);
+    }
+
+    [Fact]
+    public async Task McpShellExecute_CanBeGetSetAndReset()
+    {
+        var initial = await _service.GetAsync("mcp.shellExecute", CancellationToken.None);
+        var set = await _service.SetAsync("mcp.shellExecute", "true", CancellationToken.None);
+        var enabled = await _service.GetAsync("mcp.shellExecute", CancellationToken.None);
+        var reset = await _service.ResetAsync("mcp.shellExecute", CancellationToken.None);
+        var restored = await _service.GetAsync("mcp.shellExecute", CancellationToken.None);
+
+        Assert.True(initial.Success);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(initial.Data).Value));
+        Assert.True(set.Success);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(enabled.Data).Value));
+        Assert.True(reset.Success);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(restored.Data).Value));
+        await _settingsService.Received(2).SaveAsync();
+    }
+
+    [Fact]
+    public async Task McpManagementCapabilities_CanBeGetSetAndReset()
+    {
+        var initial = await _service.GetAsync("mcp.taskManage", CancellationToken.None);
+        var set = await _service.SetAsync("mcp.taskManage", "false", CancellationToken.None);
+        var disabled = await _service.GetAsync("mcp.taskManage", CancellationToken.None);
+        var reset = await _service.ResetAsync("mcp.taskManage", CancellationToken.None);
+        var restored = await _service.GetAsync("mcp.taskManage", CancellationToken.None);
+
+        Assert.True(initial.Success);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(initial.Data).Value));
+        Assert.True(set.Success);
+        Assert.False(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(disabled.Data).Value));
+        Assert.True(reset.Success);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(restored.Data).Value));
+        await _settingsService.Received(2).SaveAsync();
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("301")]
+    [InlineData("not-a-timeout")]
+    public async Task SetAsync_WithOutOfRangeMcpApprovalTimeout_ReturnsInvalidArguments(string value)
+    {
+        var result = await _service.SetAsync("mcp.approvalTimeoutSeconds", value, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
+        await _settingsService.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SetAsync_WithMcpApprovalTimeoutAtBounds_UpdatesAndSaves()
+    {
+        var minimum = await _service.SetAsync("mcp.approvalTimeoutSeconds", "1", CancellationToken.None);
+        var maximum = await _service.SetAsync("mcp.approvalTimeoutSeconds", "300", CancellationToken.None);
+
+        Assert.True(minimum.Success);
+        Assert.True(maximum.Success);
+        Assert.Equal(300, _current.McpSecurity.ApprovalTimeoutSeconds);
+        await _settingsService.Received(2).SaveAsync();
+    }
+
+    [Fact]
+    public async Task McpRoots_NormalizeDuplicatesAndResetOnlyTheSelectedRootGroup()
+    {
+        var macroRoot = Path.Combine(Path.GetTempPath(), "crossmacro-settings-macro");
+        var imageRoot = Path.Combine(Path.GetTempPath(), "crossmacro-settings-image");
+        var setMacro = await _service.SetAsync(
+            McpSettingsKeys.MacroReadRoots,
+            $"{macroRoot};{macroRoot};{imageRoot}",
+            CancellationToken.None);
+        var setImage = await _service.SetAsync(McpSettingsKeys.ImageReadRoots, imageRoot, CancellationToken.None);
+        var resetMacro = await _service.ResetAsync(McpSettingsKeys.MacroReadRoots, CancellationToken.None);
+        var image = await _service.GetAsync(McpSettingsKeys.ImageReadRoots, CancellationToken.None);
+        var macro = await _service.GetAsync(McpSettingsKeys.MacroReadRoots, CancellationToken.None);
+
+        Assert.True(setMacro.Success);
+        Assert.True(setImage.Success);
+        Assert.Equal($"{Path.GetFullPath(macroRoot)};{Path.GetFullPath(imageRoot)}", Assert.IsType<string>(Assert.IsType<SettingsMutationData>(setMacro.Data).NewValue));
+        Assert.True(resetMacro.Success);
+        Assert.Equal(imageRoot, Assert.IsType<string>(Assert.IsType<SettingsValueData>(image.Data).Value));
+        Assert.Equal(string.Empty, Assert.IsType<string>(Assert.IsType<SettingsValueData>(macro.Data).Value));
+    }
+
+    [Fact]
+    public async Task SetAsync_WithRelativeMcpRoot_ReturnsInvalidArgumentsWithoutSaving()
+    {
+        var result = await _service.SetAsync("mcp.fileReadRoots", "relative-root", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
+        await _settingsService.DidNotReceive().SaveAsync();
     }
 
     [Fact]

@@ -24,6 +24,8 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(ProfileSettings))]
 [JsonSerializable(typeof(PersistedGlobalSettings))]
 [JsonSerializable(typeof(PersistedProfileSettings))]
+[JsonSerializable(typeof(McpSecuritySettings))]
+[JsonSerializable(typeof(McpPathSettings))]
 [JsonSerializable(typeof(ProfileInfo))]
 [JsonSerializable(typeof(List<ProfileInfo>))]
 [JsonSerializable(typeof(ProfileRegistry))]

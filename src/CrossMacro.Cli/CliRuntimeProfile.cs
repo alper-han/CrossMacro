@@ -11,7 +11,7 @@ public enum CliRuntimeProfile
     OneShot = 0,
 
     /// <summary>
-    /// Long-running command mode (headless) where runtime services remain active.
+    /// Long-running command mode (headless or MCP) where runtime services remain active.
     /// </summary>
     Persistent = 1,
 }

@@ -199,7 +199,7 @@ public static class CliGuiRuntime
                 "Another CrossMacro runtime instance is already running.",
                 errors:
                 [
-                    "Headless mode cannot start while another GUI/headless runtime holds the single-instance lock.",
+                    "Headless runtime mode cannot start while another GUI or headless runtime holds the single-instance lock.",
                 ]);
             CliOutputFormatter.Write(conflictResult, options.JsonOutput);
             return (int)CliExitCode.EnvironmentError;

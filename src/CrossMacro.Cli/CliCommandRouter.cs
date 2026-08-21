@@ -531,6 +531,19 @@ public sealed class CliCommandRouter
                 "  Stops on Ctrl+C (exit code 130).\n";
         }
 
+        if (string.Equals(topic, "mcp", StringComparison.OrdinalIgnoreCase))
+        {
+            return
+                "Usage:\n" +
+                "  crossmacro mcp [--restricted] [--log-level <level>]\n\n" +
+                "Description:\n" +
+                "  Starts the local stdio Model Context Protocol server.\n" +
+                "  Standard output is reserved for MCP JSON-RPC messages; diagnostics use standard error.\n\n" +
+                "Notes:\n" +
+                "  MCP is persistent and does not acquire the GUI/headless runtime lock; multiple MCP sessions can run alongside GUI or headless.\n" +
+                "  The session ends when the MCP client closes standard input or sends cancellation.\n";
+        }
+
         if (string.Equals(topic, "clipboard", StringComparison.OrdinalIgnoreCase))
         {
             return

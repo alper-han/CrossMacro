@@ -8,13 +8,14 @@ public sealed class CliCommandExecutor(ICliCommandHandlerResolver handlerResolve
     public async Task<int> ExecuteAsync(CliCommandOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
-        var result = await ExecuteWithResolvedHandlerAsync(options, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteResultAsync(options, cancellationToken).ConfigureAwait(false);
         CliOutputFormatter.Write(result, options.JsonOutput);
         return result.ExitCode;
     }
 
-    private async Task<CliCommandExecutionResult> ExecuteWithResolvedHandlerAsync(CliCommandOptions options, CancellationToken cancellationToken)
+    public async Task<CliCommandExecutionResult> ExecuteResultAsync(CliCommandOptions options, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(options);
         var handler = _handlerResolver.Resolve(options);
         if (handler is null)
         {

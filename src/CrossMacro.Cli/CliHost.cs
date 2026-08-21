@@ -54,6 +54,11 @@ public sealed class CliHost(
             Console.CancelKeyPress += cancelHandler;
             try
             {
+                if (options is McpCliOptions)
+                {
+                    return (await commandExecutor.ExecuteResultAsync(options, cancellation.Token).ConfigureAwait(false)).ExitCode;
+                }
+
                 return await commandExecutor.ExecuteAsync(options, cancellation.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -61,7 +66,7 @@ public sealed class CliHost(
                 var cancelledResult = CliCommandExecutionResult.Fail(
                     CliExitCode.Cancelled,
                     "Command cancelled.");
-                CliOutputFormatter.Write(cancelledResult, options.JsonOutput);
+                await WriteResultAsync(options, cancelledResult).ConfigureAwait(false);
                 return (int)CliExitCode.Cancelled;
             }
             finally
@@ -74,7 +79,7 @@ public sealed class CliHost(
             var cancelledResult = CliCommandExecutionResult.Fail(
                 CliExitCode.Cancelled,
                 "Command cancelled.");
-            CliOutputFormatter.Write(cancelledResult, options.JsonOutput);
+            await WriteResultAsync(options, cancelledResult).ConfigureAwait(false);
             return (int)CliExitCode.Cancelled;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -88,7 +93,7 @@ public sealed class CliHost(
                 [
                     ex.Message,
                 ]);
-            CliOutputFormatter.Write(runtimeFailure, options.JsonOutput);
+            await WriteResultAsync(options, runtimeFailure).ConfigureAwait(false);
             return (int)CliExitCode.RuntimeError;
         }
     }
@@ -96,6 +101,7 @@ public sealed class CliHost(
     private static CliRuntimeProfile GetRuntimeProfile(CliCommandOptions options)
     {
         return options is HeadlessCliOptions
+            or McpCliOptions
             ? CliRuntimeProfile.Persistent
             : CliRuntimeProfile.OneShot;
     }
@@ -123,6 +129,23 @@ public sealed class CliHost(
             or ScheduleCliOptions
             or TriggerListCliOptions
             or TriggerCliOptions
-            or HeadlessCliOptions;
+            or HeadlessCliOptions
+            or McpCliOptions;
+    }
+
+    private static async ValueTask WriteResultAsync(CliCommandOptions options, CliCommandExecutionResult result)
+    {
+        if (options is McpCliOptions)
+        {
+            await Console.Error.WriteLineAsync(result.Message.AsMemory(), CancellationToken.None).ConfigureAwait(false);
+            foreach (var error in result.Errors)
+            {
+                await Console.Error.WriteLineAsync(error.AsMemory(), CancellationToken.None).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        CliOutputFormatter.Write(result, options.JsonOutput);
     }
 }

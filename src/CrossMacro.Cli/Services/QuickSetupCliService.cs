@@ -7,6 +7,20 @@ public sealed class QuickSetupCliService(
     private readonly IReadOnlyList<IFlatpakQuickSetupService> _flatpakServices = [.. flatpakServices];
     private readonly IReadOnlyList<IAppImageQuickSetupService> _appImageServices = [.. appImageServices];
 
+    public QuickSetupStatus GetStatus()
+    {
+        var flatpak = _flatpakServices.FirstOrDefault(static service => service.IsApplicable());
+        if (flatpak is not null)
+        {
+            return new QuickSetupStatus(Applicable: true, Provider: "flatpak", ShouldPrompt: false);
+        }
+
+        var appImage = _appImageServices.FirstOrDefault(static service => service.IsApplicable());
+        return appImage is null
+            ? new QuickSetupStatus(Applicable: false, Provider: "none", ShouldPrompt: false)
+            : new QuickSetupStatus(Applicable: true, Provider: "appimage", ShouldPrompt: appImage.ShouldPrompt());
+    }
+
     public async Task<QuickSetupCliResult> RunAsync(CancellationToken cancellationToken)
     {
         var flatpak = _flatpakServices.FirstOrDefault(static service => service.IsApplicable());

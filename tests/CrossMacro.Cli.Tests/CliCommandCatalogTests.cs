@@ -33,6 +33,44 @@ public sealed class CliCommandCatalogTests
     }
 
     [Fact]
+    public void McpCommand_RoutesToThePersistentMcpOptionsWithCanonicalLogLevel()
+    {
+        var result = CliCommandRouter.Parse(["mcp", "--log-level", "debug"]);
+
+        var options = Assert.IsType<McpCliOptions>(result.Options);
+        Assert.Equal("Debug", options.LogLevel);
+    }
+
+    [Theory]
+    [InlineData("trace")]
+    [InlineData("")]
+    public void McpCommand_RejectsInvalidLogLevels(string value)
+    {
+        var result = CliCommandRouter.Parse(["mcp", "--log-level", value]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("log-level", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void McpCommand_RejectsMissingLogLevelValue()
+    {
+        var result = CliCommandRouter.Parse(["mcp", "--log-level"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Missing value", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void McpCommand_ShouldSupportRestrictedMode()
+    {
+        var result = CliCommandRouter.Parse(["mcp", "--restricted"]);
+
+        var options = Assert.IsType<McpCliOptions>(result.Options);
+        Assert.True(options.Restricted);
+    }
+
+    [Fact]
     public void RootCommands_AllExposeHelpThroughTheCatalog()
     {
         foreach (var command in CliCommandCatalog.RootCommands)

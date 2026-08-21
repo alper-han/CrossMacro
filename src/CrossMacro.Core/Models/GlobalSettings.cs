@@ -37,4 +37,6 @@ public class GlobalSettings
     /// </summary>
     public string Language { get; set; } = "en";
 
+    public McpSecuritySettings McpSecurity { get; set; } = new();
+
 }

@@ -100,6 +100,21 @@
     "hash": "sha256-RTr200R3sZuyxi0XQ25ox2p1kVt5R1CbH/YBs21+eNg="
   },
   {
+    "pname": "Microsoft.Extensions.AI.Abstractions",
+    "version": "10.8.3",
+    "hash": "sha256-e+fhDQZj77lN2+1gXVwDzP6Au2hSykTNuh3R547nynY="
+  },
+  {
+    "pname": "Microsoft.Extensions.Caching.Abstractions",
+    "version": "10.0.10",
+    "hash": "sha256-xmMZMFEFI4PQIZzbpDgSNeD/A6HIzpPbMjrR7OtGNrQ="
+  },
+  {
+    "pname": "Microsoft.Extensions.Configuration.Abstractions",
+    "version": "10.0.10",
+    "hash": "sha256-Yy3rpOIm1VEPdYTyGeG7S8bNT+ABaSJiYgsVWVeZGtU="
+  },
+  {
     "pname": "Microsoft.Extensions.DependencyInjection",
     "version": "10.0.10",
     "hash": "sha256-SZDbEORdMQa+Zg9F29lP5By7jaT5b9XLj8LAx7j1EZA="
@@ -108,6 +123,46 @@
     "pname": "Microsoft.Extensions.DependencyInjection.Abstractions",
     "version": "10.0.10",
     "hash": "sha256-2r+Qvd0u3zODfQ1NAL+qu+W5XGaqJjm31bG6SGJKZn0="
+  },
+  {
+    "pname": "Microsoft.Extensions.Diagnostics.Abstractions",
+    "version": "10.0.10",
+    "hash": "sha256-vhV6KFhBBYbgapGanySiHhycnHSVqPqIyng8OxAXiQ8="
+  },
+  {
+    "pname": "Microsoft.Extensions.FileProviders.Abstractions",
+    "version": "10.0.10",
+    "hash": "sha256-u3nTCZpqqn6HIVm0O24ZmmyyNlbmUjmq8ADeKMu4JyU="
+  },
+  {
+    "pname": "Microsoft.Extensions.Hosting.Abstractions",
+    "version": "10.0.10",
+    "hash": "sha256-WViaKd0cbHaXzFYd6CuoXv/O0Rebn5YWxAbmb6FYGCA="
+  },
+  {
+    "pname": "Microsoft.Extensions.Logging.Abstractions",
+    "version": "10.0.10",
+    "hash": "sha256-mcqRSYG3QtBlCAUbx7MmaSvG6KKtAFx+E1Z4dAWoTWY="
+  },
+  {
+    "pname": "Microsoft.Extensions.Options",
+    "version": "10.0.10",
+    "hash": "sha256-S4kPHsyGWpCtmdj+S/IUnZOqYAA3RhhZw76WWq6Qswg="
+  },
+  {
+    "pname": "Microsoft.Extensions.Primitives",
+    "version": "10.0.10",
+    "hash": "sha256-qOKbxamHl3b+fbpLQs3Ajnga4cz1e50SzQQCrXyo8cc="
+  },
+  {
+    "pname": "ModelContextProtocol",
+    "version": "2.2.0",
+    "hash": "sha256-2XBOEtVBLJcUfHTdiVJEELuthuCbyWRyE02ccmnVxvw="
+  },
+  {
+    "pname": "ModelContextProtocol.Core",
+    "version": "2.2.0",
+    "hash": "sha256-FGsoB511LOIWZR9IKH9YRukGHhUlwIGBw4VP7xobero="
   },
   {
     "pname": "NWayland",

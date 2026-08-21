@@ -21,6 +21,7 @@ public static class SettingsMapper
             LogLevel = source.LogLevel,
             Theme = source.Theme,
             Language = source.Language,
+            McpSecurity = source.McpSecurity,
         };
     }
 
@@ -73,6 +74,7 @@ public static class SettingsMapper
             LogLevel = global.LogLevel,
             Theme = global.Theme,
             Language = global.Language,
+            McpSecurity = global.McpSecurity,
             // Profile fields
             PlaybackSpeed = profile.PlaybackSpeed,
             IsLooping = profile.IsLooping,
@@ -111,6 +113,7 @@ public static class SettingsMapper
         target.LogLevel = global.LogLevel;
         target.Theme = global.Theme;
         target.Language = global.Language;
+        target.McpSecurity = global.McpSecurity;
     }
 
     /// <summary>

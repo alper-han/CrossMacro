@@ -19,6 +19,7 @@ internal static class SettingsPersistenceMapper
             LogLevel = source.LogLevel,
             Theme = source.Theme,
             Language = source.Language,
+            McpSecurity = source.McpSecurity,
         };
     }
 
@@ -64,6 +65,7 @@ internal static class SettingsPersistenceMapper
             LogLevel = global.LogLevel,
             Theme = global.Theme,
             Language = global.Language,
+            McpSecurity = global.McpSecurity,
             PlaybackSpeed = profile.PlaybackSpeed,
             IsLooping = profile.IsLooping,
             LoopCount = profile.LoopCount,
@@ -98,6 +100,7 @@ internal static class SettingsPersistenceMapper
         target.LogLevel = global.LogLevel;
         target.Theme = global.Theme;
         target.Language = global.Language;
+        target.McpSecurity = global.McpSecurity;
     }
 
     public static void ApplyProfile(AppSettings target, PersistedProfileSettings profile)

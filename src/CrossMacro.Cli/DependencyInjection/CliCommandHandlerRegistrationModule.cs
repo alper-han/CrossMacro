@@ -31,6 +31,7 @@ internal static class CliCommandHandlerRegistrationModule
         _ = services.AddCliCommandHandler<ScreenCliOptions, ScreenCommandHandler>();
         _ = services.AddCliCommandHandler<ScreenshotCliOptions, ScreenshotCommandHandler>();
         _ = services.AddCliCommandHandler<HeadlessCliOptions, HeadlessCommandHandler>();
+        _ = services.AddCliCommandHandler<McpCliOptions, McpCommandHandler>();
         _ = services.AddSingleton<ICliCommandHandlerResolver>(sp => new CliCommandHandlerResolver(sp.GetRequiredService<IEnumerable<CliCommandHandlerRegistration>>()));
         _ = services.AddSingleton<CliCommandExecutor>();
     }

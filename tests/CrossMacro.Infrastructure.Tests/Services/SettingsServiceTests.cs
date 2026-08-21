@@ -151,6 +151,27 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAndLoadAsync_RoundTripsImmutableMcpSecurityRoots()
+    {
+        using var service = new SettingsService(_tempPath);
+        _ = await service.LoadAsync();
+        service.Current.McpSecurity.AllowClipboardRead = true;
+        service.Current.McpSecurity.ApprovalTimeoutSeconds = 42;
+        service.Current.McpSecurity.Paths = service.Current.McpSecurity.Paths.WithRoots(
+            McpPathSetting.MacroRead,
+            [_tempPath]);
+
+        await service.SaveAsync();
+
+        using var reloadedService = new SettingsService(_tempPath);
+        var loaded = await reloadedService.LoadAsync();
+
+        _ = loaded.McpSecurity.AllowClipboardRead.Should().BeTrue();
+        _ = loaded.McpSecurity.ApprovalTimeoutSeconds.Should().Be(42);
+        _ = loaded.McpSecurity.Paths.MacroReadRoots.Should().Equal(_tempPath);
+    }
+
+    [Fact]
     public async Task SaveAfterIdleAsync_CoalescesRequests_AndPersistsLatestSettings()
     {
         using var service = new SettingsService(_tempPath);

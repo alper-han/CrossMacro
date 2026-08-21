@@ -20,4 +20,6 @@ public sealed class PersistedGlobalSettings
 
     public string Language { get; set; } = "en";
 
+    public McpSecuritySettings McpSecurity { get; set; } = new();
+
 }

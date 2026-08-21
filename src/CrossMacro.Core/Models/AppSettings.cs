@@ -6,6 +6,11 @@ namespace CrossMacro.Core.Models;
 public class AppSettings
 {
     /// <summary>
+    /// Local MCP capability policy. This is global and applies to every MCP session.
+    /// </summary>
+    public McpSecuritySettings McpSecurity { get; set; } = new();
+
+    /// <summary>
     /// Whether the system tray icon is enabled
     /// When disabled, closing the window will exit the application instead of minimizing to tray
     /// </summary>
@@ -74,6 +79,8 @@ public class AppSettings
 
     public void Normalize()
     {
+        McpSecurity ??= new McpSecuritySettings();
+        McpSecurity.Normalize();
         PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed);
         LoopDelayMs = PlaybackOptions.NormalizeDelayMs(LoopDelayMs);
         (LoopDelayMinMs, LoopDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(LoopDelayMinMs, LoopDelayMaxMs);

@@ -73,10 +73,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Setup Node.js for MCP Inspector
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
       - name: Install native publish prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang build-essential zlib1g-dev
+          sudo apt-get install -y clang build-essential zlib1g-dev jq
 
       - name: Publish and smoke Linux artifacts
         env:
@@ -92,6 +97,10 @@ jobs:
 
           if [ -n "$DAEMON_PUBLISH_ARGS" ]; then
             args+=(--daemon-publish-args "$DAEMON_PUBLISH_ARGS")
+          fi
+
+          if [ "${{ inputs.smoke_enabled }}" != "true" ]; then
+            args+=(--skip-smoke)
           fi
 
           bash scripts/ci/publish-linux-artifacts.sh "${args[@]}"

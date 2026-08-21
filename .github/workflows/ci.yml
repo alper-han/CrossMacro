@@ -28,6 +28,11 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
+    - name: Setup Node.js for MCP Inspector
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      with:
+        node-version: 22
+
     - name: Verify version sync
       run: |
         chmod +x scripts/sync-version.sh
@@ -41,7 +46,7 @@ jobs:
     - name: Setup Flatpak tooling
       run: |
         sudo apt-get update
-        sudo apt-get install -y dbus flatpak
+        sudo apt-get install -y dbus flatpak jq
         flatpak --version
         flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
         flatpak --user install -y flathub org.flatpak.Builder
@@ -83,6 +88,17 @@ jobs:
 
     - name: Build
       run: dotnet build --configuration Debug --no-restore
+
+    - name: MCP Smoke (portable-trimmed artifact)
+      run: |
+        set -euo pipefail
+        output_dir="$RUNNER_TEMP/crossmacro-mcp-portable"
+        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
+          --configuration Release \
+          --runtime linux-x64 \
+          -p:CrossMacroPublishProfile=portable-trimmed \
+          --output "$output_dir"
+        bash scripts/smoke/mcp-smoke.sh --binary "$output_dir/CrossMacro.UI"
 
     - name: CLI Smoke (Linux)
       run: |
@@ -131,6 +147,7 @@ jobs:
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dbus-run-session -- dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
@@ -204,6 +221,7 @@ jobs:
           "tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj",
           "tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj",
           "tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj",
+          "tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj",
           "tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj",
           "tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj",
           "tests/CrossMacro.Platform.Windows.Tests/CrossMacro.Platform.Windows.Tests.csproj",
@@ -245,6 +263,7 @@ jobs:
         dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
+        dotnet test tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal

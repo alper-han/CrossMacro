@@ -9,7 +9,7 @@ usage() {
 Usage: publish-linux-artifacts.sh --rid <rid> --arch <arch> --version <version> --ui-output <dir> --daemon-output <dir> [options]
 
 Publishes CrossMacro Linux UI and daemon artifacts with the CI/release workflow options,
-then smokes the published UI binary.
+then smokes the published UI binary through the CLI and MCP contracts.
 
 Required:
   --rid <rid>               .NET runtime identifier, for example linux-x64 or linux-arm64.
@@ -25,7 +25,7 @@ Options:
                             then falls back to scripts/smoke-published-linux-artifacts.sh.
   --ui-project <path>       Override UI project path.
   --daemon-project <path>   Override daemon project path.
-  --skip-smoke              Publish without running the smoke helper.
+  --skip-smoke              Publish without running the CLI or MCP smoke helpers.
   -h, --help                Show this help.
 USAGE
 }
@@ -187,3 +187,8 @@ if [ "$(basename "$SMOKE_HELPER")" = "cli-smoke.sh" ]; then
 else
     "$SMOKE_HELPER" --ui-binary "$UI_BINARY"
 fi
+
+MCP_SMOKE_HELPER="$PROJECT_ROOT/scripts/smoke/mcp-smoke.sh"
+[ -f "$MCP_SMOKE_HELPER" ] || fail "missing MCP smoke helper: $MCP_SMOKE_HELPER"
+chmod +x "$MCP_SMOKE_HELPER"
+"$MCP_SMOKE_HELPER" --binary "$UI_BINARY"

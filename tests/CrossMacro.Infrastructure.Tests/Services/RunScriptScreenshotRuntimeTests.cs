@@ -100,6 +100,15 @@ public sealed class RunScriptScreenshotRuntimeTests
 
         public List<(string? OutputPath, bool CopyToClipboard, ScreenRect? Region)> Calls { get; } = [];
 
+        public Task<ScreenshotPngCaptureResult> CapturePngAsync(ScreenshotPngCaptureRequest request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(ScreenshotPngCaptureResult.Fail(
+                ScreenshotCaptureFailureKind.ProviderUnsupported,
+                "In-memory screenshot capture is not configured for this fake.",
+                []));
+        }
+
         public Task<ScreenshotCaptureResult> CaptureAsync(string? outputPath, bool copyToClipboard, ScreenRect? region, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

@@ -22,6 +22,9 @@ internal static partial class Kernel32
     [LibraryImport("kernel32.dll", SetLastError = true)]
     internal static partial IntPtr GlobalFree(IntPtr hMem);
 
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    internal static partial UIntPtr GlobalSize(IntPtr hMem);
+
     [LibraryImport("kernel32.dll")]
     internal static partial IntPtr GetConsoleWindow();
 

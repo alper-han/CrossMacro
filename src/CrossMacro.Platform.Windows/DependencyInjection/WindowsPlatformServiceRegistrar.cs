@@ -19,6 +19,8 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
         RegisterStaClipboardThread(services, threadName);
         _ = services.AddSingleton<IClipboardService, WindowsNativeClipboardService>();
         _ = services.AddSingleton<IImageClipboardService, WindowsNativeImageClipboardService>();
+        _ = services.AddSingleton<IImageClipboardReader>(sp =>
+            (WindowsNativeImageClipboardService)sp.GetRequiredService<IImageClipboardService>());
     }
 
     private static void RegisterStaClipboardThread(IServiceCollection services, string name)

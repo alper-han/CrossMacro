@@ -22,6 +22,10 @@ public sealed class WindowsPlatformServiceRegistrarTests
         Assert.Equal(
             typeof(WindowsNativeImageClipboardService),
             Assert.Single(services, service => service.ServiceType == typeof(IImageClipboardService)).ImplementationType);
+        var readerDescriptor = Assert.Single(services, service => service.ServiceType == typeof(IImageClipboardReader));
+        Assert.NotNull(readerDescriptor.ImplementationFactory);
+        using var provider = services.BuildServiceProvider();
+        _ = Assert.IsType<WindowsNativeImageClipboardService>(provider.GetRequiredService<IImageClipboardReader>());
     }
 
     [Fact]
@@ -37,6 +41,7 @@ public sealed class WindowsPlatformServiceRegistrarTests
         Assert.False(staThread.IsValueCreated);
         _ = provider.GetRequiredService<IClipboardService>();
         _ = provider.GetRequiredService<IImageClipboardService>();
+        _ = provider.GetRequiredService<IImageClipboardReader>();
         Assert.False(staThread.IsValueCreated);
     }
 

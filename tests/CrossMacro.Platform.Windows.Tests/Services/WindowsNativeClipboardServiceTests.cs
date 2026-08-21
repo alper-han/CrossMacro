@@ -54,6 +54,124 @@ public sealed class WindowsNativeClipboardServiceTests
         Assert.False(thread.IsValueCreated);
     }
 
+    [WindowsFact]
+    public async Task GetPngAsync_AfterSetPngAsync_ReturnsTheNativePngClipboardFormat()
+    {
+        using var thread = new StaMessageThread("CrossMacro_TestNativeImageClipboardRoundTrip");
+        var service = new WindowsNativeImageClipboardService(new Lazy<StaMessageThread>(() => thread));
+        byte[] pngBytes = [137, 80, 78, 71, 13, 10, 26, 10];
+
+        await service.SetPngAsync(pngBytes, CancellationToken.None);
+        var result = await service.GetPngAsync(1024, CancellationToken.None);
+
+        Assert.Equal(pngBytes, result);
+    }
+
+    [WindowsFact]
+    public async Task GetPngAsync_WhenAlreadyCanceled_DoesNotInitializeStaThread()
+    {
+        var thread = new Lazy<StaMessageThread>(() => throw new InvalidOperationException("STA thread should not be initialized."));
+        var service = new WindowsNativeImageClipboardService(thread);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => service.GetPngAsync(1024, cancellation.Token));
+
+        Assert.False(thread.IsValueCreated);
+    }
+
+    [Fact]
+    public void ReadPngFromClipboard_UsesImagePngFallbackAndAlwaysUnlocksAndCloses()
+    {
+        var pngBytes = new byte[] { 137, 80, 78, 71 };
+        var handle = Marshal.AllocHGlobal(pngBytes.Length);
+        var unlockCount = 0;
+        var closeCount = 0;
+        try
+        {
+            Marshal.Copy(pngBytes, 0, handle, pngBytes.Length);
+            var result = WindowsNativeImageClipboardService.ReadPngFromClipboard(
+                maximumBytes: 1024,
+                pngFormat: 1,
+                imagePngFormat: 2,
+                hwndOwner: IntPtr.Zero,
+                isClipboardFormatAvailable: format => format is 2,
+                openClipboard: _ => true,
+                getClipboardData: _ => handle,
+                globalSize: _ => (UIntPtr)pngBytes.Length,
+                globalLock: _ => handle,
+                globalUnlock: _ =>
+                {
+                    unlockCount++;
+                    return true;
+                },
+                closeClipboard: () =>
+                {
+                    closeCount++;
+                    return true;
+                });
+
+            Assert.Equal(pngBytes, result);
+            Assert.Equal(1, unlockCount);
+            Assert.Equal(1, closeCount);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(handle);
+        }
+    }
+
+    [Fact]
+    public void ReadPngFromClipboard_WhenDataExceedsLimit_ClosesClipboardBeforeThrowing()
+    {
+        var closeCount = 0;
+
+        _ = Assert.Throws<InvalidDataException>(() => WindowsNativeImageClipboardService.ReadPngFromClipboard(
+            maximumBytes: 3,
+            pngFormat: 1,
+            imagePngFormat: 2,
+            hwndOwner: IntPtr.Zero,
+            isClipboardFormatAvailable: _ => true,
+            openClipboard: _ => true,
+            getClipboardData: _ => new IntPtr(1),
+            globalSize: _ => (UIntPtr)4,
+            globalLock: _ => IntPtr.Zero,
+            globalUnlock: _ => true,
+             closeClipboard: () =>
+            {
+                closeCount++;
+                return true;
+            }));
+
+        Assert.Equal(1, closeCount);
+    }
+
+    [Fact]
+    public void ReadPngFromClipboard_WhenClipboardCannotOpen_ThrowsWithoutClosing()
+    {
+        var closeCount = 0;
+
+        _ = Assert.Throws<InvalidOperationException>(() => WindowsNativeImageClipboardService.ReadPngFromClipboard(
+            maximumBytes: 1024,
+            pngFormat: 1,
+            imagePngFormat: 2,
+            hwndOwner: IntPtr.Zero,
+            isClipboardFormatAvailable: _ => true,
+            openClipboard: _ => false,
+            getClipboardData: _ => IntPtr.Zero,
+            globalSize: _ => UIntPtr.Zero,
+            globalLock: _ => IntPtr.Zero,
+            globalUnlock: _ => true,
+            closeClipboard: () =>
+            {
+                closeCount++;
+                return true;
+            }));
+
+        Assert.Equal(0, closeCount);
+    }
+
     private sealed class ClipboardLock : IAsyncDisposable
     {
         private readonly StaMessageThread _thread = new("CrossMacro_TestNativeClipboardLock");

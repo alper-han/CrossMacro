@@ -7,6 +7,7 @@ namespace CrossMacro.Platform.Linux.Clipboard;
 public sealed class LinuxNativeClipboardService(LinuxEnvironmentSnapshot environment) :
     IClipboardService,
     IImageClipboardService,
+    IImageClipboardReader,
     ILinuxClipboardService,
     IDisposable
 {
@@ -17,6 +18,8 @@ public sealed class LinuxNativeClipboardService(LinuxEnvironmentSnapshot environ
     private bool _disposed;
 
     public bool IsSupported => !_disposed && (!_initialized || _backend?.IsSupported is true);
+
+    bool IImageClipboardReader.IsSupported => false;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -111,6 +114,17 @@ public sealed class LinuxNativeClipboardService(LinuxEnvironmentSnapshot environ
         {
             throw new ImageClipboardUnavailableException(ex.Message, ex);
         }
+    }
+
+    public Task<byte[]?> GetPngAsync(int maximumBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (maximumBytes <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumBytes), "Maximum PNG bytes must be positive.");
+        }
+
+        throw new ImageClipboardUnavailableException("PNG image clipboard reading is not supported by the native Linux clipboard backend.");
     }
 
     public void Dispose()

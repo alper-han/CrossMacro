@@ -2,7 +2,7 @@
 namespace CrossMacro.Platform.Windows.Services;
 
 [SupportedOSPlatform("windows")]
-internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessageThread> staThread) : IImageClipboardService
+internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessageThread> staThread) : IImageClipboardService, IImageClipboardReader
 {
     private readonly Lazy<StaMessageThread> _staThread = staThread;
     private static readonly Lazy<uint> _pngFormatId = new(() => User32.RegisterClipboardFormat("PNG"));
@@ -43,6 +43,34 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
         await Task.Delay(500, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<byte[]?> GetPngAsync(int maximumBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (maximumBytes <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumBytes), "Maximum PNG bytes must be positive.");
+        }
+
+        var thread = _staThread.Value;
+        return await thread.InvokeAsync(() =>
+        {
+            uint pngFormat = _pngFormatId.Value;
+            uint imagePngFormat = _imagePngFormatId.Value;
+            if (pngFormat is 0 || imagePngFormat is 0)
+            {
+                throw new ImageClipboardUnavailableException("Failed to register PNG clipboard formats.");
+            }
+
+            IntPtr hwndOwner = Kernel32.GetConsoleWindow();
+            if (hwndOwner == IntPtr.Zero)
+            {
+                hwndOwner = thread.MessageWindowHandle;
+            }
+
+            return GetPngInternal(maximumBytes, pngFormat, imagePngFormat, hwndOwner);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
     private static void SetPngInternal(byte[] pngArray, uint pngFormat, uint imagePngFormat, IntPtr hwndOwner)
     {
         IntPtr hDib = CreateDibFromPng(pngArray);
@@ -67,6 +95,97 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
         finally
         {
             _ = User32.CloseClipboard();
+        }
+    }
+
+    private static byte[]? GetPngInternal(int maximumBytes, uint pngFormat, uint imagePngFormat, IntPtr hwndOwner)
+    {
+        return ReadPngFromClipboard(
+            maximumBytes,
+            pngFormat,
+            imagePngFormat,
+            hwndOwner,
+            User32.IsClipboardFormatAvailable,
+            User32.OpenClipboard,
+            User32.GetClipboardData,
+            Kernel32.GlobalSize,
+            Kernel32.GlobalLock,
+            Kernel32.GlobalUnlock,
+            User32.CloseClipboard);
+    }
+
+    internal static byte[]? ReadPngFromClipboard(
+        int maximumBytes,
+        uint pngFormat,
+        uint imagePngFormat,
+        IntPtr hwndOwner,
+        Func<uint, bool> isClipboardFormatAvailable,
+        Func<IntPtr, bool> openClipboard,
+        Func<uint, IntPtr> getClipboardData,
+        Func<IntPtr, UIntPtr> globalSize,
+        Func<IntPtr, IntPtr> globalLock,
+        Func<IntPtr, bool> globalUnlock,
+        Func<bool> closeClipboard)
+    {
+        if (!isClipboardFormatAvailable(pngFormat) && !isClipboardFormatAvailable(imagePngFormat))
+        {
+            return null;
+        }
+
+        if (!openClipboard(hwndOwner))
+        {
+            throw new InvalidOperationException("Failed to open Windows clipboard.");
+        }
+
+        try
+        {
+            foreach (var format in new[] { pngFormat, imagePngFormat })
+            {
+                if (!isClipboardFormatAvailable(format))
+                {
+                    continue;
+                }
+
+                var clipboardData = getClipboardData(format);
+                if (clipboardData == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                var byteCount = globalSize(clipboardData).ToUInt64();
+                if (byteCount > (ulong)maximumBytes)
+                {
+                    throw new InvalidDataException("Clipboard PNG exceeds the maximum allowed size.");
+                }
+
+                if (byteCount is 0)
+                {
+                    return [];
+                }
+
+                var source = globalLock(clipboardData);
+                if (source == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var pngBytes = new byte[(int)byteCount];
+                    Marshal.Copy(source, pngBytes, 0, pngBytes.Length);
+                    return pngBytes;
+                }
+                finally
+                {
+                    _ = globalUnlock(clipboardData);
+                }
+            }
+
+            return null;
+        }
+        finally
+        {
+            _ = closeClipboard();
         }
     }
 

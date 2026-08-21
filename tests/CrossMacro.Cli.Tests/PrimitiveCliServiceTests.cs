@@ -871,6 +871,15 @@ public sealed class PrimitiveCliServiceTests
         public int CaptureCalls { get; private set; }
         public byte[]? PngBytes { get; private set; }
 
+        public Task<ScreenshotPngCaptureResult> CapturePngAsync(ScreenshotPngCaptureRequest request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(ScreenshotPngCaptureResult.Fail(
+                ScreenshotCaptureFailureKind.ProviderUnsupported,
+                "In-memory screenshot capture is not configured for this fake.",
+                []));
+        }
+
         public async Task<ScreenshotCaptureResult> CaptureAsync(
             string? outputPath,
             bool copyToClipboard,

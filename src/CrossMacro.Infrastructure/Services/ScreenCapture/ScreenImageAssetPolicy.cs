@@ -6,7 +6,7 @@ public static class ScreenImageAssetPolicy
     public const int MaxWidth = 7680;
     public const int MaxHeight = 4320;
     public const int MaxPixelCount = MaxWidth * MaxHeight;
-    public const int MaxEncodedBytes = 48 * 1024 * 1024;
+    public const int MaxEncodedBytes = ScreenshotPngCaptureLimits.MaximumEncodedBytes;
     public const int MaxBase64Chars = checked((MaxEncodedBytes + 2) / 3 * 4);
     public const int MaxInflatedBytes = 160 * 1024 * 1024;
     public const int MaxPixelBytes = 160 * 1024 * 1024;

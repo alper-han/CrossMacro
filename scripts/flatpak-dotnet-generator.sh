@@ -160,9 +160,11 @@ while IFS= read -r -d '' sha_file; do
         --arg filename "$filename" \
         '{type: "file", url: $url, sha512: $sha512, dest: "nuget-sources", "dest-filename": $filename}' \
         >> "$TEMP_ITEMS"
-done < <(find "$TMPDIR" -name "*.nupkg.sha512" -print0 | sort -z)
+# Locale collation differs across hosts, so use byte ordering.
+done < <(find "$TMPDIR" -name "*.nupkg.sha512" -print0 | LC_ALL=C sort -z)
 
-jq --indent 4 -s . "$TEMP_ITEMS" > "$OUTPUT"
+# Sort by the canonical source URL instead of the host's package-cache path.
+jq --indent 4 -s 'sort_by(.url)' "$TEMP_ITEMS" > "$OUTPUT"
 
 # Count packages
 PACKAGE_COUNT=$(grep -c '"type": "file"' "$OUTPUT" || echo "0")

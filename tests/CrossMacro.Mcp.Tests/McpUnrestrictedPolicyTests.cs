@@ -44,22 +44,22 @@ public sealed class McpUnrestrictedPolicyTests
     [Fact]
     public void ConfiguredPathRoots_StillConstrainAbsolutePaths()
     {
-        var root = Directory.CreateTempSubdirectory("crossmacro-mcp-root-");
-        var outside = Directory.CreateTempSubdirectory("crossmacro-mcp-outside-");
+        var root = McpTestData.CreateTemporaryDirectory();
+        var outside = McpTestData.CreateTemporaryDirectory();
         try
         {
             var settings = new AppSettings();
-            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [root.FullName]);
+            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [root]);
             var policy = new McpPathPolicy(new TestSettingsService(settings));
 
-            Assert.True(policy.TryAuthorize(Path.Combine(root.FullName, "safe.macro"), McpPathKind.MacroRead, false, out _, out _));
-            Assert.False(policy.TryAuthorize(Path.Combine(outside.FullName, "outside.macro"), McpPathKind.MacroRead, false, out _, out var failure));
+            Assert.True(policy.TryAuthorize(Path.Combine(root, "safe.macro"), McpPathKind.MacroRead, false, out _, out _));
+            Assert.False(policy.TryAuthorize(Path.Combine(outside, "outside.macro"), McpPathKind.MacroRead, false, out _, out var failure));
             Assert.Equal("path_not_allowed", failure.Errors[0].Code);
         }
         finally
         {
-            root.Delete(true);
-            outside.Delete(true);
+            Directory.Delete(root, true);
+            Directory.Delete(outside, true);
         }
     }
 

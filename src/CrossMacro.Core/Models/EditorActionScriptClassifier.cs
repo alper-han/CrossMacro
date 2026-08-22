@@ -35,6 +35,7 @@ public static class EditorActionScriptClassifier
             or EditorActionType.MousePosition
             or EditorActionType.ClipboardGet
             or EditorActionType.ClipboardSet
+            or EditorActionType.CopySelectionToVariable
             or EditorActionType.ShellCommand
             or EditorActionType.Screenshot
             or EditorActionType.WindowCommand;

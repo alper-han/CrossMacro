@@ -1284,6 +1284,10 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>Lê o texto atual da área de transferência para esta variável.</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve"><value>Atalho de cópia</value></data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve"><value>Ctrl+C</value></data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve"><value>Ctrl+Shift+C</value></data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve"><value>Copia a seleção atual, aguarda 10 ms pela área de transferência e armazena o texto nesta variável.</value></data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>Texto da área de transferência</value>
   </data>
@@ -1299,6 +1303,7 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>Escrever área de transferência</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve"><value>Copiar seleção para variável</value></data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>Ler área de transferência em {0}</value>
   </data>
@@ -1308,6 +1313,7 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Definir texto da área de transferência</value>
   </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve"><value>Copiar seleção com {0} para {1}</value></data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>Posição do mouse</value>
   </data>

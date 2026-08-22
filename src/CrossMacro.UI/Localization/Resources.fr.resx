@@ -1284,6 +1284,10 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>Lit le texte actuel du presse-papiers dans cette variable.</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve"><value>Raccourci de copie</value></data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve"><value>Ctrl+C</value></data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve"><value>Ctrl+Shift+C</value></data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve"><value>Copie la sélection actuelle, attend 10 ms le presse-papiers, puis stocke son texte dans cette variable.</value></data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>Texte du presse-papiers</value>
   </data>
@@ -1299,6 +1303,7 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>Écrire le presse-papiers</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve"><value>Copier la sélection dans une variable</value></data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>Lire le presse-papiers dans {0}</value>
   </data>
@@ -1308,6 +1313,7 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Définir le texte du presse-papiers</value>
   </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve"><value>Copier la sélection avec {0} dans {1}</value></data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>Position de la souris</value>
   </data>

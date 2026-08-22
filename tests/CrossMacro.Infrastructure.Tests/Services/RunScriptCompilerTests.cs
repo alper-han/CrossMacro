@@ -349,6 +349,19 @@ public sealed class RunScriptCompilerTests
     }
 
     [Theory]
+    [InlineData("clipboard capture ctrl+c selectedText")]
+    [InlineData("clipboard capture ctrl+shift+c $selectedText")]
+    public void Compile_WhenClipboardCaptureIsWellFormed_PreservesScriptStep(string step)
+    {
+        var result = _compiler.Compile([new RunScriptStep(step)]);
+
+        _ = result.Success.Should().BeTrue(result.ErrorMessage);
+        _ = result.Sequence.Should().NotBeNull();
+        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.ScriptSteps.Should().Equal(step);
+    }
+
+    [Theory]
     [InlineData("imageclick Target")]
     [InlineData("imageclick Target clicked click_x click_y")]
     [InlineData("imageclick 0 0 100 100 Target button right similarity 0.9")]

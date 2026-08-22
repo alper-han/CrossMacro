@@ -1284,6 +1284,10 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>現在のクリップボード文字列をこの変数に読み込みます。</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve"><value>コピーのショートカット</value></data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve"><value>Ctrl+C</value></data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve"><value>Ctrl+Shift+C</value></data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve"><value>現在の選択をコピーし、クリップボードを 10 ミリ秒待ってから、この変数に文字列を保存します。</value></data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>クリップボード文字列</value>
   </data>
@@ -1299,6 +1303,7 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>クリップボード書き込み</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve"><value>選択を変数へコピー</value></data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>クリップボードを {0} に読み取り</value>
   </data>
@@ -1308,6 +1313,7 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>クリップボード文字列を設定</value>
   </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve"><value>{0} で選択を {1} にコピー</value></data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>マウス位置</value>
   </data>

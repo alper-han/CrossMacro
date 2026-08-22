@@ -475,6 +475,36 @@
                                             TextWrapping="Wrap"/>
                             </StackPanel>
 
+                            <!-- Copy selection to variable -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowCopySelectionToVariableFields}">
+                                <TextBlock Text="{localization:Loc Editor_CopySelectionShortcut}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <ComboBox ItemsSource="{Binding ClipboardCopyShortcuts}"
+                                          SelectedValue="{Binding SelectedAction.ClipboardCopyShortcut}"
+                                          SelectedValueBinding="{Binding Value}"
+                                          DisplayMemberBinding="{Binding DisplayName}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          HorizontalAlignment="Stretch"/>
+                                <TextBlock Text="{localization:Loc Editor_ClipboardDestinationVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="{localization:Loc Editor_VariableNamePlaceholder}"
+                                         Background="{DynamicResource SurfaceHoverBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         CornerRadius="4"
+                                         Padding="8,6"/>
+                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
+                                          SelectedItem="{Binding SelectedClipboardVariableSuggestion}"
+                                          IsVisible="{Binding ShowClipboardVariablePicker}"
+                                          Background="{DynamicResource SurfaceHoverBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          HorizontalAlignment="Stretch"/>
+                                <TextBlock Text="{localization:Loc Editor_CopySelectionToVariableHint}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
                             <!-- Mouse position -->
                             <StackPanel Spacing="6" IsVisible="{Binding ShowMousePositionFields}">
                                 <TextBlock Text="{localization:Loc Editor_MousePositionXVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>

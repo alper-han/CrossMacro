@@ -192,4 +192,9 @@ public enum EditorActionType
     /// Captures the current mouse position into script variables.
     /// </summary>
     MousePosition,
+
+    /// <summary>
+    /// Sends a copy shortcut, then stores the selected clipboard text in a script variable.
+    /// </summary>
+    CopySelectionToVariable,
 }

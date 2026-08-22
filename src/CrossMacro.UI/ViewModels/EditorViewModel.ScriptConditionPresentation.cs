@@ -149,6 +149,7 @@ public partial class EditorViewModel
             EditorActionType.WaitImage => ScriptVariableKind.Unknown,
             EditorActionType.ClipboardGet => ScriptVariableKind.Unknown,
             EditorActionType.ClipboardSet => ScriptVariableKind.Unknown,
+            EditorActionType.CopySelectionToVariable => ScriptVariableKind.Unknown,
             EditorActionType.ShellCommand => ScriptVariableKind.Unknown,
             EditorActionType.Screenshot => ScriptVariableKind.Unknown,
             EditorActionType.WindowCommand => ScriptVariableKind.Unknown,

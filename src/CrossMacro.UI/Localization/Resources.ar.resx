@@ -1284,6 +1284,10 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>يقرأ نص الحافظة الحالي إلى هذا المتغير.</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve"><value>اختصار النسخ</value></data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve"><value>Ctrl+C</value></data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve"><value>Ctrl+Shift+C</value></data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve"><value>ينسخ التحديد الحالي وينتظر 10 مللي ثانية للحافظة ثم يحفظ النص في هذا المتغير.</value></data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>نص الحافظة</value>
   </data>
@@ -1299,6 +1303,7 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>كتابة الحافظة</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve"><value>نسخ التحديد إلى متغير</value></data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>قراءة الحافظة إلى {0}</value>
   </data>
@@ -1308,6 +1313,7 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>تعيين نص الحافظة</value>
   </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve"><value>نسخ التحديد باستخدام {0} إلى {1}</value></data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>موضع الماوس</value>
   </data>

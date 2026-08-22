@@ -96,6 +96,57 @@ public sealed partial class EditorActionConverterTests
             "clipboard set hello $clipText");
     }
 
+    [Theory]
+    [InlineData(ClipboardCopyShortcut.CtrlC, "ctrl+c")]
+    [InlineData(ClipboardCopyShortcut.CtrlShiftC, "ctrl+shift+c")]
+    public void ToAndFromMacroSequence_WhenCopySelectionToVariableUsed_PreservesShortcutAndVariable(
+        ClipboardCopyShortcut shortcut,
+        string expectedShortcut)
+    {
+        var sequence = _converter.ToMacroSequence(
+            [new EditorAction
+            {
+                Type = EditorActionType.CopySelectionToVariable,
+                ClipboardCopyShortcut = shortcut,
+                ScriptVariableName = "selectedText",
+            }],
+            "Copy Selection",
+            isAbsolute: true);
+        var restored = _converter.FromMacroSequence(sequence);
+
+        _ = sequence.ScriptSteps.Should().Equal($"clipboard capture {expectedShortcut} selectedText");
+        var action = restored.Should().ContainSingle().Subject;
+        _ = action.Type.Should().Be(EditorActionType.CopySelectionToVariable);
+        _ = action.ClipboardCopyShortcut.Should().Be(shortcut);
+        _ = action.ScriptVariableName.Should().Be("selectedText");
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenSelectionActionsPrecedeCopyCapture_PreservesTheirScriptOrder()
+    {
+        var sequence = _converter.ToMacroSequence(
+            [
+                new EditorAction { Type = EditorActionType.MouseDown, Button = MacroMouseButton.Left, X = 10, Y = 20 },
+                new EditorAction { Type = EditorActionType.MouseMove, X = 100, Y = 20 },
+                new EditorAction { Type = EditorActionType.MouseUp, Button = MacroMouseButton.Left, X = 100, Y = 20 },
+                new EditorAction
+                {
+                    Type = EditorActionType.CopySelectionToVariable,
+                    ClipboardCopyShortcut = ClipboardCopyShortcut.CtrlC,
+                    ScriptVariableName = "selectedText",
+                },
+            ],
+            "Selection Capture",
+            isAbsolute: true);
+
+        _ = sequence.ScriptSteps.Should().Equal(
+            "move abs 10 20",
+            "down left",
+            "move abs 100 20",
+            "up left",
+            "clipboard capture ctrl+c selectedText");
+    }
+
     [Fact]
     public void ToAndFromMacroSequence_WhenMousePositionActionUsed_PreservesTypedAction()
     {

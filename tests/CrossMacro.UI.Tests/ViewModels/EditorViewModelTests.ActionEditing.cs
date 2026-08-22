@@ -95,6 +95,21 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.ShowMousePositionFields.Should().BeTrue();
     }
 
+    [Fact]
+    public void AddAction_ForCopySelectionToVariable_InitializesShortcutAndDestination()
+    {
+        _viewModel.NewActionType = EditorActionType.CopySelectionToVariable;
+
+        _viewModel.AddAction();
+
+        var action = _viewModel.Actions.Should().ContainSingle().Subject;
+        _ = action.ClipboardCopyShortcut.Should().Be(ClipboardCopyShortcut.CtrlC);
+        _ = action.ScriptVariableName.Should().Be("clipboardText");
+        _ = _viewModel.ShowCopySelectionToVariableFields.Should().BeTrue();
+        _ = _viewModel.ClipboardCopyShortcuts.Select(option => option.Value)
+            .Should().Equal(ClipboardCopyShortcut.CtrlC, ClipboardCopyShortcut.CtrlShiftC);
+    }
+
     [Theory]
     [InlineData(EditorActionType.WaitColor)]
     [InlineData(EditorActionType.PixelSearch)]

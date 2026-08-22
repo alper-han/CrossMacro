@@ -53,6 +53,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.WaitImage => FormatWaitImage(action),
             EditorActionType.MousePosition => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_MousePosition"], action.MousePositionXVariableName, action.MousePositionYVariableName),
             EditorActionType.ClipboardGet => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ClipboardGet"], action.ScriptVariableName),
+            EditorActionType.CopySelectionToVariable => string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_CopySelectionToVariable"], FormatCopyShortcut(action.ClipboardCopyShortcut), action.ScriptVariableName),
             EditorActionType.ClipboardSet => string.IsNullOrEmpty(action.Text)
                 ? localizationService["Editor_Action_ClipboardSetEmpty"]
                 : string.Format(localizationService.CurrentCulture, localizationService["Editor_Action_ClipboardSet"], Truncate(TextInputControlCharacterFormatter.Escape(action.Text), 25)),
@@ -106,6 +107,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.MousePosition => localizationService["Editor_ActionType_MousePosition"],
             EditorActionType.ClipboardGet => localizationService["Editor_ActionType_ClipboardGet"],
             EditorActionType.ClipboardSet => localizationService["Editor_ActionType_ClipboardSet"],
+            EditorActionType.CopySelectionToVariable => localizationService["Editor_ActionType_CopySelectionToVariable"],
             EditorActionType.ShellCommand => localizationService["Editor_ActionType_ShellCommand"],
             EditorActionType.Screenshot => localizationService["Editor_ActionType_Screenshot"],
             EditorActionType.WindowCommand => localizationService["Editor_ActionType_WindowCommand"],
@@ -158,6 +160,7 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             EditorActionType.MousePosition => localizationService["Editor_BlockName_Block"],
             EditorActionType.ClipboardGet => localizationService["Editor_BlockName_Block"],
             EditorActionType.ClipboardSet => localizationService["Editor_BlockName_Block"],
+            EditorActionType.CopySelectionToVariable => localizationService["Editor_BlockName_Block"],
             EditorActionType.ShellCommand => localizationService["Editor_BlockName_Block"],
             EditorActionType.Screenshot => localizationService["Editor_BlockName_Block"],
             EditorActionType.WindowCommand => localizationService["Editor_BlockName_Block"],
@@ -183,6 +186,13 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             _ => throw new ArgumentOutOfRangeException(nameof(button), button, message: null),
         };
     }
+
+    private string FormatCopyShortcut(ClipboardCopyShortcut shortcut) => shortcut switch
+    {
+        ClipboardCopyShortcut.CtrlC => localizationService["Editor_CopyShortcut_CtrlC"],
+        ClipboardCopyShortcut.CtrlShiftC => localizationService["Editor_CopyShortcut_CtrlShiftC"],
+        _ => throw new ArgumentOutOfRangeException(nameof(shortcut), shortcut, message: null),
+    };
 
     private string FormatPixelColor(EditorActionScreenReadingPayload payload)
     {

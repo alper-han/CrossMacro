@@ -1284,6 +1284,10 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>Lee el texto actual del portapapeles en esta variable.</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve"><value>Atajo de copia</value></data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve"><value>Ctrl+C</value></data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve"><value>Ctrl+Shift+C</value></data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve"><value>Copia la selección actual, espera 10 ms al portapapeles y guarda su texto en esta variable.</value></data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>Texto del portapapeles</value>
   </data>
@@ -1299,6 +1303,7 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>Escribir portapapeles</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve"><value>Copiar selección a variable</value></data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>Leer portapapeles en {0}</value>
   </data>
@@ -1308,6 +1313,7 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Establecer texto del portapapeles</value>
   </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve"><value>Copiar selección con {0} en {1}</value></data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>Posición del ratón</value>
   </data>

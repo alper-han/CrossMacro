@@ -32,6 +32,7 @@ internal static class EditorActionValidationPolicy
             or EditorActionType.MousePosition
             or EditorActionType.ClipboardGet
             or EditorActionType.ClipboardSet
+            or EditorActionType.CopySelectionToVariable
             or EditorActionType.ShellCommand
             or EditorActionType.Screenshot
             or EditorActionType.WindowCommand;
@@ -65,6 +66,9 @@ internal static class EditorActionValidationPolicy
             EditorActionType.MousePosition => ValidateMousePositionFields(action),
             EditorActionType.ClipboardGet => EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName),
             EditorActionType.ClipboardSet => !string.IsNullOrEmpty(action.Text),
+            EditorActionType.CopySelectionToVariable =>
+                Enum.IsDefined(action.ClipboardCopyShortcut)
+                && EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName),
             EditorActionType.ShellCommand => ValidateShellCommandFields(action),
             EditorActionType.Screenshot => ValidateScreenshotFields(action),
             EditorActionType.WindowCommand => ValidateWindowCommandFields(action),

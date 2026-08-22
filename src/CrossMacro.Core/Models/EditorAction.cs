@@ -27,6 +27,7 @@ public class EditorAction : INotifyPropertyChanged
     private string? _keyName;
     private string _text = string.Empty;
     private string _scriptVariableName = "i";
+    private ClipboardCopyShortcut _clipboardCopyShortcut = ClipboardCopyShortcut.CtrlC;
     private string _mousePositionXVariableName = "mouse_x";
     private string _mousePositionYVariableName = "mouse_y";
     private ScriptValueType _scriptValueType = ScriptValueType.Number;
@@ -506,6 +507,26 @@ public class EditorAction : INotifyPropertyChanged
             }
 
             _scriptVariableName = normalized;
+            MarkStructuredScriptEdited();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DisplayName));
+        }
+    }
+
+    /// <summary>
+    /// Shortcut used by <see cref="EditorActionType.CopySelectionToVariable"/>.
+    /// </summary>
+    public ClipboardCopyShortcut ClipboardCopyShortcut
+    {
+        get => _clipboardCopyShortcut;
+        set
+        {
+            if (_clipboardCopyShortcut == value)
+            {
+                return;
+            }
+
+            _clipboardCopyShortcut = value;
             MarkStructuredScriptEdited();
             OnPropertyChanged();
             OnPropertyChanged(nameof(DisplayName));
@@ -1281,6 +1302,7 @@ public class EditorAction : INotifyPropertyChanged
             EditorActionType.ShellCommand => GetShellCommandDisplayName(),
             EditorActionType.Screenshot => BuildScreenshotDisplayName(),
             EditorActionType.WindowCommand => BuildWindowCommandDisplayName(),
+            EditorActionType.CopySelectionToVariable => $"Copy selection with {ClipboardCopyShortcutSyntax.ToScriptToken(ClipboardCopyShortcut)} into {ScriptVariableName}",
             EditorActionType.Break => "Break",
             EditorActionType.Continue => "Continue",
             EditorActionType.BlockEnd => "End Block",
@@ -1508,6 +1530,7 @@ public class EditorAction : INotifyPropertyChanged
     private void CopyScriptFields(EditorAction clone)
     {
         clone._scriptVariableName = ScriptVariableName;
+        clone._clipboardCopyShortcut = ClipboardCopyShortcut;
         clone._mousePositionXVariableName = MousePositionXVariableName;
         clone._mousePositionYVariableName = MousePositionYVariableName;
         clone._scriptValueType = ScriptValueType;

@@ -39,6 +39,40 @@ public sealed class RunScriptClipboardRuntimeTests
         _ = variables.Should().Contain("dest", "clipboard text");
     }
 
+    [Theory]
+    [InlineData("clipboard capture ctrl+c destination")]
+    [InlineData("clipboard capture CTRL+SHIFT+C $destination")]
+    public async Task ExecuteStepAsync_WhenCaptureReadsClipboard_StoresTextInDestinationVariable(string step)
+    {
+        var clipboard = SupportedClipboard();
+        _ = clipboard.GetTextAsync(Arg.Any<CancellationToken>()).Returns("captured text");
+        var variables = Vars();
+        var executor = new RunScriptClipboardExecutor(clipboard);
+
+        await executor.ExecuteStepAsync(step, 1, variables, CancellationToken.None);
+
+        _ = variables.Should().Contain("destination", "captured text");
+    }
+
+    [Theory]
+    [InlineData("clipboard capture ctrl+v destination")]
+    [InlineData("clipboard capture ctrl+c 1destination")]
+    [InlineData("clipboard capture ctrl+c destination extra")]
+    public void Validate_WhenCaptureSyntaxIsInvalid_ReturnsSyntaxError(string step)
+    {
+        var result = RunScriptClipboardExecutor.Validate(step);
+
+        _ = result.Should().Contain("Syntax: clipboard capture <ctrl+c|ctrl+shift+c> <var>");
+    }
+
+    [Fact]
+    public void Validate_WhenClipboardCommandIsMissingSubcommand_ListsCaptureSyntax()
+    {
+        var result = RunScriptClipboardExecutor.Validate("clipboard");
+
+        _ = result.Should().Be("Syntax: clipboard get <var> | clipboard set <text> | clipboard capture <ctrl+c|ctrl+shift+c> <var>");
+    }
+
     [Fact]
     public void Validate_WhenGetDestinationIsInvalid_ReturnsVariableNameError()
     {
@@ -65,7 +99,7 @@ public sealed class RunScriptClipboardRuntimeTests
         var act = async () => await executor.ExecuteStepAsync("clipboard set value", 1, Vars(), CancellationToken.None);
 
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*supported IClipboardService*");
+            .WithMessage("Step 1: Clipboard script steps require a supported IClipboardService runtime service.");
         await clipboard.DidNotReceive().SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 

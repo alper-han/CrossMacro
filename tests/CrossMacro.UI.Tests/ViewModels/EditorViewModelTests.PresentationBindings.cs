@@ -137,6 +137,7 @@ public sealed partial class EditorViewModelTests
 
         _ = variablesGroup.Choices.Select(choice => choice.ActionType).Should().Equal(
             EditorActionType.SetVariable,
+            EditorActionType.CopySelectionToVariable,
             EditorActionType.IncrementVariable,
             EditorActionType.DecrementVariable,
             EditorActionType.MultiplyVariable,

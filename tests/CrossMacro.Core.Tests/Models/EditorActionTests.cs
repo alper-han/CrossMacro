@@ -266,6 +266,22 @@ public sealed class EditorActionTests
         _ = scroll.IsValid().Should().BeFalse();
     }
 
+    [Fact]
+    public void CopySelectionToVariable_IsScriptStateActionAndRequiresValidDestination()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.CopySelectionToVariable,
+            ClipboardCopyShortcut = ClipboardCopyShortcut.CtrlShiftC,
+            ScriptVariableName = "selectedText",
+        };
+
+        _ = action.IsValid().Should().BeTrue();
+        _ = EditorActionScriptClassifier.IsScriptStateAction(action.Type).Should().BeTrue();
+        action.ScriptVariableName = "1invalid";
+        _ = action.IsValid().Should().BeFalse();
+    }
+
     [Theory]
     [InlineData(EditorActionType.ImageSearch)]
     [InlineData(EditorActionType.ImageClick)]

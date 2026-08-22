@@ -544,6 +544,8 @@ Linux backend details are in [`docs/linux.md`](linux.md).
 pixelcolor 500 300 mycolor
 pixelcolor rel 0 0 underCursor
 clipboard get clipText
+clipboard capture ctrl+c selectedText
+clipboard capture ctrl+shift+c selectedText
 clipboard set "new clipboard text"
 screenshot output "./shot.png"
 screenshot clipboard
@@ -577,6 +579,7 @@ mouse position mouse_x mouse_y
   `found_var` is present, a no-match/timeout writes `false` plus `-1, -1`
   coordinates and playback continues; the `var_x var_y` form is fail-fast.
 - `clipboard get <var>` stores current clipboard text in a runtime variable.
+- `clipboard capture <ctrl+c|ctrl+shift+c> <var>` sends the copy shortcut, waits a fixed 10 ms for clipboard ownership to update, then stores the clipboard text in a runtime variable. Select text in the target application before this step.
 - `clipboard set <text>` replaces clipboard text after variable substitution.
 - `mouse position <x_var> <y_var>` stores the live global cursor coordinates
   as signed integer runtime variables. The two destination names must differ.

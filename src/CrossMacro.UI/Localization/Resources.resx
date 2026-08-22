@@ -1284,6 +1284,18 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>Reads current clipboard text into this variable.</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve">
+    <value>Copy shortcut</value>
+  </data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve">
+    <value>Ctrl+C</value>
+  </data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve">
+    <value>Ctrl+Shift+C</value>
+  </data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve">
+    <value>Copies the current selection, waits 10 ms for the clipboard, then stores its text in this variable.</value>
+  </data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>Clipboard text</value>
   </data>
@@ -1299,6 +1311,9 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>Clipboard Set</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve">
+    <value>Copy Selection to Variable</value>
+  </data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>Read clipboard into {0}</value>
   </data>
@@ -1307,6 +1322,9 @@
   </data>
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Set clipboard text</value>
+  </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve">
+    <value>Copy selection with {0} into {1}</value>
   </data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>Mouse Position</value>

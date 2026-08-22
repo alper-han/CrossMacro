@@ -42,6 +42,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             EditorActionType.MousePosition => ValidateMousePosition(action),
             EditorActionType.ClipboardGet => ValidateClipboardGet(action),
             EditorActionType.ClipboardSet => ValidateClipboardSet(action),
+            EditorActionType.CopySelectionToVariable => ValidateCopySelectionToVariable(action),
             EditorActionType.ShellCommand => ValidateShellCommand(action),
             EditorActionType.Screenshot => ValidateScreenshot(action),
             EditorActionType.WindowCommand => ValidateWindowCommand(action),
@@ -277,6 +278,16 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             : (false, "Clipboard destination variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
     }
 
+    private static (bool IsValid, string? Error) ValidateCopySelectionToVariable(EditorAction action)
+    {
+        if (!Enum.IsDefined(action.ClipboardCopyShortcut))
+        {
+            return (false, "Copy shortcut is invalid.");
+        }
+
+        return ValidateClipboardGet(action);
+    }
+
     private static (bool IsValid, string? Error) ValidateMousePosition(EditorAction action)
     {
         if (!EditorActionScriptTokens.IsValidVariableName(action.MousePositionXVariableName)
@@ -483,6 +494,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             EditorActionType.MousePosition => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.ClipboardGet => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.ClipboardSet => (false, ValidationMessages.ActionPayloadRequired),
+            EditorActionType.CopySelectionToVariable => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.ShellCommand => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.Screenshot => (false, ValidationMessages.ActionPayloadRequired),
             EditorActionType.WindowCommand => (false, ValidationMessages.ActionPayloadRequired),

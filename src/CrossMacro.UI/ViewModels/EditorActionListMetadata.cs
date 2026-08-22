@@ -14,7 +14,7 @@ internal static class EditorActionListMetadata
             EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => EditorActionVisualKind.Keyboard,
             EditorActionType.TextInput or EditorActionType.ClipboardSet => EditorActionVisualKind.Text,
             EditorActionType.Delay => EditorActionVisualKind.Timing,
-            EditorActionType.SetVariable or EditorActionType.ClipboardGet or EditorActionType.ShellCommand
+            EditorActionType.SetVariable or EditorActionType.ClipboardGet or EditorActionType.CopySelectionToVariable or EditorActionType.ShellCommand
                 or EditorActionType.MousePosition
                 or EditorActionType.IncrementVariable or EditorActionType.DecrementVariable
                 or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable => EditorActionVisualKind.Variable,
@@ -71,6 +71,7 @@ internal static class EditorActionListMetadata
             EditorActionType.ClipboardGet => true,
             EditorActionType.MousePosition => true,
             EditorActionType.ClipboardSet => true,
+            EditorActionType.CopySelectionToVariable => true,
             EditorActionType.ShellCommand => true,
             EditorActionType.Screenshot => true,
             EditorActionType.WindowCommand => true,

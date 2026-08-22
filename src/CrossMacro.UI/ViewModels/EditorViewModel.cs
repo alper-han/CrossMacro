@@ -112,6 +112,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             ("Editor_ActionGroup_Variables", new[]
             {
                 EditorActionType.SetVariable,
+                EditorActionType.CopySelectionToVariable,
                 EditorActionType.IncrementVariable,
                 EditorActionType.DecrementVariable,
                 EditorActionType.MultiplyVariable,
@@ -622,6 +623,11 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public IReadOnlyList<MacroMouseButton> ImageClickButtons { get; } =
         [MacroMouseButton.Left, MacroMouseButton.Right, MacroMouseButton.Middle];
     public static IEnumerable<ScriptValueType> ScriptValueTypes => Enum.GetValues<ScriptValueType>();
+    public IEnumerable<ClipboardCopyShortcutOption> ClipboardCopyShortcuts =>
+        [
+            new(ClipboardCopyShortcut.CtrlC, Localize("Editor_CopyShortcut_CtrlC")),
+            new(ClipboardCopyShortcut.CtrlShiftC, Localize("Editor_CopyShortcut_CtrlShiftC")),
+        ];
     public static IEnumerable<ScriptNumericSourceType> ScriptNumericSourceTypes => Enum.GetValues<ScriptNumericSourceType>();
     public static IEnumerable<ScriptOperandType> ScriptOperandTypes => Enum.GetValues<ScriptOperandType>();
     public IEnumerable<ShellCommandModeOption> ShellCommandModes => Enum.GetValues<ShellCommandMode>()
@@ -690,6 +696,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.WaitImage => Localize("Editor_CurrentPositionUse"),
         EditorActionType.ClipboardGet => Localize("Editor_CurrentPositionUse"),
         EditorActionType.ClipboardSet => Localize("Editor_CurrentPositionUse"),
+        EditorActionType.CopySelectionToVariable => Localize("Editor_CurrentPositionUse"),
         EditorActionType.ShellCommand => Localize("Editor_CurrentPositionUse"),
         EditorActionType.Screenshot => Localize("Editor_CurrentPositionUse"),
         EditorActionType.WindowCommand => Localize("Editor_CurrentPositionUse"),
@@ -763,6 +770,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     }
     public bool ShowSetVariableFields => (SelectedAction?.Type) is EditorActionType.SetVariable;
     public bool ShowClipboardGetFields => (SelectedAction?.Type) is EditorActionType.ClipboardGet;
+    public bool ShowCopySelectionToVariableFields => (SelectedAction?.Type) is EditorActionType.CopySelectionToVariable;
     public bool ShowMousePositionFields => (SelectedAction?.Type) is EditorActionType.MousePosition;
     public bool ShowScreenshotFields => (SelectedAction?.Type) is EditorActionType.Screenshot;
     public bool ShowScreenshotRegionFields => ShowScreenshotFields && (SelectedAction?.ScreenshotUseRegion) is true;
@@ -832,6 +840,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.ImageClick => Localize("Editor_TextToType"),
         EditorActionType.WaitImage => Localize("Editor_TextToType"),
         EditorActionType.ClipboardGet => Localize("Editor_TextToType"),
+        EditorActionType.CopySelectionToVariable => Localize("Editor_TextToType"),
         EditorActionType.ShellCommand => Localize("Editor_TextToType"),
         EditorActionType.Screenshot => Localize("Editor_TextToType"),
         EditorActionType.WindowCommand => Localize("Editor_TextToType"),
@@ -875,6 +884,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.ImageClick => Localize("Editor_EnterTextToType"),
         EditorActionType.WaitImage => Localize("Editor_EnterTextToType"),
         EditorActionType.ClipboardGet => Localize("Editor_EnterTextToType"),
+        EditorActionType.CopySelectionToVariable => Localize("Editor_EnterTextToType"),
         EditorActionType.ShellCommand => Localize("Editor_EnterTextToType"),
         EditorActionType.Screenshot => Localize("Editor_EnterTextToType"),
         EditorActionType.WindowCommand => Localize("Editor_EnterTextToType"),
@@ -920,6 +930,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         EditorActionType.ImageClick => Localize("Editor_TextToTypeHint"),
         EditorActionType.WaitImage => Localize("Editor_TextToTypeHint"),
         EditorActionType.ClipboardGet => Localize("Editor_TextToTypeHint"),
+        EditorActionType.CopySelectionToVariable => Localize("Editor_TextToTypeHint"),
         EditorActionType.ShellCommand => Localize("Editor_TextToTypeHint"),
         EditorActionType.Screenshot => Localize("Editor_TextToTypeHint"),
         EditorActionType.WindowCommand => Localize("Editor_TextToTypeHint"),
@@ -1017,6 +1028,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(TextInputHint));
             OnPropertyChanged(nameof(ShellCommandModes));
             OnPropertyChanged(nameof(WindowCommandModes));
+            OnPropertyChanged(nameof(ClipboardCopyShortcuts));
             OnPropertyChanged(nameof(AddableActionTypes));
             OnPropertyChanged(nameof(ActionTypes));
             OnPropertyChanged(nameof(SelectedAction));

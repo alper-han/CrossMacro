@@ -1284,6 +1284,10 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>将当前剪贴板文本读取到此变量。</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve"><value>复制快捷键</value></data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve"><value>Ctrl+C</value></data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve"><value>Ctrl+Shift+C</value></data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve"><value>复制当前选择，等待剪贴板 10 毫秒，然后将文本保存到此变量。</value></data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>剪贴板文本</value>
   </data>
@@ -1299,6 +1303,7 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>写入剪贴板</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve"><value>将选择复制到变量</value></data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>将剪贴板读入 {0}</value>
   </data>
@@ -1308,6 +1313,7 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>设置剪贴板文本</value>
   </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve"><value>使用 {0} 将选择复制到 {1}</value></data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>鼠标位置</value>
   </data>

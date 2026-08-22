@@ -1132,7 +1132,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                 || trimmed.StartsWith("scroll ", StringComparison.OrdinalIgnoreCase)
                 || trimmed.StartsWith("tap ", StringComparison.OrdinalIgnoreCase)
                 || trimmed.StartsWith("type ", StringComparison.OrdinalIgnoreCase)
-                || trimmed.StartsWith("key ", StringComparison.OrdinalIgnoreCase);
+                || trimmed.StartsWith("key ", StringComparison.OrdinalIgnoreCase)
+                || RunScriptClipboardExecutor.TryGetCaptureShortcut(trimmed, out _);
         });
     }
 

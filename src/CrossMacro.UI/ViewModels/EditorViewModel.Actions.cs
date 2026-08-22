@@ -401,6 +401,7 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(ShowTextInput));
         OnPropertyChanged(nameof(ShowSetVariableFields));
         OnPropertyChanged(nameof(ShowClipboardGetFields));
+        OnPropertyChanged(nameof(ShowCopySelectionToVariableFields));
         OnPropertyChanged(nameof(ShowMousePositionFields));
         OnPropertyChanged(nameof(ShowClipboardVariablePicker));
         OnPropertyChanged(nameof(SelectedClipboardVariableSuggestion));
@@ -623,7 +624,8 @@ public partial class EditorViewModel
             RandomDelayMaxMs = 150,
             ScrollAmount = NewActionType is EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal ? 1 : 0,
             Text = NewActionType is EditorActionType.ClipboardSet ? "clipboard text" : string.Empty,
-            ScriptVariableName = NewActionType is EditorActionType.ClipboardGet ? "clipboardText" : "i",
+            ScriptVariableName = NewActionType is EditorActionType.ClipboardGet or EditorActionType.CopySelectionToVariable ? "clipboardText" : "i",
+            ClipboardCopyShortcut = ClipboardCopyShortcut.CtrlC,
             MousePositionXVariableName = "mouse_x",
             MousePositionYVariableName = "mouse_y",
             ShellCommand = NewActionType is EditorActionType.ShellCommand ? "echo hello" : string.Empty,

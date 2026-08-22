@@ -1284,6 +1284,18 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>Geçerli pano metnini bu değişkene okur.</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve">
+    <value>Kopyalama kısayolu</value>
+  </data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve">
+    <value>Ctrl+C</value>
+  </data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve">
+    <value>Ctrl+Shift+C</value>
+  </data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve">
+    <value>Geçerli seçimi kopyalar, pano için 10 ms bekler ve metni bu değişkene yazar.</value>
+  </data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>Pano metni</value>
   </data>
@@ -1299,6 +1311,9 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>Panoya Yaz</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve">
+    <value>Seçimi Değişkene Kopyala</value>
+  </data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>Panoyu {0} değişkenine oku</value>
   </data>
@@ -1307,6 +1322,9 @@
   </data>
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Pano metnini ayarla</value>
+  </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve">
+    <value>Seçimi {0} ile {1} değişkenine kopyala</value>
   </data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>Fare Konumu</value>

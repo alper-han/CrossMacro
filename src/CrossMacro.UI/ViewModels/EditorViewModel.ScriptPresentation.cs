@@ -85,7 +85,7 @@ public partial class EditorViewModel
         get => _selectedClipboardVariableSuggestion;
         set => ApplyVariableSuggestion(ref _selectedClipboardVariableSuggestion, value, nameof(SelectedClipboardVariableSuggestion), suggestion =>
         {
-            if ((SelectedAction?.Type) is EditorActionType.ClipboardGet)
+            if ((SelectedAction?.Type) is EditorActionType.ClipboardGet or EditorActionType.CopySelectionToVariable)
             {
                 SelectedAction.ScriptVariableName = suggestion;
             }
@@ -93,7 +93,7 @@ public partial class EditorViewModel
     }
 
     public bool ShowSetVariablePicker => ShowSetVariableFields && HasAvailableVariableNames;
-    public bool ShowClipboardVariablePicker => ShowClipboardGetFields && HasAvailableVariableNames;
+    public bool ShowClipboardVariablePicker => (ShowClipboardGetFields || ShowCopySelectionToVariableFields) && HasAvailableVariableNames;
     public bool ShowIncDecVariablePicker => ShowIncDecFields && HasAvailableVariableNames;
     public bool ShowConditionLeftVariablePicker =>
         ShowConditionFields

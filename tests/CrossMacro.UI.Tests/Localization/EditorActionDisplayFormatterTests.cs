@@ -12,6 +12,7 @@ public sealed class EditorActionDisplayFormatterTests
     [InlineData(EditorActionType.MousePosition, "Editor_ActionType_MousePosition", "Mouse Position")]
     [InlineData(EditorActionType.ClipboardGet, "Editor_ActionType_ClipboardGet", "Clipboard Get")]
     [InlineData(EditorActionType.ClipboardSet, "Editor_ActionType_ClipboardSet", "Clipboard Set")]
+    [InlineData(EditorActionType.CopySelectionToVariable, "Editor_ActionType_CopySelectionToVariable", "Copy Selection to Variable")]
     [InlineData(EditorActionType.ShellCommand, "Editor_ActionType_ShellCommand", "Shell Command")]
     [InlineData(EditorActionType.Screenshot, "Editor_ActionType_Screenshot", "Screenshot")]
     [InlineData(EditorActionType.MultiplyVariable, "Editor_ActionType_MultiplyVariable", "Multiply Variable")]
@@ -33,6 +34,24 @@ public sealed class EditorActionDisplayFormatterTests
         var action = new EditorAction { Type = EditorActionType.ClipboardGet, ScriptVariableName = "clipText" };
 
         _ = formatter.Format(action).Should().Be("Read clipboard into clipText");
+    }
+
+    [Fact]
+    public void Format_ForCopySelectionToVariable_IncludesShortcutAndDestination()
+    {
+        var formatter = CreateFormatter(new Dictionary<string, string>
+        {
+            ["Editor_Action_CopySelectionToVariable"] = "Copy selection with {0} into {1}",
+            ["Editor_CopyShortcut_CtrlShiftC"] = "Ctrl+Shift+C",
+        });
+        var action = new EditorAction
+        {
+            Type = EditorActionType.CopySelectionToVariable,
+            ClipboardCopyShortcut = ClipboardCopyShortcut.CtrlShiftC,
+            ScriptVariableName = "selectedText",
+        };
+
+        _ = formatter.Format(action).Should().Be("Copy selection with Ctrl+Shift+C into selectedText");
     }
 
     [Fact]

@@ -234,6 +234,7 @@ public class EditorActionConverter : IEditorActionConverter
             case EditorActionType.MousePosition:
             case EditorActionType.ClipboardGet:
             case EditorActionType.ClipboardSet:
+            case EditorActionType.CopySelectionToVariable:
             case EditorActionType.ShellCommand:
             case EditorActionType.Screenshot:
             case EditorActionType.WindowCommand:
@@ -870,6 +871,10 @@ public class EditorActionConverter : IEditorActionConverter
 
             case EditorActionType.ClipboardSet:
                 yield return $"clipboard set {action.Text}";
+                yield break;
+
+            case EditorActionType.CopySelectionToVariable:
+                yield return $"clipboard capture {ClipboardCopyShortcutSyntax.ToScriptToken(action.ClipboardCopyShortcut)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName)}";
                 yield break;
 
             case EditorActionType.ShellCommand:
@@ -2254,6 +2259,25 @@ public class EditorActionConverter : IEditorActionConverter
             {
                 Type = EditorActionType.ClipboardSet,
                 Text = parts[2],
+            };
+            return true;
+        }
+
+        if (parts[1].Equals("capture", StringComparison.OrdinalIgnoreCase))
+        {
+            var captureParts = parts[2].Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (captureParts.Length is not 2
+                || !ClipboardCopyShortcutSyntax.TryParse(captureParts[0], out var shortcut)
+                || !TryNormalizeVariableName(captureParts[1], out var variableName))
+            {
+                return false;
+            }
+
+            action = new EditorAction
+            {
+                Type = EditorActionType.CopySelectionToVariable,
+                ClipboardCopyShortcut = shortcut,
+                ScriptVariableName = variableName,
             };
             return true;
         }

@@ -225,6 +225,12 @@ internal sealed class RunScriptRuntimeExecutor(
 
         if (RunScriptSyntax.IsClipboardStep(step))
         {
+            if (RunScriptClipboardExecutor.TryGetCaptureShortcut(step, out var shortcut))
+            {
+                _clipboardExecutor.EnsureSupported(stepNumber);
+                await ExecuteCopyShortcutAsync(shortcut, stepNumber, request, cancellationToken).ConfigureAwait(false);
+            }
+
             await _clipboardExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
             return;
         }
@@ -277,6 +283,30 @@ internal sealed class RunScriptRuntimeExecutor(
         {
             await request.ExecuteEventAsync(ev, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private async Task ExecuteCopyShortcutAsync(
+        string shortcut,
+        int stepNumber,
+        RunScriptRuntimeExecutionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var compiler = new RunScriptCompiler(_keyCodeMapper);
+        var compileResult = compiler.Compile([new RunScriptStep($"tap {shortcut}")]);
+        if (!compileResult.Success || compileResult.Sequence is null)
+        {
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {compileResult.ErrorMessage}");
+        }
+
+        foreach (var ev in compileResult.Sequence.Events)
+        {
+            await request.ExecuteEventAsync(ev, cancellationToken).ConfigureAwait(false);
+        }
+
+        await _timingService.WaitAsync(
+            RunScriptClipboardExecutor.CaptureSettleDelayMilliseconds,
+            _pauseToken,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private bool TryApplyVariableCommand(string step)

@@ -30,16 +30,16 @@ internal static class McpToolTypeCatalog
         McpClipboardTools clipboardTools,
         McpWindowTools windowTools,
         McpScreenTools screenTools) =>
-        builder
-            .WithTools<McpRuntimeTools>(runtimeTools, McpJsonContext.Default.Options)
-            .WithTools<McpSettingsTools>(settingsTools, McpJsonContext.Default.Options)
-            .WithTools<McpProfileTools>(profileTools, McpJsonContext.Default.Options)
-            .WithTools<McpTextExpansionTools>(textExpansionTools, McpJsonContext.Default.Options)
-            .WithTools<McpTaskTools>(taskTools, McpJsonContext.Default.Options)
-            .WithTools<McpAutomationTools>(automationTools, McpJsonContext.Default.Options)
-            .WithTools<McpCommandTools>(commandTools, McpJsonContext.Default.Options)
-            .WithTools<McpMacroTools>(macroTools, McpJsonContext.Default.Options)
-            .WithTools<McpClipboardTools>(clipboardTools, McpJsonContext.Default.Options)
-            .WithTools<McpWindowTools>(windowTools, McpJsonContext.Default.Options)
-            .WithTools<McpScreenTools>(screenTools, McpJsonContext.Default.Options);
+        builder.WithCrossMacroTools(
+            runtimeTools,
+            settingsTools,
+            profileTools,
+            textExpansionTools,
+            taskTools,
+            automationTools,
+            commandTools,
+            macroTools,
+            clipboardTools,
+            windowTools,
+            screenTools);
 }

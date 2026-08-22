@@ -113,6 +113,51 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         _ = activity.Should().Contain("input:key:30:down");
     }
 
+    [Theory]
+    [InlineData("clipboard capture ctrl+c selectedText", false)]
+    [InlineData("clipboard capture ctrl+shift+c selectedText", true)]
+    public async Task PlayAsync_WhenClipboardCaptureRuns_SendsShortcutWaitsTenMillisecondsAndReadsClipboard(
+        string step,
+        bool includesShift)
+    {
+        var activity = new List<string>();
+        var timingService = new RecordingTimingService();
+        var inputSimulator = new RecordingInputSimulator(activity);
+        var clipboard = Substitute.For<IClipboardService>();
+        _ = clipboard.IsSupported.Returns(returnThis: true);
+        _ = clipboard.GetTextAsync(Arg.Any<CancellationToken>()).Returns("captured text");
+        var keyCodeMapper = CreateKeyCodeMapper();
+        _ = keyCodeMapper.GetKeyCode("ctrl").Returns(29);
+        _ = keyCodeMapper.GetKeyCode("shift").Returns(42);
+        _ = keyCodeMapper.GetKeyCode("c").Returns(46);
+        _ = keyCodeMapper.IsModifierKeyCode(29).Returns(returnThis: true);
+        _ = keyCodeMapper.IsModifierKeyCode(42).Returns(returnThis: true);
+        using var player = CreatePlayer(
+            CreatePositionProvider((0, 0)),
+            new FakeScreenPixelReader(),
+            inputSimulator,
+            timingService,
+            clipboardService: clipboard,
+            keyCodeMapper: keyCodeMapper);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                step,
+                "clipboard set $selectedText",
+            },
+        };
+
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 2.5 }, CancellationToken.None);
+
+        _ = timingService.WaitCalls.Should().Equal(10);
+        string[] expectedActivity = includesShift
+            ? ["input:key:29:down", "input:key:42:down", "input:key:46:down", "input:key:46:up", "input:key:42:up", "input:key:29:up"]
+            : ["input:key:29:down", "input:key:46:down", "input:key:46:up", "input:key:29:up"];
+        _ = activity.Should().Equal(expectedActivity);
+        await clipboard.Received(1).SetTextAsync("captured text", Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task PlayAsync_WhenPixelSearchCoordinatesFeedAbsoluteMove_ClicksTheMatch()
     {

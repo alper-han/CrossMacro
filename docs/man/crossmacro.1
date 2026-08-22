@@ -357,7 +357,11 @@ should receive \fB$NAME\fR literally instead of resolving a CrossMacro variable.
 .PP
 Runtime primitive steps mirror the first-class \fBclipboard\fR, \fBwindow\fR,
 and \fBscreen\fR command families. Use \fBclipboard get <var>\fR and
-\fBclipboard set <text>\fR for text clipboard state, \fBwindow ...\fR forms for
+\fBclipboard set <text>\fR for text clipboard state. \fBclipboard capture ctrl+c <var>\fR
+or \fBclipboard capture ctrl+shift+c <var>\fR sends the selected copy shortcut,
+waits a fixed 10 milliseconds for clipboard ownership to update, and stores the
+clipboard text in the named runtime variable. Select text in the target application
+before the capture step. Use \fBwindow ...\fR forms for
 active/search/wait/focus/close/move/resize/workspace operations, and
 \fBpixelcolor\fR, \fBwaitcolor\fR, or \fBpixelsearch\fR for screen color reads.
 Use \fBmouse position <x_variable> <y_variable>\fR to store one live global

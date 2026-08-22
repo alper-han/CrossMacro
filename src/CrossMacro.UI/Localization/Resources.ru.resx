@@ -1284,6 +1284,10 @@
   <data name="Editor_ClipboardGetHint" xml:space="preserve">
     <value>Считывает текущий текст буфера обмена в эту переменную.</value>
   </data>
+  <data name="Editor_CopySelectionShortcut" xml:space="preserve"><value>Сочетание для копирования</value></data>
+  <data name="Editor_CopyShortcut_CtrlC" xml:space="preserve"><value>Ctrl+C</value></data>
+  <data name="Editor_CopyShortcut_CtrlShiftC" xml:space="preserve"><value>Ctrl+Shift+C</value></data>
+  <data name="Editor_CopySelectionToVariableHint" xml:space="preserve"><value>Копирует текущее выделение, ждёт 10 мс буфер обмена и сохраняет текст в эту переменную.</value></data>
   <data name="Editor_ClipboardText" xml:space="preserve">
     <value>Текст буфера обмена</value>
   </data>
@@ -1299,6 +1303,7 @@
   <data name="Editor_ActionType_ClipboardSet" xml:space="preserve">
     <value>Записать буфер обмена</value>
   </data>
+  <data name="Editor_ActionType_CopySelectionToVariable" xml:space="preserve"><value>Копировать выделение в переменную</value></data>
   <data name="Editor_Action_ClipboardGet" xml:space="preserve">
     <value>Прочитать буфер обмена в {0}</value>
   </data>
@@ -1308,6 +1313,7 @@
   <data name="Editor_Action_ClipboardSetEmpty" xml:space="preserve">
     <value>Установить текст буфера обмена</value>
   </data>
+  <data name="Editor_Action_CopySelectionToVariable" xml:space="preserve"><value>Копировать выделение с {0} в {1}</value></data>
   <data name="Editor_ActionType_MousePosition" xml:space="preserve">
     <value>Позиция мыши</value>
   </data>

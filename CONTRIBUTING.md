@@ -219,6 +219,14 @@ man -l docs/man/crossmacro.1 > /dev/null
 dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$PWD"
 dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-docs --repo-root "$PWD"
 dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --static-only --repo-root "$PWD"
+
+# Refresh Flatpak's offline NuGet source manifest after dependency changes
+bash scripts/flatpak-dotnet-generator.sh \
+  flatpak/nuget-sources.json \
+  src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
+  --runtime linux-x64,linux-arm64 \
+  --freedesktop 25.08 \
+  --dotnet 10
 ```
 
 Packaging-related areas include:

@@ -254,8 +254,39 @@ jobs:
           path: artifacts/packages/appimage/*-${{ matrix.appimage_arch }}.AppImage
           retention-days: ${{ inputs.retention_days }}
 
+  verify-flatpak-nuget-sources:
+    if: ${{ inputs.attach_flatpak }}
+    name: Verify Flatpak NuGet Sources
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+
+      - name: Install Flatpak tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak jq
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.freedesktop.Sdk//25.08 org.freedesktop.Sdk.Extension.dotnet10//25.08
+
+      - name: Verify Flatpak NuGet source manifest
+        run: |
+          set -euo pipefail
+          generated_sources="$RUNNER_TEMP/nuget-sources.json"
+          bash scripts/flatpak-dotnet-generator.sh \
+            "$generated_sources" \
+            src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
+            --runtime linux-x64,linux-arm64 \
+            --freedesktop 25.08 \
+            --dotnet 10
+          diff --unified=3 flatpak/nuget-sources.json "$generated_sources"
+
   package-flatpak:
     name: Build and Smoke Flatpak (${{ matrix.arch_suffix }})
+    needs: verify-flatpak-nuget-sources
     if: ${{ inputs.attach_flatpak }}
     runs-on: ${{ matrix.runner }}
     strategy:

@@ -23,12 +23,22 @@ public sealed class ProcessRunnerTests
         }
 
         var marker = $"/tmp/crossmacro-process-runner-{Guid.NewGuid():N}";
+        var readyMarker = $"{marker}-ready";
         await using var cleanup = new TempFileCleanup(marker);
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        await using var readyCleanup = new TempFileCleanup(readyMarker);
+        using var cancellation = new CancellationTokenSource();
         var runner = new ProcessRunner();
 
+        var command = runner.RunCommandAsync(
+            "sh",
+            ["-c", $"touch {readyMarker}; sleep 1; touch {marker}"],
+            string.Empty,
+            cancellation.Token);
+        await WaitForFileAsync(readyMarker, TimeSpan.FromSeconds(2));
+        cancellation.Cancel();
+
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            runner.RunCommandAsync("sh", ["-c", $"sleep 1; touch {marker}"], string.Empty, cancellation.Token));
+            command);
 
         await Task.Delay(TimeSpan.FromMilliseconds(1500));
         Assert.False(File.Exists(marker));
@@ -171,6 +181,15 @@ public sealed class ProcessRunnerTests
             }
 
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private static async Task WaitForFileAsync(string path, TimeSpan timeout)
+    {
+        using var timeoutCts = new CancellationTokenSource(timeout);
+        while (!File.Exists(path))
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(10), timeoutCts.Token);
         }
     }
 }

@@ -33,7 +33,7 @@ public sealed class McpUnrestrictedPolicyTests
         var policy = new McpPathPolicy(new TestSettingsService(new AppSettings()));
 
         Assert.True(policy.TryAuthorize(
-            Path.Combine(Path.GetTempPath(), "crossmacro-unrestricted-test.macro"),
+            Path.Combine(McpTestData.GetPhysicalTemporaryRoot(), "crossmacro-unrestricted-test.macro"),
             McpPathKind.MacroRead,
             requireExisting: false,
             out _,

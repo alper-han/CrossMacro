@@ -156,23 +156,26 @@ internal static class McpToolTestFactory
 
 internal static class McpTestData
 {
+    internal static string GetPhysicalTemporaryRoot() =>
+        OperatingSystem.IsMacOS() ? "/private/tmp" : Path.GetTempPath();
+
     internal static string CreateTemporaryDirectory()
     {
-        var directory = Path.Combine(Path.GetTempPath(), $"crossmacro-mcp-{Guid.NewGuid():N}");
+        var directory = Path.Combine(GetPhysicalTemporaryRoot(), $"crossmacro-mcp-{Guid.NewGuid():N}");
         _ = Directory.CreateDirectory(directory);
         return directory;
     }
 
     internal static string CreateTemporaryMacroFile()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"crossmacro-mcp-{Guid.NewGuid():N}.macro");
+        var path = Path.Combine(GetPhysicalTemporaryRoot(), $"crossmacro-mcp-{Guid.NewGuid():N}.macro");
         File.WriteAllText(path, "macro");
         return path;
     }
 
     internal static string CreateTemporaryPngFile()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"crossmacro-mcp-{Guid.NewGuid():N}.png");
+        var path = Path.Combine(GetPhysicalTemporaryRoot(), $"crossmacro-mcp-{Guid.NewGuid():N}.png");
         File.WriteAllBytes(path, [137, 80, 78, 71]);
         return path;
     }

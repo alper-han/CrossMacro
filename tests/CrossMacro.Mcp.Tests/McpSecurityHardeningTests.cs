@@ -5,8 +5,8 @@ public sealed class McpSecurityHardeningTests
     [Fact]
     public void PathPolicy_ShouldRequireConfiguredCanonicalRoots()
     {
-        var root = CreateTemporaryDirectory();
-        var outside = CreateTemporaryDirectory();
+        var root = McpTestData.CreateTemporaryDirectory();
+        var outside = McpTestData.CreateTemporaryDirectory();
         var file = Path.Combine(root, "safe.macro");
         File.WriteAllText(file, "macro");
         try
@@ -33,6 +33,7 @@ public sealed class McpSecurityHardeningTests
     [Fact]
     public void PathPolicy_ShouldRejectPersistedRelativeRootsAndAllowTheFilesystemRoot()
     {
+        var temporaryRoot = McpTestData.GetPhysicalTemporaryRoot();
         var settings = new AppSettings();
         settings.McpSecurity.Paths = new McpPathSettings(
             macroReadRoots: ["relative-root"],
@@ -43,12 +44,12 @@ public sealed class McpSecurityHardeningTests
             fileWriteRoots: []);
         var policy = new McpPathPolicy(new TestSettingsService(settings));
 
-        Assert.False(policy.TryAuthorize("/tmp", McpPathKind.MacroRead, requireExisting: true, out _, out var relativeRootFailure));
+        Assert.False(policy.TryAuthorize(temporaryRoot, McpPathKind.MacroRead, requireExisting: true, out _, out var relativeRootFailure));
         Assert.Equal("path_not_allowed", relativeRootFailure.Errors[0].Code);
 
-        settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [Path.GetPathRoot(Path.GetTempPath())!]);
+        settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [Path.GetPathRoot(temporaryRoot)!]);
 
-        Assert.True(policy.TryAuthorize("/tmp", McpPathKind.MacroRead, requireExisting: true, out _, out var rootSuccess));
+        Assert.True(policy.TryAuthorize(temporaryRoot, McpPathKind.MacroRead, requireExisting: true, out _, out var rootSuccess));
         Assert.True(rootSuccess.Success);
     }
 
@@ -60,8 +61,8 @@ public sealed class McpSecurityHardeningTests
             return;
         }
 
-        var root = CreateTemporaryDirectory();
-        var outside = CreateTemporaryDirectory();
+        var root = McpTestData.CreateTemporaryDirectory();
+        var outside = McpTestData.CreateTemporaryDirectory();
         var link = Path.Combine(root, "dangling.macro");
         try
         {
@@ -384,13 +385,6 @@ public sealed class McpSecurityHardeningTests
             });
         await cancellation.CancelAsync();
         await serverTask;
-    }
-
-    private static string CreateTemporaryDirectory()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"crossmacro-mcp-security-{Guid.NewGuid():N}");
-        _ = Directory.CreateDirectory(path);
-        return path;
     }
 
     private sealed class TestSettingsService(AppSettings settings) : ISettingsService

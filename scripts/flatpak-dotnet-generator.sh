@@ -162,7 +162,7 @@ while IFS= read -r -d '' sha_file; do
         >> "$TEMP_ITEMS"
 done < <(find "$TMPDIR" -name "*.nupkg.sha512" -print0 | sort -z)
 
-jq -s . "$TEMP_ITEMS" > "$OUTPUT"
+jq --indent 4 -s . "$TEMP_ITEMS" > "$OUTPUT"
 
 # Count packages
 PACKAGE_COUNT=$(grep -c '"type": "file"' "$OUTPUT" || echo "0")

@@ -16,7 +16,8 @@ public sealed class McpRequestGuard(
     public async ValueTask<CallToolResult> InvokeAsync(
         string toolName,
         Func<ValueTask<CallToolResult>> next,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IDictionary<string, JsonElement>? arguments = null)
     {
         ArgumentNullException.ThrowIfNull(toolName);
         ArgumentNullException.ThrowIfNull(next);
@@ -29,15 +30,18 @@ public sealed class McpRequestGuard(
             return CreateErrorResult(McpToolOutcomeMapper.ToolNotAllowed());
         }
 
+        var requirements = GetEffectiveCapabilityRequirements(definition, arguments);
         var approval = "not_required";
-        if (definition.Access is McpToolAccess.Effectful && !IsCapabilityAllowed(definition))
+        if (definition.Access is McpToolAccess.Effectful
+            && requirements.Capabilities.Count > 0
+            && !IsCapabilityAllowed(requirements))
         {
-            var denied = _capabilityPolicy.Require(definition.Capabilities[0]);
-            Record(definition, "not_requested", "denied", operationId: null);
+            var denied = GetDeniedCapability(requirements);
+            Record(definition, requirements.Capabilities, "not_requested", "denied", operationId: null);
             return CreateErrorResult(denied);
         }
 
-        if (definition.Access is McpToolAccess.Effectful)
+        if (definition.Access is McpToolAccess.Effectful && requirements.Capabilities.Count > 0)
         {
             var timeoutSeconds = McpSecuritySettings.NormalizeApprovalTimeoutSeconds(
                 _settingsService.Current.McpSecurity?.ApprovalTimeoutSeconds
@@ -56,7 +60,7 @@ public sealed class McpRequestGuard(
                             definition.Description,
                             timeout,
                             TargetSummary: GetSafeTargetSummary(definition),
-                            CapabilityNames: definition.Capabilities
+                            CapabilityNames: requirements.Capabilities
                                 .Select(static capability => capability.ToString())
                                 .ToArray()),
                         approvalCancellation.Token)
@@ -74,7 +78,7 @@ public sealed class McpRequestGuard(
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 approval = "unavailable";
-                Record(definition, approval, "approval_unavailable", operationId: null);
+                Record(definition, requirements.Capabilities, approval, "approval_unavailable", operationId: null);
                 Log.Warning(exception, "MCP approval service was unavailable for {ToolName}", definition.Name);
                 return CreateErrorResult(McpToolOutcomeMapper.ApprovalUnavailable());
             }
@@ -91,7 +95,7 @@ public sealed class McpRequestGuard(
                 var denied = approvalResult is ApprovalResult.TimedOut
                     ? McpToolOutcomeMapper.ApprovalTimedOut()
                     : McpToolOutcomeMapper.ApprovalDenied();
-                Record(definition, approval, "denied", operationId: null);
+                Record(definition, requirements.Capabilities, approval, "denied", operationId: null);
                 return CreateErrorResult(denied);
             }
         }
@@ -99,17 +103,17 @@ public sealed class McpRequestGuard(
         try
         {
             var result = await next().ConfigureAwait(false);
-            Record(definition, approval, result.IsError is true ? "failed" : "success", GetOperationId(result));
+            Record(definition, requirements.Capabilities, approval, result.IsError is true ? "failed" : "success", GetOperationId(result));
             return result;
         }
         catch (OperationCanceledException)
         {
-            Record(definition, approval, "cancelled", operationId: null);
+            Record(definition, requirements.Capabilities, approval, "cancelled", operationId: null);
             throw;
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            Record(definition, approval, "failed", operationId: null);
+            Record(definition, requirements.Capabilities, approval, "failed", operationId: null);
             throw;
         }
     }
@@ -132,12 +136,54 @@ public sealed class McpRequestGuard(
         }
     }
 
-    private bool IsCapabilityAllowed(McpToolDefinition definition) =>
-        definition.CapabilityRequirement is McpCapabilityRequirement.Any
-            ? _capabilityPolicy.IsAnyAllowed([.. definition.Capabilities])
-            : definition.Capabilities.All(_capabilityPolicy.IsAllowed);
+    private bool IsCapabilityAllowed((IReadOnlyList<McpCapability> Capabilities, McpCapabilityRequirement Requirement) requirements) =>
+        requirements.Requirement is McpCapabilityRequirement.Any
+            ? _capabilityPolicy.IsAnyAllowed([.. requirements.Capabilities])
+            : requirements.Capabilities.All(_capabilityPolicy.IsAllowed);
 
-    private void Record(McpToolDefinition definition, string approval, string result, string? operationId)
+    private McpToolOutcome GetDeniedCapability((IReadOnlyList<McpCapability> Capabilities, McpCapabilityRequirement Requirement) requirements)
+    {
+        var deniedCapability = requirements.Requirement is McpCapabilityRequirement.Any
+            ? requirements.Capabilities[0]
+            : requirements.Capabilities.First(capability => !_capabilityPolicy.IsAllowed(capability));
+        return _capabilityPolicy.Require(deniedCapability);
+    }
+
+    private static (IReadOnlyList<McpCapability> Capabilities, McpCapabilityRequirement Requirement) GetEffectiveCapabilityRequirements(
+        McpToolDefinition definition,
+        IDictionary<string, JsonElement>? arguments)
+    {
+        if (definition.Name is not "automation.start")
+        {
+            return (definition.Capabilities, definition.CapabilityRequirement);
+        }
+
+        if (arguments is null)
+        {
+            return ([], McpCapabilityRequirement.All);
+        }
+
+        KeyValuePair<string, JsonElement> kindArgument = arguments.FirstOrDefault(argument =>
+            string.Equals(argument.Key, "kind", StringComparison.OrdinalIgnoreCase));
+        if (kindArgument.Key is null || kindArgument.Value.ValueKind is not JsonValueKind.String)
+        {
+            return ([], McpCapabilityRequirement.All);
+        }
+
+        var kind = kindArgument.Value.GetString()?.Trim();
+        var operation = definition.OperationCapabilities.FirstOrDefault(candidate =>
+            string.Equals(candidate.Operation, kind, StringComparison.OrdinalIgnoreCase));
+        return operation is null
+            ? ([], McpCapabilityRequirement.All)
+            : (operation.Capabilities, McpCapabilityRequirement.All);
+    }
+
+    private void Record(
+        McpToolDefinition definition,
+        IReadOnlyList<McpCapability> capabilities,
+        string approval,
+        string result,
+        string? operationId)
     {
         try
         {
@@ -148,7 +194,7 @@ public sealed class McpRequestGuard(
                 approval,
                 result,
                 operationId,
-                definition.Capabilities
+                capabilities
                     .Select(static capability => capability.ToString())
                     .ToArray(),
                 RuntimeIdentity: "mcp",

@@ -294,7 +294,8 @@ public sealed class McpSecurityHardeningTests
                 (context, token) => guard.InvokeAsync(
                     context.Params.Name,
                     () => next(context, token),
-                    token)))
+                    token,
+                    context.Params.Arguments)))
             .WithTools<GuardedCommandTool>();
 
         await using var provider = services.BuildServiceProvider(validateScopes: true);
@@ -307,6 +308,80 @@ public sealed class McpSecurityHardeningTests
 
         Assert.NotEqual(true, result.IsError);
         Assert.True(GuardedCommandTool.Invoked);
+        await cancellation.CancelAsync();
+        await serverTask;
+    }
+
+    [Fact]
+    public async Task RequestFilter_ShouldUseOperationSpecificAutomationCapabilities()
+    {
+        var settings = new AppSettings();
+        settings.McpSecurity.AllowInputAutomation = false;
+        settings.McpSecurity.AllowRecording = false;
+        settings.McpSecurity.AllowCommandExecute = true;
+        var audit = new McpAuditStore();
+        var guard = new McpRequestGuard(
+            new McpCapabilityPolicy(new TestSettingsService(settings)),
+            new AutoApprovalService(),
+            audit,
+            new TestSettingsService(settings),
+            TimeProvider.System);
+        GuardedAutomationTool.InvocationCount = 0;
+        var clientToServer = new Pipe();
+        var serverToClient = new Pipe();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var services = new ServiceCollection();
+        _ = services
+            .AddMcpServer(options => options.ProtocolVersion = "2026-07-28")
+            .WithStreamServerTransport(clientToServer.Reader.AsStream(), serverToClient.Writer.AsStream())
+            .WithRequestFilters(filters => filters.AddCallToolFilter(next =>
+                (context, token) => guard.InvokeAsync(
+                    context.Params.Name,
+                    () => next(context, token),
+                    token,
+                    context.Params.Arguments)))
+            .WithTools<GuardedAutomationTool>();
+
+        await using var provider = services.BuildServiceProvider(validateScopes: true);
+        var serverTask = provider.GetRequiredService<McpServer>().RunAsync(cancellation.Token);
+        await using var client = await McpClient.CreateAsync(
+            new StreamClientTransport(clientToServer.Writer.AsStream(), serverToClient.Reader.AsStream()),
+            cancellationToken: cancellation.Token);
+
+        var run = await client.CallToolAsync(
+            "automation.start",
+            new Dictionary<string, object?> { ["kind"] = " RUN " },
+            cancellationToken: cancellation.Token);
+        var play = await client.CallToolAsync(
+            "automation.start",
+            new Dictionary<string, object?> { ["kind"] = "play" },
+            cancellationToken: cancellation.Token);
+        var record = await client.CallToolAsync(
+            "automation.start",
+            new Dictionary<string, object?> { ["kind"] = "record" },
+            cancellationToken: cancellation.Token);
+
+        Assert.NotEqual(true, run.IsError);
+        Assert.Equal(true, play.IsError);
+        Assert.Equal(true, record.IsError);
+        Assert.Equal(1, GuardedAutomationTool.InvocationCount);
+        Assert.Collection(
+            audit.Snapshot(),
+            entry =>
+            {
+                Assert.Equal("success", entry.Result);
+                Assert.Equal(["CommandExecute"], entry.Capabilities);
+            },
+            entry =>
+            {
+                Assert.Equal("denied", entry.Result);
+                Assert.Equal(["MacroRead", "InputAutomation"], entry.Capabilities);
+            },
+            entry =>
+            {
+                Assert.Equal("denied", entry.Result);
+                Assert.Equal(["Recording", "FileWrite"], entry.Capabilities);
+            });
         await cancellation.CancelAsync();
         await serverTask;
     }
@@ -381,6 +456,18 @@ public sealed class McpSecurityHardeningTests
         {
             Invoked = true;
             return "This tool should not run.";
+        }
+    }
+
+    private sealed class GuardedAutomationTool
+    {
+        public static int InvocationCount { get; set; }
+
+        [McpServerTool(Name = "automation.start", ReadOnly = false, Destructive = false, Idempotent = false)]
+        public string Start(string kind)
+        {
+            InvocationCount++;
+            return kind;
         }
     }
 }

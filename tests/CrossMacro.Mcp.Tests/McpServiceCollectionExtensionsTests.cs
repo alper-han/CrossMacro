@@ -19,7 +19,17 @@ public sealed class McpServiceCollectionExtensionsTests
         Assert.Equal(typeof(AutoApprovalService), GetImplementationType<IApprovalService>(services));
         Assert.Equal(typeof(McpAuditStore), GetImplementationType<IMcpAuditStore>(services));
         Assert.Equal(typeof(McpRequestGuard), GetImplementationType<McpRequestGuard>(services));
-        Assert.Equal(typeof(CrossMacroMcpTools), GetImplementationType<CrossMacroMcpTools>(services));
+        Assert.Equal(typeof(McpRuntimeTools), GetImplementationType<McpRuntimeTools>(services));
+        Assert.Equal(typeof(McpSettingsTools), GetImplementationType<McpSettingsTools>(services));
+        Assert.Equal(typeof(McpProfileTools), GetImplementationType<McpProfileTools>(services));
+        Assert.Equal(typeof(McpTextExpansionTools), GetImplementationType<McpTextExpansionTools>(services));
+        Assert.Equal(typeof(McpTaskTools), GetImplementationType<McpTaskTools>(services));
+        Assert.Equal(typeof(McpAutomationTools), GetImplementationType<McpAutomationTools>(services));
+        Assert.Equal(typeof(McpCommandTools), GetImplementationType<McpCommandTools>(services));
+        Assert.Equal(typeof(McpMacroTools), GetImplementationType<McpMacroTools>(services));
+        Assert.Equal(typeof(McpClipboardTools), GetImplementationType<McpClipboardTools>(services));
+        Assert.Equal(typeof(McpWindowTools), GetImplementationType<McpWindowTools>(services));
+        Assert.Equal(typeof(McpScreenTools), GetImplementationType<McpScreenTools>(services));
         Assert.Equal(typeof(StdioMcpServer), GetImplementationType<IMcpServer>(services));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(TimeProvider));
     }

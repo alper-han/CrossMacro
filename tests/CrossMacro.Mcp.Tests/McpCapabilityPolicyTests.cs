@@ -8,13 +8,24 @@ public sealed class McpCapabilityPolicyTests
         var settings = new AppSettings();
         var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
 
-        Assert.True(policy.IsAllowed(McpCapability.StatusRead));
-        Assert.True(policy.IsAllowed(McpCapability.MacroRead));
-        Assert.True(policy.IsAllowed(McpCapability.ScreenRead));
-        Assert.True(policy.IsAllowed(McpCapability.ClipboardRead));
-        Assert.True(policy.IsAllowed(McpCapability.InputAutomation));
-        Assert.True(policy.IsAllowed(McpCapability.CommandExecute));
-        Assert.True(policy.IsAllowed(McpCapability.ShellExecute));
+        foreach (McpCapability capability in Enum.GetValues<McpCapability>())
+        {
+            Assert.Equal(capability is not McpCapability.PrivilegeElevation, policy.IsAllowed(capability));
+        }
+    }
+
+    [Fact]
+    public void PersistedSecuritySettings_ShouldControlTheirMatchingCapabilities()
+    {
+        foreach (McpSecuritySetting setting in Enum.GetValues<McpSecuritySetting>())
+        {
+            var settings = new AppSettings();
+            settings.McpSecurity.Set(setting, false);
+            var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
+
+            Assert.False(policy.IsAllowed(ToCapability(setting)));
+            Assert.Equal("capability_denied", policy.Require(ToCapability(setting)).Errors[0].Code);
+        }
     }
 
     [Fact]
@@ -27,10 +38,10 @@ public sealed class McpCapabilityPolicyTests
 
         policy.SetRestricted(true);
 
-        Assert.True(policy.IsAllowed(McpCapability.StatusRead));
-        Assert.True(policy.IsAllowed(McpCapability.MacroRead));
-        Assert.False(policy.IsAllowed(McpCapability.ScreenRead));
-        Assert.False(policy.IsAllowed(McpCapability.WindowRead));
+        foreach (McpCapability capability in Enum.GetValues<McpCapability>())
+        {
+            Assert.Equal(capability is McpCapability.StatusRead or McpCapability.MacroRead, policy.IsAllowed(capability));
+        }
         Assert.Equal("capability_denied", policy.Require(McpCapability.ScreenRead).Errors[0].Code);
     }
 
@@ -61,6 +72,30 @@ public sealed class McpCapabilityPolicyTests
         Assert.False(policy.IsAllowed(McpCapability.TextExpansionWrite));
         Assert.False(policy.IsAllowed(McpCapability.TaskManage));
     }
+
+    private static McpCapability ToCapability(McpSecuritySetting setting) => setting switch
+    {
+        McpSecuritySetting.MacroRead => McpCapability.MacroRead,
+        McpSecuritySetting.ScreenRead => McpCapability.ScreenRead,
+        McpSecuritySetting.ClipboardRead => McpCapability.ClipboardRead,
+        McpSecuritySetting.ClipboardWrite => McpCapability.ClipboardWrite,
+        McpSecuritySetting.InputAutomation => McpCapability.InputAutomation,
+        McpSecuritySetting.Recording => McpCapability.Recording,
+        McpSecuritySetting.WindowRead => McpCapability.WindowRead,
+        McpSecuritySetting.WindowControl => McpCapability.WindowControl,
+        McpSecuritySetting.FileRead => McpCapability.FileRead,
+        McpSecuritySetting.FileWrite => McpCapability.FileWrite,
+        McpSecuritySetting.CommandExecute => McpCapability.CommandExecute,
+        McpSecuritySetting.ShellExecute => McpCapability.ShellExecute,
+        McpSecuritySetting.PrivilegeElevation => McpCapability.PrivilegeElevation,
+        McpSecuritySetting.SettingsRead => McpCapability.SettingsRead,
+        McpSecuritySetting.SettingsWrite => McpCapability.SettingsWrite,
+        McpSecuritySetting.ProfileManage => McpCapability.ProfileManage,
+        McpSecuritySetting.TextExpansionRead => McpCapability.TextExpansionRead,
+        McpSecuritySetting.TextExpansionWrite => McpCapability.TextExpansionWrite,
+        McpSecuritySetting.TaskManage => McpCapability.TaskManage,
+        _ => throw new ArgumentOutOfRangeException(nameof(setting), setting, "Unknown MCP security setting."),
+    };
 
     private sealed class TestSettingsService(AppSettings settings) : ISettingsService
     {

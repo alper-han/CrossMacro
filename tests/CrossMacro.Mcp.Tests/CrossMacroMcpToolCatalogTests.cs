@@ -140,8 +140,8 @@ public sealed class CrossMacroMcpToolCatalogTests
     [Fact]
     public void Catalog_ShouldMatchTheExplicitMcpToolRegistration()
     {
-        var registeredNames = typeof(CrossMacroMcpTools)
-            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+        var registeredNames = McpToolTypeCatalog.All
+            .SelectMany(static toolType => toolType.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             .Select(static method => method.GetCustomAttribute<McpServerToolAttribute>())
             .Where(static attribute => attribute is not null)
             .Select(static attribute => attribute!.Name)

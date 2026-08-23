@@ -62,7 +62,12 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
                 continue;
             }
 
-            using var image = _native.CreateImageForRect(display, ToCGRect(sourceRect));
+            var displayLocalRect = new ScreenRect(
+                checked(sourceRect.X - displayBounds.X),
+                checked(sourceRect.Y - displayBounds.Y),
+                sourceRect.Width,
+                sourceRect.Height);
+            using var image = _native.CreateImageForRect(display, ToCGRect(displayLocalRect));
             if (image.IsEmpty)
             {
                 throw new InvalidOperationException($"CoreGraphics returned an empty image for display {display} and region {sourceRect}.");

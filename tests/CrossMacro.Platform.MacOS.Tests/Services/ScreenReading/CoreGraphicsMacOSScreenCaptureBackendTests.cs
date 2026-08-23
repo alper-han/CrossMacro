@@ -109,7 +109,7 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
     }
 
     [Fact]
-    public void Capture_PassesGlobalDisplayCoordinatesToCoreGraphics()
+    public void Capture_TranslatesGlobalRegionToNegativeOriginDisplayLocalCoordinates()
     {
         var native = new FakeCoreGraphicsNative()
             .AddDisplay(1, Rect(-3, -2, 3, 2), Image(1, 1, 4, [Pixel(9, 8, 7)]));
@@ -120,7 +120,19 @@ public sealed class CoreGraphicsMacOSScreenCaptureBackendTests
         using var screenFrame = new ScreenFrame(frame.LogicalBounds, frame.Stride, frame.PixelFormat, frame.Pixels);
         Assert.Equal(new ScreenRect(-2, -1, 1, 1), screenFrame.LogicalBounds);
         Assert.Equal(new ScreenPixelColor(9, 8, 7), screenFrame.GetPixel(new ScreenPoint(-2, -1)));
-        Assert.Equal(new ScreenRect(-2, -1, 1, 1), native.LastCaptureRect);
+        Assert.Equal(new ScreenRect(1, 1, 1, 1), native.LastCaptureRect);
+    }
+
+    [Fact]
+    public void Capture_TranslatesGlobalRegionToPositiveOriginDisplayLocalCoordinates()
+    {
+        var native = new FakeCoreGraphicsNative()
+            .AddDisplay(1, Rect(1920, 200, 1280, 720), Image(1, 1, 4, [Pixel(9, 8, 7)]));
+        var backend = new CoreGraphicsMacOSScreenCaptureBackend(native);
+
+        _ = backend.Capture(new ScreenRect(2020, 250, 1, 1), CancellationToken.None);
+
+        Assert.Equal(new ScreenRect(100, 50, 1, 1), native.LastCaptureRect);
     }
 
     [Fact]

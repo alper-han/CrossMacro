@@ -154,7 +154,8 @@ public sealed class SchedulerServiceTests
     [Fact]
     public async Task StopAsync_TimeoutLeavesCtsOwnedUntilTimerCompletes()
     {
-        var service = new SchedulerService(_repository, _executor, TimeProvider.System);
+        var timeProvider = new FakeTimeProvider();
+        var service = new SchedulerService(_repository, _executor, timeProvider);
         var executionStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var allowExecutionToFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var executionCancellationToken = CancellationToken.None;
@@ -177,22 +178,24 @@ public sealed class SchedulerServiceTests
         };
         service.AddTask(task);
         task.IsEnabled = true;
-        task.NextRunTime = DateTime.UtcNow;
+        task.NextRunTime = timeProvider.GetUtcNow().UtcDateTime;
         service.Start();
-        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System);
 
-        await service.StopAsync().WaitAsync(TimeSpan.FromSeconds(3));
+        var stopTask = service.StopAsync();
+        _ = stopTask.IsCompleted.Should().BeFalse();
+        timeProvider.Advance(TimeSpan.FromSeconds(2));
+        await stopTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System);
 
         _ = service.Completion.IsCompleted.Should().BeFalse();
         service.Start();
         _ = service.IsRunning.Should().BeFalse();
         using var registration = executionCancellationToken.Register(static () => { });
         _ = allowExecutionToFinish.TrySetResult();
-        await service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
-        await Task.Delay(TimeSpan.FromMilliseconds(50));
+        await service.Completion.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System);
         service.Start();
         _ = service.IsRunning.Should().BeTrue();
-        await service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        await service.StopAsync();
     }
 
     [Fact]

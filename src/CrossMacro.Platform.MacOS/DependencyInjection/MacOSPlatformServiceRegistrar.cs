@@ -4,6 +4,15 @@ namespace CrossMacro.Platform.MacOS.DependencyInjection;
 [SupportedOSPlatform("macos")]
 public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
+    public static void RegisterNativeClipboardServices(IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        _ = services.AddSingleton<MacOSNativeClipboardService>();
+        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
+    }
+
     public void RegisterPlatformServices(IServiceCollection services)
     {
         _ = services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();
@@ -12,6 +21,7 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddSingleton<IScreenFrameProvider, MacOSScreenFrameProvider>();
         _ = services.AddSingleton<IMacOSScreenRecordingPermissionProbe, CoreGraphicsScreenRecordingPermissionProbe>();
         _ = services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
+        _ = services.AddSingleton<IWindowManager, MacOSWindowManager>();
 
 #pragma warning disable CS8634 // Intentionally nullable for optional service
         _ = services.AddSingleton<IExtensionStatusNotifier?>(_ => null);

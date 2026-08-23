@@ -40,23 +40,24 @@ internal static class Program
     {
         ConfigurePlatformServices(services);
         GuiHostBootstrap.AddCommonGuiServices(services);
-        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<AvaloniaClipboardService>());
-        _ = services.AddSingleton<IImageClipboardService, NoOpImageClipboardService>();
-        _ = services.AddSingleton<IImageClipboardReader>(sp => (NoOpImageClipboardService)sp.GetRequiredService<IImageClipboardService>());
+        RegisterNativeClipboardServices(services);
     }
 
     private static void ConfigureCliServices(IServiceCollection services, CliRuntimeProfile runtimeProfile)
     {
         ConfigurePlatformServices(services);
-        _ = services.AddSingleton<IClipboardService, CrossMacro.Cli.Services.NoOpClipboardService>();
-        _ = services.AddSingleton<IImageClipboardService, NoOpImageClipboardService>();
-        _ = services.AddSingleton<IImageClipboardReader>(sp => (NoOpImageClipboardService)sp.GetRequiredService<IImageClipboardService>());
+        RegisterNativeClipboardServices(services);
         _ = services.AddCrossMacroCommonRuntimeServices();
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
         _ = services.AddCrossMacroMcp();
+    }
+
+    private static void RegisterNativeClipboardServices(IServiceCollection services)
+    {
+        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
     }
 
 }

@@ -17,6 +17,7 @@ public sealed class MacOSPlatformServiceRegistrarTests
         Assert.Equal(typeof(MacOSScreenFrameProvider), services.Last(s => s.ServiceType == typeof(IScreenFrameProvider)).ImplementationType);
         Assert.Equal(typeof(CoreGraphicsScreenRecordingPermissionProbe), services.Last(s => s.ServiceType == typeof(IMacOSScreenRecordingPermissionProbe)).ImplementationType);
         Assert.Equal(typeof(MacOSPermissionCheckerService), services.Last(s => s.ServiceType == typeof(IPermissionChecker)).ImplementationType);
+        Assert.Equal(typeof(MacOSWindowManager), services.Last(s => s.ServiceType == typeof(IWindowManager)).ImplementationType);
     }
 
     [Fact]
@@ -37,5 +38,43 @@ public sealed class MacOSPlatformServiceRegistrarTests
         _ = Assert.IsType<MacOSCoordinateStrategyFactory>(strategyFactory);
         _ = Assert.IsType<GenericDisplaySessionService>(displaySession);
         Assert.Null(notifier);
+    }
+
+    [Fact]
+    public void RegisterNativeClipboardServices_UsesOneNativePasteboardServiceForAllClipboardContracts()
+    {
+        var services = new ServiceCollection();
+
+        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
+        using var provider = services.BuildServiceProvider();
+
+        var clipboard = provider.GetRequiredService<IClipboardService>();
+        var imageWriter = provider.GetRequiredService<IImageClipboardService>();
+        var imageReader = provider.GetRequiredService<IImageClipboardReader>();
+
+        _ = Assert.IsType<MacOSNativeClipboardService>(clipboard);
+        Assert.Same(clipboard, imageWriter);
+        Assert.Same(clipboard, imageReader);
+    }
+
+    [Fact]
+    public void Registrations_BuildAndResolveWithValidationEnabled()
+    {
+        var services = new ServiceCollection();
+        new MacOSPlatformServiceRegistrar().RegisterPlatformServices(services);
+        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
+
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true,
+        });
+
+        Assert.NotNull(provider.GetRequiredService<IWindowManager>());
+        Assert.NotNull(provider.GetRequiredService<IClipboardService>());
+        Assert.NotNull(provider.GetRequiredService<IImageClipboardService>());
+        Assert.NotNull(provider.GetRequiredService<IImageClipboardReader>());
+        Assert.NotNull(provider.GetRequiredService<Func<IInputCapture>>());
+        Assert.NotNull(provider.GetRequiredService<Func<IInputSimulator>>());
     }
 }

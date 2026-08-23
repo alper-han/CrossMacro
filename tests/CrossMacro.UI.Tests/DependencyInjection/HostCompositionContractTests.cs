@@ -26,8 +26,8 @@ public sealed class HostCompositionContractTests
         yield return [
             "src/CrossMacro.UI.MacOS/Program.cs",
             "new MacOSPlatformServiceRegistrar().RegisterPlatformServices",
-            "NoOpImageClipboardService",
-            "NoOpImageClipboardService",
+            "MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices",
+            "MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices",
             "RuntimeContext",
         ];
     }

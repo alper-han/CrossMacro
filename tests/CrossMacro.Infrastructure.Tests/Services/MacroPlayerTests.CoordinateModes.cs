@@ -530,6 +530,47 @@ public sealed partial class MacroPlayerTests
     }
 
     [Fact]
+    public async Task PlayAsync_WhenRawRelativeMacroHasConsecutiveMoves_DoesNotSynchronizeCursorPositionBetweenMoves()
+    {
+        _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = _positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((100, 100)));
+        var simulator = new TrackingInputSimulator();
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator);
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 3,
+                    Y = -2,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                },
+                new()
+                {
+                    Type = EventType.MouseMove,
+                    X = 5,
+                    Y = 4,
+                    CoordinateMode = MouseCoordinateMode.Relative,
+                    CoordinateSpace = MouseCoordinateSpace.RawDevice,
+                },
+            },
+        };
+
+        await player.PlayAsync(macro);
+
+        _ = simulator.InitializedWidth.Should().Be(0);
+        _ = simulator.InitializedHeight.Should().Be(0);
+        _ = simulator.AbsoluteMoves.Should().BeEmpty();
+        _ = simulator.Operations.Should().Equal("rel:3,-2", "rel:5,4");
+        _ = await _positionProvider.Received(1).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenMixedMacroUsesRelativeOnlySimulator_ThrowsBeforeInjectingInput()
     {
         var simulator = new TrackingInputSimulator(forceRelativeOnly: true);

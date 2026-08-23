@@ -877,7 +877,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                 && !eventToExecute.UseCurrentPosition
                 && (eventToExecute.X is not 0 || eventToExecute.Y is not 0);
 
-            bool shouldFlushPendingCursorMovement = !willResolveExplicitAbsoluteButtonPosition
+            bool shouldFlushPendingCursorMovement = state.HasPendingLogicalMove
+                && !willResolveExplicitAbsoluteButtonPosition
                 && (isNonScrollMouseButtonEvent
                     || isScrollMouseButtonEvent
                     || (coordinateMode is MouseCoordinateMode.Relative
@@ -1027,10 +1028,6 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             state.PendingLogicalMoveIsRelative = false;
         }
 
-        if (!coordinator.HasKnownPosition)
-        {
-            _ = await coordinator.TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false);
-        }
     }
 
     private static void LogMotionTransportSummary(

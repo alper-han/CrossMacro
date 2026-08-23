@@ -41,6 +41,35 @@ public sealed class MacOSInputSimulatorTests
     }
 
     [Fact]
+    public void PostCreatedEvent_WhenCreationFailed_DoesNotPostOrRelease()
+    {
+        var postCount = 0;
+        var releaseCount = 0;
+
+        var posted = MacOSInputSimulator.PostCreatedEvent(
+            IntPtr.Zero,
+            _ => postCount++,
+            _ => releaseCount++);
+
+        Assert.False(posted);
+        Assert.Equal(0, postCount);
+        Assert.Equal(0, releaseCount);
+    }
+
+    [Fact]
+    public void PostCreatedEvent_WhenCreationSucceeded_PostsAndAlwaysReleases()
+    {
+        var releaseCount = 0;
+
+        _ = Assert.Throws<InvalidOperationException>(() => MacOSInputSimulator.PostCreatedEvent(
+            new IntPtr(1),
+            _ => throw new InvalidOperationException("post failed"),
+            _ => releaseCount++));
+
+        Assert.Equal(1, releaseCount);
+    }
+
+    [Fact]
     public void CreateKeyboardFlags_DoesNotRequestPostEventAccess()
     {
         var postRequests = 0;

@@ -138,6 +138,9 @@ internal static partial class CoreGraphics
     public static partial CGEventModifiers CGEventGetFlags(IntPtr eventRef);
 
     [LibraryImport(CoreGraphicsLib)]
+    public static partial ulong CGEventGetTimestamp(IntPtr eventRef);
+
+    [LibraryImport(CoreGraphicsLib)]
     public static partial long CGEventGetIntegerValueField(IntPtr eventRef, CGEventField field);
 
     [LibraryImport(CoreGraphicsLib)]
@@ -145,6 +148,13 @@ internal static partial class CoreGraphics
 
     [LibraryImport(CoreGraphicsLib)]
     public static partial CGPoint CGEventGetLocation(IntPtr eventRef);
+
+    [LibraryImport(CoreGraphicsLib)]
+    public static partial IntPtr CGWindowListCopyWindowInfo(uint option, uint relativeToWindow);
+
+    [LibraryImport(CoreGraphicsLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CGRectMakeWithDictionaryRepresentation(IntPtr dictionary, out CGRect rect);
 
     /// <summary>
     /// Gets the unicode string from a keyboard event
@@ -324,6 +334,7 @@ internal static partial class CoreGraphics
         ScrollWheelEventPointDeltaAxis1 = 96,
         ScrollWheelEventPointDeltaAxis2 = 97,
         ScrollWheelEventPointDeltaAxis3 = 98,
+        ScrollWheelEventIsContinuous = 88,
         ScrollWheelEventInstantMouser = 14,
     }
 
@@ -339,6 +350,14 @@ internal static partial class CoreGraphics
     {
         public double width;
         public double height;
+    }
+
+    [Flags]
+    public enum CGWindowListOption : uint
+    {
+        OnScreenOnly = 1,
+        IncludingWindow = 8,
+        ExcludeDesktopElements = 16,
     }
 
     [StructLayout(LayoutKind.Sequential)]

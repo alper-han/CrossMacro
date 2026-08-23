@@ -23,6 +23,7 @@ internal static class MacOSInputEventPolicy
         ushort nativeKeyCode,
         CoreGraphics.CGEventModifiers flags,
         long timestamp,
+        long timestampMicroseconds,
         out CapturedInputEvent inputEvent)
     {
         inputEvent = default;
@@ -48,6 +49,7 @@ internal static class MacOSInputEventPolicy
             Code = code,
             Value = value,
             Timestamp = timestamp,
+            TimestampMicroseconds = timestampMicroseconds,
         };
 
         return true;
@@ -58,6 +60,7 @@ internal static class MacOSInputEventPolicy
         long subtype,
         long data1,
         long timestamp,
+        long timestampMicroseconds,
         out CapturedInputEvent inputEvent)
     {
         inputEvent = default;
@@ -94,9 +97,58 @@ internal static class MacOSInputEventPolicy
             Code = code,
             Value = value,
             Timestamp = timestamp,
+            TimestampMicroseconds = timestampMicroseconds,
         };
 
         return true;
+    }
+
+    internal static bool TryCreateScrollInput(
+        ushort code,
+        long value,
+        long timestamp,
+        long timestampMicroseconds,
+        out CapturedInputEvent inputEvent)
+    {
+        inputEvent = default;
+        if (value is 0 || code is not (InputEventCode.REL_WHEEL or InputEventCode.REL_HWHEEL))
+        {
+            return false;
+        }
+
+        inputEvent = new CapturedInputEvent
+        {
+            Type = InputEventType.MouseScroll,
+            Code = code,
+            Value = (int)Math.Clamp(value, int.MinValue, int.MaxValue),
+            Timestamp = timestamp,
+            TimestampMicroseconds = timestampMicroseconds,
+        };
+        return true;
+    }
+
+    internal static long ResolveScrollDelta(
+        bool isContinuous,
+        long lineDelta,
+        long pointDelta,
+        long fixedPointDelta)
+    {
+        if (!isContinuous)
+        {
+            return lineDelta;
+        }
+
+        if (pointDelta is not 0)
+        {
+            return pointDelta;
+        }
+
+        if (fixedPointDelta is not 0)
+        {
+            return Math.Sign(fixedPointDelta);
+        }
+
+        return lineDelta;
     }
 
     internal static ulong CreateHidEventMask(bool useSessionSystemDefinedTap)
@@ -132,6 +184,10 @@ internal static class MacOSInputEventPolicy
 
     internal static bool ShouldIgnoreKeyboardEvent(long eventSourceUserData)
         => eventSourceUserData == InputEventMarkers.TextExpansionKeyboardEvent;
+
+    internal static bool ShouldReenableEventTap(CoreGraphics.CGEventType type) =>
+        type is CoreGraphics.CGEventType.TapDisabledByTimeout
+            or CoreGraphics.CGEventType.TapDisabledByUserInput;
 
     internal static long GetCurrentTimestamp() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 

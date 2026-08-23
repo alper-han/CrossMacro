@@ -887,9 +887,12 @@ timeout when an explicit window-wait budget is required.
   displays `left`, `top`, `width`, `height` and converts the latter to
   `right = left + width`, `bottom = top + height`.
 - `screen pixel --relative` and `pixelcolor rel` add a delta to the live cursor.
-   `move rel-raw`/`move rel` preserve raw device-relative behavior;
-   `move rel-logical` uses logical desktop pixels and needs a known cursor
+   `move rel-raw`/`move rel` use raw-device relative deltas where the platform
+   exposes them; `move rel-logical` uses logical desktop pixels and needs a known cursor
    position (an absolute move, a position provider, or the initial anchor).
+   On macOS, CoreGraphics records relative deltas but replays them by posting absolute
+   desktop targets. It is therefore desktop-relative emulation, not virtual-HID raw
+   injection, and cannot support pointer-lock/FPS playback without a DriverKit backend.
   Movement-only logical-relative macros cooperate with manual cursor movement:
   later deltas start from the live cursor position. Logical-relative movement
   followed by a click, button, drag, image, or screen-coordinate action still

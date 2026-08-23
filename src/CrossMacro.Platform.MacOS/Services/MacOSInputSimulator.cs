@@ -163,8 +163,10 @@ public sealed class MacOSInputSimulator :
                 1,
                 delta);
 
-        CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
-        CoreFoundation.CFRelease(eventRef);
+        _ = PostCreatedEvent(
+            eventRef,
+            static handle => CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, handle),
+            CoreFoundation.CFRelease);
     }
 
     public void KeyPress(int keyCode, bool pressed)
@@ -321,10 +323,38 @@ public sealed class MacOSInputSimulator :
     private static void PostUnicodeKeyboardEvent(ushort[] codeUnits, bool keyDown, long? marker)
     {
         var eventRef = CoreGraphics.CGEventCreateKeyboardEvent(IntPtr.Zero, 0, keyDown);
-        ApplyKeyboardMarker(eventRef, marker);
-        CoreGraphics.CGEventKeyboardSetUnicodeString(eventRef, (nuint)codeUnits.Length, codeUnits);
-        CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, eventRef);
-        CoreFoundation.CFRelease(eventRef);
+        _ = PostCreatedEvent(
+            eventRef,
+            handle =>
+            {
+                ApplyKeyboardMarker(handle, marker);
+                CoreGraphics.CGEventKeyboardSetUnicodeString(handle, (nuint)codeUnits.Length, codeUnits);
+                CoreGraphics.CGEventPost(CoreGraphics.CGEventTapLocation.HIDEventTap, handle);
+            },
+            CoreFoundation.CFRelease);
+    }
+
+    internal static bool PostCreatedEvent(
+        IntPtr eventRef,
+        Action<IntPtr> post,
+        Action<IntPtr> release)
+    {
+        ArgumentNullException.ThrowIfNull(post);
+        ArgumentNullException.ThrowIfNull(release);
+        if (eventRef == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            post(eventRef);
+            return true;
+        }
+        finally
+        {
+            release(eventRef);
+        }
     }
 
     private void PostKeyboardEvent(int keyCode, bool pressed, long? marker)

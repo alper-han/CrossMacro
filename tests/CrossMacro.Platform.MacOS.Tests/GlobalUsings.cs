@@ -10,6 +10,7 @@ global using CrossMacro.Platform.MacOS.Strategies;
 global using CrossMacro.TestInfrastructure;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Reflection;
+global using System.Diagnostics;
 global using System.Runtime.InteropServices;
 global using System.Runtime.Versioning;
 global using Xunit;

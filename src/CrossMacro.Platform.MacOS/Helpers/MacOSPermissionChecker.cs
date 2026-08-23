@@ -34,7 +34,9 @@ public static class MacOSPermissionChecker
             PostEventGranted: postEventApiAvailable && PreflightPostEventAccess(),
             AccessibilityGranted: IsAccessibilityTrusted(),
             ListenEventApiAvailable: listenEventApiAvailable,
-            PostEventApiAvailable: postEventApiAvailable);
+            PostEventApiAvailable: postEventApiAvailable,
+            ScreenRecordingGranted: IsScreenRecordingAccessGranted(),
+            ScreenRecordingApiAvailable: IsScreenRecordingPreflightApiAvailable());
     }
 
     public static bool IsListenEventAccessGranted()
@@ -70,6 +72,20 @@ public static class MacOSPermissionChecker
             isApiAvailable: IsPostEventRequestApiAvailable,
             requestAccess: CoreGraphics.CGRequestPostEventAccess)
             || PromptAccessibilityPermission();
+    }
+
+    public static bool IsScreenRecordingAccessGranted()
+    {
+        return CheckPermissionAccess(
+            isApiAvailable: IsScreenRecordingPreflightApiAvailable,
+            checkAccess: CoreGraphics.CGPreflightScreenCaptureAccess);
+    }
+
+    public static bool RequestScreenRecordingAccess()
+    {
+        return RequestPermissionAccess(
+            isApiAvailable: IsScreenRecordingRequestApiAvailable,
+            requestAccess: CoreGraphics.CGRequestScreenCaptureAccess);
     }
 
     public static bool PromptAccessibilityPermission()
@@ -114,6 +130,16 @@ public static class MacOSPermissionChecker
         });
     }
 
+    public static void OpenScreenRecordingSettings()
+    {
+        _ = Process.Start(new ProcessStartInfo
+        {
+            FileName = "/usr/bin/open",
+            Arguments = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+            UseShellExecute = false,
+        });
+    }
+
     private static bool IsCoreGraphicsListenEventPreflightApiAvailable()
     {
         return OperatingSystem.IsMacOSVersionAtLeast(10, 15)
@@ -141,6 +167,18 @@ public static class MacOSPermissionChecker
     {
         return OperatingSystem.IsMacOSVersionAtLeast(10, 15)
             && CoreGraphics.IsCGRequestPostEventAccessAvailable();
+    }
+
+    private static bool IsScreenRecordingPreflightApiAvailable()
+    {
+        return OperatingSystem.IsMacOSVersionAtLeast(10, 15)
+            && CoreGraphics.IsCGPreflightScreenCaptureAccessAvailable();
+    }
+
+    private static bool IsScreenRecordingRequestApiAvailable()
+    {
+        return OperatingSystem.IsMacOSVersionAtLeast(10, 15)
+            && CoreGraphics.IsCGRequestScreenCaptureAccessAvailable();
     }
 
     private static bool PreflightCoreGraphicsListenEventAccess()

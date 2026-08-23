@@ -1476,6 +1476,16 @@ public sealed class DoctorServiceTests
             return false;
         }
 
+        public bool IsScreenRecordingAccessGranted()
+        {
+            return _status.IsGranted(MacOSPermissionRequirement.ScreenRecording);
+        }
+
+        public bool RequestScreenRecordingAccess()
+        {
+            return false;
+        }
+
         public bool IsAccessibilityTrusted()
         {
             return _status.AccessibilityGranted;
@@ -1497,6 +1507,10 @@ public sealed class DoctorServiceTests
         }
 
         public void OpenInputMonitoringSettings()
+        {
+        }
+
+        public void OpenScreenRecordingSettings()
         {
         }
     }

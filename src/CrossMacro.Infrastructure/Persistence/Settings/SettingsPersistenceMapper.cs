@@ -16,6 +16,7 @@ internal static class SettingsPersistenceMapper
             EnableTrayIcon = source.EnableTrayIcon,
             StartMinimized = source.StartMinimized,
             SuppressFastLoopWarning = source.SuppressFastLoopWarning,
+            MacOSScreenRecordingOnboardingCompleted = source.MacOSScreenRecordingOnboardingCompleted,
             LogLevel = source.LogLevel,
             Theme = source.Theme,
             Language = source.Language,
@@ -62,6 +63,7 @@ internal static class SettingsPersistenceMapper
             EnableTrayIcon = global.EnableTrayIcon,
             StartMinimized = global.StartMinimized,
             SuppressFastLoopWarning = global.SuppressFastLoopWarning,
+            MacOSScreenRecordingOnboardingCompleted = global.MacOSScreenRecordingOnboardingCompleted,
             LogLevel = global.LogLevel,
             Theme = global.Theme,
             Language = global.Language,
@@ -97,6 +99,7 @@ internal static class SettingsPersistenceMapper
         target.EnableTrayIcon = global.EnableTrayIcon;
         target.StartMinimized = global.StartMinimized;
         target.SuppressFastLoopWarning = global.SuppressFastLoopWarning;
+        target.MacOSScreenRecordingOnboardingCompleted = global.MacOSScreenRecordingOnboardingCompleted;
         target.LogLevel = global.LogLevel;
         target.Theme = global.Theme;
         target.Language = global.Language;

@@ -205,6 +205,31 @@ public sealed class MacOSPermissionCheckerServiceTests
         Assert.Equal(2, postRequests);
     }
 
+    [Fact]
+    public void ScreenRecordingPermission_UsesDedicatedProbeAndRequest()
+    {
+        var probeCalls = 0;
+        var requestCalls = 0;
+        var service = new MacOSPermissionCheckerService(
+            () => default,
+            () => false,
+            isScreenRecordingAccessGranted: () =>
+            {
+                probeCalls++;
+                return true;
+            },
+            requestScreenRecordingAccess: () =>
+            {
+                requestCalls++;
+                return true;
+            });
+
+        Assert.True(service.IsPermissionGranted(MacOSPermissionRequirement.ScreenRecording));
+        Assert.True(service.RequestPermission(MacOSPermissionRequirement.ScreenRecording));
+        Assert.Equal(1, probeCalls);
+        Assert.Equal(1, requestCalls);
+    }
+
     [Theory]
     [InlineData(MacOSPermissionRequirement.ListenEvent, true, false, false)]
     [InlineData(MacOSPermissionRequirement.PostEvent, false, true, false)]

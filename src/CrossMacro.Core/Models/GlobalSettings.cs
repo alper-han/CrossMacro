@@ -21,6 +21,8 @@ public class GlobalSettings
     /// </summary>
     public bool SuppressFastLoopWarning { get; set; }
 
+    public bool MacOSScreenRecordingOnboardingCompleted { get; set; }
+
     /// <summary>
     /// Minimum log level for the application.
     /// Valid values: Debug, Information, Warning, Error

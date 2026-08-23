@@ -209,6 +209,7 @@ public sealed class SettingsServiceTests : IDisposable
         service.Current.LoopDelayMaxMs = 250;
         service.Current.StartMinimized = true;
         service.Current.SuppressFastLoopWarning = true;
+        service.Current.MacOSScreenRecordingOnboardingCompleted = true;
 
         // Act
         service.Save();
@@ -226,6 +227,7 @@ public sealed class SettingsServiceTests : IDisposable
         _ = loaded.LoopDelayMaxMs.Should().Be(250);
         _ = loaded.StartMinimized.Should().BeTrue();
         _ = loaded.SuppressFastLoopWarning.Should().BeTrue();
+        _ = loaded.MacOSScreenRecordingOnboardingCompleted.Should().BeTrue();
     }
 
     [Fact]

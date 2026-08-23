@@ -27,6 +27,11 @@ public class AppSettings
     /// </summary>
     public bool SuppressFastLoopWarning { get; set; }
 
+    /// <summary>
+    /// Whether the user completed the optional macOS Screen Recording onboarding choice.
+    /// </summary>
+    public bool MacOSScreenRecordingOnboardingCompleted { get; set; }
+
     // Playback Settings
 
     /// <summary>

@@ -3,7 +3,8 @@ namespace CrossMacro.UI.Services;
 
 internal sealed class DesktopPermissionGateService(
     IDisplaySessionService displaySessionService,
-    Func<IPermissionChecker?> getPermissionChecker)
+    Func<IPermissionChecker?> getPermissionChecker,
+    Func<ISettingsService> getSettingsService)
 {
     internal readonly record struct GateResult(bool Handled, string? UnsupportedSessionReason)
     {
@@ -26,6 +27,7 @@ internal sealed class DesktopPermissionGateService(
 
     private readonly IDisplaySessionService _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
     private readonly Func<IPermissionChecker?> _getPermissionChecker = getPermissionChecker ?? throw new ArgumentNullException(nameof(getPermissionChecker));
+    private readonly Func<ISettingsService> _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
 
     public async Task<GateResult> TryHandleAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
@@ -43,6 +45,8 @@ internal sealed class DesktopPermissionGateService(
             }
         }
 
+        await HandleOptionalScreenRecordingOnboardingAsync(desktop, permissionChecker).ConfigureAwait(false);
+
         var sessionSupport = await _displaySessionService.IsSessionSupportedAsync(CancellationToken.None).ConfigureAwait(false);
         if (!sessionSupport.Supported)
         {
@@ -50,6 +54,73 @@ internal sealed class DesktopPermissionGateService(
         }
 
         return GateResult.Continue();
+    }
+
+    private async Task HandleOptionalScreenRecordingOnboardingAsync(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        IPermissionChecker? permissionChecker)
+    {
+        try
+        {
+            ISettingsService settingsService = _getSettingsService();
+            if (!ShouldOfferOptionalScreenRecording(permissionChecker, settingsService.Current))
+            {
+                return;
+            }
+
+            var macOSPermissionChecker = (IMacOSPermissionChecker)permissionChecker!;
+
+            await RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
+            {
+                var shouldEnable = await ShowDialogAsync<bool>(
+                    bootstrapOwner,
+                    () => CreateCenteredConfirmationDialog(
+                        UIStrings.MacOSScreenRecordingOptionalTitle,
+                        UIStrings.MacOSScreenRecordingOptionalMessage,
+                        UIStrings.EnableButton,
+                        UIStrings.NotNowButton)).ConfigureAwait(false);
+
+                settingsService.Current.MacOSScreenRecordingOnboardingCompleted = true;
+                await settingsService.SaveAsync().ConfigureAwait(false);
+                if (!shouldEnable)
+                {
+                    return;
+                }
+
+                RequestOptionalScreenRecording(macOSPermissionChecker);
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[DesktopStartupCoordinator] Optional macOS Screen Recording onboarding failed; continuing startup");
+        }
+    }
+
+    internal static bool ShouldOfferOptionalScreenRecording(
+        IPermissionChecker? permissionChecker,
+        AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        if (permissionChecker is not IMacOSPermissionChecker macOSPermissionChecker
+            || !permissionChecker.IsSupported
+            || settings.MacOSScreenRecordingOnboardingCompleted)
+        {
+            return false;
+        }
+
+        MacOSPermissionStatus status = macOSPermissionChecker.GetCurrentStatus();
+        return status.ScreenRecordingApiAvailable
+            && !status.IsGranted(MacOSPermissionRequirement.ScreenRecording);
+    }
+
+    internal static void RequestOptionalScreenRecording(IMacOSPermissionChecker permissionChecker)
+    {
+        ArgumentNullException.ThrowIfNull(permissionChecker);
+        _ = permissionChecker.RequestScreenRecordingAccess();
+        if (!permissionChecker.IsScreenRecordingAccessGranted())
+        {
+            permissionChecker.OpenScreenRecordingSettings();
+        }
     }
 
     internal static bool IsStartupPermissionBlocked(IPermissionChecker? permissionChecker)

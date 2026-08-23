@@ -10,4 +10,6 @@ internal sealed class CoreGraphicsScreenCapturePermission : IMacOSScreenCaptureP
     public bool Preflight() => CoreGraphics.CGPreflightScreenCaptureAccess();
 
     public bool Request() => CoreGraphics.CGRequestScreenCaptureAccess();
+
+    public void OpenSettings() => MacOSPermissionChecker.OpenScreenRecordingSettings();
 }

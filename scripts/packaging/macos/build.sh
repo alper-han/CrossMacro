@@ -78,8 +78,6 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
     <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>CrossMacro needs to send events to other applications for macro playback.</string>
     <key>NSInputMonitoringUsageDescription</key>
     <string>CrossMacro needs to monitor keyboard and mouse input for macro recording and global shortcuts.</string>
 </dict>

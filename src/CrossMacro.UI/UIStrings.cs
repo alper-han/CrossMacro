@@ -40,6 +40,12 @@ public static class UIStrings
         "macOS still does not report Accessibility permission for CrossMacro.\n\n" +
         "If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.";
 
+    public const string MacOSScreenRecordingOptionalTitle = "Optional Screen Recording Permission";
+
+    public const string MacOSScreenRecordingOptionalMessage =
+        "CrossMacro can now record and play normal macros. Screen Recording is optional and is used only by screenshots, pixel/color checks, image matching, and other visual automation.\n\n" +
+        "Enable it now to prevent visual workflows from being interrupted later, or choose Not Now and CrossMacro will ask only when a visual feature is used.";
+
     public const string PortalScreenReadingGuidanceTitle = "Screen Reading Source Required";
 
     public const string PortalScreenReadingGuidanceMessage =
@@ -53,6 +59,8 @@ public static class UIStrings
     public const string OpenSettingsButton = "Open Settings";
 
     public const string ContinueButton = "Continue";
+    public const string EnableButton = "Enable";
+    public const string NotNowButton = "Not Now";
 
     /// <summary>
     /// Exit button text.

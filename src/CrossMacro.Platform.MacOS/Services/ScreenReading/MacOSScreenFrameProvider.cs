@@ -134,6 +134,12 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
             _ = _permission.Request();
         }
 
-        return _permission.Preflight();
+        if (_permission.Preflight())
+        {
+            return true;
+        }
+
+        _permission.OpenSettings();
+        return false;
     }
 }

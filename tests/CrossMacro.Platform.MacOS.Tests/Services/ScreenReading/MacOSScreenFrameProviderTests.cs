@@ -67,6 +67,7 @@ public sealed class MacOSScreenFrameProviderTests
         Assert.Contains("Screen Recording", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(2, permission.PreflightCalls);
         Assert.Equal(1, permission.RequestCalls);
+        Assert.Equal(1, permission.OpenSettingsCalls);
         Assert.Equal(0, backend.CaptureCalls);
     }
 
@@ -178,6 +179,7 @@ public sealed class MacOSScreenFrameProviderTests
         public int PreflightCalls { get; private set; }
 
         public int RequestCalls { get; private set; }
+        public int OpenSettingsCalls { get; private set; }
 
         public bool Preflight()
         {
@@ -191,6 +193,11 @@ public sealed class MacOSScreenFrameProviderTests
         {
             RequestCalls++;
             return true;
+        }
+
+        public void OpenSettings()
+        {
+            OpenSettingsCalls++;
         }
     }
 

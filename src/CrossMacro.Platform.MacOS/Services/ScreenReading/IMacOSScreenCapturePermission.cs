@@ -9,4 +9,6 @@ internal interface IMacOSScreenCapturePermission
     public bool Preflight();
 
     public bool Request();
+
+    public void OpenSettings();
 }

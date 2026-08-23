@@ -242,13 +242,71 @@ public sealed class DesktopPermissionGateServiceTests
     {
         var displaySessionService = new UnsupportedDisplaySessionService();
 
-        var service = new DesktopPermissionGateService(displaySessionService, () => null);
+        var settingsService = Substitute.For<ISettingsService>();
+        _ = settingsService.Current.Returns(new AppSettings());
+        var service = new DesktopPermissionGateService(
+            displaySessionService,
+            () => null,
+            () => settingsService);
         var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
 
         var result = await service.TryHandleAsync(desktop);
 
         Assert.False(result.Handled);
         Assert.Equal("unsupported session", result.UnsupportedSessionReason);
+    }
+
+    [Fact]
+    public void ShouldOfferOptionalScreenRecording_WhenMissingAndNotCompleted_ReturnsTrue()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: true,
+            accessibilityGranted: true);
+
+        Assert.True(DesktopPermissionGateService.ShouldOfferOptionalScreenRecording(
+            checker,
+            new AppSettings()));
+    }
+
+    [Fact]
+    public void ShouldOfferOptionalScreenRecording_WhenOnboardingCompleted_ReturnsFalse()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: true,
+            accessibilityGranted: true);
+        var settings = new AppSettings { MacOSScreenRecordingOnboardingCompleted = true };
+
+        Assert.False(DesktopPermissionGateService.ShouldOfferOptionalScreenRecording(checker, settings));
+    }
+
+    [Fact]
+    public void ShouldOfferOptionalScreenRecording_WhenApiUnavailable_ReturnsFalse()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: true,
+            accessibilityGranted: true,
+            screenRecordingApiAvailable: false);
+
+        Assert.False(DesktopPermissionGateService.ShouldOfferOptionalScreenRecording(
+            checker,
+            new AppSettings()));
+    }
+
+    [Fact]
+    public void RequestOptionalScreenRecording_WhenStillDenied_RequestsAndOpensSettings()
+    {
+        var checker = new TestMacOSPermissionChecker(
+            listenEventGranted: true,
+            postEventGranted: true,
+            accessibilityGranted: true);
+
+        DesktopPermissionGateService.RequestOptionalScreenRecording(checker);
+
+        Assert.Equal(1, checker.ScreenRecordingRequestCount);
+        Assert.Equal(1, checker.ScreenRecordingSettingsOpenCount);
     }
 
     private sealed class UnsupportedDisplaySessionService : IDisplaySessionService
@@ -274,6 +332,7 @@ public sealed class DesktopPermissionGateServiceTests
         private readonly bool _listenEventApiAvailable;
         private readonly bool? _listenEventListedOrGranted;
         private readonly bool _postEventApiAvailable;
+        private readonly bool _screenRecordingApiAvailable;
 
         public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
         {
@@ -288,6 +347,7 @@ public sealed class DesktopPermissionGateServiceTests
             bool listenEventApiAvailable = true,
             bool? listenEventListedOrGranted = null,
             bool postEventApiAvailable = true,
+            bool screenRecordingApiAvailable = true,
             bool isSupported = true)
         {
             _listenEventGranted = listenEventGranted;
@@ -296,6 +356,7 @@ public sealed class DesktopPermissionGateServiceTests
             _listenEventApiAvailable = listenEventApiAvailable;
             _listenEventListedOrGranted = listenEventListedOrGranted;
             _postEventApiAvailable = postEventApiAvailable;
+            _screenRecordingApiAvailable = screenRecordingApiAvailable;
             IsSupported = isSupported;
         }
 
@@ -305,6 +366,8 @@ public sealed class DesktopPermissionGateServiceTests
         public int AccessibilityRequestCount { get; private set; }
         public int InputMonitoringSettingsOpenCount { get; private set; }
         public int AccessibilitySettingsOpenCount { get; private set; }
+        public int ScreenRecordingRequestCount { get; private set; }
+        public int ScreenRecordingSettingsOpenCount { get; private set; }
 
         public MacOSPermissionStatus GetCurrentStatus()
         {
@@ -313,7 +376,8 @@ public sealed class DesktopPermissionGateServiceTests
                 PostEventGranted: _postEventGranted,
                 AccessibilityGranted: _accessibilityGranted,
                 ListenEventApiAvailable: _listenEventApiAvailable,
-                PostEventApiAvailable: _postEventApiAvailable);
+                PostEventApiAvailable: _postEventApiAvailable,
+                ScreenRecordingApiAvailable: _screenRecordingApiAvailable);
         }
 
         public bool IsAccessibilityTrusted()
@@ -357,6 +421,14 @@ public sealed class DesktopPermissionGateServiceTests
             return true;
         }
 
+        public bool IsScreenRecordingAccessGranted() => false;
+
+        public bool RequestScreenRecordingAccess()
+        {
+            ScreenRecordingRequestCount++;
+            return true;
+        }
+
         public bool RequestPermission(MacOSPermissionRequirement requirement)
         {
             return requirement switch
@@ -364,6 +436,7 @@ public sealed class DesktopPermissionGateServiceTests
                 MacOSPermissionRequirement.ListenEvent => RequestListenEventAccess(),
                 MacOSPermissionRequirement.PostEvent => RequestPostEventAccess(),
                 MacOSPermissionRequirement.Accessibility => RequestAccessibilityPermission(),
+                MacOSPermissionRequirement.ScreenRecording => RequestScreenRecordingAccess(),
                 _ => false,
             };
         }
@@ -375,6 +448,7 @@ public sealed class DesktopPermissionGateServiceTests
                 MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
                 MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
                 MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
+                MacOSPermissionRequirement.ScreenRecording => IsScreenRecordingAccessGranted(),
                 _ => false,
             };
         }
@@ -382,6 +456,11 @@ public sealed class DesktopPermissionGateServiceTests
         public void OpenInputMonitoringSettings()
         {
             InputMonitoringSettingsOpenCount++;
+        }
+
+        public void OpenScreenRecordingSettings()
+        {
+            ScreenRecordingSettingsOpenCount++;
         }
 
         private bool RequestAccessibilityPermission()
@@ -435,6 +514,10 @@ public sealed class DesktopPermissionGateServiceTests
             return false;
         }
 
+        public bool IsScreenRecordingAccessGranted() => false;
+
+        public bool RequestScreenRecordingAccess() => false;
+
         public bool IsAccessibilityTrusted()
         {
             AccessibilityProbeCount++;
@@ -473,6 +556,10 @@ public sealed class DesktopPermissionGateServiceTests
         }
 
         public void OpenInputMonitoringSettings()
+        {
+        }
+
+        public void OpenScreenRecordingSettings()
         {
         }
     }

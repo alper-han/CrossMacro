@@ -11,6 +11,8 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
     private readonly Func<bool> _isAccessibilityTrusted;
     private readonly Func<bool> _requestListenEventAccess;
     private readonly Func<bool> _requestPostEventAccess;
+    private readonly Func<bool> _isScreenRecordingAccessGranted;
+    private readonly Func<bool> _requestScreenRecordingAccess;
 
     public MacOSPermissionCheckerService()
         : this(
@@ -20,7 +22,9 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionChecker.IsListenEventListedOrGranted,
             MacOSPermissionChecker.IsPostEventAccessGranted,
             MacOSPermissionChecker.RequestListenEventAccess,
-            MacOSPermissionChecker.RequestPostEventAccess)
+            MacOSPermissionChecker.RequestPostEventAccess,
+            MacOSPermissionChecker.IsScreenRecordingAccessGranted,
+            MacOSPermissionChecker.RequestScreenRecordingAccess)
     { /* Empty */ }
 
     internal MacOSPermissionCheckerService(
@@ -30,7 +34,9 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
         Func<bool>? isListenEventListedOrGranted = null,
         Func<bool>? isPostEventAccessGranted = null,
         Func<bool>? requestListenEventAccess = null,
-        Func<bool>? requestPostEventAccess = null)
+        Func<bool>? requestPostEventAccess = null,
+        Func<bool>? isScreenRecordingAccessGranted = null,
+        Func<bool>? requestScreenRecordingAccess = null)
     {
         _getCurrentStatus = getCurrentStatus;
         _isListenEventListedOrGranted = isListenEventListedOrGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.ListenEvent));
@@ -39,6 +45,8 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
         _isAccessibilityTrusted = isAccessibilityTrusted;
         _requestListenEventAccess = requestListenEventAccess ?? (() => false);
         _requestPostEventAccess = requestPostEventAccess ?? (() => false);
+        _isScreenRecordingAccessGranted = isScreenRecordingAccessGranted ?? (() => false);
+        _requestScreenRecordingAccess = requestScreenRecordingAccess ?? (() => false);
     }
 
     public bool IsSupported => true;
@@ -56,6 +64,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
             MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
             MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
+            MacOSPermissionRequirement.ScreenRecording => IsScreenRecordingAccessGranted(),
             _ => false,
         };
     }
@@ -82,6 +91,7 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
             MacOSPermissionRequirement.ListenEvent => _requestListenEventAccess(),
             MacOSPermissionRequirement.PostEvent => _requestPostEventAccess(),
             MacOSPermissionRequirement.Accessibility => MacOSPermissionChecker.PromptAccessibilityPermission(),
+            MacOSPermissionRequirement.ScreenRecording => RequestScreenRecordingAccess(),
             _ => false,
         };
     }
@@ -95,6 +105,10 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
     {
         return RequestPermission(MacOSPermissionRequirement.PostEvent);
     }
+
+    public bool IsScreenRecordingAccessGranted() => _isScreenRecordingAccessGranted();
+
+    public bool RequestScreenRecordingAccess() => _requestScreenRecordingAccess();
 
     public bool IsAccessibilityTrusted()
     {
@@ -121,5 +135,10 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
     public void OpenInputMonitoringSettings()
     {
         MacOSPermissionChecker.OpenInputMonitoringSettings();
+    }
+
+    public void OpenScreenRecordingSettings()
+    {
+        MacOSPermissionChecker.OpenScreenRecordingSettings();
     }
 }

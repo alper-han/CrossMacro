@@ -14,6 +14,8 @@ public sealed class PersistedGlobalSettings
 
     public bool SuppressFastLoopWarning { get; set; }
 
+    public bool MacOSScreenRecordingOnboardingCompleted { get; set; }
+
     public string LogLevel { get; set; } = "Information";
 
     public string Theme { get; set; } = "Mocha";

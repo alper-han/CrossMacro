@@ -5,7 +5,9 @@ public readonly record struct MacOSPermissionStatus(
     bool PostEventGranted,
     bool AccessibilityGranted,
     bool ListenEventApiAvailable = true,
-    bool PostEventApiAvailable = true)
+    bool PostEventApiAvailable = true,
+    bool ScreenRecordingGranted = false,
+    bool ScreenRecordingApiAvailable = true)
 {
     public bool IsGranted(MacOSPermissionRequirement requirement)
     {
@@ -14,6 +16,7 @@ public readonly record struct MacOSPermissionStatus(
             MacOSPermissionRequirement.ListenEvent => ListenEventApiAvailable && ListenEventGranted,
             MacOSPermissionRequirement.PostEvent => PostEventApiAvailable && PostEventGranted,
             MacOSPermissionRequirement.Accessibility => AccessibilityGranted,
+            MacOSPermissionRequirement.ScreenRecording => ScreenRecordingApiAvailable && ScreenRecordingGranted,
             _ => false,
         };
     }

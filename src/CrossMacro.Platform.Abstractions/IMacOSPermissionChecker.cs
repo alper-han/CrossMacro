@@ -10,5 +10,8 @@ public interface IMacOSPermissionChecker : IPermissionChecker
     public bool RequestPermission(MacOSPermissionRequirement requirement);
     public bool RequestListenEventAccess();
     public bool RequestPostEventAccess();
+    public bool IsScreenRecordingAccessGranted();
+    public bool RequestScreenRecordingAccess();
     public void OpenInputMonitoringSettings();
+    public void OpenScreenRecordingSettings();
 }

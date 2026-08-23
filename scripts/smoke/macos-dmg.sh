@@ -89,6 +89,9 @@ grep -A1 '<key>CFBundleExecutable</key>' "$plist" | grep -F '<string>CrossMacro.
 grep -F '<key>CFBundleVersion</key>' "$plist" >/dev/null || fail "Info.plist CFBundleVersion missing"
 grep -F '<key>CFBundleShortVersionString</key>' "$plist" >/dev/null || fail "Info.plist CFBundleShortVersionString missing"
 grep -F '<key>NSInputMonitoringUsageDescription</key>' "$plist" >/dev/null || fail "Info.plist NSInputMonitoringUsageDescription missing"
+if grep -F '<key>NSAppleEventsUsageDescription</key>' "$plist" >/dev/null; then
+  fail "Info.plist declares unused Apple Events permission"
+fi
 
 if [ "$skip_cli" -eq 0 ]; then
   "$CLI_SMOKE" --binary "$executable"

@@ -349,6 +349,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
         _lastX = currentX;
         _lastY = currentY;
         long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long timestampMicroseconds = GetMonotonicTimestampMicroseconds();
 
         if (_useAbsoluteCoordinates || movement.XValue is not 0)
         {
@@ -358,6 +359,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
                 Code = movement.XCode,
                 Value = movement.XValue,
                 Timestamp = timestamp,
+                TimestampMicroseconds = timestampMicroseconds,
                 DeviceName = "VirtualMouse",
             };
             InputReceived?.Invoke(this, new CapturedInputEventArgs(xArgs));
@@ -371,6 +373,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
                 Code = movement.YCode,
                 Value = movement.YValue,
                 Timestamp = timestamp,
+                TimestampMicroseconds = timestampMicroseconds,
                 DeviceName = "VirtualMouse",
             };
             InputReceived?.Invoke(this, new CapturedInputEventArgs(yArgs));
@@ -382,6 +385,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
             Code = 0,
             Value = 0,
             Timestamp = timestamp,
+            TimestampMicroseconds = timestampMicroseconds,
             DeviceName = "VirtualMouse",
         };
         InputReceived?.Invoke(this, new CapturedInputEventArgs(syncArgs));
@@ -510,6 +514,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
     private void EmitRawMouseMovement(int deltaX, int deltaY)
     {
         long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long timestampMicroseconds = GetMonotonicTimestampMicroseconds();
         if (deltaX is not 0)
         {
             InputReceived?.Invoke(this, new CapturedInputEventArgs(new CapturedInputEvent
@@ -518,6 +523,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
                 Code = InputEventCode.REL_X,
                 Value = deltaX,
                 Timestamp = timestamp,
+                TimestampMicroseconds = timestampMicroseconds,
                 DeviceName = "RawMouse",
             }));
         }
@@ -530,6 +536,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
                 Code = InputEventCode.REL_Y,
                 Value = deltaY,
                 Timestamp = timestamp,
+                TimestampMicroseconds = timestampMicroseconds,
                 DeviceName = "RawMouse",
             }));
         }
@@ -540,6 +547,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
             Code = 0,
             Value = 0,
             Timestamp = timestamp,
+            TimestampMicroseconds = timestampMicroseconds,
             DeviceName = "RawMouse",
         }));
     }
@@ -566,6 +574,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
             Code = evdevCode,
             Value = value,
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            TimestampMicroseconds = GetMonotonicTimestampMicroseconds(),
             DeviceName = "VirtualMouse",
         };
         InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
@@ -613,6 +622,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
                 Code = (ushort)evdevCode,
                 Value = isDown ? 1 : 0,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                TimestampMicroseconds = GetMonotonicTimestampMicroseconds(),
                 DeviceName = "VirtualKeyboard",
             };
             InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
@@ -631,4 +641,15 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
 
     internal static bool IsSessionRecoveryMessage(uint message, IntPtr wParam)
         => WindowsInputEventPolicy.IsSessionRecoveryMessage(message, wParam);
+
+    internal static long GetMonotonicTimestampMicroseconds() =>
+        ToMicroseconds(Stopwatch.GetTimestamp(), Stopwatch.Frequency);
+
+    internal static long ToMicroseconds(long timestamp, long frequency)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(frequency, 0);
+        return checked(
+            (timestamp / frequency * 1_000_000L)
+            + (timestamp % frequency * 1_000_000L / frequency));
+    }
 }

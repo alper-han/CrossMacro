@@ -13,6 +13,44 @@ internal static partial class Accessibility
     [return: MarshalAs(UnmanagedType.I1)]
     public static partial bool AXIsProcessTrustedWithOptions(IntPtr options);
 
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial IntPtr AXUIElementCreateSystemWide();
+
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial IntPtr AXUIElementCreateApplication(int pid);
+
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial int AXUIElementCopyAttributeValue(IntPtr element, IntPtr attribute, out IntPtr value);
+
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial int AXUIElementSetAttributeValue(IntPtr element, IntPtr attribute, IntPtr value);
+
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial int AXUIElementPerformAction(IntPtr element, IntPtr action);
+
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial int AXUIElementGetPid(IntPtr element, out int pid);
+
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial int AXUIElementIsAttributeSettable(
+        IntPtr element,
+        IntPtr attribute,
+        [MarshalAs(UnmanagedType.I1)] out bool settable);
+
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial int AXUIElementSetMessagingTimeout(IntPtr element, float timeoutInSeconds);
+
+    [LibraryImport(ApplicationServicesLib)]
+    public static partial IntPtr AXValueCreate(int type, IntPtr value);
+
+    [LibraryImport(ApplicationServicesLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool AXValueGetValue(IntPtr value, int type, out CoreGraphics.CGPoint result);
+
+    [LibraryImport(ApplicationServicesLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool AXValueGetValue(IntPtr value, int type, out CoreGraphics.CGSize result);
+
     public static bool AXIsProcessTrustedWithPrompt()
     {
         if (!OperatingSystem.IsMacOS())

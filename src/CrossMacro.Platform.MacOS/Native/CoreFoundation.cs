@@ -36,6 +36,46 @@ internal static partial class CoreFoundation
     public static partial nint CFDataGetLength(IntPtr cfData);
 
     [LibraryImport(CoreFoundationLib)]
+    public static partial nint CFArrayGetCount(IntPtr array);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial IntPtr CFArrayGetValueAtIndex(IntPtr array, nint index);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial IntPtr CFDictionaryGetValue(IntPtr dictionary, IntPtr key);
+
+    [LibraryImport(CoreFoundationLib, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr CFStringCreateWithCString(IntPtr allocator, string value, uint encoding);
+
+    [LibraryImport(CoreFoundationLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CFStringGetCString(IntPtr value, byte[] buffer, nint bufferSize, uint encoding);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial nint CFGetTypeID(IntPtr value);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial nint CFStringGetTypeID();
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial nint CFStringGetLength(IntPtr value);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial nint CFStringGetMaximumSizeForEncoding(nint length, uint encoding);
+
+    [LibraryImport(CoreFoundationLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CFEqual(IntPtr left, IntPtr right);
+
+    [LibraryImport(CoreFoundationLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CFNumberGetValue(IntPtr value, int numberType, out int result);
+
+    [LibraryImport(CoreFoundationLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CFBooleanGetValue(IntPtr value);
+
+    [LibraryImport(CoreFoundationLib)]
     public static partial IntPtr CFDictionaryCreate(
         IntPtr allocator,
         IntPtr[] keys,
@@ -48,6 +88,10 @@ internal static partial class CoreFoundation
     public static readonly IntPtr kCFRunLoopCommonModes = ReadIntPtr(_lib, "kCFRunLoopCommonModes");
     public static readonly IntPtr kCFRunLoopDefaultMode = ReadIntPtr(_lib, "kCFRunLoopDefaultMode");
     public static readonly IntPtr kCFBooleanTrue = ReadIntPtr(_lib, "kCFBooleanTrue");
+    public static readonly IntPtr kCFBooleanFalse = ReadIntPtr(_lib, "kCFBooleanFalse");
+
+    public const uint kCFStringEncodingUtf8 = 0x08000100;
+    public const int kCFNumberSInt32Type = 3;
 
     private static IntPtr TryLoadLib(string libPath)
     {

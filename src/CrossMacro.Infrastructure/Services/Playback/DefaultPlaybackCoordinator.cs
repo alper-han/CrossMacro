@@ -139,8 +139,9 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
         _positionBeforeRawMovement = null;
         _rawMovementMayBePending = false;
 
-        // Try to get current position from provider
-        if (_positionProvider is not null
+        // Raw playback with no corner reset never consumes logical cursor coordinates.
+        if (RequiresInitialCursorPosition(macro)
+            && _positionProvider is not null
             && _positionProvider.HasUsableAbsolutePosition()
             && await TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -183,6 +184,24 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             // Recording started from wherever cursor was
             Log.Information("[PlaybackCoordinator] Relative mode: starting from current position");
         }
+    }
+
+    private static bool RequiresInitialCursorPosition(MacroSequence macro)
+    {
+        if (!macro.SkipInitialZeroZero
+            || MacroPositionSemantics.HasAnyLogicalDesktopCoordinateEvents(macro))
+        {
+            return true;
+        }
+
+        return macro.ScriptSteps.Any(step =>
+        {
+            var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Length >= 2
+                && string.Equals(parts[0], "move", StringComparison.OrdinalIgnoreCase)
+                && RunScriptSyntax.TryParseMouseMoveMode(parts[1], out _, out var coordinateSpace)
+                && coordinateSpace is MouseCoordinateSpace.LogicalDesktop;
+        });
     }
 
     public async Task PrepareIterationAsync(

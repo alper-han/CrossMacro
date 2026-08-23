@@ -226,10 +226,20 @@
     <value>Forzar coordenadas relativas</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>Utilice la posición relativa del mouse incluso si se admite la absoluta</value>
+    <value>Graba deltas directos del ratón en lugar de posiciones de pantalla</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>Requerido para usar macros en el juego.</value>
+    <value>Graba deltas relativos sin procesar para juegos y otros casos de uso de entrada relativa.</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
+    <value>Píxeles relativos lógicos</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
+    <value>Graba deltas de píxeles del escritorio en lugar de deltas de entrada sin procesar</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
+    <value>Desactivado registra movimiento directo del dispositivo sin procesar.
+Activado registra deltas de píxeles lógicos del escritorio. Esta opción requiere acceso a la posición global del cursor; la reproducción también requiere compatibilidad con entrada absoluta.</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
     <value>Saltar posición inicial 0,0</value>
@@ -1478,6 +1488,12 @@
   </data>
   <data name="Editor_Relative" xml:space="preserve">
     <value>Relativo</value>
+  </data>
+  <data name="Editor_RelativeRaw" xml:space="preserve">
+    <value>Relativo (entrada sin procesar)</value>
+  </data>
+  <data name="Editor_RelativeLogical" xml:space="preserve">
+    <value>Relativo (píxeles lógicos)</value>
   </data>
   <data name="Editor_MouseButton" xml:space="preserve">
     <value>Botón del ratón:</value>

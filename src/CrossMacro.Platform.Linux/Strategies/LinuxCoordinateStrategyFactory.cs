@@ -8,7 +8,10 @@ public class LinuxCoordinateStrategyFactory(
     private readonly IEnumerable<ICoordinateStrategySelector> _selectors = selectors;
     private readonly ILinuxEnvironmentDetector _environmentDetector = environmentDetector;
 
-    public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero)
+    public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero) =>
+        Create(useAbsoluteCoordinates, forceRelative, skipInitialZero, useLogicalRelativeCoordinates: false);
+
+    public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero, bool useLogicalRelativeCoordinates)
     {
         var compositor = _environmentDetector.DetectedCompositor;
         bool isWayland = _environmentDetector.IsWayland;
@@ -18,7 +21,8 @@ public class LinuxCoordinateStrategyFactory(
             IsWayland: isWayland,
             UseAbsoluteCoordinates: useAbsoluteCoordinates,
             ForceRelative: forceRelative,
-            SkipInitialZero: skipInitialZero
+            SkipInitialZero: skipInitialZero,
+            UseLogicalRelativeCoordinates: useLogicalRelativeCoordinates
         );
 
         var strategy = _selectors

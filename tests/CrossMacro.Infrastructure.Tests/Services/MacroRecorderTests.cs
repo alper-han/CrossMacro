@@ -17,12 +17,12 @@ public sealed class MacroRecorderTests
 
     public MacroRecorderTests()
     {
-        _capture = Substitute.For<IInputCapture>();
+        _capture = Substitute.For<IInputCapture, IMouseCoordinateModeInputCapture>();
         _captureFactory = () => _capture;
 
         _strategy = Substitute.For<ICoordinateStrategy>();
         _strategyFactory = Substitute.For<ICoordinateStrategyFactory>();
-        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(_strategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(_strategy);
 
         _processor = Substitute.For<IInputEventProcessor>();
         _processorFactory = (s) => _processor;
@@ -227,7 +227,7 @@ public sealed class MacroRecorderTests
     {
         // Arrange
         var absoluteStrategy = Substitute.For<ICoordinateStrategy>();
-        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(absoluteStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(absoluteStrategy);
         var recorder = CreateRecorder();
 
         // Act
@@ -257,6 +257,92 @@ public sealed class MacroRecorderTests
         mockSimulator.DidNotReceive().MoveRelative(-20000, -20000);
 
         await _strategy.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WithLogicalRelative_UsesLogicalStrategy()
+    {
+        _ = _strategy.ProducesLogicalCoordinates.Returns(returnThis: true);
+        var modeAwareCapture = (IMouseCoordinateModeInputCapture)_capture;
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var recorder = new MacroRecorder(
+            _captureFactory,
+            _strategyFactory,
+            _processorFactory,
+            () => Substitute.For<IInputSimulator>(),
+            positionProvider);
+
+        await recorder.StartRecordingAsync(
+            recordMouse: true,
+            recordKeyboard: true,
+            ignoredKeys: null,
+            forceRelative: true,
+            skipInitialZero: true,
+            useLogicalRelativeCoordinates: true,
+            cancellationToken: CancellationToken.None);
+
+        _ = _strategyFactory.Received(1).Create(
+            useAbsoluteCoordinates: false,
+            forceRelative: true,
+            skipInitialZero: true,
+            useLogicalRelativeCoordinates: true);
+        modeAwareCapture.Received(1).ConfigureCoordinateMode(
+            useAbsoluteCoordinates: false,
+            useLogicalCoordinates: true);
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WithLogicalRelativeWithoutCursorPosition_ThrowsBeforeCaptureStarts()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
+        var recorder = new MacroRecorder(
+            _captureFactory,
+            _strategyFactory,
+            _processorFactory,
+            () => Substitute.For<IInputSimulator>(),
+            positionProvider);
+
+        var action = async () => await recorder.StartRecordingAsync(
+            recordMouse: true,
+            recordKeyboard: false,
+            ignoredKeys: null,
+            forceRelative: true,
+            skipInitialZero: true,
+            useLogicalRelativeCoordinates: true,
+            cancellationToken: CancellationToken.None);
+
+        _ = await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*requires access to the global cursor position*");
+        _capture.DidNotReceive().Configure(Arg.Any<bool>(), Arg.Any<bool>());
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenLogicalStrategyIsUnavailable_ThrowsWithoutRawFallback()
+    {
+        _ = _strategy.ProducesLogicalCoordinates.Returns(returnThis: false);
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var recorder = new MacroRecorder(
+            _captureFactory,
+            _strategyFactory,
+            _processorFactory,
+            () => Substitute.For<IInputSimulator>(),
+            positionProvider);
+
+        var action = async () => await recorder.StartRecordingAsync(
+            recordMouse: true,
+            recordKeyboard: false,
+            ignoredKeys: null,
+            forceRelative: true,
+            skipInitialZero: true,
+            useLogicalRelativeCoordinates: true,
+            cancellationToken: CancellationToken.None);
+
+        _ = await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not supported by the active input backend*");
+        _capture.DidNotReceive().Configure(Arg.Any<bool>(), Arg.Any<bool>());
     }
 
     [Fact]
@@ -431,7 +517,7 @@ public sealed class MacroRecorderTests
     {
         // Arrange
         var relativeStrategy = new RelativeCoordinateStrategy();
-        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var mockSimulator = Substitute.For<IInputSimulator>();
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
@@ -452,7 +538,7 @@ public sealed class MacroRecorderTests
     {
         var modeAwareCapture = Substitute.For<IInputCapture, IMouseCoordinateModeInputCapture>();
         var relativeStrategy = new RelativeCoordinateStrategy();
-        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var recorder = new MacroRecorder(
             () => modeAwareCapture,
             _strategyFactory,
@@ -479,7 +565,7 @@ public sealed class MacroRecorderTests
         var relativeStrategy = Substitute.For<IRelativeCoordinateStrategy>();
         _ = relativeStrategy.ProducesRelativeCoordinates.Returns(returnThis: true);
         _ = relativeStrategy.ProducesLogicalCoordinates.Returns(returnThis: true);
-        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var recorder = new MacroRecorder(
             () => modeAwareCapture,
             _strategyFactory,
@@ -505,7 +591,7 @@ public sealed class MacroRecorderTests
         // Arrange
         var relativeStrategy = Substitute.For<IRelativeCoordinateStrategy>();
         _ = relativeStrategy.ProducesRelativeCoordinates.Returns(returnThis: true);
-        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var mockSimulator = Substitute.For<IInputSimulator>();
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
@@ -526,7 +612,7 @@ public sealed class MacroRecorderTests
     {
         // Arrange
         var relativeStrategy = new RelativeCoordinateStrategy();
-        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
+        _ = _strategyFactory.Create(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>()).Returns(relativeStrategy);
         var mockSimulator = Substitute.For<IInputSimulator>();
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 

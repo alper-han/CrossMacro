@@ -226,10 +226,20 @@
     <value>فرض الإحداثيات النسبية</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>استخدم موضع الماوس النسبي حتى لو كان المطلق مدعومًا</value>
+    <value>يسجل فروق حركة الماوس الخام المباشرة بدلاً من مواضع الشاشة</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>مطلوب لاستخدام وحدات الماكرو في اللعبة.</value>
+    <value>يسجل الفروق النسبية الخام للألعاب وحالات استخدام الإدخال النسبي الأخرى.</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
+    <value>البكسلات النسبية المنطقية</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
+    <value>سجّل فروق بكسلات سطح المكتب بدلاً من فروق الإدخال الخام</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
+    <value>عند إيقافه، يسجل حركة الجهاز الخام المباشرة.
+عند تشغيله، يسجل فروق بكسلات سطح المكتب المنطقية. يتطلب هذا الخيار الوصول إلى موضع المؤشر العام؛ ويتطلب التشغيل أيضاً دعم الإدخال المطلق.</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
     <value>تخطي الموضع الأولي 0,0</value>
@@ -1478,6 +1488,12 @@
   </data>
   <data name="Editor_Relative" xml:space="preserve">
     <value>نسبي</value>
+  </data>
+  <data name="Editor_RelativeRaw" xml:space="preserve">
+    <value>نسبي (إدخال خام)</value>
+  </data>
+  <data name="Editor_RelativeLogical" xml:space="preserve">
+    <value>نسبي (بكسلات منطقية)</value>
   </data>
   <data name="Editor_MouseButton" xml:space="preserve">
     <value>زر الفأرة:</value>

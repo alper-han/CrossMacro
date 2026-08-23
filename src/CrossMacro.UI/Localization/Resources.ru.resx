@@ -226,10 +226,20 @@
     <value>Использовать относительные координаты</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>Используйте относительное положение мыши, даже если поддерживается абсолютное.</value>
+    <value>Записывает прямые относительные смещения мыши вместо позиций на экране</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>Требуется для использования макросов в игре.</value>
+    <value>Записывает необработанные относительные смещения для игр и других сценариев относительного ввода.</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
+    <value>Логические относительные пиксели</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
+    <value>Записывает смещения пикселей рабочего стола вместо необработанных смещений ввода</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
+    <value>В выключенном состоянии записывается прямое необработанное движение устройства.
+Во включенном состоянии записываются логические смещения пикселей рабочего стола. Для этой опции нужен доступ к глобальной позиции курсора; для воспроизведения также нужна поддержка абсолютного ввода.</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
     <value>Пропустить начальную позицию 0,0</value>
@@ -1478,6 +1488,12 @@
   </data>
   <data name="Editor_Relative" xml:space="preserve">
     <value>Относительный</value>
+  </data>
+  <data name="Editor_RelativeRaw" xml:space="preserve">
+    <value>Относительный (сырой ввод)</value>
+  </data>
+  <data name="Editor_RelativeLogical" xml:space="preserve">
+    <value>Относительный (логические пиксели)</value>
   </data>
   <data name="Editor_MouseButton" xml:space="preserve">
     <value>Кнопка мыши:</value>

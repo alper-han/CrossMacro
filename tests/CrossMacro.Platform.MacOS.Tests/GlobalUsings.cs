@@ -1,6 +1,7 @@
 global using CrossMacro.Core.Services;
 global using CrossMacro.Infrastructure.Services;
 global using CrossMacro.Platform.Abstractions;
+global using CrossMacro.Platform.Abstractions.Recording.Strategies;
 global using CrossMacro.Platform.MacOS.DependencyInjection;
 global using CrossMacro.Platform.MacOS.Native;
 global using CrossMacro.Platform.MacOS.Services;

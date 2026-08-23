@@ -176,6 +176,47 @@
                             </Grid>
                         </Border>
                         
+                        <!-- Logical-relative recording option - only visible when Force Relative is enabled -->
+                        <Border Background="{DynamicResource BackgroundBrush}"
+                                CornerRadius="6"
+                                Padding="12,8"
+                                Margin="24,0,0,0"
+                                IsVisible="{Binding ShowLogicalRelativeCoordinatesOption}">
+                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{localization:Loc Recording_LogicalRelativeCoordinates}" FontWeight="Medium" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{localization:Loc Recording_LogicalRelativeCoordinatesDescription}"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <Border Grid.Column="1"
+                                        Margin="0,0,12,0"
+                                        Background="{DynamicResource SurfaceHoverBrush}"
+                                        CornerRadius="10"
+                                        Width="20" Height="20"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="{localization:Loc Recording_LogicalRelativeCoordinatesHelp}">
+                                    <TextBlock Text="?"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </Border>
+
+                                <ToggleSwitch Grid.Column="2"
+                                               IsChecked="{Binding UseLogicalRelativeCoordinates}"
+                                               IsEnabled="{Binding IsLogicalRelativeCoordinatesAvailable}"
+                                               AutomationProperties.Name="{localization:Loc Recording_LogicalRelativeCoordinates}"
+                                               OnContent="" OffContent=""
+                                              VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
                         <!-- Skip 0,0 option - only visible when Force Relative is enabled -->
                         <Border Background="{DynamicResource BackgroundBrush}" 
                                 CornerRadius="6" 

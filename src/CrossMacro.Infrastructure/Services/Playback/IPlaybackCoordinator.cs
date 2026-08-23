@@ -65,6 +65,13 @@ public interface IPlaybackCoordinator
     public Task<bool> TrySynchronizePositionAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Refreshes the logical cursor position even when a prior estimate exists.
+    /// This is used by cooperative logical-relative movement so manual cursor
+    /// movement becomes the next delta's origin.
+    /// </summary>
+    public Task<bool> RefreshPositionAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Waits until the compositor reports the requested absolute position after
     /// an injected move. Input injection acknowledgement only confirms that the
     /// event reached the virtual device; it does not guarantee that the

@@ -316,7 +316,9 @@ capabilities:
   relative-position mode for recording.
 - Macros that contain logical desktop coordinates, whether absolute positions
   or logical relative deltas, require an absolute-capable playback backend.
-- You can force relative mode with **Force Relative Coordinates**.
+- **Force Relative Coordinates** records direct raw-relative deltas by default.
+  Enable **Logical Relative Pixels** to record logical desktop-pixel deltas;
+  that option is unavailable when no global cursor-position provider exists.
 - You can disable the origin move at recording start with
   **Skip Initial 0,0 Position**.
 
@@ -331,11 +333,16 @@ does not create a separate background cursor: later move/click steps still share
 the user's pointer. The step fails on sessions that do not expose a global
 cursor-position provider, including Niri, Sway, and affected COSMIC sessions.
 
-New relative recordings use logical desktop deltas whenever a global cursor
-provider is available. Playback converts those deltas back to exact logical
-targets, so pointer acceleration does not distort the path. Legacy relative
-events and explicitly authored `rel-raw` events retain raw device semantics;
-use a flat pointer profile when exact replay of those raw deltas matters.
+Force-relative recordings and editor-authored **Relative (Raw Input)** actions
+use raw device deltas and direct relative playback. Enable the recording tab's
+**Logical Relative Pixels** option, use the explicit **Relative (Logical
+Pixels)** editor mode, or use `rel-logical` script mode when exact logical
+desktop-pixel deltas are needed; playback converts those deltas to logical
+targets, so pointer acceleration does not distort their path.
+Movement-only logical-relative macros re-anchor to a manually moved live cursor
+position. Logical-relative movement that precedes a click, button, drag, image,
+or screen-coordinate action remains strict: its target must settle before the
+dependent action runs.
 
 The native Wayland cursor connection is recreated automatically when outputs,
 scale, transform, seat capabilities, or relevant protocol globals change. On

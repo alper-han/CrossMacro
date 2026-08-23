@@ -15,6 +15,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
     private bool _captureMouse;
     private bool _captureKeyboard;
     private bool _useAbsoluteCoordinates;
+    private bool _useRawRelativeCoordinates;
 
     private int _lastX;
     private int _lastY;
@@ -28,6 +29,9 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
     private User32.WindowProc? _sessionWindowProc;
     private readonly string _sessionWindowClassName = $"CrossMacroSessionSwitch_{Guid.NewGuid():N}";
     private bool _sessionNotificationRegistered;
+    private bool _rawMouseInputRegistered;
+    private IntPtr _rawInputBuffer;
+    private int _rawInputBufferSize;
 
     private uint _messagePumpThreadId;
     private CancellationTokenRegistration _startCancellationRegistration;
@@ -52,8 +56,8 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
         bool useAbsoluteCoordinates,
         bool useLogicalCoordinates)
     {
-        _ = useLogicalCoordinates;
         _useAbsoluteCoordinates = useAbsoluteCoordinates;
+        _useRawRelativeCoordinates = !useAbsoluteCoordinates && !useLogicalCoordinates;
     }
 
 
@@ -117,6 +121,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
         {
             UnregisterSessionNotificationWindow();
             UninstallHooks();
+            ReleaseRawInputBuffer();
             _messagePumpThreadId = 0;
         }
     }
@@ -189,6 +194,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
         {
             if (User32.RegisterClassEx(ref windowClass) is 0)
             {
+                ThrowIfRawInputRequired("register the raw input window class");
                 Log.Warning("[WindowsInputCapture] Failed to register session notification window class");
                 return;
             }
@@ -214,15 +220,17 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
 
         if (_sessionWindowHandle == IntPtr.Zero)
         {
+            ThrowIfRawInputRequired("create the raw input window");
             Log.Warning("[WindowsInputCapture] Failed to create session notification window");
             _ = User32.UnregisterClass(_sessionWindowClassName, instanceHandle);
             return;
         }
 
+        RegisterRawMouseInput();
+
         if (!WtsApi32.WTSRegisterSessionNotification(_sessionWindowHandle, NotifyForThisSession))
         {
             Log.Warning("[WindowsInputCapture] Failed to register session notifications");
-            DestroySessionNotificationWindow(instanceHandle);
             return;
         }
 
@@ -236,6 +244,8 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
 
     private void DestroySessionNotificationWindow(IntPtr instanceHandle)
     {
+        // Raw input registration is process-global. Do not remove it here: an older
+        // capture can otherwise unregister a newer capture during a rapid restart.
         if (_sessionNotificationRegistered && _sessionWindowHandle != IntPtr.Zero)
         {
             _ = WtsApi32.WTSUnRegisterSessionNotification(_sessionWindowHandle);
@@ -253,7 +263,11 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
 
     private IntPtr SessionWindowCallback(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        if (IsSessionRecoveryMessage(msg, wParam))
+        if (msg == User32.WM_INPUT && _rawMouseInputRegistered)
+        {
+            ProcessRawMouseInput(lParam);
+        }
+        else if (IsSessionRecoveryMessage(msg, wParam))
         {
             CaptureError?.Invoke(this, new InputCaptureErrorEventArgs("Recovery: Windows session unlocked; restarting input capture."));
         }
@@ -288,7 +302,7 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
             var hookStruct = Marshal.PtrToStructure<MsllHookStruct>(lParam);
             uint msg = (uint)wParam;
 
-            if (msg == User32.WM_MOUSEMOVE)
+            if (msg == User32.WM_MOUSEMOVE && !_useRawRelativeCoordinates)
             {
                 HandleMouseMove(hookStruct.pt.x, hookStruct.pt.y);
             }
@@ -384,6 +398,151 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
             currentY,
             previousX,
             previousY);
+
+    internal static bool TryResolveRawRelativeMovement(
+        ushort flags,
+        int deltaX,
+        int deltaY,
+        out int rawDeltaX,
+        out int rawDeltaY)
+    {
+        rawDeltaX = 0;
+        rawDeltaY = 0;
+        if ((flags & User32.MouseMoveAbsolute) is not 0 || (deltaX is 0 && deltaY is 0))
+        {
+            return false;
+        }
+
+        rawDeltaX = deltaX;
+        rawDeltaY = deltaY;
+        return true;
+    }
+
+    private void RegisterRawMouseInput()
+    {
+        _rawMouseInputRegistered = false;
+        if (!_captureMouse || !_useRawRelativeCoordinates)
+        {
+            return;
+        }
+
+        var rawMouseDevice = new RawInputDevice
+        {
+            UsagePage = User32.HidUsagePageGeneric,
+            Usage = User32.HidUsageGenericMouse,
+            Flags = User32.RidevInputSink,
+            TargetWindow = _sessionWindowHandle,
+        };
+        if (!User32.RegisterRawInputDevices(
+                in rawMouseDevice,
+                numberOfDevices: 1,
+                sizeOfRawInputDevice: (uint)Marshal.SizeOf<RawInputDevice>()))
+        {
+            throw new Win32Exception(Marshal.GetLastPInvokeError(), "Failed to register raw mouse input");
+        }
+
+        _rawMouseInputRegistered = true;
+    }
+
+    private void ThrowIfRawInputRequired(string operation)
+    {
+        if (_captureMouse && _useRawRelativeCoordinates)
+        {
+            throw new Win32Exception(
+                Marshal.GetLastPInvokeError(),
+                $"Failed to {operation} for raw mouse input");
+        }
+    }
+
+    private void ProcessRawMouseInput(IntPtr rawInputHandle)
+    {
+        uint size = 0;
+        uint headerSize = (uint)Marshal.SizeOf<RawInputHeader>();
+        if (User32.GetRawInputData(rawInputHandle, User32.RidInput, IntPtr.Zero, ref size, headerSize) == uint.MaxValue
+            || size < headerSize + (uint)Marshal.SizeOf<RawMouse>())
+        {
+            return;
+        }
+
+        EnsureRawInputBufferCapacity(checked((int)size));
+        uint bytesRead = User32.GetRawInputData(rawInputHandle, User32.RidInput, _rawInputBuffer, ref size, headerSize);
+        if (bytesRead == uint.MaxValue || bytesRead < headerSize + (uint)Marshal.SizeOf<RawMouse>())
+        {
+            return;
+        }
+
+        var header = Marshal.PtrToStructure<RawInputHeader>(_rawInputBuffer);
+        if (header.Type is not User32.RimTypeMouse)
+        {
+            return;
+        }
+
+        var mouse = Marshal.PtrToStructure<RawMouse>(IntPtr.Add(_rawInputBuffer, (int)headerSize));
+        if (TryResolveRawRelativeMovement(mouse.Flags, mouse.LastX, mouse.LastY, out int deltaX, out int deltaY))
+        {
+            EmitRawMouseMovement(deltaX, deltaY);
+        }
+    }
+
+    private void EnsureRawInputBufferCapacity(int requiredSize)
+    {
+        if (_rawInputBufferSize >= requiredSize)
+        {
+            return;
+        }
+
+        _rawInputBuffer = Marshal.ReAllocHGlobal(_rawInputBuffer, (IntPtr)requiredSize);
+        _rawInputBufferSize = requiredSize;
+    }
+
+    private void ReleaseRawInputBuffer()
+    {
+        if (_rawInputBuffer != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(_rawInputBuffer);
+            _rawInputBuffer = IntPtr.Zero;
+            _rawInputBufferSize = 0;
+        }
+
+        _rawMouseInputRegistered = false;
+    }
+
+    private void EmitRawMouseMovement(int deltaX, int deltaY)
+    {
+        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        if (deltaX is not 0)
+        {
+            InputReceived?.Invoke(this, new CapturedInputEventArgs(new CapturedInputEvent
+            {
+                Type = InputEventType.MouseMove,
+                Code = InputEventCode.REL_X,
+                Value = deltaX,
+                Timestamp = timestamp,
+                DeviceName = "RawMouse",
+            }));
+        }
+
+        if (deltaY is not 0)
+        {
+            InputReceived?.Invoke(this, new CapturedInputEventArgs(new CapturedInputEvent
+            {
+                Type = InputEventType.MouseMove,
+                Code = InputEventCode.REL_Y,
+                Value = deltaY,
+                Timestamp = timestamp,
+                DeviceName = "RawMouse",
+            }));
+        }
+
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(new CapturedInputEvent
+        {
+            Type = InputEventType.Sync,
+            Code = 0,
+            Value = 0,
+            Timestamp = timestamp,
+            DeviceName = "RawMouse",
+        }));
+    }
 
     private void EmitMouseButtonOrScrollEvent(ushort evdevCode, int value, ushort type)
     {

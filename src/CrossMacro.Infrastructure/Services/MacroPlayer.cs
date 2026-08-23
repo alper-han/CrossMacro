@@ -55,6 +55,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         public bool HasPendingLogicalMove;
         public int PendingLogicalX;
         public int PendingLogicalY;
+        public bool PendingLogicalMoveIsRelative;
+        public bool AllowsCooperativeLogicalRelativeMovement;
         public int TrajectorySampleCount;
         public int DirectLogicalMoveCount;
     }
@@ -375,7 +377,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             _cachedScreenWidth, _cachedScreenHeight, _session.Token).ConfigureAwait(false);
 
         // Re-anchor the reusable virtual device before logical absolute input.
-        if ((MacroPositionSemantics.HasAnyLogicalDesktopCoordinateEvents(macro)
+        if (!HasOnlyLogicalRelativeMouseMoves(macro)
+            && (MacroPositionSemantics.HasAnyLogicalDesktopCoordinateEvents(macro)
                 || HasLogicalDesktopRuntimeMoveSteps(macro))
             && _coordinator.HasKnownPosition)
         {
@@ -398,6 +401,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         var state = new PlaybackRunState
         {
             ObservedPauseResumeVersion = _session.PauseResumeVersion,
+            AllowsCooperativeLogicalRelativeMovement = HasOnlyLogicalRelativeMouseMoves(macro),
         };
         var trajectoryPlan = MotionTrajectoryResampler.CreatePlan(macro, speedMultiplier, options);
         int totalEvents = trajectoryPlan.Events.Count;
@@ -470,12 +474,13 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (TryCreateMotionTrajectorySlice(
-                    events,
-                    index,
-                    macro,
-                    speedMultiplier,
-                    out var samples,
-                    out var finalLogicalTarget)
+                events,
+                index,
+                macro,
+                speedMultiplier,
+                state.AllowsCooperativeLogicalRelativeMovement,
+                out var samples,
+                out var finalLogicalTarget)
                 && samples.Count > 1)
             {
                 await WaitForEventScheduleAsync(
@@ -493,6 +498,9 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                 state.EventCount += samples.Count - 1;
                 state.TrajectorySampleCount += samples.Count;
                 state.HasPendingLogicalMove = true;
+                state.PendingLogicalMoveIsRelative = MacroPositionSemantics.ResolveCoordinateMode(
+                    events[index],
+                    macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Relative;
                 // Reuse the same bounds and endpoint rules for settlement checks.
                 state.PendingLogicalX = _coordinator?.CurrentX ?? finalLogicalTarget.X;
                 state.PendingLogicalY = _coordinator?.CurrentY ?? finalLogicalTarget.Y;
@@ -524,6 +532,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         int startIndex,
         MacroSequence macro,
         double speedMultiplier,
+        bool allowsCooperativeLogicalRelativeMovement,
         out List<AbsoluteMotionTrajectorySample> samples,
         out (int X, int Y) finalLogicalTarget)
     {
@@ -539,6 +548,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                 startIndex,
                 macro,
                 speedMultiplier,
+                allowsCooperativeLogicalRelativeMovement,
                 out samples,
                 out finalLogicalTarget);
     }
@@ -595,6 +605,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
         int startIndex,
         MacroSequence macro,
         double speedMultiplier,
+        bool allowsCooperativeLogicalRelativeMovement,
         out List<AbsoluteMotionTrajectorySample> samples,
         out (int X, int Y) finalLogicalTarget)
     {
@@ -603,7 +614,8 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
         var coordinator = _coordinator;
         var executor = _eventExecutor;
-        if (_inputSimulator is not IAbsoluteMotionTrajectorySimulator
+        if (allowsCooperativeLogicalRelativeMovement
+            || _inputSimulator is not IAbsoluteMotionTrajectorySimulator
             || coordinator is not { HasKnownPosition: true }
             || executor is null
             || startIndex >= events.Count)
@@ -836,14 +848,23 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
             var coordinateMode = MacroPositionSemantics.ResolveCoordinateMode(eventToExecute, macro.IsAbsoluteCoordinates);
             var coordinateSpace = MacroPositionSemantics.ResolveCoordinateSpace(eventToExecute, macro.IsAbsoluteCoordinates);
-            if (coordinateMode is MouseCoordinateMode.Relative
-                && coordinateSpace is MouseCoordinateSpace.LogicalDesktop
-                && !_coordinator!.HasKnownPosition)
+            var coordinator = _coordinator ?? throw new InvalidOperationException("Playback coordinator is not initialized.");
+            if (state.AllowsCooperativeLogicalRelativeMovement
+                && !state.HasPendingLogicalMove
+                && eventToExecute.Type is EventType.MouseMove
+                && coordinateMode is MouseCoordinateMode.Relative
+                && coordinateSpace is MouseCoordinateSpace.LogicalDesktop)
             {
-                _ = await _coordinator.TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false);
+                _ = await coordinator.RefreshPositionAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            var coordinator = _coordinator ?? throw new InvalidOperationException("Playback coordinator is not initialized.");
+            if (coordinateMode is MouseCoordinateMode.Relative
+                && coordinateSpace is MouseCoordinateSpace.LogicalDesktop
+                && !coordinator.HasKnownPosition)
+            {
+                _ = await coordinator.TrySynchronizePositionAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             var executor = _eventExecutor ?? throw new InvalidOperationException("Playback event executor is not initialized.");
             bool isNonScrollMouseButtonEvent = MacroPositionSemantics.IsNonScrollMouseButtonEvent(eventToExecute);
             bool isScrollMouseButtonEvent = IsScrollMouseButtonEvent(eventToExecute);
@@ -875,6 +896,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                     coordinator.CurrentY,
                     cancellationToken).ConfigureAwait(false);
                 state.HasPendingLogicalMove = false;
+                state.PendingLogicalMoveIsRelative = false;
                 eventToExecute.UseCurrentPosition = true;
                 eventToExecute.X = 0;
                 eventToExecute.Y = 0;
@@ -896,6 +918,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                     target.Y,
                     cancellationToken).ConfigureAwait(false);
                 state.HasPendingLogicalMove = false;
+                state.PendingLogicalMoveIsRelative = false;
                 eventToExecute.X = 0;
                 eventToExecute.Y = 0;
             }
@@ -916,10 +939,12 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                     state.HasPendingLogicalMove = true;
                     state.PendingLogicalX = coordinator.CurrentX;
                     state.PendingLogicalY = coordinator.CurrentY;
+                    state.PendingLogicalMoveIsRelative = coordinateMode is MouseCoordinateMode.Relative;
                 }
                 else
                 {
                     state.HasPendingLogicalMove = false;
+                    state.PendingLogicalMoveIsRelative = false;
                 }
             }
         }
@@ -975,12 +1000,31 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
 
         if (state.HasPendingLogicalMove)
         {
-            await EnsureAbsolutePositionSettledAsync(
-                coordinator,
-                state.PendingLogicalX,
-                state.PendingLogicalY,
-                cancellationToken).ConfigureAwait(false);
+            if (state.AllowsCooperativeLogicalRelativeMovement && state.PendingLogicalMoveIsRelative)
+            {
+                var expectedPosition = (X: state.PendingLogicalX, Y: state.PendingLogicalY);
+                if (await coordinator.RefreshPositionAsync(cancellationToken).ConfigureAwait(false)
+                    && (coordinator.CurrentX, coordinator.CurrentY) != expectedPosition)
+                {
+                    Log.Warning(
+                        "[MacroPlayer] Logical relative cursor position changed from ({ExpectedX},{ExpectedY}) to ({ObservedX},{ObservedY}); continuing from the observed position.",
+                        expectedPosition.X,
+                        expectedPosition.Y,
+                        coordinator.CurrentX,
+                        coordinator.CurrentY);
+                }
+            }
+            else
+            {
+                await EnsureAbsolutePositionSettledAsync(
+                    coordinator,
+                    state.PendingLogicalX,
+                    state.PendingLogicalY,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             state.HasPendingLogicalMove = false;
+            state.PendingLogicalMoveIsRelative = false;
         }
 
         if (!coordinator.HasKnownPosition)
@@ -1111,6 +1155,16 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
                 && RunScriptSyntax.TryParseMouseMoveMode(parts[1], out _, out var coordinateSpace)
                 && coordinateSpace is MouseCoordinateSpace.LogicalDesktop;
         });
+    }
+
+    private static bool HasOnlyLogicalRelativeMouseMoves(MacroSequence macro)
+    {
+        return !HasRuntimeScriptSteps(macro)
+            && macro.Events.Count > 0
+            && macro.Events.All(ev => ev.Type is EventType.None
+                || (ev.Type is EventType.MouseMove
+                    && MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Relative
+                    && MacroPositionSemantics.ResolveCoordinateSpace(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateSpace.LogicalDesktop));
     }
 
     private static bool HasImageClickRuntimeScriptSteps(MacroSequence macro)

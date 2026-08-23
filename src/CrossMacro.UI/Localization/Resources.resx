@@ -229,10 +229,20 @@
     <value>Force Relative Coordinates</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>Use relative mouse position even if absolute is supported</value>
+    <value>Record direct relative mouse deltas instead of screen positions</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>Required to use macros in-game.</value>
+    <value>Records raw relative deltas for games and other relative-input use cases.</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
+    <value>Logical Relative Pixels</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
+    <value>Record desktop-pixel deltas instead of raw input deltas</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
+    <value>Off records direct raw device movement.
+On records logical desktop-pixel deltas. This option requires access to the global cursor position; playback also requires absolute input support.</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
     <value>Skip Initial 0,0 Position</value>
@@ -1490,6 +1500,12 @@
   </data>
   <data name="Editor_Relative" xml:space="preserve">
     <value>Relative</value>
+  </data>
+  <data name="Editor_RelativeRaw" xml:space="preserve">
+    <value>Relative (Raw Input)</value>
+  </data>
+  <data name="Editor_RelativeLogical" xml:space="preserve">
+    <value>Relative (Logical Pixels)</value>
   </data>
   <data name="Editor_MouseButton" xml:space="preserve">
     <value>Mouse Button:</value>

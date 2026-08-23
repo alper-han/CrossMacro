@@ -226,10 +226,20 @@
     <value>相対座標を強制する</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>絶対位置がサポートされている場合でも、相対マウス位置を使用する</value>
+    <value>画面位置ではなく、直接的な相対マウス差分を記録します</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>ゲーム内でマクロを使用するために必要です。</value>
+    <value>ゲームなどの相対入力用途向けに、生の相対差分を記録します。</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
+    <value>論理相対ピクセル</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
+    <value>生の入力差分ではなく、デスクトップのピクセル差分を記録します</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
+    <value>オフでは、生のデバイス移動を直接記録します。
+オンでは、論理デスクトップピクセルの差分を記録します。このオプションにはグローバルカーソル位置へのアクセスが必要で、再生には絶対入力のサポートも必要です。</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
     <value>最初の 0,0 位置をスキップ</value>
@@ -1478,6 +1488,12 @@
   </data>
   <data name="Editor_Relative" xml:space="preserve">
     <value>相対</value>
+  </data>
+  <data name="Editor_RelativeRaw" xml:space="preserve">
+    <value>相対（生入力）</value>
+  </data>
+  <data name="Editor_RelativeLogical" xml:space="preserve">
+    <value>相対（論理ピクセル）</value>
   </data>
   <data name="Editor_MouseButton" xml:space="preserve">
     <value>マウスボタン:</value>

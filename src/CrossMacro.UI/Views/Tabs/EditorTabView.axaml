@@ -266,7 +266,7 @@
                                 </Button>
                             </StackPanel>
 
-                            <!-- Absolute/Relative Toggle (all coordinate-bearing mouse actions) -->
+                            <!-- Coordinate mode (all coordinate-bearing mouse actions) -->
                             <StackPanel Spacing="4" IsVisible="{Binding ShowCoordModeToggle}">
                                 <TextBlock Text="{localization:Loc Editor_CoordinateMode}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <StackPanel Orientation="Horizontal" Spacing="12">
@@ -275,11 +275,16 @@
                                                   Foreground="{DynamicResource TextPrimaryBrush}">
                                          <TextBlock Text="{localization:Loc Editor_Absolute}" FontSize="12"/>
                                      </RadioButton>
-                                     <RadioButton GroupName="CoordMode"
-                                                  IsChecked="{Binding SelectedActionIsRelative, Mode=TwoWay}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}">
-                                         <TextBlock Text="{localization:Loc Editor_Relative}" FontSize="12"/>
-                                     </RadioButton>
+                                      <RadioButton GroupName="CoordMode"
+                                                   IsChecked="{Binding SelectedActionIsRawRelative, Mode=TwoWay}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}">
+                                          <TextBlock Text="{localization:Loc Editor_RelativeRaw}" FontSize="12"/>
+                                      </RadioButton>
+                                      <RadioButton GroupName="CoordMode"
+                                                   IsChecked="{Binding SelectedActionIsLogicalRelative, Mode=TwoWay}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}">
+                                          <TextBlock Text="{localization:Loc Editor_RelativeLogical}" FontSize="12"/>
+                                      </RadioButton>
                                 </StackPanel>
                             </StackPanel>
 

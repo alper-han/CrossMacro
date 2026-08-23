@@ -12,6 +12,23 @@ public sealed class WindowsCoordinateStrategyFactoryTests
         var strategy = factory.Create(useAbsoluteCoordinates: true, forceRelative: true, skipInitialZero: false);
 
         _ = Assert.IsType<CrossMacro.Platform.Abstractions.Recording.Strategies.RelativeCoordinateStrategy>(strategy);
+        Assert.False(strategy.ProducesLogicalCoordinates);
+    }
+
+    [WindowsFact]
+    public void Create_WhenLogicalRelativeRequested_ReturnsLogicalRelativeStrategy()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        var factory = new WindowsCoordinateStrategyFactory(positionProvider);
+
+        var strategy = factory.Create(
+            useAbsoluteCoordinates: true,
+            forceRelative: true,
+            skipInitialZero: false,
+            useLogicalRelativeCoordinates: true);
+
+        var relativeStrategy = Assert.IsType<CrossMacro.Platform.Abstractions.Recording.Strategies.RelativeCoordinateStrategy>(strategy);
+        Assert.True(relativeStrategy.ProducesLogicalCoordinates);
     }
 
     [WindowsFact]
@@ -34,6 +51,7 @@ public sealed class WindowsCoordinateStrategyFactoryTests
         var strategy = factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
 
         _ = Assert.IsType<CrossMacro.Platform.Abstractions.Recording.Strategies.RelativeCoordinateStrategy>(strategy);
+        Assert.False(strategy.ProducesLogicalCoordinates);
     }
 
     [WindowsFact]

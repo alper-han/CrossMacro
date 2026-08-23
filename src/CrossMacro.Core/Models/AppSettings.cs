@@ -113,6 +113,11 @@ public class AppSettings
     public bool ForceRelativeCoordinates { get; set; }
 
     /// <summary>
+    /// Record forced-relative mouse movement as logical desktop-pixel deltas instead of raw device deltas.
+    /// </summary>
+    public bool UseLogicalRelativeCoordinates { get; set; }
+
+    /// <summary>
     /// Skip moving to 0,0 coordinate when recording starts (only applies when ForceRelativeCoordinates is true)
     /// When false, cursor moves to 0,0 at recording start for consistent baseline
     /// </summary>

@@ -543,8 +543,8 @@ public sealed class HeadlessHotkeyActionServiceTests
             Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<IEnumerable<int>>(),
-forceRelative: false,
-skipInitialZero: false,
+            forceRelative: false,
+            skipInitialZero: false,
             Arg.Any<CancellationToken>());
 
         await service.DisposeAsync();
@@ -577,8 +577,43 @@ skipInitialZero: false,
             Arg.Any<bool>(),
             Arg.Any<bool>(),
             Arg.Any<IEnumerable<int>>(),
-forceRelative: true,
-skipInitialZero: true,
+            forceRelative: true,
+            skipInitialZero: true,
+            Arg.Any<CancellationToken>());
+
+        await service.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task RecordingHotkeyToggle_WhenLogicalRelativeEnabled_ForwardsLogicalChoice()
+    {
+        var hotkeys = Substitute.For<IGlobalHotkeyService>();
+        var settings = Substitute.For<ISettingsService>();
+        _ = settings.Current.Returns(new AppSettings
+        {
+            IsMouseRecordingEnabled = true,
+            IsKeyboardRecordingEnabled = true,
+            ForceRelativeCoordinates = true,
+            UseLogicalRelativeCoordinates = true,
+        });
+
+        var recorder = Substitute.For<IMacroRecorder>();
+        _ = recorder.IsRecording.Returns(returnThis: false);
+        var runtimeContext = CreateRuntimeContext(isLinux: true);
+        var player = Substitute.For<IMacroPlayer>();
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        service.Start();
+
+        hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
+        await Task.Yield();
+
+        await recorder.Received(1).StartRecordingAsync(
+            Arg.Is(true),
+            Arg.Is(true),
+            Arg.Any<IEnumerable<int>>(),
+            Arg.Is(true),
+            Arg.Is(false),
+            Arg.Is(true),
             Arg.Any<CancellationToken>());
 
         await service.DisposeAsync();

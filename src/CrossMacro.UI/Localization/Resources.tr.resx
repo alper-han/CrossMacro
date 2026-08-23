@@ -226,10 +226,20 @@
     <value>Göreli Koordinatları Kullan</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>Mutlak koordinatlar desteklense bile fare konumunu göreli olarak kaydeder</value>
+    <value>Ekran konumları yerine doğrudan göreli fare farklarını kaydeder</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>Makroları oyun içinde kullanmak için gereklidir.</value>
+    <value>Oyunlar ve diğer göreli girdi kullanımları için ham göreli farkları kaydeder.</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
+    <value>Mantıksal Göreli Pikseller</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
+    <value>Ham girdi farkları yerine masaüstü piksel farklarını kaydeder</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
+    <value>Kapalıyken doğrudan ham cihaz hareketi kaydedilir.
+Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global fare konumuna erişim ister; oynatma için ayrıca mutlak girdi desteği gerekir.</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
     <value>Başlangıçtaki 0,0 Konumunu Atla</value>
@@ -1490,6 +1500,12 @@
   </data>
   <data name="Editor_Relative" xml:space="preserve">
     <value>Göreli</value>
+  </data>
+  <data name="Editor_RelativeRaw" xml:space="preserve">
+    <value>Göreli (Ham Girdi)</value>
+  </data>
+  <data name="Editor_RelativeLogical" xml:space="preserve">
+    <value>Göreli (Mantıksal Piksel)</value>
   </data>
   <data name="Editor_MouseButton" xml:space="preserve">
     <value>Fare Düğmesi:</value>

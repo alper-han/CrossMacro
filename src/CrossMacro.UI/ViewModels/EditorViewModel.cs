@@ -249,6 +249,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(SelectedImageSearchMatchMode));
             OnPropertyChanged(nameof(SelectedActionIsAbsolute));
             OnPropertyChanged(nameof(SelectedActionIsRelative));
+            OnPropertyChanged(nameof(SelectedActionIsRawRelative));
+            OnPropertyChanged(nameof(SelectedActionIsLogicalRelative));
             NotifyVisibilityChanged();
             OnPropertyChanged(nameof(SelectedActionDisplayText));
             _ = RefreshSelectedImageAssetPreviewAsync();
@@ -313,7 +315,31 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         {
             if (value)
             {
-                SetSelectedActionCoordinateMode(isAbsolute: false);
+                SetSelectedActionCoordinateMode(isAbsolute: false, MouseCoordinateSpace.RawDevice);
+            }
+        }
+    }
+
+    public bool SelectedActionIsRawRelative
+    {
+        get => SelectedAction is { IsAbsolute: false, CoordinateSpace: MouseCoordinateSpace.RawDevice };
+        set
+        {
+            if (value)
+            {
+                SetSelectedActionCoordinateMode(isAbsolute: false, MouseCoordinateSpace.RawDevice);
+            }
+        }
+    }
+
+    public bool SelectedActionIsLogicalRelative
+    {
+        get => SelectedAction is { IsAbsolute: false, CoordinateSpace: MouseCoordinateSpace.LogicalDesktop };
+        set
+        {
+            if (value)
+            {
+                SetSelectedActionCoordinateMode(isAbsolute: false, MouseCoordinateSpace.LogicalDesktop);
             }
         }
     }

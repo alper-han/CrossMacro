@@ -20,10 +20,13 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private readonly ILocalizationService _localizationService;
     private readonly IRuntimeContext _runtimeContext;
     private readonly Action<Action> _postCallback;
+    private readonly IMousePositionProvider? _positionProvider;
+    private readonly IMousePositionChangeSource? _positionChangeSource;
 
     private bool _disposed;
     private bool _isStartingRecording;
     private bool _forceRelativeCoordinates;
+    private bool _useLogicalRelativeCoordinates;
     private RecordingStatusKind _recordingStatusKind = RecordingStatusKind.Ready;
     private LiveCounterUpdateState? _activeCounterUpdateState;
     private long _nextCounterUpdateSessionId;
@@ -82,14 +85,16 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         IGlobalHotkeyService hotkeyService,
         ISettingsService settingsService,
         ILocalizationService localizationService,
-        IRuntimeContext runtimeContext)
+        IRuntimeContext runtimeContext,
+        IMousePositionProvider? positionProvider = null)
         : this(
             recorder,
             hotkeyService,
             settingsService,
             localizationService,
             runtimeContext,
-            action => Dispatcher.UIThread.Post(action))
+            action => Dispatcher.UIThread.Post(action),
+            positionProvider)
     {
     }
 
@@ -99,7 +104,8 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         ISettingsService settingsService,
         ILocalizationService localizationService,
         IRuntimeContext runtimeContext,
-        Action<Action> postCallback)
+        Action<Action> postCallback,
+        IMousePositionProvider? positionProvider = null)
     {
         ArgumentNullException.ThrowIfNull(postCallback);
 
@@ -109,13 +115,16 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _localizationService = localizationService;
         _runtimeContext = runtimeContext;
         _postCallback = postCallback;
+        _positionProvider = positionProvider;
+        _positionChangeSource = positionProvider as IMousePositionChangeSource;
+        _positionChangeSource?.PositionChanged += OnPositionChanged;
         _localizationService.CultureChanged += OnCultureChanged;
         _recordingStatus = BuildRecordingStatus(RecordingStatusKind.Ready);
         _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
         _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
 
         _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
-
+        _useLogicalRelativeCoordinates = _settingsService.Current.UseLogicalRelativeCoordinates;
         _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
 
         _recorder.EventRecorded += OnEventRecorded;
@@ -133,13 +142,17 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
         _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
         _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
+        _useLogicalRelativeCoordinates = _settingsService.Current.UseLogicalRelativeCoordinates;
         _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
 #pragma warning restore MVVMTK0034
 
         OnPropertyChanged(nameof(IsMouseRecordingEnabled));
         OnPropertyChanged(nameof(IsKeyboardRecordingEnabled));
         OnPropertyChanged(nameof(ForceRelativeCoordinates));
+        OnPropertyChanged(nameof(UseLogicalRelativeCoordinates));
         OnPropertyChanged(nameof(SkipInitialZeroZero));
+        OnPropertyChanged(nameof(ShowLogicalRelativeCoordinatesOption));
+        OnPropertyChanged(nameof(IsLogicalRelativeCoordinatesAvailable));
         OnPropertyChanged(nameof(ShowSkipZeroZeroOption));
         OnPropertyChanged(nameof(CanStartRecording));
         OnCanToggleRecordingChanged();
@@ -215,6 +228,8 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 _forceRelativeCoordinates = value;
                 _settingsService.Current.ForceRelativeCoordinates = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowLogicalRelativeCoordinatesOption));
+                OnPropertyChanged(nameof(IsLogicalRelativeCoordinatesAvailable));
                 OnPropertyChanged(nameof(ShowSkipZeroZeroOption));
                 _ = TryPersistSettingChange(
                     () =>
@@ -223,12 +238,56 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                         _settingsService.Current.ForceRelativeCoordinates = previousValue;
                     },
                     nameof(ForceRelativeCoordinates),
+                    nameof(ShowLogicalRelativeCoordinatesOption),
+                    nameof(IsLogicalRelativeCoordinatesAvailable),
                     nameof(ShowSkipZeroZeroOption));
             }
         }
     }
 
     public bool IsForceRelativeSupported => _runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS;
+
+    public bool UseLogicalRelativeCoordinates
+    {
+        get => _useLogicalRelativeCoordinates;
+        set
+        {
+            if (_useLogicalRelativeCoordinates == value)
+            {
+                return;
+            }
+
+            var previousValue = _useLogicalRelativeCoordinates;
+            _useLogicalRelativeCoordinates = value;
+            _settingsService.Current.UseLogicalRelativeCoordinates = value;
+            OnPropertyChanged();
+            _ = TryPersistSettingChange(
+                () =>
+                {
+                    _useLogicalRelativeCoordinates = previousValue;
+                    _settingsService.Current.UseLogicalRelativeCoordinates = previousValue;
+                },
+                nameof(UseLogicalRelativeCoordinates));
+        }
+    }
+
+    public bool ShowLogicalRelativeCoordinatesOption => ForceRelativeCoordinates;
+
+    public bool IsLogicalRelativeCoordinatesAvailable => ForceRelativeCoordinates
+        && HasGlobalCursorPosition;
+
+    private bool HasGlobalCursorPosition => _positionProvider?.HasUsableAbsolutePosition() is true;
+
+    private void OnPositionChanged(object? sender, MousePositionChangedEventArgs e)
+    {
+        _postCallback(() =>
+        {
+            if (!_disposed)
+            {
+                OnPropertyChanged(nameof(IsLogicalRelativeCoordinatesAvailable));
+            }
+        });
+    }
 
     partial void OnSkipInitialZeroZeroChanged(bool oldValue, bool newValue)
     {
@@ -284,13 +343,27 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 _hotkeyService.PauseHotkeyCode,
             ];
 
-            await _recorder.StartRecordingAsync(
-                IsMouseRecordingEnabled,
-                IsKeyboardRecordingEnabled,
-                ignoredKeys,
-                forceRelative: ForceRelativeCoordinates,
-                skipInitialZero: SkipInitialZeroZero,
-                cancellationToken: default).ConfigureAwait(false);
+            if (ForceRelativeCoordinates && UseLogicalRelativeCoordinates)
+            {
+                await _recorder.StartRecordingAsync(
+                    IsMouseRecordingEnabled,
+                    IsKeyboardRecordingEnabled,
+                    ignoredKeys,
+                    forceRelative: ForceRelativeCoordinates,
+                    skipInitialZero: SkipInitialZeroZero,
+                    useLogicalRelativeCoordinates: true,
+                    cancellationToken: default).ConfigureAwait(false);
+            }
+            else
+            {
+                await _recorder.StartRecordingAsync(
+                    IsMouseRecordingEnabled,
+                    IsKeyboardRecordingEnabled,
+                    ignoredKeys,
+                    forceRelative: ForceRelativeCoordinates,
+                    skipInitialZero: SkipInitialZeroZero,
+                    cancellationToken: default).ConfigureAwait(false);
+            }
 
             await RunOnUiThreadAsync(() =>
             {
@@ -494,6 +567,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         // Unsubscribe from events to prevent memory leaks
         _recorder.EventRecorded -= OnEventRecorded;
         _localizationService.CultureChanged -= OnCultureChanged;
+        _positionChangeSource?.PositionChanged -= OnPositionChanged;
     }
 
     private void SetRecordingStatusKind(RecordingStatusKind statusKind)

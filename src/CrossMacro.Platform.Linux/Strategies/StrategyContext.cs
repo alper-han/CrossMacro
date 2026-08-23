@@ -6,5 +6,6 @@ public record StrategyContext(
     bool IsWayland,
     bool UseAbsoluteCoordinates,
     bool ForceRelative,
-    bool SkipInitialZero
+    bool SkipInitialZero,
+    bool UseLogicalRelativeCoordinates
 );

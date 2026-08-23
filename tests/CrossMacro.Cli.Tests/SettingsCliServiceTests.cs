@@ -23,6 +23,7 @@ public sealed class SettingsCliServiceTests
             IsMouseRecordingEnabled = true,
             IsKeyboardRecordingEnabled = true,
             ForceRelativeCoordinates = false,
+            UseLogicalRelativeCoordinates = false,
             SkipInitialZeroZero = false,
             EnableTextExpansion = false,
             Theme = "Mocha",
@@ -104,6 +105,23 @@ public sealed class SettingsCliServiceTests
     }
 
     [Fact]
+    public async Task LogicalRelativeRecording_CanBeGetSetAndReset()
+    {
+        var set = await _service.SetAsync("recording.logicalRelative", "true", CancellationToken.None);
+        Assert.True(set.Success);
+        Assert.True(_current.UseLogicalRelativeCoordinates);
+
+        var get = await _service.GetAsync("recording.logicalRelative", CancellationToken.None);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(get.Data).Value));
+
+        var reset = await _service.ResetAsync("recording.logicalRelative", CancellationToken.None);
+
+        Assert.True(reset.Success);
+        Assert.False(_current.UseLogicalRelativeCoordinates);
+        await _settingsService.Received(2).SaveAsync();
+    }
+
+    [Fact]
     public async Task GetAsync_WithPortalRestoreToken_ReturnsStatusNotRawToken()
     {
         var result = await _service.GetAsync("screen.portalRestoreToken", CancellationToken.None);
@@ -170,6 +188,7 @@ public sealed class SettingsCliServiceTests
         Assert.Contains("mcp.settingsWrite", keys);
         Assert.Contains("mcp.profileManage", keys);
         Assert.Contains("mcp.taskManage", keys);
+        Assert.Contains("recording.logicalRelative", keys);
     }
 
     [Fact]

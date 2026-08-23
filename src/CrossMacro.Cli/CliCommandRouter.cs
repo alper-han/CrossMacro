@@ -236,6 +236,7 @@ public sealed class CliCommandRouter
                 "  recording.mouse            bool\n" +
                 "  recording.keyboard         bool\n" +
                 "  recording.forceRelative    bool\n" +
+                "  recording.logicalRelative  bool\n" +
                 "  recording.skipInitialZeroZero bool\n" +
                 "  textExpansion.enabled      bool\n\n" +
                 "  ui.theme                  string\n" +

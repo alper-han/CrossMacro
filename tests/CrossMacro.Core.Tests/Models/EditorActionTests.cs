@@ -214,18 +214,26 @@ public sealed class EditorActionTests
     }
 
     [Fact]
-    public void IsAbsolute_WhenModeChanges_UsesLogicalSpaceForNewEditorCoordinates()
+    public void IsAbsolute_WhenModeChanges_PreservesExplicitLogicalRelativeCoordinates()
     {
         var action = new EditorAction
         {
             IsAbsolute = false,
-            CoordinateSpace = MouseCoordinateSpace.RawDevice,
+            CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
         };
 
         action.IsAbsolute = true;
         action.IsAbsolute = false;
 
         _ = action.CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
+    }
+
+    [Fact]
+    public void CoordinateSpace_WhenNewRelativeActionCreated_DefaultsToRawDevice()
+    {
+        var action = new EditorAction { IsAbsolute = false };
+
+        _ = action.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
     }
 
     [Fact]

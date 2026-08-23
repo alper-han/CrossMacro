@@ -64,6 +64,21 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "DefWindowProcW")]
     internal static partial IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool RegisterRawInputDevices(
+        in RawInputDevice rawInputDevices,
+        uint numberOfDevices,
+        uint sizeOfRawInputDevice);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    internal static partial uint GetRawInputData(
+        IntPtr rawInputHandle,
+        uint command,
+        IntPtr data,
+        ref uint size,
+        uint headerSize);
+
     public const int WH_KEYBOARD_LL = 13;
     public const int WH_MOUSE_LL = 14;
     public const uint WM_KEYDOWN = 0x0100;
@@ -81,8 +96,17 @@ internal static partial class User32
     public const uint WM_XBUTTONDOWN = 0x020B;
     public const uint WM_XBUTTONUP = 0x020C;
     public const uint WM_MOUSEHWHEEL = 0x020E;
+    public const uint WM_INPUT = 0x00FF;
     public const uint WM_QUIT = 0x0012;
     public const uint WM_WTSSESSION_CHANGE = 0x02B1;
+
+    public const ushort HidUsagePageGeneric = 0x01;
+    public const ushort HidUsageGenericMouse = 0x02;
+    public const uint RidevRemove = 0x00000001;
+    public const uint RidevInputSink = 0x00000100;
+    public const uint RidInput = 0x10000003;
+    public const uint RimTypeMouse = 0;
+    public const ushort MouseMoveAbsolute = 0x0001;
 
     public const ushort XBUTTON1 = 0x0001;
     public const ushort XBUTTON2 = 0x0002;

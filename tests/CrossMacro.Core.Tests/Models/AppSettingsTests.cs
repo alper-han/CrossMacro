@@ -24,6 +24,7 @@ public sealed class AppSettingsTests
         _ = settings.IsMouseRecordingEnabled.Should().BeTrue();
         _ = settings.IsKeyboardRecordingEnabled.Should().BeTrue();
         _ = settings.ForceRelativeCoordinates.Should().BeFalse();
+        _ = settings.UseLogicalRelativeCoordinates.Should().BeFalse();
         _ = settings.SkipInitialZeroZero.Should().BeFalse();
 
         _ = settings.EnableTextExpansion.Should().BeFalse();

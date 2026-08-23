@@ -5,6 +5,7 @@ public sealed class SettingsCliService(
     ISettingsService settingsService,
     IPortalScreenCastRestoreStateService? portalRestoreStateService = null) : ISettingsCliService
 {
+    private const string RecordingLogicalRelativeKey = "recording.logicalRelative";
     private static readonly string[] AllowedLogLevels = ["Debug", "Information", "Warning", "Error"];
 
     private readonly ISettingsService _settingsService = settingsService;
@@ -233,6 +234,7 @@ public sealed class SettingsCliService(
             "recording.mouse",
             "recording.keyboard",
             "recording.forceRelative",
+            RecordingLogicalRelativeKey,
             "recording.skipInitialZeroZero",
             "textExpansion.enabled",
             "ui.theme",
@@ -261,6 +263,7 @@ public sealed class SettingsCliService(
             ["recording.mouse"] = settings.IsMouseRecordingEnabled,
             ["recording.keyboard"] = settings.IsKeyboardRecordingEnabled,
             ["recording.forceRelative"] = settings.ForceRelativeCoordinates,
+            [RecordingLogicalRelativeKey] = settings.UseLogicalRelativeCoordinates,
             ["recording.skipInitialZeroZero"] = settings.SkipInitialZeroZero,
             ["textExpansion.enabled"] = settings.EnableTextExpansion,
             ["ui.theme"] = settings.Theme,
@@ -320,6 +323,9 @@ public sealed class SettingsCliService(
                 return true;
             case "recording.forceRelative":
                 value = settings.ForceRelativeCoordinates;
+                return true;
+            case RecordingLogicalRelativeKey:
+                value = settings.UseLogicalRelativeCoordinates;
                 return true;
             case "recording.skipInitialZeroZero":
                 value = settings.SkipInitialZeroZero;
@@ -500,6 +506,16 @@ public sealed class SettingsCliService(
                 errorMessage = string.Empty;
                 return true;
 
+            case RecordingLogicalRelativeKey:
+                if (!TryParseBool(rawValue, out var logicalRelative))
+                {
+                    errorMessage = $"Invalid boolean value for {key}: {rawValue}";
+                    return false;
+                }
+                settings.UseLogicalRelativeCoordinates = logicalRelative;
+                errorMessage = string.Empty;
+                return true;
+
             case "recording.skipInitialZeroZero":
                 if (!TryParseBool(rawValue, out var skipZero))
                 {
@@ -623,6 +639,9 @@ public sealed class SettingsCliService(
                 break;
             case "recording.forceRelative":
                 settings.ForceRelativeCoordinates = defaults.ForceRelativeCoordinates;
+                break;
+            case RecordingLogicalRelativeKey:
+                settings.UseLogicalRelativeCoordinates = defaults.UseLogicalRelativeCoordinates;
                 break;
             case "recording.skipInitialZeroZero":
                 settings.SkipInitialZeroZero = defaults.SkipInitialZeroZero;

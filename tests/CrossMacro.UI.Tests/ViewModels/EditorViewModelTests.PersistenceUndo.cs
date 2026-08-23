@@ -688,7 +688,7 @@ public sealed partial class EditorViewModelTests
                 !projection.IsAbsoluteCoordinates
                 && projection.Actions.Count == 1
                 && !projection.Actions[0].IsAbsolute
-                && projection.Actions[0].CoordinateSpace == MouseCoordinateSpace.LogicalDesktop
+                && projection.Actions[0].CoordinateSpace == MouseCoordinateSpace.RawDevice
                 && projection.Actions[0].X == 3
                 && projection.Actions[0].Y == -5
                 && projection.SkipInitialZeroZero));

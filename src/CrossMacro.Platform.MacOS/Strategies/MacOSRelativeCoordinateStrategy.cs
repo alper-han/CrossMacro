@@ -4,9 +4,9 @@ namespace CrossMacro.Platform.MacOS.Strategies;
 /// <summary>
 /// Converts macOS CoreGraphics absolute mouse samples into relative deltas.
 /// </summary>
-public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? currentPositionProvider = null) : IRelativeCoordinateStrategy
+public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
 {
-    private readonly Func<(int X, int Y)?>? _currentPositionProvider = currentPositionProvider;
+    private readonly Func<CancellationToken, Task<(int X, int Y)?>>? _currentPositionProvider;
     private int _lastX;
     private int _lastY;
     private int _pendingX;
@@ -15,14 +15,31 @@ public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? curre
     private bool _hasPendingX;
     private bool _hasPendingY;
 
+    public MacOSRelativeCoordinateStrategy() { }
+
+    public MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?> currentPositionProvider)
+    {
+        ArgumentNullException.ThrowIfNull(currentPositionProvider);
+        _currentPositionProvider = _ => Task.FromResult(currentPositionProvider());
+    }
+
+    internal MacOSRelativeCoordinateStrategy(
+        Func<CancellationToken, Task<(int X, int Y)?>> currentPositionProvider)
+    {
+        ArgumentNullException.ThrowIfNull(currentPositionProvider);
+        _currentPositionProvider = currentPositionProvider;
+    }
+
     public bool ProducesLogicalCoordinates => true;
 
     public bool ProducesRelativeCoordinates => true;
 
-    public Task InitializeAsync(CancellationToken ct)
+    public async Task InitializeAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var position = _currentPositionProvider?.Invoke() ?? GetCurrentPosition();
+        var position = _currentPositionProvider is null
+            ? GetCurrentPosition()
+            : await _currentPositionProvider(ct).ConfigureAwait(false);
         if (position is not null)
         {
             _lastX = position.Value.X;
@@ -39,8 +56,6 @@ public sealed class MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?>? curre
         _hasPendingPosition = false;
         _hasPendingX = false;
         _hasPendingY = false;
-
-        return Task.CompletedTask;
     }
 
     public CoordinateSample ProcessPosition(CapturedInputEvent e)

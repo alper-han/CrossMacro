@@ -12,11 +12,23 @@ public class MacOSCoordinateStrategyFactory : ICoordinateStrategyFactory
         _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
     }
 
-    public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero)
+    public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero) =>
+        Create(useAbsoluteCoordinates, forceRelative, skipInitialZero, useLogicalRelativeCoordinates: false);
+
+    public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero, bool useLogicalRelativeCoordinates)
     {
+        if (forceRelative && useLogicalRelativeCoordinates)
+        {
+            return _positionProvider is null
+                ? new MacOSRelativeCoordinateStrategy()
+                : new MacOSRelativeCoordinateStrategy(cancellationToken => _positionProvider
+                    .GetAbsolutePositionAsync()
+                    .WaitAsync(cancellationToken));
+        }
+
         if (forceRelative || !useAbsoluteCoordinates)
         {
-            return new MacOSRelativeCoordinateStrategy();
+            return new RelativeCoordinateStrategy();
         }
 
         return _positionProvider is null

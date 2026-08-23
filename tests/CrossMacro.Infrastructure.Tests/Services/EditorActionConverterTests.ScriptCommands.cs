@@ -639,7 +639,7 @@ public sealed partial class EditorActionConverterTests
 
         var sequence = _converter.ToMacroSequence(actions, "Structured Mul Div", isAbsolute: false);
 
-        _ = sequence.ScriptSteps.Should().Equal("set x 5", "mul x 2", "div x 4", "move rel-logical $x 0");
+        _ = sequence.ScriptSteps.Should().Equal("set x 5", "mul x 2", "div x 4", "move rel-raw $x 0");
         _ = sequence.Events.Should().ContainSingle();
         _ = sequence.Events[0].X.Should().Be(2); // (5 * 2) / 4
     }

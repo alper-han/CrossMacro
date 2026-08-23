@@ -29,7 +29,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     }
 
     [LinuxFact]
-    public void ForceRelative_OnWaylandWithPositionProvider_ShouldReturnLogicalCompositorStrategy()
+    public void ForceRelative_OnWaylandWithPositionProvider_ShouldReturnRawRelativeStrategy()
     {
         // Arrange
         _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.KDE);
@@ -40,9 +40,42 @@ public sealed class LinuxCoordinateStrategyFactoryTests
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: true, skipInitialZero: false);
 
         // Assert
-        var strategy = Assert.IsType<CompositorCoordinateStrategy>(result);
+        var strategy = Assert.IsType<RelativeCoordinateStrategy>(result);
+        Assert.True(strategy.ProducesRelativeCoordinates);
+        Assert.False(strategy.ProducesLogicalCoordinates);
+    }
+
+    [LinuxFact]
+    public void ForceRelative_WithLogicalRelativeRequested_ShouldReturnLogicalRelativeStrategy()
+    {
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.X11);
+        _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: false);
+
+        var result = _factory.Create(
+            useAbsoluteCoordinates: true,
+            forceRelative: true,
+            skipInitialZero: false,
+            useLogicalRelativeCoordinates: true);
+
+        var strategy = Assert.IsType<X11LogicalRelativeCoordinateStrategy>(result);
         Assert.True(strategy.ProducesRelativeCoordinates);
         Assert.True(strategy.ProducesLogicalCoordinates);
+    }
+
+    [LinuxFact]
+    public void ForceRelative_WithLogicalRelativeRequestedOnUnknownBackend_ThrowsClearError()
+    {
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
+        _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: false);
+
+        var action = () => _factory.Create(
+            useAbsoluteCoordinates: true,
+            forceRelative: true,
+            skipInitialZero: false,
+            useLogicalRelativeCoordinates: true);
+
+        _ = action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*not supported by the active input backend*");
     }
 
     [LinuxFact]
@@ -182,7 +215,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     }
 
     [LinuxFact]
-    public void ForceRelative_OnX11_ShouldReturnLogicalRootCoordinateStrategy()
+    public void ForceRelative_OnX11_ShouldReturnRawRelativeStrategy()
     {
         _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.X11);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: false);
@@ -192,9 +225,9 @@ public sealed class LinuxCoordinateStrategyFactoryTests
             forceRelative: true,
             skipInitialZero: false);
 
-        var strategy = Assert.IsType<X11LogicalRelativeCoordinateStrategy>(result);
+        var strategy = Assert.IsType<RelativeCoordinateStrategy>(result);
         Assert.True(strategy.ProducesRelativeCoordinates);
-        Assert.True(strategy.ProducesLogicalCoordinates);
+        Assert.False(strategy.ProducesLogicalCoordinates);
     }
 
     [LinuxFact]

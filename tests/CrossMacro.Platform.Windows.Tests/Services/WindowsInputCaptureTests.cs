@@ -114,6 +114,36 @@ public sealed class WindowsInputCaptureTests
         Assert.Equal(int.MinValue, movement.YValue);
     }
 
+    [Theory]
+    [InlineData((ushort)0, 20, -10, true, 20, -10)]
+    [InlineData((ushort)0, 0, 0, false, 0, 0)]
+    [InlineData((ushort)1, 20, -10, false, 0, 0)]
+    public void TryResolveRawRelativeMovement_UsesOnlyRelativeDeviceDeltas(
+        ushort flags,
+        int deltaX,
+        int deltaY,
+        bool expected,
+        int expectedX,
+        int expectedY)
+    {
+        bool resolved = WindowsInputCapture.TryResolveRawRelativeMovement(
+            flags,
+            deltaX,
+            deltaY,
+            out int actualX,
+            out int actualY);
+
+        Assert.Equal(expected, resolved);
+        Assert.Equal(expectedX, actualX);
+        Assert.Equal(expectedY, actualY);
+    }
+
+    [Fact]
+    public void RawMouse_HasNativeLayout()
+    {
+        Assert.Equal(24, Marshal.SizeOf<RawMouse>());
+    }
+
     [WindowsFact]
     public async Task StartAsync_WhenMouseHookInstallFails_ThrowsInvalidOperationException()
     {

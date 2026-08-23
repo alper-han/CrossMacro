@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Services;
 
-public sealed class MacOSInputCapture : IInputCapture
+public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInputCapture
 {
     // Holds all native handles to keep raw IntPtr fields off the IDisposable outer class (CA2216).
     private sealed class CaptureNativeHandles
@@ -18,6 +18,7 @@ public sealed class MacOSInputCapture : IInputCapture
     private Thread? _captureThread;
     private bool _captureMouse = true;
     private bool _captureKeyboard = true;
+    private bool _useRawRelativeCoordinates;
     private volatile bool _stopRequested;
     private bool _disposed;
     private CancellationTokenRegistration _startCancellationRegistration;
@@ -46,6 +47,11 @@ public sealed class MacOSInputCapture : IInputCapture
     {
         _captureMouse = captureMouse;
         _captureKeyboard = captureKeyboard;
+    }
+
+    public void ConfigureCoordinateMode(bool useAbsoluteCoordinates, bool useLogicalCoordinates)
+    {
+        _useRawRelativeCoordinates = !useAbsoluteCoordinates && !useLogicalCoordinates;
     }
 
     public async Task StartAsync(CancellationToken ct)
@@ -400,21 +406,7 @@ public sealed class MacOSInputCapture : IInputCapture
 
         if (type is CoreGraphics.CGEventType.MouseMoved or CoreGraphics.CGEventType.LeftMouseDragged or CoreGraphics.CGEventType.RightMouseDragged or CoreGraphics.CGEventType.OtherMouseDragged)
         {
-            var loc = CoreGraphics.CGEventGetLocation(eventRef);
-            InputReceived?.Invoke(this, new CapturedInputEventArgs
-            {
-                Type = InputEventType.MouseMove,
-                Code = InputEventCode.ABS_X,
-                Value = (int)loc.X,
-                Timestamp = timestamp,
-            });
-            InputReceived?.Invoke(this, new CapturedInputEventArgs
-            {
-                Type = InputEventType.MouseMove,
-                Code = InputEventCode.ABS_Y,
-                Value = (int)loc.Y,
-                Timestamp = timestamp,
-            });
+            EmitMouseMovement(eventRef, timestamp);
 
             // SYNC event to ensure X and Y are processed together
             InputReceived?.Invoke(this, new CapturedInputEventArgs
@@ -431,6 +423,42 @@ public sealed class MacOSInputCapture : IInputCapture
         {
             ProcessScrollWheelEvent(eventRef, timestamp);
         }
+    }
+
+    private void EmitMouseMovement(IntPtr eventRef, long timestamp)
+    {
+        if (_useRawRelativeCoordinates)
+        {
+            EmitMouseMoveAxis(
+                InputEventCode.REL_X,
+                CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventDeltaX),
+                timestamp);
+            EmitMouseMoveAxis(
+                InputEventCode.REL_Y,
+                CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventDeltaY),
+                timestamp);
+            return;
+        }
+
+        var location = CoreGraphics.CGEventGetLocation(eventRef);
+        EmitMouseMoveAxis(InputEventCode.ABS_X, (long)location.X, timestamp);
+        EmitMouseMoveAxis(InputEventCode.ABS_Y, (long)location.Y, timestamp);
+    }
+
+    private void EmitMouseMoveAxis(ushort code, long value, long timestamp)
+    {
+        if (value is 0 && _useRawRelativeCoordinates)
+        {
+            return;
+        }
+
+        InputReceived?.Invoke(this, new CapturedInputEventArgs
+        {
+            Type = InputEventType.MouseMove,
+            Code = code,
+            Value = (int)Math.Clamp(value, int.MinValue, int.MaxValue),
+            Timestamp = timestamp,
+        });
     }
 
     internal static bool TryMapOtherMouseButton(long buttonNumber, out int button)

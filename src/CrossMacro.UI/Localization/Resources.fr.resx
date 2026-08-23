@@ -226,10 +226,20 @@
     <value>Forcer les coordonnées relatives</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>Utiliser la position relative de la souris même si l'absolue est prise en charge</value>
+    <value>Enregistre les deltas directs de la souris plutôt que les positions à l'écran</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>Nécessaire pour utiliser des macros dans le jeu.</value>
+    <value>Enregistre les deltas relatifs bruts pour les jeux et autres cas d'utilisation d'entrée relative.</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
+    <value>Pixels relatifs logiques</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
+    <value>Enregistre les deltas de pixels du bureau au lieu des deltas d'entrée bruts</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
+    <value>Désactivé enregistre les mouvements directs bruts du périphérique.
+Activé enregistre les deltas de pixels logiques du bureau. Cette option nécessite l'accès à la position globale du curseur ; la lecture requiert également la prise en charge des entrées absolues.</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
     <value>Sauter la position initiale 0,0</value>
@@ -1478,6 +1488,12 @@
   </data>
   <data name="Editor_Relative" xml:space="preserve">
     <value>Relatif</value>
+  </data>
+  <data name="Editor_RelativeRaw" xml:space="preserve">
+    <value>Relatif (entrée brute)</value>
+  </data>
+  <data name="Editor_RelativeLogical" xml:space="preserve">
+    <value>Relatif (pixels logiques)</value>
   </data>
   <data name="Editor_MouseButton" xml:space="preserve">
     <value>Bouton de la souris :</value>

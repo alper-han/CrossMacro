@@ -371,11 +371,14 @@ public partial class EditorViewModel
             }
         }
 
-        if (string.Equals(e.PropertyName, nameof(EditorAction.IsAbsolute), StringComparison.Ordinal) && sender is EditorAction coordAction)
+        if (e.PropertyName is nameof(EditorAction.IsAbsolute) or nameof(EditorAction.CoordinateSpace)
+            && sender is EditorAction coordAction)
         {
             NormalizeCoordinateAction(coordAction);
             OnPropertyChanged(nameof(SelectedActionIsAbsolute));
             OnPropertyChanged(nameof(SelectedActionIsRelative));
+            OnPropertyChanged(nameof(SelectedActionIsRawRelative));
+            OnPropertyChanged(nameof(SelectedActionIsLogicalRelative));
             RefreshCurrentPositionConfiguration();
         }
 
@@ -461,14 +464,21 @@ public partial class EditorViewModel
         RefreshAvailableVariableNames();
     }
 
-    private void SetSelectedActionCoordinateMode(bool isAbsolute)
+    private void SetSelectedActionCoordinateMode(bool isAbsolute, MouseCoordinateSpace relativeCoordinateSpace = MouseCoordinateSpace.RawDevice)
     {
-        if (SelectedAction is null || SelectedAction.IsAbsolute == isAbsolute)
+        if (SelectedAction is null
+            || (SelectedAction.IsAbsolute == isAbsolute
+                && (isAbsolute || SelectedAction.CoordinateSpace == relativeCoordinateSpace)))
         {
             return;
         }
 
         SelectedAction.IsAbsolute = isAbsolute;
+        if (!isAbsolute)
+        {
+            SelectedAction.CoordinateSpace = relativeCoordinateSpace;
+        }
+
         if (!isAbsolute && SelectedAction.Type is EditorActionType.MouseMove)
         {
             SkipInitialZeroZero = true;

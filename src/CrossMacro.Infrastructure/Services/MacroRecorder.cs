@@ -35,7 +35,29 @@ public sealed class MacroRecorder(
 
     public bool IsRecording => Volatile.Read(ref _isRecording);
 
-    public async Task StartRecordingAsync(bool recordMouse, bool recordKeyboard, IEnumerable<int>? ignoredKeys = null, bool forceRelative = false, bool skipInitialZero = false, CancellationToken cancellationToken = default)
+    public Task StartRecordingAsync(
+        bool recordMouse,
+        bool recordKeyboard,
+        IEnumerable<int>? ignoredKeys = null,
+        bool forceRelative = false,
+        bool skipInitialZero = false,
+        CancellationToken cancellationToken = default) => StartRecordingAsync(
+            recordMouse,
+            recordKeyboard,
+            ignoredKeys,
+            forceRelative,
+            skipInitialZero,
+            useLogicalRelativeCoordinates: false,
+            cancellationToken);
+
+    public async Task StartRecordingAsync(
+        bool recordMouse,
+        bool recordKeyboard,
+        IEnumerable<int>? ignoredKeys,
+        bool forceRelative,
+        bool skipInitialZero,
+        bool useLogicalRelativeCoordinates,
+        CancellationToken cancellationToken)
     {
         if (!recordMouse && !recordKeyboard)
         {
@@ -43,11 +65,16 @@ public sealed class MacroRecorder(
         }
 
         bool requestedAbsoluteCoordinates = !forceRelative; // Strategy factory may adjust this based on platform capability.
+        bool useLogicalRelative = forceRelative && useLogicalRelativeCoordinates;
+        if (useLogicalRelative && (_positionProvider is null || !_positionProvider.HasUsableAbsolutePosition()))
+        {
+            throw new InvalidOperationException("Logical relative recording requires access to the global cursor position.");
+        }
         bool useAbsoluteCoordinates = requestedAbsoluteCoordinates;
 
         var ignoredKeysList = ignoredKeys?.ToList();
-        Log.Debug("[MacroRecorder] Configuration: Mouse={Mouse}, Keyboard={Keyboard}, RequestedAbsolute={RequestedAbsolute}, ForceRelative={ForceRelative}, SkipInitialZero={SkipZero}, IgnoredKeys={IgnoredKeys}",
-            recordMouse, recordKeyboard, useAbsoluteCoordinates, forceRelative, skipInitialZero,
+        Log.Debug("[MacroRecorder] Configuration: Mouse={Mouse}, Keyboard={Keyboard}, RequestedAbsolute={RequestedAbsolute}, ForceRelative={ForceRelative}, LogicalRelative={LogicalRelative}, SkipInitialZero={SkipZero}, IgnoredKeys={IgnoredKeys}",
+            recordMouse, recordKeyboard, useAbsoluteCoordinates, forceRelative, useLogicalRelative, skipInitialZero,
             ignoredKeysList is not null ? string.Join(',', ignoredKeysList) : "none");
 
         using (_eventLock.EnterScope())
@@ -81,7 +108,11 @@ public sealed class MacroRecorder(
 
 
             // 1. Initialize Strategy
-            _currentStrategy = _coordinateStrategyFactory.Create(requestedAbsoluteCoordinates, forceRelative, skipInitialZero);
+            _currentStrategy = _coordinateStrategyFactory.Create(requestedAbsoluteCoordinates, forceRelative, skipInitialZero, useLogicalRelative);
+            if (useLogicalRelative && !_currentStrategy.ProducesLogicalCoordinates)
+            {
+                throw new InvalidOperationException("Logical relative recording is not supported by the active input backend.");
+            }
             useAbsoluteCoordinates = DetermineEffectiveAbsoluteCoordinates(requestedAbsoluteCoordinates, _currentStrategy);
             if (useAbsoluteCoordinates != requestedAbsoluteCoordinates)
             {

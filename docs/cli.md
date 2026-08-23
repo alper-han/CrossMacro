@@ -106,6 +106,7 @@ count.
 
 ```bash
 crossmacro move abs 200 200
+crossmacro move rel-raw 10 0
 crossmacro move rel-logical 10 0
 crossmacro click current left
 crossmacro scroll down 3
@@ -453,16 +454,22 @@ crossmacro settings reset updates.checkForUpdates
 - `settings list-keys` prints supported public keys.
 - `settings reset <key>` resets one supported key to its default value.
 - Playback keys are `playback.speed`, `playback.loop`, `playback.loopCount`,
-  `playback.loopDelayMs`, and `playback.countdownSeconds`. Recording keys are
-  `recording.mouse`, `recording.keyboard`, `recording.forceRelative`, and
-  `recording.skipInitialZeroZero`. Other keys are `logging.level`,
+   `playback.loopDelayMs`, and `playback.countdownSeconds`. Recording keys are
+   `recording.mouse`, `recording.keyboard`, `recording.forceRelative`, `recording.logicalRelative`, and
+   `recording.skipInitialZeroZero`. Other keys are `logging.level`,
   `textExpansion.enabled`, `ui.theme`, `ui.language`, `ui.trayIcon`,
   `ui.startMinimized`, and `updates.checkForUpdates`.
 - `screen.portalRestoreToken` is status/reset only. `get` reports `set` or
   `empty`, and `reset` clears it; the raw token is never printed.
 - Boolean values accept `true`, `false`, `1`, `0`, `yes`, `no`, `on`, and `off`.
-  Numeric timing values are milliseconds unless the key name says seconds;
-  `logging.level` accepts `Debug`, `Information`, `Warning`, or `Error`.
+   Numeric timing values are milliseconds unless the key name says seconds;
+   `logging.level` accepts `Debug`, `Information`, `Warning`, or `Error`.
+- `recording.forceRelative` records direct raw-relative mouse deltas by default
+  and never records fixed absolute positions. Set
+  `recording.logicalRelative` to record logical-relative pixel deltas instead.
+- `recording.logicalRelative` changes Force Relative recording to logical
+  desktop-pixel deltas. It requires a global cursor-position provider while
+  recording; playback additionally requires absolute input support.
 
 ## Direct run examples
 
@@ -880,9 +887,13 @@ timeout when an explicit window-wait budget is required.
   displays `left`, `top`, `width`, `height` and converts the latter to
   `right = left + width`, `bottom = top + height`.
 - `screen pixel --relative` and `pixelcolor rel` add a delta to the live cursor.
-  `move rel-raw`/`move rel` preserve raw device-relative behavior;
-  `move rel-logical` uses logical desktop pixels and needs a known cursor
-  position (an absolute move, a position provider, or the initial anchor).
+   `move rel-raw`/`move rel` preserve raw device-relative behavior;
+   `move rel-logical` uses logical desktop pixels and needs a known cursor
+   position (an absolute move, a position provider, or the initial anchor).
+  Movement-only logical-relative macros cooperate with manual cursor movement:
+  later deltas start from the live cursor position. Logical-relative movement
+  followed by a click, button, drag, image, or screen-coordinate action still
+  requires its target to settle before that dependent action runs.
 - Absolute moves and image clicks use an absolute-capable backend when one is
   available. Otherwise image-click may use a current-position relative
   fallback; if neither position capability exists, it returns an environment

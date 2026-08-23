@@ -1407,6 +1407,8 @@ public sealed partial class EditorViewModelTests
         _ = moveAction.IsAbsolute.Should().BeFalse();
         _ = clickAction.IsAbsolute.Should().BeTrue();
         _ = _viewModel.SelectedActionIsRelative.Should().BeTrue();
+        _ = _viewModel.SelectedActionIsRawRelative.Should().BeTrue();
+        _ = _viewModel.SelectedActionIsLogicalRelative.Should().BeFalse();
         _ = _viewModel.SelectedActionIsAbsolute.Should().BeFalse();
     }
 }

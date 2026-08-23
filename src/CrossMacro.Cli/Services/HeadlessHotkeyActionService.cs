@@ -337,6 +337,7 @@ public sealed class HeadlessHotkeyActionService(
         }
 
         var forceRelative = settings.ForceRelativeCoordinates && (_runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS);
+        var useLogicalRelativeCoordinates = forceRelative && settings.UseLogicalRelativeCoordinates;
         var skipInitialZero = forceRelative && settings.SkipInitialZeroZero;
         var ignoredKeys = new[]
         {
@@ -350,13 +351,22 @@ public sealed class HeadlessHotkeyActionService(
             _globalHotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: false);
             _playbackPauseHotkeysDisabled = true;
 
-            var startTask = _macroRecorder.StartRecordingAsync(
-                settings.IsMouseRecordingEnabled,
-                settings.IsKeyboardRecordingEnabled,
-                ignoredKeys,
-                forceRelative: forceRelative,
-                skipInitialZero: skipInitialZero,
-                cancellationToken: CancellationToken.None);
+            var startTask = useLogicalRelativeCoordinates
+                ? _macroRecorder.StartRecordingAsync(
+                    settings.IsMouseRecordingEnabled,
+                    settings.IsKeyboardRecordingEnabled,
+                    ignoredKeys,
+                    forceRelative: forceRelative,
+                    skipInitialZero: skipInitialZero,
+                    useLogicalRelativeCoordinates: true,
+                    cancellationToken: CancellationToken.None)
+                : _macroRecorder.StartRecordingAsync(
+                    settings.IsMouseRecordingEnabled,
+                    settings.IsKeyboardRecordingEnabled,
+                    ignoredKeys,
+                    forceRelative: forceRelative,
+                    skipInitialZero: skipInitialZero,
+                    cancellationToken: CancellationToken.None);
 
             _ = startTask.ContinueWith(
                 t =>

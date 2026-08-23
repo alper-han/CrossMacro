@@ -1328,6 +1328,20 @@ public sealed partial class EditorViewModelTests
         _viewModel.SelectedActionIsRelative = true;
 
         _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SelectedAction.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
+        _ = _viewModel.SkipInitialZeroZero.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SelectedActionCoordinateMode_WhenChangedToLogicalRelative_UsesLogicalPixelSpace()
+    {
+        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.AddAction();
+
+        _viewModel.SelectedActionIsLogicalRelative = true;
+
+        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SelectedAction.CoordinateSpace.Should().Be(MouseCoordinateSpace.LogicalDesktop);
         _ = _viewModel.SkipInitialZeroZero.Should().BeTrue();
     }
 

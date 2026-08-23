@@ -619,7 +619,7 @@ public sealed class RecordingViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task StartRecordingAsync_UsesForceRelativeAndSkipInitialZeroSettings()
+    public async Task StartRecordingAsync_UsesRelativeRecordingSettings()
     {
         // Arrange
         _viewModel.CanStartRecordingExternal = true;
@@ -636,6 +636,77 @@ public sealed class RecordingViewModelTests : IDisposable
             Arg.Any<IEnumerable<int>>(),
             _viewModel.ForceRelativeCoordinates,
             _viewModel.SkipInitialZeroZero,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void LogicalRelativeCoordinates_WhenGlobalCursorPositionIsUnavailable_IsDisabled()
+    {
+        _viewModel.ForceRelativeCoordinates = true;
+
+        Assert.True(_viewModel.ShowLogicalRelativeCoordinatesOption);
+        Assert.False(_viewModel.IsLogicalRelativeCoordinatesAvailable);
+
+        _viewModel.UseLogicalRelativeCoordinates = true;
+
+        Assert.True(_viewModel.UseLogicalRelativeCoordinates);
+        Assert.True(_settingsService.Current.UseLogicalRelativeCoordinates);
+    }
+
+    [Fact]
+    public void LogicalRelativeCoordinates_WhenPositionProviderBecomesAvailable_EnablesWithoutClearingPreference()
+    {
+        var positionProvider = new NotifyingPositionProvider(isAvailable: false);
+        var settings = new AppSettings
+        {
+            ForceRelativeCoordinates = true,
+            UseLogicalRelativeCoordinates = true,
+        };
+        var settingsService = Substitute.For<ISettingsService>();
+        _ = settingsService.Current.Returns(settings);
+        _ = settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
+        using var viewModel = new RecordingViewModel(
+            _recorder,
+            _hotkeyService,
+            settingsService,
+            _localizationService,
+            _runtimeContext,
+            positionProvider);
+
+        Assert.False(viewModel.IsLogicalRelativeCoordinatesAvailable);
+        Assert.True(viewModel.UseLogicalRelativeCoordinates);
+
+        positionProvider.PublishPosition(100, 200);
+
+        Assert.True(viewModel.IsLogicalRelativeCoordinatesAvailable);
+        Assert.True(viewModel.UseLogicalRelativeCoordinates);
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenLogicalRelativeIsAvailable_ForwardsLogicalChoice()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        using var viewModel = new RecordingViewModel(
+            _recorder,
+            _hotkeyService,
+            _settingsService,
+            _localizationService,
+            _runtimeContext,
+            positionProvider);
+        viewModel.ForceRelativeCoordinates = true;
+        viewModel.UseLogicalRelativeCoordinates = true;
+
+        await viewModel.StartRecordingAsync();
+
+        Assert.True(viewModel.IsLogicalRelativeCoordinatesAvailable);
+        await _recorder.Received(1).StartRecordingAsync(
+            Arg.Is(true),
+            Arg.Is(true),
+            Arg.Any<IEnumerable<int>>(),
+            Arg.Is(true),
+            Arg.Is(false),
+            Arg.Is(true),
             Arg.Any<CancellationToken>());
     }
 
@@ -825,5 +896,27 @@ public sealed class RecordingViewModelTests : IDisposable
             _ = Interlocked.Decrement(ref _queuedCount);
             callback();
         }
+    }
+
+    private sealed class NotifyingPositionProvider(bool isAvailable) : IMousePositionProvider, IMousePositionAvailability, IMousePositionChangeSource
+    {
+        private bool _isAvailable = isAvailable;
+
+        public string ProviderName => "test";
+        public bool IsSupported => true;
+        public bool IsPositionAvailable => _isAvailable;
+        public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
+
+        public Task<(int X, int Y)?> GetAbsolutePositionAsync() => Task.FromResult<(int X, int Y)?>(null);
+
+        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>(null);
+
+        public void PublishPosition(int x, int y)
+        {
+            _isAvailable = true;
+            PositionChanged?.Invoke(this, new MousePositionChangedEventArgs(x, y, isDiscontinuity: false));
+        }
+
+        public void Dispose() { /* Test provider has no resources. */ }
     }
 }

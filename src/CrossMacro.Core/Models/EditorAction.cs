@@ -15,7 +15,7 @@ public class EditorAction : INotifyPropertyChanged
     private string? _coordinateXToken;
     private string? _coordinateYToken;
     private bool _isAbsolute = true;
-    private MouseCoordinateSpace _coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
+    private MouseCoordinateSpace _coordinateSpace = MouseCoordinateSpace.RawDevice;
     private MacroMouseButton _button = MacroMouseButton.Left;
     private int _keyCode;
     private long _delayMicroseconds;
@@ -234,17 +234,15 @@ public class EditorAction : INotifyPropertyChanged
             if (_isAbsolute != value)
             {
                 _isAbsolute = value;
-                _coordinateSpace = MouseCoordinateSpace.LogicalDesktop;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(CoordinateSpace));
                 OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
 
     /// <summary>
-    /// Unit space for relative mouse coordinates. Newly authored editor actions
-    /// use logical desktop pixels; imported raw recordings retain their device units.
+    /// Unit space for relative mouse coordinates. Newly authored relative editor
+    /// actions use direct raw input deltas; logical desktop pixels are opt-in.
     /// </summary>
     public MouseCoordinateSpace CoordinateSpace
     {

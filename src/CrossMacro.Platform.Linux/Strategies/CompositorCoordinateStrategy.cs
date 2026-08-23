@@ -2,7 +2,8 @@ namespace CrossMacro.Platform.Linux.Strategies;
 
 public sealed class CompositorCoordinateStrategy(
     IMousePositionProvider positionProvider,
-    bool emitRelativeCoordinates) : ICoordinateStrategy, ICoordinateSampleSource
+    bool emitRelativeCoordinates,
+    bool allowRawRelativeFallback = true) : ICoordinateStrategy, ICoordinateSampleSource
 {
     private static readonly TimeSpan NotificationRecoveryPollInterval = TimeSpan.FromMilliseconds(1);
     private static readonly TimeSpan QueryPollInterval = TimeSpan.FromMilliseconds(1);
@@ -15,7 +16,7 @@ public sealed class CompositorCoordinateStrategy(
         ? NotificationRecoveryPollInterval
         : QueryPollInterval;
     private readonly RelativeCoordinateStrategy? _rawRelativeFallback =
-        emitRelativeCoordinates ? new RelativeCoordinateStrategy() : null;
+        emitRelativeCoordinates && allowRawRelativeFallback ? new RelativeCoordinateStrategy() : null;
     private readonly Lock _positionLock = new();
     private readonly Lock _publicationLock = new();
     private readonly SemaphoreSlim _pollActivity = new(0, 1);

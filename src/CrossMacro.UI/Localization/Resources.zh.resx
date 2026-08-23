@@ -226,10 +226,20 @@
     <value>强制使用相对坐标</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>即使支持绝对鼠标位置，也使用相对鼠标位置</value>
+    <value>记录直接相对鼠标增量，而不是屏幕位置</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>需要在游戏中使用宏。</value>
+    <value>为游戏和其他相对输入场景记录原始相对增量。</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
+    <value>逻辑相对像素</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
+    <value>记录桌面像素增量，而不是原始输入增量</value>
+  </data>
+  <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
+    <value>关闭时，记录直接的原始设备移动。
+开启时，记录逻辑桌面像素增量。此选项需要访问全局光标位置；播放还需要支持绝对输入。</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
     <value>跳过初始 0,0 位置</value>
@@ -1478,6 +1488,12 @@
   </data>
   <data name="Editor_Relative" xml:space="preserve">
     <value>相对的</value>
+  </data>
+  <data name="Editor_RelativeRaw" xml:space="preserve">
+    <value>相对（原始输入）</value>
+  </data>
+  <data name="Editor_RelativeLogical" xml:space="preserve">
+    <value>相对（逻辑像素）</value>
   </data>
   <data name="Editor_MouseButton" xml:space="preserve">
     <value>鼠标按钮：</value>

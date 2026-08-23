@@ -79,6 +79,18 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
         return true;
     }
 
+    public async Task<bool> RefreshPositionAsync(CancellationToken cancellationToken)
+    {
+        var position = await QueryPositionAsync(cancellationToken).ConfigureAwait(false);
+        if (position is null)
+        {
+            return false;
+        }
+
+        UpdatePosition(position.Value.X, position.Value.Y);
+        return true;
+    }
+
     public async Task<bool> WaitForPositionAsync(int expectedX, int expectedY, CancellationToken cancellationToken)
     {
         var result = await AbsoluteCursorPositionSynchronizer.WaitAsync(
@@ -91,12 +103,23 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             return true;
         }
 
-        Log.Warning(
-            "[PlaybackCoordinator] Absolute cursor move did not settle at ({ExpectedX},{ExpectedY}); last observed position is ({CurrentX},{CurrentY}).",
-            expectedX,
-            expectedY,
-            result.LastObservedPosition?.X ?? CurrentX,
-            result.LastObservedPosition?.Y ?? CurrentY);
+        if (result.LastObservedPosition is { } observedPosition)
+        {
+            Log.Warning(
+                "[PlaybackCoordinator] Absolute cursor move did not settle at ({ExpectedX},{ExpectedY}); last observed position is ({ObservedX},{ObservedY}).",
+                expectedX,
+                expectedY,
+                observedPosition.X,
+                observedPosition.Y);
+        }
+        else
+        {
+            Log.Warning(
+                "[PlaybackCoordinator] Absolute cursor move did not settle at ({ExpectedX},{ExpectedY}); no cursor position was observed.",
+                expectedX,
+                expectedY);
+        }
+
         return false;
     }
 

@@ -7,8 +7,6 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public class EditorActionConverter : IEditorActionConverter
 {
-    private const long DefaultKeyPressDelayMicroseconds = 10_000;
-
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly RunScriptCompiler _runScriptCompiler;
 
@@ -116,7 +114,7 @@ public class EditorActionConverter : IEditorActionConverter
                 {
                     Type = EventType.KeyRelease,
                     KeyCode = action.KeyCode,
-                    DelayMicroseconds = DefaultKeyPressDelayMicroseconds,
+                    DelayMicroseconds = MacroTiming.DefaultKeyPressDelayMicroseconds,
                 });
                 break;
 
@@ -314,7 +312,7 @@ public class EditorActionConverter : IEditorActionConverter
         {
             Type = EventType.KeyPress,
             KeyCode = keyCode,
-            DelayMicroseconds = isFirst ? initialDelayMicroseconds : DefaultKeyPressDelayMicroseconds,
+            DelayMicroseconds = isFirst ? initialDelayMicroseconds : MacroTiming.DefaultKeyPressDelayMicroseconds,
         });
         events.Add(new MacroEvent
         {
@@ -515,7 +513,7 @@ public class EditorActionConverter : IEditorActionConverter
             || hasScriptCoordinateActions
             || (hasStateScriptActions && !hasRuntimeEventActions))
         {
-            return CompileScriptBackedSequence(actionList, name);
+            return CompileScriptBackedSequence(actionList, name, skipInitialZeroZero);
         }
 
         var sequence = new MacroSequence
@@ -601,17 +599,21 @@ public class EditorActionConverter : IEditorActionConverter
 
         if (hasStateScriptActions)
         {
-            sequence.SkipInitialZeroZero = true;
-            sequence.ReplaceScriptSteps(BuildScriptSteps(actionList)
+            var scriptSteps = BuildScriptSteps(actionList);
+            sequence.ReplaceScriptSteps(scriptSteps
                 .Select(step => step.Step)
                 .Where(step => !string.IsNullOrWhiteSpace(step))
                 .ToList());
+            ClearTrailingDelayWhenScriptExecutes(sequence, scriptSteps);
         }
 
         return sequence;
     }
 
-    private MacroSequence CompileScriptBackedSequence(IReadOnlyList<EditorAction> actions, string name)
+    private MacroSequence CompileScriptBackedSequence(
+        IReadOnlyList<EditorAction> actions,
+        string name,
+        bool skipInitialZeroZero)
     {
         var scriptSteps = BuildScriptSteps(actions);
         var compileResult = _runScriptCompiler.Compile(scriptSteps);
@@ -625,10 +627,12 @@ public class EditorActionConverter : IEditorActionConverter
         var sequence = compileResult.Sequence;
         sequence.Name = name;
         sequence.CreatedAt = DateTime.UtcNow;
+        sequence.SkipInitialZeroZero = skipInitialZeroZero;
         sequence.ReplaceScriptSteps(scriptSteps
             .Select(step => step.Step)
             .Where(step => !string.IsNullOrWhiteSpace(step))
             .ToList());
+        ClearTrailingDelayWhenScriptExecutes(sequence, scriptSteps);
 
         if (sequence.Events.Count > 0 && (compileResult.InitialDelayMicroseconds > 0 || compileResult.InitialHasRandomDelay))
         {
@@ -649,6 +653,21 @@ public class EditorActionConverter : IEditorActionConverter
         sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
         sequence.ClickCount = sequence.Events.Count(e => e.Type is not EventType.MouseMove);
         return sequence;
+    }
+
+    private static void ClearTrailingDelayWhenScriptExecutes(
+        MacroSequence sequence,
+        IReadOnlyList<RunScriptStep> scriptSteps)
+    {
+        if (!scriptSteps.Any(step => RunScriptRuntimeStepClassifier.IsRuntimeStep(step.Step)))
+        {
+            return;
+        }
+
+        sequence.TrailingDelayMicroseconds = 0;
+        sequence.HasTrailingRandomDelay = false;
+        sequence.TrailingDelayMinMs = 0;
+        sequence.TrailingDelayMaxMs = 0;
     }
 
     private static void RecalculateTimestamps(MacroSequence sequence)

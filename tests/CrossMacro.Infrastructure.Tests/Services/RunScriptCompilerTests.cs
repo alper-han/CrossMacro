@@ -40,6 +40,22 @@ public sealed class RunScriptCompilerTests
     }
 
     [Fact]
+    public void Compile_WhenTypeHasMultipleCharacters_UsesEditorInterCharacterDelay()
+    {
+        _ = _keyCodeMapper.GetKeyCodeForCharacter('a').Returns(30);
+        _ = _keyCodeMapper.GetKeyCodeForCharacter('b').Returns(48);
+
+        var result = _compiler.Compile([new RunScriptStep("type ab")]);
+
+        _ = result.Success.Should().BeTrue();
+        _ = result.Sequence!.Events.Select(ev => (ev.Type, ev.KeyCode, ev.DelayMicroseconds)).Should().Equal(
+            (EventType.KeyPress, 30, 0L),
+            (EventType.KeyRelease, 30, 0L),
+            (EventType.KeyPress, 48, MacroTiming.DefaultKeyPressDelayMicroseconds),
+            (EventType.KeyRelease, 48, 0L));
+    }
+
+    [Fact]
     public void Compile_WhenDelayUsesFractionalMilliseconds_PreservesExactTimelineAndTrailingDelay()
     {
         var result = _compiler.Compile(

@@ -787,7 +787,7 @@ public sealed partial class EditorActionConverterTests
     }
 
     [Fact]
-    public void ToMacroSequence_WhenScriptBackedConversionUsed_UsesSkipInitialZeroZeroDefault()
+    public void ToMacroSequence_WhenScriptBackedConversionUsed_PreservesSkipInitialZeroZero()
     {
         // Arrange
         var actions = new[]
@@ -810,7 +810,39 @@ public sealed partial class EditorActionConverterTests
         var sequence = _converter.ToMacroSequence(actions, "Skip Initial Propagation", isAbsolute: false, skipInitialZeroZero: false);
 
         // Assert
-        _ = sequence.SkipInitialZeroZero.Should().BeTrue();
+        _ = sequence.SkipInitialZeroZero.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ToMacroSequence_WhenStateScriptEndsWithDelay_DoesNotDuplicateTrailingDelay()
+    {
+        // Arrange
+        var actions = new[]
+        {
+            new EditorAction
+            {
+                Type = EditorActionType.SetVariable,
+                ScriptVariableName = "i",
+                ScriptValueType = ScriptValueType.Number,
+                ScriptValue = "1",
+            },
+            new EditorAction
+            {
+                Type = EditorActionType.MouseClick,
+                Button = MacroMouseButton.Left,
+                UseCurrentPosition = true,
+                IsAbsolute = false,
+            },
+            new EditorAction { Type = EditorActionType.Delay, DelayMs = 250 },
+        };
+
+        // Act
+        var sequence = _converter.ToMacroSequence(actions, "Single trailing script delay", isAbsolute: false);
+
+        // Assert
+        _ = sequence.ScriptSteps.Should().EndWith("delay 250");
+        _ = sequence.TrailingDelayMicroseconds.Should().Be(0);
+        _ = sequence.HasTrailingRandomDelay.Should().BeFalse();
     }
 
     [Fact]

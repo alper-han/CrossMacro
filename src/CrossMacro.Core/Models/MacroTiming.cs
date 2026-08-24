@@ -4,6 +4,7 @@ namespace CrossMacro.Core.Models;
 public static class MacroTiming
 {
     public const long MicrosecondsPerMillisecond = 1_000;
+    public const long DefaultKeyPressDelayMicroseconds = 10_000;
 
     public static int ToLegacyMilliseconds(long microseconds) =>
         checked((int)Math.Clamp(

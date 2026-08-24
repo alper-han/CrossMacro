@@ -317,11 +317,11 @@ public sealed class RunScriptCompiler
 
         void EmitEvent(MacroEvent ev)
         {
-            ev.DelayMicroseconds = pendingFixedDelayMicroseconds;
+            ev.DelayMicroseconds = checked(ev.DelayMicroseconds + pendingFixedDelayMicroseconds);
             ev.HasRandomDelay = pendingHasRandomDelay;
             ev.RandomDelayMinMs = pendingRandomDelayMinMs;
             ev.RandomDelayMaxMs = pendingRandomDelayMaxMs;
-            timestampMicroseconds += pendingFixedDelayMicroseconds;
+            timestampMicroseconds += ev.DelayMicroseconds;
             if (pendingHasRandomDelay)
             {
                 timestampMicroseconds += (long)pendingRandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond;
@@ -1407,6 +1407,7 @@ public sealed class RunScriptCompiler
             return true;
         }
 
+        var isFirstCharacter = true;
         for (var index = 0; index < textToType.Length; index++)
         {
             var ch = textToType[index];
@@ -1417,45 +1418,49 @@ public sealed class RunScriptCompiler
                     index++;
                 }
 
-                if (!TryEmitTapKeyByName("Enter", emitEvent, out var carriageReturnError))
+                if (!TryEmitTapKeyByName("Enter", isFirstCharacter, emitEvent, out var carriageReturnError))
                 {
                     error = $"{stepPrefix}: {carriageReturnError}";
                     return true;
                 }
 
+                isFirstCharacter = false;
                 continue;
             }
 
             if (ch == '\n')
             {
-                if (!TryEmitTapKeyByName("Enter", emitEvent, out var lineFeedError))
+                if (!TryEmitTapKeyByName("Enter", isFirstCharacter, emitEvent, out var lineFeedError))
                 {
                     error = $"{stepPrefix}: {lineFeedError}";
                     return true;
                 }
 
+                isFirstCharacter = false;
                 continue;
             }
 
             if (ch == '\t')
             {
-                if (!TryEmitTapKeyByName("Tab", emitEvent, out var tabError))
+                if (!TryEmitTapKeyByName("Tab", isFirstCharacter, emitEvent, out var tabError))
                 {
                     error = $"{stepPrefix}: {tabError}";
                     return true;
                 }
 
+                isFirstCharacter = false;
                 continue;
             }
 
             if (ch == '\b')
             {
-                if (!TryEmitTapKeyByName("Backspace", emitEvent, out var backspaceError))
+                if (!TryEmitTapKeyByName("Backspace", isFirstCharacter, emitEvent, out var backspaceError))
                 {
                     error = $"{stepPrefix}: {backspaceError}";
                     return true;
                 }
 
+                isFirstCharacter = false;
                 continue;
             }
 
@@ -1488,19 +1493,32 @@ public sealed class RunScriptCompiler
                 emitEvent(new MacroEvent { Type = EventType.KeyPress, KeyCode = modifier });
             }
 
-            emitEvent(new MacroEvent { Type = EventType.KeyPress, KeyCode = keyCode });
+            emitEvent(new MacroEvent
+            {
+                Type = EventType.KeyPress,
+                KeyCode = keyCode,
+                DelayMicroseconds = isFirstCharacter
+                    ? 0
+                    : MacroTiming.DefaultKeyPressDelayMicroseconds,
+            });
             emitEvent(new MacroEvent { Type = EventType.KeyRelease, KeyCode = keyCode });
 
             for (var m = modifiers.Count - 1; m >= 0; m--)
             {
                 emitEvent(new MacroEvent { Type = EventType.KeyRelease, KeyCode = modifiers[m] });
             }
+
+            isFirstCharacter = false;
         }
 
         return true;
     }
 
-    private bool TryEmitTapKeyByName(string keyName, Action<MacroEvent> emitEvent, out string? error)
+    private bool TryEmitTapKeyByName(
+        string keyName,
+        bool isFirstCharacter,
+        Action<MacroEvent> emitEvent,
+        out string? error)
     {
         var code = ResolveKeyCode(keyName);
         if (code < 0)
@@ -1509,7 +1527,14 @@ public sealed class RunScriptCompiler
             return false;
         }
 
-        emitEvent(new MacroEvent { Type = EventType.KeyPress, KeyCode = code });
+        emitEvent(new MacroEvent
+        {
+            Type = EventType.KeyPress,
+            KeyCode = code,
+            DelayMicroseconds = isFirstCharacter
+                ? 0
+                : MacroTiming.DefaultKeyPressDelayMicroseconds,
+        });
         emitEvent(new MacroEvent { Type = EventType.KeyRelease, KeyCode = code });
         error = null;
         return true;

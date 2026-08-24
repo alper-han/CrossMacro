@@ -39,12 +39,10 @@ public interface IEditorActionConverter
 
     /// <summary>
     /// Converts a MacroEvent to an EditorAction.
-    /// May merge consecutive events (e.g., KeyDown+KeyUp → KeyPress).
     /// </summary>
     /// <param name="ev">The macro event to convert.</param>
-    /// <param name="nextEvent">Optional next event for merging detection.</param>
     /// <returns>The corresponding EditorAction.</returns>
-    public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null);
+    public EditorAction FromMacroEvent(MacroEvent ev);
 
     /// <summary>
     /// Restores a runtime sequence into an editor projection.

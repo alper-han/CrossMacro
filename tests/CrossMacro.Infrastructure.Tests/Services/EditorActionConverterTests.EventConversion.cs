@@ -272,18 +272,16 @@ public sealed partial class EditorActionConverterTests
     }
 
     [Fact]
-    public void FromMacroEvent_WhenPressFollowedByRelease_MergesToKeyPressAction()
+    public void FromMacroEvent_WhenKeyPress_RestoresKeyDownAction()
     {
         // Arrange
         _ = _keyCodeMapper.GetKeyName(30).Returns("A");
         var keyPress = new MacroEvent { Type = EventType.KeyPress, KeyCode = 30, DelayMs = 15 };
-        var keyRelease = new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30 };
-
         // Act
-        var action = _converter.FromMacroEvent(keyPress, keyRelease);
+        var action = _converter.FromMacroEvent(keyPress);
 
         // Assert
-        _ = action.Type.Should().Be(EditorActionType.KeyPress);
+        _ = action.Type.Should().Be(EditorActionType.KeyDown);
         _ = action.KeyCode.Should().Be(30);
         _ = action.KeyName.Should().Be("A");
         _ = action.DelayMs.Should().Be(15);
@@ -427,17 +425,53 @@ public sealed partial class EditorActionConverterTests
         var actions = _converter.FromMacroSequence(sequence);
 
         // Assert
-        _ = actions.Should().HaveCount(4);
+        _ = actions.Should().HaveCount(6);
         _ = actions[0].Type.Should().Be(EditorActionType.Delay);
         _ = actions[0].DelayMs.Should().Be(12);
-        _ = actions[1].Type.Should().Be(EditorActionType.KeyPress);
+        _ = actions[1].Type.Should().Be(EditorActionType.KeyDown);
         _ = actions[1].KeyCode.Should().Be(30);
         _ = actions[1].DelayMs.Should().Be(0);
-        _ = actions[2].Type.Should().Be(EditorActionType.Delay);
-        _ = actions[2].DelayMs.Should().Be(10);
-        _ = actions[3].Type.Should().Be(EditorActionType.KeyPress);
-        _ = actions[3].KeyCode.Should().Be(48);
-        _ = actions[3].DelayMs.Should().Be(0);
+        _ = actions[2].Type.Should().Be(EditorActionType.KeyUp);
+        _ = actions[2].KeyCode.Should().Be(30);
+        _ = actions[3].Type.Should().Be(EditorActionType.Delay);
+        _ = actions[3].DelayMs.Should().Be(10);
+        _ = actions[4].Type.Should().Be(EditorActionType.KeyDown);
+        _ = actions[4].KeyCode.Should().Be(48);
+        _ = actions[4].DelayMs.Should().Be(0);
+        _ = actions[5].Type.Should().Be(EditorActionType.KeyUp);
+        _ = actions[5].KeyCode.Should().Be(48);
+    }
+
+    [Fact]
+    public void ToAndFromMacroSequence_WhenKeyIsHeld_PreservesDownDelayAndUpEvents()
+    {
+        // Arrange
+        _ = _keyCodeMapper.GetKeyName(30).Returns("A");
+        var sequence = new MacroSequence
+        {
+            Events =
+            {
+                new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 },
+                new MacroEvent { Type = EventType.KeyRelease, KeyCode = 30, DelayMs = 5_100 },
+            },
+        };
+
+        // Act
+        var actions = _converter.FromMacroSequence(sequence);
+        var roundTripped = _converter.ToMacroSequence(actions, "Held key", isAbsolute: true);
+
+        // Assert
+        _ = actions.Select(action => action.Type).Should().Equal(
+            EditorActionType.KeyDown,
+            EditorActionType.Delay,
+            EditorActionType.KeyUp);
+        _ = actions[0].KeyCode.Should().Be(30);
+        _ = actions[1].DelayMs.Should().Be(5_100);
+        _ = actions[2].KeyCode.Should().Be(30);
+        _ = roundTripped.Events.Select(ev => ev.Type).Should().Equal(
+            EventType.KeyPress,
+            EventType.KeyRelease);
+        _ = roundTripped.Events.Select(ev => ev.DelayMs).Should().Equal(0, 5_100);
     }
 
     [Fact]

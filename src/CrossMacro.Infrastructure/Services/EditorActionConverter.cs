@@ -383,7 +383,7 @@ public class EditorActionConverter : IEditorActionConverter
     }
 
     /// <inheritdoc/>
-    public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null)
+    public EditorAction FromMacroEvent(MacroEvent ev)
     {
         var action = new EditorAction
         {
@@ -456,15 +456,7 @@ public class EditorActionConverter : IEditorActionConverter
                 break;
 
             case EventType.KeyPress:
-                // Check if next event is KeyRelease with same key - then merge to KeyPress
-                if ((nextEvent?.Type) is EventType.KeyRelease && nextEvent?.KeyCode == ev.KeyCode)
-                {
-                    action.Type = EditorActionType.KeyPress;
-                }
-                else
-                {
-                    action.Type = EditorActionType.KeyDown;
-                }
+                action.Type = EditorActionType.KeyDown;
                 action.KeyCode = ev.KeyCode;
                 action.KeyName = _keyCodeMapper.GetKeyName(ev.KeyCode);
                 break;
@@ -1385,8 +1377,6 @@ public class EditorActionConverter : IEditorActionConverter
         for (int i = 0; i < events.Count; i++)
         {
             var ev = events[i];
-            var nextEvent = i + 1 < events.Count ? events[i + 1] : (MacroEvent?)null;
-
             if (textInputBoundaries.TryGetValue(i, out var textInputBoundary))
             {
                 AppendDelayActions(
@@ -1409,17 +1399,7 @@ public class EditorActionConverter : IEditorActionConverter
                 continue;
             }
 
-            // Skip KeyRelease if it was merged with previous KeyPress or TextInput
-            if (ev.Type is EventType.KeyRelease && i > 0)
-            {
-                var prevAction = actions.LastOrDefault();
-                if ((prevAction?.Type) is EditorActionType.KeyPress && prevAction.KeyCode == ev.KeyCode)
-                {
-                    continue; // Already merged
-                }
-            }
-
-            var action = FromMacroEvent(ev, nextEvent);
+            var action = FromMacroEvent(ev);
 
             // Set IsAbsolute from event-level mode, falling back to legacy sequence metadata.
             if (action.Type is EditorActionType.MouseMove

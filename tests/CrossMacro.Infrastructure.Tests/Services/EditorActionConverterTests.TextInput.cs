@@ -296,9 +296,11 @@ public sealed partial class EditorActionConverterTests
         var restored = _converter.FromMacroSequence(sequence);
 
         _ = restored.Select(action => action.Type).Should().Equal(
-            EditorActionType.KeyPress,
-            EditorActionType.KeyPress);
-        _ = restored.Select(action => action.KeyCode).Should().Equal(30, 48);
+            EditorActionType.KeyDown,
+            EditorActionType.KeyUp,
+            EditorActionType.KeyDown,
+            EditorActionType.KeyUp);
+        _ = restored.Select(action => action.KeyCode).Should().Equal(30, 30, 48, 48);
     }
 
     [Fact]
@@ -321,9 +323,11 @@ public sealed partial class EditorActionConverterTests
         var restored = _converter.FromMacroSequence(sequence);
 
         _ = restored.Select(action => action.Type).Should().Equal(
-            EditorActionType.KeyPress,
-            EditorActionType.KeyPress);
-        _ = restored.Select(action => action.KeyCode).Should().Equal(30, 48);
+            EditorActionType.KeyDown,
+            EditorActionType.KeyUp,
+            EditorActionType.KeyDown,
+            EditorActionType.KeyUp);
+        _ = restored.Select(action => action.KeyCode).Should().Equal(30, 30, 48, 48);
     }
 
     [Fact]

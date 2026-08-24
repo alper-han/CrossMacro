@@ -5,7 +5,7 @@ internal sealed class DesignEditorActionConverter : IEditorActionConverter
 {
     public IReadOnlyList<MacroEvent> ToMacroEvents(EditorAction action) => [];
 
-    public EditorAction FromMacroEvent(MacroEvent ev, MacroEvent? nextEvent = null) => new() { Type = EditorActionType.Delay, DelayMicroseconds = ev.DelayMicroseconds };
+    public EditorAction FromMacroEvent(MacroEvent ev) => new() { Type = EditorActionType.Delay, DelayMicroseconds = ev.DelayMicroseconds };
 
     public MacroSequence ToMacroSequence(IEnumerable<EditorAction> actions, string name, bool isAbsolute, bool skipInitialZeroZero = false)
     {

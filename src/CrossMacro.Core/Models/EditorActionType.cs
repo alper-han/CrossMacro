@@ -58,7 +58,7 @@ public enum EditorActionType
     /// <summary>
     /// Type a sequence of characters as KeyPress events.
     /// Expands to multiple KeyPress events when saving.
-    /// Consecutive KeyPress events are merged into this type when loading.
+    /// Restored only when the macro includes an explicit TextInput boundary.
     /// </summary>
     TextInput,
 

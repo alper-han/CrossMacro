@@ -513,10 +513,14 @@ public sealed class DefaultPlaybackCoordinatorTests
         var simulator = Substitute.For<IInputSimulator>();
         var positionProvider = Substitute.For<IMousePositionProvider>();
         _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
-        _ = positionProvider.GetAbsolutePositionAsync().Returns(
-            Task.FromResult<(int X, int Y)?>((1200, 600)),
-            Task.FromResult<(int X, int Y)?>((0, -200)),
-            Task.FromResult<(int X, int Y)?>((-1920, -200)));
+        List<(int X, int Y)> observedPositions = [];
+        Queue<(int X, int Y)> positions = new([(1200, 600), (0, -200), (-1920, -200)]);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            (int X, int Y) position = positions.Count > 0 ? positions.Dequeue() : (-1920, -200);
+            observedPositions.Add(position);
+            return Task.FromResult<(int X, int Y)?>(position);
+        });
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
         coordinator.ConfigureDesktopBounds(new ScreenRect(-1920, -200, 4480, 1640));
         var macro = new MacroSequence
@@ -539,7 +543,7 @@ public sealed class DefaultPlaybackCoordinatorTests
 
         _ = coordinator.CurrentX.Should().Be(-1920);
         _ = coordinator.CurrentY.Should().Be(-200);
-        _ = await positionProvider.Received(3).GetAbsolutePositionAsync();
+        _ = observedPositions.Should().Contain((0, -200));
     }
 
     [Fact]

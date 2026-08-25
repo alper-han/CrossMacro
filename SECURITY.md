@@ -4,8 +4,8 @@
 
 CrossMacro currently provides security updates for:
 
-- `main` branch (always)
-- latest stable release (always)
+- `dev` branch, where security fixes are developed
+- latest stable release, after maintainers promote vetted fixes from `dev` to `main`
 
 Older releases may receive fixes on a best-effort basis and should not be considered fully supported.
 

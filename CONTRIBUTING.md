@@ -96,15 +96,17 @@ dotnet run --project "$LINUX_APP" -- --help
 dotnet run --project "$LINUX_APP" -- doctor --json --verbose
 ```
 
-For CLI syntax and direct-run examples, see [docs/cli.md](docs/cli.md).
+For CLI syntax and direct-run examples, see
+[docs/cli.md](docs/cli.md).
 
 ## Platform Notes
 
 ### Linux
 
 Linux input automation depends on the session, install channel, and permission
-path. See [docs/linux.md](docs/linux.md) for daemon-backed mode, direct-device
-fallback, Flatpak, AppImage, NixOS, Wayland cursor positioning, and debug logs.
+path. See [docs/linux.md](docs/linux.md) for daemon-backed
+mode, direct-device fallback, Flatpak, AppImage, NixOS, Wayland cursor
+positioning, window control, and debug logs.
 
 For local daemon development you can install the daemon from the repository:
 
@@ -133,8 +135,8 @@ MSIX and winget-related files.
 ### macOS
 
 macOS recording/global shortcuts require Input Monitoring. Playback/input
-injection requires Accessibility. See [docs/macos.md](docs/macos.md) for the DMG
-install and permission flow.
+injection uses the Accessibility approval flow. See [docs/macos.md](docs/macos.md)
+for the DMG install and permission flow.
 
 Source builds can be launched with `dotnet run`, but release DMG installs run
 from `/Applications/CrossMacro.app` and are not normally added to shell `PATH`.
@@ -150,12 +152,16 @@ Common checks:
 dotnet restore
 dotnet build --configuration Debug --no-restore
 CORE_TESTS=tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj
+APPLICATION_TESTS=tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj
 CLI_TESTS=tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj
 INFRA_TESTS=tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj
+MCP_TESTS=tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj
 UI_TESTS=tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj
 dotnet test "$CORE_TESTS" --configuration Debug --no-build
+dotnet test "$APPLICATION_TESTS" --configuration Debug --no-build
 dotnet test "$CLI_TESTS" --configuration Debug --no-build
 dotnet test "$INFRA_TESTS" --configuration Debug --no-build
+dotnet test "$MCP_TESTS" --configuration Debug --no-build
 dotnet test "$UI_TESTS" --configuration Debug --no-build
 ```
 
@@ -191,11 +197,15 @@ where possible.
 Update user-facing docs together with behavior changes:
 
 - `README.md` for the project overview, install matrix, and support links.
-- `docs/linux.md` for Linux runtime modes, permissions, Wayland/X11 behavior,
-  NixOS, Flatpak, AppImage, and daemon troubleshooting.
-- `docs/macos.md` for macOS install, Gatekeeper, Input Monitoring, and
-  Accessibility behavior.
-- `docs/cli.md` and `docs/man/crossmacro.1` for CLI command or option changes.
+- `docs/linux.md` for Linux installation, permissions, input/capture
+  paths, compositor behavior, and troubleshooting.
+- `docs/windows.md` for Windows installation, desktop-session behavior, and
+  diagnostics.
+- `docs/macos.md` and `docs/troubleshooting/macos-*.md` for macOS installation,
+  Gatekeeper, Input Monitoring, Accessibility, and Screen Recording behavior.
+- `docs/cli.md` and `docs/man/crossmacro.1` for CLI command or option
+  changes.
+- `docs/mcp.md` for MCP transport, policy, tool, or limit changes.
 - Package metadata and store manifests when install channels, permissions, or
   release assets change.
 

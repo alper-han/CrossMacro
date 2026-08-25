@@ -93,38 +93,73 @@
   <screenshots>
     <screenshot type="default">
       <caption>Record mouse and keyboard macros</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/recording-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/recording-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Play recorded macros with adjustable speed, loops, and delays</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/playback-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/playback-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Manage saved macro files</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/files-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/files-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Create text expansion shortcuts</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/text-expansion-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/text-expansion-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Assign macros to global hotkeys</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/shortcuts-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/shortcuts-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Schedule macros at specific times or intervals</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/schedule-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/schedule-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Edit macros with undo/redo, reordering, and workflow actions</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/editor-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/editor-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Configure themes and application preferences</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.3.1/screenshots/settings-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/settings-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Create trigger-based automations for focused windows</caption>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/trigger-tab.png</image>
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.4.0" date="2026-08-25">
+      <description>
+        <p>CrossMacro 1.4.0 is a major automation release for Linux. It adds visual automation, Linux window control, structured scripting, a substantially expanded CLI, local MCP integration, higher-fidelity input handling, custom themes, and extensive Wayland and portable-package improvements.</p>
+        <ul>
+          <li>Added reusable image assets and image-based actions that can find an image, wait for it to appear, and use the result in later macro steps. Image automation is available in the editor, scripts, CLI, runtime, and saved macros.</li>
+          <li>Added automatic image matching with a 0.95 confidence threshold, time-bounded colour and image polling, image-click actions, and clearer immediate versus waiting screen commands.</li>
+          <li>Improved visual automation on multi-monitor desktops with scale-aware matching, transparency and valid-pixel handling, and reliable capture of regions that span multiple displays.</li>
+          <li>Improved Wayland screen reading with native capture and clipboard backends across the GUI, CLI, and headless runtime; improved PipeWire and Portal capture; common SDR format support; cached frames; multi-monitor selection; and clearer diagnostics.</li>
+          <li>Added Linux window control for KDE Plasma, GNOME Shell, Hyprland, Niri, and Sway. Macros and CLI commands can list, find, wait for, focus, close, move, resize, center, maximize, fullscreen, float, and move supported windows between workspaces.</li>
+          <li>Added focused-window shortcut rules that match a window class, title, or process, with a visual picker, CLI support, and persistent settings.</li>
+          <li>Made window automation degrade safely: unavailable backends are skipped and unsupported controls are hidden instead of causing startup failures.</li>
+          <li>Added Raw and Logical relative mouse-recording modes. Raw mode records device deltas, while Logical mode records desktop-pixel movement; both are available through settings, recording, the editor, CLI, and saved macros.</li>
+          <li>Improved relative playback by keeping raw device deltas out of logical cursor settling, re-anchoring logical movement after manual cursor changes, and starting relative editor moves from the current cursor position.</li>
+          <li>Preserved microsecond macro timing and added motion-fidelity controls for more deterministic relative playback, safer cursor settling, repeated-target handling, and confirmation before rapidly repeating low-delay macros.</li>
+          <li>Improved Linux input reliability by reporting partial device writes, safely reusing virtual devices, preserving evdev timestamps, and resuming daemon capture after a keyboard or mouse is reconnected.</li>
+          <li>Added structured script actions for shell commands, clipboard operations, and current mouse-position variables, plus arithmetic with mul, div, and expressions in repeat, for, if, and while arguments.</li>
+          <li>Shell steps run as the current user in native Linux and AppImage packages. Flatpak shell steps run in a nested networkless sandbox that cannot access host commands, input devices, or the desktop session bus.</li>
+          <li>Added clipboard get, set, and selected-text capture steps, with safer clipboard error handling and support for using current mouse coordinates in later actions.</li>
+          <li>Added selected-text capture in the editor, variable mouse coordinates, inline macro testing, and more reliable action editing, undo behaviour, raw-key actions, and random delays.</li>
+          <li>Added user-defined JSON themes, a themes-folder shortcut, safe theme refresh behaviour that keeps the active theme selected, debounced settings writes, and reduced text-expansion trigger polling.</li>
+          <li>Added CLI commands for profiles, text expansions, settings, schedules, shortcuts, screenshots, clipboard access, window control, screen reading, direct input, and runtime automation.</li>
+          <li>The CLI can export screenshots, use native capture services, automate windows, run colour and image actions, and report coordinate modes and backend capabilities.</li>
+          <li>Added a secure local Model Context Protocol server for controlled AI-assisted CrossMacro workflows, with operation-specific permissions and file-path policies.</li>
+          <li>Saved loaded macro sessions per profile and improved support for Bazzite and Linux environments with directory-backed identities.</li>
+          <li>Flatpak and AppImage now select direct input devices predictably on Wayland instead of probing the host daemon. Both retain temporary Quick Setup when input permissions are needed, including a command-line setup flow with clearer authorization guidance.</li>
+          <li>Flatpak screen reading uses the XDG Desktop Portal and PipeWire, while AppImage follows the native Wayland capture path.</li>
+          <li>Updated Linux launchers and package integration across Flatpak, AppImage, DEB, RPM, Arch, and Nix. Development snapshots are now available through the crossmacro-git AUR package. Linux daemon authorization and setup now support NSS, Active Directory, LDAP, SSSD, Userborn, and other directory-backed group identities.</li>
+          <li>Improved runtime recovery after daemon restarts, automatic text-expansion capture recovery after transient failures, duplicate-startup protection, profile persistence, and the installation, platform, CLI, MCP, man-page, and troubleshooting documentation.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.1" date="2026-06-28">
       <description>
         <p>CrossMacro 1.3.1 implements Native AOT compilation, major CLI performance optimizations, and Linux uinput stabilization fixes.</p>

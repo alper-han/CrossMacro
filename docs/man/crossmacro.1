@@ -10,6 +10,8 @@ crossmacro \- keyboard and mouse macro automation CLI
 .br
 .B crossmacro
 \fBplay\fR \fIMACRO_FILE\fR [\fB\-\-speed\fR \fIN\fR] [\fB\-\-loop\fR] [\fB\-\-repeat\fR \fIN\fR]
+[\fB\-\-motion-mode\fR \fIprecision|strict-speed\fR] [\fB\-\-motion-rate\fR \fIN\fR]
+[\fB\-\-precision-motion-rate\fR \fIN\fR] [\fB\-\-motion-error-px\fR \fIN\fR]
 [\fB\-\-repeat-delay-ms\fR \fIMS\fR] [\fB\-\-countdown\fR \fISEC\fR] [\fB\-\-timeout\fR \fISEC\fR]
 [\fB\-\-dry-run\fR] [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
@@ -48,6 +50,9 @@ crossmacro \- keyboard and mouse macro automation CLI
 .br
 .B crossmacro
 \fBshortcut list|run|add|edit|remove|enable|disable|bind\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
+.br
+.B crossmacro
+\fBtrigger list|add|edit|remove|enable|disable\fR ... [\fB\-\-json\fR] [\fB\-\-log-level\fR \fILEVEL\fR]
 .br
 .B crossmacro
 \fBrecord\fR (\fB\-\-output\fR|\fB\-o\fR) \fIMACRO_FILE\fR [\fB\-\-mouse\fR \fIBOOL\fR] [\fB\-\-keyboard\fR \fIBOOL\fR]
@@ -106,8 +111,9 @@ CrossMacro provides GUI and CLI workflows for macro playback, validation, record
 environment diagnostics, and background headless runtime.
 If no CLI command is provided, CrossMacro starts GUI mode.
 .PP
-On Linux, CrossMacro can run in two different input modes.
-The preferred packaged path is daemon-backed mode, where the app talks to
+On Linux, CrossMacro has three input paths. Native X11 capture and playback are
+the first choice in a usable X11 session and do not require daemon or raw device
+access. The preferred native-package Wayland path is daemon-backed mode, where the app talks to
 \fBcrossmacro.service\fR over \fI/run/crossmacro/crossmacro.sock\fR and the daemon
 service user owns device access.
 The desktop user must be a member of the \fBcrossmacro\fR group to use that socket.
@@ -116,13 +122,10 @@ CrossMacro again, because existing sessions keep their old group list.
 Directory identities resolved through NSS, including AD, LDAP, and SSSD, are
 supported. Use \fBgpasswd -a <identity> crossmacro\fR to add a local group membership
 without modifying the directory service.
-Some channels and environments intentionally support direct device mode instead,
-where the app process itself needs access to \fI/dev/uinput\fR and, for recording or hotkeys,
-readable \fI/dev/input/event*\fR devices.
+Flatpak and AppImage do not select or probe the host daemon. On Wayland they use
+direct device mode: playback needs writable \fI/dev/uinput\fR or \fI/dev/input/uinput\fR,
+while recording and hotkeys additionally need readable \fI/dev/input/event*\fR devices.
 Direct device readiness does not fix daemon socket permission failures.
-On X11, CrossMacro tries native X11 capture and playback first; a supported native X11
-session does not require daemon-backed or direct device fallback.
-Flatpak and AppImage use direct device mode on Wayland and do not probe the host daemon.
 The required direct device permissions can be granted by Quick Setup.
 Arch and CachyOS package hooks provision the \fBcrossmacro\fR sysusers entry before service
 start or restart, and print manual remediation when they cannot confirm adding the
@@ -313,6 +316,25 @@ focused windows. Fields are \fBWindowClass\fR, \fBWindowTitle\fR, and
 replaces all existing rules; \fB--clear-window-rules\fR restores global behavior.
 Explicit \fBshortcut run\fR execution ignores window rules.
 .TP
+.B trigger
+Manage active-profile triggers for window, workspace, or process changes.
+.PP
+Trigger syntax:
+.br
+\fBtrigger list\fR
+.br
+\fBtrigger add --name <name> --field <field> --match-mode <mode> --value <value> --action <SwitchProfile|RunMacro> [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>]\fR
+.br
+\fBtrigger edit <task-id> [--name <name>] [--field <field>] [--match-mode <mode>] [--value <value>] [--action <SwitchProfile|RunMacro>] [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>]\fR
+.br
+\fBtrigger remove|enable|disable <task-id>\fR
+.PP
+Fields are \fBWindowClass\fR, \fBWindowTitle\fR, \fBWorkspace\fR,
+\fBProcessName\fR, and \fBNone\fR. Match modes are \fBEquals\fR,
+\fBContains\fR, and \fBRegex\fR. Fire modes are \fBOnceOnChange\fR,
+\fBEveryMatch\fR, \fBOnEnter\fR, and \fBOnExit\fR. \fBSwitchProfile\fR
+requires \fB--profile\fR; \fBRunMacro\fR requires \fB--macro\fR.
+.TP
 .B record
 Record input events and save a macro file.
 .TP
@@ -330,7 +352,12 @@ Supported steps:
 \fBrepeat\fR blocks, \fBif\fR/\fBelse\fR, \fBwhile\fR, and \fBfor\fR blocks,
 screen-reading steps \fBpixelcolor\fR, \fBwaitcolor\fR, \fBpixelsearch\fR,
 \fBimagesearch\fR, \fBimageclick\fR, and \fBwaitimage\fR,
+\fBscreenshot [region <x> <y> <width> <height>] [output <path>] [clipboard]\fR,
 plus loop control with \fBbreak\fR and \fBcontinue\fR.
+.PP
+The \fBscreenshot\fR run step requires at least one destination: \fBoutput
+<path>\fR, \fBclipboard\fR, or both. It writes PNG output and can optionally
+limit capture with \fBregion <x> <y> <width> <height>\fR.
 Named image assets are supplied with repeatable
 \fB\-\-asset NAME PNG_PATH\fR options and are referenced by image-step name.
 \fBpixelcolor\fR and \fBimagesearch\fR inspect one frame. \fBwaitcolor\fR,
@@ -441,7 +468,7 @@ ignored by matching; image-click will not click a template that crosses one.
 JSON output includes coordinates, color metadata, provider name, and search/wait result metadata.
 .TP
 .B screenshot
-Capture the current screen frame to a PNG file.
+Capture the current screen frame to a PNG file, the image clipboard, or both.
 .PP
 Screenshot syntax:
 .br
@@ -479,7 +506,7 @@ Success.
 Invalid arguments or parsing error.
 .TP
 .B 3
-File access/read error.
+File read, write, or path error.
 .TP
 .B 4
 Macro validation error.

@@ -1,31 +1,57 @@
-# CrossMacro MCP Reference
+# Complete MCP Reference
 
-CrossMacro exposes a local Model Context Protocol (MCP) server for desktop automation. This is the authoritative reference for its transport, security model, tool names, and operational limits.
+> [!NOTE]
+> This is the canonical MCP protocol, policy, tool, and troubleshooting
+> reference.
 
-The server is a focused API over CrossMacro. It is not a general-purpose shell, file-system, or process-execution server.
+CrossMacro can expose its desktop automation features to a trusted local
+Model Context Protocol (MCP) host. The server runs over standard input/output,
+uses the permissions of the current user, and applies CrossMacro's own capability
+and path policies before an action runs.
 
-## Start And Connect
+> [!CAUTION]
+> An MCP host can request real keyboard, mouse, clipboard, file, window, and
+> screen actions. Configure only hosts and agents you trust. Start with
+> restricted mode when you only need status and macro metadata.
 
-Start the server as a child process of an MCP-capable host:
+The server is a focused API over CrossMacro. It does not open a network listener
+and is not a general-purpose remote shell or file server.
 
-```bash
-crossmacro mcp
-```
+## Quick Start
 
-Use a restricted session when the host should only inspect status and macro metadata:
+Start the first connection in restricted mode:
 
 ```bash
 crossmacro mcp --restricted
 ```
 
-Configure the host with an absolute executable path and the separate `mcp` argument. The exact configuration format is host-specific.
+After reviewing and narrowing local policy, start the full server only when the
+host needs effectful desktop automation:
+
+```bash
+crossmacro mcp
+```
+
+Configure the host with an absolute executable path and pass `mcp` as a separate
+argument. The exact configuration format depends on the host. DMG installs on
+macOS normally use `/Applications/CrossMacro.app/Contents/MacOS/CrossMacro.UI`;
+portable Windows and Linux installs need the absolute path to the downloaded
+executable.
 
 ```text
 command: /absolute/path/to/crossmacro
-arguments: ["mcp"]
+arguments: ["mcp", "--restricted"]
 ```
 
-Do not add normal CLI `--json` output options. MCP owns standard output.
+Do not add the normal CLI `--json` option. MCP owns standard output and writes
+JSON-RPC messages there.
+
+After connecting:
+
+1. Call `status.get` to inspect the session and available capabilities.
+2. Call `help.get` for safe usage guidance.
+3. Use `tools/list` as the authoritative schema for the installed version.
+4. Prefer a dedicated tool over `command.execute`.
 
 ## Protocol And Runtime
 
@@ -39,7 +65,8 @@ Do not add normal CLI `--json` output options. MCP owns standard output.
 - That startup separation is not cross-process coordination. Concurrent MCP, GUI, and headless processes can still contend for input, clipboard ownership, settings, profiles, and scheduled tasks.
 - A desktop session is still required. MCP is not a display-less server mode.
 
-After connecting, call `status.get`, then `help.get`. The runtime `tools/list` response is authoritative for the installed version's complete JSON schemas, required arguments, optional arguments, and annotations.
+The runtime `tools/list` response is authoritative for the installed version's
+complete JSON schemas, required arguments, optional arguments, and annotations.
 
 ## Security Model
 
@@ -60,19 +87,54 @@ The following persisted capabilities default to enabled:
 
 `mcp.privilegeElevation` defaults to disabled. The standalone server's approval adapter also always denies privilege elevation, so `setup.run` is unavailable in the standard composition even if that setting is enabled.
 
-Effectful calls are automatically approved by the standalone server only after all CrossMacro policy checks pass. A custom composition can add a denying or interactive approval service. The approval timeout defaults to 30 seconds and accepts values from 1 through 300 seconds through `mcp.approvalTimeoutSeconds`.
+The standalone server automatically approves an effectful call after its effective
+capability policy passes. Tool-specific checks, such as argument parsing, path
+authorization, platform support, and operation limits, run when the tool handles
+the request and can still reject it. A custom composition can add a denying or
+interactive approval service. The approval timeout defaults to 30 seconds and
+accepts values from 1 through 300 seconds through
+`mcp.approvalTimeoutSeconds`.
 
 An MCP session can read supported settings, but cannot set or reset `mcp.*` security settings. Change those local-policy settings through the GUI or the local CLI instead.
 
+### Least-Privilege Configuration
+
+Keep `--restricted` when status and macro metadata are sufficient. Before giving
+a host full access, disable capabilities it does not need. For example, a host
+that only inspects screens and macro metadata can disable command execution,
+shell steps, writes, input, recording, and task mutation:
+
+```bash
+crossmacro settings set mcp.commandExecute false
+crossmacro settings set mcp.shellExecute false
+crossmacro settings set mcp.clipboardWrite false
+crossmacro settings set mcp.fileWrite false
+crossmacro settings set mcp.inputAutomation false
+crossmacro settings set mcp.recording false
+crossmacro settings set mcp.settingsWrite false
+crossmacro settings set mcp.profileManage false
+crossmacro settings set mcp.textExpansionWrite false
+crossmacro settings set mcp.taskManage false
+```
+
+Review `crossmacro settings get --all --json` before starting an unrestricted
+server.
+
 ### Restricted Mode
 
-`crossmacro mcp --restricted` permits only status reads and macro metadata reads. It denies screen, clipboard, window, file, command, input, recording, settings, profile, text-expansion, and task operations for that process.
+`crossmacro mcp --restricted` permits status reads and, when `mcp.macroRead` is
+enabled, macro metadata reads. It denies screen, clipboard, window, file,
+command, input, recording, settings, profile, text-expansion, and task
+operations for that process.
 
 ### Paths And Shell Steps
 
-File-backed operations require absolute regular paths. Path traversal and symbolic-link/reparse-point paths are rejected where applicable.
+File-backed operations require absolute regular paths. Path traversal and
+symbolic-link/reparse-point paths are rejected where applicable.
 
-The following settings optionally constrain each path class to semicolon-separated absolute roots. An empty root list means that path class has no configured root restriction.
+The following settings optionally constrain each path class to semicolon-separated
+absolute roots. An empty root list means that path class has no configured root
+restriction.
 
 ```text
 mcp.paths.macroRead
@@ -83,6 +145,10 @@ mcp.paths.fileRead
 mcp.paths.fileWrite
 ```
 
+Every configured root must exist, be a directory, and contain no symbolic
+link/reparse point. Invalid configured roots are ignored; if a path class has a
+non-empty setting but no valid roots remain, all paths in that class are denied.
+
 For example:
 
 ```bash
@@ -91,7 +157,13 @@ crossmacro settings set mcp.paths.macroWrite /home/user/macros
 crossmacro settings set mcp.paths.imageRead /home/user/images
 ```
 
-`command.execute` accepts a CrossMacro command token and an argument array, not a shell command string. Existing `run` DSL shell steps require `mcp.shellExecute`; they run as the current user and are not sandboxed. Do not grant that capability to an untrusted agent.
+`command.execute` accepts a CrossMacro command token and an argument array, not a
+shell command string. Inline `run` DSL shell steps require `mcp.shellExecute`.
+Any `run --file` or MCP `stepFilePath` also requires `FileRead` and
+`ShellExecute`, even when the file does not contain a shell step.
+MCP adds no separate shell sandbox: native and AppImage builds use the normal
+user shell, while Flatpak keeps CrossMacro's stricter, network-disabled nested
+sandbox. Do not grant this capability to an untrusted agent.
 
 ## Tool Catalog
 
@@ -170,8 +242,9 @@ All tools return structured content. For exact request and response schemas, use
 `automation.start` requirements by `kind`:
 
 - `play`: absolute `macroPath`, `MacroRead`, and `InputAutomation`.
-- `run`: `steps` or `stepFilePath`, `CommandExecute`; named image assets and
-   shell steps receive further path and capability checks.
+- `run`: `steps` or `stepFilePath`, `CommandExecute`; named image assets receive
+    further path and capability checks. `stepFilePath` additionally requires
+    `FileRead`, an authorized file-read path, and `ShellExecute`.
 - `record`: absolute `outputPath`, `Recording`, and `FileWrite`.
 
 `command.execute` accepts only these command tokens:
@@ -223,7 +296,9 @@ CrossMacro application failures are structured results. Inspect the returned `ou
 - Screen regions are capped at 16,777,216 pixels.
 - Window and screen waits default to 5 seconds and are capped at 30 seconds.
 - Automation countdown, timeout, recording duration, and repeat delay are capped at one hour.
-- Run automation accepts at most 100 steps, 16,384 characters per step, and 262,144 characters in total.
+- Inline run automation accepts at most 100 steps, 16,384 characters per step,
+  and 262,144 characters in total. A `stepFilePath` uses the CLI file loader:
+  the file is limited to 16 MiB, 100,000 lines/steps, and 256 KiB per line.
 - `command.execute` accepts at most 128 arguments, 16,384 characters per argument, and 262,144 characters in total.
 - One play, run, or record operation can be active per MCP process. At most 32 completed operation snapshots are retained.
 - Automation snapshots and audit entries do not retain original paths, run steps, recording paths, shell output, clipboard writes, image bytes, or backend exception details.
@@ -234,10 +309,10 @@ Tool discovery only confirms that the server started. It does not prove that a d
 
 | Area | Linux | Windows | macOS |
 | --- | --- | --- | --- |
-| Input automation | Depends on compositor, provider, daemon/direct device access, and permissions. | Depends on desktop session permissions. | Requires accessibility permission. |
-| Window tools | Depends on the active compositor/provider. | Depends on desktop session support. | Depends on window and accessibility permissions. |
+| Input automation | Depends on compositor, provider, daemon/direct device access, and permissions. | Depends on an active desktop session. | Uses the Accessibility approval flow. |
+| Window tools | Depends on the active compositor/provider. | Depends on an active desktop session and target-window support. | Requires Accessibility for the window backend. |
 | Screen tools | Depends on X11/Wayland provider, portal, PipeWire, and session. | Depends on capture/session permissions. | Requires Screen Recording permission. |
-| PNG clipboard read | Currently unavailable in the MCP adapter. | Supports native PNG clipboard formats. | Currently unavailable in the MCP adapter. |
+| PNG clipboard read | Currently unavailable in the MCP adapter. | Supports native PNG clipboard formats. | Supports native PNG clipboard formats. |
 
 On Linux, portal capture, native X11 capture, Wayland capture, input injection, daemon IPC, `/dev/input`, and `/dev/uinput` are independent capabilities. Use the same desktop session to run:
 

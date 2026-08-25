@@ -1,22 +1,53 @@
-# CLI Usage
+# Complete CLI And Runtime Reference
 
-Use the platform app executable as `crossmacro` when your install channel places
-it on `PATH`. Portable builds may require running the executable directly from
-its download folder.
+> [!NOTE]
+> This is the canonical command, run-language, and runtime reference.
 
-For command syntax, run:
+## Start Here
+
+Ask the installed version for its exact syntax:
 
 ```bash
 crossmacro --help
 crossmacro <command> --help
 ```
 
-The packaged manpage is also available at [`docs/man/crossmacro.1`](man/crossmacro.1).
+Use the platform executable as `crossmacro` when your install adds it to `PATH`.
+Portable builds may need the full executable path. The packaged manpage is also
+available at [`crossmacro.1`](man/crossmacro.1).
 
 Command syntax notation: `<value>` is required, `[value]` is optional, `a|b`
 means choose one, and `...` marks a repeatable argument.
 
-## Command overview
+Try a safe validation-only workflow first:
+
+```bash
+crossmacro --version
+crossmacro run --step "delay 50" --dry-run
+crossmacro doctor --json
+```
+
+`--dry-run` parses and validates supported play/run commands without sending
+input. Add `--json` when another program will consume the result.
+
+### Safety And Effects
+
+CrossMacro commands run with the permissions of the current user and can affect
+the active desktop.
+
+| Operation | Effect |
+| --- | --- |
+| Direct input and playback | Sends real keyboard and mouse input |
+| `window` mutation | Focuses, closes, moves, or resizes real windows |
+| Clipboard writes | Replaces current clipboard content |
+| Screenshot output | Overwrites the target PNG path |
+| Profile or task mutation | Changes persisted user configuration |
+| Shell steps | Executes arbitrary commands under the package's shell policy |
+
+Use `--dry-run` for supported `play` and `run` commands. Read-only commands and
+`--help` do not need desktop mutation permissions.
+
+## Find The Right Command
 
 | Area | Commands |
 | --- | --- |
@@ -27,8 +58,9 @@ means choose one, and `...` marks a repeatable argument.
 | User data | [`settings`](#settings-command), [`profile`](#profile-command), [`text-expansion`](#text-expansion-command), [`schedule`](#schedule-and-shortcut-commands), [`shortcut`](#schedule-and-shortcut-commands), [`trigger`](#trigger-command) |
 | Diagnostics/runtime | [`doctor`](#macro-files-playback-recording-and-diagnostics), [`setup`](#temporary-wayland-input-setup), [`headless`](#gui-less-desktop-runtime), [`--headless`](#gui-less-desktop-runtime) |
 
-Use the command-specific sections below for examples, option notes, and platform
-behavior.
+The rest of this page is a reference. Jump to the command family you need, copy
+the smallest example, then use `<command> --help` for the installed version's
+authoritative options.
 
 For desktop autostart, use `crossmacro --start-minimized`. When tray icon
 support is available, CrossMacro starts hidden to tray; otherwise it starts as a
@@ -52,8 +84,8 @@ crossmacro --headless
 This mode still requires a desktop session. It is not intended for display-less
 server automation.
 
-For MCP-capable hosts, `crossmacro mcp` starts the local stdio server. See
-[`mcp.md`](mcp.md) for its tools, security model, and connection requirements.
+For MCP-capable hosts, `crossmacro mcp` starts the local stdio server. See the
+[MCP reference](mcp.md) for its tools, security model, and connection requirements.
 
 ## Temporary Wayland input setup
 
@@ -62,7 +94,11 @@ session temporary access to `/dev/uinput` and
 `/dev/input/event*` without opening the GUI:
 
 ```bash
-crossmacro setup
+# Flatpak
+flatpak run io.github.alper_han.crossmacro setup
+
+# AppImage
+./CrossMacro-*.AppImage setup
 ```
 
 The command reuses the GUI Quick Setup flow. Flatpak invokes the host helper
@@ -126,11 +162,14 @@ crossmacro type "hello world"
 
 ### Delay command
 
-`delay <milliseconds>` waits for a fixed duration. `delay random <min> <max>`
-or `delay random <min>..<max>` chooses a duration in the inclusive range.
+Top-level `delay <duration>` waits for a fixed duration. It accepts milliseconds
+by default and precise tokens such as `2.375ms` or `250us`.
+`delay random <min> <max>` chooses an inclusive millisecond range. The compact
+`<min>..<max>` form is available only inside a `run` script step.
 
 ```bash
 crossmacro delay 50
+crossmacro delay 2.375ms
 crossmacro delay random 20 80
 ```
 
@@ -143,12 +182,14 @@ sending input.
 
 These commands do not open the editor:
 
+Replace `./my.macro` with a macro you recorded or saved in the GUI.
+
 ```bash
-crossmacro macro validate ./demo.macro
-crossmacro macro info ./demo.macro --json
-crossmacro play ./demo.macro --speed 1.25 --repeat 3
-crossmacro play ./demo.macro --speed 10 --motion-mode strict-speed --motion-rate 600 --motion-error-px 2
-crossmacro play ./demo.macro --dry-run
+crossmacro macro validate ./my.macro
+crossmacro macro info ./my.macro --json
+crossmacro play ./my.macro --speed 1.25 --repeat 3
+crossmacro play ./my.macro --speed 10 --motion-mode strict-speed --motion-rate 600 --motion-error-px 2
+crossmacro play ./my.macro --dry-run
 crossmacro record --output ./recorded.macro --mode auto --duration 10
 crossmacro doctor --verbose --json
 ```
@@ -258,8 +299,10 @@ crossmacro screen image-click ./button.png --button right
   `--region <x> <y> <width> <height>`, `--similarity <0..1>`, and
   `--matchmode <auto|first|best>`.
 - `screen wait-image <image-path>` and `screen image-click <image-path>` retry
-  for five seconds by default and accept `--timeout-ms <n>`; image-click also
-  accepts `--button <left|right|middle>`. The default button is `left`.
+  for five seconds by default. Both accept `--region <x> <y> <width> <height>`,
+  `--similarity <0..1>`, `--matchmode <auto|first|best>`, and
+  `--timeout-ms <n>`; image-click also accepts
+  `--button <left|right|middle>`. The default button is `left`.
 - Image commands accept finite similarity values from `0.0` to `1.0`, defaulting
   to `0.95`. New commands use automatic matching: native weighted-SAD is tried
   first, then a bounded pyramid/correlation and scale search when needed.
@@ -369,9 +412,9 @@ Schedule commands manage active-profile scheduled macro tasks:
 ```bash
 crossmacro schedule list --json
 crossmacro schedule run <task-id>
-crossmacro schedule add --name Daily --macro ./demo.macro --interval 10m
-crossmacro schedule add --name Once --macro ./demo.macro --at "2026-08-07T18:00:00"
-crossmacro schedule add --name Weekly --macro ./demo.macro --weekly mon,wed --time 09:30
+crossmacro schedule add --name Daily --macro ./my.macro --interval 10m
+crossmacro schedule add --name Once --macro ./my.macro --at "2030-01-15T18:00:00"
+crossmacro schedule add --name Weekly --macro ./my.macro --weekly mon,wed --time 09:30
 crossmacro schedule edit <task-id> --name Office --speed 1.25 --enabled true
 crossmacro schedule remove <task-id>
 crossmacro schedule enable <task-id>
@@ -388,7 +431,7 @@ Shortcut commands manage active-profile shortcut-bound macro tasks:
 ```bash
 crossmacro shortcut list --json
 crossmacro shortcut run <task-id>
-crossmacro shortcut add --name Demo --macro ./demo.macro --hotkey Ctrl+Alt+D
+crossmacro shortcut add --name Demo --macro ./my.macro --hotkey Ctrl+Alt+D
 crossmacro shortcut add --name Loop --macro ./loop.macro --hotkey F7 --loop --repeat 3
 crossmacro shortcut add --name Browser --macro ./browser.macro --hotkey Ctrl+Alt+B --window-rule WindowClass Equals org.mozilla.firefox
 crossmacro shortcut edit <task-id> --repeat-delay-ms 250
@@ -454,11 +497,18 @@ crossmacro settings reset updates.checkForUpdates
 - `settings list-keys` prints supported public keys.
 - `settings reset <key>` resets one supported key to its default value.
 - Playback keys are `playback.speed`, `playback.loop`, `playback.loopCount`,
-   `playback.loopDelayMs`, and `playback.countdownSeconds`. Recording keys are
+   `playback.loopDelayMs`, `playback.motionMode`,
+   `playback.strictSpeedMotionEventsPerSecond`,
+   `playback.precisionMotionEventsPerSecond`,
+   `playback.maximumMotionErrorPixels`, and `playback.countdownSeconds`.
+   Recording keys are
    `recording.mouse`, `recording.keyboard`, `recording.forceRelative`, `recording.logicalRelative`, and
    `recording.skipInitialZeroZero`. Other keys are `logging.level`,
   `textExpansion.enabled`, `ui.theme`, `ui.language`, `ui.trayIcon`,
-  `ui.startMinimized`, and `updates.checkForUpdates`.
+   `ui.startMinimized`, and `updates.checkForUpdates`. MCP policy keys include
+   the capability settings in the [MCP reference](mcp.md#security-model),
+   `mcp.approvalTimeoutSeconds`, and the `mcp.paths.*` roots. Use
+   `settings list-keys` as the authoritative list for the installed version.
 - `screen.portalRestoreToken` is status/reset only. `get` reports `set` or
   `empty`, and `reset` clears it; the raw token is never printed.
 - Boolean values accept `true`, `false`, `1`, `0`, `yes`, `no`, `on`, and `off`.
@@ -486,7 +536,6 @@ crossmacro run \
   --step "click left" \
   --step "delay random 20 50" \
   --step "}"
-crossmacro run --step 'shell "notify-send done" 1 250 5000'
 crossmacro run --file ./steps.txt --json
 crossmacro run move rel 100 0 delay 40 click left
 crossmacro run --asset button ./button.png --step 'waitimage button found x y timeout 5000'
@@ -502,15 +551,18 @@ example:
 crossmacro run --step "move abs $found_x $found_y"
 ```
 
-`notify-send` is a Linux-only example. Use a portable command such as
-`shell "echo done" 1 250 5000` when the macro must also run on Windows or
-macOS. Use `--step` when a step contains braces, `$variables`, or options that
-would be ambiguous in the positional form.
+Use `--step` when a step contains braces, `$variables`, or options that would be
+ambiguous in the positional form.
 
 Image steps use named assets supplied with repeatable `--asset <name> <png-path>`;
 the name must match `[A-Za-z_][A-Za-z0-9_]*` and is referenced by
 `imagesearch`, `imageclick`, or `waitimage`. Assets are loaded and validated
 before playback and are not written into the user's macro store.
+
+> [!CAUTION]
+> Shell steps execute arbitrary commands. Run only trusted scripts. Native and
+> AppImage builds use the normal user shell; Flatpak uses CrossMacro's stricter,
+> network-disabled nested sandbox.
 
 `shell "<command>" [retries] [backoff_ms] [timeout_ms]` runs a command through
 the platform shell (`/bin/sh -c` on Unix, `cmd.exe /S /C` on Windows). `retries`
@@ -519,6 +571,13 @@ retrying. `timeout_ms` applies to each attempt; `0` means no per-attempt timeout
 Variables inside command and stdin payloads are resolved before execution. Quote
 command payloads when using numeric options so command arguments are not confused
 with retry/backoff/timeout values.
+
+```bash
+crossmacro run --step 'shell "notify-send done" 1 250 5000'
+```
+
+`notify-send` is Linux-only. Use a portable command such as
+`shell "echo done" 1 250 5000` when the script must also run on Windows or macOS.
 
 Shell result capture and stdin are available with explicit forms:
 
@@ -545,7 +604,7 @@ instead of resolving a CrossMacro variable.
 CrossMacro's screen-reading commands use the active platform capture provider.
 Provider availability, permissions, and Wayland limitations are summarized in the
 [Detailed CLI and Runtime Reference](#detailed-cli-and-runtime-reference) below;
-Linux backend details are in [`docs/linux.md`](linux.md).
+Linux backend details are in the [Linux reference](linux.md).
 
 ```bash
 pixelcolor 500 300 mycolor
@@ -762,7 +821,7 @@ For automation, branch on `code` and use `errors`/`warnings` for diagnostics;
 `play` and `run` have two different timeout layers:
 
 ```bash
-crossmacro play ./demo.macro --timeout 30
+crossmacro play ./my.macro --timeout 30
 crossmacro run --step 'waitcolor 500 300 00FF00 10000 found' --timeout 20
 ```
 
@@ -920,8 +979,8 @@ timeout when an explicit window-wait budget is required.
   are positive integers with optional `s`, `m`, or `h` suffixes (no suffix means
   seconds). `--at` is parsed with the invariant-culture .NET date/time parser
   and is interpreted as local time when no offset is supplied. Prefer an
-  unambiguous ISO-style value such as `2026-08-07T18:00` or
-  `2026-08-07T18:00:00`; the CLI does not promise a narrower grammar, and
+   unambiguous ISO-style value such as `2030-01-15T18:00` or
+   `2030-01-15T18:00:00`; the CLI does not promise a narrower grammar, and
   daylight-saving edge cases follow the host runtime's local-time rules.
   Weekly values accept comma-separated short or full day names (`mon,wed` or
   `monday,wednesday`), `weekdays`, `weekends`, `everyday`, `daily`, or `all`;
@@ -949,16 +1008,19 @@ timeout when an explicit window-wait budget is required.
 - Headless mode still needs a desktop session; it is not a display-less server
   mode. It keeps hotkeys, scheduling, shortcuts, and text expansion alive until
   Ctrl+C.
-- Screen capture is available through native Windows capture, macOS 10.15+
+- Screen capture is available through native Windows capture, supported macOS
   capture, Linux X11, or a supported Linux Wayland provider. macOS screen reads
   need Screen Recording permission; input recording/playback also needs the
-  permissions described in [`docs/macos.md`](macos.md).
+  permissions described in the [macOS guide](macos.md).
 - Linux Wayland input and capture depend on the compositor, portal selection,
   daemon/direct-device path, and permissions. Run
-  `crossmacro doctor --json --verbose` first; see [`docs/linux.md`](linux.md)
-  for the supported paths.
-- Window commands require a supported window manager/compositor. Unsupported
-  backends return exit code `5`; they do not silently mutate another backend.
+  `crossmacro doctor --json --verbose` first; see the [Linux reference](linux.md)
+  for the supported paths and Flatpak-specific capture policy.
+- Window commands require a supported window manager/compositor. On Linux,
+  CrossMacro currently has backends for Hyprland, Sway, Niri, KDE Plasma, and
+  GNOME only; see [Linux window control](linux.md#linux-window-control).
+  Unsupported backends return exit code `5`; they do not silently mutate another
+  backend.
 - Shell steps execute as the current user. Flatpak confines each step to a stricter
   nested sandbox; native and AppImage builds use the normal platform shell. Treat
   every shell-enabled macro as trusted code.

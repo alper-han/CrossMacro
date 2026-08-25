@@ -1,51 +1,75 @@
-# Linux Setup and Troubleshooting
+# Linux Platform Reference
 
-CrossMacro supports Linux on Wayland and X11, but input automation depends on
-the install channel, desktop session, and available permissions. Start with the
-doctor command before changing groups, ACLs, or service permissions:
+> [!NOTE]
+> This is the canonical Linux installation, capability, and troubleshooting
+> reference for CrossMacro.
+
+CrossMacro supports both Wayland and X11. You should not need to guess which
+backend or permission model your system uses: the install channel and desktop
+session determine the best path, and CrossMacro reports that decision through
+its diagnostics.
+
+## Start Here
+
+Run this before changing groups, ACLs, services, or device permissions:
 
 ```bash
 crossmacro doctor --json --verbose
 ```
 
-Doctor reports daemon-backed readiness separately from direct device readiness.
-Direct device checks can pass while daemon IPC still warns or fails, for example
-when `/run/crossmacro/crossmacro.sock` exists but the current login session has
-not picked up `crossmacro` group membership.
+Read the report by capability, not as one overall pass/fail result. In particular,
+daemon-backed input and direct-device input are independent. One may be ready
+while the other is unavailable, and that can be completely normal for your
+package.
 
-## Install mode quick map
+Choose your path below, then return to the deeper troubleshooting sections only
+if the basic setup does not work.
 
-- **`.deb`, `.rpm`, AUR:** daemon-backed packages. Package scripts set up
-  `crossmacro.service` and the `crossmacro` group.
-- **`crossmacro-git` AUR:** tracks successful `dev` snapshots and replaces the
-  stable `crossmacro` package. Use `crossmacro --version` to include its short
-  source revision in bug reports.
-- **Flatpak on Wayland:** direct device mode. Quick Setup can grant temporary
-  direct-device ACLs without exposing the host daemon socket to the sandbox.
-- **AppImage on X11:** native X11 backend using XInput2/XTest when available.
-- **AppImage on Wayland:** direct device fallback. Quick Setup may prompt for
-  temporary input permissions.
-- **NixOS module from nixpkgs:** daemon-backed setup. The module installs the UI
-  package, configures the daemon package, enables uinput, installs udev and
-  polkit files, creates the `crossmacro` group and service user, adds configured
-  users to the group, and starts `systemd.services.crossmacro`.
+### Symptom Map
 
-## Linux runtime modes
+| Symptom | First check |
+| --- | --- |
+| Daemon socket or handshake failure | Confirm `crossmacro.service` is running and log out and back in after any `crossmacro` group change. |
+| Flatpak or AppImage input unavailable on Wayland | Run the package-specific Quick Setup command and make sure a polkit authentication agent is available. |
+| Portable input unavailable on X11 | Confirm the application has access to the active `DISPLAY` and that native XInput2/XTest is available. Quick Setup is not the X11 remedy. |
+| Wayland screen capture unavailable | Inspect `doctor` for the selected provider; on Flatpak, also verify the Portal ScreenCast backend, PipeWire, and monitor selection. |
+| Absolute recording unavailable | Read [Wayland cursor positioning](#wayland-cursor-positioning); a usable input backend alone does not provide a live global cursor position. |
+| Input changes after reconnecting a device | Repeat Quick Setup for portable Wayland sessions; its temporary ACLs do not apply to newly created event nodes. |
+| Window commands return an environment error | Check [Linux window control](#linux-window-control); only specific compositors currently provide a window backend. |
 
-CrossMacro supports two Linux input modes:
+## Pick Your Install Type
 
-- **Daemon-backed mode:** the preferred packaged mode. The app talks to
-  `crossmacro.service` over `/run/crossmacro/crossmacro.sock`, while the daemon
-  service user owns Linux device access.
-- **Direct device mode:** a fallback for channels such as AppImage on Wayland
-  and some sandbox scenarios. The app process needs access to `/dev/uinput` and,
-  for recording or hotkeys, readable `/dev/input/event*` devices.
+| Install | Normal input path | What you usually need to do |
+| --- | --- | --- |
+| `.deb`, `.rpm`, or AUR | Native X11 first on X11; CrossMacro daemon on Wayland | Log out and back in if the installer added you to the `crossmacro` group |
+| NixOS module | Native X11 first on X11; CrossMacro daemon on Wayland | Add your desktop user to `services.crossmacro.users`, then rebuild and re-login |
+| Flatpak on X11 | Native XInput2/XTest | Usually no Linux device permission setup |
+| Flatpak on Wayland | Direct device access | Approve Quick Setup; the Flatpak session gate requires writable uinput and readable event devices |
+| AppImage on X11 | Native XInput2/XTest | Usually no Linux device permission setup |
+| AppImage on Wayland | Direct device access | Run Quick Setup; repeat it after reboot or device re-enumeration if needed |
 
-On X11, CrossMacro tries native X11 capture and playback first. A supported
-native X11 session uses XInput2/XTest and does not require daemon-backed mode,
-`/dev/uinput`, or `/dev/input/event*` permissions. Linux input permissions only
-matter on X11 if native X11 backends are unavailable and CrossMacro falls back
-to daemon/direct Linux input paths.
+The `crossmacro-git` AUR package follows successful `dev` snapshots and replaces
+the stable `crossmacro` package. Include the revision printed by
+`crossmacro --version` in bug reports.
+
+## Linux Runtime Modes
+
+CrossMacro has three input paths:
+
+- **Native X11:** XInput2 records input and XTest sends it. This is the first
+  choice in a usable X11 session and does not need daemon or raw-device access.
+- **Daemon-backed mode:** the preferred native-package Wayland path. The app talks
+  to `crossmacro.service` over `/run/crossmacro/crossmacro.sock`, while the
+  daemon service user owns Linux device access.
+- **Direct device mode:** Flatpak and AppImage do not select or probe the host
+  daemon. On Wayland, they use direct uinput access. Playback needs writable
+  `/dev/uinput` or `/dev/input/uinput`; recording and global hotkeys additionally
+  need readable `/dev/input/event*` devices.
+
+No one path proves that another is ready. For example, a portable Wayland
+session can play input with direct uinput while recording remains unavailable
+because event devices are unreadable. Run `doctor` in the desktop session you
+intend to automate.
 
 ## Daemon-backed packages
 
@@ -73,12 +97,16 @@ run the command above manually.
 Daemon packages also install the daemon user, udev rules, polkit files, and
 uinput setup where supported by the package scripts.
 
-If your environment skips service setup, for example on non-systemd or chroot
-installs, start the service manually:
+If a systemd-based installation skipped service activation, enable it manually:
 
 ```bash
 sudo systemctl enable --now crossmacro.service
 ```
+
+CrossMacro's packaged daemon currently targets systemd. Running it in a
+non-systemd environment requires service-manager-specific integration outside
+the normal package setup. A chroot or image build should not try to start the
+service until the package is installed on the target system.
 
 Do not weaken daemon socket permissions as a workaround. Use doctor output to
 identify whether the failing path is daemon-backed mode, direct device mode, or
@@ -115,11 +143,12 @@ recovery applies only to daemon-backed installs; portable direct-input sessions
 still need Quick Setup again after replugging a device because its temporary ACL
 does not automatically apply to a new `/dev/input/event*` node.
 
-## Flatpak on Wayland
+## Flatpak On Wayland
 
-For Flatpak on Wayland, CrossMacro uses direct device mode. The portable package
-does not expose or probe the host daemon socket; temporary device access is
-granted to the user session when needed.
+Flatpak does not expose or probe the host daemon socket. On Wayland, CrossMacro
+uses direct device mode: playback needs writable uinput, while recording and
+global hotkeys also need readable event devices. The Flatpak display-session gate
+requires both before treating a Wayland session as ready.
 
 If required permissions are missing, app startup shows **Wayland Setup Required**
 and can run Quick Setup automatically. Quick Setup uses `flatpak-spawn --host`
@@ -134,24 +163,32 @@ or provide a host polkit authentication agent. The desktop session must have a
 graphical polkit agent registered; otherwise a GUI-launched setup cannot display
 an authorization prompt. A `/dev/tty` or `No authentication agent found` message
 means that authorization did not happen, not that `/dev/uinput` is missing. Start
-the desktop's polkit agent, or run `crossmacro setup` from a terminal so selected
-`pkexec` can use its textual authentication prompt.
+the desktop's polkit agent, or run the package-specific setup command from a
+terminal so selected `pkexec` can use its textual authentication prompt.
 
-The same setup can be requested without starting the GUI:
+Request Flatpak setup without starting the GUI:
 
 ```bash
-crossmacro setup
-# Alias:
-crossmacro quick-setup
+flatpak run io.github.alper_han.crossmacro setup
 ```
 
-Inside Flatpak this command uses `flatpak-spawn --host`; outside Flatpak it is
-available for AppImage Wayland sessions. The command selects a usable setuid
-`pkexec` or `run0` fallback, reports authorization failures, and returns exit
-code `5` when the current package/session does not support temporary setup.
+The command uses `flatpak-spawn --host`, selects a usable setuid `pkexec` or
+`run0` fallback, reports authorization failures, and returns exit code `5` when
+the current package/session does not support temporary setup.
 
-If Quick Setup is denied or fails, use doctor first. Manual ACL fallback, run on
-the Linux host rather than inside the Flatpak sandbox:
+After setup, test recording and playback separately:
+
+```bash
+flatpak run io.github.alper_han.crossmacro doctor --json --verbose
+```
+
+If Quick Setup is denied or fails, use doctor first. The manual ACL fallback
+below runs on the Linux host rather than inside the Flatpak sandbox.
+
+> [!CAUTION]
+> Read access to `/dev/input/event*` can expose keyboard and other input events
+> to every process running as your user. Prefer Quick Setup and apply these ACLs
+> only when you understand that scope.
 
 ```bash
 sudo modprobe uinput
@@ -165,12 +202,19 @@ done
 
 If `setfacl` is missing, install your distro's `acl` package first.
 
-## Linux screen reading
+## Linux Screen Reading
 
-Screen-reading commands use native X11 or an available Wayland desktop capture
-provider. On Wayland, CrossMacro selects the best available capture path for the
-current session. Flatpak and other sandboxed runs may show a desktop capture
-permission prompt, and provider availability varies by compositor and session.
+Screen-reading commands use native X11 capture on X11. Native Wayland builds
+prefer compositor-specific providers before Portal: KDE tries KWin ScreenShot2,
+then ext-image-copy and wlr-screencopy; other sessions try the GNOME extension,
+then ext-image-copy and wlr-screencopy. Portal is the fallback in both orders.
+
+Flatpak Wayland intentionally uses **only** XDG Desktop Portal ScreenCast. It
+does not select KWin ScreenShot2, the GNOME extension, ext-image-copy capture, or
+wlr-screencopy. Portal availability, its selected ScreenCast backend, PipeWire,
+monitor selection, and desktop permission state determine support. AppImage is
+not subject to this Flatpak-only capture policy; it follows the native Wayland
+provider order while using direct input on Wayland.
 
 If a Wayland portal route repeatedly selects the wrong backend, run
 `crossmacro doctor --json --verbose`. The screen-reading details include visible
@@ -197,25 +241,17 @@ is reported as out of bounds. This documents the implemented capture behavior;
 compositor-specific live Wayland support still depends on the available provider,
 desktop permissions, and session setup.
 
-On KDE Wayland, packaged installs include the desktop-entry permission required
-for KWin screen capture. If doctor reports KWin ScreenShot2 permission denied,
+On KDE Wayland, native packages and AppImage include the desktop-entry permission
+required for KWin ScreenShot2 capture. Flatpak intentionally uses Portal instead.
+If a native/AppImage doctor report says KWin ScreenShot2 permission was denied,
 verify the installed CrossMacro `.desktop` file and restart CrossMacro from the
 packaged launcher.
 
-Image matching now defaults to automatic matching with `0.95` confidence. It
-starts at native scale and uses bounded correlation/pyramid and scale refinement
-only when the native result is insufficient. `--matchmode first` and
-`--matchmode best` (or script `matchmode first|best`) are explicit advanced
-paths. Automatic matching remains the default.
-A no-match is not a
-monitor-gap match: CLI JSON reports a
-successful `Found: false` result, while script result variables use `false` and
-`-1, -1` where the command's result-variable form supports it.
-
-The optimized matcher avoids per-candidate validity-mask scans for fully covered
-Wayland frames. Compositions with monitor gaps retain an indexed validity check,
-so a candidate crossing a void remains rejected. Capture/provider availability,
-timeouts, and permissions still determine whether a live Wayland search can run.
+Image matching defaults to automatic matching with `0.95` confidence. A no-match
+is not a monitor-gap match: CLI JSON reports a successful `found: false` result,
+while script result variables use `false` and `-1, -1` where supported. See the
+[CLI reference](cli.md) for matching modes, timeout behavior, and result
+contracts.
 
 ## AppImage
 
@@ -231,6 +267,18 @@ temporary direct device access for the current user session:
 These temporary ACLs may need to be applied again after reboot or device
 re-enumeration.
 
+Request setup without starting the GUI:
+
+```bash
+./CrossMacro-*.AppImage setup
+```
+
+After setup, test recording and playback separately:
+
+```bash
+./CrossMacro-*.AppImage doctor --json --verbose
+```
+
 Run the AppImage:
 
 ```bash
@@ -239,8 +287,9 @@ chmod +x CrossMacro-*.AppImage
 ```
 
 Permanent setup is optional and should be treated as advanced manual
-configuration because adding a user to `input` grants broad access to input
-devices:
+configuration. Adding a user to `input` grants every process running as that
+user broad access to input devices, and event-device group policy varies by
+distribution. Verify device ownership before relying on this method:
 
 ```bash
 sudo tee /etc/udev/rules.d/99-crossmacro.rules >/dev/null <<'EOF'
@@ -251,10 +300,16 @@ sudo usermod -aG input "$USER"
 # Log out and back in, or reboot, before starting CrossMacro again.
 ```
 
+After signing in again, verify both `/dev/uinput` and the required
+`/dev/input/event*` nodes with `stat` or `getfacl`. If the event nodes are not
+accessible through `input`, use temporary Quick Setup instead of loosening
+global device permissions.
+
 ## NixOS
 
-For NixOS, use the official nixpkgs module instead of installing only the UI
-package. The module provides the full daemon-backed setup: UI package, daemon
+For NixOS, prefer the `services.crossmacro` module when it is available in your
+nixpkgs channel, or use the equivalent module exported by this repository's
+flake. The module provides the full daemon-backed setup: UI package, daemon
 package, uinput, udev rules, polkit files, `crossmacro` group and service user,
 configured desktop identities, and `systemd.services.crossmacro`.
 
@@ -290,37 +345,45 @@ user databases, so this setup does not require runtime `gpasswd` mutations. Do
 not enable `systemd.sysusers` alongside the module; NixOS does not allow both
 user managers at once.
 
-## Wayland cursor positioning
+## Wayland Cursor Positioning
 
-CrossMacro supports Wayland with compositor-specific cursor-position
-capabilities:
+Absolute recording and absolute playback are separate capabilities. Input access
+alone does not reveal the live global pointer position, so CrossMacro selects a
+cursor provider independently of its input and screen-capture providers.
 
-- When the selected compositor provider does not already publish cursor-change
-  notifications and the compositor advertises `ext-image-copy-capture-v1`,
-  CrossMacro uses its native cursor sessions independently of the selected
-  screen capture backend. This provides logical global cursor positions without
-  polling or an external helper on supporting Hyprland, GNOME, Niri, Sway,
-  COSMIC, Wayfire, and other compositors. Output topology changes recreate the
-  protocol sessions so their logical bounds stay current.
-- Compositor-specific fallbacks are available on:
-  - KDE Plasma through KWin and D-Bus cursor-change and output-topology
-    notifications
-  - Hyprland through activity-driven IPC queries
-  - Wayfire through IPC with `ipc` and `ipc-rules` plugins, v0.10+
-  - GNOME through the bundled Shell Extension
-- Niri, Sway, and COSMIC releases that do not advertise the native cursor
-  protocol remain resolution-only. In that case CrossMacro records raw relative
-  input because those compositors do not expose a safe global cursor-position
-  API.
-- If an absolute cursor provider is unavailable, CrossMacro falls back to
-  relative-position mode for recording.
-- Macros that contain logical desktop coordinates, whether absolute positions
-  or logical relative deltas, require an absolute-capable playback backend.
-- **Force Relative Coordinates** records direct raw-relative deltas by default.
-  Enable **Logical Relative Pixels** to record logical desktop-pixel deltas;
-  that option is unavailable when no global cursor-position provider exists.
-- You can disable the origin move at recording start with
-  **Skip Initial 0,0 Position**.
+- CrossMacro attempts the native Wayland ext-image-copy cursor provider when a
+  selected compositor provider does not already publish cursor changes. It is
+  independent of the selected screen-capture provider. A usable session needs
+  the required Wayland globals, a pointer-capable seat, usable outputs, and at
+  least one live cursor-position event. Negotiating the protocol alone is not
+  enough; for example, Sway can expose it while a software cursor produces no
+  live sample.
+- KDE Plasma uses KWin and D-Bus cursor/output notifications. Hyprland uses
+  activity-driven IPC queries. Wayfire uses IPC with the `ipc` and `ipc-rules`
+  plugins, version 0.10 or later. GNOME can use the bundled Shell Extension when
+  the native cursor provider is unavailable.
+- Niri IPC, Sway IPC, and `cosmic-randr` provide display geometry, not a global
+  cursor position. Current Niri sessions record pointer movement as raw-relative;
+  absolute recording is not available there. Native Sway and COSMIC sessions can
+  use CrossMacro's independent native cursor provider when it produces a live
+  position. Do not treat native COSMIC as categorically relative-only.
+- Native COSMIC supports absolute recording and maps absolute playback through
+  its output topology. It needs an absolute-capable input backend and usable
+  output geometry; multi-output routing also needs a live cursor position to
+  identify the active output. Disconnected layouts cannot be routed across.
+- Macros containing absolute positions or logical-relative deltas need an
+  absolute-capable playback backend. **Force Relative Coordinates** records raw
+  device deltas by default. **Logical Relative Pixels** records logical desktop
+  deltas and requires a live global cursor provider while recording.
+- **Skip Initial 0,0 Position** disables the origin move at recording start.
+
+### Flatpak Cursor Limits
+
+Flatpak is a separate runtime boundary. Flatpak COSMIC currently does not expose
+the native cursor path CrossMacro needs for absolute recording, so it records
+raw-relative movement. This does not describe native COSMIC behavior. Use
+`crossmacro doctor --json --verbose` from the affected package and desktop
+session for the active cursor provider and coordinate mode.
 
 Absolute and relative coordinate events can be mixed in one macro.
 Current-position clicks do not carry coordinates and execute at the live cursor
@@ -330,8 +393,8 @@ Run scripts can save one live cursor sample with
 `mouse position <x_variable> <y_variable>`. The values use signed logical
 desktop coordinates and can feed later moves, conditions, or loop logic. This
 does not create a separate background cursor: later move/click steps still share
-the user's pointer. The step fails on sessions that do not expose a global
-cursor-position provider, including Niri, Sway, and affected COSMIC sessions.
+the user's pointer. The step fails when the current session has no live global
+cursor-position provider.
 
 Force-relative recordings and editor-authored **Relative (Raw Input)** actions
 use raw device deltas and direct relative playback. Enable the recording tab's
@@ -361,7 +424,25 @@ Extension supplies absolute mouse position. It supports GNOME Shell 45 through
 51. CrossMacro reports extension status through its setup flow and diagnostics.
 Log out and back in after first-time setup if prompted.
 
-## Minimal systems and conflicts
+## Linux Window Control
+
+Window commands require a registered window-manager backend. They never fall
+back to another desktop; unsupported sessions return an environment error.
+
+| Desktop | Current backend requirement |
+| --- | --- |
+| Hyprland | Accessible Hyprland IPC socket |
+| Sway | Accessible `SWAYSOCK` |
+| Niri | Accessible validated `NIRI_SOCKET` |
+| KDE Plasma | KDE desktop session with the KWin backend available, on X11 or Wayland |
+| GNOME | GNOME desktop session with the bundled extension/tracker backend available, on X11 or Wayland |
+| Other X11 desktops, COSMIC, Wayfire, and other desktops | No CrossMacro window-manager backend is currently registered |
+
+Flatpak has no separate window-control policy in CrossMacro. A supported backend
+still needs access to its compositor socket or session D-Bus service from the
+sandbox, so use `doctor` and the specific command in the target session.
+
+## Minimal Systems And Conflicts
 
 Daemon authorization and Quick Setup flows may require `polkit`, `pkcheck`, and
 `pkexec` on minimal systems. Portable Quick Setup also requires a graphical polkit
@@ -380,7 +461,7 @@ Some applications can lock input devices exclusively. If capture or playback
 behaves inconsistently, pause conflicting tools, for example GPU Screen Recorder,
 test CrossMacro again, then resume them.
 
-## Debug logging
+## Debug Logging
 
 For daemon-backed Linux installs, toggle daemon debug logging with `USR1`:
 

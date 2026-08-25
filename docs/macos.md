@@ -1,10 +1,23 @@
 # macOS Setup
 
-CrossMacro on macOS needs the normal drag-and-drop app install flow plus macOS
-privacy permissions for desktop automation. Use this page when setting up the
-DMG build from GitHub Releases.
+<a id="install"></a>
+<a id="if-macos-says-the-app-is-damaged"></a>
+<a id="required-permissions"></a>
 
-## Install
+CrossMacro supports macOS 14 or newer. Installing the DMG uses the normal
+drag-and-drop flow. For normal macro use, CrossMacro asks you to approve two
+macOS privacy permissions; Screen Recording is needed only for visual workflows.
+
+| What you want to do | Permission |
+| --- | --- |
+| Record input or use global shortcuts | Input Monitoring |
+| Play mouse and keyboard actions | Accessibility approval flow |
+| Read pixels or find images | Screen Recording |
+
+If a permission is already enabled but CrossMacro cannot see it, quit the app
+completely and open it again.
+
+## Install The App
 
 1. Download the matching `.dmg` from
    [GitHub Releases](https://github.com/alper-han/CrossMacro/releases):
@@ -15,37 +28,30 @@ DMG build from GitHub Releases.
 
 ![CrossMacro DMG install window](images/macos/install-dmg.png)
 
-## If macOS says the app is damaged
+## Gatekeeper Warning
 
-GitHub DMG downloads can sometimes keep a quarantine flag that makes macOS show
-this warning:
+GitHub DMGs are currently unsigned and not notarized because the project does not
+use an Apple Developer account. A first-launch Gatekeeper warning is therefore
+expected on some macOS versions:
 
 ![macOS damaged app warning](images/macos/gatekeeper-damaged.png)
 
-If this happens after dragging the app to Applications, run:
+Follow the
+[Gatekeeper guide](troubleshooting/macos-gatekeeper.md) for **Open Anyway**, the
+targeted quarantine command, and optional checksum or signature inspection.
 
-```bash
-xattr -cr /Applications/CrossMacro.app
-```
+## Grant Permissions
 
-Then open CrossMacro again from **Applications**.
-
-## Required permissions
-
-CrossMacro needs two macOS privacy permissions for normal macro use:
+CrossMacro needs two privacy permissions for normal record-and-playback use:
 
 - **Input Monitoring** lets CrossMacro read keyboard and mouse input for
   recording and global shortcuts.
-- **Accessibility** lets CrossMacro play macros back by sending keyboard and
-  mouse events.
+- **Accessibility** is the macOS approval flow CrossMacro uses for playback and
+  input injection.
 
-Macros that read pixels from the screen also need **Screen Recording**. This is
-required for commands such as `pixelcolor`, `waitcolor`, `pixelsearch`,
-`imagesearch`, `imageclick`, and `waitimage`. Image recognition imports native
-8-bit PNG templates only. New image commands default to automatic matching at
-`0.95` confidence; `first` and `best` are explicit advanced modes.
-`imageclick` uses the left button unless another supported button is
-selected.
+Macros that react to pixels, colors, screenshots, or images also need **Screen
+Recording**. Image format and matching details belong to the
+[CLI reference](cli.md#screen-command).
 
 CrossMacro opens the relevant System Settings page when possible and asks macOS
 to add the current app to the permission list. In most cases, you only need to
@@ -81,8 +87,9 @@ In **System Settings > Privacy & Security > Accessibility**, enable
 
 ![CrossMacro enabled in Accessibility](images/macos/accessibility-settings.png)
 
-Accessibility covers playback and input injection. If a permission is visible as
-enabled but CrossMacro still reports it missing, quit and reopen CrossMacro.
+Accessibility covers the normal playback and input-injection flow. If a
+permission is visible as enabled but CrossMacro still reports it missing, quit
+and reopen CrossMacro.
 
 ## Screen Recording
 
@@ -109,3 +116,7 @@ you have installed a shell alias or symlink yourself, `crossmacro doctor --json
 
 For bug reports, include your macOS version, CrossMacro version, install method,
 relevant logs, and doctor output.
+
+If the app does not open, use the [Gatekeeper guide](troubleshooting/macos-gatekeeper.md).
+If permissions remain unavailable after reopening the app, use the
+[macOS permission troubleshooting guide](troubleshooting/macos-permissions.md).

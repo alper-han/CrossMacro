@@ -12,7 +12,7 @@ internal static class DocumentationContracts
 {
     private static readonly string[] ProductDocs =
     [
-        "README.md", "CONTRIBUTING.md", "docs/cli.md", "docs/linux.md", "docs/macos.md", "docs/man/crossmacro.1",
+        "README.md", "CONTRIBUTING.md", "docs/cli.md", "docs/linux.md", "docs/mcp.md", "docs/macos.md", "docs/man/crossmacro.1",
     ];
 
     private static readonly string[] CliReferenceCommands =
@@ -143,24 +143,18 @@ internal static class DocumentationContracts
         foreach (var path in DocumentationPaths(root).Where(path => Path.GetExtension(path).Equals(".md", StringComparison.OrdinalIgnoreCase)))
         {
             var text = CISupport.ReadText(path, true);
-            foreach (Match match in Regex.Matches(text, "(?<!!)\\[[^\\]]+\\]\\(([^)]+)\\)"))
+            foreach (Match match in Regex.Matches(text, "!?\\[[^\\]]+\\]\\(([^)]+)\\)"))
             {
-                var target = match.Groups[1].Value.Trim().Split(' ', 2)[0].Trim('<', '>');
-                if (string.IsNullOrWhiteSpace(target)
-                    || target.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-                    || target.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-                    || target.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
-                    || target.StartsWith('#')
-                    || target.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+                ValidateLocalTarget(path, match.Groups[1].Value.Trim().Split(' ', 2)[0].Trim('<', '>'), errors);
+            }
 
-                var withoutFragment = target.Split('#', 2)[0];
-                var resolved = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(path)!, withoutFragment));
-                if (!File.Exists(resolved) && !Directory.Exists(resolved))
+            foreach (Match match in Regex.Matches(text, "<(?:a|img|source)\\b[^>]+?\\b(?:href|src|srcset)=\\\"([^\\\"]+)\\\"", RegexOptions.IgnoreCase))
+            {
+                var value = match.Groups[1].Value;
+                foreach (var target in value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                             .Select(static candidate => candidate.Split(' ', 2)[0]))
                 {
-                    errors.Add($"{path}: local documentation link does not exist: {target}");
+                    ValidateLocalTarget(path, target, errors);
                 }
             }
         }
@@ -168,15 +162,83 @@ internal static class DocumentationContracts
         return errors;
     }
 
-    private static IEnumerable<string> DocumentationPaths(string root)
+    private static void ValidateLocalTarget(string sourcePath, string target, List<string> errors)
     {
-        var paths = ProductDocs.Select(relative => Path.Combine(root, relative)).ToList();
-        var docsDirectory = Path.Combine(root, "docs");
-        if (Directory.Exists(docsDirectory))
+        if (string.IsNullOrWhiteSpace(target)
+            || target.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || target.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || target.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
+            || target.StartsWith('#')
+            || target.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
         {
-            paths.AddRange(Directory.EnumerateFiles(docsDirectory, "*.md"));
+            return;
         }
 
-        return paths.Where(path => File.Exists(path)).Distinct(StringComparer.Ordinal);
+        var targetParts = target.Split('#', 2);
+        var withoutFragment = targetParts[0];
+        var resolved = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourcePath)!, withoutFragment));
+        if (!File.Exists(resolved) && !Directory.Exists(resolved))
+        {
+            errors.Add($"{sourcePath}: local documentation link does not exist: {target}");
+        }
+        else if (targetParts.Length == 2
+            && File.Exists(resolved)
+            && Path.GetExtension(resolved).Equals(".md", StringComparison.OrdinalIgnoreCase)
+            && !HasMarkdownFragment(CISupport.ReadText(resolved, true), targetParts[1]))
+        {
+            errors.Add($"{sourcePath}: local documentation fragment does not exist: {target}");
+        }
+    }
+
+    private static bool HasMarkdownFragment(string text, string fragment)
+    {
+        var decoded = Uri.UnescapeDataString(fragment).Trim();
+        if (decoded.Length == 0)
+        {
+            return true;
+        }
+
+        var explicitAnchor = $"(?:id|name)=[\"']{Regex.Escape(decoded)}[\"']";
+        if (Regex.IsMatch(text, explicitAnchor, RegexOptions.IgnoreCase))
+        {
+            return true;
+        }
+
+        return text.Split('\n')
+            .Select(static line => line.TrimEnd('\r'))
+            .Where(static line => Regex.IsMatch(line, "^#{1,6}\\s+"))
+            .Select(static line => Regex.Replace(line, "^#{1,6}\\s+", string.Empty).Trim().TrimEnd('#').Trim())
+            .Select(ToGitHubHeadingSlug)
+            .Any(slug => string.Equals(slug, decoded, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string ToGitHubHeadingSlug(string heading)
+    {
+        var withoutMarkup = Regex.Replace(heading, "[`*_~]", string.Empty).ToLowerInvariant();
+        var withoutPunctuation = Regex.Replace(withoutMarkup, "[^\\p{L}\\p{N} _-]", string.Empty);
+        return Regex.Replace(withoutPunctuation.Trim().Replace(' ', '-'), "-+", "-");
+    }
+
+    private static IEnumerable<string> DocumentationPaths(string root)
+    {
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+
+        return Directory.EnumerateFiles(root, "*.md", options)
+            .Concat(ProductDocs.Select(relative => Path.Combine(root, relative)))
+            .Where(path => File.Exists(path))
+            .Where(path => !IsBuildArtifact(path, root))
+            .Distinct(StringComparer.Ordinal);
+    }
+
+    private static bool IsBuildArtifact(string path, string root)
+    {
+        var relative = Path.GetRelativePath(root, path);
+        return relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Any(segment => segment is "bin" or "obj" or ".git" or ".flatpak-builder" or "node_modules");
     }
 }

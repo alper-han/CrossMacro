@@ -249,7 +249,7 @@ the release asset names.
 | [![Arch AUR](https://img.shields.io/badge/Arch-AUR-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro) | `yay -S crossmacro` or `paru -S crossmacro` | Daemon-backed stable channel |
 | [![Arch AUR development](https://img.shields.io/badge/Arch-AUR%20development-1793D1?logo=arch-linux&logoColor=white)](https://aur.archlinux.org/packages/crossmacro-git) | `yay -S crossmacro-git` or `paru -S crossmacro-git` | Tracks successful `dev` snapshots; replaces/conflicts with stable `crossmacro` |
 | [![Linux AppImage](https://img.shields.io/badge/Linux-AppImage-1793D1?logo=appimage&logoColor=white)](https://github.com/alper-han/CrossMacro/releases/latest) | [Releases](https://github.com/alper-han/CrossMacro/releases/latest)<br>`CrossMacro-<version>-x86_64.AppImage` or `-aarch64.AppImage` | Run directly; Wayland may require temporary Quick Setup |
-| [![NixOS module](https://img.shields.io/badge/NixOS-Module-5277C3?logo=nixos&logoColor=white)](https://search.nixos.org/options?channel=unstable&query=services.crossmacro) | `services.crossmacro = { enable = true; users = [ "you" ]; };` | Configure your desktop users; see the Linux reference for module constraints |
+| [![NixOS module](https://img.shields.io/badge/NixOS-Module-5277C3?logo=nixos&logoColor=white)](https://search.nixos.org/options?channel=unstable&query=services.crossmacro) | `services.crossmacro = { enable = true; users = [ "you" ]; };` | Available in supported nixpkgs channels; configure your desktop users and see the Linux reference for module constraints |
 | [![Windows Store](https://img.shields.io/badge/Windows-Store-0078D6?logo=windows&logoColor=white)](https://apps.microsoft.com/detail/9n1qp1d6js70) | [Store](https://apps.microsoft.com/detail/9n1qp1d6js70) | Simplest Windows install with managed updates |
 | ![Windows winget](https://img.shields.io/badge/Windows-winget-0078D6?logo=windows&logoColor=white) | `winget install AlperHan.CrossMacro` | Publication can lag behind GitHub Releases |
 | [![Windows MSIX](https://img.shields.io/badge/Windows-MSIX-0078D6?logo=windows&logoColor=white)](https://github.com/alper-han/CrossMacro/releases/latest) | [Releases](https://github.com/alper-han/CrossMacro/releases/latest)<br>`CrossMacro-<version>-x64.msix` or `-arm64.msix` | Unsigned advanced/test artifact; prefer Store, `winget`, or portable EXE |
@@ -530,11 +530,11 @@ Thanks to everyone who helps improve CrossMacro.
 
 ## Star History
 
-<a href="https://star-history.com/#alper-han/CrossMacro&Date">
+<a href="https://star-history.dera.page/#alper-han/crossmacro&type=date&legend=top-left">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=alper-han/CrossMacro&type=Date&theme=dark">
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=alper-han/CrossMacro&type=Date">
-    <img alt="CrossMacro star history chart" src="https://api.star-history.com/svg?repos=alper-han/CrossMacro&type=Date">
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&theme=dark&legend=top-left">
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&legend=top-left">
+    <img alt="CrossMacro star history chart" src="https://star-history.dera.page/svg?repos=alper-han/crossmacro&type=date&legend=top-left">
   </picture>
 </a>
 

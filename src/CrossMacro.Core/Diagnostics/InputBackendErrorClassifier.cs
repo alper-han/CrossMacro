@@ -11,6 +11,7 @@ public static class InputBackendErrorClassifier
     [
         "No usable Linux input capture backend is available.",
         "No usable Linux input backend is available.",
+        "Failed to init UInput:",
     ];
 
     public static bool IsKnownUnavailable(Exception? exception)

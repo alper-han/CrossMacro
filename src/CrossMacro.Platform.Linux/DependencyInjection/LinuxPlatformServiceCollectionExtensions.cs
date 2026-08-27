@@ -34,7 +34,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<IMousePositionProvider>(sp =>
             sp.GetRequiredService<LinuxPositionProviderFactory>().Create());
 
-        AddLinuxQuickSetupServices(services);
+        AddLinuxQuickSetupServices(services, daemonEnabled);
         AddLinuxWindowServices(services);
 
         _ = services.AddSingleton<IExtensionStatusNotifier>(sp =>
@@ -94,7 +94,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<IX11ScreenCaptureSupportProbe>()));
     }
 
-    private static void AddLinuxQuickSetupServices(IServiceCollection services)
+    private static void AddLinuxQuickSetupServices(IServiceCollection services, bool daemonEnabled)
     {
         _ = services.AddSingleton<IPlatformStartupNotificationProvider, GsrCompatibilityService>();
         _ = services.AddSingleton<LinuxQuickSetupIdentityResolver>();
@@ -110,6 +110,13 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
             sp.GetRequiredService<LinuxQuickSetupExecutor>(),
             sp.GetRequiredService<DirectPolkitHostCommandLauncher>()));
+        if (daemonEnabled)
+        {
+            _ = services.AddSingleton<ILinuxDirectInputQuickSetupService>(sp => new DaemonFallbackQuickSetupService(
+                sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
+                sp.GetRequiredService<LinuxQuickSetupExecutor>(),
+                sp.GetRequiredService<DirectPolkitHostCommandLauncher>()));
+        }
     }
 
     private static void AddLinuxWindowServices(IServiceCollection services)

@@ -4,11 +4,13 @@ namespace CrossMacro.UI.Services;
 internal sealed class DesktopQuickSetupGateService(
     Func<IFlatpakQuickSetupService?> getFlatpakQuickSetupService,
     Func<IAppImageQuickSetupService?> getAppImageQuickSetupService,
-    Func<IDisplaySessionService?>? getDisplaySessionService = null)
+    Func<IDisplaySessionService?>? getDisplaySessionService = null,
+    Func<ILinuxDirectInputQuickSetupService?>? getLinuxDirectInputQuickSetupService = null)
 {
     private readonly Func<IFlatpakQuickSetupService?> _getFlatpakQuickSetupService = getFlatpakQuickSetupService ?? throw new ArgumentNullException(nameof(getFlatpakQuickSetupService));
     private readonly Func<IAppImageQuickSetupService?> _getAppImageQuickSetupService = getAppImageQuickSetupService ?? throw new ArgumentNullException(nameof(getAppImageQuickSetupService));
     private readonly Func<IDisplaySessionService?> _getDisplaySessionService = getDisplaySessionService ?? (static () => null);
+    private readonly Func<ILinuxDirectInputQuickSetupService?> _getLinuxDirectInputQuickSetupService = getLinuxDirectInputQuickSetupService ?? (static () => null);
 
     public async Task<bool> TryHandleAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
@@ -36,6 +38,13 @@ internal sealed class DesktopQuickSetupGateService(
         if ((appImageQuickSetupService?.ShouldPrompt()) is true)
         {
             await HandleAppImageQuickSetupAsync(desktop, startupPreferences, startDesktopRuntimeAsync).ConfigureAwait(false);
+            return true;
+        }
+
+        var directInputQuickSetupService = _getLinuxDirectInputQuickSetupService();
+        if (directInputQuickSetupService is not null && await directInputQuickSetupService.ShouldPromptAsync(CancellationToken.None).ConfigureAwait(false))
+        {
+            await HandleDaemonFallbackQuickSetupAsync(desktop, startupPreferences, directInputQuickSetupService, startDesktopRuntimeAsync).ConfigureAwait(false);
             return true;
         }
 
@@ -162,6 +171,54 @@ internal sealed class DesktopQuickSetupGateService(
                 Log.LogError(ex, "[DesktopStartupCoordinator] AppImage quick setup flow failed");
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
             }
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task HandleDaemonFallbackQuickSetupAsync(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        DesktopStartupPreferences startupPreferences,
+        ILinuxDirectInputQuickSetupService quickSetupService,
+        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync)
+    {
+        await DesktopPermissionGateService.RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
+        {
+            const string promptMessage =
+                "CrossMacro cannot use the input daemon or direct input capture in this session.\n\n" +
+                "Run Quick Setup now?\n\n" +
+                "Quick Setup requests host authorization to grant temporary direct access to /dev/uinput and /dev/input/event* for your current user. CrossMacro will use this direct mode until you log out and back in. Device reconnection or reboot may require running it again.\n\n" +
+                "After signing in again, CrossMacro will try the daemon automatically.";
+
+            var shouldRunSetup = await DesktopPermissionGateService.ShowDialogAsync<bool>(
+                bootstrapOwner,
+                () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
+                    "Linux Input Setup Required",
+                    promptMessage,
+                    "Run Quick Setup",
+                    "Continue",
+                    dangerYes: false,
+                    dangerNo: false)).ConfigureAwait(false);
+            if (!shouldRunSetup)
+            {
+                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+                return;
+            }
+
+            var setupResult = await quickSetupService.RunAsync(default).ConfigureAwait(false);
+            if (!setupResult.Success)
+            {
+                _ = await DesktopPermissionGateService.ShowDialogAsync<bool>(
+                    bootstrapOwner,
+                    () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
+                        "Quick Setup Failed",
+                        $"{setupResult.Message}\n\nCrossMacro will continue without temporary device permissions.",
+                        "Continue",
+                        noText: null,
+                        dangerYes: false)).ConfigureAwait(false);
+                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+                return;
+            }
+
+            await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
         }).ConfigureAwait(false);
     }
 

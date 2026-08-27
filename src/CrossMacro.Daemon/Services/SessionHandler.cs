@@ -92,7 +92,8 @@ internal sealed class SessionHandler : ISessionHandler
         public async Task<bool> TryInitializeAsync(CancellationToken token)
         {
             return await TryCompleteHandshakeAsync(token).ConfigureAwait(false) &&
-                   await TryInitializeVirtualDeviceAsync(token).ConfigureAwait(false);
+                   await TryInitializeVirtualDeviceAsync(token).ConfigureAwait(false) &&
+                   await SendHandshakeAcknowledgementAsync(token).ConfigureAwait(false);
         }
 
         public async Task RunAsync(uint uid, int pid, Socket client, CancellationToken token)
@@ -191,6 +192,11 @@ internal sealed class SessionHandler : ISessionHandler
                 return false;
             }
 
+            return true;
+        }
+
+        private async Task<bool> SendHandshakeAcknowledgementAsync(CancellationToken token)
+        {
             _session.Writer.Write((byte)IpcOpCode.Handshake);
             _session.Writer.Write(IpcProtocol.ProtocolVersion);
             await _session.Stream.FlushAsync(token).ConfigureAwait(false);

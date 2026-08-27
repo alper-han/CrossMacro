@@ -7,6 +7,7 @@ public sealed class InputBackendErrorClassifierTests
     [InlineData("No usable Linux input capture backend is available.")]
     [InlineData("No usable Linux input backend is available.")]
     [InlineData("prefix No usable Linux input backend is available. suffix")]
+    [InlineData("Failed to init UInput: Cannot open /dev/uinput (Errno: 13). Permission denied.")]
     public void IsKnownUnavailableMessage_WhenMessageMatches_ReturnsTrue(string message)
     {
         Assert.True(InputBackendErrorClassifier.IsKnownUnavailableMessage(message));

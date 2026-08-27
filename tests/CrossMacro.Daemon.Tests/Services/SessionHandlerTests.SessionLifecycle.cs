@@ -27,8 +27,6 @@ public sealed partial class SessionHandlerTests
         writer.Write(IpcProtocol.ProtocolVersion);
         writer.Flush();
 
-        Assert.Equal(IpcOpCode.Handshake, (IpcOpCode)reader.ReadByte());
-        Assert.Equal(IpcProtocol.ProtocolVersion, reader.ReadInt32());
         Assert.Equal(IpcOpCode.Error, (IpcOpCode)reader.ReadByte());
         Assert.Contains("Failed to init UInput", reader.ReadString(), StringComparison.Ordinal);
 

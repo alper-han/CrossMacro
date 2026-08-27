@@ -435,7 +435,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
                 return;
             }
 
-            shouldRestart = true;
+            shouldRestart = !InputBackendErrorClassifier.IsKnownUnavailableMessage(errorMessage);
         }
 
         if (shouldNotify)

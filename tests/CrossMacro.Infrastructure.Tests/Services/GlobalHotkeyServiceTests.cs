@@ -453,6 +453,40 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task OnInputCaptureError_WhenUInputInitializationFails_ShouldNotRestart()
+    {
+        var capture = Substitute.For<IInputCapture>();
+        _ = capture.ProviderName.Returns("daemon");
+        _ = capture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        var factoryCalls = 0;
+        var errorObserved = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var service = new GlobalHotkeyService(
+            _config,
+            _parser,
+            _matcher,
+            _modifierTracker,
+            _stringBuilder,
+            _mouseButtonMapper,
+            () =>
+            {
+                factoryCalls++;
+                return capture;
+            });
+        service.ErrorOccurred += (_, error) => errorObserved.TrySetResult(error.Message);
+
+        service.Start();
+        const string message = "Failed to init UInput: Cannot open /dev/uinput (Errno: 13). Permission denied.";
+        capture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
+            this,
+            new InputCaptureErrorEventArgs(message));
+
+        Assert.Equal(message, await errorObserved.Task.WaitAsync(TestTimeout));
+        await Task.Delay(TimeSpan.FromMilliseconds(400));
+        Assert.Equal(1, factoryCalls);
+        Assert.Equal(message, service.LastError);
+    }
+
+    [Fact]
     public async Task OnInputCaptureError_WhenStartTaskJustCompleted_ShouldStillRestart()
     {
         var firstCapture = Substitute.For<IInputCapture>();

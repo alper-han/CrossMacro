@@ -29,6 +29,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
         Assert.Contains(services, d => d.ServiceType == typeof(DirectPolkitHostCommandLauncher) && d.ImplementationType == typeof(DirectPolkitHostCommandLauncher));
         Assert.Contains(services, d => d.ServiceType == typeof(IFlatpakQuickSetupService) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IAppImageQuickSetupService) && d.ImplementationFactory is not null);
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDirectInputQuickSetupService) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(PortalScreenCastRestoreTokenStore) && d.ImplementationType == typeof(PortalScreenCastRestoreTokenStore));
         Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastRestoreStateService) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory is not null);
@@ -78,6 +79,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
 
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonHandshakeProbe));
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonSocketAccessProbe));
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDirectInputQuickSetupService));
     }
 
     [Fact]

@@ -96,6 +96,8 @@
   <data name="Settings_StartMinimizedDescription" xml:space="preserve">
     <value>利用可能な場合はトレイに隠して起動します。それ以外の場合は最小化して開始します。</value>
   </data>
+  <data name="Settings_HideToTrayOnPlayback" xml:space="preserve"><value>再生時にトレイへ隠す</value></data>
+  <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve"><value>マクロの再生開始時にウィンドウを隠します。</value></data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>テキスト展開を有効にする</value>
   </data>

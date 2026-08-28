@@ -74,7 +74,20 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _viewModel.RecordingHotkey.Should().Be("F8"); // Default
         _ = _viewModel.EnableTrayIcon.Should().BeFalse();
         _ = _viewModel.StartMinimized.Should().BeFalse();
+        _ = _viewModel.HideToTrayOnPlayback.Should().BeFalse();
         _ = _viewModel.SelectedTheme.Should().Be("Classic");
+    }
+
+    [Fact]
+    public void HideToTrayOnPlayback_WhenChanged_SavesSettingsAndAutoEnablesTray()
+    {
+        _viewModel.HideToTrayOnPlayback = true;
+
+        _ = _viewModel.HideToTrayOnPlayback.Should().BeTrue();
+        _ = _settingsService.Current.HideToTrayOnPlayback.Should().BeTrue();
+        _ = _viewModel.EnableTrayIcon.Should().BeTrue();
+        _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
+        _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]

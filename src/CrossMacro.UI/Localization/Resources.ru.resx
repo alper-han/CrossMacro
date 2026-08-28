@@ -96,6 +96,8 @@
   <data name="Settings_StartMinimizedDescription" xml:space="preserve">
     <value>Запускает приложение скрытым в трее, если это возможно, иначе открывает его свернутым.</value>
   </data>
+  <data name="Settings_HideToTrayOnPlayback" xml:space="preserve"><value>Скрывать в трей при воспроизведении</value></data>
+  <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve"><value>Скрывает окно при запуске воспроизведения макроса.</value></data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>Включить расширение текста</value>
   </data>

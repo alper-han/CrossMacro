@@ -17,6 +17,7 @@ public static class SettingsMapper
         {
             EnableTrayIcon = source.EnableTrayIcon,
             StartMinimized = source.StartMinimized,
+            HideToTrayOnPlayback = source.HideToTrayOnPlayback,
             SuppressFastLoopWarning = source.SuppressFastLoopWarning,
             MacOSScreenRecordingOnboardingCompleted = source.MacOSScreenRecordingOnboardingCompleted,
             LogLevel = source.LogLevel,
@@ -71,6 +72,7 @@ public static class SettingsMapper
             // Global fields
             EnableTrayIcon = global.EnableTrayIcon,
             StartMinimized = global.StartMinimized,
+            HideToTrayOnPlayback = global.HideToTrayOnPlayback,
             SuppressFastLoopWarning = global.SuppressFastLoopWarning,
             MacOSScreenRecordingOnboardingCompleted = global.MacOSScreenRecordingOnboardingCompleted,
             LogLevel = global.LogLevel,
@@ -111,6 +113,7 @@ public static class SettingsMapper
 
         target.EnableTrayIcon = global.EnableTrayIcon;
         target.StartMinimized = global.StartMinimized;
+        target.HideToTrayOnPlayback = global.HideToTrayOnPlayback;
         target.SuppressFastLoopWarning = global.SuppressFastLoopWarning;
         target.MacOSScreenRecordingOnboardingCompleted = global.MacOSScreenRecordingOnboardingCompleted;
         target.LogLevel = global.LogLevel;

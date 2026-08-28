@@ -99,6 +99,12 @@
   <data name="Settings_StartMinimizedDescription" xml:space="preserve">
     <value>Launch hidden to tray when available; otherwise start minimized.</value>
   </data>
+  <data name="Settings_HideToTrayOnPlayback" xml:space="preserve">
+    <value>Hide to Tray on Playback</value>
+  </data>
+  <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve">
+    <value>Hide the window when macro playback starts.</value>
+  </data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>Enable Text Expansion</value>
   </data>

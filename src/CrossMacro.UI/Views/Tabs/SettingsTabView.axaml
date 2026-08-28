@@ -89,12 +89,31 @@
                             </StackPanel>
 
                             <ToggleSwitch Grid.Column="1"
-                                         IsChecked="{Binding StartMinimized}"
+                                          IsChecked="{Binding StartMinimized}"
                                          OnContent=""
                                          OffContent=""
-                                         VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center"/>
                         </Grid>
-                        
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="{localization:Loc Settings_HideToTrayOnPlayback}"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{localization:Loc Settings_HideToTrayOnPlaybackDescription}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding HideToTrayOnPlayback}"
+                                          OnContent=""
+                                          OffContent=""
+                                          VerticalAlignment="Center"/>
+                        </Grid>
+
                         <!-- Text Expansion -->
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Column="0" 

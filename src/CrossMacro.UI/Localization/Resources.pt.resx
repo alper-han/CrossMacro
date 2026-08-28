@@ -96,6 +96,8 @@
   <data name="Settings_StartMinimizedDescription" xml:space="preserve">
     <value>Inicia oculto na bandeja, quando disponível; caso contrário, inicia minimizado.</value>
   </data>
+  <data name="Settings_HideToTrayOnPlayback" xml:space="preserve"><value>Ocultar na bandeja durante a reprodução</value></data>
+  <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve"><value>Oculta a janela quando a reprodução da macro é iniciada.</value></data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>Ativar expansão de texto</value>
   </data>

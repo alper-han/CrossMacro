@@ -41,6 +41,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private bool _enableTrayIcon;
     private bool _startMinimized;
+    private bool _hideToTrayOnPlayback;
     private bool _disposed;
 
     [ObservableProperty]
@@ -140,6 +141,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _pauseHotkey = _hotkeySettings.PauseHotkey;
         _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
         _startMinimized = _settingsService.Current.StartMinimized;
+        _hideToTrayOnPlayback = _settingsService.Current.HideToTrayOnPlayback;
         _selectedLogLevel = _settingsService.Current.LogLevel;
         _selectedTheme = _settingsService.Current.Theme;
         _selectedLanguage = NormalizeSupportedLanguage(_settingsService.Current.Language);
@@ -197,6 +199,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             {
                 var previousTrayIcon = _enableTrayIcon;
                 var previousStartMinimized = _startMinimized;
+                var previousHideToTrayOnPlayback = _hideToTrayOnPlayback;
 
                 _enableTrayIcon = value;
                 _settingsService.Current.EnableTrayIcon = value;
@@ -211,24 +214,84 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     startMinimizedStateChanged = true;
                 }
 
+                var hideToTrayOnPlaybackStateChanged = false;
+                if (!value && IsTraySettingsVisible && _hideToTrayOnPlayback)
+                {
+                    _hideToTrayOnPlayback = false;
+                    _settingsService.Current.HideToTrayOnPlayback = false;
+                    hideToTrayOnPlaybackStateChanged = true;
+                }
+
                 OnPropertyChanged();
                 if (startMinimizedStateChanged)
                 {
                     OnPropertyChanged(nameof(StartMinimized));
                 }
+                if (hideToTrayOnPlaybackStateChanged)
+                {
+                    OnPropertyChanged(nameof(HideToTrayOnPlayback));
+                }
 
-                var propertyNames = startMinimizedStateChanged
-                    ? new[] { nameof(EnableTrayIcon), nameof(StartMinimized) }
-                    : [nameof(EnableTrayIcon)];
+                var propertyNames = new List<string> { nameof(EnableTrayIcon) };
+                if (startMinimizedStateChanged)
+                {
+                    propertyNames.Add(nameof(StartMinimized));
+                }
+                if (hideToTrayOnPlaybackStateChanged)
+                {
+                    propertyNames.Add(nameof(HideToTrayOnPlayback));
+                }
 
                 _ = TryPersistSettings(
-                    () => RestoreStartupPreferences(previousTrayIcon, previousStartMinimized),
+                    () => RestoreTrayPreferences(previousTrayIcon, previousStartMinimized, previousHideToTrayOnPlayback),
                     () =>
                     {
                         TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
                         return Task.CompletedTask;
                     },
-                    propertyNames);
+                    propertyNames.ToArray());
+            }
+        }
+    }
+
+    // Kept manual: enabling playback hiding also ensures a tray is available for restoring the window.
+    public bool HideToTrayOnPlayback
+    {
+        get => _hideToTrayOnPlayback;
+        set
+        {
+            if (_hideToTrayOnPlayback != value)
+            {
+                var previousHideToTrayOnPlayback = _hideToTrayOnPlayback;
+                var previousTrayIcon = _enableTrayIcon;
+                _hideToTrayOnPlayback = value;
+                _settingsService.Current.HideToTrayOnPlayback = value;
+
+                if (value && IsTraySettingsVisible && !_enableTrayIcon)
+                {
+                    _enableTrayIcon = true;
+                    _settingsService.Current.EnableTrayIcon = true;
+                }
+
+                OnPropertyChanged();
+                var trayIconStateChanged = previousTrayIcon != _enableTrayIcon;
+                if (trayIconStateChanged)
+                {
+                    OnPropertyChanged(nameof(EnableTrayIcon));
+                }
+
+                _ = TryPersistSettings(
+                    () => RestoreTrayPreferences(previousTrayIcon, _startMinimized, previousHideToTrayOnPlayback),
+                    trayIconStateChanged
+                        ? () =>
+                        {
+                            TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
+                            return Task.CompletedTask;
+                        }
+                        : null,
+                    trayIconStateChanged
+                        ? [nameof(HideToTrayOnPlayback), nameof(EnableTrayIcon)]
+                        : [nameof(HideToTrayOnPlayback)]);
             }
         }
     }
@@ -266,7 +329,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     : [nameof(StartMinimized)];
 
                 _ = TryPersistSettings(
-                    () => RestoreStartupPreferences(previousTrayIcon, previousStartMinimized),
+                    () => RestoreTrayPreferences(previousTrayIcon, previousStartMinimized, _hideToTrayOnPlayback),
                     trayIconStateChanged
                         ? () =>
                         {
@@ -691,12 +754,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }, LocalizationService["Settings_ProfileSwitchFailed"]).ConfigureAwait(false);
     }
 
-    private void RestoreStartupPreferences(bool trayIconEnabled, bool startMinimized)
+    private void RestoreTrayPreferences(bool trayIconEnabled, bool startMinimized, bool hideToTrayOnPlayback)
     {
         _enableTrayIcon = trayIconEnabled;
         _settingsService.Current.EnableTrayIcon = trayIconEnabled;
         _startMinimized = startMinimized;
         _settingsService.Current.StartMinimized = startMinimized;
+        _hideToTrayOnPlayback = hideToTrayOnPlayback;
+        _settingsService.Current.HideToTrayOnPlayback = hideToTrayOnPlayback;
     }
 
     public void RefreshProfileState(string? selectedProfileId = null)

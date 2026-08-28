@@ -25,6 +25,7 @@ public sealed class TrayIconService(
     private bool _initialized;
     private bool _isExiting;
     private bool _isEnabled = true;
+    private bool _hiddenForPlayback;
 
     private NativeMenuItem? _startRecordingItem;
     private NativeMenuItem? _startPlaybackItem;
@@ -90,6 +91,7 @@ public sealed class TrayIconService(
 
             // Subscribe to hotkey changes
             _viewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
+            _viewModel.Playback.PlaybackStateChanged += OnPlaybackStateChanged;
             _localizationService.CultureChanged += OnCultureChanged;
             _initialized = true;
 
@@ -176,6 +178,75 @@ public sealed class TrayIconService(
     private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         RefreshMenuLabels(e.PropertyName);
+    }
+
+    private void OnPlaybackStateChanged(object? sender, bool isPlaying)
+    {
+        if (isPlaying)
+        {
+            if (_viewModel.Settings.HideToTrayOnPlayback && _isEnabled)
+            {
+                HideMainWindowForPlayback();
+            }
+
+            return;
+        }
+
+        RestoreMainWindowAfterPlayback();
+    }
+
+    private void HideMainWindowForPlayback()
+    {
+        if (IsDisposeRequested)
+        {
+            return;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(HideMainWindowForPlayback);
+            return;
+        }
+
+        _mainWindow ??= _desktopLifetimeContext.MainWindow;
+        if (_mainWindow?.IsVisible is true)
+        {
+            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
+            _mainWindow.Hide();
+            _hiddenForPlayback = true;
+            Log.Debug("Window hidden for playback");
+        }
+    }
+
+    private void RestoreMainWindowAfterPlayback()
+    {
+        if (IsDisposeRequested || !_hiddenForPlayback)
+        {
+            return;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(RestoreMainWindowAfterPlayback);
+            return;
+        }
+
+        _hiddenForPlayback = false;
+        _mainWindow ??= _desktopLifetimeContext.MainWindow;
+        if (_mainWindow is null)
+        {
+            return;
+        }
+
+        SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
+        _mainWindow.Show();
+        if (_mainWindow.WindowState is WindowState.Minimized)
+        {
+            _mainWindow.WindowState = WindowState.Normal;
+        }
+
+        _mainWindow.Activate();
+        Log.Debug("Window restored after playback");
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)
@@ -294,7 +365,7 @@ public sealed class TrayIconService(
         else
         {
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
-            
+            _hiddenForPlayback = false;
             _mainWindow.Show();
             
             if (_mainWindow.WindowState is WindowState.Minimized)
@@ -435,6 +506,11 @@ public sealed class TrayIconService(
 
         _ = _trayIcon?.IsVisible = isEnabled;
 
+        if (!isEnabled)
+        {
+            RestoreMainWindowAfterPlayback();
+        }
+
         SetShutdownMode(_desktopLifetimeContext, isEnabled && (_mainWindow?.IsVisible) is not true
             ? ShutdownMode.OnExplicitShutdown
             : ShutdownMode.OnLastWindowClose);
@@ -469,6 +545,7 @@ public sealed class TrayIconService(
 
             _ = Interlocked.Exchange(ref _disposeRequested, 1);
             _viewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
+            _viewModel.Playback.PlaybackStateChanged -= OnPlaybackStateChanged;
             _localizationService.CultureChanged -= OnCultureChanged;
 
             _disposeTask = DisposeOnUiThreadAsync();

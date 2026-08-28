@@ -12,6 +12,8 @@ public sealed class PersistedGlobalSettings
 
     public bool StartMinimized { get; set; }
 
+    public bool HideToTrayOnPlayback { get; set; }
+
     public bool SuppressFastLoopWarning { get; set; }
 
     public bool MacOSScreenRecordingOnboardingCompleted { get; set; }

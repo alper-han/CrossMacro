@@ -76,6 +76,12 @@ public static class Program
         return SingleInstanceGuard.TryAcquire(SingleInstanceName);
     }
 
+    public static bool TryActivateExistingRuntime() =>
+        SingleInstanceActivationListener.TrySignal(SingleInstanceName);
+
+    internal static SingleInstanceActivationListener? StartRuntimeActivationListener(Action activate) =>
+        SingleInstanceActivationListener.TryStart(SingleInstanceName, activate);
+
     public static string GetVersionString()
     {
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();

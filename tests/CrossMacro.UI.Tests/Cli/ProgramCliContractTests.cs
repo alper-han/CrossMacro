@@ -245,6 +245,35 @@ public sealed class ProgramCliContractTests
         Assert.False(guiStarted);
     }
 
+    [Fact]
+    public async Task RunAsync_WhenExistingGuiInstanceActivates_ReturnsSuccessWithoutStartingGui()
+    {
+        var guiStarted = false;
+        var activationRequested = false;
+        using var dataHome = new TemporaryDataHomeScope();
+
+        var exitCode = await CliGuiRuntime.RunAsync(
+            [],
+            new NoOpPlatformServiceRegistrar().RegisterPlatformServices,
+            static (services, _) => { },
+            startGui: () =>
+            {
+                guiStarted = true;
+                return 0;
+            },
+            getVersionString: () => "CrossMacro 0.0.0",
+            tryAcquireSingleInstanceGuard: static () => null,
+            tryActivateExistingInstance: () =>
+            {
+                activationRequested = true;
+                return true;
+            });
+
+        Assert.Equal((int)CliExitCode.Success, exitCode);
+        Assert.True(activationRequested);
+        Assert.False(guiStarted);
+    }
+
     private sealed class NoOpPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
 

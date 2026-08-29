@@ -6,6 +6,7 @@ public class App : Avalonia.Application
     private readonly GuiBootstrapContext? _bootstrapContext;
     private bool _shutdownStarted;
     private bool _shutdownCompleted;
+    private SingleInstanceActivationListener? _activationListener;
 
     public App() { /* Empty */ }
 
@@ -118,6 +119,7 @@ public class App : Avalonia.Application
         try
         {
             await startupCoordinator.StartAsync(desktop).ConfigureAwait(false);
+            _activationListener = Program.StartRuntimeActivationListener(ActivateMainWindow);
         }
         catch (OperationCanceledException) when (Volatile.Read(ref _shutdownStarted))
         {
@@ -128,6 +130,38 @@ public class App : Avalonia.Application
             SerilogLog.Error(ex, "Desktop startup failed");
             await Dispatcher.UIThread.InvokeAsync(() => desktop.Shutdown(1), DispatcherPriority.Send, CancellationToken.None);
         }
+    }
+
+    private void ActivateMainWindow()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                return;
+            }
+
+            var mainWindow = desktop.MainWindow ?? Services?.GetService<IDesktopLifetimeContext>()?.MainWindow;
+            if (mainWindow is null)
+            {
+                return;
+            }
+
+            desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
+
+            if (!mainWindow.IsVisible)
+            {
+                mainWindow.Show();
+            }
+
+            if (mainWindow.WindowState is WindowState.Minimized)
+            {
+                mainWindow.WindowState = WindowState.Normal;
+            }
+
+            mainWindow.Activate();
+            mainWindow.BringIntoView();
+        }, DispatcherPriority.Send);
     }
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
@@ -149,6 +183,7 @@ public class App : Avalonia.Application
 
     private async Task CompleteShutdownAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
+        Interlocked.Exchange(ref _activationListener, value: null)?.Dispose();
         var services = Services;
         if (services is not null)
         {

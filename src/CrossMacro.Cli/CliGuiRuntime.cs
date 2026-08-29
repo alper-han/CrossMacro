@@ -13,7 +13,8 @@ public static class CliGuiRuntime
         Func<int> startGui,
         Func<string> getVersionString,
         Func<IDisposable?> tryAcquireSingleInstanceGuard,
-        CliBootstrapCallbacks? bootstrapCallbacks = null)
+        CliBootstrapCallbacks? bootstrapCallbacks = null,
+        Func<bool>? tryActivateExistingInstance = null)
     {
         ArgumentNullException.ThrowIfNull(args);
         return RunAsync(
@@ -23,7 +24,8 @@ public static class CliGuiRuntime
             startGui,
             getVersionString,
             tryAcquireSingleInstanceGuard,
-            bootstrapCallbacks);
+            bootstrapCallbacks,
+            tryActivateExistingInstance);
     }
 
     public static async Task<int> RunAsync(
@@ -33,7 +35,8 @@ public static class CliGuiRuntime
         Func<int> startGui,
         Func<string> getVersionString,
         Func<IDisposable?> tryAcquireSingleInstanceGuard,
-        CliBootstrapCallbacks? bootstrapCallbacks = null)
+        CliBootstrapCallbacks? bootstrapCallbacks = null,
+        Func<bool>? tryActivateExistingInstance = null)
     {
         ArgumentNullException.ThrowIfNull(configureGuiServices);
         ArgumentNullException.ThrowIfNull(configureCliServices);
@@ -50,7 +53,7 @@ public static class CliGuiRuntime
             switch (parseResult.Kind)
             {
                 case CliParseResult.ParseResultKind.Gui:
-                    return RunGuiMode(tryAcquireSingleInstanceGuard, startGui);
+                    return RunGuiMode(tryAcquireSingleInstanceGuard, startGui, tryActivateExistingInstance);
                 case CliParseResult.ParseResultKind.Help:
                     Console.WriteLine(CliCommandRouter.GetUsage(parseResult.HelpTopic));
                     return (int)CliExitCode.Success;
@@ -87,7 +90,8 @@ public static class CliGuiRuntime
         IPlatformServiceRegistrar platformServiceRegistrar,
         Func<int> startGui,
         Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard)
+        Func<IDisposable?> tryAcquireSingleInstanceGuard,
+        Func<bool>? tryActivateExistingInstance = null)
     {
         ArgumentNullException.ThrowIfNull(args);
         return RunAsync(
@@ -95,7 +99,8 @@ public static class CliGuiRuntime
             platformServiceRegistrar,
             startGui,
             getVersionString,
-            tryAcquireSingleInstanceGuard);
+            tryAcquireSingleInstanceGuard,
+            tryActivateExistingInstance);
     }
 
     public static Task<int> RunAsync(
@@ -103,7 +108,8 @@ public static class CliGuiRuntime
         IPlatformServiceRegistrar platformServiceRegistrar,
         Func<int> startGui,
         Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard)
+        Func<IDisposable?> tryAcquireSingleInstanceGuard,
+        Func<bool>? tryActivateExistingInstance = null)
     {
         ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
         return RunAsync(
@@ -113,7 +119,8 @@ public static class CliGuiRuntime
             startGui,
             getVersionString,
             tryAcquireSingleInstanceGuard,
-            CliBootstrapCallbacks.NoOp);
+            CliBootstrapCallbacks.NoOp,
+            tryActivateExistingInstance);
     }
 
     private static bool RequiresSingleInstanceGuard(CliCommandOptions options)
@@ -121,11 +128,20 @@ public static class CliGuiRuntime
         return options is HeadlessCliOptions;
     }
 
-    private static int RunGuiMode(Func<IDisposable?> tryAcquireSingleInstanceGuard, Func<int> startGui)
+    private static int RunGuiMode(
+        Func<IDisposable?> tryAcquireSingleInstanceGuard,
+        Func<int> startGui,
+        Func<bool>? tryActivateExistingInstance)
     {
         using var guiInstanceGuard = tryAcquireSingleInstanceGuard();
         if (guiInstanceGuard is null)
         {
+            if (tryActivateExistingInstance?.Invoke() is true)
+            {
+                SerilogLog.Debug("Activated the existing CrossMacro instance");
+                return (int)CliExitCode.Success;
+            }
+
             SerilogLog.Warning("Could not acquire single-instance lock; another instance may already be running.");
             return (int)CliExitCode.EnvironmentError;
         }

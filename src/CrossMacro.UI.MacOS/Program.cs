@@ -26,7 +26,8 @@ internal static class Program
                 static appBuilder => appBuilder.UseAvaloniaNative().UseSkia()),
             getVersionString: CrossMacro.UI.Program.GetVersionString,
             tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard,
-            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks());
+            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks(),
+            tryActivateExistingInstance: CrossMacro.UI.Program.TryActivateExistingRuntime);
     }
 
     private static void ConfigurePlatformServices(IServiceCollection services)

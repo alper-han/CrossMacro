@@ -37,7 +37,8 @@ internal static class Program
                 appBuilder => ConfigureLinuxGuiBuilder(appBuilder, environment)),
             getVersionString: CrossMacro.UI.Program.GetVersionString,
             tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard,
-            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks());
+            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks(),
+            tryActivateExistingInstance: CrossMacro.UI.Program.TryActivateExistingRuntime);
     }
 
     private static void ConfigurePlatformServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)

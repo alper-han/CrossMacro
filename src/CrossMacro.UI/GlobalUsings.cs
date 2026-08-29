@@ -60,6 +60,7 @@ global using System.ComponentModel;
 global using System.Diagnostics;
 global using System.Globalization;
 global using System.IO;
+global using System.IO.Pipes;
 global using System.Linq;
 global using System.Reflection;
 global using System.Resources;

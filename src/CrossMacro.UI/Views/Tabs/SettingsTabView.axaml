@@ -97,6 +97,25 @@
 
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
                             <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="{localization:Loc Settings_HideToTrayOnRecording}"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{localization:Loc Settings_HideToTrayOnRecordingDescription}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding HideToTrayOnRecording}"
+                                          OnContent=""
+                                          OffContent=""
+                                          VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
+                            <StackPanel Grid.Column="0" Spacing="2">
                                 <TextBlock Text="{localization:Loc Settings_HideToTrayOnPlayback}"
                                            FontWeight="Medium"
                                            Foreground="{DynamicResource TextPrimaryBrush}"

@@ -42,6 +42,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private bool _enableTrayIcon;
     private bool _startMinimized;
     private bool _hideToTrayOnPlayback;
+    private bool _hideToTrayOnRecording;
     private bool _disposed;
 
     [ObservableProperty]
@@ -142,6 +143,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
         _startMinimized = _settingsService.Current.StartMinimized;
         _hideToTrayOnPlayback = _settingsService.Current.HideToTrayOnPlayback;
+        _hideToTrayOnRecording = _settingsService.Current.HideToTrayOnRecording;
         _selectedLogLevel = _settingsService.Current.LogLevel;
         _selectedTheme = _settingsService.Current.Theme;
         _selectedLanguage = NormalizeSupportedLanguage(_settingsService.Current.Language);
@@ -200,6 +202,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 var previousTrayIcon = _enableTrayIcon;
                 var previousStartMinimized = _startMinimized;
                 var previousHideToTrayOnPlayback = _hideToTrayOnPlayback;
+                var previousHideToTrayOnRecording = _hideToTrayOnRecording;
 
                 _enableTrayIcon = value;
                 _settingsService.Current.EnableTrayIcon = value;
@@ -222,6 +225,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     hideToTrayOnPlaybackStateChanged = true;
                 }
 
+                var hideToTrayOnRecordingStateChanged = false;
+                if (!value && IsTraySettingsVisible && _hideToTrayOnRecording)
+                {
+                    _hideToTrayOnRecording = false;
+                    _settingsService.Current.HideToTrayOnRecording = false;
+                    hideToTrayOnRecordingStateChanged = true;
+                }
+
                 OnPropertyChanged();
                 if (startMinimizedStateChanged)
                 {
@@ -230,6 +241,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 if (hideToTrayOnPlaybackStateChanged)
                 {
                     OnPropertyChanged(nameof(HideToTrayOnPlayback));
+                }
+                if (hideToTrayOnRecordingStateChanged)
+                {
+                    OnPropertyChanged(nameof(HideToTrayOnRecording));
                 }
 
                 var propertyNames = new List<string> { nameof(EnableTrayIcon) };
@@ -241,9 +256,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 {
                     propertyNames.Add(nameof(HideToTrayOnPlayback));
                 }
+                if (hideToTrayOnRecordingStateChanged)
+                {
+                    propertyNames.Add(nameof(HideToTrayOnRecording));
+                }
 
                 _ = TryPersistSettings(
-                    () => RestoreTrayPreferences(previousTrayIcon, previousStartMinimized, previousHideToTrayOnPlayback),
+                    () => RestoreTrayPreferences(previousTrayIcon, previousStartMinimized, previousHideToTrayOnPlayback, previousHideToTrayOnRecording),
                     () =>
                     {
                         TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
@@ -281,7 +300,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 }
 
                 _ = TryPersistSettings(
-                    () => RestoreTrayPreferences(previousTrayIcon, _startMinimized, previousHideToTrayOnPlayback),
+                    () => RestoreTrayPreferences(previousTrayIcon, _startMinimized, previousHideToTrayOnPlayback, _hideToTrayOnRecording),
                     trayIconStateChanged
                         ? () =>
                         {
@@ -292,6 +311,48 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     trayIconStateChanged
                         ? [nameof(HideToTrayOnPlayback), nameof(EnableTrayIcon)]
                         : [nameof(HideToTrayOnPlayback)]);
+            }
+        }
+    }
+
+    // Kept manual: enabling recording hiding also ensures a tray is available for restoring the window.
+    public bool HideToTrayOnRecording
+    {
+        get => _hideToTrayOnRecording;
+        set
+        {
+            if (_hideToTrayOnRecording != value)
+            {
+                var previousHideToTrayOnRecording = _hideToTrayOnRecording;
+                var previousTrayIcon = _enableTrayIcon;
+                _hideToTrayOnRecording = value;
+                _settingsService.Current.HideToTrayOnRecording = value;
+
+                if (value && IsTraySettingsVisible && !_enableTrayIcon)
+                {
+                    _enableTrayIcon = true;
+                    _settingsService.Current.EnableTrayIcon = true;
+                }
+
+                OnPropertyChanged();
+                var trayIconStateChanged = previousTrayIcon != _enableTrayIcon;
+                if (trayIconStateChanged)
+                {
+                    OnPropertyChanged(nameof(EnableTrayIcon));
+                }
+
+                _ = TryPersistSettings(
+                    () => RestoreTrayPreferences(previousTrayIcon, _startMinimized, _hideToTrayOnPlayback, previousHideToTrayOnRecording),
+                    trayIconStateChanged
+                        ? () =>
+                        {
+                            TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
+                            return Task.CompletedTask;
+                        }
+                        : null,
+                    trayIconStateChanged
+                        ? [nameof(HideToTrayOnRecording), nameof(EnableTrayIcon)]
+                        : [nameof(HideToTrayOnRecording)]);
             }
         }
     }
@@ -329,7 +390,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     : [nameof(StartMinimized)];
 
                 _ = TryPersistSettings(
-                    () => RestoreTrayPreferences(previousTrayIcon, previousStartMinimized, _hideToTrayOnPlayback),
+                    () => RestoreTrayPreferences(previousTrayIcon, previousStartMinimized, _hideToTrayOnPlayback, _hideToTrayOnRecording),
                     trayIconStateChanged
                         ? () =>
                         {
@@ -754,7 +815,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }, LocalizationService["Settings_ProfileSwitchFailed"]).ConfigureAwait(false);
     }
 
-    private void RestoreTrayPreferences(bool trayIconEnabled, bool startMinimized, bool hideToTrayOnPlayback)
+    private void RestoreTrayPreferences(bool trayIconEnabled, bool startMinimized, bool hideToTrayOnPlayback, bool hideToTrayOnRecording)
     {
         _enableTrayIcon = trayIconEnabled;
         _settingsService.Current.EnableTrayIcon = trayIconEnabled;
@@ -762,6 +823,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _settingsService.Current.StartMinimized = startMinimized;
         _hideToTrayOnPlayback = hideToTrayOnPlayback;
         _settingsService.Current.HideToTrayOnPlayback = hideToTrayOnPlayback;
+        _hideToTrayOnRecording = hideToTrayOnRecording;
+        _settingsService.Current.HideToTrayOnRecording = hideToTrayOnRecording;
     }
 
     public void RefreshProfileState(string? selectedProfileId = null)

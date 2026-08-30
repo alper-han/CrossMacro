@@ -75,6 +75,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _viewModel.EnableTrayIcon.Should().BeFalse();
         _ = _viewModel.StartMinimized.Should().BeFalse();
         _ = _viewModel.HideToTrayOnPlayback.Should().BeFalse();
+        _ = _viewModel.HideToTrayOnRecording.Should().BeFalse();
         _ = _viewModel.SelectedTheme.Should().Be("Classic");
     }
 
@@ -85,6 +86,18 @@ public sealed class SettingsViewModelTests : IDisposable
 
         _ = _viewModel.HideToTrayOnPlayback.Should().BeTrue();
         _ = _settingsService.Current.HideToTrayOnPlayback.Should().BeTrue();
+        _ = _viewModel.EnableTrayIcon.Should().BeTrue();
+        _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
+        _settingsService.Received(1).SaveAfterIdleAsync();
+    }
+
+    [Fact]
+    public void HideToTrayOnRecording_WhenChanged_SavesSettingsAndAutoEnablesTray()
+    {
+        _viewModel.HideToTrayOnRecording = true;
+
+        _ = _viewModel.HideToTrayOnRecording.Should().BeTrue();
+        _ = _settingsService.Current.HideToTrayOnRecording.Should().BeTrue();
         _ = _viewModel.EnableTrayIcon.Should().BeTrue();
         _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
         _settingsService.Received(1).SaveAfterIdleAsync();

@@ -98,6 +98,8 @@
   </data>
   <data name="Settings_HideToTrayOnPlayback" xml:space="preserve"><value>Masquer dans la zone de notification à la lecture</value></data>
   <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve"><value>Masque la fenêtre lorsque la lecture de la macro démarre.</value></data>
+  <data name="Settings_HideToTrayOnRecording" xml:space="preserve"><value>Masquer dans la zone de notification à l'enregistrement</value></data>
+  <data name="Settings_HideToTrayOnRecordingDescription" xml:space="preserve"><value>Masque la fenêtre lorsque l'enregistrement de la macro démarre.</value></data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>Activer l'extension du texte</value>
   </data>

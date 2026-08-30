@@ -98,6 +98,8 @@
   </data>
   <data name="Settings_HideToTrayOnPlayback" xml:space="preserve"><value>Ocultar en la bandeja al reproducir</value></data>
   <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve"><value>Oculta la ventana cuando se inicia la reproducción de la macro.</value></data>
+  <data name="Settings_HideToTrayOnRecording" xml:space="preserve"><value>Ocultar en la bandeja al grabar</value></data>
+  <data name="Settings_HideToTrayOnRecordingDescription" xml:space="preserve"><value>Oculta la ventana cuando se inicia la grabación de la macro.</value></data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>Habilitar expansión de texto</value>
   </data>

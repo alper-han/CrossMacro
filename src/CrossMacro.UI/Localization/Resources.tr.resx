@@ -102,6 +102,12 @@
   <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve">
     <value>Makro oynatma başladığında pencereyi gizler.</value>
   </data>
+  <data name="Settings_HideToTrayOnRecording" xml:space="preserve">
+    <value>Kaydedilirken Tepsiye Gizle</value>
+  </data>
+  <data name="Settings_HideToTrayOnRecordingDescription" xml:space="preserve">
+    <value>Makro kaydı başladığında pencereyi gizler.</value>
+  </data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>Metin Genişletmeyi Etkinleştir</value>
   </data>

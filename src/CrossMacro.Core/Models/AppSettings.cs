@@ -28,6 +28,11 @@ public class AppSettings
     public bool HideToTrayOnPlayback { get; set; }
 
     /// <summary>
+    /// Whether the GUI should hide to the system tray when macro recording starts.
+    /// </summary>
+    public bool HideToTrayOnRecording { get; set; }
+
+    /// <summary>
     /// Whether the user chose not to see the warning for fast loop playback again.
     /// </summary>
     public bool SuppressFastLoopWarning { get; set; }

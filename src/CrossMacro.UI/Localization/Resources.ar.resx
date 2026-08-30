@@ -98,6 +98,8 @@
   </data>
   <data name="Settings_HideToTrayOnPlayback" xml:space="preserve"><value>إخفاء إلى الدرج عند التشغيل</value></data>
   <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve"><value>إخفاء النافذة عند بدء تشغيل الماكرو.</value></data>
+  <data name="Settings_HideToTrayOnRecording" xml:space="preserve"><value>إخفاء إلى الدرج عند التسجيل</value></data>
+  <data name="Settings_HideToTrayOnRecordingDescription" xml:space="preserve"><value>إخفاء النافذة عند بدء تسجيل الماكرو.</value></data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>تمكين توسيع النص</value>
   </data>

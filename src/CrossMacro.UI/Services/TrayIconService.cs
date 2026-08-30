@@ -26,6 +26,7 @@ public sealed class TrayIconService(
     private bool _isExiting;
     private bool _isEnabled = true;
     private bool _hiddenForPlayback;
+    private bool _hiddenForRecording;
 
     private NativeMenuItem? _startRecordingItem;
     private NativeMenuItem? _startPlaybackItem;
@@ -92,6 +93,7 @@ public sealed class TrayIconService(
             // Subscribe to hotkey changes
             _viewModel.Settings.PropertyChanged += OnSettingsPropertyChanged;
             _viewModel.Playback.PlaybackStateChanged += OnPlaybackStateChanged;
+            _viewModel.Recording.RecordingStateChanged += OnRecordingStateChanged;
             _localizationService.CultureChanged += OnCultureChanged;
             _initialized = true;
 
@@ -249,6 +251,75 @@ public sealed class TrayIconService(
         Log.Debug("Window restored after playback");
     }
 
+    private void OnRecordingStateChanged(object? sender, bool isRecording)
+    {
+        if (isRecording)
+        {
+            if (_viewModel.Settings.HideToTrayOnRecording && _isEnabled)
+            {
+                HideMainWindowForRecording();
+            }
+
+            return;
+        }
+
+        RestoreMainWindowAfterRecording();
+    }
+
+    private void HideMainWindowForRecording()
+    {
+        if (IsDisposeRequested)
+        {
+            return;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(HideMainWindowForRecording);
+            return;
+        }
+
+        _mainWindow ??= _desktopLifetimeContext.MainWindow;
+        if (_mainWindow?.IsVisible is true)
+        {
+            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
+            _mainWindow.Hide();
+            _hiddenForRecording = true;
+            Log.Debug("Window hidden for recording");
+        }
+    }
+
+    private void RestoreMainWindowAfterRecording()
+    {
+        if (IsDisposeRequested || !_hiddenForRecording)
+        {
+            return;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            PostToUiThread(RestoreMainWindowAfterRecording);
+            return;
+        }
+
+        _hiddenForRecording = false;
+        _mainWindow ??= _desktopLifetimeContext.MainWindow;
+        if (_mainWindow is null)
+        {
+            return;
+        }
+
+        SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
+        _mainWindow.Show();
+        if (_mainWindow.WindowState is WindowState.Minimized)
+        {
+            _mainWindow.WindowState = WindowState.Normal;
+        }
+
+        _mainWindow.Activate();
+        Log.Debug("Window restored after recording");
+    }
+
     private void OnCultureChanged(object? sender, EventArgs e)
     {
         RefreshMenuLabels();
@@ -366,6 +437,7 @@ public sealed class TrayIconService(
         {
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
             _hiddenForPlayback = false;
+            _hiddenForRecording = false;
             _mainWindow.Show();
             
             if (_mainWindow.WindowState is WindowState.Minimized)
@@ -509,6 +581,7 @@ public sealed class TrayIconService(
         if (!isEnabled)
         {
             RestoreMainWindowAfterPlayback();
+            RestoreMainWindowAfterRecording();
         }
 
         SetShutdownMode(_desktopLifetimeContext, isEnabled && (_mainWindow?.IsVisible) is not true
@@ -546,6 +619,7 @@ public sealed class TrayIconService(
             _ = Interlocked.Exchange(ref _disposeRequested, 1);
             _viewModel.Settings.PropertyChanged -= OnSettingsPropertyChanged;
             _viewModel.Playback.PlaybackStateChanged -= OnPlaybackStateChanged;
+            _viewModel.Recording.RecordingStateChanged -= OnRecordingStateChanged;
             _localizationService.CultureChanged -= OnCultureChanged;
 
             _disposeTask = DisposeOnUiThreadAsync();

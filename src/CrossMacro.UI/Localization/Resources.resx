@@ -105,6 +105,12 @@
   <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve">
     <value>Hide the window when macro playback starts.</value>
   </data>
+  <data name="Settings_HideToTrayOnRecording" xml:space="preserve">
+    <value>Hide to Tray on Recording</value>
+  </data>
+  <data name="Settings_HideToTrayOnRecordingDescription" xml:space="preserve">
+    <value>Hide the window when macro recording starts.</value>
+  </data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>Enable Text Expansion</value>
   </data>

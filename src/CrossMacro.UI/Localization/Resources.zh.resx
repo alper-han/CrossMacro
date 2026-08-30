@@ -98,6 +98,8 @@
   </data>
   <data name="Settings_HideToTrayOnPlayback" xml:space="preserve"><value>播放时隐藏到托盘</value></data>
   <data name="Settings_HideToTrayOnPlaybackDescription" xml:space="preserve"><value>宏播放开始时隐藏窗口。</value></data>
+  <data name="Settings_HideToTrayOnRecording" xml:space="preserve"><value>录制时隐藏到托盘</value></data>
+  <data name="Settings_HideToTrayOnRecordingDescription" xml:space="preserve"><value>宏录制开始时隐藏窗口。</value></data>
   <data name="Settings_EnableTextExpansion" xml:space="preserve">
     <value>启用文本扩展</value>
   </data>

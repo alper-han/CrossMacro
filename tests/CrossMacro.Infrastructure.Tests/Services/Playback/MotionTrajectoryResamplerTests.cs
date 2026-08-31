@@ -55,7 +55,7 @@ public sealed class MotionTrajectoryResamplerTests
             new PlaybackOptions
             {
                 MotionMode = MotionPlaybackMode.StrictSpeed,
-                StrictSpeedMotionEventsPerSecond = 60,
+                StrictSpeedMotionEventsPerSecond = 1,
                 MaximumMotionErrorPixels = 1d,
             });
 

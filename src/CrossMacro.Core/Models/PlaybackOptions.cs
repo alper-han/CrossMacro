@@ -12,10 +12,10 @@ public class PlaybackOptions
     public const int MinDelayMs = 0;
     public const int DefaultDelayMs = 0;
     public const int DefaultStrictSpeedMotionEventsPerSecond = 1_000;
-    public const int MinStrictSpeedMotionEventsPerSecond = 60;
+    public const int MinStrictSpeedMotionEventsPerSecond = 1;
     public const int MaxStrictSpeedMotionEventsPerSecond = 10_000;
     public const int DefaultPrecisionMotionEventsPerSecond = 300;
-    public const int MinPrecisionMotionEventsPerSecond = 60;
+    public const int MinPrecisionMotionEventsPerSecond = 1;
     public const int MaxPrecisionMotionEventsPerSecond = 10_000;
     public const double DefaultMaximumMotionErrorPixels = 2d;
     public const double MinMaximumMotionErrorPixels = 0.25d;

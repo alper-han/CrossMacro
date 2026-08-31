@@ -9,7 +9,6 @@ public sealed class ScreenImageMatcher : IDisposable
     private const long ParallelPixelThreshold = 256_000;
     private const int MinimumParallelRowWidth = 256;
     private const int MinimumParallelRowCount = 4;
-    private const int MaximumParallelism = 4;
     private const double ScaleScoreTieTolerance = 1e-12;
     private const long AutomaticDirectScanWork = 4_000_000;
     private const int AutomaticCandidateLimit = 8;
@@ -2471,7 +2470,7 @@ public sealed class ScreenImageMatcher : IDisposable
     private static ParallelOptions CreateParallelOptions(CancellationToken cancellationToken) => new()
     {
         CancellationToken = cancellationToken,
-        MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, MaximumParallelism),
+        MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount),
     };
 
     private static bool HasValidTemplateCoverage(ScreenFrame frame, RgbImage template, int candidateX, int candidateY)

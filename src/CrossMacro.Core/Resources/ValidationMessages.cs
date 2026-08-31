@@ -11,7 +11,7 @@ public static class ValidationMessages
     // Delay
     public const string DelayMustBeNonNegative = "Delay must be non-negative";
     public const string DelayMustBePositive = "Delay must be greater than 0ms";
-    public const string DelayTooLong = "Delay cannot exceed 1 hour";
+    public const string DelayTooLong = "Delay cannot exceed 24 hours";
     public const string RandomDelayBoundsInvalid = "Random delay maximum must be greater than or equal to minimum";
 
     // Key Actions
@@ -20,7 +20,7 @@ public static class ValidationMessages
 
     // Scroll
     public const string ScrollAmountCannotBeZero = "Scroll amount cannot be zero";
-    public const string ScrollAmountTooLarge = "Scroll amount cannot exceed 100";
+    public const string ScrollAmountTooLarge = "Scroll amount cannot exceed 100000";
 
     // MouseMove
     public const string CoordinateTokenInvalid = "Coordinates must be integers or variable references";

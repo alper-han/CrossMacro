@@ -7,7 +7,7 @@ namespace CrossMacro.Infrastructure.Services;
 /// </summary>
 public sealed class RunScriptCompiler
 {
-    private const int MaxLoopIterations = 100_000;
+    private const int MaxLoopIterations = 10_000_000;
     private readonly IKeyCodeMapper _keyCodeMapper;
     private readonly RunScriptRuntimeValidator _runtimeValidator;
 

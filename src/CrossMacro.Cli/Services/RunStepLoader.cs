@@ -3,10 +3,10 @@ namespace CrossMacro.Cli.Services;
 
 internal static class RunStepLoader
 {
-    private const long MaxStepFileBytes = 16L * 1024 * 1024;
-    private const int MaxStepLineChars = 256 * 1024;
-    private const int MaxStepFileLines = 100_000;
-    private const int MaxSteps = 100_000;
+    private const long MaxStepFileBytes = 2L * 1024 * 1024 * 1024;
+    private const int MaxStepLineChars = 128 * 1024 * 1024;
+    private const int MaxStepFileLines = 10_000_000;
+    private const int MaxSteps = 10_000_000;
 
     public static async Task<RunStepLoadOutcome> LoadAsync(RunCliExecutionRequest request, CancellationToken cancellationToken)
     {

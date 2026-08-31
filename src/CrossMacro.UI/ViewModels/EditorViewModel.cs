@@ -36,7 +36,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         ScreenshotRegionEnd,
     }
 
-    private const int UndoStackLimit = 50;
+    private const int UndoStackLimit = 2000;
     private static readonly TimeSpan PropertyEditUndoCoalesceWindow = TimeSpan.FromMilliseconds(400);
     private const string MacroFileExtension = ".macro";
 

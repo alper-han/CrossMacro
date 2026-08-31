@@ -6,7 +6,6 @@ public static class ScreenFramePngDecoder
     private const long ParallelPixelThreshold = 256_000;
     private const int MinimumParallelRowWidth = 256;
     private const int MinimumParallelRowCount = 4;
-    private const int MaximumParallelism = 4;
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     public static ScreenFrame Decode(ReadOnlySpan<byte> pngBytes)
@@ -454,7 +453,7 @@ public static class ScreenFramePngDecoder
                 new ParallelOptions
                 {
                     CancellationToken = cancellationToken,
-                    MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, MaximumParallelism),
+                    MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount),
                 },
                 ConvertRow);
         }

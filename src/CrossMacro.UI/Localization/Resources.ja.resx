@@ -2198,6 +2198,12 @@
   <data name="Editor_SelectedActionsFormat" xml:space="preserve">
     <value>{0} 件選択中</value>
   </data>
+  <data name="Editor_RunSelected" xml:space="preserve">
+    <value>選択項目を実行</value>
+  </data>
+  <data name="Editor_RunSelectedTooltip" xml:space="preserve">
+    <value>エディターで選択したアクションのみを実行します</value>
+  </data>
   <data name="Editor_RunTest" xml:space="preserve">
     <value>Run Test</value>
   </data>
@@ -2207,8 +2213,14 @@
   <data name="Editor_StatusTestRunning" xml:space="preserve">
     <value>Test playback running...</value>
   </data>
+  <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
+    <value>選択したアクションのテスト実行中...</value>
+  </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
     <value>Test playback completed successfully.</value>
+  </data>
+  <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
+    <value>選択したアクションのテストが正常に完了しました。</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
     <value>Test playback stopped.</value>

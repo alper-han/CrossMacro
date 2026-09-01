@@ -2198,6 +2198,12 @@
   <data name="Editor_SelectedActionsFormat" xml:space="preserve">
     <value>已选择 {0} 项</value>
   </data>
+  <data name="Editor_RunSelected" xml:space="preserve">
+    <value>运行所选</value>
+  </data>
+  <data name="Editor_RunSelectedTooltip" xml:space="preserve">
+    <value>仅播放编辑器中选中的操作</value>
+  </data>
   <data name="Editor_RunTest" xml:space="preserve">
     <value>Run Test</value>
   </data>
@@ -2207,8 +2213,14 @@
   <data name="Editor_StatusTestRunning" xml:space="preserve">
     <value>Test playback running...</value>
   </data>
+  <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
+    <value>正在运行所选操作测试...</value>
+  </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
     <value>Test playback completed successfully.</value>
+  </data>
+  <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
+    <value>所选操作测试已成功完成。</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
     <value>Test playback stopped.</value>

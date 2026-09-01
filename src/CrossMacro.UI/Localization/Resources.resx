@@ -2218,6 +2218,12 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_SelectedActionsFormat" xml:space="preserve">
     <value>{0} selected</value>
   </data>
+  <data name="Editor_RunSelected" xml:space="preserve">
+    <value>Run Selected</value>
+  </data>
+  <data name="Editor_RunSelectedTooltip" xml:space="preserve">
+    <value>Play only the selected actions in the editor</value>
+  </data>
   <data name="Editor_RunTest" xml:space="preserve">
     <value>Run Test</value>
   </data>
@@ -2227,8 +2233,14 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_StatusTestRunning" xml:space="preserve">
     <value>Test playback running...</value>
   </data>
+  <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
+    <value>Selected actions test playback running...</value>
+  </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
     <value>Test playback completed successfully.</value>
+  </data>
+  <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
+    <value>Selected actions test completed successfully.</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
     <value>Test playback stopped.</value>

@@ -1593,10 +1593,20 @@
 
                     <!-- Save/Load -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Command="{Binding ToggleTestPlaybackSelectedAsync}"
+                                Classes="success compact"
+                                Classes.danger="{Binding IsRunningSelectedTest}"
+                                IsEnabled="{Binding CanRunSelectedTest}"
+                                ToolTip.Tip="{localization:Loc Editor_RunSelectedTooltip}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <icons:EmojiAppIcon Icon="{Binding RunSelectedIcon}" Width="16" Height="16"/>
+                                <TextBlock Text="{Binding RunSelectedText}"/>
+                            </StackPanel>
+                        </Button>
                         <Button Command="{Binding ToggleTestPlaybackAsync}"
                                 Classes="success compact"
                                 Classes.danger="{Binding IsRunningTest}"
-                                IsEnabled="{Binding HasActions}">
+                                IsEnabled="{Binding CanRunTest}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <icons:EmojiAppIcon Icon="{Binding RunIcon}" Width="16" Height="16"/>
                                 <TextBlock Text="{Binding RunText}"/>

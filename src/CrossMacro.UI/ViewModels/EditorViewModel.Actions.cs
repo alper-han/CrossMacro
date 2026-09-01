@@ -692,6 +692,7 @@ public partial class EditorViewModel
         SelectedAction = action;
         Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusAddedAction"), _actionDisplayFormatter.Format(action));
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -722,6 +723,7 @@ public partial class EditorViewModel
         SelectedAction = action;
         Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusAddedAction"), _actionDisplayFormatter.Format(action));
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -765,6 +767,7 @@ public partial class EditorViewModel
 
         Status = Localize("Editor_StatusInsertedElseBlock");
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -805,6 +808,7 @@ public partial class EditorViewModel
 
         Status = Localize("Editor_StatusRemovedBlock");
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -1000,6 +1004,7 @@ public partial class EditorViewModel
         SelectedAction = clone;
         Status = Localize("Editor_StatusDuplicatedAction");
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -1029,6 +1034,7 @@ public partial class EditorViewModel
         SelectPrimaryActionFromUnderlyingSelection();
         Status = Localize("Editor_StatusDuplicatedSelectedActions");
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -1046,6 +1052,7 @@ public partial class EditorViewModel
         SelectedAction = null;
         Status = Localize("Editor_StatusClearedAllActions");
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -1085,6 +1092,7 @@ public partial class EditorViewModel
         ApplyPostRemoveSelection(selectedActionsBeforeRemoval, postRemoveSelectionPolicy);
         Status = Localize(statusKey);
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
     }
@@ -1212,6 +1220,7 @@ public partial class EditorViewModel
             OnPropertyChanged(nameof(CanUndo));
             OnPropertyChanged(nameof(CanRedo));
             OnPropertyChanged(nameof(HasActions));
+            OnPropertyChanged(nameof(CanRunTest));
             RememberCurrentState();
         }
         finally
@@ -1244,6 +1253,7 @@ public partial class EditorViewModel
             OnPropertyChanged(nameof(CanUndo));
             OnPropertyChanged(nameof(CanRedo));
             OnPropertyChanged(nameof(HasActions));
+            OnPropertyChanged(nameof(CanRunTest));
             RememberCurrentState();
         }
         finally

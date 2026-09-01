@@ -2198,6 +2198,12 @@
   <data name="Editor_SelectedActionsFormat" xml:space="preserve">
     <value>Выбрано: {0}</value>
   </data>
+  <data name="Editor_RunSelected" xml:space="preserve">
+    <value>Запустить выбранные</value>
+  </data>
+  <data name="Editor_RunSelectedTooltip" xml:space="preserve">
+    <value>Воспроизвести только выбранные действия в редакторе</value>
+  </data>
   <data name="Editor_RunTest" xml:space="preserve">
     <value>Run Test</value>
   </data>
@@ -2207,8 +2213,14 @@
   <data name="Editor_StatusTestRunning" xml:space="preserve">
     <value>Test playback running...</value>
   </data>
+  <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
+    <value>Выполняется тестовое воспроизведение выбранных действий...</value>
+  </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
     <value>Test playback completed successfully.</value>
+  </data>
+  <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
+    <value>Тестовое воспроизведение выбранных действий успешно завершено.</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
     <value>Test playback stopped.</value>

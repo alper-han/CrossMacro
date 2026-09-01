@@ -2218,6 +2218,12 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_SelectedActionsFormat" xml:space="preserve">
     <value>{0} seçili</value>
   </data>
+  <data name="Editor_RunSelected" xml:space="preserve">
+    <value>Seçilenleri Çalıştır</value>
+  </data>
+  <data name="Editor_RunSelectedTooltip" xml:space="preserve">
+    <value>Yalnızca editörde seçilen eylemleri oynat</value>
+  </data>
   <data name="Editor_RunTest" xml:space="preserve">
     <value>Run Test</value>
   </data>
@@ -2227,8 +2233,14 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_StatusTestRunning" xml:space="preserve">
     <value>Test playback running...</value>
   </data>
+  <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
+    <value>Seçilen eylemlerin test oynatımı çalışıyor...</value>
+  </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
     <value>Test playback completed successfully.</value>
+  </data>
+  <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
+    <value>Seçilen eylemlerin testi başarıyla tamamlandı.</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
     <value>Test playback stopped.</value>

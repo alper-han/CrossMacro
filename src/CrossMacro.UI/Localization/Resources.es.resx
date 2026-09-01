@@ -2198,6 +2198,12 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
   <data name="Editor_SelectedActionsFormat" xml:space="preserve">
     <value>{0} seleccionadas</value>
   </data>
+  <data name="Editor_RunSelected" xml:space="preserve">
+    <value>Ejecutar seleccionadas</value>
+  </data>
+  <data name="Editor_RunSelectedTooltip" xml:space="preserve">
+    <value>Reproducir solo las acciones seleccionadas en el editor</value>
+  </data>
   <data name="Editor_RunTest" xml:space="preserve">
     <value>Run Test</value>
   </data>
@@ -2207,8 +2213,14 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
   <data name="Editor_StatusTestRunning" xml:space="preserve">
     <value>Test playback running...</value>
   </data>
+  <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
+    <value>Reproducción de prueba de acciones seleccionadas en ejecución...</value>
+  </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
     <value>Test playback completed successfully.</value>
+  </data>
+  <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
+    <value>La prueba de las acciones seleccionadas se completó con éxito.</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
     <value>Test playback stopped.</value>

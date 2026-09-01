@@ -542,15 +542,16 @@ public partial class EditorViewModel
         Status = Localize("Editor_StatusCaptureCancelled");
     }
 
-    private async Task<MacroSequence?> BuildValidMacroSequenceAsync()
+    private async Task<MacroSequence?> BuildValidMacroSequenceAsync(IReadOnlyList<EditorAction>? targetActions = null)
     {
-        if (Actions.Count is 0)
+        var actionsToValidate = targetActions ?? Actions;
+        if (actionsToValidate.Count is 0)
         {
             await _dialogService.ShowMessageAsync(Localize("Editor_DialogTitleNoActions"), Localize("Editor_DialogMessageNoActions")).ConfigureAwait(false);
             return null;
         }
 
-        var normalizedActions = CloneActions(Actions);
+        var normalizedActions = CloneActions(actionsToValidate);
         NormalizeCurrentPositionMouseButtonActionSnapshot(normalizedActions);
 
         var (isValid, validationErrors) = _validator.ValidateAll(normalizedActions);
@@ -567,15 +568,21 @@ public partial class EditorViewModel
         var firstCoordinateAction = normalizedActions.FirstOrDefault(action =>
             UsesCoordinateFields(action.Type) && !IsCurrentPositionMouseButtonAction(action));
         var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
-        var skipInitialZeroZero = _skipInitialZeroZero || RequiresSkipInitialZeroZero;
-        await RunOnUiThreadAsync(() =>
+        var skipInitialZeroZero = targetActions is null
+            ? (_skipInitialZeroZero || RequiresSkipInitialZeroZero)
+            : (normalizedActions.Exists(IsCurrentPositionMouseButtonAction) || _skipInitialZeroZero);
+
+        if (targetActions is null)
         {
-            if (_skipInitialZeroZero != skipInitialZeroZero)
+            await RunOnUiThreadAsync(() =>
             {
-                _skipInitialZeroZero = skipInitialZeroZero;
-                OnPropertyChanged(nameof(SkipInitialZeroZero));
-            }
-        }).ConfigureAwait(false);
+                if (_skipInitialZeroZero != skipInitialZeroZero)
+                {
+                    _skipInitialZeroZero = skipInitialZeroZero;
+                    OnPropertyChanged(nameof(SkipInitialZeroZero));
+                }
+            }).ConfigureAwait(false);
+        }
 
         var projection = new EditorMacroProjection(
             normalizedActions,
@@ -622,17 +629,22 @@ public partial class EditorViewModel
     private const int TestPlaybackStopRequested = 1;
     private const int TestPlaybackCompleted = 2;
 
-    private sealed class TestPlaybackSession(CancellationTokenSource cancellationSource)
+    private sealed class TestPlaybackSession(CancellationTokenSource cancellationSource, bool isSelectedOnly)
     {
         public CancellationTokenSource CancellationSource { get; } = cancellationSource;
         public TaskCompletionSource<object?> StopCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool IsSelectedOnly { get; } = isSelectedOnly;
         public int State;
     }
 
     private readonly Lock _testPlaybackGate = new();
     private TestPlaybackSession? _testPlaybackSession;
 
-    public async Task ToggleTestPlaybackAsync()
+    public Task ToggleTestPlaybackAsync() => ToggleTestPlaybackCoreAsync(targetActions: null, isSelectedOnly: false);
+
+    public Task ToggleTestPlaybackSelectedAsync() => ToggleTestPlaybackCoreAsync(targetActions: GetSelectedActions(), isSelectedOnly: true);
+
+    private async Task ToggleTestPlaybackCoreAsync(IReadOnlyList<EditorAction>? targetActions, bool isSelectedOnly)
     {
         TestPlaybackSession? activeSession;
         lock (_testPlaybackGate)
@@ -652,14 +664,20 @@ public partial class EditorViewModel
             return;
         }
 
-        var sequence = await BuildValidMacroSequenceAsync().ConfigureAwait(false);
+        if (isSelectedOnly && (targetActions is null || targetActions.Count is 0))
+        {
+            Status = Localize("Editor_StatusSelectActionFirst");
+            return;
+        }
+
+        var sequence = await BuildValidMacroSequenceAsync(targetActions).ConfigureAwait(false);
         if (sequence is null)
         {
             return;
         }
 
         var playbackCts = new CancellationTokenSource();
-        var playbackSession = new TestPlaybackSession(playbackCts);
+        var playbackSession = new TestPlaybackSession(playbackCts, isSelectedOnly);
         var started = false;
         await RunOnUiThreadAsync(() =>
         {
@@ -674,8 +692,18 @@ public partial class EditorViewModel
                 started = true;
             }
 
-            IsRunningTest = true;
-            Status = Localize("Editor_StatusTestRunning");
+            if (isSelectedOnly)
+            {
+                IsRunningSelectedTest = true;
+            }
+            else
+            {
+                IsRunningTest = true;
+            }
+
+            Status = isSelectedOnly
+                ? Localize("Editor_StatusTestSelectedRunning")
+                : Localize("Editor_StatusTestRunning");
         }).ConfigureAwait(false);
 
         if (!started)
@@ -724,12 +752,23 @@ public partial class EditorViewModel
 
                     Status = outcome switch
                     {
-                        TestPlaybackOutcome.Completed => Localize("Editor_StatusTestComplete"),
+                        TestPlaybackOutcome.Completed => isSelectedOnly
+                            ? Localize("Editor_StatusTestSelectedComplete")
+                            : Localize("Editor_StatusTestComplete"),
                         TestPlaybackOutcome.Cancelled => Localize("Editor_StatusTestCancelled"),
                         TestPlaybackOutcome.Failed => string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusTestError"), errorMessage),
                         _ => Status,
                     };
-                    IsRunningTest = false;
+
+                    if (isSelectedOnly)
+                    {
+                        IsRunningSelectedTest = false;
+                    }
+                    else
+                    {
+                        IsRunningTest = false;
+                    }
+
                     _testPlaybackSession = null;
                 }
             }).ConfigureAwait(false);

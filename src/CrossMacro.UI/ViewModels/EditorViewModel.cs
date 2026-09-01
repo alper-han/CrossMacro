@@ -547,10 +547,25 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RunIcon))]
     [NotifyPropertyChangedFor(nameof(RunText))]
+    [NotifyPropertyChangedFor(nameof(CanRunTest))]
+    [NotifyPropertyChangedFor(nameof(CanRunSelectedTest))]
     public partial bool IsRunningTest { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RunSelectedIcon))]
+    [NotifyPropertyChangedFor(nameof(RunSelectedText))]
+    [NotifyPropertyChangedFor(nameof(CanRunTest))]
+    [NotifyPropertyChangedFor(nameof(CanRunSelectedTest))]
+    public partial bool IsRunningSelectedTest { get; private set; }
 
     public AppIcon RunIcon => IsRunningTest ? AppIcon.Stop : AppIcon.Play;
     public string RunText => IsRunningTest ? Localize("Editor_StopTest") : Localize("Editor_RunTest");
+
+    public AppIcon RunSelectedIcon => IsRunningSelectedTest ? AppIcon.Stop : AppIcon.Play;
+    public string RunSelectedText => IsRunningSelectedTest ? Localize("Editor_StopTest") : Localize("Editor_RunSelected");
+
+    public bool CanRunTest => (HasActions || IsRunningTest) && !IsRunningSelectedTest;
+    public bool CanRunSelectedTest => (HasSelectedActions || IsRunningSelectedTest) && !IsRunningTest;
 
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;
@@ -1062,6 +1077,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(CanInsertElseBlock));
             OnPropertyChanged(nameof(CanRemoveBlock));
             OnPropertyChanged(nameof(ConditionRightOperandHint));
+            OnPropertyChanged(nameof(RunText));
+            OnPropertyChanged(nameof(RunSelectedText));
             NotifyScreenReadingComputedPropertiesChanged();
             RebuildAddableActionGroups(NewActionType);
         });
@@ -1227,6 +1244,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanDeleteHiddenEvents));
         OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
         NotifyFilterToggleAvailabilityChanged();
+        OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanRunTest));
         NormalizeSelectedUnderlyingIndices();
         NotifySelectedActionsChanged();
     }
@@ -1642,6 +1661,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanDuplicateSelectedActions));
         OnPropertyChanged(nameof(CanMoveSelectedActionsUp));
         OnPropertyChanged(nameof(CanMoveSelectedActionsDown));
+        OnPropertyChanged(nameof(CanRunSelectedTest));
     }
 
     private void NotifyFilterToggleAvailabilityChanged()
@@ -1654,7 +1674,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowSimplifyMovementToggle));
     }
 
-    private EditorAction[] GetSelectedActions()
+    internal EditorAction[] GetSelectedActions()
     {
         return SelectedActionUnderlyingIndices
             .Where(index => index >= 0 && index < Actions.Count)

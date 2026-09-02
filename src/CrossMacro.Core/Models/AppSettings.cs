@@ -161,7 +161,7 @@ public class AppSettings
     public string LogLevel { get; set; } = "Information";
 
     /// <summary>
-    /// Current UI Theme (Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox, Solarized, Crimson)
+    /// Current UI Theme (Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox, GruvboxSublime, Solarized, Crimson)
     /// </summary>
     public string Theme { get; set; } = "Mocha";
 

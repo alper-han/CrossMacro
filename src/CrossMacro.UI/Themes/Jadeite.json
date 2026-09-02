@@ -1,0 +1,33 @@
+{
+  "name": "Jadeite",
+  "palette": {
+    "primaryColor": "#0d6b55",
+    "primaryHoverColor": "#117d64",
+    "primaryPressedColor": "#095241",
+    "successColor": "#0e704a",
+    "successHoverColor": "#118357",
+    "successPressedColor": "#0a5739",
+    "dangerColor": "#c53030",
+    "dangerHoverColor": "#b52828",
+    "dangerPressedColor": "#9b2020",
+    "backgroundColor": "#082623",
+    "surfaceColor": "#133630",
+    "surfaceHoverColor": "#1d4d44",
+    "textPrimaryColor": "#cefad8",
+    "textSecondaryColor": "#85b8a6",
+    "warningColor": "#f59e0b",
+    "warningHoverColor": "#fbbf24",
+    "accentColor": "#2dd4bf",
+    "systemAccentColor": "#0d6b55",
+    "systemAccentColorDark1": "#0a5947",
+    "systemAccentColorDark2": "#084738",
+    "systemAccentColorDark3": "#06362a",
+    "systemAccentColorLight1": "#117d64",
+    "systemAccentColorLight2": "#148f72",
+    "systemAccentColorLight3": "#18a181",
+    "textOnPrimaryColor": "#f4fbf7",
+    "textOnSuccessColor": "#f4fbf7",
+    "textOnDangerColor": "#fff5f5",
+    "textOnWarningColor": "#1c1917"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "GruvboxSublime",
+  "palette": {
+    "primaryColor": "#202326",
+    "primaryHoverColor": "#2a2d36",
+    "primaryPressedColor": "#1a1c22",
+    "successColor": "#619a68",
+    "successHoverColor": "#89b978",
+    "successPressedColor": "#82a56f",
+    "dangerColor": "#fa5c4b",
+    "dangerHoverColor": "#fa5c4b",
+    "dangerPressedColor": "#c5463b",
+    "backgroundColor": "#282828",
+    "surfaceColor": "#484848",
+    "surfaceHoverColor": "#373737",
+    "textPrimaryColor": "#fcf9e3",
+    "textSecondaryColor": "#fdf4c1",
+    "warningColor": "#FF0000",
+    "warningHoverColor": "#FF0000",
+    "accentColor": "#FF0000",
+    "systemAccentColor": "#FF0000",
+    "systemAccentColorDark1": "#FF0000",
+    "systemAccentColorDark2": "#FF0000",
+    "systemAccentColorDark3": "#FF0000",
+    "systemAccentColorLight1": "#FF0000",
+    "systemAccentColorLight2": "#FF0000",
+    "systemAccentColorLight3": "#FF0000",
+    "textOnPrimaryColor": "#fcf9e3",
+    "textOnSuccessColor": "#fcf9e3",
+    "textOnDangerColor": "#fcf9e3",
+    "textOnWarningColor": "#fcf9e3"
+  }
+}

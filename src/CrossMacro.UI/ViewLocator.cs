@@ -18,7 +18,8 @@ public class ViewLocator : IDataTemplate
             ScheduleViewModel => new ScheduleTabView(),
             ShortcutViewModel => new ShortcutTabView(),
             TriggerViewModel => new TriggerTabView(),
-            EditorViewModel => new EditorTabView(),
+            EditorWorkspaceViewModel => new EditorTabView(),
+            EditorViewModel => new EditorDocumentView(),
             null => null,
             _ => new TextBlock { Text = "Not Found: " + param.GetType().FullName },
         };

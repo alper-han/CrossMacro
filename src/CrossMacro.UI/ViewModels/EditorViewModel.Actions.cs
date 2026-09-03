@@ -207,6 +207,7 @@ public partial class EditorViewModel
     private void RememberCurrentState()
     {
         _lastKnownState = CloneState();
+        UpdateDirtyState();
     }
 
     private void ResetPropertyEditUndoCoalescing()
@@ -583,6 +584,14 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(CanRedo));
     }
 
+    private void ClearUndoHistory()
+    {
+        _undoStack.Clear();
+        _redoStack.Clear();
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+    }
+
     private void TrimUndoStack()
     {
         if (_undoStack.Count <= UndoStackLimit)
@@ -692,6 +701,7 @@ public partial class EditorViewModel
         SelectedAction = action;
         Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusAddedAction"), _actionDisplayFormatter.Format(action));
         OnPropertyChanged(nameof(HasActions));
+        OnPropertyChanged(nameof(CanAddToPlayback));
         OnPropertyChanged(nameof(CanRunTest));
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
@@ -1226,6 +1236,7 @@ public partial class EditorViewModel
         finally
         {
             _isRestoringState = false;
+            UpdateDirtyState();
         }
     }
 
@@ -1259,6 +1270,7 @@ public partial class EditorViewModel
         finally
         {
             _isRestoringState = false;
+            UpdateDirtyState();
         }
     }
 

@@ -51,6 +51,11 @@ public partial class FilesViewModel : ViewModelBase
     /// </summary>
     public event EventHandler<string>? StatusChanged;
 
+    /// <summary>
+    /// Event fired after a macro is explicitly removed from the playback session.
+    /// </summary>
+    public event EventHandler<Guid>? LoadedMacroRemoved;
+
     public FilesViewModel(
         IMacroFileManager fileManager,
         IDialogService dialogService,
@@ -219,7 +224,11 @@ public partial class FilesViewModel : ViewModelBase
     /// Update a known loaded macro in place when the editor is linked to it.
     /// Falls back to adding a new session item when the link is missing or stale.
     /// </summary>
-    public LoadedMacroListItem? UpsertMacro(Guid? sessionId, MacroSequence? macro, string? sourcePath = null)
+    public LoadedMacroListItem? UpsertMacro(
+        Guid? sessionId,
+        MacroSequence? macro,
+        string? sourcePath = null,
+        bool addIfMissing = true)
     {
         if (macro is null)
         {
@@ -233,6 +242,11 @@ public partial class FilesViewModel : ViewModelBase
             {
                 return updatedItem;
             }
+        }
+
+        if (!addIfMissing)
+        {
+            return null;
         }
 
         ApplyPendingNameForNewMacro(macro);
@@ -411,6 +425,7 @@ public partial class FilesViewModel : ViewModelBase
         {
             if (_loadedMacroSession.RemoveMacro(item))
             {
+                LoadedMacroRemoved?.Invoke(this, item.SessionId);
                 SetTransientStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Files_StatusRemoved"], item.Name));
             }
         }).ConfigureAwait(false);

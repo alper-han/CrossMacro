@@ -6,6 +6,13 @@ public interface IDialogService
     public Task<bool> ShowConfirmationAsync(string title, string message, string yesText = "Yes", string noText = "No");
     public Task ShowMessageAsync(string title, string message, string buttonText = "OK");
 
+    public Task<UnsavedChangesChoice> ShowUnsavedChangesAsync(
+        string title,
+        string message,
+        string saveText,
+        string discardText,
+        string cancelText) => Task.FromResult(UnsavedChangesChoice.Cancel);
+
     public Task<FastLoopWarningResult> ShowFastLoopWarningAsync(
         string title,
         string message,

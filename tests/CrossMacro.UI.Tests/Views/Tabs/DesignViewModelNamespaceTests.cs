@@ -4,7 +4,8 @@ public sealed class DesignViewModelNamespaceTests
 {
     [Theory]
     [InlineData("src/CrossMacro.UI/Views/MainWindow.axaml", "DesignMainWindowViewModel")]
-    [InlineData("src/CrossMacro.UI/Views/Tabs/EditorTabView.axaml", "DesignEditorViewModel")]
+    [InlineData("src/CrossMacro.UI/Views/Tabs/EditorTabView.axaml", "DesignEditorWorkspaceViewModel")]
+    [InlineData("src/CrossMacro.UI/Views/Tabs/EditorDocumentView.axaml", "DesignEditorViewModel")]
     [InlineData("src/CrossMacro.UI/Views/Tabs/SettingsTabView.axaml", "DesignSettingsViewModel")]
     [InlineData("src/CrossMacro.UI/Views/Tabs/FilesTabView.axaml", "DesignFilesViewModel")]
     [InlineData("src/CrossMacro.UI/Views/Tabs/TextExpansionTabView.axaml", "DesignTextExpansionViewModel")]

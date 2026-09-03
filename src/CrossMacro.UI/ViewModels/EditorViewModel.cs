@@ -72,6 +72,16 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     // Lifetime CTS for operations unrelated to test playback (image import/preview).
     private readonly CancellationTokenSource _viewModelCts = new();
     private bool _usesDefaultMacroName = true;
+    private string _untitledTabTitle = "Untitled 1";
+    [ObservableProperty]
+    private bool _isTabRenameInProgress;
+    [ObservableProperty]
+    private string _tabRenameText = string.Empty;
+#pragma warning disable IDE0032 // SourcePath needs a private setter that also notifies the derived tab-title properties.
+    private string? _sourcePath;
+#pragma warning restore IDE0032
+    private EditorDocumentStateSnapshot? _savedDocumentState;
+    private bool AddToPlaybackOnSaveWhenUnlinked { get; set; } = true;
     private bool _isApplyingStatusKind;
     private EditorStatusKind _statusKind = EditorStatusKind.Ready;
     private EditorStateSnapshot _lastKnownState = new([], SkipInitialZeroZero: false);
@@ -162,6 +172,11 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public event EventHandler<EditorMacroCreatedEventArgs>? MacroCreated;
 
     /// <summary>
+    /// Event fired when a loaded editor document is explicitly added to the playback session.
+    /// </summary>
+    public event EventHandler<EditorMacroPlaybackRequestedEventArgs>? PlaybackAddRequested;
+
+    /// <summary>
     /// Event fired when status changes.
     /// </summary>
     public event EventHandler<string>? StatusChanged;
@@ -207,6 +222,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _localizationService.CultureChanged += OnCultureChanged;
         RefreshAvailableVariableNames();
         RememberCurrentState();
+        MarkDocumentClean();
     }
 
     #region Properties
@@ -482,10 +498,79 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     partial void OnMacroNameChanged(string value)
     {
-        _usesDefaultMacroName = false;
+        _usesDefaultMacroName = string.IsNullOrWhiteSpace(value)
+            || string.Equals(value.Trim(), Localize("Editor_DefaultMacroName"), StringComparison.Ordinal);
+        OnPropertyChanged(nameof(TabTitle));
+        OnPropertyChanged(nameof(TabDisplayTitle));
+        UpdateDirtyState();
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TabDisplayTitle))]
+    private bool _isDirty;
+
+    [ObservableProperty]
+    private bool _isActive;
+
+    public string? SourcePath
+    {
+        get => _sourcePath;
+        private set
+        {
+            if (!SetProperty(ref _sourcePath, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(TabTitle));
+            OnPropertyChanged(nameof(TabDisplayTitle));
+            OnPropertyChanged(nameof(CanAddToPlayback));
+        }
+    }
+
+    public string TabTitle
+    {
+        get
+        {
+            if (!_usesDefaultMacroName && !string.IsNullOrWhiteSpace(MacroName))
+            {
+                return MacroName.Trim();
+            }
+
+            return string.IsNullOrWhiteSpace(SourcePath)
+                ? _untitledTabTitle
+                : Path.GetFileNameWithoutExtension(SourcePath);
+        }
+    }
+
+    public string TabDisplayTitle => IsDirty ? $"{TabTitle} *" : TabTitle;
+
+    public bool IsEmptyAndClean => !IsDirty
+        && string.IsNullOrWhiteSpace(SourcePath)
+        && Actions.Count is 0
+        && _imageAssets.Count is 0;
+
+    public bool CanAddToPlayback => !string.IsNullOrWhiteSpace(SourcePath)
+        && LinkedLoadedMacroSessionId is null
+        && Actions.Count > 0;
+
+    public void SetUntitledTabTitle(string title)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        if (string.Equals(_untitledTabTitle, title, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _untitledTabTitle = title;
+        OnPropertyChanged(nameof(TabTitle));
+        OnPropertyChanged(nameof(TabDisplayTitle));
     }
 
     public Guid? LinkedLoadedMacroSessionId { get; private set; }
+
+    public bool ShouldAddToPlaybackOnSave => LinkedLoadedMacroSessionId is null
+        && AddToPlaybackOnSaveWhenUnlinked;
 
     // Kept manual: StatusChanged must fire after the PropertyChanged notification and the setter tracks status-kind bookkeeping.
     public string Status
@@ -511,11 +596,143 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public void TrackLoadedMacroSession(Guid sessionId)
     {
         LinkedLoadedMacroSessionId = sessionId;
+        AddToPlaybackOnSaveWhenUnlinked = false;
+        OnPropertyChanged(nameof(CanAddToPlayback));
+        OnPropertyChanged(nameof(ShouldAddToPlaybackOnSave));
     }
 
     public void ClearLoadedMacroSessionLink()
     {
         LinkedLoadedMacroSessionId = null;
+        AddToPlaybackOnSaveWhenUnlinked = false;
+        OnPropertyChanged(nameof(CanAddToPlayback));
+        OnPropertyChanged(nameof(ShouldAddToPlaybackOnSave));
+    }
+
+    public EditorViewModel CreateNewDocument()
+    {
+        return new EditorViewModel(
+            _converter,
+            _validator,
+            _captureService,
+            _fileManager,
+            _dialogService,
+            _keyCodeMapper,
+            _macroPlayer,
+            _localizationService,
+            _actionDisplayFormatter,
+            _screenPixelReader,
+            _imageAssetCodec,
+            _imageAssetPreviewDecoder);
+    }
+
+    public EditorWorkspaceViewModel CreateWorkspace()
+    {
+        return new EditorWorkspaceViewModel(this, _dialogService, _localizationService);
+    }
+
+    public event EventHandler? LoadRequested;
+
+    public void RequestLoad() => LoadRequested?.Invoke(this, EventArgs.Empty);
+
+    public void BeginTabRename()
+    {
+        TabRenameText = TabTitle;
+        IsTabRenameInProgress = true;
+    }
+
+    public void CommitTabRename()
+    {
+        if (!IsTabRenameInProgress)
+        {
+            return;
+        }
+
+        IsTabRenameInProgress = false;
+        if (string.IsNullOrWhiteSpace(TabRenameText))
+        {
+            return;
+        }
+
+        MacroName = TabRenameText.Trim();
+        _usesDefaultMacroName = false;
+        OnPropertyChanged(nameof(TabTitle));
+        OnPropertyChanged(nameof(TabDisplayTitle));
+    }
+
+    public void CancelTabRename() => IsTabRenameInProgress = false;
+
+    public async Task AddToPlaybackAsync()
+    {
+        if (!CanAddToPlayback)
+        {
+            return;
+        }
+
+        var macro = await BuildValidMacroSequenceAsync().ConfigureAwait(false);
+        if (macro is null)
+        {
+            return;
+        }
+
+        await RunOnUiThreadAsync(() =>
+        {
+            if (CanAddToPlayback && SourcePath is { } sourcePath)
+            {
+                PlaybackAddRequested?.Invoke(this, new EditorMacroPlaybackRequestedEventArgs(macro, sourcePath));
+            }
+        }).ConfigureAwait(false);
+    }
+
+    private sealed record EditorDocumentStateSnapshot(
+        EditorStateSnapshot State,
+        string MacroName,
+        IReadOnlyDictionary<string, string> ImageAssets);
+
+    private EditorDocumentStateSnapshot CaptureDocumentState()
+    {
+        return new EditorDocumentStateSnapshot(
+            CloneState(),
+            MacroName,
+            new Dictionary<string, string>(_imageAssets, StringComparer.Ordinal));
+    }
+
+    private void UpdateDirtyState()
+    {
+        if (_isRestoringState || _isBatchUpdatingActions || _savedDocumentState is null)
+        {
+            return;
+        }
+
+        IsDirty = !IsCurrentDocumentStateEquivalent(_savedDocumentState);
+    }
+
+    private bool IsCurrentDocumentStateEquivalent(EditorDocumentStateSnapshot savedState)
+    {
+        if (_skipInitialZeroZero != savedState.State.SkipInitialZeroZero
+            || Actions.Count != savedState.State.Actions.Count
+            || !string.Equals(MacroName, savedState.MacroName, StringComparison.Ordinal)
+            || _imageAssets.Count != savedState.ImageAssets.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < Actions.Count; index++)
+        {
+            if (!AreActionsEquivalent(Actions[index], savedState.State.Actions[index]))
+            {
+                return false;
+            }
+        }
+
+        return _imageAssets.All(pair => savedState.ImageAssets.TryGetValue(pair.Key, out var value)
+            && string.Equals(pair.Value, value, StringComparison.Ordinal));
+    }
+
+    private void MarkDocumentClean(EditorDocumentStateSnapshot? savedState = null)
+    {
+        _savedDocumentState = savedState ?? CaptureDocumentState();
+        UpdateDirtyState();
     }
 
     [ObservableProperty]
@@ -647,6 +864,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                 _skipInitialZeroZeroBeforeCurrentPositionForce = normalized;
             }
             OnPropertyChanged();
+            UpdateDirtyState();
         }
     }
 
@@ -1231,6 +1449,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         if (!_isBatchUpdatingActions)
         {
             RefreshActionCollectionState();
+            UpdateDirtyState();
         }
     }
 
@@ -1297,6 +1516,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private void OnAnyActionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        UpdateDirtyState();
         if (!string.Equals(e.PropertyName, nameof(EditorAction.Index), StringComparison.Ordinal))
         {
             UpdateActionListPresentation();

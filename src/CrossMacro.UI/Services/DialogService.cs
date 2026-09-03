@@ -44,6 +44,29 @@ public class DialogService(IDesktopLifetimeContext desktopLifetimeContext, ILoca
         _ = await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
     }
 
+    public async Task<UnsavedChangesChoice> ShowUnsavedChangesAsync(
+        string title,
+        string message,
+        string saveText,
+        string discardText,
+        string cancelText)
+    {
+        var owner = _desktopLifetimeContext.MainWindow;
+        if (owner is null)
+        {
+            return UnsavedChangesChoice.Cancel;
+        }
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                () => ShowUnsavedChangesAsync(title, message, saveText, discardText, cancelText)).ConfigureAwait(false);
+        }
+
+        var dialog = new UnsavedChangesDialog(title, message, saveText, discardText, cancelText);
+        return await dialog.ShowDialog<UnsavedChangesChoice>(owner).ConfigureAwait(false);
+    }
+
     public async Task<FastLoopWarningResult> ShowFastLoopWarningAsync(
         string title,
         string message,

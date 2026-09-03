@@ -3,9 +3,59 @@ namespace CrossMacro.UI.Tests.Views.Tabs;
 public sealed class EditorTabViewTests
 {
     [Fact]
-    public void ScreenshotSection_BindsStructuredScreenshotFields()
+    public void WorkspaceTabStrip_ProvidesDocumentLifecycleAndReorderingBindings()
     {
         var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/EditorTabView.axaml");
+        var codeBehind = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/EditorTabView.axaml.cs");
+
+        Assert.Contains("ItemsSource=\"{Binding Documents}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Content=\"{Binding ActiveDocument}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"OnNewTabClicked\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"OnCloseTabClicked\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"OnCloseOtherTabsClicked\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"OnCloseAllTabsClicked\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("PointerPressed=\"OnDocumentTabPointerPressed\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("DoubleTapped=\"OnDocumentTabDoubleTapped\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Text=\"{Binding TabRenameText, UpdateSourceTrigger=PropertyChanged}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("OnTabRenameTextBoxKeyDown", codeBehind, StringComparison.Ordinal);
+        Assert.Contains("MoveDocument(_draggedDocument, destination)", codeBehind, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EditorDocumentView_ProvidesAnExplicitAddToPlaybackAction()
+    {
+        var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/EditorDocumentView.axaml");
+
+        Assert.Contains("Command=\"{Binding AddToPlaybackAsync}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("IsVisible=\"{Binding CanAddToPlayback}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Editor_AddToPlayback", xaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EditorDocumentView_FooterToolbarSeparatesLeftAndRightActionsWithWrapping()
+    {
+        var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/EditorDocumentView.axaml");
+        const string footerStart = "<!-- Undo/Redo + Clear -->";
+        const string footerEnd = "</Grid>";
+
+        var footerStartIndex = xaml.IndexOf(footerStart, StringComparison.Ordinal);
+        Assert.True(footerStartIndex >= 0, "Editor footer toolbar should exist.");
+        var footerEndIndex = xaml.IndexOf(footerEnd, footerStartIndex, StringComparison.Ordinal);
+        Assert.True(footerEndIndex > footerStartIndex, "Editor footer toolbar grid should close.");
+        var footer = xaml[footerStartIndex..footerEndIndex];
+
+        Assert.Contains("Command=\"{Binding Undo}\"", footer, StringComparison.Ordinal);
+        Assert.Contains("Command=\"{Binding ClearAll}\"", footer, StringComparison.Ordinal);
+        Assert.Contains("WrapPanel Grid.Column=\"1\"", footer, StringComparison.Ordinal);
+        Assert.Contains("HorizontalAlignment=\"Right\"", footer, StringComparison.Ordinal);
+        Assert.Contains("Command=\"{Binding ToggleTestPlaybackSelectedAsync}\"", footer, StringComparison.Ordinal);
+        Assert.Contains("Command=\"{Binding SaveMacroAsAsync}\"", footer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScreenshotSection_BindsStructuredScreenshotFields()
+    {
+        var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/EditorDocumentView.axaml");
         const string marker = "<!-- Screenshot -->";
 
         var markerIndex = xaml.IndexOf(marker, StringComparison.Ordinal);

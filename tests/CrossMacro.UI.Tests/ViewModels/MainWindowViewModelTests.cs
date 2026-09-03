@@ -251,6 +251,7 @@ extensionNotifier: null);
     public void NavigationCatalog_CreatesExpectedNavigationMetadataAndPages()
     {
         var catalog = new MainWindowNavigationCatalog(_localizationService);
+        var editorWorkspace = _viewModel.Editor;
 
         var topItems = catalog.CreateTopItems(
             _recordingViewModel,
@@ -260,7 +261,7 @@ extensionNotifier: null);
             _shortcutViewModel,
             _scheduleViewModel,
             _triggerViewModel,
-            _editorViewModel);
+            editorWorkspace);
         var bottomItems = catalog.CreateBottomItems(_settingsViewModel);
 
         _ = topItems.Select(item => (item.LocalizationKey, item.Label, item.ViewModel)).Should().Equal(
@@ -271,7 +272,7 @@ extensionNotifier: null);
             ("Navigation_Shortcuts", "[Navigation_Shortcuts]", _shortcutViewModel),
             ("Navigation_Schedule", "[Navigation_Schedule]", _scheduleViewModel),
             ("Navigation_Triggers", "[Navigation_Triggers]", _triggerViewModel),
-            ("Navigation_Editor", "[Navigation_Editor]", _editorViewModel));
+            ("Navigation_Editor", "[Navigation_Editor]", editorWorkspace));
         _ = topItems.Should().OnlyContain(item => Enum.IsDefined(item.Icon));
 
         _ = bottomItems.Select(item => (item.LocalizationKey, item.Label, item.ViewModel)).Should().Equal(
@@ -283,6 +284,7 @@ extensionNotifier: null);
     public void NavigationCatalog_RefreshLabels_UpdatesLabelsByLocalizationKey()
     {
         var catalog = new MainWindowNavigationCatalog(_localizationService);
+        var editorWorkspace = _viewModel.Editor;
         var topItems = catalog.CreateTopItems(
             _recordingViewModel,
             _playbackViewModel,
@@ -291,7 +293,7 @@ extensionNotifier: null);
             _shortcutViewModel,
             _scheduleViewModel,
             _triggerViewModel,
-            _editorViewModel);
+            editorWorkspace);
         var bottomItems = catalog.CreateBottomItems(_settingsViewModel);
         _ = _localizationService["Navigation_Recording"].Returns("[Navigation_Recording:updated]");
         _ = _localizationService["Navigation_Settings"].Returns("[Navigation_Settings:updated]");
@@ -587,12 +589,99 @@ extensionNotifier: null);
         _ = item.Should().NotBeNull();
         _ = item!.SourcePath.Should().Be("/tmp/editor-original.macro");
 
-        await SaveEditorMacroAsync(updatedMacro, "/tmp/editor-save-as.macro");
+        await SaveEditorMacroAsync(updatedMacro, "/tmp/editor-save-as.macro", saveAs: true);
 
         _ = _filesViewModel.LoadedMacros.Should().ContainSingle();
         _ = item.Macro.Should().BeSameAs(updatedMacro);
         _ = item.SourcePath.Should().Be("/tmp/editor-save-as.macro");
         _ = item.Description.Should().Contain("editor-save-as.macro");
+    }
+
+    [Fact]
+    public async Task EditorLoadedMacro_WhenExplicitlyAddedToPlayback_TracksTheSessionItemForSubsequentSaves()
+    {
+        const string sourcePath = "/tmp/editor-loaded.macro";
+        var loadedMacro = CreateMacro("Loaded Macro", EventType.MouseMove);
+        var addedMacro = CreateMacro("Loaded Macro", EventType.KeyPress);
+        var updatedMacro = CreateMacro("Updated Macro", EventType.ButtonPress, EventType.KeyPress);
+        _ = _editorConverter.FromMacroSequenceWithDiagnostics(loadedMacro)
+            .Returns(new EditorActionRestoreResult([new EditorAction { Type = EditorActionType.MouseClick }], [], restoredFromScriptSteps: true));
+        _ = _editorValidator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
+        _ = _editorConverter.ToMacroSequence(Arg.Any<EditorMacroProjection>()).Returns(addedMacro);
+        var document = _viewModel.Editor.ActiveDocument!;
+        document.LoadMacroSequence(loadedMacro, sourcePath);
+
+        await document.AddToPlaybackAsync();
+
+        var item = _filesViewModel.SelectedMacroItem;
+        _ = item.Should().NotBeNull();
+        _ = item!.Macro.Should().BeSameAs(addedMacro);
+        _ = item.SourcePath.Should().Be(sourcePath);
+        _ = document.LinkedLoadedMacroSessionId.Should().Be(item.SessionId);
+        _ = document.CanAddToPlayback.Should().BeFalse();
+
+        _ = _editorConverter.ToMacroSequence(Arg.Any<EditorMacroProjection>()).Returns(updatedMacro);
+        await SaveEditorMacroAsync(updatedMacro, sourcePath);
+
+        _ = _filesViewModel.LoadedMacros.Should().ContainSingle();
+        _ = item.Macro.Should().BeSameAs(updatedMacro);
+    }
+
+    [Fact]
+    public async Task EditorLinkedMacro_WhenRemovedFromPlayback_DetachesAndSaveDoesNotAddItBack()
+    {
+        const string sourcePath = "/tmp/editor-detached.macro";
+        var loadedMacro = CreateMacro("Loaded Macro", EventType.MouseMove);
+        var playbackMacro = CreateMacro("Loaded Macro", EventType.KeyPress);
+        var savedMacro = CreateMacro("Saved Macro", EventType.ButtonPress);
+        _ = _editorConverter.FromMacroSequenceWithDiagnostics(loadedMacro)
+            .Returns(new EditorActionRestoreResult(
+                [new EditorAction { Type = EditorActionType.MouseClick }],
+                [],
+                restoredFromScriptSteps: true));
+        _ = _editorValidator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
+        _ = _editorConverter.ToMacroSequence(Arg.Any<EditorMacroProjection>()).Returns(playbackMacro);
+        var document = _viewModel.Editor.ActiveDocument!;
+        document.LoadMacroSequence(loadedMacro, sourcePath);
+        await document.AddToPlaybackAsync();
+        var item = _filesViewModel.SelectedMacroItem!;
+        _ = _filesDialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
+            .Returns(Task.FromResult(true));
+
+        await _filesViewModel.RemoveLoadedMacroCommand.ExecuteAsync(item);
+
+        _ = document.LinkedLoadedMacroSessionId.Should().BeNull();
+        _ = document.CanAddToPlayback.Should().BeTrue();
+        _ = _editorConverter.ToMacroSequence(Arg.Any<EditorMacroProjection>()).Returns(savedMacro);
+        _ = _fileManager.SaveAsync(savedMacro, sourcePath).Returns(Task.CompletedTask);
+        await document.SaveMacroAsync();
+
+        _ = _filesViewModel.LoadedMacros.Should().BeEmpty();
+        _ = document.LinkedLoadedMacroSessionId.Should().BeNull();
+        _ = document.CanAddToPlayback.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task EditorLoadedMacro_WhenSavedWithoutExplicitPlaybackAdd_DoesNotAddSessionItem()
+    {
+        const string sourcePath = "/tmp/editor-disk-only.macro";
+        var loadedMacro = CreateMacro("Loaded Macro", EventType.MouseMove);
+        var savedMacro = CreateMacro("Saved Macro", EventType.KeyPress);
+        _ = _editorConverter.FromMacroSequenceWithDiagnostics(loadedMacro)
+            .Returns(new EditorActionRestoreResult(
+                [new EditorAction { Type = EditorActionType.MouseClick }],
+                [],
+                restoredFromScriptSteps: true));
+        _ = _editorValidator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
+        _ = _editorConverter.ToMacroSequence(Arg.Any<EditorMacroProjection>()).Returns(savedMacro);
+        _ = _fileManager.SaveAsync(savedMacro, sourcePath).Returns(Task.CompletedTask);
+        var document = _viewModel.Editor.ActiveDocument!;
+        document.LoadMacroSequence(loadedMacro, sourcePath);
+
+        await document.SaveMacroAsync();
+
+        _ = _filesViewModel.LoadedMacros.Should().BeEmpty();
+        _ = document.CanAddToPlayback.Should().BeTrue();
     }
 
     [Fact]
@@ -1127,7 +1216,10 @@ extensionNotifier: null);
         PublishRecordedEvents((IEnumerable<EventType>)eventTypes);
     }
 
-    private async Task SaveEditorMacroAsync(MacroSequence macro, string sourcePath = "/tmp/editor-test.macro")
+    private async Task SaveEditorMacroAsync(
+        MacroSequence macro,
+        string sourcePath = "/tmp/editor-test.macro",
+        bool saveAs = false)
     {
         if (_editorViewModel.Actions.Count is 0)
         {
@@ -1140,6 +1232,12 @@ extensionNotifier: null);
         _ = _editorDialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
             .Returns(sourcePath);
         _ = _fileManager.SaveAsync(macro, sourcePath).Returns(Task.CompletedTask);
+
+        if (saveAs)
+        {
+            await _editorViewModel.SaveMacroAsAsync();
+            return;
+        }
 
         await _editorViewModel.SaveMacroAsync();
     }

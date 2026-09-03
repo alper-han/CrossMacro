@@ -33,4 +33,18 @@ public abstract class ViewModelBase : ObservableObject
 
         await Dispatcher.UIThread.InvokeAsync(action);
     }
+
+    /// <summary>
+    /// Runs <paramref name="function"/> on the UI thread and returns its result.
+    /// </summary>
+    protected static async Task<T> RunOnUiThreadWithResultAsync<T>(Func<T> function)
+    {
+        ArgumentNullException.ThrowIfNull(function);
+        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        {
+            return function();
+        }
+
+        return await Dispatcher.UIThread.InvokeAsync(function);
+    }
 }

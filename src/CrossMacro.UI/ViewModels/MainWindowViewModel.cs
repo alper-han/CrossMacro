@@ -33,7 +33,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ShortcutViewModel Shortcuts { get; }
     public TriggerViewModel Triggers { get; }
     public SettingsViewModel Settings { get; }
-    public EditorViewModel Editor { get; }
+    public EditorWorkspaceViewModel Editor { get; }
 
 
     public bool IsCloseButtonVisible { get; }
@@ -165,7 +165,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Shortcuts = shortcuts;
         Triggers = triggers;
         Settings = settings;
-        Editor = editor;
+        ArgumentNullException.ThrowIfNull(editor);
+        Editor = editor.CreateWorkspace();
         _hotkeyService = hotkeyService;
         ArgumentNullException.ThrowIfNull(positionProvider);
         ArgumentNullException.ThrowIfNull(environmentInfo);
@@ -499,18 +500,42 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // When a macro is created in Editor, update the linked loaded macro or add a new one.
         Editor.MacroCreated += (s, e) =>
         {
-            var linkedItem = Files.UpsertMacro(Editor.LinkedLoadedMacroSessionId, e.Macro, e.SourcePath);
+            LoadedMacroListItem? linkedItem = null;
+            if (e.Document.LinkedLoadedMacroSessionId is { } sessionId)
+            {
+                linkedItem = Files.UpsertMacro(sessionId, e.MacroCreated.Macro, e.MacroCreated.SourcePath, addIfMissing: false);
+                if (linkedItem is null)
+                {
+                    e.Document.ClearLoadedMacroSessionLink();
+                }
+            }
+            else if (e.Document.ShouldAddToPlaybackOnSave)
+            {
+                linkedItem = Files.UpsertMacro(sessionId: null, e.MacroCreated.Macro, e.MacroCreated.SourcePath);
+            }
+
             if (linkedItem is not null)
             {
-                Editor.TrackLoadedMacroSession(linkedItem.SessionId);
+                e.Document.TrackLoadedMacroSession(linkedItem.SessionId);
             }
 
             SetGlobalStatusThreadSafe(string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["Status_CreatedMacro"],
-                e.Macro.Name,
-                MacroPlayableActionCounter.CountPlayableActions(e.Macro)));
+                e.MacroCreated.Macro.Name,
+                MacroPlayableActionCounter.CountPlayableActions(e.MacroCreated.Macro)));
         };
+
+        Editor.PlaybackAddRequested += (s, e) =>
+        {
+            var item = Files.UpsertMacro(sessionId: null, e.PlaybackRequested.Macro, e.PlaybackRequested.SourcePath);
+            if (item is not null)
+            {
+                e.Document.TrackLoadedMacroSession(item.SessionId);
+            }
+        };
+
+        Files.LoadedMacroRemoved += OnLoadedMacroRemoved;
 
         // Forward status changes
         Recording.PropertyChanged += (s, e) =>
@@ -545,6 +570,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             _suppressRecordingStatusForwarding = false;
         }
+    }
+
+    private void OnLoadedMacroRemoved(object? sender, Guid sessionId)
+    {
+        Editor.ClearLoadedMacroSessionLink(sessionId);
     }
 
     private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
@@ -972,6 +1002,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _hotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
         _hotkeyService.ErrorOccurred -= OnGlobalHotkeyError;
         _profileManager?.ProfileChanged -= OnProfileChanged;
+        Files.LoadedMacroRemoved -= OnLoadedMacroRemoved;
 
         // Unsubscribe from extension status events
         _extensionNotifier?.ExtensionStatusUpdated -= OnExtensionStatusUpdated;
@@ -982,6 +1013,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Shortcuts.Dispose();
         Triggers.Dispose();
         Settings.Dispose();
+        Editor.Dispose();
     }
 
     private enum AppNotificationSeverity

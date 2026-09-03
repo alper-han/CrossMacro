@@ -27,8 +27,11 @@
         <DataTemplate DataType="{x:Type vm:ShortcutViewModel}">
             <tabs:ShortcutTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:EditorViewModel}">
+        <DataTemplate DataType="{x:Type vm:EditorWorkspaceViewModel}">
             <tabs:EditorTabView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:EditorViewModel}">
+            <tabs:EditorDocumentView/>
         </DataTemplate>
         <local:ViewLocator/>
     </Application.DataTemplates>

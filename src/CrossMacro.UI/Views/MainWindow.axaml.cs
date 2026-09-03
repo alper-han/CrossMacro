@@ -5,6 +5,9 @@ namespace CrossMacro.UI.Views;
 
 public partial class MainWindow : Window
 {
+    private bool _isConfirmedClose;
+    private bool _isConfirmingClose;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -114,6 +117,49 @@ public partial class MainWindow : Window
     private void OnCloseApp(object? sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+        if (_isConfirmedClose)
+        {
+            base.OnClosing(e);
+            return;
+        }
+
+        if (DataContext is not ViewModels.MainWindowViewModel { Editor: var editor })
+        {
+            base.OnClosing(e);
+            return;
+        }
+
+        e.Cancel = true;
+        if (!_isConfirmingClose)
+        {
+            _isConfirmingClose = true;
+            _ = ConfirmEditorCloseAsync(editor);
+        }
+    }
+
+    private async Task ConfirmEditorCloseAsync(EditorWorkspaceViewModel editor)
+    {
+        try
+        {
+            if (await editor.ConfirmApplicationCloseAsync().ConfigureAwait(true))
+            {
+                _isConfirmedClose = true;
+                Close();
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[MainWindow] Failed to confirm editor close");
+        }
+        finally
+        {
+            _isConfirmingClose = false;
+        }
     }
 
     private void OnDismissAppNotification(object? sender, RoutedEventArgs e)

@@ -1840,6 +1840,42 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_Save" xml:space="preserve">
     <value>Kaydet</value>
   </data>
+  <data name="Editor_SaveAs" xml:space="preserve">
+    <value>Farklı Kaydet</value>
+  </data>
+  <data name="Editor_AddToPlayback" xml:space="preserve">
+    <value>Oynatmaya Ekle</value>
+  </data>
+  <data name="Editor_NewTabTooltip" xml:space="preserve">
+    <value>Yeni düzenleyici sekmesi</value>
+  </data>
+  <data name="Editor_CloseTab" xml:space="preserve">
+    <value>Kapat</value>
+  </data>
+  <data name="Editor_CloseOtherTabs" xml:space="preserve">
+    <value>Diğerlerini Kapat</value>
+  </data>
+  <data name="Editor_CloseAllTabs" xml:space="preserve">
+    <value>Tümünü Kapat</value>
+  </data>
+  <data name="Editor_MoveTabLeft" xml:space="preserve">
+    <value>Sola Taşı</value>
+  </data>
+  <data name="Editor_MoveTabRight" xml:space="preserve">
+    <value>Sağa Taşı</value>
+  </data>
+  <data name="Editor_UnsavedChangesTitle" xml:space="preserve">
+    <value>Kaydedilmemiş Değişiklikler</value>
+  </data>
+  <data name="Editor_UnsavedChangesMessage" xml:space="preserve">
+    <value>{0} sekmesinde kaydedilmemiş değişiklikler var. Kapatmadan önce kaydedilsin mi?</value>
+  </data>
+  <data name="Editor_Discard" xml:space="preserve">
+    <value>Kaydetme</value>
+  </data>
+  <data name="Editor_Cancel" xml:space="preserve">
+    <value>İptal</value>
+  </data>
   <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
     <value>Doğrudan Yazma</value>
   </data>

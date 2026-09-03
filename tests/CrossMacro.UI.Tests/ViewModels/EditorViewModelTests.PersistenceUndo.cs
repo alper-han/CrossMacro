@@ -4,6 +4,29 @@ public sealed partial class EditorViewModelTests
 {
 
     [Fact]
+    public async Task LoadMacroFromFileAsync_ClearsUndoAndRedoHistoryFromPreviousDocument()
+    {
+        _viewModel.AddAction();
+        _viewModel.Undo();
+        _ = _viewModel.CanRedo.Should().BeTrue();
+        var sequence = new MacroSequence { Name = "Loaded" };
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(
+                [new EditorAction { Type = EditorActionType.KeyPress, KeyCode = 65 }],
+                [],
+                restoredFromScriptSteps: true));
+
+        _ = _fileManager.LoadAsync("/tmp/loaded.macro").Returns(sequence);
+
+        _ = await _viewModel.LoadMacroFromFileAsync("/tmp/loaded.macro");
+
+        _ = _viewModel.CanUndo.Should().BeFalse();
+        _ = _viewModel.CanRedo.Should().BeFalse();
+        _viewModel.Undo();
+        _ = _viewModel.Actions.Should().ContainSingle().Which.Type.Should().Be(EditorActionType.KeyPress);
+    }
+
+    [Fact]
     public void Undo_WhenMousePositionOutputChangesBeforeAddingAction_PreservesEditedOutputs()
     {
         _viewModel.NewActionType = EditorActionType.MousePosition;
@@ -265,6 +288,22 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.Status.Should().Be("[Editor_StatusRedone]");
         _ = _viewModel.CanUndo.Should().BeTrue();
         _ = _viewModel.CanRedo.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Undo_WhenItRestoresTheSavedDocumentState_ClearsDirtyState()
+    {
+        _viewModel.AddAction();
+        var savedSequence = new MacroSequence { Name = "Saved" };
+        _ = _converter.FromMacroSequenceWithDiagnostics(savedSequence)
+            .Returns(new EditorActionRestoreResult([], [], restoredFromScriptSteps: true));
+        _viewModel.LoadMacroSequence(savedSequence);
+        _viewModel.AddAction();
+        _ = _viewModel.IsDirty.Should().BeTrue();
+
+        _viewModel.Undo();
+
+        _ = _viewModel.IsDirty.Should().BeFalse();
     }
 
     [Fact]
@@ -633,6 +672,50 @@ public sealed partial class EditorViewModelTests
         _ = raisedArgs.Should().NotBeNull();
         _ = raisedArgs!.Macro.Should().BeSameAs(generatedSequence);
         _ = raisedArgs.SourcePath.Should().Be("/tmp/editor-raised-path.macro");
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenLoadedFromSourcePath_WritesBackWithoutShowingSaveDialog()
+    {
+        var sourcePath = "/tmp/editor-write-back.macro";
+        var sequence = new MacroSequence { Name = "Loaded Macro" };
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult([new EditorAction { Type = EditorActionType.MouseClick }], [], restoredFromScriptSteps: true));
+        _viewModel.LoadMacroSequence(sequence, sourcePath);
+        _viewModel.SelectedAction!.X = 42;
+        var savedSequence = new MacroSequence { Name = "Loaded Macro" };
+        _ = _converter.ToMacroSequence(Arg.Any<EditorMacroProjection>()).Returns(savedSequence);
+
+        await _viewModel.SaveMacroAsync();
+
+        await _fileManager.Received(1).SaveAsync(savedSequence, sourcePath);
+        await _dialogService.DidNotReceive().ShowSaveFileDialogAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>());
+        _ = _viewModel.IsDirty.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SaveMacroAsync_WhenDocumentChangesDuringWrite_RemainsDirty()
+    {
+        const string sourcePath = "/tmp/editor-concurrent-save.macro";
+        var sequence = new MacroSequence { Name = "Loaded Macro" };
+        _ = _converter.FromMacroSequenceWithDiagnostics(sequence)
+            .Returns(new EditorActionRestoreResult(
+                [new EditorAction { Type = EditorActionType.MouseClick }],
+                [],
+                restoredFromScriptSteps: true));
+        _viewModel.LoadMacroSequence(sequence, sourcePath);
+        var savedSequence = new MacroSequence { Name = "Loaded Macro" };
+        _ = _converter.ToMacroSequence(Arg.Any<EditorMacroProjection>()).Returns(savedSequence);
+        var saveCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _fileManager.SaveAsync(savedSequence, sourcePath).Returns(saveCompletion.Task);
+
+        var saveTask = _viewModel.SaveMacroAsync();
+        _viewModel.SelectedAction!.X = 42;
+        saveCompletion.SetResult();
+        await saveTask;
+
+        _ = _viewModel.IsDirty.Should().BeTrue();
     }
 
     [Fact]

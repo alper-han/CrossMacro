@@ -1820,6 +1820,18 @@
   <data name="Editor_Save" xml:space="preserve">
     <value>保存</value>
   </data>
+  <data name="Editor_SaveAs" xml:space="preserve"><value>Save As</value></data>
+  <data name="Editor_AddToPlayback" xml:space="preserve"><value>Add to Playback</value></data>
+  <data name="Editor_NewTabTooltip" xml:space="preserve"><value>New editor tab</value></data>
+  <data name="Editor_CloseTab" xml:space="preserve"><value>Close</value></data>
+  <data name="Editor_CloseOtherTabs" xml:space="preserve"><value>Close Others</value></data>
+  <data name="Editor_CloseAllTabs" xml:space="preserve"><value>Close All</value></data>
+  <data name="Editor_MoveTabLeft" xml:space="preserve"><value>Move Left</value></data>
+  <data name="Editor_MoveTabRight" xml:space="preserve"><value>Move Right</value></data>
+  <data name="Editor_UnsavedChangesTitle" xml:space="preserve"><value>Unsaved Changes</value></data>
+  <data name="Editor_UnsavedChangesMessage" xml:space="preserve"><value>{0} has unsaved changes. Save before closing?</value></data>
+  <data name="Editor_Discard" xml:space="preserve"><value>Discard</value></data>
+  <data name="Editor_Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
     <value>直接入力</value>
   </data>

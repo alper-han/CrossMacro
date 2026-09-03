@@ -797,43 +797,58 @@ public partial class EditorViewModel
         }
     }
 
-    public async Task SaveMacroAsync()
+    public Task SaveMacroAsync() => SaveMacroCoreAsync(saveAs: false);
+
+    public Task SaveMacroAsAsync() => SaveMacroCoreAsync(saveAs: true);
+
+    public Task<bool> SaveMacroForCloseAsync() => SaveMacroCoreAsync(saveAs: false);
+
+    private async Task<bool> SaveMacroCoreAsync(bool saveAs)
     {
         var sequence = await BuildValidMacroSequenceAsync().ConfigureAwait(false);
         if (sequence is null)
         {
-            return;
+            return false;
         }
 
         try
         {
-            var filters = new[]
+            var filePath = saveAs ? null : SourcePath;
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = [MacroFileExtension.TrimStart('.')] },
-            };
+                var filters = new[]
+                {
+                    new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = [MacroFileExtension.TrimStart('.')] },
+                };
 
-            var baseName = MacroName.EndsWith(MacroFileExtension, StringComparison.OrdinalIgnoreCase)
-                ? MacroName[..^MacroFileExtension.Length]
-                : MacroName;
-            var filePath = await _dialogService.ShowSaveFileDialogAsync(Localize("Editor_SaveDialogTitle"), $"{baseName}{MacroFileExtension}", filters).ConfigureAwait(false);
+                var baseName = MacroName.EndsWith(MacroFileExtension, StringComparison.OrdinalIgnoreCase)
+                    ? MacroName[..^MacroFileExtension.Length]
+                    : MacroName;
+                filePath = await _dialogService.ShowSaveFileDialogAsync(Localize("Editor_SaveDialogTitle"), $"{baseName}{MacroFileExtension}", filters).ConfigureAwait(false);
+            }
 
             if (string.IsNullOrEmpty(filePath))
             {
                 await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusSaveCancelled")).ConfigureAwait(false);
-                return;
+                return false;
             }
 
+            var savedState = await RunOnUiThreadWithResultAsync(CaptureDocumentState).ConfigureAwait(false);
             await _fileManager.SaveAsync(sequence, filePath).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
             {
+                SourcePath = filePath;
+                MarkDocumentClean(savedState);
                 Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaved"), Path.GetFileName(filePath));
                 MacroCreated?.Invoke(this, new EditorMacroCreatedEventArgs(sequence, filePath));
             }).ConfigureAwait(false);
+            return true;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusSaveError"), ex.Message)).ConfigureAwait(false);
+            return false;
         }
     }
 
@@ -901,6 +916,7 @@ public partial class EditorViewModel
                 _imageAssets[assetName] = encodedImage;
                 ImageAssetNames.Add(assetName);
                 OnPropertyChanged(nameof(HasImageAssets));
+                UpdateDirtyState();
 
                 if (SelectedAction?.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage)
                 {
@@ -965,6 +981,19 @@ public partial class EditorViewModel
                 return;
             }
 
+            _ = await LoadMacroFromFileAsync(filePath).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadError"), ex.Message)).ConfigureAwait(false);
+        }
+    }
+
+    public async Task<bool> LoadMacroFromFileAsync(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        try
+        {
             var sequence = await _fileManager.LoadAsync(filePath).ConfigureAwait(false);
             if (sequence is null)
             {
@@ -973,33 +1002,37 @@ public partial class EditorViewModel
                     SetLoadWarnings([]);
                     Status = Localize("Editor_StatusLoadFailed");
                 }).ConfigureAwait(false);
-                return;
+                return false;
             }
 
             await RunOnUiThreadAsync(() =>
             {
-                LoadMacroSequence(sequence);
+                LoadMacroSequence(sequence, filePath);
+                ClearUndoHistory();
                 var baseStatus = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoaded"), Path.GetFileName(filePath));
                 Status = HasLoadWarnings
                     ? string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadedWithWarnings"), Path.GetFileName(filePath), LoadWarnings.Count)
                     : baseStatus;
             }).ConfigureAwait(false);
+            return true;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadError"), ex.Message)).ConfigureAwait(false);
+            return false;
         }
     }
 
     /// <summary>
     /// Loads a MacroSequence for editing.
     /// </summary>
-    public void LoadMacroSequence(MacroSequence sequence)
+    public void LoadMacroSequence(MacroSequence sequence, string? sourcePath = null)
     {
         ArgumentNullException.ThrowIfNull(sequence);
         SaveUndoState();
 
         ClearLoadedMacroSessionLink();
+        SourcePath = sourcePath;
         SetSelectedImageAssetPreview(preview: null);
         var restoreResult = _converter.FromMacroSequenceWithDiagnostics(sequence);
         var editorActions = restoreResult.Actions;
@@ -1046,5 +1079,6 @@ public partial class EditorViewModel
         RefreshActionCollectionState();
         ResetPropertyEditUndoCoalescing();
         RememberCurrentState();
+        MarkDocumentClean();
     }
 }

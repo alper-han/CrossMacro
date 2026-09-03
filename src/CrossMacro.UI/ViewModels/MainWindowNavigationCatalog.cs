@@ -13,7 +13,7 @@ internal sealed class MainWindowNavigationCatalog(ILocalizationService localizat
         ShortcutViewModel shortcuts,
         ScheduleViewModel schedule,
         TriggerViewModel triggers,
-        EditorViewModel editor)
+        EditorWorkspaceViewModel editor)
     {
         return new ObservableCollection<NavigationItem>
         {

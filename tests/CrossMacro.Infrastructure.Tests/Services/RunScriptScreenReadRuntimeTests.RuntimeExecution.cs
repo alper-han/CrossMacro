@@ -289,7 +289,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenRuntimeAbsoluteMoveDoesNotSettle_RefusesFollowingClick()
+    public async Task PlayAsync_WhenRuntimeAbsoluteMoveDoesNotSettle_ContinuesFollowingClick()
     {
         var activity = new List<string>();
         var screenReader = new RecordingScreenPixelReader(activity);
@@ -308,13 +308,13 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             },
         };
 
-        _ = await Assert.ThrowsAsync<AbsoluteCursorMoveNotSettledException>(() =>
-            player.PlayAsync(macro, cancellationToken: CancellationToken.None));
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = activity.Should().Equal(
             "input:move-abs:500,400",
             "screen:pixelcolor:1,2",
-            "input:move-abs:100,200");
+            "input:move-abs:100,200",
+            "input:click:left");
     }
 
     [Fact]
@@ -364,7 +364,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenAbsoluteClickDoesNotSettle_RefusesButtonEvent()
+    public async Task PlayAsync_WhenAbsoluteClickDoesNotSettle_ContinuesButtonEvent()
     {
         var activity = new List<string>();
         var positionProvider = CreatePositionProvider((500, 400));
@@ -388,12 +388,12 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             },
         };
 
-        _ = await Assert.ThrowsAsync<AbsoluteCursorMoveNotSettledException>(() =>
-            player.PlayAsync(macro, cancellationToken: CancellationToken.None));
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = activity.Should().Equal(
             "input:move-abs:500,400",
-            "input:move-abs:100,200");
+            "input:move-abs:100,200",
+            "input:click:left");
     }
 
     [Fact]

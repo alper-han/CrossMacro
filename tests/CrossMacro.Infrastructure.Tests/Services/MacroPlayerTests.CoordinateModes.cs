@@ -719,7 +719,7 @@ public sealed partial class MacroPlayerTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenLogicalRelativeClickDoesNotSettle_RefusesButtonEvent()
+    public async Task PlayAsync_WhenLogicalRelativeClickDoesNotSettle_ContinuesButtonEvent()
     {
         _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         _ = _positionProvider.GetAbsolutePositionAsync()
@@ -744,11 +744,11 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        var act = async () => await player.PlayAsync(macro);
+        await player.PlayAsync(macro);
 
-        _ = await act.Should().ThrowAsync<AbsoluteCursorMoveNotSettledException>();
         _ = simulator.AbsoluteMoves.Should().Equal((100, 200), (103, 195));
-        _ = simulator.ButtonTransitions.Should().BeEmpty();
+        _ = simulator.ButtonTransitions.Should().HaveCount(2);
+        _ = simulator.Operations.Should().ContainInOrder("btn:down", "btn:up");
     }
 
     [Fact]
@@ -992,7 +992,7 @@ public sealed partial class MacroPlayerTests
     }
 
     [Fact]
-    public async Task PlayAsync_WhenLogicalRelativeMovePrecedesClick_StillRequiresSettlement()
+    public async Task PlayAsync_WhenLogicalRelativeMovePrecedesClickAndDoesNotSettle_ContinuesButtonEvent()
     {
         _ = _positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         _ = _positionProvider.GetAbsolutePositionAsync().Returns(
@@ -1019,10 +1019,10 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        var act = async () => await player.PlayAsync(macro);
+        await player.PlayAsync(macro);
 
-        _ = await act.Should().ThrowAsync<AbsoluteCursorMoveNotSettledException>();
-        _ = simulator.ButtonTransitions.Should().BeEmpty();
+        _ = simulator.ButtonTransitions.Should().HaveCount(2);
+        _ = simulator.Operations.Should().ContainInOrder("btn:down", "btn:up");
     }
 
     [Fact]

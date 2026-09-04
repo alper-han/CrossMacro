@@ -1079,7 +1079,10 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
             cancellationToken).ConfigureAwait(false);
         if (!settled)
         {
-            throw new AbsoluteCursorMoveNotSettledException(expectedX, expectedY);
+            Log.Warning(
+                "[MacroPlayer] Absolute cursor move did not settle at ({ExpectedX},{ExpectedY}); continuing playback.",
+                expectedX,
+                expectedY);
         }
     }
 

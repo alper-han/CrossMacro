@@ -1,5 +1,7 @@
 
+using System.Runtime.CompilerServices;
 using CrossMacro.UI.Hosting;
+using CrossMacro.UI.Windows.Native;
 
 namespace CrossMacro.UI.Windows;
 
@@ -14,6 +16,13 @@ internal static class Program
 
     [System.STAThread]
     public static Task<int> Main(string[] args)
+    {
+        WindowsNativeLibrariesBootstrapper.EnsureLoaded();
+        return RunAppAsync(args);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static Task<int> RunAppAsync(string[] args)
     {
         return CliGuiRuntime.RunAsync(
             args,

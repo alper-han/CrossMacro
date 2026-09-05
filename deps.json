@@ -90,11 +90,6 @@
     "hash": "sha256-WNUQmLWVFSwBKT9x7UdhSz9T2FA7wibvwjuPew/3yUM="
   },
   {
-    "pname": "Meziantou.Analyzer",
-    "version": "3.0.137",
-    "hash": "sha256-SSfebkwgoWHDbQQp3cDajz0vz0gX4p8mnUyxD9WoRqI="
-  },
-  {
     "pname": "MicroCom.Runtime",
     "version": "0.11.6",
     "hash": "sha256-RTr200R3sZuyxi0XQ25ox2p1kVt5R1CbH/YBs21+eNg="
@@ -170,11 +165,6 @@
     "hash": "sha256-6I5F9aYQCP7JWsNMCkvUCYvsp20Gn+eYNO2ySuKUuhY="
   },
   {
-    "pname": "Roslynator.Analyzers",
-    "version": "4.15.0",
-    "hash": "sha256-NACDl8bu5GXzS62uwSpGGhacQrqsfnsG8XSg+cS94rY="
-  },
-  {
     "pname": "Serilog",
     "version": "4.4.0",
     "hash": "sha256-tP4X06ThcDVL6XXtYIhdJyxn4uL9jLL0s3DRO6HNQk8="
@@ -218,11 +208,6 @@
     "pname": "SkiaSharp.NativeAssets.Win32",
     "version": "3.119.4",
     "hash": "sha256-WlaYsbTh/cn/6YaN9odNtfpp8hpN52unGgGlQum0M5E="
-  },
-  {
-    "pname": "SonarAnalyzer.CSharp",
-    "version": "10.31.0.145097",
-    "hash": "sha256-FfpKfrvF2jgtegBbqItB++X3+pqYvuACkcL6MuPFVA8="
   },
   {
     "pname": "Tmds.DBus.Protocol",

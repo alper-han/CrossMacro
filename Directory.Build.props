@@ -20,9 +20,14 @@
     <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(CrossMacroVersion).0</AssemblyVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <InformationalVersion Condition="'$(InformationalVersion)' == '' and '$(CrossMacroSourceRevision)' != ''">$(Version)+$(CrossMacroSourceRevision)</InformationalVersion>
+    <!-- Disable third-party static analyzers for release/publish/packaging builds or when explicitly disabled. -->
+    <EnableThirdPartyAnalyzers Condition="'$(EnableThirdPartyAnalyzers)' == '' and ('$(Configuration)' == 'Release' or '$(PublishAot)' == 'true' or '$(CrossMacroPublishProfile)' != '' or '$(DisableAnalyzers)' == 'true')">false</EnableThirdPartyAnalyzers>
+    <EnableThirdPartyAnalyzers Condition="'$(EnableThirdPartyAnalyzers)' == ''">true</EnableThirdPartyAnalyzers>
+    <RunAnalyzersDuringBuild Condition="'$(EnableThirdPartyAnalyzers)' == 'false'">false</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringLiveAnalysis Condition="'$(EnableThirdPartyAnalyzers)' == 'false'">false</RunAnalyzersDuringLiveAnalysis>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(EnableThirdPartyAnalyzers)' == 'true'">
     <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
     <PackageReference Include="Roslynator.Analyzers" PrivateAssets="all" />
     <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" />

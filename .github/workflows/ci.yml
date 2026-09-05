@@ -89,14 +89,14 @@ jobs:
     - name: Build
       run: dotnet build --configuration Debug --no-restore
 
-    - name: MCP Smoke (portable-trimmed artifact)
+    - name: MCP Smoke (native-aot artifact)
       run: |
         set -euo pipefail
         output_dir="$RUNNER_TEMP/crossmacro-mcp-portable"
         dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
           --configuration Release \
           --runtime linux-x64 \
-          -p:CrossMacroPublishProfile=portable-trimmed \
+          -p:CrossMacroPublishProfile=native-aot \
           --output "$output_dir"
         bash scripts/smoke/mcp-smoke.sh --binary "$output_dir/CrossMacro.UI"
 

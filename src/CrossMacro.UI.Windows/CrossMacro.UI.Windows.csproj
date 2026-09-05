@@ -8,6 +8,7 @@
     <ApplicationManifest>..\CrossMacro.UI\app.manifest</ApplicationManifest>
     <ApplicationIcon>..\CrossMacro.UI\Assets\mouse-icon.ico</ApplicationIcon>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
@@ -29,7 +30,62 @@
   <ItemGroup>
     <PackageReference Include="Avalonia.Win32" />
     <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" GeneratePathProperty="true" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" GeneratePathProperty="true" />
+    <PackageReference Include="Avalonia.Angle.Windows.Natives" GeneratePathProperty="true" />
   </ItemGroup>
+
+  <UsingTask TaskName="GzipFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Source ParameterType="System.String" Required="true" />
+      <Destination ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.IO.Compression" />
+      <Code Type="Fragment" Language="cs">
+<![CDATA[
+        Directory.CreateDirectory(Path.GetDirectoryName(Destination));
+        if (!File.Exists(Destination) || File.GetLastWriteTimeUtc(Destination) < File.GetLastWriteTimeUtc(Source))
+        {
+            using (var inStream = File.OpenRead(Source))
+            using (var outStream = File.Create(Destination))
+            using (var gz = new GZipStream(outStream, CompressionLevel.Optimal))
+            {
+                inStream.CopyTo(gz);
+            }
+        }
+]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="EmbedWindowsNativeLibrariesForPortableAot"
+          BeforeTargets="AssignTargetPaths;PrepareResourceNames;BeforeCompile"
+          Condition="'$(CrossMacroWindowsPortableAot)' == 'true' and '$(RuntimeIdentifier)' != ''">
+    <PropertyGroup>
+      <_GzOutputDir>$(IntermediateOutputPath)native_runtimes/$(RuntimeIdentifier)/</_GzOutputDir>
+    </PropertyGroup>
+
+    <GzipFile Source="$(PkgSkiaSharp_NativeAssets_Win32)/runtimes/$(RuntimeIdentifier)/native/libSkiaSharp.dll"
+              Destination="$(_GzOutputDir)libSkiaSharp.dll.gz" />
+    <GzipFile Source="$(PkgHarfBuzzSharp_NativeAssets_Win32)/runtimes/$(RuntimeIdentifier)/native/libHarfBuzzSharp.dll"
+              Destination="$(_GzOutputDir)libHarfBuzzSharp.dll.gz" />
+    <GzipFile Source="$(PkgAvalonia_Angle_Windows_Natives)/runtimes/$(RuntimeIdentifier)/native/av_libglesv2.dll"
+              Destination="$(_GzOutputDir)av_libglesv2.dll.gz" />
+
+    <ItemGroup>
+      <EmbeddedResource Include="$(_GzOutputDir)libSkiaSharp.dll.gz">
+        <LogicalName>NativeRuntimes.$(RuntimeIdentifier).libSkiaSharp.dll.gz</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="$(_GzOutputDir)libHarfBuzzSharp.dll.gz">
+        <LogicalName>NativeRuntimes.$(RuntimeIdentifier).libHarfBuzzSharp.dll.gz</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="$(_GzOutputDir)av_libglesv2.dll.gz">
+        <LogicalName>NativeRuntimes.$(RuntimeIdentifier).av_libglesv2.dll.gz</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
 
   <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
     <TrimmerRootAssembly Include="CrossMacro.UI.Core" />

@@ -61,7 +61,7 @@ PROJECTS=(
 
 for project in "${PROJECTS[@]}"; do
     echo "  restoring: $project"
-    dotnet restore "$project" /p:RestoreUseStaticGraphEvaluation=false /m:1
+    dotnet restore "$project" -p:CrossMacroPublishProfile=native-aot -p:Configuration=Release /p:RestoreUseStaticGraphEvaluation=false /m:1
 done
 
 # Collect project.assets.json files

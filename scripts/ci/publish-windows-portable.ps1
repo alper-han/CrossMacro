@@ -24,7 +24,7 @@ function Show-Usage {
 Usage: publish-windows-portable.ps1 [-Version <version>] [-OutputDir <path>] [-Architecture <x64|arm64>] [-NoCli] [-Help]
 
 Publishes the Windows portable CrossMacro artifact:
-  - dotnet publish Release win-x64 or win-arm64 as a self-contained single-file executable
+  - dotnet publish Release win-x64 or win-arm64 as a native AOT single-file executable
   - removes PDB symbols from the publish directory
   - requires a flat output containing exactly one file and exactly one .exe
   - runs scripts/smoke/windows-portable.ps1 against the resulting executable
@@ -101,7 +101,8 @@ $publishArgs = @(
     'publish', $projectPath,
     '-c', 'Release',
     '-r', $runtimeIdentifier,
-    '-p:CrossMacroPublishProfile=portable-trimmed',
+    '-p:CrossMacroPublishProfile=native-aot',
+    '-p:CrossMacroWindowsPortableAot=true',
     "-p:Version=$Version",
     '-o', $resolvedOutputDir
 )

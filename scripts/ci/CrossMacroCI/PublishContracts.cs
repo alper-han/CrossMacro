@@ -10,6 +10,7 @@ internal static class PublishContracts
     private static readonly string[] NativeAotRecipes =
     [
         "scripts/ci/publish-linux-artifacts.sh",
+        "scripts/ci/publish-windows-portable.ps1",
         "scripts/daemon/install.sh",
         "scripts/packaging/deb/build.sh",
         "scripts/packaging/rpm/build.sh",
@@ -22,9 +23,6 @@ internal static class PublishContracts
         "flake.nix",
         "scripts/flatpak-dotnet-generator.sh",
     ];
-
-    private static readonly string[] PortableTrimmedRecipes =
-    ["scripts/ci/publish-windows-portable.ps1"];
 
     private static readonly string[] CentralizedPublishFlags =
     [
@@ -45,7 +43,7 @@ internal static class PublishContracts
         else
         {
             var targets = CISupport.ReadText(targetsPath);
-            foreach (var required in new[] { "CrossMacroPublishProfile", "native-aot", "portable-trimmed", "SelfContained", "PublishReadyToRun", "PublishTrimmed", "UseAppHost", "ErrorOnDuplicatePublishOutputFiles" })
+            foreach (var required in new[] { "CrossMacroPublishProfile", "native-aot", "SelfContained", "PublishReadyToRun", "UseAppHost" })
             {
                 if (!targets.Contains(required, StringComparison.Ordinal))
                 {
@@ -55,7 +53,6 @@ internal static class PublishContracts
         }
 
         errors.AddRange(ValidateRecipes(root, NativeAotRecipes, "native-aot"));
-        errors.AddRange(ValidateRecipes(root, PortableTrimmedRecipes, "portable-trimmed"));
         return CISupport.PrintResult("publish matrix validated", "publish matrix validation failed", errors);
     }
 

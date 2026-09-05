@@ -18,7 +18,8 @@
         Background="{DynamicResource BackgroundBrush}"
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
-        WindowDecorations="None"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        WindowDecorations="BorderOnly"
         CanResize="True"
         Opened="OnWindowOpened"
         FontFamily="{StaticResource StandardFont}">

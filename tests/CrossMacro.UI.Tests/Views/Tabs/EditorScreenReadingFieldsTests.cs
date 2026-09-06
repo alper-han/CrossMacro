@@ -12,14 +12,18 @@ public sealed class EditorScreenReadingFieldsTests
         Assert.True(markerIndex >= 0, "Image search section should exist in screen reading fields XAML.");
 
         var section = xaml[markerIndex..];
-        var widthIndex = section.IndexOf("SelectedAction.ScreenWidth", StringComparison.Ordinal);
-        var heightIndex = section.IndexOf("SelectedAction.ScreenHeight", StringComparison.Ordinal);
+        var leftIndex = section.IndexOf("SelectedAction.ImageSearchRegionLeftToken", StringComparison.Ordinal);
+        var topIndex = section.IndexOf("SelectedAction.ImageSearchRegionTopToken", StringComparison.Ordinal);
+        var widthIndex = section.IndexOf("SelectedAction.ImageSearchRegionWidthToken", StringComparison.Ordinal);
+        var heightIndex = section.IndexOf("SelectedAction.ImageSearchRegionHeightToken", StringComparison.Ordinal);
         var assetIndex = section.IndexOf("SelectedAction.ImageAssetName", StringComparison.Ordinal);
         var previewIndex = section.IndexOf("SelectedImageAssetPreview", StringComparison.Ordinal);
         var topLeftIndex = section.IndexOf("Command=\"{Binding CapturePixelSearchTopLeftAsync}\"", StringComparison.Ordinal);
         var bottomRightIndex = section.IndexOf("Command=\"{Binding CapturePixelSearchBottomRightAsync}\"", StringComparison.Ordinal);
 
-        Assert.True(widthIndex >= 0, "Image search section should bind region width.");
+        Assert.True(leftIndex >= 0, "Image search section should bind variable-capable region left.");
+        Assert.True(topIndex > leftIndex, "Image search top should follow left.");
+        Assert.True(widthIndex > topIndex, "Image search width should follow top.");
         Assert.True(heightIndex > widthIndex, "Image search height should follow width.");
         Assert.True(previewIndex > assetIndex, "Image preview should follow the selected asset.");
         Assert.Contains("ShowSelectedImageAssetPreview", section, StringComparison.Ordinal);

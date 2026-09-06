@@ -869,6 +869,28 @@ public sealed class EditorActionValidatorTests
         }
     }
 
+    [Fact]
+    public void Validate_ImageSearchWithVariableRegion_ReturnsValid()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageSearch,
+            ImageSearchRegionLeftToken = "$mouse_x",
+            ImageSearchRegionTopToken = "$mouse_y",
+            ImageSearchRegionWidthToken = "400",
+            ImageSearchRegionHeightToken = "$region_height",
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y",
+        };
+
+        var result = _validator.Validate(action);
+
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
+    }
+
     [Theory]
     [InlineData(MacroMouseButton.Side1)]
     [InlineData(MacroMouseButton.Side2)]

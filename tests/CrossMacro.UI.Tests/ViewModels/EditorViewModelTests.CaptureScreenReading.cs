@@ -660,6 +660,26 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
+    public async Task CapturePixelSearchTopLeftAsync_WhenImageRegionUsesVariables_DoesNotOverwriteTokens()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageSearch,
+            ImageSearchRegionLeftToken = "$mouse_x",
+            ImageSearchRegionTopToken = "$mouse_y",
+        };
+        _viewModel.Actions.Add(action);
+        _viewModel.SelectedAction = action;
+
+        await _viewModel.CapturePixelSearchTopLeftAsync();
+
+        _ = action.ImageSearchRegionLeftToken.Should().Be("$mouse_x");
+        _ = action.ImageSearchRegionTopToken.Should().Be("$mouse_y");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
+        _ = _captureService.DidNotReceive().CaptureMousePositionAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CaptureScreenshotRegionStartAsync_StoresStartAndEnablesRegion()
     {
         var action = new EditorAction

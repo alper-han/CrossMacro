@@ -715,12 +715,13 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
     private static (bool IsValid, string? Error) ValidateImageSearch(EditorAction action)
     {
-        if (action.ScreenWidth <= 0 || action.ScreenHeight <= 0)
+        if (!action.HasValidImageSearchRegionTokens())
         {
-            return (false, "Image search region size must be positive.");
+            return (false, "Image search region values must be integers or variables, with a positive width and height.");
         }
 
-        if (!HasCheckedRegionEndpoints(action.ScreenLeft, action.ScreenTop, action.ScreenWidth, action.ScreenHeight))
+        if (action.TryGetLiteralImageSearchRegion(out var left, out var top, out var width, out var height)
+            && !HasCheckedRegionEndpoints(left, top, width, height))
         {
             return (false, "Image search region endpoint exceeds the supported screen coordinate range.");
         }

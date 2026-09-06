@@ -665,15 +665,22 @@ mouse position mouse_x mouse_y
   mutate the active window.
 - `window getdesktop <var>`, `window setdesktop <workspace>`, and
   `window setdesktopforwindow active|address <addr> <workspace>` manage workspaces.
-- `imagesearch [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [matchmode <auto|first|best>]`
-  searches a named PNG asset once. Region bounds are end-exclusive.
+- `imagesearch [<x1> <y1> <x2> <y2>|region <left> <top> <width> <height>] <ImageName> [found_var x_var y_var] [similarity <0..1>] [matchmode <auto|first|best>]`
+  searches a named PNG asset once. Legacy region bounds are end-exclusive; the
+  `region` form uses left/top/width/height and accepts integer literals or
+  `$variables`.
 - `<ImageName>` is the embedded macro asset name, not a filesystem path; for
   example, an imported `button.png` may be referenced as `button`.
-- `imageclick [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [button <left|right|middle>] [similarity <0..1>] [matchmode <auto|first|best>] [timeout <milliseconds>]`
+- `imageclick [<x1> <y1> <x2> <y2>|region <left> <top> <width> <height>] <ImageName> [found_var x_var y_var] [button <left|right|middle>] [similarity <0..1>] [matchmode <auto|first|best>] [timeout <milliseconds>]`
   waits for two compatible matches, then clicks the centre. The default button
   is `left`.
-- `waitimage [<x1> <y1> <x2> <y2>] <ImageName> [found_var x_var y_var] [timeout <milliseconds>] [similarity <0..1>] [matchmode <auto|first|best>]`
+- `waitimage [<x1> <y1> <x2> <y2>|region <left> <top> <width> <height>] <ImageName> [found_var x_var y_var] [timeout <milliseconds>] [similarity <0..1>] [matchmode <auto|first|best>]`
   waits for two compatible image matches.
+
+For example, `mouse position mouse_x mouse_y` followed by
+`imagesearch region $mouse_x $mouse_y 400 400 button found found_x found_y`
+searches a 400x400 area from the current cursor position. Resolved width and
+height must be positive integers.
 
 Target colors can be a canonical six-digit `RRGGBB` value with no `#`, or a
 `$var` reference to a color previously written by `pixelcolor`; bare variable

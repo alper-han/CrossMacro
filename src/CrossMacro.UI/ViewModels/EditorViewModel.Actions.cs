@@ -86,6 +86,10 @@ public partial class EditorViewModel
             && left.ScreenTop == right.ScreenTop
             && left.ScreenWidth == right.ScreenWidth
             && left.ScreenHeight == right.ScreenHeight
+            && string.Equals(left.ImageSearchRegionLeftToken, right.ImageSearchRegionLeftToken, StringComparison.Ordinal)
+            && string.Equals(left.ImageSearchRegionTopToken, right.ImageSearchRegionTopToken, StringComparison.Ordinal)
+            && string.Equals(left.ImageSearchRegionWidthToken, right.ImageSearchRegionWidthToken, StringComparison.Ordinal)
+            && string.Equals(left.ImageSearchRegionHeightToken, right.ImageSearchRegionHeightToken, StringComparison.Ordinal)
             && string.Equals(left.ScreenFoundVariableName, right.ScreenFoundVariableName, StringComparison.Ordinal)
             && string.Equals(left.ScreenFoundXVariableName, right.ScreenFoundXVariableName, StringComparison.Ordinal)
             && string.Equals(left.ScreenFoundYVariableName, right.ScreenFoundYVariableName, StringComparison.Ordinal)

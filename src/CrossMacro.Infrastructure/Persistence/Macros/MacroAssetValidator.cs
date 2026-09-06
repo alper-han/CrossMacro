@@ -87,13 +87,19 @@ internal sealed class MacroAssetValidator(IImageAssetCodec imageAssetCodec)
                 throw new InvalidDataException($"{context} script step {(index + 1).ToString(CultureInfo.InvariantCulture)}: {error ?? "invalid image command"}");
             }
 
-            var imageNameIndex = parts.Length >= 6
+            var imageNameIndex = 1;
+            if (RunScriptScreenReadingStepParser.IsExplicitImageRegion(parts))
+            {
+                imageNameIndex = 6;
+            }
+            else if (parts.Length >= 6
                 && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
                 && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
                 && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                ? 5
-                : 1;
+                && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            {
+                imageNameIndex = 5;
+            }
             var imageName = parts[imageNameIndex];
             if (!images.ContainsKey(imageName))
             {

@@ -979,9 +979,14 @@ public class EditorActionConverter : IEditorActionConverter
     private static string BuildImageActionPrefix(string command, EditorAction action)
     {
         var imageName = EditorActionScriptTokens.NormalizeVariableToken(action.ImageAssetName);
-        var right = checked(action.ScreenLeft + action.ScreenWidth);
-        var bottom = checked(action.ScreenTop + action.ScreenHeight);
-        return $"{command} {action.ScreenLeft.ToString(CultureInfo.InvariantCulture)} {action.ScreenTop.ToString(CultureInfo.InvariantCulture)} {right.ToString(CultureInfo.InvariantCulture)} {bottom.ToString(CultureInfo.InvariantCulture)} {imageName}";
+        if (!action.TryGetLiteralImageSearchRegion(out var left, out var top, out var width, out var height))
+        {
+            return $"{command} region {action.ImageSearchRegionLeftToken} {action.ImageSearchRegionTopToken} {action.ImageSearchRegionWidthToken} {action.ImageSearchRegionHeightToken} {imageName}";
+        }
+
+        var right = checked(left + width);
+        var bottom = checked(top + height);
+        return $"{command} {left.ToString(CultureInfo.InvariantCulture)} {top.ToString(CultureInfo.InvariantCulture)} {right.ToString(CultureInfo.InvariantCulture)} {bottom.ToString(CultureInfo.InvariantCulture)} {imageName}";
     }
 
     private static string BuildImageActionMatchOptions(EditorAction action, bool includesTimeout)
@@ -3085,23 +3090,41 @@ public class EditorActionConverter : IEditorActionConverter
             return false;
         }
 
+        var hasExplicitRegion = RunScriptScreenReadingStepParser.IsExplicitImageRegion(tokens);
         var left = 0;
         var top = 0;
         var right = 0;
         var bottom = 0;
-        var hasRegion = tokens.Length >= 6
+        var hasLegacyRegion = !hasExplicitRegion
+            && tokens.Length >= 6
             && TryParseInteger(tokens[1], out left)
             && TryParseInteger(tokens[2], out top)
             && TryParseInteger(tokens[3], out right)
             && TryParseInteger(tokens[4], out bottom);
         var regionWidth = 0;
         var regionHeight = 0;
-        if (hasRegion && !TryGetPositiveRegionSize(left, top, right, bottom, out regionWidth, out regionHeight))
+        if (hasLegacyRegion && !TryGetPositiveRegionSize(left, top, right, bottom, out regionWidth, out regionHeight))
         {
             return false;
         }
 
-        var imageNameIndex = hasRegion ? 5 : 1;
+        var imageNameIndex = 1;
+        if (hasExplicitRegion)
+        {
+            imageNameIndex = 6;
+        }
+        else if (hasLegacyRegion)
+        {
+            imageNameIndex = 5;
+        }
+        if (hasExplicitRegion)
+        {
+            left = 0;
+            top = 0;
+            regionWidth = EditorActionScreenReadingPayload.DefaultSearchScreenWidth;
+            regionHeight = EditorActionScreenReadingPayload.DefaultSearchScreenHeight;
+        }
+
         if (!TryNormalizeVariableName(tokens[imageNameIndex], out var imageName))
         {
             return false;
@@ -3197,10 +3220,10 @@ public class EditorActionConverter : IEditorActionConverter
         action = new EditorAction
         {
             Type = actionType,
-            ScreenLeft = hasRegion ? left : 0,
-            ScreenTop = hasRegion ? top : 0,
-            ScreenWidth = hasRegion ? regionWidth : EditorActionScreenReadingPayload.DefaultSearchScreenWidth,
-            ScreenHeight = hasRegion ? regionHeight : EditorActionScreenReadingPayload.DefaultSearchScreenHeight,
+            ScreenLeft = hasLegacyRegion ? left : 0,
+            ScreenTop = hasLegacyRegion ? top : 0,
+            ScreenWidth = hasLegacyRegion ? regionWidth : EditorActionScreenReadingPayload.DefaultSearchScreenWidth,
+            ScreenHeight = hasLegacyRegion ? regionHeight : EditorActionScreenReadingPayload.DefaultSearchScreenHeight,
             ImageAssetName = imageName,
             ScreenFoundVariableName = variableNames.Count is 3 ? variableNames[0] : EditorActionScreenReadingPayload.DefaultFoundVariableName,
             ScreenFoundXVariableName = variableNames.Count is 3 ? variableNames[1] : EditorActionScreenReadingPayload.DefaultFoundXVariableName,
@@ -3211,6 +3234,15 @@ public class EditorActionConverter : IEditorActionConverter
             ImageSearchMatchModeWasExplicit = matchModeExplicit,
             Button = actionType is EditorActionType.ImageClick ? button : MacroMouseButton.Left,
         };
+
+        if (hasExplicitRegion)
+        {
+            action.ImageSearchRegionLeftToken = tokens[2];
+            action.ImageSearchRegionTopToken = tokens[3];
+            action.ImageSearchRegionWidthToken = tokens[4];
+            action.ImageSearchRegionHeightToken = tokens[5];
+        }
+
         return true;
     }
 

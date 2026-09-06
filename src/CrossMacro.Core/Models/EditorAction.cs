@@ -53,6 +53,10 @@ public class EditorAction : INotifyPropertyChanged
     private int _screenTop;
     private int _screenWidth = 1920;
     private int _screenHeight = 1080;
+    private string? _imageSearchRegionLeftToken;
+    private string? _imageSearchRegionTopToken;
+    private string? _imageSearchRegionWidthToken;
+    private string? _imageSearchRegionHeightToken;
     private string _screenColorHex = "FFFFFF";
     private EditorActionScreenTargetColorSource _screenTargetColorSource = EditorActionScreenTargetColorSource.ManualHex;
     private string _screenTargetColorVariableName = EditorActionScreenReadingPayload.DefaultTargetColorVariableName;
@@ -912,25 +916,118 @@ public class EditorAction : INotifyPropertyChanged
     public int ScreenLeft
     {
         get => _screenLeft;
-        set => SetScreenField(ref _screenLeft, value);
+        set => SetImageSearchRegionLiteral(
+            value,
+            ref _screenLeft,
+            ref _imageSearchRegionLeftToken,
+            nameof(ScreenLeft),
+            nameof(ImageSearchRegionLeftToken));
     }
 
     public int ScreenTop
     {
         get => _screenTop;
-        set => SetScreenField(ref _screenTop, value);
+        set => SetImageSearchRegionLiteral(
+            value,
+            ref _screenTop,
+            ref _imageSearchRegionTopToken,
+            nameof(ScreenTop),
+            nameof(ImageSearchRegionTopToken));
     }
 
     public int ScreenWidth
     {
         get => _screenWidth;
-        set => SetScreenField(ref _screenWidth, value);
+        set => SetImageSearchRegionLiteral(
+            value,
+            ref _screenWidth,
+            ref _imageSearchRegionWidthToken,
+            nameof(ScreenWidth),
+            nameof(ImageSearchRegionWidthToken));
     }
 
     public int ScreenHeight
     {
         get => _screenHeight;
-        set => SetScreenField(ref _screenHeight, value);
+        set => SetImageSearchRegionLiteral(
+            value,
+            ref _screenHeight,
+            ref _imageSearchRegionHeightToken,
+            nameof(ScreenHeight),
+            nameof(ImageSearchRegionHeightToken));
+    }
+
+    /// <summary>
+    /// Left edge token for image search actions. Accepts an integer literal or a variable reference.
+    /// </summary>
+    public string ImageSearchRegionLeftToken
+    {
+        get => _imageSearchRegionLeftToken ?? ScreenLeft.ToString(CultureInfo.InvariantCulture);
+        set => SetImageSearchRegionToken(
+            value,
+            ref _imageSearchRegionLeftToken,
+            ref _screenLeft,
+            nameof(ImageSearchRegionLeftToken),
+            nameof(ScreenLeft));
+    }
+
+    /// <summary>
+    /// Top edge token for image search actions. Accepts an integer literal or a variable reference.
+    /// </summary>
+    public string ImageSearchRegionTopToken
+    {
+        get => _imageSearchRegionTopToken ?? ScreenTop.ToString(CultureInfo.InvariantCulture);
+        set => SetImageSearchRegionToken(
+            value,
+            ref _imageSearchRegionTopToken,
+            ref _screenTop,
+            nameof(ImageSearchRegionTopToken),
+            nameof(ScreenTop));
+    }
+
+    /// <summary>
+    /// Width token for image search actions. Accepts a positive integer literal or a variable reference.
+    /// </summary>
+    public string ImageSearchRegionWidthToken
+    {
+        get => _imageSearchRegionWidthToken ?? ScreenWidth.ToString(CultureInfo.InvariantCulture);
+        set => SetImageSearchRegionToken(
+            value,
+            ref _imageSearchRegionWidthToken,
+            ref _screenWidth,
+            nameof(ImageSearchRegionWidthToken),
+            nameof(ScreenWidth));
+    }
+
+    /// <summary>
+    /// Height token for image search actions. Accepts a positive integer literal or a variable reference.
+    /// </summary>
+    public string ImageSearchRegionHeightToken
+    {
+        get => _imageSearchRegionHeightToken ?? ScreenHeight.ToString(CultureInfo.InvariantCulture);
+        set => SetImageSearchRegionToken(
+            value,
+            ref _imageSearchRegionHeightToken,
+            ref _screenHeight,
+            nameof(ImageSearchRegionHeightToken),
+            nameof(ScreenHeight));
+    }
+
+    public bool TryGetLiteralImageSearchRegion(out int left, out int top, out int width, out int height)
+    {
+        var hasLeft = int.TryParse(ImageSearchRegionLeftToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out left);
+        var hasTop = int.TryParse(ImageSearchRegionTopToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out top);
+        var hasWidth = int.TryParse(ImageSearchRegionWidthToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out width);
+        var hasHeight = int.TryParse(ImageSearchRegionHeightToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out height);
+        return hasLeft && hasTop && hasWidth && hasHeight;
+    }
+
+    public bool HasValidImageSearchRegionTokens()
+    {
+        return IsValidImageSearchRegionToken(ImageSearchRegionLeftToken, mustBePositive: false)
+            && IsValidImageSearchRegionToken(ImageSearchRegionTopToken, mustBePositive: false)
+            && IsValidImageSearchRegionToken(ImageSearchRegionWidthToken, mustBePositive: true)
+            && IsValidImageSearchRegionToken(ImageSearchRegionHeightToken, mustBePositive: true);
     }
 
     public string ScreenColorHex
@@ -1409,6 +1506,18 @@ public class EditorAction : INotifyPropertyChanged
             && sourceType is ScriptNumericSourceType.VariableReference;
     }
 
+    private static bool IsValidImageSearchRegionToken(string token, bool mustBePositive)
+    {
+        if (!EditorActionScriptTokens.TryParseNumericToken(token, out var sourceType, out var value))
+        {
+            return false;
+        }
+
+        return !mustBePositive
+            || sourceType is ScriptNumericSourceType.VariableReference
+            || int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture) > 0;
+    }
+
     private static string FormatRelativeCoordinateToken(string token)
     {
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
@@ -1453,6 +1562,69 @@ public class EditorAction : INotifyPropertyChanged
         OnPropertyChanged(nameof(DisplayName));
     }
 
+    private void SetImageSearchRegionToken(
+        string? value,
+        ref string? tokenOverride,
+        ref int coordinate,
+        string tokenPropertyName,
+        string coordinatePropertyName)
+    {
+        var previousToken = tokenOverride ?? coordinate.ToString(CultureInfo.InvariantCulture);
+        var token = value?.Trim() ?? string.Empty;
+        var coordinateChanged = false;
+
+        if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var literal))
+        {
+            coordinateChanged = coordinate != literal;
+            coordinate = literal;
+            tokenOverride = null;
+            token = literal.ToString(CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            tokenOverride = token;
+        }
+
+        if (!coordinateChanged && string.Equals(previousToken, token, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        MarkStructuredScriptEdited();
+        if (coordinateChanged)
+        {
+            OnPropertyChanged(coordinatePropertyName);
+        }
+
+        OnPropertyChanged(tokenPropertyName);
+        OnPropertyChanged(nameof(DisplayName));
+    }
+
+    private void SetImageSearchRegionLiteral(
+        int value,
+        ref int coordinate,
+        ref string? tokenOverride,
+        string coordinatePropertyName,
+        string tokenPropertyName)
+    {
+        if (coordinate == value && tokenOverride is null)
+        {
+            return;
+        }
+
+        var tokenChanged = tokenOverride is not null;
+        coordinate = value;
+        tokenOverride = null;
+        MarkStructuredScriptEdited();
+        OnPropertyChanged(coordinatePropertyName);
+        if (tokenChanged)
+        {
+            OnPropertyChanged(tokenPropertyName);
+        }
+
+        OnPropertyChanged(nameof(DisplayName));
+    }
+
     /// <summary>
     /// Validates this action.
     /// </summary>
@@ -1476,6 +1648,10 @@ public class EditorAction : INotifyPropertyChanged
         if (TryGetScreenReadingPayload(out var screenReadingPayload))
         {
             clone.ApplyScreenReadingPayload(screenReadingPayload);
+            clone._imageSearchRegionLeftToken = _imageSearchRegionLeftToken;
+            clone._imageSearchRegionTopToken = _imageSearchRegionTopToken;
+            clone._imageSearchRegionWidthToken = _imageSearchRegionWidthToken;
+            clone._imageSearchRegionHeightToken = _imageSearchRegionHeightToken;
             clone.PreferLegacyScriptText = PreferLegacyScriptText;
         }
         else
@@ -1570,6 +1746,10 @@ public class EditorAction : INotifyPropertyChanged
         clone._imageSearchSimilarity = ImageSearchSimilarity;
         clone._imageSearchMatchMode = ImageSearchMatchMode;
         clone.ImageSearchMatchModeWasExplicit = ImageSearchMatchModeWasExplicit;
+        clone._imageSearchRegionLeftToken = _imageSearchRegionLeftToken;
+        clone._imageSearchRegionTopToken = _imageSearchRegionTopToken;
+        clone._imageSearchRegionWidthToken = _imageSearchRegionWidthToken;
+        clone._imageSearchRegionHeightToken = _imageSearchRegionHeightToken;
         clone._shellCommandMode = ShellCommandMode;
         clone._shellCommand = ShellCommand;
         clone._shellStandardInput = ShellStandardInput;
@@ -1697,13 +1877,13 @@ public class EditorAction : INotifyPropertyChanged
     private string BuildImageSearchDisplayName()
     {
         var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
-        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Image search {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight}) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}");
+        return $"Image search {imageName} in ({ImageSearchRegionLeftToken}, {ImageSearchRegionTopToken}, {ImageSearchRegionWidthToken}x{ImageSearchRegionHeightToken}) -> {ScreenFoundVariableName}, {ScreenFoundXVariableName}, {ScreenFoundYVariableName}";
     }
 
     private string BuildImageClickDisplayName()
     {
         var imageName = string.IsNullOrWhiteSpace(ImageAssetName) ? "image required" : ImageAssetName;
-        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Image click {imageName} in ({ScreenLeft}, {ScreenTop}, {ScreenWidth}x{ScreenHeight})");
+        return $"Image click {imageName} in ({ImageSearchRegionLeftToken}, {ImageSearchRegionTopToken}, {ImageSearchRegionWidthToken}x{ImageSearchRegionHeightToken})";
     }
 
     private string BuildWaitImageDisplayName()

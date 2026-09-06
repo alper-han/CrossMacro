@@ -193,6 +193,28 @@ public sealed class EditorActionTests
         _ = y.Should().Be(42);
     }
 
+    [Fact]
+    public void ImageSearchRegionTokens_WhenUsingVariables_AreClonedAndShownInTheDisplayName()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.ImageSearch,
+            ImageAssetName = "Button",
+            ImageSearchRegionLeftToken = "$mouse_x",
+            ImageSearchRegionTopToken = "$mouse_y",
+            ImageSearchRegionWidthToken = "400",
+            ImageSearchRegionHeightToken = "$height",
+        };
+
+        var clone = action.Clone();
+
+        _ = clone.ImageSearchRegionLeftToken.Should().Be("$mouse_x");
+        _ = clone.ImageSearchRegionTopToken.Should().Be("$mouse_y");
+        _ = clone.ImageSearchRegionWidthToken.Should().Be("400");
+        _ = clone.ImageSearchRegionHeightToken.Should().Be("$height");
+        _ = action.DisplayName.Should().Contain("($mouse_x, $mouse_y, 400x$height)");
+    }
+
     [Theory]
     [InlineData("$x", true)]
     [InlineData("-15", true)]

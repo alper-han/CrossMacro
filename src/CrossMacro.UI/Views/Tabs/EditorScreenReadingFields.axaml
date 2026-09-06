@@ -472,7 +472,7 @@
             <Grid ColumnDefinitions="*,8,*">
                 <StackPanel Spacing="3">
                     <TextBlock Text="{localization:Loc Editor_Left}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
-                    <TextBox Text="{Binding SelectedAction.ScreenLeft, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox Text="{Binding SelectedAction.ImageSearchRegionLeftToken, UpdateSourceTrigger=PropertyChanged}"
                              PlaceholderText="{localization:Loc Editor_Left}"
                              Background="{DynamicResource SurfaceHoverBrush}"
                              Foreground="{DynamicResource TextPrimaryBrush}"
@@ -482,7 +482,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Spacing="3">
                     <TextBlock Text="{localization:Loc Editor_Top}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
-                    <TextBox Text="{Binding SelectedAction.ScreenTop, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox Text="{Binding SelectedAction.ImageSearchRegionTopToken, UpdateSourceTrigger=PropertyChanged}"
                              PlaceholderText="{localization:Loc Editor_Top}"
                              Background="{DynamicResource SurfaceHoverBrush}"
                              Foreground="{DynamicResource TextPrimaryBrush}"
@@ -494,7 +494,7 @@
             <Grid ColumnDefinitions="*,8,*">
                 <StackPanel Spacing="3">
                     <TextBlock Text="{localization:Loc Editor_Width}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
-                    <TextBox Text="{Binding SelectedAction.ScreenWidth, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox Text="{Binding SelectedAction.ImageSearchRegionWidthToken, UpdateSourceTrigger=PropertyChanged}"
                              PlaceholderText="{localization:Loc Editor_Width}"
                              Background="{DynamicResource SurfaceHoverBrush}"
                              Foreground="{DynamicResource TextPrimaryBrush}"
@@ -504,7 +504,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Spacing="3">
                     <TextBlock Text="{localization:Loc Editor_Height}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10"/>
-                    <TextBox Text="{Binding SelectedAction.ScreenHeight, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox Text="{Binding SelectedAction.ImageSearchRegionHeightToken, UpdateSourceTrigger=PropertyChanged}"
                              PlaceholderText="{localization:Loc Editor_Height}"
                              Background="{DynamicResource SurfaceHoverBrush}"
                              Foreground="{DynamicResource TextPrimaryBrush}"

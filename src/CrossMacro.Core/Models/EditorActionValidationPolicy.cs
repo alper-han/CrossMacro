@@ -170,8 +170,7 @@ internal static class EditorActionValidationPolicy
     private static bool ValidateImageSearchFields(EditorAction action)
     {
         return EditorActionScriptTokens.IsValidVariableName(action.ImageAssetName)
-            && action.ScreenWidth > 0
-            && action.ScreenHeight > 0
+            && action.HasValidImageSearchRegionTokens()
             && EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundVariableName)
             && EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundXVariableName)
             && EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundYVariableName)

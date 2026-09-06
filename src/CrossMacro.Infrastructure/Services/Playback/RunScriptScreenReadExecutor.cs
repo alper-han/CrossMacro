@@ -244,9 +244,11 @@ internal sealed class RunScriptScreenReadExecutor(
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: imagesearch failed: screen image matching is not available for provider '{_screenPixelReader.ProviderName}'.");
         }
 
-        var hasRegion = HasImageSearchRegion(parts);
-        var imageNameIndex = hasRegion ? 5 : 1;
-        var region = hasRegion ? ParseImageSearchRegion(stepNumber, parts) : (ScreenRect?)null;
+        var regionLayout = GetImageSearchRegionLayout(parts);
+        var imageNameIndex = regionLayout.ImageNameIndex;
+        var region = regionLayout.HasRegion
+            ? ParseImageSearchRegion(stepNumber, parts, runtimeVariables, regionLayout)
+            : (ScreenRect?)null;
         var imageName = parts[imageNameIndex];
         using var template = await DecodeImageAssetAsync(stepNumber, "imagesearch", imageName, imageAssets, cancellationToken).ConfigureAwait(false);
         var variableLayout = GetImageSearchVariableLayout(parts, imageNameIndex + 1);
@@ -278,13 +280,21 @@ internal sealed class RunScriptScreenReadExecutor(
         return imageSearchReader;
     }
 
-    private static bool HasImageSearchRegion(string[] parts)
+    private static ImageSearchRegionLayout GetImageSearchRegionLayout(string[] parts)
     {
-        return parts.Length >= 6
+        if (RunScriptScreenReadingStepParser.IsExplicitImageRegion(parts))
+        {
+            return new ImageSearchRegionLayout(HasRegion: true, IsExplicit: true, ImageNameIndex: 6);
+        }
+
+        var hasLegacyRegion = parts.Length >= 6
             && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
             && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
             && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
             && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+        return hasLegacyRegion
+            ? new ImageSearchRegionLayout(HasRegion: true, IsExplicit: false, ImageNameIndex: 5)
+            : new ImageSearchRegionLayout(HasRegion: false, IsExplicit: false, ImageNameIndex: 1);
     }
 
     private async Task ExecuteImageClickAsync(
@@ -300,9 +310,11 @@ internal sealed class RunScriptScreenReadExecutor(
         }
 
         var imageSearchReader = GetImageSearchReader(stepNumber, "imageclick");
-        var hasRegion = HasImageSearchRegion(parts);
-        var imageNameIndex = hasRegion ? 5 : 1;
-        var region = hasRegion ? ParseImageSearchRegion(stepNumber, parts, "imageclick") : (ScreenRect?)null;
+        var regionLayout = GetImageSearchRegionLayout(parts);
+        var imageNameIndex = regionLayout.ImageNameIndex;
+        var region = regionLayout.HasRegion
+            ? ParseImageSearchRegion(stepNumber, parts, runtimeVariables, regionLayout, "imageclick")
+            : (ScreenRect?)null;
         var imageName = parts[imageNameIndex];
         using var template = await DecodeImageAssetAsync(stepNumber, "imageclick", imageName, imageAssets, cancellationToken).ConfigureAwait(false);
         var variableLayout = GetImageClickVariableLayout(parts, imageNameIndex + 1);
@@ -356,9 +368,11 @@ internal sealed class RunScriptScreenReadExecutor(
         CancellationToken cancellationToken)
     {
         var imageSearchReader = GetImageSearchReader(stepNumber, "waitimage");
-        var hasRegion = HasImageSearchRegion(parts);
-        var imageNameIndex = hasRegion ? 5 : 1;
-        var region = hasRegion ? ParseImageSearchRegion(stepNumber, parts, "waitimage") : (ScreenRect?)null;
+        var regionLayout = GetImageSearchRegionLayout(parts);
+        var imageNameIndex = regionLayout.ImageNameIndex;
+        var region = regionLayout.HasRegion
+            ? ParseImageSearchRegion(stepNumber, parts, runtimeVariables, regionLayout, "waitimage")
+            : (ScreenRect?)null;
         var imageName = parts[imageNameIndex];
         using var template = await DecodeImageAssetAsync(stepNumber, "waitimage", imageName, imageAssets, cancellationToken).ConfigureAwait(false);
         var variableLayout = GetImageSearchVariableLayout(parts, imageNameIndex + 1);
@@ -381,8 +395,35 @@ internal sealed class RunScriptScreenReadExecutor(
         EnsureSuccess(stepNumber, "waitimage", result);
     }
 
-    private static ScreenRect ParseImageSearchRegion(int stepNumber, string[] parts, string command = "imagesearch")
+    private static ScreenRect ParseImageSearchRegion(
+        int stepNumber,
+        string[] parts,
+        IDictionary<string, string> runtimeVariables,
+        ImageSearchRegionLayout layout,
+        string command = "imagesearch")
     {
+        if (layout.IsExplicit)
+        {
+            var left = ResolveImageRegionInteger(parts[2], "left", stepNumber, command, runtimeVariables);
+            var top = ResolveImageRegionInteger(parts[3], "top", stepNumber, command, runtimeVariables);
+            var explicitWidth = ResolveImageRegionInteger(parts[4], "width", stepNumber, command, runtimeVariables);
+            var explicitHeight = ResolveImageRegionInteger(parts[5], "height", stepNumber, command, runtimeVariables);
+            if (explicitWidth <= 0 || explicitHeight <= 0)
+            {
+                throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: region width and height must be >= 1.");
+            }
+
+            if ((long)left + explicitWidth > int.MaxValue
+                || (long)left + explicitWidth < int.MinValue
+                || (long)top + explicitHeight > int.MaxValue
+                || (long)top + explicitHeight < int.MinValue)
+            {
+                throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: region endpoint exceeds the supported screen coordinate range.");
+            }
+
+            return new ScreenRect(left, top, explicitWidth, explicitHeight);
+        }
+
         var x1 = ParseInteger(parts[1]);
         var y1 = ParseInteger(parts[2]);
         var x2 = ParseInteger(parts[3]);
@@ -402,6 +443,22 @@ internal sealed class RunScriptScreenReadExecutor(
         }
 
         return new ScreenRect(x1, y1, width, height);
+    }
+
+    private static int ResolveImageRegionInteger(
+        string token,
+        string description,
+        int stepNumber,
+        string command,
+        IDictionary<string, string> runtimeVariables)
+    {
+        var resolved = RunScriptRuntimeText.ResolveVariables(token, runtimeVariables, $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: ");
+        if (!int.TryParse(resolved, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+        {
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: region {description} '{resolved}' is not an integer.");
+        }
+
+        return value;
     }
 
     private async Task<ScreenFrame> DecodeImageAssetAsync(
@@ -722,6 +779,8 @@ internal sealed class RunScriptScreenReadExecutor(
     {
         return int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
     }
+
+    private readonly record struct ImageSearchRegionLayout(bool HasRegion, bool IsExplicit, int ImageNameIndex);
 
     private static ScreenPixelColor ResolveTargetColor(
         string token,

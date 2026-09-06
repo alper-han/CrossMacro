@@ -438,6 +438,13 @@ public partial class EditorViewModel
             return;
         }
 
+        if (targetAction.Type is not EditorActionType.PixelSearch
+            && !targetAction.TryGetLiteralImageSearchRegion(out _, out _, out _, out _))
+        {
+            Status = Localize("Editor_StatusOperationBlocked");
+            return;
+        }
+
         CaptureMode = mode;
         Status = Localize("Editor_StatusCaptureMousePrompt");
 

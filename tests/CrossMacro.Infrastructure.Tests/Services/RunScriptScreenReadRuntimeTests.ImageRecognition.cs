@@ -232,6 +232,88 @@ region: null,
         _ = variables.Should().Contain("found_y", "1");
     }
 
+    [Fact]
+    public async Task PlayAsync_WhenImageSearchUsesVariableRegion_ResolvesItBeforeSearching()
+    {
+        using var frame = CreateRgbFrame(
+            new ScreenRect(0, 0, 4, 3),
+            [
+                [Black, Black, Black, Black],
+                [Black, Red, Green, Black],
+                [Black, Blue, White, Black],
+            ]);
+        using var template = CreateRgbFrame(
+            new ScreenRect(0, 0, 2, 2),
+            [
+                [Red, Green],
+                [Blue, White],
+            ]);
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new ScreenPixelReader(new SingleFrameProvider(frame)));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "set left=1",
+                "set top=1",
+                "set width=2",
+                "set height=2",
+                "imagesearch region $left $top $width $height Target found found_x found_y similarity 1",
+            },
+            Images = { ["Target"] = await EncodePngBase64Async(template) },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
+        _ = variables.Should().Contain("found", "true");
+        _ = variables.Should().Contain("found_x", "1");
+        _ = variables.Should().Contain("found_y", "1");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenImageSearchVariableRegionWidthIsNotPositive_ThrowsStepNumberedFailure()
+    {
+        using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new ScreenPixelReader(new SingleFrameProvider(frame)));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "set width=0",
+                "imagesearch region 0 0 $width 1 Target found found_x found_y",
+            },
+            Images = { ["Target"] = await EncodePngBase64Async(template) },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Step 2: imagesearch failed: region width and height must be >= 1.");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenImageSearchVariableRegionEndpointOverflows_ThrowsStepNumberedFailure()
+    {
+        using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), new ScreenPixelReader(new SingleFrameProvider(frame)));
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "set left=2147483647",
+                "imagesearch region $left 0 1 1 Target found found_x found_y",
+            },
+            Images = { ["Target"] = await EncodePngBase64Async(template) },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Step 2: imagesearch failed: region endpoint exceeds the supported screen coordinate range.");
+    }
+
     [Theory]
     [InlineData("auto", ScreenImageMatchSelectionMode.Automatic)]
     [InlineData("first", ScreenImageMatchSelectionMode.FirstThresholdMatch)]

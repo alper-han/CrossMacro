@@ -239,10 +239,10 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             localizationService.CurrentCulture,
             localizationService["Editor_Action_ImageSearch"],
             action.ImageAssetName,
-            action.ScreenLeft,
-            action.ScreenTop,
-            action.ScreenWidth,
-            action.ScreenHeight,
+            action.ImageSearchRegionLeftToken,
+            action.ImageSearchRegionTopToken,
+            action.ImageSearchRegionWidthToken,
+            action.ImageSearchRegionHeightToken,
             action.ScreenFoundVariableName,
             action.ScreenFoundXVariableName,
             action.ScreenFoundYVariableName,
@@ -255,10 +255,10 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             localizationService.CurrentCulture,
             localizationService["Editor_Action_ImageClick"],
             action.ImageAssetName,
-            action.ScreenLeft,
-            action.ScreenTop,
-            action.ScreenWidth,
-            action.ScreenHeight);
+            action.ImageSearchRegionLeftToken,
+            action.ImageSearchRegionTopToken,
+            action.ImageSearchRegionWidthToken,
+            action.ImageSearchRegionHeightToken);
     }
 
     private string FormatWaitImage(EditorAction action)
@@ -267,10 +267,10 @@ public sealed class EditorActionDisplayFormatter(ILocalizationService localizati
             localizationService.CurrentCulture,
             localizationService["Editor_Action_WaitImage"],
             action.ImageAssetName,
-            action.ScreenLeft,
-            action.ScreenTop,
-            action.ScreenWidth,
-            action.ScreenHeight,
+            action.ImageSearchRegionLeftToken,
+            action.ImageSearchRegionTopToken,
+            action.ImageSearchRegionWidthToken,
+            action.ImageSearchRegionHeightToken,
             action.ScreenTimeoutMs);
     }
 

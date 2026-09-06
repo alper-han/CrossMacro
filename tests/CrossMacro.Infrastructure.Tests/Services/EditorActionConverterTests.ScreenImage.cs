@@ -229,6 +229,43 @@ public sealed partial class EditorActionConverterTests
         _ = restored.Actions[0].ImageSearchSimilarity.Should().Be(0.875);
     }
 
+    [Theory]
+    [InlineData(EditorActionType.ImageSearch, "imagesearch")]
+    [InlineData(EditorActionType.ImageClick, "imageclick")]
+    [InlineData(EditorActionType.WaitImage, "waitimage")]
+    public void ToAndFromMacroSequence_WhenImageActionUsesVariableRegion_RoundTripsRegionTokens(
+        EditorActionType actionType,
+        string command)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ImageSearchRegionLeftToken = "$mouse_x",
+            ImageSearchRegionTopToken = "$mouse_y",
+            ImageSearchRegionWidthToken = "400",
+            ImageSearchRegionHeightToken = "$region_height",
+            ImageAssetName = "Target",
+            ScreenFoundVariableName = "found",
+            ScreenFoundXVariableName = "found_x",
+            ScreenFoundYVariableName = "found_y",
+        };
+
+        var sequence = _converter.ToMacroSequence([action], "Variable Region", isAbsolute: true);
+
+        _ = sequence.ScriptSteps.Should().ContainSingle().Which.Should().StartWith(
+            $"{command} region $mouse_x $mouse_y 400 $region_height Target found found_x found_y");
+
+        var restored = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        _ = restored.Warnings.Should().BeEmpty();
+        _ = restored.Actions.Should().ContainSingle();
+        _ = restored.Actions[0].Type.Should().Be(actionType);
+        _ = restored.Actions[0].ImageSearchRegionLeftToken.Should().Be("$mouse_x");
+        _ = restored.Actions[0].ImageSearchRegionTopToken.Should().Be("$mouse_y");
+        _ = restored.Actions[0].ImageSearchRegionWidthToken.Should().Be("400");
+        _ = restored.Actions[0].ImageSearchRegionHeightToken.Should().Be("$region_height");
+    }
+
     [Fact]
     public void ToAndFromMacroSequence_WhenImageSearchUsesNewDefaults_UsesAutomaticProfileWithoutTechnicalTokens()
     {

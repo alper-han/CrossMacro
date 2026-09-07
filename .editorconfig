@@ -183,6 +183,13 @@ dotnet_diagnostic.MA0161.severity = warning
 dotnet_diagnostic.MA0162.severity = warning
 
 # Analyzer suppressions
+dotnet_diagnostic.MA0214.severity = none
+dotnet_diagnostic.MA0215.severity = none
+dotnet_diagnostic.MA0217.severity = none
+dotnet_diagnostic.MA0222.severity = none
+dotnet_diagnostic.MA0223.severity = none
+dotnet_diagnostic.MA0224.severity = none
+dotnet_diagnostic.MA0225.severity = none
 dotnet_diagnostic.MA0038.severity = none
 dotnet_diagnostic.IDE0059.severity = warning
 dotnet_diagnostic.IDE0058.severity = warning

@@ -106,5 +106,9 @@ internal sealed class SingleInstanceActivationListener : IDisposable
         }
     }
 
-    private static string GetPipeName(string instanceName) => $"{instanceName}.Activation";
+    private static string GetPipeName(string instanceName)
+    {
+        // Unix named pipes are backed by domain sockets with short path limits.
+        return $"cm-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(instanceName)).AsSpan(0, 16))}";
+    }
 }

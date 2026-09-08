@@ -68,7 +68,7 @@ public sealed class SingleInstanceGuardTests
     [Fact]
     public async Task ActivationListener_WhenSignaled_InvokesActivation()
     {
-        var instanceName = $"crossmacro-single-instance-activation-{Guid.NewGuid():N}";
+        var instanceName = $"crossmacro-single-instance-activation-{new string('x', 256)}-{Guid.NewGuid():N}";
         var activated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var listener = SingleInstanceActivationListener.TryStart(instanceName, activated.SetResult);

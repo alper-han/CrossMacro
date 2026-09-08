@@ -120,13 +120,6 @@
     },
     {
         "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/meziantou.analyzer/3.0.228/meziantou.analyzer.3.0.228.nupkg",
-        "sha512": "c8d03282a1b3a85e364a8ff8707122b59c976207c8624c61ad349b7f377e9512790af48160224e435795ea8e2e9e1f3b1c3577cb9124de51b10df6c2c97b75e7",
-        "dest": "nuget-sources",
-        "dest-filename": "meziantou.analyzer.3.0.228.nupkg"
-    },
-    {
-        "type": "file",
         "url": "https://api.nuget.org/v3-flatcontainer/microcom.runtime/0.11.6/microcom.runtime.0.11.6.nupkg",
         "sha512": "6357e26e35bdcc31a1adb458f1eba1273026e138865b7f7098ce0cdf29135c317f58afa0a8c015b64c5b6315ce02c496413bc178bfd726935d8d32af63f732c1",
         "dest": "nuget-sources",
@@ -173,6 +166,13 @@
         "sha512": "7bf4cd6f25d7e030e366cc9cb593b79a890f347df598062c0d2030cdb62d23f465f69ccdfc7e83d3e709fcbe12edc4bd4af68229c2d889216aa84ebd43a6b162",
         "dest": "nuget-sources",
         "dest-filename": "microsoft.extensions.configuration.abstractions.10.0.10.nupkg"
+    },
+    {
+        "type": "file",
+        "url": "https://api.nuget.org/v3-flatcontainer/microsoft.extensions.dependencyinjection.abstractions/10.0.10/microsoft.extensions.dependencyinjection.abstractions.10.0.10.nupkg",
+        "sha512": "c40af270352d0049fbddb6403eb0b5206f0b6318760146e8093a9972b2ab965d7a5213a28e473742712e54f7abb288eab7a46659b41c7426d454ecee4a931eac",
+        "dest": "nuget-sources",
+        "dest-filename": "microsoft.extensions.dependencyinjection.abstractions.10.0.10.nupkg"
     },
     {
         "type": "file",
@@ -295,13 +295,6 @@
     },
     {
         "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/roslynator.analyzers/5.0.0/roslynator.analyzers.5.0.0.nupkg",
-        "sha512": "6ec32d36c6d6bc2a1f7300a1cab510f6bfbcda31bf4cfe0f1a772ebe514af129221cd5155d472b4be5e7a9a94fc8c5e7b50afa7f9c07b901ca1d6d740d046039",
-        "dest": "nuget-sources",
-        "dest-filename": "roslynator.analyzers.5.0.0.nupkg"
-    },
-    {
-        "type": "file",
         "url": "https://api.nuget.org/v3-flatcontainer/runtime.linux-arm64.microsoft.dotnet.ilcompiler/10.0.8/runtime.linux-arm64.microsoft.dotnet.ilcompiler.10.0.8.nupkg",
         "sha512": "0d0fa94231c15f8b8fbaea9dcb7b5bd19c45e2808692f5847a178e0bab0eb35b38a26b8a8400922d8b84f861509a0a6d857c61116411d11e6282ea2e95b180e5",
         "dest": "nuget-sources",
@@ -397,13 +390,6 @@
         "sha512": "712925fbacdfbd34c5d7c06bce5b2ae19c5062dcf4000aa57ec2c446b4b6cd6827c58153027e1c6090ec264f0997b347f4459995c88c21db094c4d9240ca95a5",
         "dest": "nuget-sources",
         "dest-filename": "skiasharp.3.119.4.nupkg"
-    },
-    {
-        "type": "file",
-        "url": "https://api.nuget.org/v3-flatcontainer/sonaranalyzer.csharp/10.33.0.1635/sonaranalyzer.csharp.10.33.0.1635.nupkg",
-        "sha512": "64bf792065623dc8ff200814ba5cc67d01c09973262775fcf504d6da94e1f974f52210e225b41f56c5bda3ea262adf6e7246c826fe6b1dde931fe75ded67f0aa",
-        "dest": "nuget-sources",
-        "dest-filename": "sonaranalyzer.csharp.10.33.0.1635.nupkg"
     },
     {
         "type": "file",

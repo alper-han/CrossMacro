@@ -1,21 +1,21 @@
 version: 2
 updates:
-  # Maintain dependencies for GitHub Actions
+  # Dependabot is disabled by setting the PR limit to zero.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 0
     groups:
       dependencies:
         patterns:
           - "*"
 
-  # Maintain dependencies for NuGet
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
       interval: "monthly"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     groups:
       dependencies:
         patterns:

@@ -177,7 +177,7 @@ region: null,
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        _ = screenReader.LastImageReadOptions.Timeout.Should().BeGreaterThan(TimeSpan.FromSeconds(4));
+        _ = screenReader.ImageReadOptions[0].Timeout.Should().BeGreaterThan(TimeSpan.FromSeconds(4));
         _ = screenReader.LastImageReadOptions.PollUntilMatch.Should().BeFalse();
     }
 

@@ -10,21 +10,24 @@ internal static class AbsoluteCursorPositionSynchronizer
         IMousePositionProvider? positionProvider,
         int expectedX,
         int expectedY,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null)
     {
         return WaitUntilAsync(
             positionProvider,
             position => Math.Abs((long)position.X - expectedX) <= PositionTolerance
                 && Math.Abs((long)position.Y - expectedY) <= PositionTolerance,
             SettleTimeout,
-            cancellationToken);
+            cancellationToken,
+            timeProvider);
     }
 
     public static async Task<AbsoluteCursorSettleResult> WaitUntilAsync(
         IMousePositionProvider? positionProvider,
         Func<(int X, int Y), bool> isSettled,
         TimeSpan timeout,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(isSettled);
         ArgumentOutOfRangeException.ThrowIfLessThan(timeout, TimeSpan.Zero);
@@ -35,11 +38,12 @@ internal static class AbsoluteCursorPositionSynchronizer
         }
 
         (int X, int Y)? lastObservedPosition = null;
-        var startedAt = Stopwatch.GetTimestamp();
+        var clock = timeProvider ?? TimeProvider.System;
+        var startedAt = clock.GetTimestamp();
 
         while (true)
         {
-            var remaining = timeout - Stopwatch.GetElapsedTime(startedAt);
+            var remaining = timeout - clock.GetElapsedTime(startedAt);
             if (remaining <= TimeSpan.Zero)
             {
                 break;
@@ -55,7 +59,7 @@ internal static class AbsoluteCursorPositionSynchronizer
                 return new AbsoluteCursorSettleResult(IsSettled: true, observed);
             }
 
-            remaining = timeout - Stopwatch.GetElapsedTime(startedAt);
+            remaining = timeout - clock.GetElapsedTime(startedAt);
             if (remaining <= TimeSpan.Zero)
             {
                 break;
@@ -63,7 +67,7 @@ internal static class AbsoluteCursorPositionSynchronizer
 
             await Task.Delay(
                 remaining < PollInterval ? remaining : PollInterval,
-                TimeProvider.System,
+                clock,
                 cancellationToken).ConfigureAwait(false);
         }
 

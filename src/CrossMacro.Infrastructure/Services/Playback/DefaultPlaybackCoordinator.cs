@@ -5,7 +5,9 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// Default playback coordinator implementation.
 /// Handles Corner Reset for relative mode and position sync for absolute mode.
 /// </summary>
-public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider = null) : IPlaybackCoordinator
+public class DefaultPlaybackCoordinator(
+    IMousePositionProvider? positionProvider = null,
+    TimeProvider? timeProvider = null) : IPlaybackCoordinator
 {
     private static readonly TimeSpan CornerPositionSettleTimeout = TimeSpan.FromMilliseconds(250);
     private const int CornerPositionTolerance = 1;
@@ -14,6 +16,7 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
     private const int RawMovementMinimumRefreshAttemptsWithoutReference = 3;
 
     private readonly IMousePositionProvider? _positionProvider = positionProvider;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     public int CurrentX { get; private set; }
     public int CurrentY { get; private set; }
     public bool HasKnownPosition { get; private set; }
@@ -97,7 +100,8 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             _positionProvider,
             expectedX,
             expectedY,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            _timeProvider).ConfigureAwait(false);
         if (result.IsSettled)
         {
             return true;
@@ -259,7 +263,8 @@ public class DefaultPlaybackCoordinator(IMousePositionProvider? positionProvider
             _positionProvider,
             position => IsCornerResetPosition(position, previousPosition, expectedPosition),
             CornerPositionSettleTimeout,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            _timeProvider).ConfigureAwait(false);
 
         if (result.IsSettled)
         {

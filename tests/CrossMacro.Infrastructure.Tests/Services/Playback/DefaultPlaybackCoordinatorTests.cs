@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Playback;
 
@@ -186,8 +187,10 @@ public sealed class DefaultPlaybackCoordinatorTests
     {
         var positionProvider = Substitute.For<IMousePositionProvider>();
         _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var timeProvider = new FakeTimeProvider();
+        var observations = Channel.CreateUnbounded<int>();
 
-        var observations = new Queue<(int X, int Y)?>([
+        var positions = new Queue<(int X, int Y)?>([
             (0, 0),
             (0, 0),
             (0, 0),
@@ -198,14 +201,26 @@ public sealed class DefaultPlaybackCoordinatorTests
             (0, 0),
             (100, 200),
         ]);
-        _ = positionProvider.GetAbsolutePositionAsync().Returns(_ =>
-            Task.FromResult(observations.Count > 0
-                ? observations.Dequeue()
-                : ((int X, int Y)?)(100, 200)));
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(_callInfo =>
+        {
+            _ = observations.Writer.TryWrite(1);
+            (int X, int Y)? position = positions.Count > 0
+                ? positions.Dequeue()
+                : (100, 200);
+            return Task.FromResult(position);
+        });
 
-        var coordinator = new DefaultPlaybackCoordinator(positionProvider);
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider, timeProvider);
 
-        var settled = await coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+        var settleTask = coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+        _ = await observations.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        for (var attempt = 1; attempt < 9 && !settleTask.IsCompleted; attempt++)
+        {
+            timeProvider.Advance(TimeSpan.FromMilliseconds(4));
+            _ = await observations.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        }
+
+        var settled = await settleTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
         _ = settled.Should().BeTrue();
         _ = await positionProvider.Received(9).GetAbsolutePositionAsync();

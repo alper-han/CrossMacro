@@ -536,7 +536,8 @@ public sealed class MacroRecorder(
                     _positionProvider,
                     expected.X,
                     expected.Y,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    TimeProvider.System).ConfigureAwait(false);
                 if (!settleResult.IsSettled)
                 {
                     Log.Warning(

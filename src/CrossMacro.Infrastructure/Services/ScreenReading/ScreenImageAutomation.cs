@@ -129,7 +129,8 @@ public sealed class ScreenImageAutomation(
                         _mousePositionProvider,
                         movement.X,
                         movement.Y,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        _timeProvider).ConfigureAwait(false);
                     if (!settleResult.IsSettled)
                     {
                         return ScreenImageAutomationResult.Failure(

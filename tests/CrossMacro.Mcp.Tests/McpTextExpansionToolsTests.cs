@@ -10,7 +10,13 @@ public sealed class McpTextExpansionToolsTests
             ListResult = CliCommandExecutionResult.Ok(
                 "1 text expansion(s).",
                 new TextExpansionListData(
-                [new TextExpansionData(":mail", "me@example.com", true, "CtrlShiftV", "Paste", "FastBatch")],
+                [new TextExpansionData(
+                    Trigger: ":mail",
+                    Replacement: "me@example.com",
+                    IsEnabled: true,
+                    Method: "CtrlShiftV",
+                    InsertionMode: "Paste",
+                    DirectTypingMethod: "FastBatch")],
                 "work",
                 1)),
         };
@@ -34,12 +40,25 @@ public sealed class McpTextExpansionToolsTests
     public async Task TextExpansionMutation_ShouldRequireWriteCapability()
     {
         var policy = new McpCapabilityPolicy(new TestSettingsService(new AppSettings()));
-        policy.SetRestricted(true);
+        policy.SetRestricted(restricted: true);
         var tools = McpToolTestFactory.CreateTextExpansionTools(capabilityPolicy: policy);
 
         var result = await tools.RemoveTextExpansionAsync(":mail", cancellationToken: CancellationToken.None);
 
         Assert.False(result.Outcome.Success);
         Assert.Equal("capability_denied", Assert.Single(result.Outcome.Errors).Code);
+    }
+
+    [Fact]
+    public async Task AddTextExpansion_ShouldRejectUndefinedNumericEnumValues()
+    {
+        var service = new TestTextExpansionCliService();
+        var tools = McpToolTestFactory.CreateTextExpansionTools(textExpansionCliService: service);
+
+        var result = await tools.AddTextExpansionAsync(":mail", "replacement", method: "999", cancellationToken: CancellationToken.None);
+
+        Assert.False(result.Outcome.Success);
+        Assert.Equal("invalid_arguments", Assert.Single(result.Outcome.Errors).Code);
+        Assert.Null(service.LastTrigger);
     }
 }

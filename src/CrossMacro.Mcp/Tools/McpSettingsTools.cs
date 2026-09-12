@@ -102,7 +102,8 @@ public sealed class McpSettingsTools(ISettingsCliService settingsCliService, Mcp
     {
         var redacted = key.Contains("token", StringComparison.OrdinalIgnoreCase)
             || key.Contains("secret", StringComparison.OrdinalIgnoreCase)
-            || key.Contains("password", StringComparison.OrdinalIgnoreCase);
+            || key.Contains("password", StringComparison.OrdinalIgnoreCase)
+            || key.StartsWith("mcp.paths.", StringComparison.Ordinal);
         return new(key, redacted ? null : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture), redacted);
     }
 }

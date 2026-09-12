@@ -20,7 +20,7 @@ public sealed class McpCapabilityPolicyTests
         foreach (McpSecuritySetting setting in Enum.GetValues<McpSecuritySetting>())
         {
             var settings = new AppSettings();
-            settings.McpSecurity.Set(setting, false);
+            settings.McpSecurity.Set(setting: setting, value: false);
             var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
 
             Assert.False(policy.IsAllowed(ToCapability(setting)));
@@ -36,7 +36,7 @@ public sealed class McpCapabilityPolicyTests
         settings.McpSecurity.AllowWindowRead = true;
         var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
 
-        policy.SetRestricted(true);
+        policy.SetRestricted(restricted: true);
 
         foreach (McpCapability capability in Enum.GetValues<McpCapability>())
         {

@@ -45,4 +45,12 @@ public sealed class AutoApprovalServiceTests
 
         Assert.Equal(ApprovalResult.Denied, result);
     }
+
+    [Fact]
+    public async Task RequestAsync_WhenRequestIsNull_ThrowsArgumentNullException()
+    {
+        var act = () => new AutoApprovalService().RequestAsync(null!, CancellationToken.None);
+
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(act);
+    }
 }

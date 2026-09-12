@@ -15,6 +15,7 @@ public sealed class McpMacroTools(
     [Description("Lists up to 100 regular .macro files directly within an absolute directory path.")]
     public CallToolResult ListMacros(string directoryPath, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var capability = _authorization.Require(McpCapability.MacroRead);
         if (capability is not null)
         {

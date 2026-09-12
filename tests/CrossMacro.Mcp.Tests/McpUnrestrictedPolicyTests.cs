@@ -52,14 +52,14 @@ public sealed class McpUnrestrictedPolicyTests
             settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [root]);
             var policy = new McpPathPolicy(new TestSettingsService(settings));
 
-            Assert.True(policy.TryAuthorize(Path.Combine(root, "safe.macro"), McpPathKind.MacroRead, false, out _, out _));
-            Assert.False(policy.TryAuthorize(Path.Combine(outside, "outside.macro"), McpPathKind.MacroRead, false, out _, out var failure));
+            Assert.True(policy.TryAuthorize(Path.Combine(root, "safe.macro"), McpPathKind.MacroRead, requireExisting: false, out _, out _));
+            Assert.False(policy.TryAuthorize(Path.Combine(outside, "outside.macro"), McpPathKind.MacroRead, requireExisting: false, out _, out var failure));
             Assert.Equal("path_not_allowed", failure.Errors[0].Code);
         }
         finally
         {
-            Directory.Delete(root, true);
-            Directory.Delete(outside, true);
+            Directory.Delete(root, recursive: true);
+            Directory.Delete(outside, recursive: true);
         }
     }
 

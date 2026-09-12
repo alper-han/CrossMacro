@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using CrossMacro.Cli;
 
 namespace CrossMacro.Mcp.Contracts;
@@ -17,7 +18,7 @@ public static class McpCliErrorCodeCatalog
             [CliExitCode.EnvironmentError] = "environment_error",
             [CliExitCode.RuntimeError] = "runtime_error",
             [CliExitCode.Cancelled] = "cancelled",
-        };
+        }.ToFrozenDictionary();
 
     public static string GetCode(int exitCode) =>
         ByExitCode.TryGetValue((CliExitCode)exitCode, out var code)

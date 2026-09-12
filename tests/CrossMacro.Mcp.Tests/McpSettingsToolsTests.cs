@@ -7,17 +7,21 @@ public sealed class McpSettingsToolsTests
     {
         var settings = new AppSettings();
         settings.McpSecurity.AllowCommandExecute = true;
+        settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, ["/private/macro-root"]);
         var tools = McpToolTestFactory.CreateSettingsTools(settingsCliService: new SettingsCliService(new TestSettingsService(settings)));
 
         var all = await tools.GetSettingsAsync(all: true, cancellationToken: CancellationToken.None);
-        var commandExecute = Assert.Single(all.Settings, static entry => entry.Key == "mcp.commandExecute");
-        var restoreToken = Assert.Single(all.Settings, static entry => entry.Key == "screen.portalRestoreToken");
+        var commandExecute = Assert.Single(all.Settings, static entry => string.Equals(entry.Key, "mcp.commandExecute", StringComparison.Ordinal));
+        var restoreToken = Assert.Single(all.Settings, static entry => string.Equals(entry.Key, "screen.portalRestoreToken", StringComparison.Ordinal));
+        var macroRoots = Assert.Single(all.Settings, static entry => string.Equals(entry.Key, McpSettingsKeys.MacroReadRoots, StringComparison.Ordinal));
 
         Assert.True(all.Outcome.Success);
         Assert.Equal("True", commandExecute.Value);
         Assert.False(commandExecute.Redacted);
         Assert.Null(restoreToken.Value);
         Assert.True(restoreToken.Redacted);
+        Assert.Null(macroRoots.Value);
+        Assert.True(macroRoots.Redacted);
 
         var set = await tools.SetSettingsAsync("mcp.commandExecute", "false", CancellationToken.None);
         Assert.False(set.Outcome.Success);
@@ -46,7 +50,7 @@ public sealed class McpSettingsToolsTests
     public async Task SettingsTools_ShouldRequireTheMatchingCapability()
     {
         var capabilityPolicy = new McpCapabilityPolicy(new TestSettingsService(new AppSettings()));
-        capabilityPolicy.SetRestricted(true);
+        capabilityPolicy.SetRestricted(restricted: true);
         var tools = McpToolTestFactory.CreateSettingsTools(capabilityPolicy: capabilityPolicy);
 
         var result = await tools.GetSettingsAsync(cancellationToken: CancellationToken.None);

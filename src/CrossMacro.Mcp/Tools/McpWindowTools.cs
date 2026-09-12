@@ -203,21 +203,37 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
 
         if (normalizedAction is "move" or "resize")
         {
-            if (selectorKind is not null || selectorValue is not null || workspaceName is not null || x is null || y is null)
+            if (selectorKind is not null || selectorValue is not null || workspaceName is not null)
             {
-                error = McpToolOutcomeMapper.InvalidArguments($"Window {normalizedAction} requires x and y only.");
+                error = McpToolOutcomeMapper.InvalidArguments($"Window {normalizedAction} received unsupported selector or workspace fields.");
                 return false;
             }
 
-            if (normalizedAction is "resize" && (x <= 0 || y <= 0))
+            if (normalizedAction is "move")
+            {
+                if (x is null || y is null || width is not null || height is not null)
+                {
+                    error = McpToolOutcomeMapper.InvalidArguments("Window move requires x and y only.");
+                    return false;
+                }
+
+                options = new WindowCliOptions(WindowCliAction.Move, X: x, Y: y);
+                return true;
+            }
+
+            if (x is not null || y is not null || width is null || height is null)
+            {
+                error = McpToolOutcomeMapper.InvalidArguments("Window resize requires width and height only.");
+                return false;
+            }
+
+            if (width <= 0 || height <= 0)
             {
                 error = McpToolOutcomeMapper.InvalidArguments("Window resize width and height must be positive.");
                 return false;
             }
 
-            options = normalizedAction is "move"
-                ? new WindowCliOptions(WindowCliAction.Move, X: x, Y: y)
-                : new WindowCliOptions(WindowCliAction.Resize, Width: x, Height: y);
+            options = new WindowCliOptions(WindowCliAction.Resize, Width: width, Height: height);
             return true;
         }
 

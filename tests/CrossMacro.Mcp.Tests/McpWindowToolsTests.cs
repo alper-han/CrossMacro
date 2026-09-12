@@ -230,6 +230,17 @@ public sealed class McpWindowToolsTests
         Assert.Equal(WindowCliAction.Focus, windowService.LastOptions.Action);
         Assert.Equal(WindowSelectorKind.Class, windowService.LastOptions.Selector!.Kind);
         Assert.Equal("Editor", windowService.LastOptions.Selector.Value);
+
+        var resized = await tools.ControlWindowsAsync(
+            action: "resize",
+            width: 800,
+            height: 600,
+            cancellationToken: CancellationToken.None);
+
+        Assert.NotEqual(true, resized.IsError);
+        Assert.Equal(WindowCliAction.Resize, windowService.LastOptions.Action);
+        Assert.Equal(800, windowService.LastOptions.Width);
+        Assert.Equal(600, windowService.LastOptions.Height);
     }
 
     [Fact]
@@ -248,8 +259,8 @@ public sealed class McpWindowToolsTests
             cancellationToken: CancellationToken.None);
         var invalidResize = await tools.ControlWindowsAsync(
             action: "resize",
-            x: 0,
-            y: 100,
+            width: 0,
+            height: 100,
             cancellationToken: CancellationToken.None);
         var invalidWorkspace = await tools.ControlWindowsAsync(
             action: "workspace_move_window",
@@ -262,5 +273,56 @@ public sealed class McpWindowToolsTests
         Assert.Equal(true, invalidResize.IsError);
         Assert.Equal(true, invalidWorkspace.IsError);
         Assert.Equal(0, windowService.CallCount);
+    }
+
+    [Fact]
+    public async Task ControlWindowsAsync_ShouldMapWorkspaceAndWindowResultsAndRedactFailures()
+    {
+        var windowService = new TestWindowCliService
+        {
+            Result = CliCommandExecutionResult.Ok("Workspace moved.", new WorkspaceData("2")),
+        };
+        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+
+        var workspace = await tools.ControlWindowsAsync(
+            action: "workspace_switch",
+            workspaceName: "2",
+            cancellationToken: CancellationToken.None);
+
+        Assert.NotEqual(true, workspace.IsError);
+        var workspaceStructured = Assert.IsType<JsonElement>(workspace.StructuredContent);
+        Assert.Equal("2", workspaceStructured.GetProperty("workspace").GetString());
+
+        var focusedService = new TestWindowCliService
+        {
+            Result = CliCommandExecutionResult.Ok("Window focused.", McpTestData.CreateWindow(5)),
+        };
+        var focusedTools = McpToolTestFactory.CreateWindowTools(windowCliService: focusedService);
+        var focused = await focusedTools.ControlWindowsAsync(
+            action: "focus",
+            selectorKind: "title",
+            selectorValue: "Editor",
+            cancellationToken: CancellationToken.None);
+
+        Assert.NotEqual(true, focused.IsError);
+        var focusedStructured = Assert.IsType<JsonElement>(focused.StructuredContent);
+        Assert.Equal("0x5", focusedStructured.GetProperty("window").GetProperty("address").GetString());
+
+        var failedService = new TestWindowCliService
+        {
+            Result = CliCommandExecutionResult.Fail(
+                CliExitCode.EnvironmentError,
+                "Window control is unavailable.",
+                ["backend detail should not leak"]),
+        };
+        var failedTools = McpToolTestFactory.CreateWindowTools(windowCliService: failedService);
+        var failed = await failedTools.ControlWindowsAsync(
+            action: "center",
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal(true, failed.IsError);
+        var failedStructured = Assert.IsType<JsonElement>(failed.StructuredContent);
+        Assert.Equal("environment_error", failedStructured.GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
+        Assert.DoesNotContain("backend detail should not leak", failedStructured.GetRawText(), StringComparison.Ordinal);
     }
 }

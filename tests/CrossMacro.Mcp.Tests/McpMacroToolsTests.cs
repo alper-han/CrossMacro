@@ -60,6 +60,25 @@ public sealed class McpMacroToolsTests
     }
 
     [Fact]
+    public void ListMacros_ShouldPropagatePreCanceledRequestsBeforeReadingDirectory()
+    {
+        var directoryPath = McpTestData.CreateTemporaryDirectory();
+        try
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            var act = () => McpToolTestFactory.CreateMacroTools().ListMacros(directoryPath, cancellation.Token);
+
+            _ = Assert.Throws<OperationCanceledException>(act);
+        }
+        finally
+        {
+            Directory.Delete(directoryPath, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task InspectMacroAsync_ShouldReturnMacroInfoAndPreserveValidationWarnings()
     {
         var macroPath = McpTestData.CreateTemporaryMacroFile();

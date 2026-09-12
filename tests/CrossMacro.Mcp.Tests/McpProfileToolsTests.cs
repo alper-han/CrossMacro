@@ -11,8 +11,8 @@ public sealed class McpProfileToolsTests
                 "2 profile(s).",
                 new ProfileListData(
                 [
-                    new ProfileData("default", "Default", DateTime.UnixEpoch, true),
-                    new ProfileData("work", "Work", DateTime.UnixEpoch.AddDays(1), false),
+                    new ProfileData(Id: "default", Name: "Default", CreatedAt: DateTime.UnixEpoch, IsActive: true),
+                    new ProfileData(Id: "work", Name: "Work", CreatedAt: DateTime.UnixEpoch.AddDays(1), IsActive: false),
                 ],
                 "default")),
         };
@@ -22,7 +22,7 @@ public sealed class McpProfileToolsTests
 
         Assert.True(result.Outcome.Success);
         Assert.Equal("default", result.ActiveProfileId);
-        Assert.Equal(["default", "work"], result.Profiles.Select(static profile => profile.Id));
+        Assert.Equal(["default", "work"], result.Profiles.Select(static profile => profile.Id), StringComparer.Ordinal);
         Assert.Equal(1, service.ListCallCount);
     }
 
@@ -30,7 +30,7 @@ public sealed class McpProfileToolsTests
     public async Task ProfileMutation_ShouldRequireProfileManageCapability()
     {
         var policy = new McpCapabilityPolicy(new TestSettingsService(new AppSettings()));
-        policy.SetRestricted(true);
+        policy.SetRestricted(restricted: true);
         var tools = McpToolTestFactory.CreateProfileTools(capabilityPolicy: policy);
 
         var result = await tools.CreateProfileAsync("Work", CancellationToken.None);

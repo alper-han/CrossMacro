@@ -341,13 +341,27 @@ internal sealed class TestTextExpansionCliService : ITextExpansionCliService
             LastMethod = method;
             LastInsertionMode = insertionMode;
             LastDirectTypingMethod = directTypingMethod;
-            return Task.FromResult(CliCommandExecutionResult.Ok("Text expansion added.", new TextExpansionData(trigger, replacement, true, method.ToString(), insertionMode.ToString(), directTypingMethod.ToString())));
+            return Task.FromResult(CliCommandExecutionResult.Ok("Text expansion added.", new TextExpansionData(
+                Trigger: trigger,
+                Replacement: replacement,
+                IsEnabled: true,
+                Method: method.ToString(),
+                InsertionMode: insertionMode.ToString(),
+                DirectTypingMethod: directTypingMethod.ToString())));
         }
 
         public Task<CliCommandExecutionResult> RemoveAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken) => Task.FromResult(CliCommandExecutionResult.Ok("Text expansion removed."));
         public Task<CliCommandExecutionResult> EnableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken) => Task.FromResult(CliCommandExecutionResult.Ok("Text expansion enabled."));
         public Task<CliCommandExecutionResult> DisableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken) => Task.FromResult(CliCommandExecutionResult.Ok("Text expansion disabled."));
-        public Task<CliCommandExecutionResult> TestAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken) => Task.FromResult(CliCommandExecutionResult.Ok("Text expansion tested.", new TextExpansionTestData(true, new TextExpansionData(trigger, "replacement", true, "CtrlV", "Paste", "FastBatch"))));
+        public Task<CliCommandExecutionResult> TestAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken) => Task.FromResult(CliCommandExecutionResult.Ok("Text expansion tested.", new TextExpansionTestData(
+            Found: true,
+            Expansion: new TextExpansionData(
+                Trigger: trigger,
+                Replacement: "replacement",
+                IsEnabled: true,
+                Method: "CtrlV",
+                InsertionMode: "Paste",
+                DirectTypingMethod: "FastBatch"))));
     }
 
 internal sealed class TestScheduleCliService : IScheduleCliService
@@ -391,8 +405,8 @@ internal sealed class TestTriggerCliService : ITriggerCliService
 
 internal sealed class TestQuickSetupCliService : IQuickSetupCliService
     {
-        public QuickSetupStatus Status { get; init; } = new(true, "flatpak", false);
-        public QuickSetupResult Result { get; init; } = new(true, "Quick setup completed.");
+        public QuickSetupStatus Status { get; init; } = new(Applicable: true, Provider: "flatpak", ShouldPrompt: false);
+        public QuickSetupResult Result { get; init; } = new(Success: true, Message: "Quick setup completed.");
 
         public QuickSetupStatus GetStatus() => Status;
         public Task<QuickSetupCliResult> RunAsync(CancellationToken cancellationToken) => Task.FromResult(new QuickSetupCliResult(Status.Applicable, Status.Provider, Result));

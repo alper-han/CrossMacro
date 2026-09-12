@@ -170,7 +170,7 @@ public sealed class McpAutomationToolsTests
     {
         var stepFile = Path.Combine(Path.GetTempPath(), $"crossmacro-mcp-{Guid.NewGuid():N}.steps");
         var imagePath = McpTestData.CreateTemporaryPngFile();
-        File.WriteAllText(stepFile, "click left");
+        await File.WriteAllTextAsync(stepFile, "click left", CancellationToken.None);
         try
         {
             using var coordinator = new McpOperationCoordinator();

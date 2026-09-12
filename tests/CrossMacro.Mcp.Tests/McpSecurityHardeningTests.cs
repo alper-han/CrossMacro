@@ -351,15 +351,15 @@ public sealed class McpSecurityHardeningTests
 
         var run = await client.CallToolAsync(
             "automation.start",
-            new Dictionary<string, object?> { ["kind"] = " RUN " },
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["kind"] = " RUN " },
             cancellationToken: cancellation.Token);
         var play = await client.CallToolAsync(
             "automation.start",
-            new Dictionary<string, object?> { ["kind"] = "play" },
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["kind"] = "play" },
             cancellationToken: cancellation.Token);
         var record = await client.CallToolAsync(
             "automation.start",
-            new Dictionary<string, object?> { ["kind"] = "record" },
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["kind"] = "record" },
             cancellationToken: cancellation.Token);
 
         Assert.NotEqual(true, run.IsError);

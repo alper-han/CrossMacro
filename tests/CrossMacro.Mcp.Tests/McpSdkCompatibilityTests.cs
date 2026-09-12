@@ -33,6 +33,10 @@ public sealed class McpSdkCompatibilityTests
         var tool = Assert.Single(await client.ListToolsAsync(cancellationToken: cancellation.Token));
         Assert.Equal("sdk.probe", tool.Name);
 
+        var probe = await client.CallToolAsync("sdk.probe", cancellationToken: cancellation.Token);
+        Assert.NotEqual(true, probe.IsError);
+        Assert.Equal(ProbeResponse, Assert.IsType<TextContentBlock>(Assert.Single(probe.Content)).Text);
+
         await cancellation.CancelAsync();
         await serverTask;
     }

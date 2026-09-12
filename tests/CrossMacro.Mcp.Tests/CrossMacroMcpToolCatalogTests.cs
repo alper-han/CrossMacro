@@ -77,9 +77,15 @@ public sealed class CrossMacroMcpToolCatalogTests
     [Fact]
     public void V1_ShouldDescribeEveryToolAndDeclareItsAccessMode()
     {
+        Assert.Equal(
+            CrossMacroMcpToolCatalog.V1.Count,
+            CrossMacroMcpToolCatalog.V1.Select(static definition => definition.Name)
+                .Distinct(StringComparer.Ordinal)
+                .Count());
+
         Assert.All(CrossMacroMcpToolCatalog.V1, definition =>
         {
-            Assert.StartsWith("", definition.Name, StringComparison.Ordinal);
+            Assert.False(string.IsNullOrWhiteSpace(definition.Name));
             Assert.False(string.IsNullOrWhiteSpace(definition.Title));
             Assert.False(string.IsNullOrWhiteSpace(definition.Description));
             Assert.True(Enum.IsDefined(definition.Access));

@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpToolOutcomeMapperTests
@@ -65,6 +67,7 @@ public sealed class McpToolOutcomeMapperTests
     [Fact]
     public void ErrorCodeCatalog_ShouldCoverEveryCliExitCode()
     {
+        Assert.True(McpCliErrorCodeCatalog.ByExitCode is FrozenDictionary<CliExitCode, string>);
         Assert.Equal(
             Enum.GetValues<CliExitCode>().Order(),
             McpCliErrorCodeCatalog.ByExitCode.Keys.Order());
@@ -110,6 +113,65 @@ public sealed class McpToolOutcomeMapperTests
         Assert.False(outcome.Success);
         Assert.Empty(outcome.Warnings);
         Assert.Equal("Command failed.", Assert.Single(outcome.Errors).Message);
+    }
+
+    [Fact]
+    public void FromCliResultRedactingErrorDetails_WhenSuccessful_ShouldPreserveWarnings()
+    {
+        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(
+            CliCommandExecutionResult.Ok("Completed.", warnings: ["warning"]));
+
+        Assert.True(outcome.Success);
+        Assert.Equal("Completed.", outcome.Message);
+        Assert.Equal(["warning"], outcome.Warnings);
+        Assert.Empty(outcome.Errors);
+    }
+
+    [Fact]
+    public void FromMacroResult_ShouldMapWarningsAndErrorsToTheCommonEnvelope()
+    {
+        var outcome = McpToolOutcomeMapper.FromMacroResult(new MacroExecutionResult
+        {
+            Success = false,
+            ExitCode = CliExitCode.ValidationError,
+            Message = "Macro validation failed.",
+            Warnings = ["warning"],
+            Errors = ["step detail"],
+        });
+
+        Assert.False(outcome.Success);
+        Assert.Equal((int)CliExitCode.ValidationError, outcome.ExitCode);
+        Assert.Equal(["warning"], outcome.Warnings);
+        Assert.Equal("validation_error", Assert.Single(outcome.Errors).Code);
+        Assert.Equal("step detail", Assert.Single(outcome.Errors).Message);
+    }
+
+    [Fact]
+    public void FromPreflightAndSettingsResults_ShouldPreservePublicMessagesAndRedactSettingsDetails()
+    {
+        var preflight = McpToolOutcomeMapper.FromPreflightResult(
+            CliPreflightResult.Fail(CliExitCode.InvalidArguments, "Preflight failed.", ["detail"], ["warning"]));
+        var settings = McpToolOutcomeMapper.FromSettingsResult(new SettingsCommandResult
+        {
+            Success = false,
+            ExitCode = CliExitCode.RuntimeError,
+            Message = "Settings operation failed.",
+            Errors = ["secret detail"],
+        });
+        var unredactedSettings = McpToolOutcomeMapper.FromSettingsResult(
+            new SettingsCommandResult
+            {
+                Success = false,
+                ExitCode = CliExitCode.RuntimeError,
+                Message = "Settings operation failed.",
+                Errors = ["diagnostic detail"],
+            },
+            redactDetails: false);
+
+        Assert.Equal("invalid_arguments", Assert.Single(preflight.Errors).Code);
+        Assert.Equal("Preflight failed.", Assert.Single(preflight.Errors).Message);
+        Assert.Equal("Settings operation failed.", Assert.Single(settings.Errors).Message);
+        Assert.Equal("diagnostic detail", Assert.Single(unredactedSettings.Errors).Message);
     }
 
     [Theory]

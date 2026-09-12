@@ -57,6 +57,7 @@ public sealed class McpRuntimeToolsTests
             });
         Assert.Equal("capability-policy-v1", result.Policy);
         Assert.False(result.IsRestricted);
+        Assert.IsNotType<string[]>(result.AvailableTools);
         Assert.Equal(
             [
                  "status.get",
@@ -154,7 +155,7 @@ public sealed class McpRuntimeToolsTests
     {
         var tools = McpToolTestFactory.CreateRuntimeTools(quickSetupCliService: new TestQuickSetupCliService
         {
-            Status = new QuickSetupStatus(true, "appimage", ShouldPrompt: true),
+            Status = new QuickSetupStatus(Applicable: true, "appimage", ShouldPrompt: true),
         });
 
         var result = tools.GetSetupStatus();

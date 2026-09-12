@@ -16,7 +16,7 @@ public sealed class McpTaskTools(
     {
         var capability = _authorization.Require(McpCapability.TaskManage);
         return capability is null
-            ? CreateScheduleResult("list", await _scheduleCliService.ListAsync(cancellationToken).ConfigureAwait(false))
+            ? CreateScheduleResult("list", await _scheduleCliService.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
             : CreateScheduleResult("list", capability);
     }
 
@@ -64,7 +64,7 @@ public sealed class McpTaskTools(
     {
         var capability = _authorization.Require(McpCapability.TaskManage);
         return capability is null
-            ? CreateShortcutResult("list", await _shortcutCliService.ListAsync(cancellationToken).ConfigureAwait(false))
+            ? CreateShortcutResult("list", await _shortcutCliService.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
             : CreateShortcutResult("list", capability);
     }
 
@@ -112,7 +112,7 @@ public sealed class McpTaskTools(
     {
         var capability = _authorization.Require(McpCapability.TaskManage);
         return capability is null
-            ? CreateTriggerResult("list", await _triggerCliService.ListAsync(cancellationToken).ConfigureAwait(false))
+            ? CreateTriggerResult("list", await _triggerCliService.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
             : CreateTriggerResult("list", capability);
     }
 
@@ -162,7 +162,7 @@ public sealed class McpTaskTools(
             }
         }
 
-        return CreateScheduleResult(action, await _scheduleCliService.ExecuteAsync((ScheduleCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false));
+        return CreateScheduleResult(action, await _scheduleCliService.ExecuteAsync((ScheduleCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths());
     }
 
     private async Task<McpShortcutResult> ExecuteShortcutAsync(string action, ShortcutCliOptions options, CancellationToken cancellationToken)
@@ -191,7 +191,7 @@ public sealed class McpTaskTools(
             }
         }
 
-        return CreateShortcutResult(action, await _shortcutCliService.ExecuteAsync((ShortcutCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false));
+        return CreateShortcutResult(action, await _shortcutCliService.ExecuteAsync((ShortcutCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths());
     }
 
     private async Task<McpTriggerResult> ExecuteTriggerAsync(string action, TriggerCliOptions options, CancellationToken cancellationToken)
@@ -220,7 +220,7 @@ public sealed class McpTaskTools(
             }
         }
 
-        return CreateTriggerResult(action, await _triggerCliService.ExecuteAsync((TriggerCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false));
+        return CreateTriggerResult(action, await _triggerCliService.ExecuteAsync((TriggerCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths());
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Enum parsing is intentionally case-insensitive for MCP option parity.")]
@@ -234,7 +234,7 @@ public sealed class McpTaskTools(
     private static McpScheduleResult CreateScheduleResult(string action, McpToolOutcome outcome) =>
         new(Action: action, Outcome: outcome, Tasks: [], Run: null, Task: null);
 
-    private static McpScheduleResult CreateScheduleResult(string action, CliCommandExecutionResult result)
+    private static McpScheduleResult CreateScheduleResult(string action, CliCommandExecutionResult result, bool redactMacroPaths = false)
     {
         var tasks = new List<McpScheduleTask>();
         McpScheduleTaskRun? run = null;
@@ -242,13 +242,13 @@ public sealed class McpTaskTools(
         switch (result.Data)
         {
             case TaskListData<ScheduleTaskData> list:
-                tasks.AddRange(list.Tasks.Select(ToScheduleTask));
+                tasks.AddRange(list.Tasks.Select(task => ToScheduleTask(task, redactMacroPaths)));
                 break;
             case ScheduleTaskRunData runData:
-                run = ToScheduleTaskRun(runData);
+                run = ToScheduleTaskRun(runData, redactMacroPaths);
                 break;
             case ScheduleTaskData taskData:
-                task = ToScheduleTask(taskData);
+                task = ToScheduleTask(taskData, redactMacroPaths);
                 break;
         }
 
@@ -263,7 +263,7 @@ public sealed class McpTaskTools(
     private static McpShortcutResult CreateShortcutResult(string action, McpToolOutcome outcome) =>
         new(Action: action, Outcome: outcome, Tasks: [], Run: null, Task: null);
 
-    private static McpShortcutResult CreateShortcutResult(string action, CliCommandExecutionResult result)
+    private static McpShortcutResult CreateShortcutResult(string action, CliCommandExecutionResult result, bool redactMacroPaths = false)
     {
         var tasks = new List<McpShortcutTask>();
         McpShortcutTaskRun? run = null;
@@ -271,13 +271,13 @@ public sealed class McpTaskTools(
         switch (result.Data)
         {
             case TaskListData<ShortcutTaskData> list:
-                tasks.AddRange(list.Tasks.Select(ToShortcutTask));
+                tasks.AddRange(list.Tasks.Select(task => ToShortcutTask(task, redactMacroPaths)));
                 break;
             case ShortcutTaskRunData runData:
-                run = ToShortcutTaskRun(runData);
+                run = ToShortcutTaskRun(runData, redactMacroPaths);
                 break;
             case ShortcutTaskData taskData:
-                task = ToShortcutTask(taskData);
+                task = ToShortcutTask(taskData, redactMacroPaths);
                 break;
         }
 
@@ -292,17 +292,17 @@ public sealed class McpTaskTools(
     private static McpTriggerResult CreateTriggerResult(string action, McpToolOutcome outcome) =>
         new(Action: action, Outcome: outcome, Tasks: [], Task: null);
 
-    private static McpTriggerResult CreateTriggerResult(string action, CliCommandExecutionResult result)
+    private static McpTriggerResult CreateTriggerResult(string action, CliCommandExecutionResult result, bool redactMacroPaths = false)
     {
         var tasks = new List<McpTriggerTask>();
         McpTriggerTask? task = null;
         if (result.Data is TaskListData<TriggerTaskData> list)
         {
-            tasks.AddRange(list.Tasks.Select(ToTriggerTask));
+            tasks.AddRange(list.Tasks.Select(task => ToTriggerTask(task, redactMacroPaths)));
         }
         else if (result.Data is TriggerTaskData taskData)
         {
-            task = ToTriggerTask(taskData);
+            task = ToTriggerTask(taskData, redactMacroPaths);
         }
 
         return new McpTriggerResult(
@@ -312,28 +312,30 @@ public sealed class McpTaskTools(
             Task: task);
     }
 
-    private static McpScheduleTask ToScheduleTask(ScheduleTaskData task) => new()
+    private static McpScheduleTask ToScheduleTask(ScheduleTaskData task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Type = task.Type, MacroFilePath = task.MacroFilePath, PlaybackSpeed = task.PlaybackSpeed, IntervalValue = task.IntervalValue, IntervalUnit = task.IntervalUnit, ScheduledDateTime = task.ScheduledDateTime, WeeklyDays = task.WeeklyDays, WeeklyTime = task.WeeklyTime, NextRunTime = task.NextRunTime, LastRunTime = task.LastRunTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Type = task.Type, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, PlaybackSpeed = task.PlaybackSpeed, IntervalValue = task.IntervalValue, IntervalUnit = task.IntervalUnit, ScheduledDateTime = task.ScheduledDateTime, WeeklyDays = task.WeeklyDays, WeeklyTime = task.WeeklyTime, NextRunTime = task.NextRunTime, LastRunTime = task.LastRunTime, LastStatus = task.LastStatus,
     };
 
-    private static McpScheduleTaskRun ToScheduleTaskRun(ScheduleTaskRunData task) => new()
+    private static McpScheduleTaskRun ToScheduleTaskRun(ScheduleTaskRunData task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, MacroFilePath = task.MacroFilePath, LastRunTime = task.LastRunTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.Enabled, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, LastRunTime = task.LastRunTime, LastStatus = task.LastStatus,
     };
 
-    private static McpShortcutTask ToShortcutTask(ShortcutTaskData task) => new()
+    private static McpShortcutTask ToShortcutTask(ShortcutTaskData task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Hotkey = task.Hotkey, MacroFilePath = task.MacroFilePath, PlaybackSpeed = task.PlaybackSpeed, LoopEnabled = task.LoopEnabled, RunWhileHeld = task.RunWhileHeld, RepeatCount = task.RepeatCount, RepeatDelayMs = task.RepeatDelayMs, RandomRepeatDelay = task.RandomRepeatDelay, RepeatDelayMinMs = task.RepeatDelayMinMs, RepeatDelayMaxMs = task.RepeatDelayMaxMs, WindowRules = task.WindowRules.Select(static rule => new McpShortcutWindowRule { Field = rule.Field.ToString(), MatchMode = rule.MatchMode.ToString(), Value = rule.Value }).ToArray(), LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Hotkey = task.Hotkey, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, PlaybackSpeed = task.PlaybackSpeed, LoopEnabled = task.LoopEnabled, RunWhileHeld = task.RunWhileHeld, RepeatCount = task.RepeatCount, RepeatDelayMs = task.RepeatDelayMs, RandomRepeatDelay = task.RandomRepeatDelay, RepeatDelayMinMs = task.RepeatDelayMinMs, RepeatDelayMaxMs = task.RepeatDelayMaxMs, WindowRules = task.WindowRules.Select(static rule => new McpShortcutWindowRule { Field = rule.Field.ToString(), MatchMode = rule.MatchMode.ToString(), Value = rule.Value }).ToArray(), LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
     };
 
-    private static McpShortcutTaskRun ToShortcutTaskRun(ShortcutTaskRunData task) => new()
+    private static McpShortcutTaskRun ToShortcutTaskRun(ShortcutTaskRunData task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Hotkey = task.Hotkey, MacroFilePath = task.MacroFilePath, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Hotkey = task.Hotkey, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
     };
 
-    private static McpTriggerTask ToTriggerTask(TriggerTaskData task) => new()
+    private static McpTriggerTask ToTriggerTask(TriggerTaskData task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Field = task.Field, MatchMode = task.MatchMode, Value = task.Value, Action = task.Action, TargetProfileId = task.TargetProfileId, MacroFilePath = task.MacroFilePath, FireMode = task.FireMode, CooldownMs = task.CooldownMs, DebounceMs = task.DebounceMs, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Field = task.Field, MatchMode = task.MatchMode, Value = task.Value, Action = task.Action, TargetProfileId = task.TargetProfileId, MacroFilePath = redactMacroPath ? null : task.MacroFilePath, FireMode = task.FireMode, CooldownMs = task.CooldownMs, DebounceMs = task.DebounceMs, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
     };
+
+    private bool RedactTaskMacroPaths() => !_authorization.IsAnyAllowed(McpCapability.MacroRead);
 }

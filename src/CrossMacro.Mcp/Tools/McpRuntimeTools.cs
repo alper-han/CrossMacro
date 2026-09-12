@@ -13,7 +13,8 @@ public sealed class McpRuntimeTools(
     ILinuxDaemonHandshakeProbe? daemonHandshakeProbe = null,
     ILinuxDaemonSocketAccessProbe? daemonSocketAccessProbe = null)
 {
-    private static readonly string[] AvailableToolNames = [.. CrossMacroMcpToolCatalog.V1.Select(static tool => tool.Name)];
+    private static readonly IReadOnlyList<string> AvailableToolNames = Array.AsReadOnly(
+        CrossMacroMcpToolCatalog.V1.Select(static tool => tool.Name).ToArray());
 
     private readonly IRuntimeContext _runtimeContext = runtimeContext;
     private readonly IDoctorService _doctorService = doctorService;

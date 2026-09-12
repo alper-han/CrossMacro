@@ -42,8 +42,29 @@ public sealed class McpServiceCollectionExtensionsTests
         _ = Assert.Throws<ArgumentNullException>(() => McpServiceCollectionExtensions.AddCrossMacroMcp(services!));
     }
 
+    [Fact]
+    public void AddCrossMacroMcp_PreservesExistingTryAddDependencies()
+    {
+        var services = new ServiceCollection();
+        var timeProvider = TimeProvider.System;
+        _ = services.AddSingleton(timeProvider);
+        _ = services.AddSingleton<IApprovalService, TestApprovalService>();
+
+        _ = services.AddCrossMacroMcp();
+
+        var timeDescriptor = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(TimeProvider));
+        Assert.Same(timeProvider, timeDescriptor.ImplementationInstance);
+        Assert.Equal(typeof(TestApprovalService), GetImplementationType<IApprovalService>(services));
+    }
+
     private static Type? GetImplementationType<TService>(IServiceCollection services)
     {
         return Assert.Single(services, descriptor => descriptor.ServiceType == typeof(TService)).ImplementationType;
+    }
+
+    private sealed class TestApprovalService : IApprovalService
+    {
+        public Task<ApprovalResult> RequestAsync(ApprovalRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult(ApprovalResult.Denied);
     }
 }

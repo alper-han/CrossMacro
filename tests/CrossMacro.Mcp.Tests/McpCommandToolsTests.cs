@@ -52,7 +52,7 @@ public sealed class McpCommandToolsTests
         var outsideRoot = McpTestData.CreateTemporaryDirectory();
         var taskId = Guid.NewGuid();
         var outsideMacro = Path.Combine(outsideRoot, "outside.macro");
-        File.WriteAllText(outsideMacro, "macro");
+        await File.WriteAllTextAsync(outsideMacro, "macro", CancellationToken.None);
         try
         {
             var settings = new AppSettings();
@@ -63,7 +63,21 @@ public sealed class McpCommandToolsTests
                     "Loaded 1 schedule task(s).",
                     new TaskListData<ScheduleTaskData>(
                         1,
-                        [new ScheduleTaskData(taskId, "Daily", true, "Interval", outsideMacro, 1, 1, "Minutes", null, null, null, null, null, null)])),
+                        [new ScheduleTaskData(
+                            Id: taskId,
+                            Name: "Daily",
+                            Enabled: true,
+                            Type: "Interval",
+                            MacroFilePath: outsideMacro,
+                            PlaybackSpeed: 1,
+                            IntervalValue: 1,
+                            IntervalUnit: "Minutes",
+                            ScheduledDateTime: null,
+                            WeeklyDays: null,
+                            WeeklyTime: null,
+                            NextRunTime: null,
+                            LastRunTime: null,
+                            LastStatus: null)])),
             };
             var resolver = new TestCliCommandHandlerResolver();
             var tools = McpToolTestFactory.CreateCommandTools(
@@ -97,7 +111,21 @@ public sealed class McpCommandToolsTests
                 "Loaded 1 trigger task(s).",
                 new TaskListData<TriggerTaskData>(
                     1,
-                    [new TriggerTaskData(taskId, "Focus", false, "WindowTitle", "Equals", "Editor", "RunMacro", null, "/tmp/focus.macro", "OnceOnChange", null, null, null, null)])),
+                    [new TriggerTaskData(
+                        Id: taskId,
+                        Name: "Focus",
+                        Enabled: false,
+                        Field: "WindowTitle",
+                        MatchMode: "Equals",
+                        Value: "Editor",
+                        Action: "RunMacro",
+                        TargetProfileId: null,
+                        MacroFilePath: "/tmp/focus.macro",
+                        FireMode: "OnceOnChange",
+                        CooldownMs: null,
+                        DebounceMs: null,
+                        LastTriggeredTime: null,
+                        LastStatus: null)])),
         };
         var resolver = new TestCliCommandHandlerResolver();
         var tools = McpToolTestFactory.CreateCommandTools(
@@ -120,7 +148,7 @@ public sealed class McpCommandToolsTests
         var outsideRoot = McpTestData.CreateTemporaryDirectory();
         var taskId = Guid.NewGuid();
         var outsideMacro = Path.Combine(outsideRoot, "outside.macro");
-        await File.WriteAllTextAsync(outsideMacro, "macro");
+        await File.WriteAllTextAsync(outsideMacro, "macro", CancellationToken.None);
         try
         {
             var settings = new AppSettings();
@@ -131,7 +159,21 @@ public sealed class McpCommandToolsTests
                     "Loaded 1 trigger task(s).",
                     new TaskListData<TriggerTaskData>(
                         1,
-                        [new TriggerTaskData(taskId, "Focus", false, "WindowTitle", "Equals", "Editor", "RunMacro", null, outsideMacro, "OnceOnChange", null, null, null, null)])),
+                        [new TriggerTaskData(
+                            Id: taskId,
+                            Name: "Focus",
+                            Enabled: false,
+                            Field: "WindowTitle",
+                            MatchMode: "Equals",
+                            Value: "Editor",
+                            Action: "RunMacro",
+                            TargetProfileId: null,
+                            MacroFilePath: outsideMacro,
+                            FireMode: "OnceOnChange",
+                            CooldownMs: null,
+                            DebounceMs: null,
+                            LastTriggeredTime: null,
+                            LastStatus: null)])),
             };
             var resolver = new TestCliCommandHandlerResolver();
             var tools = McpToolTestFactory.CreateCommandTools(
@@ -348,7 +390,7 @@ public sealed class McpCommandToolsTests
         var allowedRoot = McpTestData.CreateTemporaryDirectory();
         var outsideRoot = McpTestData.CreateTemporaryDirectory();
         var outsideMacro = Path.Combine(outsideRoot, "outside.macro");
-        File.WriteAllText(outsideMacro, "macro");
+        await File.WriteAllTextAsync(outsideMacro, "macro", CancellationToken.None);
         try
         {
             var settings = new AppSettings();

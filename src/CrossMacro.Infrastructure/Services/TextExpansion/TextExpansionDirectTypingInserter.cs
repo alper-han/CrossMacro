@@ -5,12 +5,15 @@ internal sealed class TextExpansionDirectTypingInserter
 {
     private const int MaxBatchedInputEvents = 4096;
     private readonly IKeyboardLayoutService _layoutService;
+    private readonly TimeProvider _timeProvider;
     public TextExpansionDirectTypingInserter(
-        IKeyboardLayoutService layoutService)
+        IKeyboardLayoutService layoutService,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(layoutService);
 
         _layoutService = layoutService;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public void ValidateSupport(IInputSimulator inputSimulator, string text)
@@ -73,8 +76,8 @@ internal sealed class TextExpansionDirectTypingInserter
         {
             if (element.IsNewLine)
             {
-                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER, cancellationToken: cancellationToken).ConfigureAwait(false);
-                await Task.Delay(TextExpansionExecutionTimings.DirectTypingNewLineDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+                await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER, cancellationToken: cancellationToken, timeProvider: _timeProvider).ConfigureAwait(false);
+                await Task.Delay(TextExpansionExecutionTimings.DirectTypingNewLineDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -94,7 +97,7 @@ internal sealed class TextExpansionDirectTypingInserter
                 }
             }
 
-            await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.DirectTypingInterElementDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -286,7 +289,7 @@ internal sealed class TextExpansionDirectTypingInserter
             return false;
         }
 
-        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, input.KeyCode, input.Shift, input.AltGr, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, input.KeyCode, input.Shift, input.AltGr, cancellationToken: cancellationToken, timeProvider: _timeProvider).ConfigureAwait(false);
         return true;
     }
 
@@ -355,18 +358,19 @@ internal sealed class TextExpansionDirectTypingInserter
             shift: true,
             altGr: composeSequence.PrefixInput.AltGr,
             ctrl: true,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            cancellationToken: cancellationToken,
+            timeProvider: _timeProvider).ConfigureAwait(false);
 
-        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeActivationDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeActivationDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
 
         foreach (var hexInput in composeSequence.HexInputs)
         {
-            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, hexInput.KeyCode, hexInput.Shift, hexInput.AltGr, cancellationToken: cancellationToken).ConfigureAwait(false);
-            await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeInterKeyDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, hexInput.KeyCode, hexInput.Shift, hexInput.AltGr, cancellationToken: cancellationToken, timeProvider: _timeProvider).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeInterKeyDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
         }
 
-        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeCompletionDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
-        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await Task.Delay(TextExpansionExecutionTimings.LinuxUnicodeComposeCompletionDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
+        await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_ENTER, cancellationToken: cancellationToken, timeProvider: _timeProvider).ConfigureAwait(false);
     }
 
     private LinuxUnicodeComposeSequence ResolveLinuxUnicodeComposeSequence(int codePoint)

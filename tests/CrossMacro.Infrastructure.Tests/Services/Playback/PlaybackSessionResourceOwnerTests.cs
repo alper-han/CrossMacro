@@ -32,4 +32,20 @@ public sealed class PlaybackSessionResourceOwnerTests
         _ = owner.Simulator.Should().BeSameAs(simulator);
         await simulator.Received(1).InitializeAsync(1920, 1080, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public void RuntimeVariables_DoesNotExposeMutableSessionDictionary()
+    {
+        using var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: null);
+        owner.Begin(CancellationToken.None);
+        owner.Variables["Result"] = "ok";
+
+        var variables = owner.RuntimeVariables;
+
+        _ = variables.Should().ContainKey("result").WhoseValue.Should().Be("ok");
+        var mutableView = Assert.IsAssignableFrom<IDictionary<string, string>>(variables);
+        _ = Assert.Throws<NotSupportedException>(() => mutableView["result"] = "changed");
+        _ = variables["result"].Should().Be("ok");
+        owner.End();
+    }
 }

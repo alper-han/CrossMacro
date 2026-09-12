@@ -9,8 +9,8 @@ public sealed class ScreenReadingWarmupServiceTests
         using var frameProvider = new RecordingScreenFrameProvider();
         var service = new ScreenReadingWarmupService(frameProvider, new StaticScreenReadingDiagnosticProvider("Portal"));
 
-        await service.WarmUpPortalSessionAsync();
-        await service.WarmUpPortalSessionAsync();
+        await service.WarmUpPortalSessionAsync(CancellationToken.None);
+        await service.WarmUpPortalSessionAsync(CancellationToken.None);
 
         Assert.Equal(1, frameProvider.CaptureCalls);
         Assert.Null(frameProvider.LastRegion);
@@ -23,7 +23,7 @@ public sealed class ScreenReadingWarmupServiceTests
         using var frameProvider = new RecordingScreenFrameProvider();
         var service = new ScreenReadingWarmupService(frameProvider, new StaticScreenReadingDiagnosticProvider("WlrScreencopy"));
 
-        await service.WarmUpPortalSessionAsync();
+        await service.WarmUpPortalSessionAsync(CancellationToken.None);
 
         Assert.Equal(0, frameProvider.CaptureCalls);
     }
@@ -37,7 +37,7 @@ public sealed class ScreenReadingWarmupServiceTests
         };
         var service = new ScreenReadingWarmupService(frameProvider, new StaticScreenReadingDiagnosticProvider("Portal"));
 
-        await service.WarmUpPortalSessionAsync();
+        await service.WarmUpPortalSessionAsync(CancellationToken.None);
 
         Assert.Equal(1, frameProvider.CaptureCalls);
     }
@@ -50,7 +50,7 @@ public sealed class ScreenReadingWarmupServiceTests
         var readiness = new RecordingCapabilityReadiness(() => diagnostics.SelectedBackend = "GnomeExtension");
         var service = new ScreenReadingWarmupService(frameProvider, diagnostics, readiness);
 
-        await service.WarmUpPortalSessionAsync();
+        await service.WarmUpPortalSessionAsync(CancellationToken.None);
 
         Assert.Equal(1, readiness.Calls);
         Assert.Equal(0, frameProvider.CaptureCalls);

@@ -32,11 +32,11 @@ public sealed class ProfileTextExpansionStoreTests : IDisposable
     {
         var firstProfile = Path.Combine(_root, "first");
         var secondProfile = Path.Combine(_root, "second");
-        await _store.SaveAsync(firstProfile, [new(":one", "1")]);
-        await _store.SaveAsync(secondProfile, [new(":two", "2")]);
+        await _store.SaveAsync(firstProfile, [new(":one", "1")], CancellationToken.None);
+        await _store.SaveAsync(secondProfile, [new(":two", "2")], CancellationToken.None);
 
-        var first = await _store.LoadAsync(firstProfile);
-        var second = await _store.LoadAsync(secondProfile);
+        var first = await _store.LoadAsync(firstProfile, CancellationToken.None);
+        var second = await _store.LoadAsync(secondProfile, CancellationToken.None);
 
         _ = first.Should().ContainSingle().Which.Trigger.Should().Be(":one");
         _ = second.Should().ContainSingle().Which.Trigger.Should().Be(":two");
@@ -47,10 +47,10 @@ public sealed class ProfileTextExpansionStoreTests : IDisposable
     {
         var profile = Path.Combine(_root, "concurrent");
         await Task.WhenAll(
-            _store.SaveAsync(profile, [new(":one", "1")]),
-            _store.SaveAsync(profile, [new(":two", "2")]));
+            _store.SaveAsync(profile, [new(":one", "1")], CancellationToken.None),
+            _store.SaveAsync(profile, [new(":two", "2")], CancellationToken.None));
 
-        var loaded = await _store.LoadAsync(profile);
+        var loaded = await _store.LoadAsync(profile, CancellationToken.None);
 
         _ = loaded.Should().ContainSingle();
         _ = loaded[0].Trigger.Should().BeOneOf(":one", ":two");

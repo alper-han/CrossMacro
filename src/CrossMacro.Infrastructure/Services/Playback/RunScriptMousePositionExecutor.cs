@@ -30,7 +30,9 @@ internal sealed class RunScriptMousePositionExecutor(IMousePositionProvider? mou
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        var position = await _mousePositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+        var position = await _mousePositionProvider.GetAbsolutePositionAsync()
+            .WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
         if (position is not { } currentPosition)
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: The current mouse position is unavailable in this session.");

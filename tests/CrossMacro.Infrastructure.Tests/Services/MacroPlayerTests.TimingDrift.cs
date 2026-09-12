@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed partial class MacroPlayerTests
@@ -27,7 +29,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro, options);
+        await player.PlayAsync(macro, options, CancellationToken.None);
 
         // Assert
         _ = timing.WaitCalls.Should().Contain(123);
@@ -57,7 +59,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro, options);
+        await player.PlayAsync(macro, options, CancellationToken.None);
 
         // Assert
         _ = timing.WaitCalls.Should().BeEmpty();
@@ -88,7 +90,7 @@ public sealed partial class MacroPlayerTests
             RepeatDelayMaxMs = 77,
         };
 
-        await player.PlayAsync(macro, options);
+        await player.PlayAsync(macro, options, CancellationToken.None);
 
         _ = timing.WaitCalls.Should().ContainSingle().Which.Should().Be(77);
     }
@@ -120,7 +122,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         // Assert
         _ = timing.WaitCalls.Should().ContainSingle();
@@ -156,7 +158,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = timing.WaitCalls.Should().ContainSingle();
         _ = timing.WaitCalls[0].Should().BeApproximately(20.75, 0.001);
@@ -190,7 +192,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 2.0 });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 2.0 }, CancellationToken.None);
 
         _ = timing.WaitCalls.Should().ContainSingle();
         _ = timing.WaitCalls[0].Should().BeApproximately(0.25, 0.001);
@@ -220,8 +222,8 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        var playbackTask = player.PlayAsync(macro);
-        _ = await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var playbackTask = player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+        _ = await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         // Assert (before delay released)
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
@@ -259,7 +261,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         // Assert
         _ = timing.WaitCalls.Should().ContainSingle();
@@ -306,15 +308,15 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await delayWaitEntered.WaitAsync(TestTimeout);
+        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, CancellationToken.None);
+        await delayWaitEntered.WaitAsync(TestTimeout, CancellationToken.None);
 
         player.Pause();
         _ = player.IsPaused.Should().BeTrue();
 
         // Let the in-flight delay continue so pause is honored via pause token wait.
         releaseDelayWait.Signal();
-        await pauseObserved.WaitAsync(TestTimeout);
+        await pauseObserved.WaitAsync(TestTimeout, CancellationToken.None);
         _ = playbackTask.IsCompleted.Should().BeFalse();
 
         player.ResumePlayback();
@@ -361,7 +363,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        var act = async () => await player.PlayAsync(macro, options);
+        var act = async () => await player.PlayAsync(macro, options, CancellationToken.None);
 
         // Assert
         _ = await act.Should().NotThrowAsync();
@@ -403,7 +405,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, CancellationToken.None);
 
         // Assert
         _ = timing.WaitCalls.Should().HaveCount(2);
@@ -449,7 +451,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 5.0 });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 5.0 }, CancellationToken.None);
 
         // Assert
         _ = timing.WaitCalls.Should().HaveCount(2);
@@ -499,7 +501,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, CancellationToken.None);
 
         // Assert
         _ = timing.WaitCalls.Should().ContainInOrder(40, 40);
@@ -560,12 +562,12 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await pausedAtSecondEvent.WaitAsync(TestTimeout);
+        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, CancellationToken.None);
+        await pausedAtSecondEvent.WaitAsync(TestTimeout, CancellationToken.None);
         _ = playbackTask.IsCompleted.Should().BeFalse();
 
         player.ResumePlayback();
-        await secondWaitEntered.WaitAsync(TestTimeout);
+        await secondWaitEntered.WaitAsync(TestTimeout, CancellationToken.None);
         await playbackTask;
 
         // Assert
@@ -610,7 +612,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, CancellationToken.None);
 
         // Assert
         _ = timing.WaitCalls.Count.Should().BeGreaterThanOrEqualTo(2);
@@ -649,7 +651,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 10.0 });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 10.0 }, CancellationToken.None);
 
         _ = timing.WaitCalls.Should().OnlyContain(d => d > 0);
     }
@@ -693,10 +695,11 @@ public sealed partial class MacroPlayerTests
         var macro = new MacroSequence();
         macro.ReplaceEvents(events);
 
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed }, CancellationToken.None);
 
         _ = timing.WaitCalls.Skip(1).Should().OnlyContain(d => d > 0,
-            $"at {speed}x with {stallMs}ms stall, subsequent events must not burst");
+            string.Create(CultureInfo.InvariantCulture,
+                $"at {speed}x with {stallMs}ms stall, subsequent events must not burst"));
     }
 
     [Theory]
@@ -735,7 +738,7 @@ public sealed partial class MacroPlayerTests
 
         var macro = new MacroSequence();
         macro.ReplaceEvents(events);
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = speed }, CancellationToken.None);
 
         _ = timing.WaitCalls.Should().NotBeEmpty();
     }
@@ -772,7 +775,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
+        await player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, CancellationToken.None);
 
         _ = timing.WaitCalls.Should().OnlyContain(d => d > 0);
     }

@@ -12,28 +12,38 @@ internal sealed class RunScriptWindowExecutor
 
     internal const string CommandToken = "window";
 
-    private static readonly Dictionary<string, IWindowCommandHandler> _handlers = new IWindowCommandHandler[]
+    private readonly Dictionary<string, IWindowCommandHandler> _handlers;
+
+    private static readonly IReadOnlyDictionary<string, IWindowCommandHandler> ValidationHandlers = CreateHandlers(TimeProvider.System);
+
+    private static Dictionary<string, IWindowCommandHandler> CreateHandlers(
+        TimeProvider timeProvider,
+        Func<TimeSpan, CancellationToken, Task>? delayAsync = null) => new IWindowCommandHandler[]
         {
             new WindowActiveCommandHandler(),
             new WindowSearchCommandHandler(),
             new WindowFocusCommandHandler(),
             new WindowCloseCommandHandler(),
-            new WindowWaitCommandHandler(),
-            new WindowMoveCommandHandler(),
-            new WindowResizeCommandHandler(),
-            new WindowStateCommandHandler("fullscreen"),
-            new WindowStateCommandHandler("maximize"),
-            new WindowStateCommandHandler("float"),
-            new WindowStateCommandHandler("center"),
+            new WindowWaitCommandHandler(timeProvider, delayAsync),
+            new WindowMoveCommandHandler(delayAsync),
+            new WindowResizeCommandHandler(delayAsync),
+            new WindowStateCommandHandler("fullscreen", delayAsync),
+            new WindowStateCommandHandler("maximize", delayAsync),
+            new WindowStateCommandHandler("float", delayAsync),
+            new WindowStateCommandHandler("center", delayAsync),
             new WindowWorkspaceCommandHandler("getdesktop"),
             new WindowWorkspaceCommandHandler("setdesktop"),
             new WindowWorkspaceCommandHandler("setdesktopforwindow"),
         }
         .ToDictionary(h => h.SubCommand, StringComparer.OrdinalIgnoreCase);
 
-    public RunScriptWindowExecutor(IWindowManager windowManager)
+    public RunScriptWindowExecutor(
+        IWindowManager windowManager,
+        TimeProvider? timeProvider = null,
+        Func<TimeSpan, CancellationToken, Task>? delayAsync = null)
     {
         ArgumentNullException.ThrowIfNull(windowManager);
+        _handlers = CreateHandlers(timeProvider ?? TimeProvider.System, delayAsync);
         _queryService = windowManager;
         _mutationService = windowManager;
         _workspaceService = windowManager;
@@ -65,9 +75,9 @@ internal sealed class RunScriptWindowExecutor
         }
 
         var sub = parts[1];
-        if (!_handlers.TryGetValue(sub, out var handler))
+        if (!ValidationHandlers.TryGetValue(sub, out var handler))
         {
-            return $"Unknown window sub-command '{sub}'. Expected: {string.Join(", ", _handlers.Keys)}.";
+            return $"Unknown window sub-command '{sub}'. Expected: {string.Join(", ", ValidationHandlers.Keys)}.";
         }
 
         return handler.Validate(parts);

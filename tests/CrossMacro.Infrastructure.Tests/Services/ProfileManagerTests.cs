@@ -21,6 +21,18 @@ public sealed class ProfileManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateProfileAsync_UsesInjectedTimeProviderForCreationMetadata()
+    {
+        var expected = new DateTimeOffset(2030, 2, 3, 4, 5, 6, TimeSpan.Zero);
+        var manager = new ProfileManager(_tempPath, new FakeTimeProvider(expected));
+        await manager.InitializeAsync();
+
+        var profile = await manager.CreateProfileAsync("Timed Profile");
+
+        _ = profile.CreatedAt.Should().Be(expected.UtcDateTime);
+    }
+
+    [Fact]
     public void Dispose_CanBeCalledRepeatedly()
     {
         var manager = new ProfileManager(_tempPath);
@@ -242,7 +254,7 @@ public sealed class ProfileManagerTests : IDisposable
         _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         _ = schedulerService.IsRunning.Returns(returnThis: true);
         _ = schedulerService.Completion.Returns(Task.CompletedTask);
-        _ = schedulerService.StopAsync().Returns(_ =>
+        _ = schedulerService.StopAsync(CancellationToken.None).Returns(_ =>
         {
             order.Add("stop");
             return Task.CompletedTask;
@@ -287,7 +299,7 @@ public sealed class ProfileManagerTests : IDisposable
         _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         _ = schedulerService.IsRunning.Returns(returnThis: true);
         _ = schedulerService.Completion.Returns(unresolvedLifetime.Task);
-        _ = schedulerService.StopAsync().Returns(Task.CompletedTask);
+        _ = schedulerService.StopAsync(CancellationToken.None).Returns(Task.CompletedTask);
 
         var manager = CreateCoordinator(
             new ProfileManager(_tempPath),
@@ -422,7 +434,7 @@ public sealed class ProfileManagerTests : IDisposable
             }
 
             var suffix = Path.GetRelativePath(current.FullName, tempPath);
-            return suffix == "." ? targetPath : Path.Combine(targetPath, suffix);
+            return string.Equals(suffix, ".", StringComparison.Ordinal) ? targetPath : Path.Combine(targetPath, suffix);
         }
 
         return tempPath;

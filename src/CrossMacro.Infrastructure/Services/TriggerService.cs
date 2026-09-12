@@ -10,6 +10,7 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
     private readonly IProfileSwitchRequests _profileSwitchRequests;
     private readonly IMacroFileManager _macroFileManager;
     private readonly Func<IMacroPlayer> _macroPlayerFactory;
+    private readonly TimeProvider _timeProvider;
     private SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
     private TaskCompletionSource? _disposeCompletion;
@@ -64,11 +65,23 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
         IMacroFileManager macroFileManager,
         Func<IMacroPlayer> macroPlayerFactory,
         string? triggersFilePath = null)
+        : this(windowManager, profileSwitchRequests, macroFileManager, macroPlayerFactory, triggersFilePath, TimeProvider.System)
+    {
+    }
+
+    public TriggerService(
+        IWindowManager? windowManager,
+        IProfileSwitchRequests profileSwitchRequests,
+        IMacroFileManager macroFileManager,
+        Func<IMacroPlayer> macroPlayerFactory,
+        string? triggersFilePath,
+        TimeProvider timeProvider)
     {
         _windowManager = windowManager;
         _profileSwitchRequests = profileSwitchRequests;
         _macroFileManager = macroFileManager;
         _macroPlayerFactory = macroPlayerFactory;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _syncContext = SynchronizationContext.Current;
 
         _triggersFilePath = string.IsNullOrWhiteSpace(triggersFilePath)
@@ -356,18 +369,18 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
                 {
                     if (matched && !was)
                     {
-                        _firstMatchedAt[task.Id] = DateTime.UtcNow;
+                        _firstMatchedAt[task.Id] = _timeProvider.GetUtcNow().UtcDateTime;
                         shouldFire = false;
                     }
                     else if (matched && was
                              && _firstMatchedAt.TryGetValue(task.Id, out var firstSeen)
-                             && DateTime.UtcNow - firstSeen < TimeSpan.FromMilliseconds(debounceMs))
+                             && _timeProvider.GetUtcNow().UtcDateTime - firstSeen < TimeSpan.FromMilliseconds(debounceMs))
                     {
                         shouldFire = false;
                     }
                     else if (matched && was
                              && _firstMatchedAt.TryGetValue(task.Id, out var firstSeen2)
-                             && DateTime.UtcNow - firstSeen2 >= TimeSpan.FromMilliseconds(debounceMs))
+                             && _timeProvider.GetUtcNow().UtcDateTime - firstSeen2 >= TimeSpan.FromMilliseconds(debounceMs))
                     {
                         // Stable match survived the debounce window — allow fire this once.
                         // Reset the debounce tracking timestamp now that the trigger has fired.
@@ -384,7 +397,7 @@ or TriggerFireMode.OnEnter)
                 if (shouldFire
                     && task.CooldownMs is { } cdMs && cdMs > 0
                     && task.LastTriggeredTime is { } last
-                    && DateTime.UtcNow - last < TimeSpan.FromMilliseconds(cdMs))
+                    && _timeProvider.GetUtcNow().UtcDateTime - last < TimeSpan.FromMilliseconds(cdMs))
                 {
                     shouldFire = false;
                 }
@@ -503,7 +516,7 @@ or TriggerFireMode.OnEnter)
             Log.Warning(ex, "Trigger action failed for task {TaskId}", task.Id);
         }
 
-        var timestamp = DateTime.UtcNow;
+        var timestamp = _timeProvider.GetUtcNow().UtcDateTime;
         var finalMessage = message;
         void UpdateTaskState(object? _)
         {

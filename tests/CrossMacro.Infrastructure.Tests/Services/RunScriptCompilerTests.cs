@@ -31,7 +31,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().HaveCount(4);
+        _ = result.Sequence.Events.Should().HaveCount(4);
         _ = result.Sequence.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
             (EventType.KeyPress, 42),
             (EventType.KeyPress, 30),
@@ -80,7 +80,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = result.Sequence.IsAbsoluteCoordinates.Should().BeFalse();
         _ = result.Sequence.Events.Should().HaveCount(2);
         _ = result.Sequence.Events.Select(e => (e.Type, e.X, e.Y, e.CoordinateMode)).Should().Equal(
             (EventType.MouseMove, 100, 200, MouseCoordinateMode.Absolute),
@@ -98,7 +98,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().ContainSingle();
+        _ = result.Sequence.Events.Should().ContainSingle();
         _ = result.Sequence.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
         _ = result.Sequence.Events[0].CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
     }
@@ -147,7 +147,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().HaveCount(2);
+        _ = result.Sequence.Events.Should().HaveCount(2);
         _ = result.Sequence.Events.Should().OnlyContain(
             ev => ev.CoordinateMode == MouseCoordinateMode.Relative
                 && ev.CoordinateSpace == MouseCoordinateSpace.RawDevice);
@@ -164,7 +164,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().HaveCount(2);
+        _ = result.Sequence.Events.Should().HaveCount(2);
         var click = result.Sequence.Events[1];
         _ = click.Type.Should().Be(EventType.Click);
         _ = click.Button.Should().Be(MacroMouseButton.Left);
@@ -188,7 +188,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = result.Sequence.IsAbsoluteCoordinates.Should().BeFalse();
         _ = result.Sequence.Events.Should().HaveCount(4);
         _ = result.Sequence.Events.Select(e => (e.Type, e.Button, e.X, e.Y, e.CoordinateMode)).Should().Equal(
             (EventType.MouseMove, MacroMouseButton.None, 100, 200, MouseCoordinateMode.Absolute),
@@ -209,7 +209,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        var click = result.Sequence!.Events[1];
+        var click = result.Sequence.Events[1];
         _ = click.UseCurrentPosition.Should().BeTrue();
         _ = click.X.Should().Be(0);
         _ = click.Y.Should().Be(0);
@@ -242,7 +242,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue(result.ErrorMessage);
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.Events.Should().BeEmpty();
         _ = result.Sequence.ScriptSteps.Should().ContainSingle().Which.Should().Be("delay 100");
     }
 
@@ -267,7 +267,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
+        _ = result.Sequence.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
             (EventType.KeyPress, 100),
             (EventType.KeyPress, 16),
             (EventType.KeyRelease, 16),
@@ -283,7 +283,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
+        _ = result.Sequence.Events.Select(e => (e.Type, e.KeyCode)).Should().Equal(
             (EventType.KeyPress, 29),
             (EventType.KeyRelease, 29));
     }
@@ -303,7 +303,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().ContainSingle();
+        _ = result.Sequence.Events.Should().ContainSingle();
         _ = result.Sequence.Events[0].Type.Should().Be(EventType.Click);
         _ = result.Sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
         _ = result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
@@ -324,7 +324,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue(result.ErrorMessage);
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().ContainSingle();
+        _ = result.Sequence.Events.Should().ContainSingle();
         _ = result.Sequence.Events[0].Type.Should().Be(EventType.Click);
         _ = result.Sequence.Events[0].Button.Should().Be(MacroMouseButton.Left);
         _ = result.Sequence.Events[0].UseCurrentPosition.Should().BeTrue();
@@ -360,21 +360,8 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue(result.ErrorMessage);
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.Events.Should().BeEmpty();
         _ = result.Sequence.ScriptSteps.Should().Equal("clipboard get $clip");
-    }
-
-    [Theory]
-    [InlineData("clipboard capture ctrl+c selectedText")]
-    [InlineData("clipboard capture ctrl+shift+c $selectedText")]
-    public void Compile_WhenClipboardCaptureIsWellFormed_PreservesScriptStep(string step)
-    {
-        var result = _compiler.Compile([new RunScriptStep(step)]);
-
-        _ = result.Success.Should().BeTrue(result.ErrorMessage);
-        _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().BeEmpty();
-        _ = result.Sequence.ScriptSteps.Should().Equal(step);
     }
 
     [Theory]
@@ -392,7 +379,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue(result.ErrorMessage);
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.Events.Should().BeEmpty();
         _ = result.Sequence.ScriptSteps.Should().ContainSingle().Which.Should().Be(step);
     }
 
@@ -412,7 +399,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue(result.ErrorMessage);
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.Events.Should().BeEmpty();
         _ = result.Sequence.ScriptSteps.Should().Equal("shell \"printf hello   world\" 2 100 5000");
     }
 
@@ -425,7 +412,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue(result.ErrorMessage);
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.Events.Should().BeEmpty();
         _ = result.Sequence.ScriptSteps.Should().Equal(step);
     }
 
@@ -561,13 +548,15 @@ public sealed class RunScriptCompilerTests
     [InlineData("screenshot output shot.png clipboard")]
     [InlineData("screenshot region 1 2 3 4 output shot.png")]
     [InlineData("screenshot region $x $y $w $h clipboard")]
-    public void Compile_WhenRuntimeScriptStepIsWellFormed_PreservesScriptStep(string step)
+    [InlineData("clipboard capture ctrl+c selectedText")]
+    [InlineData("clipboard capture ctrl+shift+c $selectedText")]
+    public void Compile_WhenWellFormedScriptStep_PreservesScriptStep(string step)
     {
         var result = _compiler.Compile([new RunScriptStep(step)]);
 
         _ = result.Success.Should().BeTrue(result.ErrorMessage);
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().BeEmpty();
+        _ = result.Sequence.Events.Should().BeEmpty();
         _ = result.Sequence.ScriptSteps.Should().Equal(step);
     }
 
@@ -609,7 +598,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue(result.ErrorMessage);
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.ScriptSteps.Should().Equal("set wait_ms 5", "pixelcolor 1 2 sampled", "delay $wait_ms");
+        _ = result.Sequence.ScriptSteps.Should().Equal("set wait_ms 5", "pixelcolor 1 2 sampled", "delay $wait_ms");
     }
 
     [Fact]
@@ -804,7 +793,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().HaveCount(8);
+        _ = result.Sequence.Events.Should().HaveCount(8);
         _ = result.Sequence.Events.Should().OnlyContain(ev => ev.Type == EventType.Click);
     }
 
@@ -821,7 +810,7 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().HaveCount(5);
+        _ = result.Sequence.Events.Should().HaveCount(5);
     }
 
     [Fact]
@@ -866,7 +855,7 @@ public sealed class RunScriptCompilerTests
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
         // i runs 1..6 inclusive: six clicks.
-        _ = result.Sequence!.Events.Should().HaveCount(6);
+        _ = result.Sequence.Events.Should().HaveCount(6);
     }
 
     [Fact]
@@ -897,6 +886,6 @@ public sealed class RunScriptCompilerTests
 
         _ = result.Success.Should().BeTrue();
         _ = result.Sequence.Should().NotBeNull();
-        _ = result.Sequence!.Events.Should().ContainSingle(ev => ev.Type == EventType.Click);
+        _ = result.Sequence.Events.Should().ContainSingle(ev => ev.Type == EventType.Click);
     }
 }

@@ -1,4 +1,6 @@
 
+using System.Globalization;
+
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed class GlobalHotkeyServiceTests : IDisposable
@@ -14,6 +16,18 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     private readonly IMouseButtonMapper _mouseButtonMapper;
     private readonly IInputCapture _inputCapture;
     private readonly GlobalHotkeyService _service;
+
+    [Fact]
+    public void RawHotkeyInputEventArgs_NullPressedModifiers_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => new RawHotkeyInputEventArgs(1, null!, "F1"));
+    }
+
+    [Fact]
+    public void RawHotkeyInputEventArgs_NullHotkeyString_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => new RawHotkeyInputEventArgs(1, new HashSet<int>(), null!));
+    }
 
     public GlobalHotkeyServiceTests()
     {
@@ -79,6 +93,23 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DefaultAsyncAdapters_HonorCancellationAndDelegateSynchronousStop()
+    {
+        IGlobalHotkeyService service = new SynchronousOnlyHotkeyService();
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            await service.InitializeAsync(cancellation.Token));
+        _ = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            await service.StopHotkeyServiceAsync(cancellation.Token));
+
+        await service.StopHotkeyServiceAsync(CancellationToken.None);
+
+        Assert.True(((SynchronousOnlyHotkeyService)service).WasStopped);
+    }
+
+    [Fact]
     public void Start_InitializesInputCapture()
     {
         // Act
@@ -103,7 +134,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     [Fact]
     public async Task CaptureNextKeyAsync_WhenServiceNotRunning_FailsFast()
     {
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CaptureNextKeyAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CaptureNextKeyAsync(CancellationToken.None));
 
         Assert.Contains("not running", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -126,7 +157,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         service.Start();
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CaptureNextKeyAsync());
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CaptureNextKeyAsync(CancellationToken.None));
 
         Assert.Contains("No usable Linux input capture backend is available", error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("No usable Linux input capture backend is available", service.LastError, StringComparison.OrdinalIgnoreCase);
@@ -139,7 +170,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         using var cts = new CancellationTokenSource();
         var captureTask = _service.CaptureNextKeyAsync(cts.Token);
-        cts.Cancel();
+        await cts.CancelAsync();
 
         _ = await Assert.ThrowsAsync<TaskCanceledException>(async () => await captureTask);
         Assert.Null(_service.LastError);
@@ -149,9 +180,9 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     public async Task CaptureNextKeyAsync_WhenServiceStops_CompletesAsCanceled()
     {
         _service.Start();
-        var captureTask = _service.CaptureNextKeyAsync();
+        var captureTask = _service.CaptureNextKeyAsync(CancellationToken.None);
 
-        _service.StopHotkeyService();
+        await _service.StopHotkeyServiceAsync(CancellationToken.None);
 
         _ = await Assert.ThrowsAsync<TaskCanceledException>(async () => await captureTask);
     }
@@ -222,7 +253,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         // Assert
         Assert.NotNull(received);
-        Assert.Equal(InputEventCode.BTN_EXTRA, received!.KeyCode);
+        Assert.Equal(InputEventCode.BTN_EXTRA, received.KeyCode);
         Assert.Equal("Mouse Extra", received.HotkeyString);
     }
 
@@ -245,7 +276,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         // Assert
         Assert.NotNull(released);
-        Assert.Equal(InputEventCode.BTN_EXTRA, released!.KeyCode);
+        Assert.Equal(InputEventCode.BTN_EXTRA, released.KeyCode);
         Assert.Equal(string.Empty, released.HotkeyString);
     }
 
@@ -281,7 +312,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         _service.Dispose();
 
-        Assert.Equal(ExpectedUpdateHotkeys, saved);
+        Assert.Equal(ExpectedUpdateHotkeys, saved, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -308,14 +339,14 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             });
 
         _service.UpdateHotkeys("F1", "F10", "F11");
-        _ = await saveStarted.Task.WaitAsync(TestTimeout);
+        _ = await saveStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
         currentPath = "profile-b/hotkeys.json";
         _ = allowSave.TrySetResult(true);
 
         _service.Dispose();
 
         Assert.NotNull(request);
-        Assert.Equal("profile-a/hotkeys.json", request!.ConfigPath);
+        Assert.Equal("profile-a/hotkeys.json", request.ConfigPath);
     }
 
     [Fact]
@@ -326,7 +357,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _service.ErrorOccurred += (_, error) => observed.TrySetResult(error.Message);
 
         _service.UpdateHotkeys("F1", "F10", "F11");
-        var error = await observed.Task.WaitAsync(TestTimeout);
+        var error = await observed.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
         _service.Dispose();
 
         Assert.Contains("Failed to save hotkey configuration", error, StringComparison.Ordinal);
@@ -394,7 +425,8 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         });
 
         var layoutService = Substitute.For<IKeyboardLayoutService>();
-        _ = layoutService.GetKeyName(Arg.Any<int>()).Returns(call => $"Key{call.Arg<int>()}");
+        _ = layoutService.GetKeyName(Arg.Any<int>()).Returns(call =>
+            string.Create(CultureInfo.InvariantCulture, $"Key{call.Arg<int>()}"));
         var keyCodeMapper = new KeyCodeMapper(layoutService);
         var inputCapture = Substitute.For<IInputCapture>();
         capture = inputCapture;
@@ -436,7 +468,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         restartingService.Start();
 
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("simulated capture error"));
-        _ = await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         firstCapture.Received(1).StopCapture();
         firstCapture.Received(1).Dispose();
@@ -480,8 +512,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             this,
             new InputCaptureErrorEventArgs(message));
 
-        Assert.Equal(message, await errorObserved.Task.WaitAsync(TestTimeout));
-        await Task.Delay(TimeSpan.FromMilliseconds(400));
+        Assert.Equal(message, await errorObserved.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None));
         Assert.Equal(1, factoryCalls);
         Assert.Equal(message, service.LastError);
     }
@@ -516,7 +547,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _ = firstStarted.TrySetResult(true);
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("transient post-start failure"));
 
-        _ = await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.True(restartingService.IsRunning);
         firstCapture.Received(1).StopCapture();
@@ -557,7 +588,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             this,
             new InputCaptureErrorEventArgs("Recovery: Windows session unlocked; restarting input capture."));
 
-        await secondStarted.WaitAsync(TestTimeout);
+        await secondStarted.WaitAsync(TestTimeout, CancellationToken.None);
 
         Assert.False(notified);
         _modifierTracker.Received(1).Clear();
@@ -601,7 +632,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         restartingService.Start();
 
-        await startupFaultObserved.WaitAsync(TestTimeout);
+        await startupFaultObserved.WaitAsync(TestTimeout, CancellationToken.None);
 
         Assert.False(restartingService.IsRunning);
         Assert.Equal(1, factoryCallCount);
@@ -645,7 +676,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         restartingService.Start();
 
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("simulated capture error"));
-        await restartFailureObserved.WaitAsync(TestTimeout);
+        await restartFailureObserved.WaitAsync(TestTimeout, CancellationToken.None);
 
         Assert.False(restartingService.IsRunning);
         Assert.Contains("Restart failed", restartingService.LastError, StringComparison.OrdinalIgnoreCase);
@@ -666,6 +697,60 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             secondCapture.Dispose();
         });
 
-        restartingService.StopHotkeyService();
+        await restartingService.StopHotkeyServiceAsync(CancellationToken.None);
+    }
+
+    private sealed class SynchronousOnlyHotkeyService : IGlobalHotkeyService
+    {
+        public int RecordingHotkeyCode => -1;
+        public int PlaybackHotkeyCode => -1;
+        public int PauseHotkeyCode => -1;
+        public bool IsRunning => false;
+        public bool WasStopped { get; private set; }
+        public string? LastError => null;
+
+        public event EventHandler? ToggleRecordingRequested
+        {
+            add { }
+            remove { }
+        }
+
+        public event EventHandler? TogglePlaybackRequested
+        {
+            add { }
+            remove { }
+        }
+
+        public event EventHandler? TogglePauseRequested
+        {
+            add { }
+            remove { }
+        }
+
+        public event EventHandler<RawHotkeyInputEventArgs>? RawInputReceived
+        {
+            add { }
+            remove { }
+        }
+
+        public event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased
+        {
+            add { }
+            remove { }
+        }
+
+        public event EventHandler<GlobalHotkeyErrorEventArgs>? ErrorOccurred
+        {
+            add { }
+            remove { }
+        }
+
+        public void Start() { }
+        public void StopHotkeyService() => WasStopped = true;
+        public void UpdateHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey) { }
+        public void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey) { }
+        public Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+        public void SetPlaybackPauseHotkeysEnabled(bool enabled) { }
+        public void Dispose() { }
     }
 }

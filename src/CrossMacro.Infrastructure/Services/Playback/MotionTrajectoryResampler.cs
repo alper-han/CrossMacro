@@ -333,7 +333,7 @@ internal static class MotionTrajectoryResampler
             destination.X = anchor.X;
             destination.Y = anchor.Y;
             resampled[outputIndex] = destination;
-            protectedIndices.Add(outputIndex);
+            _ = protectedIndices.Add(outputIndex);
             replacements++;
         }
 

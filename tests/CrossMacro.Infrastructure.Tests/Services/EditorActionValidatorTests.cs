@@ -23,6 +23,16 @@ public sealed class EditorActionValidatorTests
     }
 
     [Fact]
+    public void ValidateAll_WhenActionIsNull_ReturnsStableValidationError()
+    {
+        var result = _validator.ValidateAll([null!]);
+
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().ContainSingle()
+            .Which.Should().Be("Action 1 (null): Action cannot be null");
+    }
+
+    [Fact]
     public void Validate_MouseButtonWithScrollButton_ReturnsInvalid()
     {
         // Arrange
@@ -490,6 +500,8 @@ public sealed class EditorActionValidatorTests
             EditorActionType.Screenshot => throw new NotSupportedException(),
             EditorActionType.WindowCommand => throw new NotSupportedException(),
             EditorActionType.RawScriptStep => throw new NotSupportedException(),
+            EditorActionType.MousePosition => throw new NotSupportedException(),
+            EditorActionType.CopySelectionToVariable => throw new NotSupportedException(),
             _ => throw new ArgumentOutOfRangeException(nameof(actionType), actionType, message: null),
         };
     }

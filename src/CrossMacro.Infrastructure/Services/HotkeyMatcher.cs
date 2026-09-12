@@ -4,10 +4,11 @@ namespace CrossMacro.Infrastructure.Services;
 /// <summary>
 /// Matches input key codes against configured hotkey mappings with debounce support.
 /// </summary>
-public class HotkeyMatcher : IHotkeyMatcher
+public class HotkeyMatcher(TimeProvider? timeProvider = null) : IHotkeyMatcher
 {
     private readonly Dictionary<string, DateTime> _lastHotkeyPressTimes = new(StringComparer.Ordinal);
     private readonly Lock _lock = new();
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     private const int DefaultDebounceMs = 300;
 
@@ -39,7 +40,7 @@ public class HotkeyMatcher : IHotkeyMatcher
         }
 
         // Check debounce
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         using (_lock.EnterScope())
         {
             if (_lastHotkeyPressTimes.TryGetValue(actionName, out var lastTime) && now - lastTime < DebounceInterval)

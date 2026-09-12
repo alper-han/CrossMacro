@@ -44,11 +44,11 @@ public sealed class ScreenshotCaptureServiceTests
     public async Task CapturePngAsync_WhenAlreadyCanceled_DoesNotCapture()
     {
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         var provider = new FakeScreenFrameProvider();
         var service = new ScreenshotCaptureService(provider, new FakeImageClipboardService());
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => service.CapturePngAsync(
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => service.CapturePngAsync(
             new ScreenshotPngCaptureRequest(),
             cancellation.Token));
 
@@ -71,7 +71,7 @@ public sealed class ScreenshotCaptureServiceTests
             Assert.True(result.Success);
             Assert.Equal(1, provider.CaptureCalls);
             Assert.Equal(1, codec.EncodeCallCount);
-            Assert.Equal(await File.ReadAllBytesAsync(outputPath), clipboard.PngBytes);
+            Assert.Equal(await File.ReadAllBytesAsync(outputPath, provider.LastOptions.CancellationToken), clipboard.PngBytes);
         }
         finally
         {
@@ -104,7 +104,7 @@ public sealed class ScreenshotCaptureServiceTests
             Assert.Equal(Path.GetFullPath(outputPath), data.OutputPath);
             Assert.True(data.CopiedToClipboard);
             Assert.True(data.IsRegion);
-            Assert.Equal(data.PngBytes.ToArray(), await File.ReadAllBytesAsync(outputPath));
+            Assert.Equal(data.PngBytes.ToArray(), await File.ReadAllBytesAsync(outputPath, CancellationToken.None));
             Assert.Equal(data.PngBytes.ToArray(), clipboard.PngBytes);
         }
         finally
@@ -179,7 +179,7 @@ public sealed class ScreenshotCaptureServiceTests
             Assert.Equal(new ScreenRect(1, 2, 2, 1), provider.LastRegion);
             Assert.Equal(TimeSpan.FromSeconds(1), provider.LastOptions.Timeout);
             Assert.True(File.Exists(outputPath));
-            var bytes = await File.ReadAllBytesAsync(outputPath);
+            var bytes = await File.ReadAllBytesAsync(outputPath, provider.LastOptions.CancellationToken);
             Assert.Equal([0x89, 0x50, 0x4E, 0x47], bytes[..4]);
             var data = result.Data;
             Assert.NotNull(data);

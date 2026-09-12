@@ -1,8 +1,11 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-internal sealed class WindowResizeCommandHandler : IWindowCommandHandler
+internal sealed class WindowResizeCommandHandler(
+    Func<TimeSpan, CancellationToken, Task>? delayAsync = null) : IWindowCommandHandler
 {
+    private readonly Func<TimeSpan, CancellationToken, Task>? _delayAsync = delayAsync;
+
     public string SubCommand => "resize";
     public string? Validate(string[] parts)
     {
@@ -27,7 +30,7 @@ internal sealed class WindowResizeCommandHandler : IWindowCommandHandler
     {
         var w = int.Parse(parts[2], CultureInfo.InvariantCulture);
         var h = int.Parse(parts[3], CultureInfo.InvariantCulture);
-        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
+        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken, _delayAsync).ConfigureAwait(false);
         _ = await mutator.ResizeActiveWindowAsync(w, h, cancellationToken).ConfigureAwait(false);
     }
 }

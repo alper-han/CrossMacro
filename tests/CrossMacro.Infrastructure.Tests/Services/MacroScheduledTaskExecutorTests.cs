@@ -24,6 +24,24 @@ public sealed class MacroScheduledTaskExecutorTests
     }
 
     [Fact]
+    public void Constructor_WhenFileManagerIsNull_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => new MacroScheduledTaskExecutor(null!, () => _player, _timeProvider));
+    }
+
+    [Fact]
+    public void Constructor_WhenPlayerFactoryIsNull_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => new MacroScheduledTaskExecutor(_fileManager, null!, _timeProvider));
+    }
+
+    [Fact]
+    public void Constructor_WhenTimeProviderIsNull_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => new MacroScheduledTaskExecutor(_fileManager, () => _player, null!));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenFileDoesNotExist_UpdatesStatusAndFails()
     {
         // Arrange
@@ -35,7 +53,7 @@ public sealed class MacroScheduledTaskExecutorTests
         // A better approach for the future would be IFileSystem, but for now we assume it doesn't exist.
 
         // Act
-        await _executor.ExecuteAsync(task);
+        await _executor.ExecuteAsync(task, CancellationToken.None);
 
         // Assert
         _ = task.LastStatus.Should().Be("Macro file not found");
@@ -63,7 +81,7 @@ public sealed class MacroScheduledTaskExecutorTests
             _ = _fileManager.LoadAsync(tempFile).Returns(missingMacro);
 
             // Act
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, CancellationToken.None);
 
             // Assert
             _ = task.LastStatus.Should().Be("Failed to load macro");
@@ -98,10 +116,10 @@ public sealed class MacroScheduledTaskExecutorTests
             _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
             // Act
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, CancellationToken.None);
 
             // Assert
-            await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>());
+            await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>(), CancellationToken.None);
             _ = task.LastStatus.Should().Be("Success");
             _ = task.LastRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
 
@@ -137,7 +155,7 @@ public sealed class MacroScheduledTaskExecutorTests
             _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
             // Act
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, CancellationToken.None);
 
             // Assert
             _ = task.IsEnabled.Should().BeFalse();
@@ -170,11 +188,11 @@ public sealed class MacroScheduledTaskExecutorTests
             var macro = new MacroSequence();
             _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
-            _player.When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>()))
+            _player.When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>()))
                    .Do(x => throw new InvalidOperationException("Unexpected crash"));
 
             // Act
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, CancellationToken.None);
 
             // Assert
             _ = task.LastStatus.Should().Contain("Error");
@@ -208,12 +226,13 @@ public sealed class MacroScheduledTaskExecutorTests
             _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
             // Act
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, CancellationToken.None);
 
             // Assert
             await _player.Received(1).PlayAsync(
                 macro,
-                Arg.Is<PlaybackOptions>(o => o.SpeedMultiplier == PlaybackOptions.MinSpeedMultiplier));
+                Arg.Is<PlaybackOptions>(o => double.Equals(o.SpeedMultiplier, PlaybackOptions.MinSpeedMultiplier)),
+                CancellationToken.None);
         }
         finally
         {
@@ -242,7 +261,7 @@ public sealed class MacroScheduledTaskExecutorTests
             MacroSequence? missingIntervalMacro = null;
             _ = _fileManager.LoadAsync(tempFile).Returns(missingIntervalMacro);
 
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, CancellationToken.None);
 
             _ = task.LastStatus.Should().Be("Failed to load macro");
             _ = task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(15));
@@ -274,10 +293,10 @@ public sealed class MacroScheduledTaskExecutorTests
             var macro = new MacroSequence();
             _ = _fileManager.LoadAsync(tempFile).Returns(macro);
             _player
-                .When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>()))
+                .When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>()))
                 .Do(_ => throw new InvalidOperationException("Unexpected crash"));
 
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, CancellationToken.None);
 
             _ = task.LastStatus.Should().Contain("Unexpected crash");
             _ = task.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(30));
@@ -310,12 +329,12 @@ public sealed class MacroScheduledTaskExecutorTests
             var macro = new MacroSequence();
             _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
-            await _executor.ExecuteAsync(task);
+            await _executor.ExecuteAsync(task, CancellationToken.None);
 
-            await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>());
+            await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>(), CancellationToken.None);
             _ = task.LastStatus.Should().Be("Success");
             _ = task.NextRunTime.Should().NotBeNull();
-            _ = task.NextRunTime!.Value.Should().BeAfter(_timeProvider.GetUtcNow().UtcDateTime);
+            _ = task.NextRunTime.Value.Should().BeAfter(_timeProvider.GetUtcNow().UtcDateTime);
             _ = task.IsEnabled.Should().BeTrue();
         }
         finally
@@ -355,8 +374,8 @@ public sealed class MacroScheduledTaskExecutorTests
                 });
 
             var executionTask = _executor.ExecuteAsync(task, cts.Token);
-            _ = await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-            cts.Cancel();
+            _ = await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, cts.Token);
+            await cts.CancelAsync();
             await executionTask;
 
             _ = task.LastStatus.Should().Be("Cancelled");

@@ -38,6 +38,8 @@ public sealed class PersistedProfileSettings
 
     public bool ForceRelativeCoordinates { get; set; }
 
+    public bool UseLogicalRelativeCoordinates { get; set; }
+
     public bool SkipInitialZeroZero { get; set; }
 
     public bool EnableTextExpansion { get; set; }

@@ -6,6 +6,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
     private readonly Func<IInputSimulator> _inputSimulatorFactory;
     private readonly TextExpansionClipboardInserter _clipboardInserter;
     private readonly TextExpansionDirectTypingInserter _directTypingInserter;
+    private readonly TimeProvider _timeProvider;
     private readonly Lock _simulatorLock = new();
     private readonly SemaphoreSlim _simulatorLease = new(1, 1);
 
@@ -15,15 +16,17 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
     public TextExpansionExecutor(
         IClipboardService clipboardService,
         IKeyboardLayoutService layoutService,
-        Func<IInputSimulator> inputSimulatorFactory)
+        Func<IInputSimulator> inputSimulatorFactory,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(clipboardService);
         ArgumentNullException.ThrowIfNull(layoutService);
         ArgumentNullException.ThrowIfNull(inputSimulatorFactory);
 
         _inputSimulatorFactory = inputSimulatorFactory;
-        _clipboardInserter = new TextExpansionClipboardInserter(clipboardService);
-        _directTypingInserter = new TextExpansionDirectTypingInserter(layoutService);
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _clipboardInserter = new TextExpansionClipboardInserter(clipboardService, _timeProvider);
+        _directTypingInserter = new TextExpansionDirectTypingInserter(layoutService, _timeProvider);
     }
 
     public async Task ExpandAsync(TextExpansionModel expansion, CancellationToken cancellationToken = default)
@@ -50,7 +53,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
             if (expansion.InsertionMode is TextInsertionMode.DirectTyping)
             {
                 await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length, cancellationToken).ConfigureAwait(false);
-                await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
                 Log.Debug("Inserting expansion using direct typing mode");
                 await _directTypingInserter.InsertAsync(
                     inputSimulator,
@@ -67,7 +70,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
                 {
                     await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length, cancellationToken).ConfigureAwait(false);
                     await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
-                    await TextExpansionClipboardInserter.CommitAsync(inputSimulator, preparedPaste, expansion.Method, cancellationToken).ConfigureAwait(false);
+                    await _clipboardInserter.CommitAsync(inputSimulator, preparedPaste, expansion.Method, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -85,7 +88,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
             }
 
             await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length, cancellationToken).ConfigureAwait(false);
-            await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
             await _directTypingInserter.InsertAsync(
                 inputSimulator,
                 expansion.Replacement,
@@ -204,12 +207,12 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
         }
     }
 
-    private static async Task BackspaceTriggerAsync(IInputSimulator inputSimulator, int triggerLength, CancellationToken cancellationToken)
+    private async Task BackspaceTriggerAsync(IInputSimulator inputSimulator, int triggerLength, CancellationToken cancellationToken)
     {
         Log.Debug("Backspacing {Length} chars", triggerLength);
         for (var i = 0; i < triggerLength; i++)
         {
-            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_BACKSPACE, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await TextExpansionKeyDispatcher.SendKeyAsync(inputSimulator, InputEventCode.KEY_BACKSPACE, cancellationToken: cancellationToken, timeProvider: _timeProvider).ConfigureAwait(false);
         }
     }
 }

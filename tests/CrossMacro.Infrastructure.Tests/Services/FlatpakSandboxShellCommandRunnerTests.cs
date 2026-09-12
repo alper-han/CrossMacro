@@ -45,7 +45,7 @@ public sealed class FlatpakSandboxShellCommandRunnerTests
         Assert.False(startInfo.RedirectStandardInput);
     }
 
-    [Fact]
+    [ProcessIntegrationFact]
     public async Task RunAsync_UsesSharedCaptureInputExitAndOutputLimitContract()
     {
         if (!OperatingSystem.IsLinux())
@@ -68,7 +68,7 @@ public sealed class FlatpakSandboxShellCommandRunnerTests
         Assert.Equal("failu", result.StandardError);
     }
 
-    [Fact(Timeout = 5000)]
+    [ProcessIntegrationFact(Timeout = 5000)]
     public async Task RunAsync_WhenTimeoutExpires_UsesSharedTimeoutContract()
     {
         if (!OperatingSystem.IsLinux())
@@ -85,7 +85,7 @@ public sealed class FlatpakSandboxShellCommandRunnerTests
                 CancellationToken.None));
     }
 
-    [Fact(Timeout = 5000)]
+    [ProcessIntegrationFact(Timeout = 5000)]
     public async Task RunAsync_WhenCallerCancels_UsesSharedCancellationContract()
     {
         if (!OperatingSystem.IsLinux())
@@ -121,8 +121,14 @@ public sealed class FlatpakSandboxShellCommandRunnerTests
 
         internal FlatpakSandboxShellCommandRunner Runner { get; } = new(path);
 
+        [System.Runtime.Versioning.SupportedOSPlatform("linux")]
         internal static async Task<TestLauncher> CreateAsync()
         {
+            if (!OperatingSystem.IsLinux())
+            {
+                throw new PlatformNotSupportedException("The Flatpak launcher fixture requires Linux.");
+            }
+
             var path = Path.Combine(Path.GetTempPath(), $"crossmacro-flatpak-spawn-{Guid.NewGuid():N}");
             await File.WriteAllTextAsync(path, Script, CancellationToken.None);
             File.SetUnixFileMode(

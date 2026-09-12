@@ -38,6 +38,39 @@ public sealed class RunScriptScreenshotRuntimeTests
     }
 
     [Fact]
+    public async Task ExecuteStepAsync_WhenCaptureIsCanceled_PropagatesCancellationWithoutWrapping()
+    {
+        var service = new RecordingScreenshotCaptureService();
+        var executor = new RunScriptScreenshotExecutor(service);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var act = async () => await executor.ExecuteStepAsync(
+            "screenshot clipboard",
+            8,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            cancellation.Token);
+
+        _ = await act.Should().ThrowAsync<OperationCanceledException>();
+        _ = service.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenCaptureServiceIsMissing_ThrowsStepContext()
+    {
+        var executor = new RunScriptScreenshotExecutor(null);
+
+        var act = async () => await executor.ExecuteStepAsync(
+            "screenshot clipboard",
+            9,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Step 9: Screenshot script steps require an IScreenshotCaptureService runtime service.");
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenScreenshotOnlyScript_RunsWithoutSimulator()
     {
         var service = new RecordingScreenshotCaptureService();

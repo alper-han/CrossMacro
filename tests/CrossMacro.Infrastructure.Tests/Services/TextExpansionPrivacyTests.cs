@@ -5,6 +5,46 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 public sealed class TextExpansionPrivacyTests
 {
     [Fact]
+    public async Task SendKeyAsync_WhenTaggedKeyboardIsSupported_PropagatesTextExpansionMarker()
+    {
+        var simulator = new TaggedTestInputSimulator(supportsTaggedKeyboardInput: true);
+
+        await TextExpansionKeyDispatcher.SendKeyAsync(
+            simulator,
+            InputEventCode.KEY_A,
+            timeProvider: TimeProvider.System,
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal(
+            [
+                (InputEventCode.KEY_A, true, InputEventMarkers.TextExpansionKeyboardEvent),
+                (InputEventCode.KEY_A, false, InputEventMarkers.TextExpansionKeyboardEvent),
+            ],
+            simulator.TaggedKeyPresses);
+        Assert.Empty(simulator.RegularKeyPresses);
+    }
+
+    [Fact]
+    public async Task SendKeyAsync_WhenTaggedKeyboardIsUnsupported_FallsBackToOrdinaryKeyPress()
+    {
+        var simulator = new TaggedTestInputSimulator(supportsTaggedKeyboardInput: false);
+
+        await TextExpansionKeyDispatcher.SendKeyAsync(
+            simulator,
+            InputEventCode.KEY_A,
+            timeProvider: TimeProvider.System,
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal(
+            [
+                (InputEventCode.KEY_A, true),
+                (InputEventCode.KEY_A, false),
+            ],
+            simulator.RegularKeyPresses);
+        Assert.Empty(simulator.TaggedKeyPresses);
+    }
+
+    [Fact]
     public async Task ExpandAsync_WhenClipboardBackupIsEmpty_RestoresEmptyClipboard()
     {
         var clipboardService = Substitute.For<IClipboardService>();
@@ -27,8 +67,8 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
-        _ = await restoreCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await executor.ExpandAsync(expansion, CancellationToken.None);
+        _ = await restoreCalled.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
         await clipboardService.Received(1).SetTextAsync(string.Empty, Arg.Any<CancellationToken>());
@@ -50,7 +90,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         var events = clipboardService.Events.ToArray();
         Assert.True(Array.IndexOf(events, "clipboard:get:1") < Array.IndexOf(events, "clipboard:set:replacement"));
@@ -76,10 +116,10 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         var events = clipboardService.Events.ToArray();
-        Assert.DoesNotContain($"input:key:{InputEventCode.KEY_LEFTCTRL}", events);
+        Assert.DoesNotContain($"input:key:{InputEventCode.KEY_LEFTCTRL}", events, StringComparer.Ordinal);
         Assert.True(Array.IndexOf(events, $"input:key:{InputEventCode.KEY_LEFTMETA}") < Array.IndexOf(events, $"input:key:{InputEventCode.KEY_V}"));
         Assert.True(Array.IndexOf(events, $"input:key:{InputEventCode.KEY_V}") < Array.IndexOf(events, "clipboard:set:old-value"));
     }
@@ -112,8 +152,8 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
-        _ = await restoreCheckReached.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await executor.ExpandAsync(expansion, CancellationToken.None);
+        _ = await restoreCheckReached.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
         await clipboardService.DidNotReceive().SetTextAsync("old-value", Arg.Any<CancellationToken>());
@@ -147,8 +187,8 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
-        _ = await restoreCheckReached.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await executor.ExpandAsync(expansion, CancellationToken.None);
+        _ = await restoreCheckReached.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
         await clipboardService.DidNotReceive().SetTextAsync("old-value", Arg.Any<CancellationToken>());
@@ -167,7 +207,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.True(clipboardService.SetCancellationObserved);
         Assert.Equal("replacement", string.Concat(inputSimulator.TypedText));
@@ -192,7 +232,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Equal("replacement", string.Concat(inputSimulator.TypedText));
         Assert.DoesNotContain(InputEventCode.KEY_V, inputSimulator.PressedKeys);
@@ -217,7 +257,7 @@ public sealed class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        await executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"));
+        await executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"), CancellationToken.None);
 
         await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
         Assert.Contains(InputEventCode.KEY_V, inputSimulator.PressedKeys);
@@ -245,7 +285,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
         await clipboardService.Received(1).SetTextAsync("old-value", Arg.Any<CancellationToken>());
@@ -273,7 +313,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
         await clipboardService.DidNotReceive().SetTextAsync("old-value", Arg.Any<CancellationToken>());
@@ -302,7 +342,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Empty(inputSimulator.PressedKeys);
     }
@@ -320,7 +360,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.True(clipboardService.VerificationReadStarted);
         Assert.Equal("replacement", string.Concat(inputSimulator.TypedText));
@@ -340,7 +380,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":a", "replacement");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.True(clipboardService.ReadStarted);
         Assert.Equal("replacement", string.Concat(inputSimulator.TypedText));
@@ -358,7 +398,7 @@ public sealed class TextExpansionPrivacyTests
             keyboardLayoutService,
             () => inputSimulator);
 
-        await executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"));
+        await executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"), CancellationToken.None);
 
         Assert.Equal(2, clipboardService.ReadCount);
         Assert.Contains(InputEventCode.KEY_V, inputSimulator.PressedKeys);
@@ -417,7 +457,7 @@ public sealed class TextExpansionPrivacyTests
             service.Start();
             inputProcessor.CharacterReceived += Raise.Event<Action<char>>('x');
 
-            _ = await executorCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            _ = await executorCalled.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         }
         finally
         {
@@ -456,7 +496,7 @@ public sealed class TextExpansionPrivacyTests
                 .WriteTo.Sink(sink)
                 .CreateLogger();
 
-            await executor.ExpandAsync(expansion);
+            await executor.ExpandAsync(expansion, CancellationToken.None);
         }
         finally
         {
@@ -489,7 +529,7 @@ public sealed class TextExpansionPrivacyTests
             method: PasteMethod.CtrlShiftV,
             insertionMode: TextInsertionMode.DirectTyping);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         _ = await clipboardService.DidNotReceive().GetTextAsync(Arg.Any<CancellationToken>());
         await clipboardService.DidNotReceive().SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -517,11 +557,11 @@ public sealed class TextExpansionPrivacyTests
             "🙂",
             insertionMode: TextInsertionMode.DirectTyping);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         _ = await clipboardService.DidNotReceive().GetTextAsync(Arg.Any<CancellationToken>());
         await clipboardService.DidNotReceive().SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        Assert.Contains("🙂", inputSimulator.TypedText);
+        Assert.Contains("🙂", inputSimulator.TypedText, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -545,11 +585,40 @@ public sealed class TextExpansionPrivacyTests
             "typed",
             insertionMode: TextInsertionMode.DirectTyping);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Equal("typed", string.Concat(inputSimulator.TypedText));
         Assert.DoesNotContain(30, inputSimulator.PressedKeys);
         _ = keyboardLayoutService.DidNotReceiveWithAnyArgs().GetInputForChar(default);
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenDirectTypingAndSimulatorSupportsTaggedUnicode_PropagatesTextExpansionMarker()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        _ = clipboardService.IsSupported.Returns(returnThis: true);
+
+        var keyboardLayoutService = Substitute.For<IKeyboardLayoutService>();
+        _ = keyboardLayoutService.GetInputForChar(Arg.Any<char>())
+            .Returns(default((int KeyCode, bool Shift, bool AltGr)?));
+
+        var inputSimulator = new TaggedUnicodeCapableTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            keyboardLayoutService,
+            () => inputSimulator);
+
+        var expansion = new TextExpansionEntry(
+            ":emoji",
+            "🙂",
+            insertionMode: TextInsertionMode.DirectTyping);
+
+        await executor.ExpandAsync(expansion, CancellationToken.None);
+
+        Assert.Equal(
+            [("🙂", InputEventMarkers.TextExpansionKeyboardEvent)],
+            inputSimulator.TaggedText);
+        Assert.Empty(inputSimulator.TypedText);
     }
 
     [Fact]
@@ -570,11 +639,11 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         _ = await clipboardService.DidNotReceive().GetTextAsync(Arg.Any<CancellationToken>());
         await clipboardService.DidNotReceive().SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        Assert.Contains("🙂", inputSimulator.TypedText);
+        Assert.Contains("🙂", inputSimulator.TypedText, StringComparer.Ordinal);
     }
 
     [LinuxFact]
@@ -604,7 +673,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Contains(35, inputSimulator.PressedKeys);
         Assert.Contains(17, inputSimulator.PressedKeys);
@@ -643,7 +712,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Contains(52, inputSimulator.PressedKeys);
         _ = keyboardLayoutService.Received().GetInputForChar('f');
@@ -679,7 +748,7 @@ public sealed class TextExpansionPrivacyTests
         var logger = new TestCoreLogger();
         using var loggingScope = CoreLogging.Log.PushLogger(logger);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Contains(logger.Entries, static e =>
             (e.Exception?.Message.Contains(
@@ -711,7 +780,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":abbr", "aB", insertionMode: TextInsertionMode.DirectTyping);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.DoesNotContain(30, inputSimulator.PressedKeys);
         Assert.DoesNotContain(42, inputSimulator.PressedKeys);
@@ -764,7 +833,7 @@ public sealed class TextExpansionPrivacyTests
             insertionMode: TextInsertionMode.DirectTyping,
             directTypingMethod: DirectTypingMethod.CompatibleKeyByKey);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         // Compatible mode now uses batch transport with safer timings
         Assert.NotEmpty(inputSimulator.Batches);
@@ -789,7 +858,7 @@ public sealed class TextExpansionPrivacyTests
         var replacement = new string('a', 2049);
         var expansion = new TextExpansionEntry(":long", replacement, insertionMode: TextInsertionMode.DirectTyping);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Empty(inputSimulator.Batches);
         Assert.Equal(replacement.Length, inputSimulator.PressedKeys.Count(static key => key is 30));
@@ -813,7 +882,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Empty(inputSimulator.Batches);
         Assert.Equal(["🙂"], inputSimulator.TypedText);
@@ -845,7 +914,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂");
 
-        await executor.ExpandAsync(expansion);
+        await executor.ExpandAsync(expansion, CancellationToken.None);
 
         Assert.Empty(inputSimulator.PressedKeys);
     }
@@ -1027,7 +1096,7 @@ public sealed class TextExpansionPrivacyTests
         public Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
         {
             var readNumber = Events.Count(static item => item.StartsWith("clipboard:get:", StringComparison.Ordinal)) + 1;
-            Events.Add($"clipboard:get:{readNumber}");
+            Events.Add(string.Create(CultureInfo.InvariantCulture, $"clipboard:get:{readNumber}"));
             return Task.FromResult(_readValues.Count > 0 ? _readValues.Dequeue() : null);
         }
     }
@@ -1040,7 +1109,7 @@ public sealed class TextExpansionPrivacyTests
         {
             if (pressed)
             {
-                _events.Add($"input:key:{keyCode}");
+                _events.Add(string.Create(CultureInfo.InvariantCulture, $"input:key:{keyCode}"));
             }
 
             base.KeyPress(keyCode, pressed);
@@ -1057,7 +1126,7 @@ public sealed class TextExpansionPrivacyTests
         {
             if (pressed)
             {
-                _events.Add($"input:key:{keyCode}");
+                _events.Add(string.Create(CultureInfo.InvariantCulture, $"input:key:{keyCode}"));
             }
 
             base.KeyPress(keyCode, pressed);
@@ -1116,6 +1185,26 @@ public sealed class TextExpansionPrivacyTests
         }
     }
 
+    private sealed class TaggedTestInputSimulator(bool supportsTaggedKeyboardInput) : TestInputSimulator, ITaggedKeyboardInputSimulator
+    {
+        public bool SupportsTaggedKeyboardInput => supportsTaggedKeyboardInput;
+
+        public List<(int KeyCode, bool Pressed, long Tag)> TaggedKeyPresses { get; } = new();
+
+        public List<(int KeyCode, bool Pressed)> RegularKeyPresses { get; } = new();
+
+        public override void KeyPress(int keyCode, bool pressed)
+        {
+            RegularKeyPresses.Add((keyCode, pressed));
+            base.KeyPress(keyCode, pressed);
+        }
+
+        public void KeyPressTagged(int keyCode, bool pressed, long tag)
+        {
+            TaggedKeyPresses.Add((keyCode, pressed, tag));
+        }
+    }
+
     private sealed class UnicodeCapableTestInputSimulator : TestInputSimulator, IUnicodeTextInputSimulator
     {
         public bool SupportsUnicodeTextInput => true;
@@ -1125,6 +1214,25 @@ public sealed class TextExpansionPrivacyTests
         public void TypeText(string text)
         {
             TypedText.Add(text);
+        }
+    }
+
+    private sealed class TaggedUnicodeCapableTestInputSimulator : TestInputSimulator, ITaggedUnicodeTextInputSimulator
+    {
+        public bool SupportsUnicodeTextInput => true;
+
+        public List<string> TypedText { get; } = new();
+
+        public List<(string Text, long Tag)> TaggedText { get; } = new();
+
+        public void TypeText(string text)
+        {
+            TypedText.Add(text);
+        }
+
+        public void TypeTextTagged(string text, long tag)
+        {
+            TaggedText.Add((text, tag));
         }
     }
 

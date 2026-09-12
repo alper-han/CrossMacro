@@ -87,7 +87,7 @@ public sealed class TextBufferStateTests
         // Assert
         _ = result.Should().BeTrue();
         _ = match.Should().NotBeNull();
-        _ = match!.Replacement.Should().Be("hello");
+        _ = match.Replacement.Should().Be("hello");
     }
 
     [Fact]

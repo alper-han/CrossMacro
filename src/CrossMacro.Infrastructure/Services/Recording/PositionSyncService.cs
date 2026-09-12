@@ -5,11 +5,17 @@ namespace CrossMacro.Infrastructure.Services.Recording;
 /// Background position sync service that corrects cursor drift
 /// Single Responsibility: Periodically queries actual cursor position and notifies on significant changes
 /// </summary>
-public sealed class PositionSyncService(IMousePositionProvider positionProvider) : IPositionSyncService
+public sealed class PositionSyncService(
+    IMousePositionProvider positionProvider,
+    TimeProvider? timeProvider = null,
+    Func<TimeSpan, CancellationToken, Task>? delayAsync = null) : IPositionSyncService
 {
     private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(1);
 
     private readonly IMousePositionProvider _positionProvider = positionProvider;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync = delayAsync
+        ?? (Func<TimeSpan, CancellationToken, Task>)((delay, cancellationToken) =>
+            Task.Delay(delay, timeProvider ?? TimeProvider.System, cancellationToken));
 
     private const int BaseSyncIntervalMs = 1;
     private const int MaxSyncIntervalMs = 500;
@@ -55,7 +61,7 @@ public sealed class PositionSyncService(IMousePositionProvider positionProvider)
                 {
                     try
                     {
-                        await Task.Delay(TimeSpan.FromMilliseconds(currentInterval), TimeProvider.System, linkedCancellation.Token).ConfigureAwait(false);
+                        await _delayAsync(TimeSpan.FromMilliseconds(currentInterval), linkedCancellation.Token).ConfigureAwait(false);
 
                         var sw = Stopwatch.StartNew();
                         var actualPos = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);

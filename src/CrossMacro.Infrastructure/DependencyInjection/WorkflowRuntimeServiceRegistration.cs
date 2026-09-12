@@ -14,23 +14,29 @@ internal static class WorkflowRuntimeServiceRegistration
         _ = services.AddSingleton<IShortcutTaskStore>(sp => (IShortcutTaskStore)sp.GetRequiredService<IShortcutService>());
         _ = services.AddSingleton<ProfileSwitchRequestBridge>();
         _ = services.AddSingleton<IProfileSwitchRequests>(sp => sp.GetRequiredService<ProfileSwitchRequestBridge>());
-        _ = services.AddSingleton<ITriggerService>(sp => new TriggerService(sp.GetService<IWindowManager>(), sp.GetRequiredService<IProfileSwitchRequests>(), sp.GetRequiredService<IMacroFileManager>(), sp.GetRequiredService<Func<IMacroPlayer>>()));
+        _ = services.AddSingleton<ITriggerService>(sp => new TriggerService(sp.GetService<IWindowManager>(), sp.GetRequiredService<IProfileSwitchRequests>(), sp.GetRequiredService<IMacroFileManager>(), sp.GetRequiredService<Func<IMacroPlayer>>(), triggersFilePath: null, sp.GetRequiredService<TimeProvider>()));
         _ = services.AddSingleton<ITriggerTaskOperations>(sp => (ITriggerTaskOperations)sp.GetRequiredService<ITriggerService>());
         _ = services.AddSingleton<ITriggerTaskStore>(sp => (ITriggerTaskStore)sp.GetRequiredService<ITriggerService>());
         _ = services.AddSingleton<ITextExpansionStorageService, TextExpansionStorageService>();
         _ = services.AddSingleton<ITextExpansionStore>(sp => sp.GetRequiredService<ITextExpansionStorageService>());
         _ = services.AddSingleton<IProfileTextExpansionStore, ProfileTextExpansionStore>();
         _ = services.AddSingleton<IProfileLoadedMacroSessionStore, ProfileLoadedMacroSessionStore>();
-        _ = services.AddSingleton<IInputProcessor, InputProcessor>();
+        _ = services.AddSingleton<IInputProcessor>(sp => new InputProcessor(
+            sp.GetRequiredService<IKeyboardLayoutService>(),
+            sp.GetRequiredService<TimeProvider>()));
         _ = services.AddSingleton<ITextBufferState, TextBufferState>();
-        _ = services.AddSingleton<ITextExpansionExecutor, TextExpansionExecutor>();
+        _ = services.AddSingleton<ITextExpansionExecutor>(sp => new TextExpansionExecutor(
+            sp.GetRequiredService<IClipboardService>(),
+            sp.GetRequiredService<IKeyboardLayoutService>(),
+            sp.GetRequiredService<Func<IInputSimulator>>(),
+            sp.GetRequiredService<TimeProvider>()));
         _ = services.AddSingleton<ITextExpansionService, TextExpansionService>();
         _ = services.AddSingleton<ProfileRuntimeState>();
         _ = services.AddSingleton<IProfileRuntimeState>(sp => sp.GetRequiredService<ProfileRuntimeState>());
         _ = services.AddSingleton<IEditorActionConverter, EditorActionConverter>();
         _ = services.AddSingleton<IEditorActionValidator, EditorActionValidator>();
         _ = services.AddSingleton<ICoordinateCaptureService>(sp => new CoordinateCaptureService(sp.GetRequiredService<IMousePositionProvider>(), sp.GetService<Func<IInputCapture>>()));
-        _ = services.AddSingleton<IProfileCatalog>(_ => new ProfileManager(configRootPath: null));
+        _ = services.AddSingleton<IProfileCatalog>(sp => new ProfileManager(configRootPath: null, sp.GetRequiredService<TimeProvider>()));
         _ = services.AddSingleton<IProfileManager>(sp =>
         {
             var hasKeyboardLayout = sp.GetService<IKeyboardLayoutService>() is not null;

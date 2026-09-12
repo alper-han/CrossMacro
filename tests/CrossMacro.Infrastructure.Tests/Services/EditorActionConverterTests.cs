@@ -131,6 +131,19 @@ public sealed partial class EditorActionConverterTests
             {
                 WindowCommandMode.WorkspaceGet => "workspaceName",
                 WindowCommandMode.Active => "activeTitle",
+                WindowCommandMode.Search or
+                WindowCommandMode.Wait or
+                WindowCommandMode.Focus or
+                WindowCommandMode.Close or
+                WindowCommandMode.Move or
+                WindowCommandMode.Resize or
+                WindowCommandMode.Center or
+                WindowCommandMode.Maximize or
+                WindowCommandMode.Fullscreen or
+                WindowCommandMode.Floating or
+                WindowCommandMode.WorkspaceSwitch or
+                WindowCommandMode.WorkspaceMoveActive or
+                WindowCommandMode.WorkspaceMoveWindow => "windowAddress",
                 _ => "windowAddress",
             },
             WindowTimeoutMs = 2500,

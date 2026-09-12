@@ -26,7 +26,7 @@ public sealed class ScreenFramePngEncoderTests
         using var idatStream = new MemoryStream(idat);
         using var zlib = new ZLibStream(idatStream, CompressionMode.Decompress);
         using var decompressed = new MemoryStream();
-        zlib.CopyTo(decompressed);
+        await zlib.CopyToAsync(decompressed, CancellationToken.None);
 
         Assert.Equal([0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00], decompressed.ToArray());
     }
@@ -59,7 +59,7 @@ public sealed class ScreenFramePngEncoderTests
     {
         var png = Convert.FromBase64String(TransparentPngBase64);
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
 
         await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => ScreenFramePngDecoder.DecodeAsync(png, cancellation.Token));
     }
@@ -164,7 +164,7 @@ public sealed class ScreenFramePngEncoderTests
             height: 1,
             colorType: 2,
             filteredScanlines: [0, 0x10, 0x20, 0x30],
-            [ ("tRNS", new byte[] { 0x00, 0x10, 0x00, 0x20, 0x00, 0x30 }) ]);
+            ("tRNS", new byte[] { 0x00, 0x10, 0x00, 0x20, 0x00, 0x30 }));
 
         var exception = await Assert.ThrowsAsync<NotSupportedException>(() => ScreenFramePngDecoder.DecodeAsync(png, CancellationToken.None));
 
@@ -179,7 +179,7 @@ public sealed class ScreenFramePngEncoderTests
             height: 1,
             colorType: 2,
             filteredScanlines: [0, 0x10, 0x20, 0x30],
-            [ ("ABCD", Array.Empty<byte>()) ]);
+            ("ABCD", Array.Empty<byte>()));
 
         var exception = await Assert.ThrowsAsync<NotSupportedException>(() => ScreenFramePngDecoder.DecodeAsync(png, CancellationToken.None));
 
@@ -203,17 +203,17 @@ public sealed class ScreenFramePngEncoderTests
     [Fact]
     public async Task Decode_WhenBytesAreNotPng_ThrowsClearFailure()
     {
-        static Task<ScreenFrame> act() => ScreenFramePngDecoder.DecodeAsync(new byte[] { 0x00, 0x01, 0x02 }, CancellationToken.None);
+        static Task<ScreenFrame> ActAsync() => ScreenFramePngDecoder.DecodeAsync(new byte[] { 0x00, 0x01, 0x02 }, CancellationToken.None);
 
-        _ = await Assert.ThrowsAsync<InvalidDataException>(act);
+        _ = await Assert.ThrowsAsync<InvalidDataException>(ActAsync);
     }
 
     [Fact]
     public async Task Decode_WhenDimensionsExceedSupportedLimit_ThrowsInvalidDataException()
     {
-        static Task<ScreenFrame> act() => ScreenFramePngDecoder.DecodeAsync(CreateOversizedPngBytes(), CancellationToken.None);
+        static Task<ScreenFrame> ActAsync() => ScreenFramePngDecoder.DecodeAsync(CreateOversizedPngBytes(), CancellationToken.None);
 
-        var exception = await Assert.ThrowsAsync<InvalidDataException>(act);
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(ActAsync);
         Assert.Contains("maximum supported size of 7680x4320", exception.Message, StringComparison.Ordinal);
     }
 

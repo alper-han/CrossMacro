@@ -145,7 +145,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
         _service.Timeout = TimeSpan.FromMilliseconds(50);
         _handler.OnSendAsync = async (_, ct) =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(5), ct);
+            await Task.Delay(TimeSpan.FromSeconds(5), TimeProvider.System, ct);
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{\"tag_name\": \"v99.99.99\", \"html_url\": \"http://example.com\"}"),

@@ -21,7 +21,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         // Assert
         _ = simulator.InitializedWidth.Should().Be(0);
@@ -56,7 +56,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro, options);
+        await player.PlayAsync(macro, options, CancellationToken.None);
 
         // Assert
         _ = simulator.AbsoluteMoves.Should().BeEmpty();
@@ -86,7 +86,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         // Assert
         _ = simulator.AbsoluteMoves.Should().BeEmpty();
@@ -120,7 +120,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.InitializedWidth.Should().Be(1920);
         _ = simulator.InitializedHeight.Should().Be(1080);
@@ -150,7 +150,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("abs:0,0", "abs:100,200", "abs:200,300");
         _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
@@ -188,7 +188,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("abs:0,0", "abs:100,200", "settled", "scroll:1,False");
         _ = simulator.ScrollOperations.Should().ContainSingle().Which.Should().Be((1, false));
@@ -236,7 +236,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("abs:0,0", "abs:100,200", "settled", "rel:5,5", "btn:down", "btn:up");
         _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
@@ -281,7 +281,7 @@ public sealed partial class MacroPlayerTests
             RepeatDelayMs = 0,
         };
 
-        await player.PlayAsync(macro, options);
+        await player.PlayAsync(macro, options, CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal(
             "abs:0,0",
@@ -332,7 +332,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.InitializedWidth.Should().Be(1920);
         _ = simulator.InitializedHeight.Should().Be(1080);
@@ -368,7 +368,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.InitializedWidth.Should().Be(0);
         _ = simulator.InitializedHeight.Should().Be(0);
@@ -396,7 +396,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        var act = async () => await player.PlayAsync(macro);
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*does not support absolute coordinate playback*");
@@ -430,7 +430,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = await resolutionOnlyProvider.Received(1).GetScreenResolutionAsync();
         _ = simulator.InitializedWidth.Should().Be(1920);
@@ -481,9 +481,9 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
         currentBounds = new ScreenRect(-2560, -400, 6400, 2560);
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         Assert.Equal((1920, 1080), (firstSimulator.InitializedWidth, firstSimulator.InitializedHeight));
         Assert.Equal((6400, 2560), (secondSimulator.InitializedWidth, secondSimulator.InitializedHeight));
@@ -518,7 +518,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = await resolutionOnlyProvider.Received(1).GetScreenResolutionAsync();
         _ = simulator.InitializedWidth.Should().Be(2560);
@@ -561,7 +561,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.InitializedWidth.Should().Be(0);
         _ = simulator.InitializedHeight.Should().Be(0);
@@ -598,7 +598,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        var act = async () => await player.PlayAsync(macro);
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*does not support absolute coordinate playback*");
@@ -625,7 +625,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Contain("rel:3,3");
     }
@@ -658,7 +658,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.InitializedWidth.Should().Be(1920);
         _ = simulator.InitializedHeight.Should().Be(1080);
@@ -707,7 +707,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         var expectedButtonOperation = eventType is EventType.ButtonRelease ? "btn:up" : "btn:down";
         _ = simulator.Operations.Should().ContainInOrder(
@@ -744,7 +744,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.AbsoluteMoves.Should().Equal((100, 200), (103, 195));
         _ = simulator.ButtonTransitions.Should().HaveCount(2);
@@ -793,7 +793,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("abs:103,195", "abs:106,190");
         _ = await _positionProvider.Received(3).GetAbsolutePositionAsync();
@@ -842,7 +842,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.AbsoluteMoves.Should().Equal((103, 195), (107, 192), (110, 189));
         _ = simulator.Trajectories.Should().BeEmpty();
@@ -869,7 +869,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        var act = async () => await player.PlayAsync(macro);
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*does not support absolute coordinate playback*");
@@ -912,7 +912,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        var act = async () => await player.PlayAsync(macro);
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = await act.Should().ThrowAsync<LogicalRelativePositionUnavailableException>();
         _ = simulator.Operations.Should().BeEmpty();
@@ -948,7 +948,7 @@ public sealed partial class MacroPlayerTests
         };
         var options = new PlaybackOptions { Loop = true, RepeatCount = 2 };
 
-        await player.PlayAsync(macro, options);
+        await player.PlayAsync(macro, options, CancellationToken.None);
 
         _ = simulator.AbsoluteMoves.Should().Equal((100, 105), (140, 205));
     }
@@ -986,7 +986,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.AbsoluteMoves.Should().Equal((110, 100), (120, 100));
     }
@@ -1019,7 +1019,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.ButtonTransitions.Should().HaveCount(2);
         _ = simulator.Operations.Should().ContainInOrder("btn:down", "btn:up");
@@ -1055,7 +1055,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("abs:100,200", "abs:103,195");
     }
@@ -1096,7 +1096,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("abs:100,100", "rel:5,5", "abs:123,108");
         _ = await _positionProvider.Received(4).GetAbsolutePositionAsync();
@@ -1112,7 +1112,7 @@ public sealed partial class MacroPlayerTests
             ScriptSteps = { "set dx 3", "move rel $dx -5" },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.InitializedWidth.Should().Be(0);
         _ = simulator.InitializedHeight.Should().Be(0);
@@ -1135,7 +1135,7 @@ public sealed partial class MacroPlayerTests
             ScriptSteps = { "set dx 3", "move rel-logical $dx -5" },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.InitializedWidth.Should().Be(1920);
         _ = simulator.InitializedHeight.Should().Be(1080);
@@ -1171,7 +1171,7 @@ public sealed partial class MacroPlayerTests
             ScriptSteps = { "set dx 3", "move rel-logical $dx -5" },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("abs:100,200", "abs:103,195");
     }
@@ -1197,7 +1197,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("btn:down", "btn:up");
     }
@@ -1230,7 +1230,7 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = simulator.Operations.Should().Equal("abs:1000,1000", "rel:3,3");
     }

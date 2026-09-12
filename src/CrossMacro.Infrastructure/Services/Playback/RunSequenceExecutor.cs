@@ -106,7 +106,9 @@ internal sealed class RunSequenceExecutor
         {
             var min = Math.Min(randomDelayMinMs, randomDelayMaxMs);
             var max = Math.Max(randomDelayMinMs, randomDelayMaxMs);
-            totalDelayMicroseconds += (long)ResolveRandomDelay(min, max) * MacroTiming.MicrosecondsPerMillisecond;
+            totalDelayMicroseconds = checked(
+                totalDelayMicroseconds
+                + ((long)ResolveRandomDelay(min, max) * MacroTiming.MicrosecondsPerMillisecond));
         }
 
         return totalDelayMicroseconds;

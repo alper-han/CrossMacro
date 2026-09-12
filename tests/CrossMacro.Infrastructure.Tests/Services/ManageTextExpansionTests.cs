@@ -14,12 +14,12 @@ public sealed class ManageTextExpansionTests
         {
             new(":mail", "me@example.com"),
         };
-        storage.IsLoaded.Returns(true);
-        storage.GetCurrent().Returns(expected);
+        _ = storage.IsLoaded.Returns(returnThis: true);
+        _ = storage.GetCurrent().Returns(expected);
 
         var service = new ManageTextExpansion(storage, profileManager);
 
-        var result = await service.ListAsync();
+        var result = await service.ListAsync(cancellationToken: CancellationToken.None);
 
         _ = result.Should().BeEquivalentTo(expected);
         _ = storage.DidNotReceive().LoadAsync();
@@ -34,17 +34,17 @@ public sealed class ManageTextExpansionTests
         var active = new ProfileInfo { Id = "default", Name = "Default" };
         var target = new ProfileInfo { Id = "work", Name = "Work" };
         _ = profileManager.ActiveProfile.Returns(active);
-        _ = profileManager.Profiles.Returns(new[] { active, target });
+        _ = profileManager.Profiles.Returns([active, target]);
         _ = profileManager.GetProfileDirectory("work").Returns("/tmp/crossmacro-work");
         _ = profileStore.LoadAsync("/tmp/crossmacro-work", Arg.Any<CancellationToken>())
             .Returns(new List<TextExpansionEntry> { new(":work", "value") });
 
         var service = new ManageTextExpansion(storage, profileManager, profileStore);
 
-        var result = await service.ListAsync("work");
+        var result = await service.ListAsync("work", CancellationToken.None);
 
         _ = result.Should().ContainSingle().Which.Trigger.Should().Be(":work");
-        await profileStore.Received(1).LoadAsync("/tmp/crossmacro-work", Arg.Any<CancellationToken>());
+        _ = await profileStore.Received(1).LoadAsync("/tmp/crossmacro-work", Arg.Any<CancellationToken>());
         await storage.DidNotReceive().ReloadAsync(Arg.Any<string>());
     }
 
@@ -56,13 +56,13 @@ public sealed class ManageTextExpansionTests
         var active = new ProfileInfo { Id = "default", Name = "Default" };
         var target = new ProfileInfo { Id = "work", Name = "Work" };
         _ = profileManager.ActiveProfile.Returns(active);
-        _ = profileManager.Profiles.Returns(new[] { active, target });
+        _ = profileManager.Profiles.Returns([active, target]);
         _ = profileManager.GetProfileDirectory("work").Returns("/tmp/crossmacro-work");
         _ = profileManager.GetProfileDirectory("default").Returns("/tmp/crossmacro-default");
         _ = storage.ReloadAsync("/tmp/crossmacro-work")
             .Returns(Task.FromException(new IOException("profile reload failed")));
 
-        var act = async () => await new ManageTextExpansion(storage, profileManager).ListAsync("work");
+        var act = async () => await new ManageTextExpansion(storage, profileManager).ListAsync("work", CancellationToken.None);
 
         _ = await act.Should().ThrowAsync<IOException>();
         await storage.Received(1).ReloadAsync("/tmp/crossmacro-default");

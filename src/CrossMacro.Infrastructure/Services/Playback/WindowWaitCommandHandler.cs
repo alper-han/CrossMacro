@@ -1,8 +1,15 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-internal sealed class WindowWaitCommandHandler : IWindowCommandHandler
+internal sealed class WindowWaitCommandHandler(
+    TimeProvider? timeProvider = null,
+    Func<TimeSpan, CancellationToken, Task>? delayAsync = null) : IWindowCommandHandler
 {
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync = delayAsync
+        ?? (Func<TimeSpan, CancellationToken, Task>)((delay, cancellationToken) =>
+            Task.Delay(delay, timeProvider ?? TimeProvider.System, cancellationToken));
+
     public string SubCommand => "wait";
     public string? Validate(string[] parts)
     {
@@ -45,9 +52,10 @@ internal sealed class WindowWaitCommandHandler : IWindowCommandHandler
         var termEndIndex = hasTimeout ? parts.Length - 2 : parts.Length - 1;
         var timeoutMs = hasTimeout ? tVal : 5000;
         var term = Unquote(string.Join(' ', parts[3..termEndIndex]));
-        var deadline = Environment.TickCount64 + timeoutMs;
+        var startedAt = _timeProvider.GetTimestamp();
+        var timeout = TimeSpan.FromMilliseconds(timeoutMs);
         WindowInfo? found = null;
-        while (Environment.TickCount64 < deadline)
+        while (_timeProvider.GetElapsedTime(startedAt) < timeout)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var windows = await query.GetWindowsAsync(cancellationToken).ConfigureAwait(false);
@@ -57,7 +65,7 @@ internal sealed class WindowWaitCommandHandler : IWindowCommandHandler
                 break;
             }
 
-            await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+            await _delayAsync(TimeSpan.FromMilliseconds(200), cancellationToken).ConfigureAwait(false);
         }
         StoreVariable(variables, varName, found?.Address ?? string.Empty, stepNumber);
     }

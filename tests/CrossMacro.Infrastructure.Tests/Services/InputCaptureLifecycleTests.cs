@@ -3,6 +3,14 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 public sealed class InputCaptureLifecycleTests
 {
     [Fact]
+    public void InputCaptureErrorEventArgs_RejectsMissingMessage()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() => new InputCaptureErrorEventArgs(null!));
+
+        Assert.Equal("message", exception.ParamName);
+    }
+
+    [Fact]
     public async Task StartAsync_LinksCallerCancellationAndCleansUpCanceledStartup()
     {
         var capture = Substitute.For<IInputCapture>();
@@ -72,14 +80,15 @@ public sealed class InputCaptureLifecycleTests
         var capture = new AsyncDisposableCapture();
         var lifecycle = new InputCaptureLifecycle();
 
-        lifecycle.Start(
+        await lifecycle.StartAsync(
             () => capture,
             captureMouse: false,
             captureKeyboard: true,
             (_, _) => { },
             (_, _) => { },
             _ => { },
-            (_, _) => { });
+            (_, _) => { },
+            CancellationToken.None);
 
         await lifecycle.CleanupAsync(
             (_, _) => { },
@@ -104,9 +113,17 @@ public sealed class InputCaptureLifecycleTests
 
         public bool DisposeAsyncCalled { get; private set; }
 
-        public event EventHandler<CapturedInputEventArgs>? InputReceived;
+        public event EventHandler<CapturedInputEventArgs>? InputReceived
+        {
+            add { }
+            remove { }
+        }
 
-        public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
+        public event EventHandler<InputCaptureErrorEventArgs>? CaptureError
+        {
+            add { }
+            remove { }
+        }
 
         public void Configure(bool captureMouse, bool captureKeyboard)
         {

@@ -950,7 +950,7 @@ public sealed class ScreenImageMatcher : IDisposable
                     framePyramidCache,
                     budget,
                     cancellationToken);
-                observedDimensions.Add((nativeTemplate.Image.Width, nativeTemplate.Image.Height));
+                _ = observedDimensions.Add((nativeTemplate.Image.Width, nativeTemplate.Image.Height));
 
                 var nativeEvidence = MatchEvidence.Create(allCandidates);
                 if (nativeEvidence.IsExactNativeMatch(options.MinimumSimilarity, requireDistinctEvidence))

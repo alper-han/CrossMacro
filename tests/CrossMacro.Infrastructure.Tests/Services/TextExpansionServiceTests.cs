@@ -85,7 +85,7 @@ public sealed class TextExpansionServiceTests : IDisposable
             TaskScheduler.Default));
 
         var startTask = _service.StartAsync(CancellationToken.None);
-        await loadStarted.Task.WaitAsync(TestTimeout);
+        await loadStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.False(_service.IsRunning);
         await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
@@ -111,7 +111,7 @@ public sealed class TextExpansionServiceTests : IDisposable
             TaskScheduler.Default));
 
         var startTask = _service.StartAsync(CancellationToken.None);
-        await loadStarted.Task.WaitAsync(TestTimeout);
+        await loadStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
         _ = _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = false });
 
         allowLoad.SetResult();
@@ -140,7 +140,7 @@ public sealed class TextExpansionServiceTests : IDisposable
             TaskScheduler.Default));
 
         var startTask = _service.StartAsync(CancellationToken.None);
-        await loadStarted.Task.WaitAsync(TestTimeout);
+        await loadStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         _service.StopExpansion();
         allowLoad.SetResult();
@@ -164,7 +164,7 @@ public sealed class TextExpansionServiceTests : IDisposable
         using var cancellation = new CancellationTokenSource();
 
         var startTask = _service.StartAsync(cancellation.Token);
-        await loadStarted.Task.WaitAsync(TestTimeout);
+        await loadStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         await cancellation.CancelAsync();
         allowLoad.SetResult();
@@ -223,7 +223,7 @@ public sealed class TextExpansionServiceTests : IDisposable
             TaskScheduler.Default));
 
         var firstStartTask = _service.StartAsync(CancellationToken.None);
-        await loadStarted.Task.WaitAsync(TestTimeout);
+        await loadStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
         var secondStartTask = _service.StartAsync(CancellationToken.None);
 
         Assert.True(secondStartTask.IsCompletedSuccessfully);
@@ -300,13 +300,13 @@ public sealed class TextExpansionServiceTests : IDisposable
             });
 
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
-        await expansionStarted.WaitAsync(TestTimeout);
+        await expansionStarted.WaitAsync(TestTimeout, CancellationToken.None);
 
-        var stopTask = _service.StopExpansionAsync();
+        var stopTask = _service.StopExpansionAsync(CancellationToken.None);
 
         Assert.False(stopTask.IsCompleted);
         releaseExpansion.SetResult();
-        await stopTask.WaitAsync(TestTimeout);
+        await stopTask.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.False(_service.IsRunning);
     }
@@ -335,15 +335,15 @@ public sealed class TextExpansionServiceTests : IDisposable
             });
 
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
-        await expansionStarted.WaitAsync(TestTimeout);
+        await expansionStarted.WaitAsync(TestTimeout, CancellationToken.None);
 
-        var firstStopTask = _service.StopExpansionAsync();
-        var secondStopTask = _service.StopExpansionAsync();
+        var firstStopTask = _service.StopExpansionAsync(CancellationToken.None);
+        var secondStopTask = _service.StopExpansionAsync(CancellationToken.None);
 
         Assert.False(firstStopTask.IsCompleted);
         Assert.False(secondStopTask.IsCompleted);
         releaseExpansion.SetResult();
-        await Task.WhenAll(firstStopTask, secondStopTask).WaitAsync(TestTimeout);
+        await Task.WhenAll(firstStopTask, secondStopTask).WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.False(_service.IsRunning);
         _inputCapture.Received(1).StopCapture();
@@ -363,14 +363,14 @@ public sealed class TextExpansionServiceTests : IDisposable
             TaskScheduler.Default));
 
         var startTask = _service.StartAsync(CancellationToken.None);
-        await loadStarted.Task.WaitAsync(TestTimeout);
+        await loadStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
-        var stopTask = _service.StopExpansionAsync();
-        await stopTask.WaitAsync(TestTimeout);
+        var stopTask = _service.StopExpansionAsync(CancellationToken.None);
+        await stopTask.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.False(_service.IsRunning);
         allowLoad.SetResult();
-        await startTask.WaitAsync(TestTimeout);
+        await startTask.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.False(_service.IsRunning);
         await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
@@ -443,16 +443,15 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         // Act
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
-        await firstExpansionStarted.WaitAsync(TestTimeout);
+        await firstExpansionStarted.WaitAsync(TestTimeout, CancellationToken.None);
+        var firstExpansionTask = _service.ExpansionTask;
+        Assert.NotNull(firstExpansionTask);
+        await firstExpansionTask.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
-        for (var attempt = 0; attempt < 100 && Volatile.Read(ref invocationCount) < 2; attempt++)
-        {
-            _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
-            await Task.Delay(TimeSpan.FromMilliseconds(1));
-        }
+        _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
 
         // Assert
-        await secondExpansionStarted.WaitAsync(TestTimeout);
+        await secondExpansionStarted.WaitAsync(TestTimeout, CancellationToken.None);
         await _executor.Received(2).ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>());
         Assert.True(_service.IsRunning);
     }
@@ -492,7 +491,9 @@ public sealed class TextExpansionServiceTests : IDisposable
             });
 
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
-        await firstStarted.WaitAsync(TestTimeout);
+        await firstStarted.WaitAsync(TestTimeout, CancellationToken.None);
+        var firstExpansionTask = _service.ExpansionTask;
+        Assert.NotNull(firstExpansionTask);
 
         for (var index = 0; index < 32; index++)
         {
@@ -503,11 +504,11 @@ public sealed class TextExpansionServiceTests : IDisposable
         await _executor.Received(1).ExpandAsync(expansion, Arg.Any<CancellationToken>());
 
         releaseFirst.SetResult();
-        await firstFinished.WaitAsync(TestTimeout);
-        await Task.Delay(50);
+        await firstFinished.WaitAsync(TestTimeout, CancellationToken.None);
+        await firstExpansionTask.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('a');
-        await secondStarted.WaitAsync(TestTimeout);
+        await secondStarted.WaitAsync(TestTimeout, CancellationToken.None);
 
         Assert.Equal(2, Volatile.Read(ref invocationCount));
         await _executor.Received(2).ExpandAsync(expansion, Arg.Any<CancellationToken>());
@@ -547,12 +548,12 @@ public sealed class TextExpansionServiceTests : IDisposable
             new CapturedInputEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
 
-        await triggerKeyReleaseWaitObserved.WaitAsync(TestTimeout);
+        await triggerKeyReleaseWaitObserved.WaitAsync(TestTimeout, CancellationToken.None);
         await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>());
 
         triggerKeyPressed = false;
 
-        await expansionStarted.WaitAsync(TestTimeout);
+        await expansionStarted.WaitAsync(TestTimeout, CancellationToken.None);
         await _executor.Received(1).ExpandAsync(expansion, Arg.Any<CancellationToken>());
     }
 
@@ -598,12 +599,12 @@ public sealed class TextExpansionServiceTests : IDisposable
             new CapturedInputEventArgs { Type = InputEventType.Key, Code = 20, Value = 1 });
         _inputProcessor.CharacterReceived += Raise.Event<Action<char>>('t');
 
-        await modifierReleaseWaitObserved.WaitAsync(TestTimeout);
+        await modifierReleaseWaitObserved.WaitAsync(TestTimeout, CancellationToken.None);
         await _executor.DidNotReceive().ExpandAsync(Arg.Any<TextExpansionEntry>(), Arg.Any<CancellationToken>());
 
         modifierPressed = false;
 
-        await expansionStarted.WaitAsync(TestTimeout);
+        await expansionStarted.WaitAsync(TestTimeout, CancellationToken.None);
         await _executor.Received(1).ExpandAsync(expansion, Arg.Any<CancellationToken>());
     }
 
@@ -620,7 +621,7 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         startTcs.SetException(new InvalidOperationException("startup failed"));
 
-        await cleanupObserved.WaitAsync(TestTimeout);
+        await cleanupObserved.WaitAsync(TestTimeout, CancellationToken.None);
 
         Assert.False(_service.IsRunning);
         _inputCapture.Received(1).StopCapture();
@@ -666,7 +667,7 @@ public sealed class TextExpansionServiceTests : IDisposable
             () =>
             {
                 factoryCallCount++;
-                return factoryCallCount == 1 ? firstCapture : secondCapture;
+                return factoryCallCount is 1 ? firstCapture : secondCapture;
             },
             _inputProcessor,
             _bufferState,
@@ -677,7 +678,7 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(firstCapture, new InputCaptureErrorEventArgs("Connection lost: daemon went away"));
 
-        await secondStarted.WaitAsync(TestTimeout);
+        await secondStarted.WaitAsync(TestTimeout, CancellationToken.None);
 
         Assert.True(service.IsRunning);
         Assert.Equal(2, factoryCallCount);
@@ -715,15 +716,11 @@ public sealed class TextExpansionServiceTests : IDisposable
         Assert.True(service.IsRunning);
 
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(firstCapture, new InputCaptureErrorEventArgs("runtime failed"));
+        var restartTask = service.RestartTask;
+        Assert.NotNull(restartTask);
 
-        await cleanupObserved.WaitAsync(TestTimeout);
-
-        // The restart attempt runs after a short delay; wait until it has failed.
-        var deadline = DateTime.UtcNow + TestTimeout;
-        while (service.IsRunning && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(25);
-        }
+        await cleanupObserved.WaitAsync(TestTimeout, CancellationToken.None);
+        await restartTask.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.False(service.IsRunning);
         Assert.Equal(2, factoryCallCount);

@@ -388,7 +388,7 @@ public class DefaultPlaybackCoordinator(
             {
                 await Task.Delay(
                     RawMovementPositionRefreshInterval,
-                    TimeProvider.System,
+                    _timeProvider,
                     cancellationToken).ConfigureAwait(false);
             }
         }

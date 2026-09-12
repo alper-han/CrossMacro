@@ -11,7 +11,7 @@ public sealed class ShellCommandRunnerTests
         var runner = new ShellCommandRunner();
 
         _ = await Assert.ThrowsAsync<ArgumentException>(() =>
-            runner.RunAsync(new ShellCommandRequest(" "), timeout: null));
+            runner.RunAsync(new ShellCommandRequest(" "), timeout: null, CancellationToken.None));
     }
 
     [Fact]
@@ -20,10 +20,10 @@ public sealed class ShellCommandRunnerTests
         var runner = new ShellCommandRunner();
 
         _ = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            runner.RunAsync(new ShellCommandRequest("true", OutputLimitChars: -1), timeout: null));
+            runner.RunAsync(new ShellCommandRequest("true", OutputLimitChars: -1), timeout: null, CancellationToken.None));
     }
 
-    [Fact]
+    [ProcessIntegrationFact]
     public async Task RunAsync_WhenCommandWritesOutput_CapturesStdout()
     {
         if (!OperatingSystem.IsLinux())
@@ -33,13 +33,13 @@ public sealed class ShellCommandRunnerTests
 
         var runner = new ShellCommandRunner();
 
-        var result = await runner.RunAsync(new ShellCommandRequest("printf hello"), timeout: null);
+        var result = await runner.RunAsync(new ShellCommandRequest("printf hello"), timeout: null, CancellationToken.None);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("hello", result.StandardOutput);
     }
 
-    [Fact]
+    [ProcessIntegrationFact]
     public async Task RunAsync_WhenCommandExitsNonZero_ReturnsExitCodeAndStderr()
     {
         if (!OperatingSystem.IsLinux())
@@ -49,13 +49,13 @@ public sealed class ShellCommandRunnerTests
 
         var runner = new ShellCommandRunner();
 
-        var result = await runner.RunAsync(new ShellCommandRequest("printf failure >&2; exit 7"), timeout: null);
+        var result = await runner.RunAsync(new ShellCommandRequest("printf failure >&2; exit 7"), timeout: null, CancellationToken.None);
 
         Assert.Equal(7, result.ExitCode);
         Assert.Equal("failure", result.StandardError);
     }
 
-    [Fact(Timeout = 5000)]
+    [ProcessIntegrationFact(Timeout = 5000)]
     public async Task RunAsync_WhenTimeoutExpires_KillsProcessTreeAndThrowsTimeout()
     {
         if (!OperatingSystem.IsLinux())
@@ -68,13 +68,13 @@ public sealed class ShellCommandRunnerTests
         var runner = new ShellCommandRunner();
 
         _ = await Assert.ThrowsAsync<ShellCommandTimeoutException>(() =>
-            runner.RunAsync(new ShellCommandRequest($"sleep 1; touch {marker}"), TimeSpan.FromMilliseconds(100)));
+            runner.RunAsync(new ShellCommandRequest($"sleep 1; touch {marker}"), TimeSpan.FromMilliseconds(100), CancellationToken.None));
 
-        await Task.Delay(TimeSpan.FromMilliseconds(1500));
+        await Task.Delay(TimeSpan.FromMilliseconds(1500), TimeProvider.System, CancellationToken.None);
         Assert.False(File.Exists(marker));
     }
 
-    [Fact(Timeout = 5000)]
+    [ProcessIntegrationFact(Timeout = 5000)]
     public async Task RunAsync_WhenCancelled_KillsProcessTreeAndPropagatesCancellation()
     {
         if (!OperatingSystem.IsLinux())
@@ -90,11 +90,11 @@ public sealed class ShellCommandRunnerTests
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             runner.RunAsync(new ShellCommandRequest($"sleep 1; touch {marker}"), timeout: null, cancellation.Token));
 
-        await Task.Delay(TimeSpan.FromMilliseconds(1500));
+        await Task.Delay(TimeSpan.FromMilliseconds(1500), TimeProvider.System, CancellationToken.None);
         Assert.False(File.Exists(marker));
     }
 
-    [Fact]
+    [ProcessIntegrationFact]
     public async Task RunAsync_WhenStandardInputIsProvided_WritesInputToProcess()
     {
         if (!OperatingSystem.IsLinux())
@@ -104,13 +104,13 @@ public sealed class ShellCommandRunnerTests
 
         var runner = new ShellCommandRunner();
 
-        var result = await runner.RunAsync(new ShellCommandRequest("cat", StandardInput: "hello stdin"), timeout: null);
+        var result = await runner.RunAsync(new ShellCommandRequest("cat", StandardInput: "hello stdin"), timeout: null, CancellationToken.None);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("hello stdin", result.StandardOutput);
     }
 
-    [Fact]
+    [ProcessIntegrationFact]
     public async Task RunAsync_WhenStandardInputConsumerExitsEarly_ReturnsExitResult()
     {
         if (!OperatingSystem.IsLinux())
@@ -122,14 +122,15 @@ public sealed class ShellCommandRunnerTests
 
         var result = await runner.RunAsync(
             new ShellCommandRequest("sleep 0.1; exit 0", StandardInput: LargeStandardInput),
-            timeout: null);
+            timeout: null,
+            cancellationToken: CancellationToken.None);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(string.Empty, result.StandardOutput);
         Assert.Equal(string.Empty, result.StandardError);
     }
 
-    [Fact]
+    [ProcessIntegrationFact]
     public async Task RunAsync_WhenStandardInputConsumerExitsEarlyWithNonZeroExit_ReturnsExitResult()
     {
         if (!OperatingSystem.IsLinux())
@@ -141,14 +142,15 @@ public sealed class ShellCommandRunnerTests
 
         var result = await runner.RunAsync(
             new ShellCommandRequest("sleep 0.1; printf failure >&2; exit 7", StandardInput: LargeStandardInput),
-            timeout: null);
+            timeout: null,
+            cancellationToken: CancellationToken.None);
 
         Assert.Equal(7, result.ExitCode);
         Assert.Equal(string.Empty, result.StandardOutput);
         Assert.Equal("failure", result.StandardError);
     }
 
-    [Fact]
+    [ProcessIntegrationFact]
     public async Task RunAsync_WhenOutputExceedsLimit_CapsOutputButStillCompletes()
     {
         if (!OperatingSystem.IsLinux())
@@ -160,13 +162,14 @@ public sealed class ShellCommandRunnerTests
 
         var result = await runner.RunAsync(
             new ShellCommandRequest("printf 123456789", OutputLimitChars: 4),
-            timeout: null);
+            timeout: null,
+            cancellationToken: CancellationToken.None);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("1234", result.StandardOutput);
     }
 
-    [Fact]
+    [ProcessIntegrationFact]
     public async Task RunAsync_WhenBothStreamsExceedLimit_CapsBothStreams()
     {
         if (!OperatingSystem.IsLinux())
@@ -178,7 +181,8 @@ public sealed class ShellCommandRunnerTests
 
         var result = await runner.RunAsync(
             new ShellCommandRequest("printf stdout-value; printf stderr-value >&2", OutputLimitChars: 6),
-            timeout: null);
+            timeout: null,
+            cancellationToken: CancellationToken.None);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("stdout", result.StandardOutput);

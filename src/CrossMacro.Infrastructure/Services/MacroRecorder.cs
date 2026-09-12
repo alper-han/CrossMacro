@@ -15,6 +15,7 @@ public sealed class MacroRecorder(
     private IInputCapture? _inputCapture;
     private readonly Lock _eventLock = new();
     private bool _isRecording;
+    private long _recordingGeneration;
     private long? _captureTimestampSourceEpochMicroseconds;
     private long _timelineTimestampAtCaptureEpochMicroseconds;
     private long _lastTimelineTimestampMicroseconds;
@@ -77,6 +78,7 @@ public sealed class MacroRecorder(
             recordMouse, recordKeyboard, useAbsoluteCoordinates, forceRelative, useLogicalRelative, skipInitialZero,
             ignoredKeysList is not null ? string.Join(',', ignoredKeysList) : "none");
 
+        long recordingGeneration;
         using (_eventLock.EnterScope())
         {
             if (_isRecording)
@@ -84,6 +86,7 @@ public sealed class MacroRecorder(
                 return;
             }
 
+            recordingGeneration = ++_recordingGeneration;
             _isRecording = true;
             _currentSequence = new MacroSequence
             {
@@ -141,13 +144,25 @@ public sealed class MacroRecorder(
             if (!useAbsoluteCoordinates && !skipInitialZero)
             {
                 await PerformCornerResetAsync(cancellationToken).ConfigureAwait(false);
+                if (!IsRecordingGenerationActive(recordingGeneration))
+                {
+                    return;
+                }
             }
 
             await _currentStrategy.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            if (!IsRecordingGenerationActive(recordingGeneration))
+            {
+                return;
+            }
 
             if (useAbsoluteCoordinates)
             {
                 _recordingDesktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
+                if (!IsRecordingGenerationActive(recordingGeneration))
+                {
+                    return;
+                }
                 if (_recordingDesktopBounds is { } bounds)
                 {
                     Log.Information(
@@ -160,8 +175,17 @@ public sealed class MacroRecorder(
             }
 
             // 3. Initialize Capture
-            _inputCapture = _inputCaptureFactory();
-            var inputCapture = _inputCapture;
+            IInputCapture inputCapture;
+            using (_eventLock.EnterScope())
+            {
+                if (!_isRecording || _recordingGeneration != recordingGeneration)
+                {
+                    return;
+                }
+
+                inputCapture = _inputCaptureFactory();
+                _inputCapture = inputCapture;
+            }
             var providerName = inputCapture.ProviderName;
             if (inputCapture is IMouseCoordinateModeInputCapture modeAwareCapture)
             {
@@ -188,6 +212,14 @@ public sealed class MacroRecorder(
 
             CleanupComponents();
             throw;
+        }
+    }
+
+    private bool IsRecordingGenerationActive(long generation)
+    {
+        using (_eventLock.EnterScope())
+        {
+            return _isRecording && _recordingGeneration == generation;
         }
     }
 
@@ -396,6 +428,7 @@ public sealed class MacroRecorder(
             Log.Information("[MacroRecorder] Stopping recording...");
 
             _isRecording = false;
+            _recordingGeneration++;
             stopwatch = _stopwatch;
             sequence = _currentSequence;
             stopwatch?.Stop();
@@ -609,6 +642,7 @@ public sealed class MacroRecorder(
         using (_eventLock.EnterScope())
         {
             _isRecording = false;
+            _recordingGeneration++;
             _stopwatch?.Stop();
         }
 

@@ -115,8 +115,8 @@ public sealed class HotkeyConfigurationServiceTests : IDisposable
         };
 
         var request = service.CaptureSaveRequest(settings);
-        await service.ReloadAsync(secondProfile);
-        _ = service.TrySave(request).Should().BeTrue();
+        _ = await service.ReloadAsync(secondProfile);
+        _ = (await service.TrySaveAsync(request)).Should().BeTrue();
 
         _ = File.Exists(Path.Combine(firstProfile, "hotkeys.json")).Should().BeTrue();
         _ = File.Exists(Path.Combine(secondProfile, "hotkeys.json")).Should().BeFalse();

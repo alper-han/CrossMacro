@@ -228,7 +228,10 @@ internal sealed class RunScriptScreenReadExecutor(
             await _flushPendingCursorMovementAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        var position = await _mousePositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false) ?? throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: pixelcolor rel failed: current mouse position is unavailable.");
+        var position = await _mousePositionProvider.GetAbsolutePositionAsync()
+            .WaitAsync(cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: pixelcolor rel failed: current mouse position is unavailable.");
         return new ScreenPoint(checked(position.X + dx), checked(position.Y + dy));
     }
 

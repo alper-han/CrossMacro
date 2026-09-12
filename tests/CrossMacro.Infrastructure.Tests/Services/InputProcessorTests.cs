@@ -48,6 +48,31 @@ public sealed class InputProcessorTests
     }
 
     [Fact]
+    public void ProcessEvent_DebouncesRepeatedKeyUsingInjectedLogicalTime()
+    {
+        var timeProvider = new FakeTimeProvider();
+        var processor = new InputProcessor(_layoutService, timeProvider);
+        var received = 0;
+        processor.CharacterReceived += _ => received++;
+        _ = _layoutService.GetCharFromKeyCode(
+            30,
+            leftShift: false,
+            rightShift: false,
+            rightAlt: false,
+            leftAlt: false,
+            leftCtrl: false,
+            capsLock: false).Returns('a');
+        var keyPress = new CapturedInputEvent { Type = InputEventType.Key, Code = 30, Value = 1 };
+
+        processor.ProcessEvent(keyPress);
+        processor.ProcessEvent(keyPress);
+        timeProvider.Advance(TimeSpan.FromMilliseconds(20));
+        processor.ProcessEvent(keyPress);
+
+        _ = received.Should().Be(2);
+    }
+
+    [Fact]
     public void ProcessEvent_ShouldFireSpecialKeyReceived_ForBackspace()
     {
         // Arrange

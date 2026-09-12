@@ -87,10 +87,14 @@ public class PersistedMacroDocument
             TrailingDelayMaxMs = TrailingDelayMaxMs,
         };
 
-        sequence.ReplaceEvents(Events.Select(static ev => ev.ToRuntime()).ToList());
-        sequence.ReplaceScriptSteps(ScriptSteps);
-        sequence.ReplaceTextInputBoundaries(TextInputBoundaries);
-        sequence.ReplaceImages(Images);
+        sequence.ReplaceEvents(Events is null
+            ? []
+            : Events.Select(static ev => ev is null
+                ? throw new InvalidDataException("Persisted macro event cannot be null.")
+                : ev.ToRuntime()).ToList());
+        sequence.ReplaceScriptSteps(ScriptSteps ?? []);
+        sequence.ReplaceTextInputBoundaries(TextInputBoundaries ?? []);
+        sequence.ReplaceImages(Images ?? new Dictionary<string, string>(StringComparer.Ordinal));
         return sequence;
     }
 }

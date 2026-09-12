@@ -3,7 +3,11 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 internal static class WindowGeometryUnlocker
 {
-    public static async Task UnlockAsync(IWindowQueryService query, IWindowMutationService mutator, CancellationToken cancellationToken)
+    public static async Task UnlockAsync(
+        IWindowQueryService query,
+        IWindowMutationService mutator,
+        CancellationToken cancellationToken,
+        Func<TimeSpan, CancellationToken, Task>? delayAsync = null)
     {
         var info = await query.GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
         if (info != null)
@@ -26,7 +30,9 @@ internal static class WindowGeometryUnlocker
             }
             if (stateChanged)
             {
-                await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+                await (delayAsync ?? ((delay, token) => Task.Delay(delay, TimeProvider.System, token)))
+                    (TimeSpan.FromMilliseconds(150), cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
     }

@@ -21,6 +21,30 @@ public sealed class JsonScheduledTaskRepositoryTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void Constructor_WhenScheduleFilePathIsMissing_ThrowsArgumentException(string? path)
+    {
+        _ = Assert.ThrowsAny<ArgumentException>(() => new JsonScheduledTaskRepository(path!));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task ReloadAsync_WhenProfileConfigDirectoryIsMissing_ThrowsArgumentException(string? path)
+    {
+        _ = await Assert.ThrowsAnyAsync<ArgumentException>(() => _repository.ReloadAsync(path!));
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenTasksAreNull_ThrowsArgumentNullException()
+    {
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => _repository.SaveAsync(null!));
+    }
+
     [Fact]
     public async Task LoadAsync_WhenFileDoesNotExist_ReturnsEmptyList()
     {

@@ -69,6 +69,30 @@ public sealed class RunScriptMousePositionRuntimeTests
             .WithMessage("Step 5: The current mouse position is unavailable in this session.");
     }
 
+    [Fact]
+    public async Task ExecuteStepAsync_WhenProviderDoesNotComplete_PropagatesCancellation()
+    {
+        var provider = Substitute.For<IMousePositionProvider>();
+        _ = provider.IsSupported.Returns(returnThis: true);
+        _ = provider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var queryStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pendingQuery = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = provider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            queryStarted.TrySetResult(true);
+            return pendingQuery.Task;
+        });
+        var executor = new RunScriptMousePositionExecutor(provider);
+        using var cancellation = new CancellationTokenSource();
+
+        var executeTask = executor.ExecuteStepAsync("mouse position x y", 6, Variables(), cancellation.Token);
+        _ = await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => executeTask);
+    }
+
     [Theory]
     [InlineData("mouse")]
     [InlineData("mouse position x")]

@@ -5,12 +5,13 @@ namespace CrossMacro.Infrastructure.Services;
 /// Service for managing text expansion storage in a separate JSON file
 /// Follows XDG Base Directory specification
 /// </summary>
-public class TextExpansionStorageService : ITextExpansionStorageService
+public class TextExpansionStorageService : ITextExpansionStorageService, IDisposable
 
 {
     private const string ExpansionsFileName = ConfigFileNames.TextExpansions;
     private List<Core.Models.TextExpansionEntry> _expansions = new();
     private readonly Lock _lock = new();
+    private readonly SemaphoreSlim _operationGate = new(1, 1);
     private int _loadedState;
 
     public TextExpansionStorageService(string? configDirectory = null)
@@ -30,6 +31,19 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     /// </summary>
     public IList<Core.Models.TextExpansionEntry> Load()
     {
+        _operationGate.Wait();
+        try
+        {
+            return LoadCore();
+        }
+        finally
+        {
+            _ = _operationGate.Release();
+        }
+    }
+
+    private IList<Core.Models.TextExpansionEntry> LoadCore()
+    {
         lock (_lock)
         {
             try
@@ -46,14 +60,14 @@ public class TextExpansionStorageService : ITextExpansionStorageService
                 Volatile.Write(ref _loadedState, 1);
 
                 Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
-                return _expansions;
+                return new List<Core.Models.TextExpansionEntry>(_expansions);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[TextExpansionStorageService] Failed to load text expansions");
                 _expansions = [];
                 Volatile.Write(ref _loadedState, 1);
-                return _expansions;
+                return new List<Core.Models.TextExpansionEntry>(_expansions);
             }
         }
     }
@@ -63,12 +77,24 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     /// </summary>
     public async Task<IList<Core.Models.TextExpansionEntry>> LoadAsync()
     {
+        await _operationGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            return await LoadCoreAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _operationGate.Release();
+        }
+    }
+
+    private async Task<IList<Core.Models.TextExpansionEntry>> LoadCoreAsync()
+    {
         string filePath;
         lock (_lock)
         {
             filePath = FilePath;
         }
-
         try
         {
             if (!File.Exists(filePath))
@@ -100,7 +126,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService
             }
 
             Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", loaded.Count);
-            return loaded;
+            return new List<Core.Models.TextExpansionEntry>(loaded);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -120,14 +146,23 @@ public class TextExpansionStorageService : ITextExpansionStorageService
 
     public async Task ReloadAsync(string profileConfigDirectory)
     {
-        lock (_lock)
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileConfigDirectory);
+        await _operationGate.WaitAsync().ConfigureAwait(false);
+        try
         {
-            FilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.TextExpansions);
-            _expansions = [];
-            Volatile.Write(ref _loadedState, 0);
-        }
+            lock (_lock)
+            {
+                FilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.TextExpansions);
+                _expansions = [];
+                Volatile.Write(ref _loadedState, 0);
+            }
 
-        _ = await LoadAsync().ConfigureAwait(false);
+            _ = await LoadCoreAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _operationGate.Release();
+        }
     }
 
     /// <summary>
@@ -135,20 +170,34 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     /// </summary>
     public async Task SaveAsync(IEnumerable<Core.Models.TextExpansionEntry> expansions)
     {
+        ArgumentNullException.ThrowIfNull(expansions);
         try
         {
             var expansionList = expansions.ToList();
-
-            await FileBackedJsonStorage.WriteAsync(FilePath, expansionList, CrossMacroJsonContext.Default.ListTextExpansionEntry)
-                .ConfigureAwait(false);
-
-            lock (_lock)
+            await _operationGate.WaitAsync().ConfigureAwait(false);
+            try
             {
-                _expansions = new List<Core.Models.TextExpansionEntry>(expansionList);
-                Volatile.Write(ref _loadedState, 1);
-            }
+                string filePath;
+                lock (_lock)
+                {
+                    filePath = FilePath;
+                }
 
-            Log.Information("[TextExpansionStorageService] Saved {Count} text expansions", expansionList.Count);
+                await FileBackedJsonStorage.WriteAsync(filePath, expansionList, CrossMacroJsonContext.Default.ListTextExpansionEntry)
+                    .ConfigureAwait(false);
+
+                lock (_lock)
+                {
+                    _expansions = new List<Core.Models.TextExpansionEntry>(expansionList);
+                    Volatile.Write(ref _loadedState, 1);
+                }
+
+                Log.Information("[TextExpansionStorageService] Saved {Count} text expansions", expansionList.Count);
+            }
+            finally
+            {
+                _ = _operationGate.Release();
+            }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -170,6 +219,20 @@ public class TextExpansionStorageService : ITextExpansionStorageService
     }
 
     public bool IsLoaded => Volatile.Read(ref _loadedState) is 1;
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _operationGate.Dispose();
+        }
+    }
 
     /// <summary>
     /// Gets the file path where expansions are stored

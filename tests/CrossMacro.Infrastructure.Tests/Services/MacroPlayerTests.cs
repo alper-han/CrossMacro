@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
@@ -233,12 +235,12 @@ public sealed partial class MacroPlayerTests
         public void MoveAbsolute(int x, int y)
         {
             AbsoluteMoves.Add((x, y));
-            Operations.Add($"abs:{x},{y}");
+            Operations.Add(string.Create(CultureInfo.InvariantCulture, $"abs:{x},{y}"));
         }
 
         public void MoveRelative(int dx, int dy)
         {
-            Operations.Add($"rel:{dx},{dy}");
+            Operations.Add(string.Create(CultureInfo.InvariantCulture, $"rel:{dx},{dy}"));
         }
 
         public void MouseButton(int button, bool pressed)
@@ -250,7 +252,7 @@ public sealed partial class MacroPlayerTests
         public void Scroll(int delta, bool isHorizontal = false)
         {
             ScrollOperations.Add((delta, isHorizontal));
-            Operations.Add($"scroll:{delta},{isHorizontal}");
+            Operations.Add(string.Create(CultureInfo.InvariantCulture, $"scroll:{delta},{isHorizontal}"));
         }
 
         public void KeyPress(int keyCode, bool pressed)

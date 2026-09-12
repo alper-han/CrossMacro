@@ -52,6 +52,7 @@ internal static class AbsoluteCursorPositionSynchronizer
             var position = await QueryPositionAsync(
                 positionProvider,
                 remaining,
+                clock,
                 cancellationToken).ConfigureAwait(false);
             lastObservedPosition = position;
             if (position is { } observed && isSettled(observed))
@@ -77,12 +78,13 @@ internal static class AbsoluteCursorPositionSynchronizer
     private static async Task<(int X, int Y)?> QueryPositionAsync(
         IMousePositionProvider positionProvider,
         TimeSpan timeout,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         try
         {
             return await positionProvider.GetAbsolutePositionAsync()
-                .WaitAsync(timeout, TimeProvider.System, cancellationToken)
+                .WaitAsync(timeout, timeProvider, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (TimeoutException)

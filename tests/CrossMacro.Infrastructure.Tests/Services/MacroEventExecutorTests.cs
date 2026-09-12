@@ -82,10 +82,10 @@ public sealed class MacroEventExecutorTests : IDisposable
     {
         var simulator = new TrackingSimulator(supportsAbsoluteCoordinates: true);
         var coordinator = Substitute.For<IPlaybackCoordinator>();
-        _ = coordinator.HasKnownPosition.Returns(true);
+        _ = coordinator.HasKnownPosition.Returns(returnThis: true);
         _ = coordinator.CurrentX.Returns(60);
         _ = coordinator.CurrentY.Returns(50);
-        _ = _buttonTracker.IsAnyPressed.Returns(true);
+        _ = _buttonTracker.IsAnyPressed.Returns(returnThis: true);
         using var executor = new MacroEventExecutor(
             simulator,
             _buttonTracker,

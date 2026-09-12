@@ -6,9 +6,9 @@ public class MacroScheduledTaskExecutor(
     Func<IMacroPlayer> playerFactory,
     TimeProvider timeProvider) : IScheduledTaskExecutor
 {
-    private readonly IMacroFileManager _fileManager = fileManager;
-    private readonly Func<IMacroPlayer> _playerFactory = playerFactory;
-    private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly IMacroFileManager _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
+    private readonly Func<IMacroPlayer> _playerFactory = playerFactory ?? throw new ArgumentNullException(nameof(playerFactory));
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     private readonly SynchronizationContext? _syncContext = SynchronizationContext.Current;
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;

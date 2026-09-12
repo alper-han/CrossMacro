@@ -197,7 +197,7 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
 
             IsRunning = true;
             _cts = new CancellationTokenSource();
-            _periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            _periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1), _timeProvider);
             _timerTask = RunTimerLoopAsync(_periodicTimer, _cts.Token);
             Completion = _timerTask;
 

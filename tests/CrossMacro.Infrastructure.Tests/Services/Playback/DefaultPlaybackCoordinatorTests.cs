@@ -120,7 +120,7 @@ public sealed class DefaultPlaybackCoordinatorTests
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
         coordinator.InvalidatePosition(movementMayBePending: true);
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
 
         var synchronized = await coordinator.TrySynchronizePositionAsync(cancellation.Token);
 
@@ -152,17 +152,52 @@ public sealed class DefaultPlaybackCoordinatorTests
     }
 
     [Fact]
+    public async Task TrySynchronizePositionAsync_AfterRawMovement_UsesInjectedTimeProviderForPollingDelay()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var timeProvider = new FakeTimeProvider();
+        var observations = Channel.CreateUnbounded<int>();
+        var queryCount = 0;
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(callInfo =>
+        {
+            var count = Interlocked.Increment(ref queryCount);
+            observations.Writer.TryWrite(count);
+            return Task.FromResult<(int X, int Y)?>(count < 3 ? (50, 40) : (75, 60));
+        });
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider, timeProvider);
+        coordinator.UpdatePosition(50, 40);
+        coordinator.InvalidatePosition(movementMayBePending: true);
+
+        var synchronizeTask = coordinator.TrySynchronizePositionAsync(CancellationToken.None);
+        _ = await observations.Reader.ReadAsync(CancellationToken.None).AsTask()
+            .WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+
+        for (var attempt = 1; attempt < 3 && !synchronizeTask.IsCompleted; attempt++)
+        {
+            timeProvider.Advance(TimeSpan.FromMilliseconds(4));
+            _ = await observations.Reader.ReadAsync(CancellationToken.None).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        }
+
+        _ = await synchronizeTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        _ = coordinator.CurrentX.Should().Be(75);
+        _ = coordinator.CurrentY.Should().Be(60);
+        _ = queryCount.Should().Be(3);
+    }
+
+    [Fact]
     public async Task WaitForPositionAsync_WhenCallerIsCanceled_PropagatesCancellation()
     {
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        _ = positionProvider.IsSupported.Returns(true);
-        _ = positionProvider.SupportsAbsolutePosition.Returns(true);
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((0, 0)));
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             coordinator.WaitForPositionAsync(100, 100, cancellation.Token));
     }
 
@@ -213,11 +248,11 @@ public sealed class DefaultPlaybackCoordinatorTests
         var coordinator = new DefaultPlaybackCoordinator(positionProvider, timeProvider);
 
         var settleTask = coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
-        _ = await observations.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        _ = await observations.Reader.ReadAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
         for (var attempt = 1; attempt < 9 && !settleTask.IsCompleted; attempt++)
         {
             timeProvider.Advance(TimeSpan.FromMilliseconds(4));
-            _ = await observations.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+            _ = await observations.Reader.ReadAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
         }
 
         var settled = await settleTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
@@ -236,6 +271,31 @@ public sealed class DefaultPlaybackCoordinatorTests
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
 
         var settled = await coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+
+        _ = settled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task WaitForPositionAsync_WhenProviderDoesNotComplete_UsesInjectedTimeProviderForQueryTimeout()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var queryStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            queryStarted.TrySetResult(true);
+            return new TaskCompletionSource<(int X, int Y)?>(
+                TaskCreationOptions.RunContinuationsAsynchronously).Task;
+        });
+        var timeProvider = new FakeTimeProvider();
+        var coordinator = new DefaultPlaybackCoordinator(positionProvider, timeProvider);
+
+        var waitTask = coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+        _ = await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+
+        timeProvider.Advance(TimeSpan.FromMilliseconds(250));
+
+        var settled = await waitTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
         _ = settled.Should().BeFalse();
     }
@@ -786,7 +846,7 @@ public sealed class DefaultPlaybackCoordinatorTests
     {
         var simulator = Substitute.For<IInputSimulator, IDesktopOriginResetSimulator>();
         var originReset = (IDesktopOriginResetSimulator)simulator;
-        _ = originReset.TryResetToDesktopOrigin().Returns(true);
+        _ = originReset.TryResetToDesktopOrigin().Returns(returnThis: true);
         var coordinator = new DefaultPlaybackCoordinator();
         coordinator.ConfigureDesktopBounds(new ScreenRect(0, 0, 3840, 1080));
         var macro = new MacroSequence

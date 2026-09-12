@@ -34,6 +34,8 @@ public class CoordinateCaptureService(
 
         try
         {
+            captureCts.Token.ThrowIfCancellationRequested();
+
             if (_inputCaptureFactory is null)
             {
                 // Fallback: Just get current position immediately
@@ -138,6 +140,8 @@ public class CoordinateCaptureService(
 
         try
         {
+            captureCts.Token.ThrowIfCancellationRequested();
+
             if (_inputCaptureFactory is null)
             {
                 Log.Warning("[CoordinateCaptureService] No input capture factory available");

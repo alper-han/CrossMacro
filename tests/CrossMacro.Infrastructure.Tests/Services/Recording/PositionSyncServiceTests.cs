@@ -55,6 +55,33 @@ public sealed class PositionSyncServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task StartAsync_UsesInjectedTimeProviderWithExplicitDelayReadiness()
+    {
+        var timeProvider = new FakeTimeProvider();
+        var delayRegistered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var positionChanged = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var provider = Substitute.For<IMousePositionProvider>();
+        _ = provider.IsSupported.Returns(returnThis: true);
+        _ = provider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>(new(10, 10)));
+        using var service = new PositionSyncService(
+            provider,
+            timeProvider,
+            (delay, cancellationToken) =>
+            {
+                _ = delayRegistered.TrySetResult();
+                return Task.Delay(delay, timeProvider, cancellationToken);
+            });
+
+        await service.StartAsync((_, _, _) => positionChanged.TrySetResult(), () => (0, 0), CancellationToken.None);
+        await delayRegistered.Task;
+        timeProvider.Advance(TimeSpan.FromMilliseconds(1));
+        await positionChanged.Task;
+
+        _ = await provider.Received(1).GetAbsolutePositionAsync();
+        service.StopPositionSync();
+    }
+
+    [Fact]
     public async Task Stop_WhenProviderQueryDoesNotObserveCancellation_ReturnsWithoutBlockingIndefinitely()
     {
         _ = _providerSubstitute.IsSupported.Returns(returnThis: true);
@@ -73,9 +100,9 @@ public sealed class PositionSyncServiceTests : IDisposable
             });
 
         await _service.StartAsync((_, _, _) => { }, () => (0, 0), _cts.Token);
-        await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
-        await Task.Run(_service.StopPositionSync).WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Run(_service.StopPositionSync, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = _service.IsRunning.Should().BeFalse();
     }

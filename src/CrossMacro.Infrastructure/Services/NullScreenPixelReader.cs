@@ -16,18 +16,21 @@ public sealed class NullScreenPixelReader : IScreenPixelReader, IScreenImageSear
 
     public Task<ScreenReadResult<ScreenPixelColor>> GetPixelAsync(ScreenPoint point, ScreenReadOptions options)
     {
+        options.CancellationToken.ThrowIfCancellationRequested();
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. GetPixelAsync called.");
         return Task.FromResult(ScreenReadResultFactory.Failure<ScreenPixelColor>(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }
 
     public Task<ScreenReadResult<ScreenPixelColor>> WaitForPixelAsync(ScreenPoint point, ScreenPixelColor expected, ScreenReadOptions options)
     {
+        options.CancellationToken.ThrowIfCancellationRequested();
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. WaitForPixelAsync called.");
         return Task.FromResult(ScreenReadResultFactory.Failure<ScreenPixelColor>(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }
 
     public Task<ScreenReadResult<ScreenPixelSearchMatch>> SearchPixelAsync(ScreenRect region, ScreenPixelColor expected, int tolerance, ScreenReadOptions options)
     {
+        options.CancellationToken.ThrowIfCancellationRequested();
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. SearchPixelAsync called.");
         return Task.FromResult(ScreenReadResultFactory.Failure<ScreenPixelSearchMatch>(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }
@@ -38,6 +41,7 @@ public sealed class NullScreenPixelReader : IScreenPixelReader, IScreenImageSear
         ScreenImageMatchOptions options,
         ScreenReadOptions readOptions)
     {
+        readOptions.CancellationToken.ThrowIfCancellationRequested();
         Core.Logging.Log.Warning("[NullScreenPixelReader] Screen reading is not available. SearchImageAsync called.");
         return Task.FromResult(ScreenReadResultFactory.Failure<ScreenImageMatch>(ScreenReadErrorKind.Unsupported, "Screen reading is not available."));
     }

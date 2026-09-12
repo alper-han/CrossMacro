@@ -29,6 +29,7 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
     private IPlaybackCoordinator? _coordinator;
 
     private bool _disposed;
+    private int _playbackInProgress;
 
     private int _cachedScreenWidth;
     private int _cachedScreenHeight;
@@ -130,65 +131,72 @@ public sealed class MacroPlayer : IMacroPlayer, IPlaybackPauseToken, IRunScriptR
     {
         ArgumentNullException.ThrowIfNull(macro);
 
-        if (IsPlaying)
+        if (Interlocked.CompareExchange(ref _playbackInProgress, 1, 0) is not 0)
         {
             throw new InvalidOperationException("Playback is already in progress");
         }
 
-        var validationResult = _validator.Validate(macro);
-        if (!validationResult.IsValid)
+        try
         {
-            var errorMsg = string.Join(", ", validationResult.Errors);
-            Log.LogError("[MacroPlayer] Validation failed: {Error}", errorMsg);
-            throw new InvalidOperationException($"Playback validation failed: {errorMsg}");
-        }
+            var validationResult = _validator.Validate(macro);
+            if (!validationResult.IsValid)
+            {
+                var errorMsg = string.Join(", ", validationResult.Errors);
+                Log.LogError("[MacroPlayer] Validation failed: {Error}", errorMsg);
+                throw new InvalidOperationException($"Playback validation failed: {errorMsg}");
+            }
 
-        foreach (var warning in validationResult.Warnings)
+            foreach (var warning in validationResult.Warnings)
+            {
+                Log.Warning("[MacroPlayer] Warning: {Warning}", warning);
+            }
+
+            var requestedOptions = options ?? new PlaybackOptions();
+            requestedOptions.Normalize();
+            var precisionRatePlan = PrecisionMotionRateGovernor.CreatePlan(macro, requestedOptions);
+            var effectiveOptions = ClonePlaybackOptions(requestedOptions, precisionRatePlan.EffectiveSpeedMultiplier);
+
+            if (precisionRatePlan.IsQualityLimited)
+            {
+                Log.Information(
+                    "[MacroPlayer] Precision quality lock: RequestedSpeed={RequestedSpeed:F3}x, EffectiveSpeed={EffectiveSpeed:F3}x, SourcePeakReportsPerSecond={SourcePeakReportsPerSecond:F1}, CapReportsPerSecond={CapReportsPerSecond}",
+                    precisionRatePlan.RequestedSpeedMultiplier,
+                    precisionRatePlan.EffectiveSpeedMultiplier,
+                    precisionRatePlan.SourcePeakEventsPerSecond,
+                    precisionRatePlan.OutputCapEventsPerSecond);
+            }
+
+            var lifecycle = new MacroPlaybackLifecycle(
+                BeginPlayback,
+                () => _session.Token,
+                CleanupAsync,
+                SetLoopProgress,
+                waiting => IsWaitingBetweenLoops = waiting,
+                HasOnlyRuntimeScriptSteps,
+                HasRuntimeScriptSteps,
+                ExecuteScreenReadScriptStepsAsync,
+                SetupRuntimeScriptOnlyAsync,
+                (sequence, _) => SetupPlaybackAsync(sequence),
+                PrepareIterationAsync,
+                iteration => Log.Information("[MacroPlayer] Starting playback iteration {Iteration}", iteration),
+                (playbackOptions, repeatCount, infiniteLoop) => Log.Information(
+                    "[MacroPlayer] Loop settings: Loop={Loop}, RepeatCount={Count}, Infinite={Infinite}",
+                    playbackOptions.Loop,
+                    repeatCount,
+                    infiniteLoop),
+                PlayOnceAsync,
+                PlayOnceRuntimeScriptAsync,
+                WaitForStabilizationAsync,
+                ResolveTrailingDelayMicroseconds,
+                ResolveRepeatDelayMs,
+                (delayMs, token) => _timingService.WaitAsync(delayMs, this, token));
+
+            await lifecycle.RunAsync(macro, effectiveOptions, cancellationToken).ConfigureAwait(false);
+        }
+        finally
         {
-            Log.Warning("[MacroPlayer] Warning: {Warning}", warning);
+            Volatile.Write(ref _playbackInProgress, 0);
         }
-
-        var requestedOptions = options ?? new PlaybackOptions();
-        requestedOptions.Normalize();
-        var precisionRatePlan = PrecisionMotionRateGovernor.CreatePlan(macro, requestedOptions);
-        var effectiveOptions = ClonePlaybackOptions(requestedOptions, precisionRatePlan.EffectiveSpeedMultiplier);
-
-        if (precisionRatePlan.IsQualityLimited)
-        {
-            Log.Information(
-                "[MacroPlayer] Precision quality lock: RequestedSpeed={RequestedSpeed:F3}x, EffectiveSpeed={EffectiveSpeed:F3}x, SourcePeakReportsPerSecond={SourcePeakReportsPerSecond:F1}, CapReportsPerSecond={CapReportsPerSecond}",
-                precisionRatePlan.RequestedSpeedMultiplier,
-                precisionRatePlan.EffectiveSpeedMultiplier,
-                precisionRatePlan.SourcePeakEventsPerSecond,
-                precisionRatePlan.OutputCapEventsPerSecond);
-        }
-
-        var lifecycle = new MacroPlaybackLifecycle(
-            BeginPlayback,
-            () => _session.Token,
-            CleanupAsync,
-            SetLoopProgress,
-            waiting => IsWaitingBetweenLoops = waiting,
-            HasOnlyRuntimeScriptSteps,
-            HasRuntimeScriptSteps,
-            ExecuteScreenReadScriptStepsAsync,
-            SetupRuntimeScriptOnlyAsync,
-            (sequence, _) => SetupPlaybackAsync(sequence),
-            PrepareIterationAsync,
-            iteration => Log.Information("[MacroPlayer] Starting playback iteration {Iteration}", iteration),
-            (playbackOptions, repeatCount, infiniteLoop) => Log.Information(
-                "[MacroPlayer] Loop settings: Loop={Loop}, RepeatCount={Count}, Infinite={Infinite}",
-                playbackOptions.Loop,
-                repeatCount,
-                infiniteLoop),
-            PlayOnceAsync,
-            PlayOnceRuntimeScriptAsync,
-            WaitForStabilizationAsync,
-            ResolveTrailingDelayMicroseconds,
-            ResolveRepeatDelayMs,
-            (delayMs, token) => _timingService.WaitAsync(delayMs, this, token));
-
-        await lifecycle.RunAsync(macro, effectiveOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private static PlaybackOptions ClonePlaybackOptions(PlaybackOptions source, double speedMultiplier)

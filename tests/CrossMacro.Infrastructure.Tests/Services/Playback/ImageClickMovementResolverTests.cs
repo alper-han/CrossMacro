@@ -65,4 +65,29 @@ public sealed class ImageClickMovementResolverTests
         _ = result.ErrorMessage.Should().Be("The target and current mouse positions cannot be represented as a relative movement.");
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
     }
+
+    [Fact]
+    public async Task ResolveAsync_WhenPositionProviderDoesNotComplete_PropagatesCancellation()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
+        var queryStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pendingQuery = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            queryStarted.TrySetResult(true);
+            return pendingQuery.Task;
+        });
+        var simulator = Substitute.For<IInputSimulator, IInputSimulatorCapabilities>();
+        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(returnThis: false);
+        var resolver = new ImageClickMovementResolver(positionProvider);
+        using var cancellation = new CancellationTokenSource();
+
+        var resolveTask = resolver.ResolveAsync(simulator, new ScreenPoint(125, 50), cancellation.Token);
+        _ = await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => resolveTask);
+    }
 }

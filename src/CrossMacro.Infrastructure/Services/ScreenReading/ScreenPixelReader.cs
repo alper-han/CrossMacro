@@ -1,9 +1,12 @@
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
-public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScreenPixelReader, IScreenImageSearchReader
+public sealed class ScreenPixelReader(
+    IScreenFrameProvider frameProvider,
+    TimeProvider? timeProvider = null) : IScreenPixelReader, IScreenImageSearchReader
 {
     private readonly IScreenFrameProvider _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly ScreenImageMatcher _imageMatcher = new();
     private bool _disposed;
 
@@ -54,7 +57,8 @@ public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScr
             () => ScreenReadResultFactory.Failure<ScreenPixelColor>(
                 ScreenReadErrorKind.CaptureTimeout,
                 $"Timed out waiting for pixel {point} to become {expected}."),
-            options.CancellationToken).ConfigureAwait(false);
+            options.CancellationToken,
+            _timeProvider).ConfigureAwait(false);
     }
 
     private async Task<ScreenReadResult<ScreenPixelColor>> WaitForPixelOnceAsync(
@@ -90,7 +94,8 @@ public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScr
             pollInterval,
             "Screen pixel search was canceled.",
             timeoutFailure: null,
-            cancellationToken: options.CancellationToken).ConfigureAwait(false);
+            cancellationToken: options.CancellationToken,
+            timeProvider: _timeProvider).ConfigureAwait(false);
     }
 
     private async Task<ScreenReadResult<ScreenPixelSearchMatch>> SearchPixelOnceAsync(
@@ -155,7 +160,8 @@ public sealed class ScreenPixelReader(IScreenFrameProvider frameProvider) : IScr
                 new ScreenReadOptions(remaining, pollInterval, pollUntilMatch: false, token)),
             timeout,
             pollInterval,
-            readOptions.CancellationToken).ConfigureAwait(false);
+            readOptions.CancellationToken,
+            _timeProvider).ConfigureAwait(false);
     }
 
     private async Task<ScreenReadResult<ScreenImageMatch>> SearchImageOnceAsync(

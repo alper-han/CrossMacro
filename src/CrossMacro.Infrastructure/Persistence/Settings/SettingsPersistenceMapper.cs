@@ -47,6 +47,7 @@ internal static class SettingsPersistenceMapper
             IsMouseRecordingEnabled = source.IsMouseRecordingEnabled,
             IsKeyboardRecordingEnabled = source.IsKeyboardRecordingEnabled,
             ForceRelativeCoordinates = source.ForceRelativeCoordinates,
+            UseLogicalRelativeCoordinates = source.UseLogicalRelativeCoordinates,
             SkipInitialZeroZero = source.SkipInitialZeroZero,
             EnableTextExpansion = source.EnableTextExpansion,
             CheckForUpdates = source.CheckForUpdates,
@@ -87,6 +88,7 @@ internal static class SettingsPersistenceMapper
             IsMouseRecordingEnabled = profile.IsMouseRecordingEnabled,
             IsKeyboardRecordingEnabled = profile.IsKeyboardRecordingEnabled,
             ForceRelativeCoordinates = profile.ForceRelativeCoordinates,
+            UseLogicalRelativeCoordinates = profile.UseLogicalRelativeCoordinates,
             SkipInitialZeroZero = profile.SkipInitialZeroZero,
             EnableTextExpansion = profile.EnableTextExpansion,
             CheckForUpdates = profile.CheckForUpdates,
@@ -132,6 +134,7 @@ internal static class SettingsPersistenceMapper
         target.IsMouseRecordingEnabled = profile.IsMouseRecordingEnabled;
         target.IsKeyboardRecordingEnabled = profile.IsKeyboardRecordingEnabled;
         target.ForceRelativeCoordinates = profile.ForceRelativeCoordinates;
+        target.UseLogicalRelativeCoordinates = profile.UseLogicalRelativeCoordinates;
         target.SkipInitialZeroZero = profile.SkipInitialZeroZero;
         target.EnableTextExpansion = profile.EnableTextExpansion;
         target.CheckForUpdates = profile.CheckForUpdates;

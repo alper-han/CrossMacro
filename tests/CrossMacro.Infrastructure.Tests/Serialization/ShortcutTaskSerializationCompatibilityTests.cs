@@ -31,7 +31,7 @@ public sealed class ShortcutTaskSerializationCompatibilityTests
         var roundTrip = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ShortcutTask);
 
         _ = roundTrip.Should().NotBeNull();
-        _ = roundTrip!.Name.Should().Be(task.Name);
+        _ = roundTrip.Name.Should().Be(task.Name);
         _ = roundTrip.HotkeyString.Should().Be(task.HotkeyString);
         _ = roundTrip.RepeatDelayMaxMs.Should().Be(task.RepeatDelayMaxMs);
         _ = roundTrip.LastStatus.Should().Be(task.LastStatus);
@@ -47,6 +47,6 @@ public sealed class ShortcutTaskSerializationCompatibilityTests
         var task = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ShortcutTask);
 
         _ = task.Should().NotBeNull();
-        _ = task!.WindowRules.Should().BeEmpty();
+        _ = task.WindowRules.Should().BeEmpty();
     }
 }

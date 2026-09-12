@@ -71,7 +71,7 @@ public sealed class TextExpansionLogicTests : IDisposable
         RaiseKey(30);
         RaiseKey(48);
         RaiseKey(46);
-        _ = await expansionTriggered.Task.WaitAsync(TestTimeout);
+        _ = await expansionTriggered.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         // Assert
         await _executor.Received(1).ExpandAsync(expansion, Arg.Any<CancellationToken>());
@@ -115,17 +115,19 @@ public sealed class TextExpansionLogicTests : IDisposable
         RaiseKey(46);
 
         // Wait for first expansion to start
-        _ = await firstExpansionStarted.Task.WaitAsync(TestTimeout);
+        _ = await firstExpansionStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
+        var firstExpansionTask = _service.ExpansionTask;
+        Assert.NotNull(firstExpansionTask);
 
         // Allow it to finish and yield to let background thread execute the finally block (Resume capture)
         _ = firstExpansionAllowedToFinish.TrySetResult(true);
-        await Task.Delay(50);
+        await firstExpansionTask.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         RaiseKey(32);
         RaiseKey(30);
         RaiseKey(48);
         RaiseKey(46);
-        _ = await secondExpansionTriggered.Task.WaitAsync(TestTimeout);
+        _ = await secondExpansionTriggered.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         // Assert - Should trigger again
         await _executor.Received(2).ExpandAsync(expansion, Arg.Any<CancellationToken>());

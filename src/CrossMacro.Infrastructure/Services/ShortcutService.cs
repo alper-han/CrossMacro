@@ -293,10 +293,10 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
         if (shouldStart)
         {
-            _ = ExecuteTaskAsync(
+            await ExecuteTaskAsync(
                 matchingTask,
                 requiresHeldHotkey: matchingTask.RunWhileHeld,
-                cancellationToken: CancellationToken.None);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
         }
     }
 

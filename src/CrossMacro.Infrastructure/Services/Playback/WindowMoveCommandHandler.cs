@@ -1,8 +1,11 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-internal sealed class WindowMoveCommandHandler : IWindowCommandHandler
+internal sealed class WindowMoveCommandHandler(
+    Func<TimeSpan, CancellationToken, Task>? delayAsync = null) : IWindowCommandHandler
 {
+    private readonly Func<TimeSpan, CancellationToken, Task>? _delayAsync = delayAsync;
+
     public string SubCommand => "move";
     public string? Validate(string[] parts)
     {
@@ -22,7 +25,7 @@ internal sealed class WindowMoveCommandHandler : IWindowCommandHandler
     {
         var x = int.Parse(parts[2], CultureInfo.InvariantCulture);
         var y = int.Parse(parts[3], CultureInfo.InvariantCulture);
-        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
+        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken, _delayAsync).ConfigureAwait(false);
         _ = await mutator.MoveActiveWindowAsync(x, y, cancellationToken).ConfigureAwait(false);
     }
 }

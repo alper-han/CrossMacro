@@ -18,7 +18,9 @@ internal static class PostPlatformRuntimeServiceRegistration
         services.TryAddSingleton<IImageAssetPreviewDecoder, ImageAssetPreviewDecoder>();
         services.TryAddSingleton<IScreenFrameProvider, UnsupportedScreenFrameProvider>();
         services.TryAddSingleton<IScreenshotCaptureService>(sp => new ScreenshotCaptureService(sp.GetService<IScreenFrameProvider>(), sp.GetService<IImageClipboardService>(), sp.GetRequiredService<IImageAssetCodec>()));
-        services.TryAddSingleton<IScreenPixelReader, ScreenPixelReader>();
+        services.TryAddSingleton<IScreenPixelReader>(sp => new ScreenPixelReader(
+            sp.GetRequiredService<IScreenFrameProvider>(),
+            sp.GetRequiredService<TimeProvider>()));
         services.TryAddSingleton<IScreenImageAutomation>(sp => new ScreenImageAutomation(sp.GetRequiredService<IScreenPixelReader>(), sp.GetRequiredService<IImageAssetCodec>(), sp.GetService<IMousePositionProvider>(), sp.GetService<Func<IInputSimulator>>(), sp.GetService<IInputSimulatorPool>(), sp.GetRequiredService<IImageClickMovementResolver>(), sp.GetRequiredService<TimeProvider>()));
         services.TryAddSingleton<IScreenReadingWarmupService>(sp => new ScreenReadingWarmupService(
             sp.GetRequiredService<IScreenFrameProvider>(),

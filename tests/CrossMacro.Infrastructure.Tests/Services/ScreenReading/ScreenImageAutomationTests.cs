@@ -29,7 +29,7 @@ public sealed class ScreenImageAutomationTests
         var result = await automation.SearchAsync(new ScreenImageAutomationRequest("target.png"), CancellationToken.None);
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        await ((IScreenImageSearchReader)reader).Received(1).SearchImageAsync(
+        _ = await ((IScreenImageSearchReader)reader).Received(1).SearchImageAsync(
             Arg.Any<ScreenRect?>(),
             Arg.Any<ScreenFrame>(),
             Arg.Any<ScreenImageMatchOptions>(),
@@ -43,7 +43,7 @@ public sealed class ScreenImageAutomationTests
     {
         var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
         _ = reader.ProviderName.Returns("test-screen");
-        _ = reader.IsSupported.Returns(true);
+        _ = reader.IsSupported.Returns(returnThis: true);
 
         var match = new ScreenImageMatch(
             new ScreenPoint(-100, -50),
@@ -68,14 +68,14 @@ public sealed class ScreenImageAutomationTests
 
         var simulator = Substitute.For<IInputSimulator, IInputSimulatorCapabilities, IInputSimulatorAbsoluteBounds>();
         _ = simulator.ProviderName.Returns("test-input");
-        _ = simulator.IsSupported.Returns(true);
-        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(true);
-        _ = ((IInputSimulatorAbsoluteBounds)simulator).UsesZeroBasedScreenBounds.Returns(true);
+        _ = simulator.IsSupported.Returns(returnThis: true);
+        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(returnThis: true);
+        _ = ((IInputSimulatorAbsoluteBounds)simulator).UsesZeroBasedScreenBounds.Returns(returnThis: true);
 
         var positionProvider = Substitute.For<IMousePositionProvider>();
         _ = positionProvider.ProviderName.Returns("test-position");
-        _ = positionProvider.IsSupported.Returns(true);
-        _ = positionProvider.SupportsAbsolutePosition.Returns(true);
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         var bounds = new ScreenRect(-1920, -200, 5120, 1440);
         _ = positionProvider.GetDesktopBoundsAsync().Returns(Task.FromResult<ScreenRect?>(bounds));
         _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((-98, -47)));
@@ -99,12 +99,12 @@ public sealed class ScreenImageAutomationTests
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = result.Point.Should().Be(new ScreenPoint(-98, -47));
-        await ((IScreenImageSearchReader)reader).Received(2).SearchImageAsync(
+        _ = await ((IScreenImageSearchReader)reader).Received(2).SearchImageAsync(
             Arg.Any<ScreenRect?>(),
             Arg.Any<ScreenFrame>(),
             Arg.Is<ScreenImageMatchOptions>(options =>
                 options.SelectionMode == ScreenImageMatchSelectionMode.Automatic
-                && options.MinimumSimilarity == 0.95),
+                && double.Equals(options.MinimumSimilarity, 0.95)),
             Arg.Any<ScreenReadOptions>());
         await simulator.Received(1).InitializeAsync(5120, 1440, Arg.Any<CancellationToken>());
         simulator.Received(1).MoveAbsolute(1822, 153);
@@ -161,7 +161,7 @@ public sealed class ScreenImageAutomationTests
         var result = await automation.ClickAsync(new ScreenImageAutomationRequest("button.png"), MouseButtonCode.Left, CancellationToken.None);
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        await pool.Received(1).AcquireAsync(1920, 1080, Arg.Any<CancellationToken>());
+        _ = await pool.Received(1).AcquireAsync(1920, 1080, Arg.Any<CancellationToken>());
         await simulator.DidNotReceive().InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
         pool.Received(1).Release(simulator, 1920, 1080);
     }
@@ -171,7 +171,8 @@ public sealed class ScreenImageAutomationTests
     {
         var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
         _ = reader.ProviderName.Returns("test-screen");
-        _ = reader.IsSupported.Returns(true);
+        _ = reader.IsSupported.Returns(returnThis: true);
+        var searchInvoked = new AsyncSignal();
         var outcomes = new Queue<ScreenReadResult<ScreenImageMatch>>(
         [
             ScreenReadResultFactory.Success(new ScreenImageMatch(new ScreenPoint(4, 5), 1.0, 4, 6)),
@@ -184,7 +185,11 @@ public sealed class ScreenImageAutomationTests
                 Arg.Any<ScreenFrame>(),
                 Arg.Any<ScreenImageMatchOptions>(),
                 Arg.Any<ScreenReadOptions>())
-            .Returns(_ => Task.FromResult(outcomes.Dequeue()));
+            .Returns(_ =>
+            {
+                searchInvoked.Signal();
+                return Task.FromResult(outcomes.Dequeue());
+            });
 
         var codec = Substitute.For<IImageAssetCodec>();
         using var template = new ScreenFrame(
@@ -196,14 +201,14 @@ public sealed class ScreenImageAutomationTests
 
         var simulator = Substitute.For<IInputSimulator, IInputSimulatorCapabilities, IInputSimulatorAbsoluteBounds>();
         _ = simulator.ProviderName.Returns("test-input");
-        _ = simulator.IsSupported.Returns(true);
-        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(true);
-        _ = ((IInputSimulatorAbsoluteBounds)simulator).UsesZeroBasedScreenBounds.Returns(true);
+        _ = simulator.IsSupported.Returns(returnThis: true);
+        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(returnThis: true);
+        _ = ((IInputSimulatorAbsoluteBounds)simulator).UsesZeroBasedScreenBounds.Returns(returnThis: true);
 
         var positionProvider = Substitute.For<IMousePositionProvider>();
         _ = positionProvider.ProviderName.Returns("test-position");
-        _ = positionProvider.IsSupported.Returns(true);
-        _ = positionProvider.SupportsAbsolutePosition.Returns(true);
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         var bounds = new ScreenRect(0, 0, 1920, 1080);
         _ = positionProvider.GetDesktopBoundsAsync().Returns(Task.FromResult<ScreenRect?>(bounds));
         _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>((43, 53)));
@@ -211,7 +216,9 @@ public sealed class ScreenImageAutomationTests
         var resolver = Substitute.For<IImageClickMovementResolver>();
         _ = resolver.ResolveAsync(simulator, new ScreenPoint(43, 53), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ImageClickMovementResolution.Absolute(new ScreenPoint(43, 53))));
-        var timeProvider = new FakeTimeProvider();
+        var fakeTimeProvider = new FakeTimeProvider();
+        var timerScheduled = new AsyncSignal();
+        var timeProvider = new TimerAwareTimeProvider(fakeTimeProvider, timerScheduled);
 
         var automation = new ScreenImageAutomation(
             reader,
@@ -228,10 +235,18 @@ public sealed class ScreenImageAutomationTests
                 Timeout: TimeSpan.FromSeconds(1)),
             MouseButtonCode.Left,
             CancellationToken.None);
-        for (var poll = 0; !clickTask.IsCompleted && poll < 4; poll++)
+        await searchInvoked.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
+        await timerScheduled.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
+        for (var poll = 1; poll < 4; poll++)
         {
-            timeProvider.Advance(ScreenReadOptions.DefaultPollInterval);
-            await Task.Yield();
+            searchInvoked.Reset();
+            timerScheduled.Reset();
+            fakeTimeProvider.Advance(ScreenReadOptions.DefaultPollInterval);
+            await searchInvoked.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
+            if (poll < 3)
+            {
+                await timerScheduled.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
+            }
         }
 
         var result = await clickTask;
@@ -239,7 +254,7 @@ public sealed class ScreenImageAutomationTests
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = result.Point.Should().Be(new ScreenPoint(43, 53));
         _ = outcomes.Should().BeEmpty();
-        await ((IScreenImageSearchReader)reader).Received(4).SearchImageAsync(
+        _ = await ((IScreenImageSearchReader)reader).Received(4).SearchImageAsync(
             Arg.Any<ScreenRect?>(),
             Arg.Any<ScreenFrame>(),
             Arg.Any<ScreenImageMatchOptions>(),
@@ -300,5 +315,32 @@ public sealed class ScreenImageAutomationTests
         simulator.Received(1).MoveAbsolute(42, 53);
         simulator.DidNotReceive().MouseButton(Arg.Any<int>(), Arg.Any<bool>());
         pool.Received(1).Release(simulator, 1920, 1080);
+    }
+
+    private sealed class TimerAwareTimeProvider(
+        FakeTimeProvider inner,
+        AsyncSignal timerScheduled) : TimeProvider
+    {
+        private readonly FakeTimeProvider _inner = inner;
+        private readonly AsyncSignal _timerScheduled = timerScheduled;
+
+        public override DateTimeOffset GetUtcNow() => _inner.GetUtcNow();
+
+        public override TimeZoneInfo LocalTimeZone => _inner.LocalTimeZone;
+
+        public override long GetTimestamp() => _inner.GetTimestamp();
+
+        public override long TimestampFrequency => _inner.TimestampFrequency;
+
+        public override ITimer CreateTimer(
+            TimerCallback callback,
+            object? state,
+            TimeSpan dueTime,
+            TimeSpan period)
+        {
+            var timer = _inner.CreateTimer(callback, state, dueTime, period);
+            _timerScheduled.Signal();
+            return timer;
+        }
     }
 }

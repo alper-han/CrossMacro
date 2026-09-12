@@ -98,9 +98,9 @@ public sealed class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IProfileTextExpansionStore, ProfileTextExpansionStore>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IProfileLoadedMacroSessionStore, ProfileLoadedMacroSessionStore>(services, ServiceLifetime.Singleton);
 
-        AssertImplementationRegistration<IInputProcessor, InputProcessor>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IInputProcessor>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextBufferState, TextBufferState>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<ITextExpansionExecutor, TextExpansionExecutor>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ITextExpansionExecutor>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ITextExpansionService, TextExpansionService>(services, ServiceLifetime.Singleton);
 
         AssertImplementationRegistration<IEditorActionConverter, EditorActionConverter>(services, ServiceLifetime.Singleton);
@@ -167,11 +167,19 @@ public sealed class RuntimeServiceCollectionExtensionsTests
     {
         private readonly IRuntimeContext _runtimeContext = runtimeContext;
 
-        public object? GetService(Type serviceType) =>
-            serviceType == typeof(IRuntimeContext)
-                ? _runtimeContext
-                : serviceType == typeof(IImageAssetCodec)
-                    ? new ImageAssetCodec()
-                    : null;
+        public object? GetService(Type serviceType)
+        {
+            if (serviceType == typeof(IRuntimeContext))
+            {
+                return _runtimeContext;
+            }
+
+            if (serviceType == typeof(IImageAssetCodec))
+            {
+                return new ImageAssetCodec();
+            }
+
+            return null;
+        }
     }
 }

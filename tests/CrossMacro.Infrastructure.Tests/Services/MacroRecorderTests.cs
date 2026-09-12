@@ -120,7 +120,7 @@ public sealed class MacroRecorderTests
             .Returns(new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 });
 
         // Act
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, cancellationToken: CancellationToken.None);
 
         // Simulate input
         _capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
@@ -142,7 +142,7 @@ public sealed class MacroRecorderTests
         _ = _processor.Process(Arg.Any<CapturedInputEvent>(), Arg.Any<long>())
             .Returns(new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 });
 
-        await recorder.StartRecordingAsync(recordMouse: false, recordKeyboard: true);
+        await recorder.StartRecordingAsync(recordMouse: false, recordKeyboard: true, cancellationToken: CancellationToken.None);
         _capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
             this,
             new CapturedInputEventArgs
@@ -193,7 +193,7 @@ public sealed class MacroRecorderTests
         var publishedEvents = new List<MacroEvent>();
         recorder.EventRecorded += (_, args) => publishedEvents.Add(args.MacroEvent);
 
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, cancellationToken: CancellationToken.None);
         _capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
             this,
             new CapturedInputEventArgs { Type = InputEventType.MouseMove });
@@ -205,7 +205,7 @@ public sealed class MacroRecorderTests
         _ = publishedEvents.Should().ContainSingle();
         _ = publishedEvents[0].X.Should().Be(99);
         _ = publishedEvents[0].Y.Should().Be(0);
-        await positionProvider.Received(1).GetDesktopBoundsAsync();
+        _ = await positionProvider.Received(1).GetDesktopBoundsAsync();
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public sealed class MacroRecorderTests
         var recorder = CreateRecorder();
 
         // Act
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, cancellationToken: CancellationToken.None);
 
         // Assert
         await _strategy.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
@@ -231,7 +231,7 @@ public sealed class MacroRecorderTests
         var recorder = CreateRecorder();
 
         // Act
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: false);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: false, cancellationToken: CancellationToken.None);
         var sequence = recorder.StopRecording();
 
         // Assert
@@ -247,7 +247,7 @@ public sealed class MacroRecorderTests
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
         // Act
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: true, skipInitialZero: false);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: true, skipInitialZero: false, cancellationToken: CancellationToken.None);
 
         // Assert
         // Verify Corner Reset fallback keeps axes separate so monitor edges do not trap a diagonal move.
@@ -368,7 +368,8 @@ public sealed class MacroRecorderTests
             recordMouse: true,
             recordKeyboard: true,
             forceRelative: true,
-            skipInitialZero: false);
+            skipInitialZero: false,
+            cancellationToken: CancellationToken.None);
 
         await mockSimulator.Received(1).InitializeAsync(4480, 1640, Arg.Any<CancellationToken>());
         Received.InOrder(() =>
@@ -385,13 +386,13 @@ public sealed class MacroRecorderTests
     public async Task StartRecordingAsync_WithForceRelative_UsesAndReturnsPooledSimulator()
     {
         var simulator = Substitute.For<IInputSimulator, IInputSimulatorCapabilities, IInputSimulatorAbsoluteBounds>();
-        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(true);
-        _ = ((IInputSimulatorAbsoluteBounds)simulator).UsesZeroBasedScreenBounds.Returns(true);
+        _ = ((IInputSimulatorCapabilities)simulator).SupportsAbsoluteCoordinates.Returns(returnThis: true);
+        _ = ((IInputSimulatorAbsoluteBounds)simulator).UsesZeroBasedScreenBounds.Returns(returnThis: true);
         var pool = Substitute.For<IInputSimulatorPool>();
         _ = pool.AcquireAsync(4480, 1640, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IInputSimulator>(simulator));
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        _ = positionProvider.IsSupported.Returns(true);
-        _ = positionProvider.SupportsAbsolutePosition.Returns(true);
+        _ = positionProvider.IsSupported.Returns(returnThis: true);
+        _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         _ = positionProvider.GetDesktopBoundsAsync().Returns(Task.FromResult<ScreenRect?>(new ScreenRect(-1920, -200, 4480, 1640)));
         _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>(new(-1920, -200)));
         var recorder = new MacroRecorder(
@@ -406,12 +407,13 @@ public sealed class MacroRecorderTests
             recordMouse: true,
             recordKeyboard: true,
             forceRelative: true,
-            skipInitialZero: false);
+            skipInitialZero: false,
+            cancellationToken: CancellationToken.None);
 
-        await pool.Received(1).AcquireAsync(4480, 1640, Arg.Any<CancellationToken>());
+        _ = await pool.Received(1).AcquireAsync(4480, 1640, Arg.Any<CancellationToken>());
         pool.Received(1).Release(simulator, 4480, 1640);
-        simulator.DidNotReceive().InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
-        await positionProvider.Received(1).GetAbsolutePositionAsync();
+        _ = simulator.DidNotReceive().InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        _ = await positionProvider.Received(1).GetAbsolutePositionAsync();
     }
 
     [Fact]
@@ -419,7 +421,7 @@ public sealed class MacroRecorderTests
     {
         var simulator = Substitute.For<IInputSimulator, IDesktopOriginResetSimulator>();
         var originReset = (IDesktopOriginResetSimulator)simulator;
-        _ = originReset.TryResetToDesktopOrigin().Returns(true);
+        _ = originReset.TryResetToDesktopOrigin().Returns(returnThis: true);
         var pool = Substitute.For<IInputSimulatorPool>();
         _ = pool.AcquireAsync(3840, 1080, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IInputSimulator>(simulator));
         var positionProvider = Substitute.For<IMousePositionProvider>();
@@ -436,12 +438,13 @@ public sealed class MacroRecorderTests
             recordMouse: true,
             recordKeyboard: true,
             forceRelative: true,
-            skipInitialZero: false);
+            skipInitialZero: false,
+            cancellationToken: CancellationToken.None);
 
         _ = originReset.Received(1).TryResetToDesktopOrigin();
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
-        await pool.Received(1).AcquireAsync(3840, 1080, Arg.Any<CancellationToken>());
+        _ = await pool.Received(1).AcquireAsync(3840, 1080, Arg.Any<CancellationToken>());
         pool.Received(1).Release(simulator, 3840, 1080);
     }
 
@@ -460,7 +463,8 @@ public sealed class MacroRecorderTests
             recordMouse: true,
             recordKeyboard: true,
             forceRelative: true,
-            skipInitialZero: true);
+            skipInitialZero: true,
+            cancellationToken: CancellationToken.None);
 
         _ = pool.DidNotReceive().AcquireAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
@@ -484,7 +488,8 @@ public sealed class MacroRecorderTests
             recordMouse: true,
             recordKeyboard: true,
             forceRelative: true,
-            skipInitialZero: false);
+            skipInitialZero: false,
+            cancellationToken: CancellationToken.None);
 
         mockSimulator.Received(1).MoveAbsolute(-1920, -200);
         mockSimulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
@@ -494,15 +499,23 @@ public sealed class MacroRecorderTests
     public async Task StartRecordingAsync_WhenCaptureCompletesAfterStop_DoesNotThrow()
     {
         // Arrange
+        var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var captureRunTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = _capture.ProviderName.Returns("TestCapture");
-        _ = _capture.StartAsync(Arg.Any<CancellationToken>()).Returns(captureRunTcs.Task);
+        _ = _capture.StartAsync(Arg.Any<CancellationToken>()).Returns(callInfo =>
+        {
+            _ = captureStarted.TrySetResult();
+            return captureRunTcs.Task;
+        });
 
         var recorder = CreateRecorder();
 
         // Act
-        var startTask = recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
-        await Task.Yield();
+        var startTask = recorder.StartRecordingAsync(
+            recordMouse: true,
+            recordKeyboard: true,
+            cancellationToken: CancellationToken.None);
+        await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
         var stopResult = recorder.StopRecording();
         captureRunTcs.SetResult();
 
@@ -510,6 +523,34 @@ public sealed class MacroRecorderTests
         _ = stopResult.Should().NotBeNull();
         Func<Task> act = async () => await startTask;
         _ = await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task StartRecordingAsync_WhenStoppedDuringStrategyInitialization_DoesNotAttachCaptureAfterStop()
+    {
+        var initializationEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseInitialization = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _strategy.InitializeAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            initializationEntered.TrySetResult();
+            return releaseInitialization.Task;
+        });
+        var recorder = CreateRecorder();
+
+        var startTask = recorder.StartRecordingAsync(
+            recordMouse: true,
+            recordKeyboard: true,
+            cancellationToken: CancellationToken.None);
+        await initializationEntered.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+
+        _ = recorder.StopRecording();
+        releaseInitialization.TrySetResult();
+
+        await startTask;
+
+        _capture.DidNotReceive().Configure(Arg.Any<bool>(), Arg.Any<bool>());
+        await _capture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
+        _ = recorder.IsRecording.Should().BeFalse();
     }
 
     [Fact]
@@ -522,7 +563,7 @@ public sealed class MacroRecorderTests
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
         // Act
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: false);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: false, cancellationToken: CancellationToken.None);
         var sequence = recorder.StopRecording();
 
         // Assert
@@ -548,7 +589,8 @@ public sealed class MacroRecorderTests
             recordMouse: true,
             recordKeyboard: true,
             forceRelative: false,
-            skipInitialZero: true);
+            skipInitialZero: true,
+            cancellationToken: CancellationToken.None);
         _ = recorder.StopRecording();
 
         ((IMouseCoordinateModeInputCapture)modeAwareCapture)
@@ -575,7 +617,8 @@ public sealed class MacroRecorderTests
             recordMouse: true,
             recordKeyboard: true,
             forceRelative: true,
-            skipInitialZero: true);
+            skipInitialZero: true,
+            cancellationToken: CancellationToken.None);
         _ = recorder.StopRecording();
 
         ((IMouseCoordinateModeInputCapture)modeAwareCapture)
@@ -596,7 +639,7 @@ public sealed class MacroRecorderTests
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
         // Act
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: false);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: false, cancellationToken: CancellationToken.None);
         var sequence = recorder.StopRecording();
 
         // Assert
@@ -617,7 +660,7 @@ public sealed class MacroRecorderTests
         var recorder = new MacroRecorder(_captureFactory, _strategyFactory, _processorFactory, () => mockSimulator);
 
         // Act
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: false, skipInitialZero: true);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, forceRelative: false, skipInitialZero: true, cancellationToken: CancellationToken.None);
         var sequence = recorder.StopRecording();
 
         // Assert
@@ -633,7 +676,7 @@ public sealed class MacroRecorderTests
         var recorder = new MacroRecorder(inputCaptureFactory: null, _strategyFactory, _processorFactory);
 
         // Act
-        var act = async () => await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
+        var act = async () => await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, cancellationToken: CancellationToken.None);
 
         // Assert
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
@@ -650,7 +693,7 @@ public sealed class MacroRecorderTests
         var recorder = CreateRecorder();
 
         // Act
-        var act = async () => await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
+        var act = async () => await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, cancellationToken: CancellationToken.None);
 
         // Assert
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
@@ -665,7 +708,7 @@ public sealed class MacroRecorderTests
     {
         // Arrange
         var recorder = CreateRecorder();
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, cancellationToken: CancellationToken.None);
         _capture.When(x => x.StopCapture()).Do(_ => throw new InvalidOperationException("stop fail"));
 
         // Act
@@ -688,15 +731,16 @@ public sealed class MacroRecorderTests
             return new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 };
         });
         var recorder = CreateRecorder();
-        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true);
+        await recorder.StartRecordingAsync(recordMouse: true, recordKeyboard: true, cancellationToken: CancellationToken.None);
 
         var inputTask = Task.Run(() =>
             _capture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
                 this,
-                new CapturedInputEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 }));
+                new CapturedInputEventArgs { Type = InputEventType.Key, Code = 30, Value = 1 }),
+            CancellationToken.None);
 
-        await processingStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
-        var stopTask = Task.Run(recorder.StopRecording);
+        await processingStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        var stopTask = Task.Run(recorder.StopRecording, CancellationToken.None);
 
         try
         {
@@ -708,8 +752,8 @@ public sealed class MacroRecorderTests
             _ = releaseProcessing.TrySetResult();
         }
 
-        var sequence = await stopTask.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
-        await inputTask.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
+        var sequence = await stopTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await inputTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = sequence.Events.Should().ContainSingle();
         _ = sequence.Events[0].Type.Should().Be(EventType.KeyPress);

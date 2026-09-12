@@ -184,7 +184,7 @@ public sealed class SettingsServiceTests : IDisposable
 
         _ = secondSave.Should().BeSameAs(firstSave);
 
-        await service.FlushPendingSaveAsync();
+        await service.FlushPendingSaveAsync(CancellationToken.None);
         await firstSave;
 
         using var reloadedService = new SettingsService(_tempPath);
@@ -294,6 +294,8 @@ public sealed class SettingsServiceTests : IDisposable
 
         service.Current.EnableTextExpansion = true;
         service.Current.CountdownSeconds = 3;
+        service.Current.ForceRelativeCoordinates = true;
+        service.Current.UseLogicalRelativeCoordinates = true;
 
         // Act
         await service.SaveAsync();
@@ -304,6 +306,8 @@ public sealed class SettingsServiceTests : IDisposable
         // Assert
         _ = loaded.EnableTextExpansion.Should().BeTrue();
         _ = loaded.CountdownSeconds.Should().Be(3);
+        _ = loaded.ForceRelativeCoordinates.Should().BeTrue();
+        _ = loaded.UseLogicalRelativeCoordinates.Should().BeTrue();
     }
 
     [Fact]
@@ -361,7 +365,7 @@ public sealed class SettingsServiceTests : IDisposable
     {
         // Arrange
         var blockingPath = Path.Combine(_tempPath, "not-a-directory");
-        File.WriteAllText(blockingPath, "blocking file");
+        await File.WriteAllTextAsync(blockingPath, "blocking file", CancellationToken.None);
         var service = new SettingsService(blockingPath);
 
         // Act

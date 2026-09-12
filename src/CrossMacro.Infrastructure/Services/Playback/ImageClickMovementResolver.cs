@@ -24,7 +24,9 @@ public sealed class ImageClickMovementResolver(IMousePositionProvider? mousePosi
                 "No supported IMousePositionProvider is available for relative movement.");
         }
 
-        var position = await _mousePositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+        var position = await _mousePositionProvider.GetAbsolutePositionAsync()
+            .WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
         if (position is null)
         {
             return ImageClickMovementResolution.Failure(

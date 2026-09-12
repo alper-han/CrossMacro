@@ -24,4 +24,30 @@ public sealed class ScriptValidationServiceTests
 
         _ = service.Validate([new RunScriptStep("click left")]).Should().BeEmpty();
     }
+
+    [Fact]
+    public void Validate_WhenStepsAreEmpty_ReturnsNoDiagnostics()
+    {
+        var service = new ScriptValidationService(Substitute.For<IKeyCodeMapper>());
+
+        _ = service.Validate([]).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validate_WhenStepsAreNull_ThrowsArgumentNullException()
+    {
+        var service = new ScriptValidationService(Substitute.For<IKeyCodeMapper>());
+
+        var act = () => service.Validate(null!);
+
+        _ = act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("steps");
+    }
+
+    [Fact]
+    public void Constructor_WhenKeyCodeMapperIsNull_ThrowsArgumentNullException()
+    {
+        var act = () => new ScriptValidationService(null!);
+
+        _ = act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("keyCodeMapper");
+    }
 }

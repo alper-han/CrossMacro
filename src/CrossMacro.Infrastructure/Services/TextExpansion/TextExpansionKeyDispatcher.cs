@@ -10,6 +10,7 @@ internal static class TextExpansionKeyDispatcher
         bool altGr = false,
         bool ctrl = false,
         bool meta = false,
+        TimeProvider? timeProvider = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(simulator);
@@ -35,7 +36,7 @@ internal static class TextExpansionKeyDispatcher
         }
 
         SendKeyState(simulator, keyCode, pressed: true);
-        await Task.Delay(TextExpansionExecutionTimings.KeyPressReleaseDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(TextExpansionExecutionTimings.KeyPressReleaseDelay, timeProvider ?? TimeProvider.System, cancellationToken).ConfigureAwait(false);
         SendKeyState(simulator, keyCode, pressed: false);
 
         if (altGr)

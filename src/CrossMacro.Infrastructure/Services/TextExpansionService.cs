@@ -21,7 +21,6 @@ public sealed class TextExpansionService : ITextExpansionService
     private readonly SemaphoreSlim _expansionLock;
     private bool _expansionInProgress;
     private CancellationTokenSource? _expansionCancellation;
-    private Task? _expansionTask;
     private bool _disposed;
     private bool _asyncStartupInProgress;
     private CancellationTokenSource? _asyncStartupCancellation;
@@ -29,6 +28,9 @@ public sealed class TextExpansionService : ITextExpansionService
     private readonly InputCaptureLifecycle _captureLifecycle;
     private int _lastCharacterKeyCode;
     private int _restartInProgress;
+
+    internal Task? ExpansionTask { get; private set; }
+    internal Task? RestartTask { get; private set; }
 
     public bool IsRunning { get; private set; }
 
@@ -288,7 +290,7 @@ public sealed class TextExpansionService : ITextExpansionService
                 Log.LogError(ex, "[TextExpansionService] Error canceling expansion");
             }
 
-            var expansionTask = _expansionTask;
+            var expansionTask = ExpansionTask;
             if (!IsRunning && !_captureLifecycle.HasActiveResources && expansionTask is null)
             {
                 return (startupCancellationTask, expansionCancellationTask, null);
@@ -384,16 +386,14 @@ public sealed class TextExpansionService : ITextExpansionService
 
         // Daemon/transport loss is transient: the IPC layer reconnects on its own,
         // so restart the capture instead of leaving expansion dead until a manual toggle.
-        _ = TryRestartCaptureAsync(error);
+        if (Interlocked.CompareExchange(ref _restartInProgress, 1, 0) is 0)
+        {
+            RestartTask = TryRestartCaptureAsync(error);
+        }
     }
 
     private async Task TryRestartCaptureAsync(string cause)
     {
-        if (Interlocked.CompareExchange(ref _restartInProgress, 1, 0) is not 0)
-        {
-            return;
-        }
-
         try
         {
             await Task.Delay(250, CancellationToken.None).ConfigureAwait(false);
@@ -512,7 +512,7 @@ public sealed class TextExpansionService : ITextExpansionService
                 _expansionCancellation = expansionCancellation;
             }
 
-            _expansionTask = RunExpansionSafelyAsync(match, triggerLastKeyCode, expansionCancellation);
+            ExpansionTask = RunExpansionSafelyAsync(match, triggerLastKeyCode, expansionCancellation);
         }
     }
 
@@ -630,7 +630,7 @@ public sealed class TextExpansionService : ITextExpansionService
                 {
                     _expansionInProgress = false;
                     _expansionCancellation = null;
-                    _expansionTask = null;
+                    ExpansionTask = null;
                 }
             }
 

@@ -67,16 +67,20 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             var (isValid, error) = Validate(action);
             if (!isValid && error is not null)
             {
-                errors.Add($"Action {(index + 1).ToString(CultureInfo.InvariantCulture)} ({action.Type}): {error}");
+                var actionType = action is null ? "null" : action.Type.ToString();
+                errors.Add($"Action {(index + 1).ToString(CultureInfo.InvariantCulture)} ({actionType}): {error}");
             }
 
             index++;
         }
 
-        var structureValidation = ScriptBlockStructureValidator.Validate(actionList);
-        if (!structureValidation.IsValid)
+        if (!actionList.Any(static action => action is null))
         {
-            errors.AddRange(structureValidation.Errors);
+            var structureValidation = ScriptBlockStructureValidator.Validate(actionList);
+            if (!structureValidation.IsValid)
+            {
+                errors.AddRange(structureValidation.Errors);
+            }
         }
 
         if (errors.Count is 0 && RequiresScriptBackedCompilation(actionList))
@@ -96,14 +100,19 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             var (isValid, error) = Validate(actionList[index]);
             if (!isValid && error is not null)
             {
-                errors.Add($"Action {(index + 1).ToString(CultureInfo.InvariantCulture)} ({actionList[index].Type}): {error}");
+                var action = actionList[index];
+                var actionType = action is null ? "null" : action.Type.ToString();
+                errors.Add($"Action {(index + 1).ToString(CultureInfo.InvariantCulture)} ({actionType}): {error}");
             }
         }
 
-        var structureValidation = ScriptBlockStructureValidator.Validate(actionList);
-        if (!structureValidation.IsValid)
+        if (!actionList.Any(static action => action is null))
         {
-            errors.AddRange(structureValidation.Errors);
+            var structureValidation = ScriptBlockStructureValidator.Validate(actionList);
+            if (!structureValidation.IsValid)
+            {
+                errors.AddRange(structureValidation.Errors);
+            }
         }
 
         return (errors.Count is 0, errors);

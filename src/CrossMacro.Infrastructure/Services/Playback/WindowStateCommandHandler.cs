@@ -1,8 +1,12 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
-internal sealed class WindowStateCommandHandler(string state) : IWindowCommandHandler
+internal sealed class WindowStateCommandHandler(
+    string state,
+    Func<TimeSpan, CancellationToken, Task>? delayAsync = null) : IWindowCommandHandler
 {
+    private readonly Func<TimeSpan, CancellationToken, Task>? _delayAsync = delayAsync;
+
     public string SubCommand { get; } = state;
     public string? Validate(string[] parts)
     {
@@ -20,13 +24,17 @@ internal sealed class WindowStateCommandHandler(string state) : IWindowCommandHa
             "fullscreen" => await mutator.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false),
             "maximize" => await mutator.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false),
             "float" => await mutator.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false),
-            "center" => await UnlockAndCenterAsync(query, mutator, cancellationToken).ConfigureAwait(false),
+            "center" => await UnlockAndCenterAsync(query, mutator, _delayAsync, cancellationToken).ConfigureAwait(false),
             _ => false,
         };
     }
-    private static async Task<bool> UnlockAndCenterAsync(IWindowQueryService query, IWindowMutationService mutator, CancellationToken cancellationToken)
+    private static async Task<bool> UnlockAndCenterAsync(
+        IWindowQueryService query,
+        IWindowMutationService mutator,
+        Func<TimeSpan, CancellationToken, Task>? delayAsync,
+        CancellationToken cancellationToken)
     {
-        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken).ConfigureAwait(false);
+        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken, delayAsync).ConfigureAwait(false);
         return await mutator.CenterActiveWindowAsync(cancellationToken).ConfigureAwait(false);
     }
 }

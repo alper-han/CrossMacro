@@ -25,7 +25,7 @@ internal sealed class PlaybackSessionResourceOwner(
     public int PauseResumeVersion => Volatile.Read(ref _pauseVersion);
     public IInputSimulator? Simulator { get; private set; }
     public CancellationToken Token => _cancellation?.Token ?? CancellationToken.None;
-    public IReadOnlyDictionary<string, string> RuntimeVariables => _variables;
+    public IReadOnlyDictionary<string, string> RuntimeVariables => new ReadOnlyDictionary<string, string>(_variables);
     public IDictionary<string, string> Variables => _variables;
 
     public void Begin(CancellationToken cancellationToken)

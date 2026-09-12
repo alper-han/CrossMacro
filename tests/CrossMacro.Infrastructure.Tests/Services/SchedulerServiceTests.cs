@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services;
 
-public sealed class SchedulerServiceTests
+public sealed class SchedulerServiceTests : IDisposable
 {
     private readonly IScheduledTaskRepository _repository;
     private readonly IScheduledTaskExecutor _executor;
@@ -12,10 +12,7 @@ public sealed class SchedulerServiceTests
     {
         _repository = Substitute.For<IScheduledTaskRepository>();
         _executor = Substitute.For<IScheduledTaskExecutor>();
-        _timeProvider = Substitute.For<TimeProvider>();
-
-        // Default time
-        _ = _timeProvider.GetUtcNow().Returns(new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        _timeProvider = new TestTimeProvider();
 
         _service = new SchedulerService(_repository, _executor, _timeProvider);
     }
@@ -42,7 +39,7 @@ public sealed class SchedulerServiceTests
         _service.Start();
         _service.StopScheduler();
 
-        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
 
         _ = _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
     }
@@ -52,7 +49,7 @@ public sealed class SchedulerServiceTests
     {
         _service.Start();
 
-        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
 
         _ = _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
     }
@@ -61,12 +58,12 @@ public sealed class SchedulerServiceTests
     public async Task Start_AfterNormalStopCanRestartImmediately()
     {
         _service.Start();
-        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
 
         _service.Start();
 
         _ = _service.IsRunning.Should().BeTrue();
-        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
     }
 
     [Fact]
@@ -95,18 +92,18 @@ public sealed class SchedulerServiceTests
         task.NextRunTime = _timeProvider.GetUtcNow().UtcDateTime;
         _service.Start();
 
-        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider);
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider, CancellationToken.None);
 
         _service.StopScheduler();
-        var secondStop = _service.StopAsync();
+        var secondStop = _service.StopAsync(CancellationToken.None);
 
         _ = _service.IsRunning.Should().BeFalse();
         _ = _service.Completion.IsCompleted.Should().BeFalse();
         _ = secondStop.IsCompleted.Should().BeFalse();
 
         _ = allowExecutionToFinish.TrySetResult();
-        await secondStop.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
-        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await secondStop.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
     }
 
     [Fact]
@@ -136,19 +133,19 @@ public sealed class SchedulerServiceTests
         task.IsEnabled = true;
         task.NextRunTime = _timeProvider.GetUtcNow().UtcDateTime;
         _service.Start();
-        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider);
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider, CancellationToken.None);
 
         using var callerCancellation = new CancellationTokenSource();
-        callerCancellation.Cancel();
+        await callerCancellation.CancelAsync();
 
         var stopTask = _service.StopAsync(callerCancellation.Token);
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await stopTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider));
+            await stopTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None));
 
         _ = _service.Completion.IsCompleted.Should().BeFalse();
         using var registration = executionCancellationToken.Register(static () => { });
         _ = allowExecutionToFinish.TrySetResult();
-        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
     }
 
     [Fact]
@@ -180,22 +177,23 @@ public sealed class SchedulerServiceTests
         task.IsEnabled = true;
         task.NextRunTime = timeProvider.GetUtcNow().UtcDateTime;
         service.Start();
-        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System);
+        timeProvider.Advance(TimeSpan.FromSeconds(1));
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
-        var stopTask = service.StopAsync();
+        var stopTask = service.StopAsync(CancellationToken.None);
         _ = stopTask.IsCompleted.Should().BeFalse();
         timeProvider.Advance(TimeSpan.FromSeconds(2));
-        await stopTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System);
+        await stopTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
         _ = service.Completion.IsCompleted.Should().BeFalse();
         service.Start();
         _ = service.IsRunning.Should().BeFalse();
         using var registration = executionCancellationToken.Register(static () => { });
         _ = allowExecutionToFinish.TrySetResult();
-        await service.Completion.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System);
+        await service.Completion.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         service.Start();
         _ = service.IsRunning.Should().BeTrue();
-        await service.StopAsync();
+        await service.StopAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -203,13 +201,13 @@ public sealed class SchedulerServiceTests
     {
         _service.Start();
 
-        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
-        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
+        await _service.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
 
         _service.Dispose();
         _service.Dispose();
 
-        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
         _ = _service.IsRunning.Should().BeFalse();
     }
 
@@ -229,8 +227,7 @@ public sealed class SchedulerServiceTests
         _service.AddTask(task);
         _service.Start();
 
-        await _service.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
-        await Task.Delay(TimeSpan.FromMilliseconds(1200));
+        await _service.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
 
         _ = _executor.DidNotReceive().ExecuteAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>());
     }
@@ -384,7 +381,7 @@ public sealed class SchedulerServiceTests
         var loaded = _service.Tasks.Should().ContainSingle().Subject;
         _ = loaded.IsEnabled.Should().BeTrue();
         _ = loaded.NextRunTime.Should().NotBeNull();
-        _ = loaded.NextRunTime!.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
+        _ = loaded.NextRunTime.Value.Ticks.Should().Be(DateTime.MaxValue.Ticks);
     }
 
     [Fact]
@@ -435,7 +432,7 @@ public sealed class SchedulerServiceTests
         var loaded = _service.Tasks.Should().ContainSingle().Subject;
         _ = loaded.IsEnabled.Should().BeTrue();
         _ = loaded.NextRunTime.Should().NotBeNull();
-        _ = loaded.NextRunTime!.Value.Should().BeOnOrAfter(now);
+        _ = loaded.NextRunTime.Value.Should().BeOnOrAfter(now);
         _ = loaded.NextRunTime.Value.Should().BeBefore(now.AddDays(1));
     }
 
@@ -553,18 +550,18 @@ public sealed class SchedulerServiceTests
                 workerStarted.SetResult();
                 await workerMayLoad.Task;
                 await service.LoadAsync();
-            });
+            }, CancellationToken.None);
 
-            await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+            await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
             workerMayLoad.SetResult();
-            await synchronizationContext.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+            await synchronizationContext.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
 
             _ = loadTask.IsCompleted.Should().BeFalse();
             _ = synchronizationContext.PendingCallbacks.Should().Be(1);
             _ = service.Tasks.Should().BeEmpty();
 
             synchronizationContext.RunAll();
-            await loadTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+            await loadTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
 
             _ = service.Tasks.Should().ContainSingle();
             _ = synchronizationContext.PendingCallbacks.Should().Be(0);
@@ -603,14 +600,28 @@ public sealed class SchedulerServiceTests
         task.NextRunTime = now;
         _service.Start();
 
-        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider);
+        await executionStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), _timeProvider, CancellationToken.None);
 
-        var stopTask = Task.Run(_service.StopScheduler);
-        await stopTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        var stopTask = Task.Run(_service.StopScheduler, CancellationToken.None);
+        await stopTask.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
 
         _ = _service.IsRunning.Should().BeFalse();
         _ = allowExecutionToFinish.TrySetResult();
-        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider);
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
+    }
+
+    public void Dispose() => _service.Dispose();
+
+    private sealed class TestTimeProvider : TimeProvider
+    {
+        private static readonly DateTimeOffset FixedUtcNow = new(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
+        public override DateTimeOffset GetUtcNow() => FixedUtcNow;
+
+        public override long GetTimestamp() => TimeProvider.System.GetTimestamp();
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+            TimeProvider.System.CreateTimer(callback, state, dueTime, period);
     }
 
     private sealed class DeferredSynchronizationContext : SynchronizationContext

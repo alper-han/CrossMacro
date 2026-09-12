@@ -166,7 +166,7 @@ public sealed partial class EditorActionConverterTests
             var restored = _converter.FromMacroSequence(loaded!);
 
             _ = loaded.Should().NotBeNull();
-            _ = loaded!.ScriptSteps.Should().Equal(
+            _ = loaded.ScriptSteps.Should().Equal(
                 "repeat 1 {",
                 "type first line\nprice $$10",
                 "}");

@@ -12,9 +12,24 @@ public sealed class CoordinateCaptureServiceTests
         _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>(new(42, 84)));
         var service = new CoordinateCaptureService(positionProvider, inputCaptureFactory: null);
 
-        var result = await service.CaptureMousePositionAsync();
+        var result = await service.CaptureMousePositionAsync(CancellationToken.None);
 
         _ = result.Should().Be((42, 84));
+    }
+
+    [Fact]
+    public async Task CaptureMousePositionAsync_WhenAlreadyCanceledAndFactoryMissing_ReturnsNullWithoutReadingPosition()
+    {
+        var positionProvider = Substitute.For<IMousePositionProvider>();
+        _ = positionProvider.GetAbsolutePositionAsync().Returns(Task.FromResult<(int X, int Y)?>(new(42, 84)));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var service = new CoordinateCaptureService(positionProvider, inputCaptureFactory: null);
+
+        var result = await service.CaptureMousePositionAsync(cancellation.Token);
+
+        _ = result.Should().BeNull();
+        _ = positionProvider.DidNotReceiveWithAnyArgs().GetAbsolutePositionAsync();
     }
 
     [Fact]
@@ -26,8 +41,8 @@ public sealed class CoordinateCaptureServiceTests
         var capture = new FakeInputCapture();
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
-        var captureTask = service.CaptureMousePositionAsync();
-        await capture.ConfiguredSignal.WaitAsync(TestTimeout);
+        var captureTask = service.CaptureMousePositionAsync(CancellationToken.None);
+        await capture.ConfiguredSignal.WaitAsync(TestTimeout, CancellationToken.None);
 
         capture.EmitInput(new CapturedInputEvent
         {
@@ -51,8 +66,8 @@ public sealed class CoordinateCaptureServiceTests
         var capture = new FakeInputCapture();
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
-        var captureTask = service.CaptureMousePositionAsync();
-        await capture.ConfiguredSignal.WaitAsync(TestTimeout);
+        var captureTask = service.CaptureMousePositionAsync(CancellationToken.None);
+        await capture.ConfiguredSignal.WaitAsync(TestTimeout, CancellationToken.None);
 
         capture.EmitInput(new CapturedInputEvent
         {
@@ -73,8 +88,8 @@ public sealed class CoordinateCaptureServiceTests
         var capture = new FakeInputCapture();
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
-        var captureTask = service.CaptureKeyCodeAsync();
-        await capture.ConfiguredSignal.WaitAsync(TestTimeout);
+        var captureTask = service.CaptureKeyCodeAsync(CancellationToken.None);
+        await capture.ConfiguredSignal.WaitAsync(TestTimeout, CancellationToken.None);
 
         capture.EmitInput(new CapturedInputEvent
         {
@@ -97,8 +112,8 @@ public sealed class CoordinateCaptureServiceTests
         var capture = new FakeInputCapture();
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
-        var captureTask = service.CaptureMousePositionAsync();
-        await capture.ConfiguredSignal.WaitAsync(TestTimeout);
+        var captureTask = service.CaptureMousePositionAsync(CancellationToken.None);
+        await capture.ConfiguredSignal.WaitAsync(TestTimeout, CancellationToken.None);
 
         service.CancelCapture();
         var result = await captureTask;
@@ -115,7 +130,7 @@ public sealed class CoordinateCaptureServiceTests
         var capture = new FakeInputCapture { ThrowOnStart = true };
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
-        var result = await service.CaptureMousePositionAsync();
+        var result = await service.CaptureMousePositionAsync(CancellationToken.None);
 
         _ = result.Should().BeNull();
     }
@@ -127,7 +142,7 @@ public sealed class CoordinateCaptureServiceTests
         var capture = new FakeInputCapture { ReturnFaultedStartTask = true };
         var service = new CoordinateCaptureService(positionProvider, () => capture);
 
-        var result = await service.CaptureMousePositionAsync();
+        var result = await service.CaptureMousePositionAsync(CancellationToken.None);
 
         _ = result.Should().BeNull();
     }
@@ -143,11 +158,11 @@ public sealed class CoordinateCaptureServiceTests
         var factoryCalls = 0;
         var service = new CoordinateCaptureService(positionProvider, () => ++factoryCalls is 1 ? firstCapture : secondCapture);
 
-        var firstTask = service.CaptureMousePositionAsync();
-        await firstCapture.ConfiguredSignal.WaitAsync(TestTimeout);
+        var firstTask = service.CaptureMousePositionAsync(CancellationToken.None);
+        await firstCapture.ConfiguredSignal.WaitAsync(TestTimeout, CancellationToken.None);
 
-        var secondTask = service.CaptureMousePositionAsync();
-        await secondCapture.ConfiguredSignal.WaitAsync(TestTimeout);
+        var secondTask = service.CaptureMousePositionAsync(CancellationToken.None);
+        await secondCapture.ConfiguredSignal.WaitAsync(TestTimeout, CancellationToken.None);
 
         var firstResult = await firstTask;
         _ = firstResult.Should().BeNull();

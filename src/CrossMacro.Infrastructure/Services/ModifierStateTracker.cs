@@ -9,7 +9,7 @@ public class ModifierStateTracker(IKeyCodeMapper keyCodeMapper) : IModifierState
 {
     private readonly HashSet<int> _pressedModifiers = new();
     private readonly Lock _lock = new();
-    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper;
+    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
     public IReadOnlySet<int> CurrentModifiers { get; private set; } = System.Collections.Immutable.ImmutableHashSet<int>.Empty;
 
     public bool HasModifiers

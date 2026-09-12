@@ -3,42 +3,6 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 internal static class WindowCommandHelpers
 {
-    public static bool TryExtractTermAndVar(string input, out string? term, out string? varName, out string? error)
-    {
-        term = null;
-        varName = null;
-        error = null;
-
-        input = input.Trim();
-        var lastSpace = input.LastIndexOf(' ');
-        if (lastSpace < 0)
-        {
-            error = "Syntax: window search title|class \"<term>\" $variable";
-            return false;
-        }
-
-        var rawVar = input[(lastSpace + 1)..].Trim();
-        var rawTerm = input[..lastSpace].Trim();
-
-        var vn = StripDollar(rawVar);
-        if (!IsValidVarName(vn))
-        {
-            error = $"Invalid variable name '{rawVar}'.";
-            return false;
-        }
-
-        varName = vn;
-        term = Unquote(rawTerm);
-
-        if (string.IsNullOrWhiteSpace(term))
-        {
-            error = "Search term cannot be empty.";
-            return false;
-        }
-
-        return true;
-    }
-
     public static string StripDollar(string token) => token.StartsWith('$') ? token[1..] : token;
 
     public static bool IsValidVarName(string name) =>

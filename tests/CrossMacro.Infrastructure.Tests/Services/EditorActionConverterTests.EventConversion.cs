@@ -815,7 +815,7 @@ public sealed partial class EditorActionConverterTests
             _ = saved.Should().NotContain("C,rel,0,0,Left");
 
             _ = loaded.Should().NotBeNull();
-            _ = loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+            _ = loaded.Events.Select(ev => ev.CoordinateMode).Should().Equal(
                 MouseCoordinateMode.Absolute,
                 MouseCoordinateMode.Relative,
                 null);

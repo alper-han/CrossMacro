@@ -154,6 +154,21 @@ public sealed class TextExpansionStorageServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadResults_AreSnapshots_AndDoNotMutateCache()
+    {
+        var service = CreateService();
+        await service.SaveAsync([new TextExpansionEntry(":test", "value")]);
+
+        var syncResult = service.Load();
+        syncResult.Clear();
+        _ = service.GetCurrent().Should().ContainSingle();
+
+        var asyncResult = await service.LoadAsync();
+        asyncResult.Clear();
+        _ = service.GetCurrent().Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task LoadAsync_WhenDirectTypingMethodIsMissing_DefaultsToFastBatch()
     {
         var service = CreateService();
@@ -191,7 +206,7 @@ public sealed class TextExpansionStorageServiceTests : IDisposable
         // Arrange
         var service = CreateService();
         await service.SaveAsync(new List<TextExpansionEntry> { new(":ok", "value") });
-        File.WriteAllText(service.FilePath, "{ invalid json }");
+        await File.WriteAllTextAsync(service.FilePath, "{ invalid json }", CancellationToken.None);
 
         // Act
         var loaded = service.Load();

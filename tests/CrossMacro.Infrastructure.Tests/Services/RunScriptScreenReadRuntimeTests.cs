@@ -1,8 +1,32 @@
 
+using System.Globalization;
+
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed partial class RunScriptScreenReadRuntimeTests
 {
+
+    [Fact]
+    public async Task NullScreenPixelReader_WhenCancellationIsAlreadyRequested_ThrowsBeforeReportingUnsupported()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        var options = new ScreenReadOptions(cancellationToken: cancellation.Token);
+        var reader = NullScreenPixelReader.Instance;
+
+        var operations = new Func<Task>[]
+        {
+            () => reader.GetPixelAsync(new ScreenPoint(1, 2), options),
+            () => reader.WaitForPixelAsync(new ScreenPoint(1, 2), new ScreenPixelColor(1, 2, 3), options),
+            () => reader.SearchPixelAsync(new ScreenRect(0, 0, 1, 1), new ScreenPixelColor(1, 2, 3), 0, options),
+            () => reader.SearchImageAsync(null, null!, null!, options),
+        };
+
+        foreach (var operation in operations)
+        {
+            _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(operation);
+        }
+    }
 
 
 
@@ -158,7 +182,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     private static async Task<string> EncodePngBase64Async(ScreenFrame frame)
     {
         using var stream = new MemoryStream();
-        await ScreenFramePngEncoder.EncodeAsync(frame, stream);
+        await ScreenFramePngEncoder.EncodeAsync(frame, stream, CancellationToken.None);
         return Convert.ToBase64String(stream.ToArray());
     }
 
@@ -297,7 +321,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
         public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(10));
+            await Task.Delay(TimeSpan.FromMilliseconds(10), options.CancellationToken);
             return ScreenReadResultFactory.Success<ScreenFrame>(_frame);
         }
 
@@ -323,7 +347,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         public Task<ScreenReadResult<ScreenPixelColor>> GetPixelAsync(ScreenPoint point, ScreenReadOptions options)
         {
             options.CancellationToken.ThrowIfCancellationRequested();
-            _activity.Add($"screen:pixelcolor:{point.X},{point.Y}");
+            _activity.Add(string.Create(CultureInfo.InvariantCulture, $"screen:pixelcolor:{point.X},{point.Y}"));
             return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelColor>(PixelColor));
         }
 
@@ -333,7 +357,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             ScreenReadOptions options)
         {
             options.CancellationToken.ThrowIfCancellationRequested();
-            _activity.Add($"screen:waitcolor:{point.X},{point.Y}");
+            _activity.Add(string.Create(CultureInfo.InvariantCulture, $"screen:waitcolor:{point.X},{point.Y}"));
             return Task.FromResult(WaitResult ?? ScreenReadResultFactory.Success<ScreenPixelColor>(expected));
         }
 
@@ -344,7 +368,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             ScreenReadOptions options)
         {
             options.CancellationToken.ThrowIfCancellationRequested();
-            _activity.Add($"screen:pixelsearch:{region.X},{region.Y}");
+            _activity.Add(string.Create(CultureInfo.InvariantCulture, $"screen:pixelsearch:{region.X},{region.Y}"));
             return Task.FromResult(SearchResult ?? ScreenReadResultFactory.Success<ScreenPixelSearchMatch>(new ScreenPixelSearchMatch(new ScreenPoint(region.X, region.Y), expected)));
         }
 
@@ -382,12 +406,12 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
         public void MoveAbsolute(int x, int y)
         {
-            _activity.Add($"input:move-abs:{x},{y}");
+            _activity.Add(string.Create(CultureInfo.InvariantCulture, $"input:move-abs:{x},{y}"));
         }
 
         public void MoveRelative(int dx, int dy)
         {
-            _activity.Add($"input:move:{dx},{dy}");
+            _activity.Add(string.Create(CultureInfo.InvariantCulture, $"input:move:{dx},{dy}"));
         }
 
         public void MouseButton(int button, bool pressed)
@@ -410,7 +434,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
         public void KeyPress(int keyCode, bool pressed)
         {
-            _activity.Add($"input:key:{keyCode}:{(pressed ? "down" : "up")}");
+            _activity.Add(string.Create(CultureInfo.InvariantCulture, $"input:key:{keyCode}:{(pressed ? "down" : "up")}"));
         }
 
         public void Sync()

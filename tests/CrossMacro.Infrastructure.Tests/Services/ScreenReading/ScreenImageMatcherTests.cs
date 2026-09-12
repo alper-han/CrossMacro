@@ -209,7 +209,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             },
             alphaMode: ScreenAlphaMode.Straight);
 
-        var match = _matcher.FindMatch(frame, template);
+        var match = _matcher.FindMatch(frame, template, cancellationToken: CancellationToken.None);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(1, 0), 1.0), match);
     }
@@ -283,7 +283,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             new byte[] { 0xFF, 0x00, 0x00, 0x00 },
             alphaMode: ScreenAlphaMode.Straight);
 
-        Assert.Throws<ArgumentException>(() => _matcher.FindMatch(frame, template));
+        _ = Assert.Throws<ArgumentException>(() => _matcher.FindMatch(frame, template, cancellationToken: CancellationToken.None));
     }
 
     [Theory]
@@ -490,7 +490,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
 
         using var frame = CreateSolidFrame(new ScreenRect(0, 0, 8, 8), Black);
 
-        Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }));
+        Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, CancellationToken.None));
     }
 
     [Fact]
@@ -613,7 +613,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         using var template = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Rgb24, Solid(2, 2, Red));
 
         var searches = Enumerable.Range(0, 8)
-            .Select(_ => Task.Run(() => _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken)))
+            .Select(_ => Task.Run(() => _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken), CancellationToken.None))
             .ToArray();
         var matches = await Task.WhenAll(searches);
 
@@ -1002,11 +1002,11 @@ public sealed class ScreenImageMatcherTests : IDisposable
     [Fact]
     public void FindMatch_AutomaticRejectsSpatiallyDistinctTiedCandidates()
     {
-        var templatePixels = new[]
-        {
-            new[] { Red, Green },
-            new[] { Blue, White },
-        };
+        ScreenPixelColor[][] templatePixels =
+        [
+            [Red, Green],
+            [Blue, White],
+        ];
         var framePixels = Solid(6, 2, Black);
         CopyPixels(templatePixels, framePixels, 0, 0);
         CopyPixels(templatePixels, framePixels, 4, 0);
@@ -1457,7 +1457,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             }
         }
 
-        var pixelArea = (source[0].Length / (double)width) * (source.Length / (double)height);
+        var pixelArea = source[0].Length / (double)width * (source.Length / (double)height);
         return new ScreenPixelColor(
             RoundToByte(red / pixelArea),
             RoundToByte(green / pixelArea),

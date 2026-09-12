@@ -30,7 +30,7 @@ public sealed class SystemPlaybackTimingServiceTests
         var service = new SystemPlaybackTimingService();
         var pauseToken = new FakePauseToken();
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
 
         var act = async () => await service.WaitAsync(100, pauseToken, cancellation.Token);
 

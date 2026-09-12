@@ -10,14 +10,15 @@ public sealed class ScreenReadPollingTests
             (remaining, _) =>
             {
                 attempts++;
-                remaining.Should().Be(TimeSpan.Zero);
+                Assert.Equal(TimeSpan.Zero, remaining);
                 return Task.FromResult(ScreenReadResultFactory.Success(42));
             },
             TimeSpan.Zero,
             TimeSpan.Zero,
             "polling canceled",
             timeoutFailure: null,
-            CancellationToken.None);
+            CancellationToken.None,
+            TimeProvider.System);
 
         _ = result.IsSuccess.Should().BeTrue();
         _ = result.Value.Should().Be(42);
@@ -34,12 +35,13 @@ public sealed class ScreenReadPollingTests
             (remaining, _) =>
             {
                 attempts++;
-                remaining.Should().Be(TimeSpan.Zero);
+                Assert.Equal(TimeSpan.Zero, remaining);
                 return Task.FromResult(ScreenReadResultFactory.Success(match));
             },
             TimeSpan.Zero,
             TimeSpan.Zero,
-            CancellationToken.None);
+            CancellationToken.None,
+            TimeProvider.System);
 
         _ = result.IsSuccess.Should().BeTrue();
         _ = result.Value.Should().Be(match);
@@ -62,7 +64,8 @@ public sealed class ScreenReadPollingTests
             },
             TimeSpan.Zero,
             TimeSpan.Zero,
-            CancellationToken.None);
+            CancellationToken.None,
+            TimeProvider.System);
 
         _ = result.IsSuccess.Should().BeFalse();
         _ = result.ErrorKind.Should().Be(ScreenReadErrorKind.CaptureTimeout);
@@ -75,7 +78,7 @@ public sealed class ScreenReadPollingTests
     {
         var deadline = TimeProvider.System.GetUtcNow() + TimeSpan.FromMilliseconds(10);
 
-        var delay = ScreenReadPolling.GetDelay(deadline, TimeSpan.FromSeconds(5));
+        var delay = ScreenReadPolling.GetDelay(deadline, TimeSpan.FromSeconds(5), TimeProvider.System);
 
         _ = delay.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
         _ = delay.Should().BeLessThanOrEqualTo(TimeSpan.FromMilliseconds(10));
@@ -86,6 +89,6 @@ public sealed class ScreenReadPollingTests
     {
         var deadline = TimeProvider.System.GetUtcNow() - TimeSpan.FromMilliseconds(1);
 
-        _ = ScreenReadPolling.GetDelay(deadline, TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.Zero);
+        _ = ScreenReadPolling.GetDelay(deadline, TimeSpan.FromSeconds(1), TimeProvider.System).Should().Be(TimeSpan.Zero);
     }
 }

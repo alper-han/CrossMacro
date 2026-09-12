@@ -5,6 +5,15 @@ namespace CrossMacro.Infrastructure.Tests.Helpers;
 public sealed class DebouncedSaveCoordinatorTests
 {
     [Fact]
+    public void Constructor_RejectsMissingSaveDelegateAndNonPositiveDelay()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            new DebouncedSaveCoordinator(null!, TimeSpan.FromMilliseconds(1)));
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new DebouncedSaveCoordinator(() => Task.CompletedTask, TimeSpan.Zero));
+    }
+
+    [Fact]
     public async Task RequestAsync_CoalescesAChangeBurstIntoOneSave()
     {
         var saveCount = 0;
@@ -33,15 +42,18 @@ public sealed class DebouncedSaveCoordinatorTests
     {
         var saveStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var allowSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var timeProvider = new FakeTimeProvider();
         using var coordinator = new DebouncedSaveCoordinator(
             async () =>
             {
                 _ = saveStarted.TrySetResult();
                 await allowSave.Task.ConfigureAwait(false);
             },
-            TimeSpan.FromSeconds(1));
+            TimeSpan.FromHours(1),
+            timeProvider);
 
         var request = coordinator.RequestAsync();
+        timeProvider.Advance(TimeSpan.FromHours(1));
         var disposeTask = Task.Run(coordinator.Dispose, CancellationToken.None);
 
         await saveStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
@@ -68,5 +80,18 @@ public sealed class DebouncedSaveCoordinatorTests
 
         var requestException = await Assert.ThrowsAsync<IOException>(async () => await request);
         _ = requestException.Should().BeSameAs(failure);
+    }
+
+    [Fact]
+    public void Dispose_PropagatesPendingSaveFailure()
+    {
+        var failure = new IOException("disk full");
+        var coordinator = new DebouncedSaveCoordinator(
+            () => Task.FromException(failure),
+            TimeSpan.FromSeconds(1));
+
+        _ = coordinator.RequestAsync();
+
+        _ = Assert.Throws<IOException>(() => coordinator.Dispose()).Should().BeSameAs(failure);
     }
 }

@@ -8,7 +8,7 @@ public static class PersistedMacroCodec
     public static MacroSequence Decode(PersistedMacroDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        if (document.SchemaVersion > PersistedMacroDocument.CurrentSchemaVersion)
+        if (document.SchemaVersion is < 1 or > PersistedMacroDocument.CurrentSchemaVersion)
         {
             throw new InvalidOperationException($"Unsupported macro schema version {document.SchemaVersion.ToString(CultureInfo.InvariantCulture)}.");
         }

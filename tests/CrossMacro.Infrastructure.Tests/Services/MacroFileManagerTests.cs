@@ -50,7 +50,7 @@ public sealed class MacroFileManagerTests : IDisposable
         var first = await _manager.LoadAsync(fixturePath);
 
         _ = first.Should().NotBeNull();
-        _ = first!.IsAbsoluteCoordinates.Should().Be(expectedAbsolute);
+        _ = first.IsAbsoluteCoordinates.Should().Be(expectedAbsolute);
         _ = first.Events.Should().NotBeEmpty();
         var savedPath = GetTempFilePath();
         await _manager.SaveAsync(first, savedPath);
@@ -66,7 +66,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
             return ev;
         });
-        _ = second!.Events.Should().BeEquivalentTo(expectedEvents);
+        _ = second.Events.Should().BeEquivalentTo(expectedEvents);
         _ = second.ScriptSteps.Should().Equal(first.ScriptSteps);
         _ = second.TextInputBoundaries.Should().Equal(first.TextInputBoundaries);
         _ = second.TrailingDelayMs.Should().Be(first.TrailingDelayMs);
@@ -94,7 +94,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events.Should().ContainSingle();
     }
 
     private static MacroSequence CreateValidMacro(string name = "Test Macro")
@@ -215,7 +215,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
 
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Name.Should().Be(macro.Name);
+        _ = loaded.Name.Should().Be(macro.Name);
         _ = loaded.CreatedAt.Should().Be(createdAt);
         _ = loaded.TotalDurationMs.Should().Be(45);
         _ = loaded.IsAbsoluteCoordinates.Should().BeFalse();
@@ -367,7 +367,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Name.Should().Be("Round Trip Test");
+        _ = loaded.Name.Should().Be("Round Trip Test");
     }
 
     [Fact]
@@ -383,7 +383,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         _ = saved.Should().Contain("# IsAbsolute: True");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.IsAbsoluteCoordinates.Should().BeTrue();
+        _ = loaded.IsAbsoluteCoordinates.Should().BeTrue();
     }
 
     [Fact]
@@ -402,7 +402,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
         _ = saved.Should().Contain("[Events]");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().HaveCount(macro.Events.Count);
+        _ = loaded.Events.Should().HaveCount(macro.Events.Count);
     }
 
     [Fact]
@@ -448,7 +448,8 @@ public sealed class MacroFileManagerTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         // Assert
-        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Should().NotBeNull();
+        _ = loaded.Events.Should().HaveCount(2);
         _ = loaded.Events[0].Type.Should().Be(EventType.KeyPress);
         _ = loaded.Events[0].KeyCode.Should().Be(30);
         _ = loaded.Events[1].Type.Should().Be(EventType.KeyRelease);
@@ -526,7 +527,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("WU,400");
         _ = saved.Should().Contain("WU,600");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().BeEquivalentTo(macro.Events);
+        _ = loaded.Events.Should().BeEquivalentTo(macro.Events);
     }
 
     [Fact]
@@ -580,7 +581,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events.Should().ContainSingle();
         _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
     }
 
@@ -615,7 +616,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().BeEmpty();
+        _ = loaded.ScriptSteps.Should().BeEmpty();
         _ = loaded.Events.Should().HaveCount(2);
         _ = loaded.Events[0].Type.Should().Be(EventType.MouseMove);
         _ = loaded.Events[1].Type.Should().Be(EventType.KeyPress);
@@ -636,7 +637,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Events.Should().HaveCount(2);
         _ = loaded.Events[0].DelayMs.Should().Be(0);
         _ = loaded.Events[1].DelayMs.Should().Be(0);
     }
@@ -655,7 +656,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events.Should().ContainSingle();
         _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
     }
 
@@ -673,7 +674,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().HaveCount(3);
+        _ = loaded.Events.Should().HaveCount(3);
         _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
         _ = loaded.Events[1].Type.Should().Be(EventType.MouseMove);
         _ = loaded.Events[2].UseCurrentPosition.Should().BeFalse();
@@ -693,7 +694,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events.Should().ContainSingle();
         _ = loaded.Events[0].UseCurrentPosition.Should().BeFalse();
         _ = loaded.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Relative);
     }
@@ -728,7 +729,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Events.Should().HaveCount(2);
         _ = loaded.Events[1].DelayMs.Should().Be(40);
         _ = loaded.Events[1].HasRandomDelay.Should().BeTrue();
         _ = loaded.Events[1].RandomDelayMinMs.Should().Be(60);
@@ -757,7 +758,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.HasTrailingRandomDelay.Should().BeTrue();
+        _ = loaded.HasTrailingRandomDelay.Should().BeTrue();
         _ = loaded.TrailingDelayMinMs.Should().Be(25);
         _ = loaded.TrailingDelayMaxMs.Should().Be(75);
     }
@@ -776,7 +777,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().HaveCount(2);
+        _ = loaded.Events.Should().HaveCount(2);
         _ = loaded.Events[1].DelayMs.Should().Be(0);
         _ = loaded.Events[1].HasRandomDelay.Should().BeTrue();
         _ = loaded.Events[1].RandomDelayMinMs.Should().Be(100);
@@ -817,9 +818,9 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("}");
         _ = saved.Should().Contain("[Events]");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().HaveCount(1);
+        _ = loaded.Events.Should().HaveCount(1);
         _ = loaded.Events[0].Type.Should().Be(EventType.Click);
-        _ = loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
     [Fact]
@@ -880,7 +881,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.IndexOf("# Image: Target_1", StringComparison.Ordinal)
             .Should().BeLessThan(saved.IndexOf("# Format: CrossMacroFormatV4", StringComparison.Ordinal));
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Images.Should().Equal(macro.Images);
+        _ = loaded.Images.Should().Equal(macro.Images);
         _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
@@ -912,7 +913,7 @@ public sealed class MacroFileManagerTests : IDisposable
             $"# Image: Zeta = {TransparentPngBase64}",
             "# Format: CrossMacroFormatV4");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Images.Should().Equal(macro.Images);
+        _ = loaded.Images.Should().Equal(macro.Images);
     }
 
     [Fact]
@@ -930,7 +931,7 @@ public sealed class MacroFileManagerTests : IDisposable
         // Assert
         _ = saved.Should().NotContain("# Image:");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Images.Should().BeEmpty();
+        _ = loaded.Images.Should().BeEmpty();
         _ = loaded.Events.Should().HaveCount(macro.Events.Count);
     }
 
@@ -1075,7 +1076,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().BeEmpty();
+        _ = loaded.Events.Should().BeEmpty();
         _ = loaded.ScriptSteps.Should().Equal(
             "pixelcolor 10 20 color",
             "waitcolor 11 22 00FFAA 2500 wait_ok",
@@ -1096,7 +1097,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().Equal("pixelcolor 10 20 color", "click left");
+        _ = loaded.ScriptSteps.Should().Equal("pixelcolor 10 20 color", "click left");
         _ = loaded.Events.Should().HaveCount(2);
     }
 
@@ -1123,7 +1124,7 @@ public sealed class MacroFileManagerTests : IDisposable
             "type first line",
             "| path C:\\Users\\me");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().Equal(macro.ScriptSteps);
+        _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
     [Fact]
@@ -1152,7 +1153,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("pixelcolor 10 20 color");
         _ = saved.Should().Contain("pixelsearch 0 0 3 3 123456 x y");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().BeEmpty();
+        _ = loaded.Events.Should().BeEmpty();
         _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
@@ -1179,7 +1180,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("type [demo], #1, C:\\Temp\\macro.txt");
         _ = saved.Should().Contain("# Format: CrossMacroFormatV4");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().BeEmpty();
+        _ = loaded.Events.Should().BeEmpty();
         _ = loaded.ScriptSteps.Should().Equal(macro.ScriptSteps);
     }
 
@@ -1223,7 +1224,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().Equal(scriptStep);
+        _ = loaded.ScriptSteps.Should().Equal(scriptStep);
     }
 
     [Fact]
@@ -1257,7 +1258,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("# TextInputBoundaryBase64:");
         _ = saved.Should().Contain("[Events]");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
+        _ = loaded.TextInputBoundaries.Should().Equal(macro.TextInputBoundaries);
     }
 
     [Fact]
@@ -1274,7 +1275,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = loaded.IsAbsoluteCoordinates.Should().BeFalse();
         _ = loaded.Events.Should().HaveCount(2);
         _ = loaded.Events[0].CoordinateMode.Should().BeNull();
         _ = loaded.Events[1].CoordinateMode.Should().BeNull();
@@ -1349,7 +1350,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("M,10,20");
         _ = saved.Should().Contain("C,5,6,Left");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = loaded.IsAbsoluteCoordinates.Should().BeFalse();
         _ = MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[0], loaded.IsAbsoluteCoordinates)
             .Should().Be(MouseCoordinateMode.Absolute);
         _ = MacroPositionSemantics.ResolveCoordinateMode(loaded.Events[1], loaded.IsAbsoluteCoordinates)
@@ -1400,7 +1401,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("R,rel-raw,3,4,Right");
         _ = saved.Should().Contain("C,rel-logical,5,6,Middle");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Select(ev => ev.CoordinateMode).Should().Equal(
+        _ = loaded.Events.Select(ev => ev.CoordinateMode).Should().Equal(
             MouseCoordinateMode.Absolute,
             MouseCoordinateMode.Relative,
             MouseCoordinateMode.Relative);
@@ -1442,7 +1443,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("C,0,0,Left,CurrentPosition");
         _ = saved.Should().NotContain("C,rel,0,0,Left");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events.Should().ContainSingle();
         _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
         _ = loaded.Events[0].CoordinateMode.Should().BeNull();
     }
@@ -1477,7 +1478,7 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = saved.Should().Contain("C,0,0,ScrollDown");
         _ = saved.Should().NotContain("C,abs,0,0,ScrollDown");
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events.Should().ContainSingle();
         _ = loaded.Events[0].Button.Should().Be(MacroMouseButton.ScrollDown);
         _ = loaded.Events[0].CoordinateMode.Should().BeNull();
     }
@@ -1496,7 +1497,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.Events.Should().ContainSingle();
+        _ = loaded.Events.Should().ContainSingle();
         _ = loaded.Events[0].Type.Should().Be(EventType.MouseMove);
         _ = loaded.Events[0].CoordinateMode.Should().Be(MouseCoordinateMode.Absolute);
         _ = loaded.Events[0].X.Should().Be(10);
@@ -1523,7 +1524,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.TextInputBoundaries.Should().BeEmpty();
+        _ = loaded.TextInputBoundaries.Should().BeEmpty();
         _ = loaded.Events.Should().HaveCount(2);
     }
 
@@ -1549,7 +1550,7 @@ public sealed class MacroFileManagerTests : IDisposable
 
         // Assert
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.TextInputBoundaries.Should().Equal(new TextInputBoundary(0, 2, "legacy text"));
+        _ = loaded.TextInputBoundaries.Should().Equal(new TextInputBoundary(0, 2, "legacy text"));
         _ = loaded.Events.Should().HaveCount(2);
     }
 

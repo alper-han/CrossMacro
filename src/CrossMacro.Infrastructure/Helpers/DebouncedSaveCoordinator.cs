@@ -6,8 +6,9 @@ internal sealed class DebouncedSaveCoordinator : IDisposable
 {
     private readonly Lock _gate = new();
     private readonly Func<Task> _saveAsync;
-    private readonly Timer _timer;
+    private readonly ITimer _timer;
     private readonly TimeSpan _delay;
+    private readonly TimeProvider _timeProvider;
 
     private TaskCompletionSource? _pendingCompletion;
     private Task _activeSave = Task.CompletedTask;
@@ -15,13 +16,18 @@ internal sealed class DebouncedSaveCoordinator : IDisposable
     private bool _saveRunning;
     private bool _disposed;
 
-    public DebouncedSaveCoordinator(Func<Task> saveAsync, TimeSpan delay)
+    public DebouncedSaveCoordinator(Func<Task> saveAsync, TimeSpan delay, TimeProvider? timeProvider = null)
     {
         _saveAsync = saveAsync ?? throw new ArgumentNullException(nameof(saveAsync));
         _delay = delay > TimeSpan.Zero
             ? delay
             : throw new ArgumentOutOfRangeException(nameof(delay));
-        _timer = new Timer(OnTimerElapsed, state: null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timer = _timeProvider.CreateTimer(
+            OnTimerElapsed,
+            state: null,
+            Timeout.InfiniteTimeSpan,
+            Timeout.InfiniteTimeSpan);
     }
 
     public Task RequestAsync()

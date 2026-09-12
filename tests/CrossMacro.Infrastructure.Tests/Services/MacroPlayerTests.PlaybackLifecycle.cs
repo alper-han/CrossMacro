@@ -46,7 +46,7 @@ public sealed partial class MacroPlayerTests
             Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
         };
 
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         TestAssertions.Verify(() => validator.Received(1).Validate(macro));
         simulator.Received().MoveRelative(10, 10);
@@ -216,7 +216,7 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        await player.PlayAsync(macro);
+        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         // Assert
         // Verify MoveRelative (default mode)
@@ -277,8 +277,8 @@ public sealed partial class MacroPlayerTests
             RepeatDelayMs = 123,
         };
 
-        var playback = player.PlayAsync(macro, options);
-        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout);
+        var playback = player.PlayAsync(macro, options, cancellationToken: CancellationToken.None);
+        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
 
         _ = player.IsPlaying.Should().BeTrue();
         _ = player.CurrentLoop.Should().Be(1);
@@ -314,11 +314,11 @@ public sealed partial class MacroPlayerTests
         timing.WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         timing.ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var firstPlayback = player.PlayAsync(macro);
-        _ = await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var firstPlayback = player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+        _ = await timing.WaitEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         // Act
-        var act = async () => await player.PlayAsync(macro);
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         // Assert
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
@@ -326,6 +326,38 @@ public sealed partial class MacroPlayerTests
 
         player.StopPlayback();
         _ = timing.ContinueWait.TrySetResult(true);
+        await firstPlayback;
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenConcurrentCallsRaceBeforeBegin_AllowsOnlyOnePlayback()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var validator = Substitute.For<IPlaybackValidator>();
+        var validationEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseValidation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = validator.Validate(Arg.Any<MacroSequence>()).Returns(_ =>
+        {
+            validationEntered.TrySetResult(true);
+            releaseValidation.Task.GetAwaiter().GetResult();
+            return new PlaybackValidationResult();
+        });
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, validator: validator);
+        var macro = new MacroSequence
+        {
+            Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
+        };
+
+        var firstPlayback = Task.Run(() => player.PlayAsync(macro, cancellationToken: CancellationToken.None));
+        await validationEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already in progress*");
+
+        _ = releaseValidation.TrySetResult(true);
         await firstPlayback;
     }
 
@@ -351,7 +383,7 @@ public sealed partial class MacroPlayerTests
         using var cancellation = new CancellationTokenSource();
 
         var playback = player.PlayAsync(macro, cancellationToken: cancellation.Token);
-        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout);
+        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, cancellation.Token);
         await cancellation.CancelAsync();
 
         var act = async () => await playback;
@@ -382,8 +414,8 @@ public sealed partial class MacroPlayerTests
             },
         };
 
-        var playback = player.PlayAsync(macro);
-        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout);
+        var playback = player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
         player.StopPlayback();
 
         await playback;
@@ -438,8 +470,8 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await pauseObserved.WaitAsync(TestTimeout);
+        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, cancellationToken: CancellationToken.None);
+        await pauseObserved.WaitAsync(TestTimeout, CancellationToken.None);
         _ = player.IsPaused.Should().BeTrue();
 
         _ = playbackTask.IsCompleted.Should().BeFalse();
@@ -501,11 +533,11 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await waitEntered.WaitAsync(TestTimeout);
+        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, cancellationToken: CancellationToken.None);
+        await waitEntered.WaitAsync(TestTimeout, CancellationToken.None);
         player.Pause();
         releaseWait.Signal();
-        await paused.WaitAsync(TestTimeout);
+        await paused.WaitAsync(TestTimeout, CancellationToken.None);
         player.ResumePlayback();
         await playbackTask;
 
@@ -551,11 +583,11 @@ public sealed partial class MacroPlayerTests
         };
 
         // Act
-        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 });
-        await waitEntered.WaitAsync(TestTimeout);
+        var playbackTask = player.PlayAsync(macro, new PlaybackOptions { SpeedMultiplier = 1.0 }, cancellationToken: CancellationToken.None);
+        await waitEntered.WaitAsync(TestTimeout, CancellationToken.None);
         player.Pause();
         releaseWait.Signal();
-        await paused.WaitAsync(TestTimeout);
+        await paused.WaitAsync(TestTimeout, CancellationToken.None);
         player.ResumePlayback();
         await playbackTask;
 

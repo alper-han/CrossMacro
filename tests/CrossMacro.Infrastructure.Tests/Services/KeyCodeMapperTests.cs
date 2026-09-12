@@ -12,6 +12,14 @@ public sealed class KeyCodeMapperTests
         _mapper = new KeyCodeMapper(_layoutService);
     }
 
+    [Fact]
+    public void Constructor_RejectsMissingKeyboardLayoutService()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() => new KeyCodeMapper(null!));
+
+        Assert.Equal("layoutService", exception.ParamName);
+    }
+
     #region GetKeyCode Tests
 
     [Theory]

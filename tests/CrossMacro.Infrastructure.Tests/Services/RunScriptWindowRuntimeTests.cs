@@ -3,6 +3,43 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed class RunScriptWindowRuntimeTests
 {
+    [Fact]
+    public async Task NullWindowManager_WhenCancellationIsAlreadyRequested_ThrowsBeforeReportingUnsupported()
+    {
+        var warnings = new List<string>();
+        var manager = new NullWindowManager(warnings.Add);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var operations = new Func<Task>[]
+        {
+            () => manager.GetActiveWindowAsync(cancellation.Token),
+            () => manager.GetWindowsAsync(cancellation.Token),
+            () => manager.FocusWindowByAddressAsync("0x1", cancellation.Token),
+            () => manager.FocusWindowByTitleAsync("title", cancellation.Token),
+            () => manager.FocusWindowByClassAsync("class", cancellation.Token),
+            () => manager.CloseWindowByAddressAsync("0x1", cancellation.Token),
+            () => manager.CloseWindowByTitleAsync("title", cancellation.Token),
+            () => manager.MoveActiveWindowAsync(1, 2, cancellation.Token),
+            () => manager.ResizeActiveWindowAsync(3, 4, cancellation.Token),
+            () => manager.MaximizeActiveWindowAsync(cancellation.Token),
+            () => manager.FullscreenActiveWindowAsync(cancellation.Token),
+            () => manager.FloatActiveWindowAsync(cancellation.Token),
+            () => manager.CenterActiveWindowAsync(cancellation.Token),
+            () => manager.GetActiveWorkspaceAsync(cancellation.Token),
+            () => manager.SwitchWorkspaceAsync("workspace", cancellation.Token),
+            () => manager.MoveActiveWindowToWorkspaceAsync("workspace", cancellation.Token),
+            () => manager.MoveWindowToWorkspaceByAddressAsync("0x1", "workspace", cancellation.Token),
+        };
+
+        foreach (var operation in operations)
+        {
+            _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(operation);
+        }
+
+        Assert.Empty(warnings);
+    }
+
     // ---- active -----------------------------------------------------------------------
 
     [Fact]
@@ -49,6 +86,32 @@ public sealed class RunScriptWindowRuntimeTests
 
         _ = vars.Should().Contain("res1", "true");
         _ = vars.Should().Contain("res2", "false");
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenActiveExtendedStateAndGeometry_StoresAllValues()
+    {
+        var wm = FakeWindowManager(new WindowInfo
+        {
+            IsMaximized = true,
+            IsPinned = true,
+            IsHidden = true,
+            X = -10,
+            Y = 20,
+            Width = 800,
+            Height = 600,
+        });
+        var vars = Vars();
+
+        await Executor(wm).ExecuteStepAsync("window active maximize maximized", 1, vars, CancellationToken.None);
+        await Executor(wm).ExecuteStepAsync("window active pinned pinned", 1, vars, CancellationToken.None);
+        await Executor(wm).ExecuteStepAsync("window active hidden hidden", 1, vars, CancellationToken.None);
+        await Executor(wm).ExecuteStepAsync("window active geometry geometry", 1, vars, CancellationToken.None);
+
+        _ = vars.Should().Contain("maximized", "true");
+        _ = vars.Should().Contain("pinned", "true");
+        _ = vars.Should().Contain("hidden", "true");
+        _ = vars.Should().Contain("geometry", "-10 20 800 600");
     }
 
     [Fact]
@@ -127,6 +190,16 @@ public sealed class RunScriptWindowRuntimeTests
     }
 
     [Fact]
+    public async Task ExecuteStepAsync_WhenFocusActiveHasNoWindow_DoesNotMutate()
+    {
+        var wm = FakeWindowManager(activeWindow: null);
+
+        await Executor(wm).ExecuteStepAsync("window focus active", 1, Vars(), CancellationToken.None);
+
+        _ = await wm.DidNotReceive().FocusWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ExecuteStepAsync_WhenFocusByTitle_CallsFocusWindowByTitle()
     {
         var wm = FakeWindowManager(activeWindow: null);
@@ -184,6 +257,16 @@ public sealed class RunScriptWindowRuntimeTests
     }
 
     [Fact]
+    public async Task ExecuteStepAsync_WhenCloseActiveHasNoWindow_DoesNotMutate()
+    {
+        var wm = FakeWindowManager(activeWindow: null);
+
+        await Executor(wm).ExecuteStepAsync("window close active", 1, Vars(), CancellationToken.None);
+
+        _ = await wm.DidNotReceive().CloseWindowByAddressAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ExecuteStepAsync_WhenCloseByTitle_CallsCloseWindowByTitle()
     {
         var wm = FakeWindowManager(activeWindow: null);
@@ -192,6 +275,17 @@ public sealed class RunScriptWindowRuntimeTests
         await Executor(wm).ExecuteStepAsync("window close title notepad", 1, Vars(), CancellationToken.None);
 
         _ = await wm.Received(1).CloseWindowByTitleAsync("notepad", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenCloseByQuotedTitle_PreservesWhitespace()
+    {
+        var wm = FakeWindowManager(activeWindow: null);
+        _ = wm.CloseWindowByTitleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+
+        await Executor(wm).ExecuteStepAsync("window close title \"Code Editor\"", 1, Vars(), CancellationToken.None);
+
+        _ = await wm.Received(1).CloseWindowByTitleAsync("Code Editor", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -216,6 +310,40 @@ public sealed class RunScriptWindowRuntimeTests
 
         await Executor(wm).ExecuteStepAsync("window move 100 200", 1, Vars(), CancellationToken.None);
 
+        _ = await wm.Received(1).MoveActiveWindowAsync(100, 200, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenMoveUnlocksWindow_UsesInjectedDelayBeforeMutation()
+    {
+        var wm = FakeWindowManager(new WindowInfo
+        {
+            IsFullscreen = true,
+            IsMaximized = true,
+            IsFloating = false,
+            Address = "0x1234",
+        });
+        _ = wm.FullscreenActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.MaximizeActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.FloatActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        _ = wm.MoveActiveWindowAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(returnThis: true);
+        var delayStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseDelay = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var executor = new RunScriptWindowExecutor(
+            wm,
+            delayAsync: async (delay, cancellationToken) =>
+            {
+                Assert.Equal(TimeSpan.FromMilliseconds(150), delay);
+                delayStarted.TrySetResult();
+                await releaseDelay.Task.WaitAsync(cancellationToken);
+            });
+
+        var operation = executor.ExecuteStepAsync("window move 100 200", 1, Vars(), CancellationToken.None);
+        await delayStarted.Task;
+        _ = await wm.DidNotReceive().MoveActiveWindowAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+
+        _ = releaseDelay.TrySetResult();
+        await operation;
         _ = await wm.Received(1).MoveActiveWindowAsync(100, 200, Arg.Any<CancellationToken>());
     }
 
@@ -263,6 +391,30 @@ public sealed class RunScriptWindowRuntimeTests
         await Executor(wm).ExecuteStepAsync("window wait title Firefox 1000 result", 1, vars, CancellationToken.None);
 
         _ = vars.Should().Contain("result", "0xAABB");
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenWaitTimesOut_UsesInjectedLogicalTimeDeterministically()
+    {
+        var timeProvider = new FakeTimeProvider();
+        var delayRegistered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var wm = FakeWindowList();
+        var executor = new RunScriptWindowExecutor(
+            wm,
+            timeProvider,
+            (delay, cancellationToken) =>
+            {
+                _ = delayRegistered.TrySetResult();
+                return Task.Delay(delay, timeProvider, cancellationToken);
+            });
+        var vars = Vars();
+
+        var operation = executor.ExecuteStepAsync("window wait title missing 1000 result", 1, vars, CancellationToken.None);
+        await delayRegistered.Task;
+        timeProvider.Advance(TimeSpan.FromSeconds(1));
+        await operation;
+
+        _ = vars.Should().Contain("result", string.Empty);
     }
 
     // ---- workspace --------------------------------------------------------------------

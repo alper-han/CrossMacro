@@ -3,9 +3,14 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 internal static class RunScriptRuntimeStepClassifier
 {
-    public static bool IsRuntimeStep(string step)
+    public static bool IsRuntimeStep(string? step)
     {
-        var trimmed = step.Trim();
+        var trimmed = step?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return false;
+        }
+
         return RunScriptSyntax.IsScreenReadingStep(trimmed)
             || RunScriptSyntax.IsWindowStep(trimmed)
             || RunScriptSyntax.IsClipboardStep(trimmed)

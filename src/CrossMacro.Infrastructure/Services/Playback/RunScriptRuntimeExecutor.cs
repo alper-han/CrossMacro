@@ -13,11 +13,26 @@ internal sealed class RunScriptRuntimeExecutor(
     RunScriptScreenshotExecutor screenshotExecutor,
     RunScriptMousePositionExecutor mousePositionExecutor)
 {
+    private const int MaxLoopIterations = 100_000;
+
     private enum LoopControlSignal
     {
         None,
         Break,
         Continue,
+    }
+
+    private sealed class LoopExecutionState
+    {
+        public int Iterations { get; private set; }
+
+        public void Advance()
+        {
+            if (++Iterations > MaxLoopIterations)
+            {
+                throw new InvalidOperationException($"Runtime loop iteration limit exceeded ({MaxLoopIterations}). Check loop exit condition.");
+            }
+        }
     }
 
     private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
@@ -44,7 +59,13 @@ internal sealed class RunScriptRuntimeExecutor(
             .Select(step => step.Trim())
             .ToList();
 
-        _ = await ExecuteRangeAsync(steps, 0, steps.Count, request, cancellationToken).ConfigureAwait(false);
+        _ = await ExecuteRangeAsync(
+            steps,
+            0,
+            steps.Count,
+            request,
+            new LoopExecutionState(),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<LoopControlSignal> ExecuteRangeAsync(
@@ -52,6 +73,7 @@ internal sealed class RunScriptRuntimeExecutor(
         int start,
         int end,
         RunScriptRuntimeExecutionRequest request,
+        LoopExecutionState loopState,
         CancellationToken cancellationToken)
     {
         var index = start;
@@ -82,11 +104,11 @@ internal sealed class RunScriptRuntimeExecutor(
                 LoopControlSignal signal;
                 if (EvaluateCondition(ifCondition))
                 {
-                    signal = await ExecuteRangeAsync(steps, trueStart, trueEnd, request, cancellationToken).ConfigureAwait(false);
+                    signal = await ExecuteRangeAsync(steps, trueStart, trueEnd, request, loopState, cancellationToken).ConfigureAwait(false);
                 }
                 else if (falseStart >= 0)
                 {
-                    signal = await ExecuteRangeAsync(steps, falseStart, falseEnd, request, cancellationToken).ConfigureAwait(false);
+                    signal = await ExecuteRangeAsync(steps, falseStart, falseEnd, request, loopState, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -105,15 +127,11 @@ internal sealed class RunScriptRuntimeExecutor(
             {
                 var bodyStart = index + 1;
                 var bodyEnd = FindBlockEnd(steps, bodyStart, end);
-                var iterations = 0;
                 while (EvaluateCondition(whileCondition))
                 {
-                    if (++iterations > 100_000)
-                    {
-                        throw new InvalidOperationException("Runtime while loop iteration limit exceeded (100000). Check loop exit condition.");
-                    }
+                    loopState.Advance();
 
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken).ConfigureAwait(false);
+                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, loopState, cancellationToken).ConfigureAwait(false);
                     if (signal is LoopControlSignal.Break)
                     {
                         break;
@@ -135,7 +153,8 @@ internal sealed class RunScriptRuntimeExecutor(
                 var bodyEnd = FindBlockEnd(steps, bodyStart, end);
                 for (var i = 0; i < repeatCount; i++)
                 {
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken).ConfigureAwait(false);
+                    loopState.Advance();
+                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, loopState, cancellationToken).ConfigureAwait(false);
                     if (signal is LoopControlSignal.Break)
                     {
                         break;
@@ -162,8 +181,9 @@ internal sealed class RunScriptRuntimeExecutor(
 
                 for (var i = forStart; forStep > 0 ? i <= forEnd : i >= forEnd; i += forStep)
                 {
+                    loopState.Advance();
                     _runtimeVariables[forVariableName] = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, cancellationToken).ConfigureAwait(false);
+                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, loopState, cancellationToken).ConfigureAwait(false);
                     if (signal is LoopControlSignal.Break)
                     {
                         break;

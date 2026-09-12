@@ -8,6 +8,7 @@ public sealed class TriggerServiceTests : IDisposable
     private readonly IProfileSwitchRequests _profileSwitchRequests;
     private readonly IMacroFileManager _macroFileManager;
     private readonly IMacroPlayer _macroPlayer;
+    private readonly FakeTimeProvider _timeProvider;
     private readonly TriggerService _service;
     private readonly string _testRootDirectory;
     private readonly string _triggersFilePath;
@@ -27,6 +28,7 @@ public sealed class TriggerServiceTests : IDisposable
         _profileSwitchRequests = Substitute.For<IProfileSwitchRequests>();
         _macroFileManager = Substitute.For<IMacroFileManager>();
         _macroPlayer = Substitute.For<IMacroPlayer>();
+        _timeProvider = new FakeTimeProvider(new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         var testSynchronizationContext = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(syncContext: null);
@@ -37,7 +39,8 @@ public sealed class TriggerServiceTests : IDisposable
                 _profileSwitchRequests,
                 _macroFileManager,
                 () => _macroPlayer,
-                _triggersFilePath);
+                _triggersFilePath,
+                _timeProvider);
         }
         finally
         {
@@ -80,7 +83,7 @@ public sealed class TriggerServiceTests : IDisposable
         _service.StopMonitoring();
         _service.StopMonitoring();
 
-        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+        await _service.Completion.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, NonCancelableToken);
 
         _ = _service.Completion.IsCompletedSuccessfully.Should().BeTrue();
     }
@@ -117,14 +120,14 @@ public sealed class TriggerServiceTests : IDisposable
         _service.Start();
         await oldMonitorStarted.Task;
 
-        var stopTask = _service.StopAsync();
+        var stopTask = _service.StopAsync(CancellationToken.None);
         await replacementStarted.Task;
         await stopTask;
 
         _ = _service.IsMonitoring.Should().BeTrue();
 
         replacementPollGate.SetResult();
-        await _service.StopAsync();
+        await _service.StopAsync(CancellationToken.None);
         _ = _service.IsMonitoring.Should().BeFalse();
     }
 
@@ -150,7 +153,7 @@ public sealed class TriggerServiceTests : IDisposable
         _service.TriggerFired += (_, _) => replacementStateWritten.TrySetResult();
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
-            .Returns(async callInfo =>
+            .Returns((Func<NSubstitute.Core.CallInfo, Task<WindowInfo?>>)(async callInfo =>
             {
                 var token = callInfo.Arg<CancellationToken>();
                 if (Interlocked.Increment(ref pollCount) is 1)
@@ -165,12 +168,12 @@ public sealed class TriggerServiceTests : IDisposable
                 }
 
                 return new WindowInfo { Class = "firefox" };
-            });
+            }));
 
         _service.Start();
         await oldMonitorStarted.Task;
 
-        var stopTask = _service.StopAsync();
+        var stopTask = _service.StopAsync(CancellationToken.None);
         await replacementStarted.Task;
         await replacementStateWritten.Task;
         _ = stopTask.IsCompleted.Should().BeFalse();
@@ -182,7 +185,7 @@ public sealed class TriggerServiceTests : IDisposable
 
         await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
 
-        await _service.StopAsync();
+        await _service.StopAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -237,7 +240,7 @@ public sealed class TriggerServiceTests : IDisposable
         _service.Start();
         await monitorStarted.Task;
 
-        var disposeTask = Task.Run(_service.Dispose);
+        var disposeTask = Task.Run(_service.Dispose, CancellationToken.None);
         await cancellationObserved.Task;
 
         _ = disposeTask.IsCompleted.Should().BeFalse();
@@ -759,9 +762,8 @@ public sealed class TriggerServiceTests : IDisposable
             Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "work",
             FireMode = TriggerFireMode.OnceOnChange,
-            // A small debounce of 1ms to keep the test execution fast.
             // First matched poll records start timestamp and suppresses; the next poll
-            // (running after the 1ms window) clears the debounce and fires.
+            // after the virtual 1ms window clears the debounce and fires.
             DebounceMs = 1,
             IsEnabled = true,
         };
@@ -774,11 +776,12 @@ public sealed class TriggerServiceTests : IDisposable
         await _service.PollOnceAsync(CancellationToken.None);
         await _profileSwitchRequests.DidNotReceive().RequestSwitchAsync(Arg.Any<string>());
 
-        // Wait past the 1ms debounce window, then poll again — match stable, should fire.
-        await Task.Delay(20);
+        // Advance past the 1ms debounce window, then poll again — match stable, should fire.
+        _timeProvider.Advance(TimeSpan.FromMilliseconds(1));
         await _service.PollOnceAsync(CancellationToken.None);
 
         await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
+        _ = task.LastTriggeredTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime);
     }
 
     [Fact]
@@ -863,15 +866,15 @@ public sealed class TriggerServiceTests : IDisposable
             SynchronizationContext.SetSynchronizationContext(syncContext: null);
             try
             {
-                var loadTask = Task.Run(service2.LoadAsync);
-                await context.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+                var loadTask = Task.Run(service2.LoadAsync, CancellationToken.None);
+                await context.PostObserved.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, NonCancelableToken);
 
                 _ = loadTask.IsCompleted.Should().BeFalse();
                 _ = service2.Tasks.Should().BeEmpty();
                 _ = context.PendingCallbacks.Should().Be(1);
 
                 context.Drain();
-                await loadTask.WaitAsync(TimeSpan.FromSeconds(2));
+                await loadTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, NonCancelableToken);
             }
             finally
             {
@@ -933,11 +936,11 @@ public sealed class TriggerServiceTests : IDisposable
             }
         }
 
-        public override void Post(SendOrPostCallback callback, object? state)
+        public override void Post(SendOrPostCallback d, object? state)
         {
             lock (_callbacks)
             {
-                _callbacks.Enqueue((callback, state));
+                _callbacks.Enqueue((d, state));
             }
 
             _ = PostObserved.TrySetResult();

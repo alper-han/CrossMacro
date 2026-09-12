@@ -122,7 +122,7 @@ public sealed class RunScriptClipboardRuntimeTests
     public async Task ExecuteStepAsync_WhenSetTextAsyncIsCanceled_PropagatesCancellation()
     {
         var clipboard = SupportedClipboard();
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
         _ = clipboard.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.FromCanceled(cts.Token));
         var executor = new RunScriptClipboardExecutor(clipboard);

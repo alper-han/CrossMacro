@@ -18,6 +18,14 @@ public sealed class ModifierStateTrackerTests
     }
 
     [Fact]
+    public void Constructor_RejectsMissingKeyCodeMapper()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() => new ModifierStateTracker(null!));
+
+        Assert.Equal("keyCodeMapper", exception.ParamName);
+    }
+
+    [Fact]
     public void OnKeyPressed_ShouldAddModifier_WhenIsModifierKey()
     {
         // Arrange

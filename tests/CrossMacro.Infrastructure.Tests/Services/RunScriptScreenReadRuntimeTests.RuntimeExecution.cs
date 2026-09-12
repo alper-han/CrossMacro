@@ -289,6 +289,35 @@ public sealed partial class RunScriptScreenReadRuntimeTests
     }
 
     [Fact]
+    public async Task ExecuteStepAsync_WhenRelativePositionProviderDoesNotComplete_PropagatesCancellation()
+    {
+        var provider = Substitute.For<IMousePositionProvider>();
+        _ = provider.IsSupported.Returns(returnThis: true);
+        _ = provider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var queryStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pendingQuery = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = provider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            queryStarted.TrySetResult(true);
+            return pendingQuery.Task;
+        });
+        var executor = new RunScriptScreenReadExecutor(new FakeScreenPixelReader(), provider);
+        using var cancellation = new CancellationTokenSource();
+
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var executeTask = executor.ExecuteStepAsync(
+            "pixelcolor rel 3 4 sampled",
+            1,
+            variables,
+            cancellation.Token);
+        _ = await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => executeTask);
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenRuntimeAbsoluteMoveDoesNotSettle_ContinuesFollowingClick()
     {
         var activity = new List<string>();
@@ -571,6 +600,31 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("For step cannot be 0.");
+        _ = activity.Should().Equal("screen:pixelcolor:1,2");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeRepeatExceedsIterationLimit_ThrowsBeforeExecutingBody()
+    {
+        var activity = new List<string>();
+        var screenReader = new RecordingScreenPixelReader(activity);
+        var inputSimulator = new RecordingInputSimulator(activity);
+        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader, inputSimulator);
+        var macro = new MacroSequence
+        {
+            ScriptSteps =
+            {
+                "pixelcolor 1 2 sampled",
+                "repeat 100001 {",
+                "set marker 1",
+                "}",
+            },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Runtime loop iteration limit exceeded (100000). Check loop exit condition.");
         _ = activity.Should().Equal("screen:pixelcolor:1,2");
     }
 

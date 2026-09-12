@@ -21,6 +21,7 @@ internal class ProfileManager : IProfileCatalog
     private readonly string _configRootPath;
     private readonly string _profilesRootPath;
     private readonly string _registryFilePath;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private int _disposed;
 
@@ -30,11 +31,11 @@ internal class ProfileManager : IProfileCatalog
 
     public IReadOnlyList<ProfileInfo> Profiles { get; private set; } = [];
 
-    public ProfileManager() : this(configRootPath: null)
+    public ProfileManager() : this(configRootPath: null, TimeProvider.System)
     {
     }
 
-    public ProfileManager(string? configRootPath)
+    public ProfileManager(string? configRootPath, TimeProvider? timeProvider = null)
     {
         _configRootPath = string.IsNullOrWhiteSpace(configRootPath)
             ? PathHelper.GetConfigDirectory()
@@ -42,6 +43,7 @@ internal class ProfileManager : IProfileCatalog
 
         _profilesRootPath = Path.Combine(_configRootPath, ConfigFileNames.ProfilesDirectory);
         _registryFilePath = Path.Combine(_configRootPath, ConfigFileNames.ProfileRegistry);
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task InitializeAsync()
@@ -126,7 +128,7 @@ internal class ProfileManager : IProfileCatalog
             {
                 Id = GenerateSlug(displayName),
                 Name = displayName.Trim(),
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
             };
 
             await CreateProfileFilesAsync(profile.Id).ConfigureAwait(false);
@@ -521,7 +523,7 @@ internal class ProfileManager : IProfileCatalog
         return Path.Combine(_configRootPath, fileName);
     }
 
-    private static ProfileRegistry CreateDefaultRegistry()
+    private ProfileRegistry CreateDefaultRegistry()
     {
         var registry = new ProfileRegistry
         {
@@ -533,13 +535,13 @@ internal class ProfileManager : IProfileCatalog
         return registry;
     }
 
-    private static ProfileInfo CreateDefaultProfileInfo()
+    private ProfileInfo CreateDefaultProfileInfo()
     {
         return new ProfileInfo
         {
             Id = DefaultProfileId,
             Name = DefaultProfileName,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
         };
     }
 }

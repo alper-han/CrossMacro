@@ -36,8 +36,8 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
         secondSessionId,
         PlaybackMode: 2);
 
-        await store.SaveAsync(_profileDirectory, snapshot);
-        var restored = await store.LoadAsync(_profileDirectory);
+        await store.SaveAsync(_profileDirectory, snapshot, CancellationToken.None);
+        var restored = await store.LoadAsync(_profileDirectory, CancellationToken.None);
 
         _ = restored.PlaybackMode.Should().Be(2);
         _ = restored.SelectedSessionId.Should().Be(secondSessionId);
@@ -48,7 +48,7 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
         _ = restored.Items[0].Macro.Name.Should().Be("From first file");
         _ = restored.Items[1].Macro.Name.Should().Be("From second file");
         _ = File.Exists(Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros)).Should().BeTrue();
-        var sessionJson = await File.ReadAllTextAsync(Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros));
+        var sessionJson = await File.ReadAllTextAsync(Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros), CancellationToken.None);
         _ = sessionJson.Contains("\"macro\"", StringComparison.OrdinalIgnoreCase).Should().BeFalse();
     }
 
@@ -57,9 +57,75 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
     {
         using var store = new ProfileLoadedMacroSessionStore(Substitute.For<IMacroFileManager>());
 
-        var snapshot = await store.LoadAsync(_profileDirectory);
+        var snapshot = await store.LoadAsync(_profileDirectory, CancellationToken.None);
 
         _ = snapshot.Should().BeSameAs(LoadedMacroSessionSnapshot.Empty);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenSchemaVersionIsNewer_RejectsUnsupportedState()
+    {
+        using var store = new ProfileLoadedMacroSessionStore(Substitute.For<IMacroFileManager>());
+        _ = Directory.CreateDirectory(_profileDirectory);
+        var persisted = new PersistedLoadedMacroSession
+        {
+            SchemaVersion = PersistedLoadedMacroSession.CurrentSchemaVersion + 1,
+        };
+        await File.WriteAllTextAsync(
+            Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros),
+            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession),
+            CancellationToken.None);
+
+        var load = () => store.LoadAsync(_profileDirectory, CancellationToken.None);
+
+        _ = await load.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Unsupported loaded macro session schema version*");
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenRepeatCountIsNonPositive_NormalizesItAndKeepsValidSelection()
+    {
+        var fileManager = Substitute.For<IMacroFileManager>();
+        var sessionId = Guid.NewGuid();
+        var macroPath = CreateMacroFile("normalized");
+        _ = fileManager.LoadAsync(macroPath).Returns(Task.FromResult<MacroSequence?>(CreateMacro("Normalized", EventType.Click)));
+        using var store = new ProfileLoadedMacroSessionStore(fileManager);
+        _ = Directory.CreateDirectory(_profileDirectory);
+        var persisted = new PersistedLoadedMacroSession
+        {
+            Items =
+            [
+                new PersistedLoadedMacroSessionItem
+                {
+                    SessionId = sessionId,
+                    SourcePath = macroPath,
+                    SequenceRepeatCount = 0,
+                },
+            ],
+            SelectedSessionId = sessionId,
+        };
+        await File.WriteAllTextAsync(
+            Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros),
+            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession),
+            CancellationToken.None);
+
+        var snapshot = await store.LoadAsync(_profileDirectory, CancellationToken.None);
+
+        _ = snapshot.SelectedSessionId.Should().Be(sessionId);
+        _ = snapshot.Items.Should().ContainSingle().Which.SequenceRepeatCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenCancellationIsAlreadyRequested_DoesNotReadProfileFile()
+    {
+        using var store = new ProfileLoadedMacroSessionStore(Substitute.For<IMacroFileManager>());
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var load = () => store.LoadAsync(_profileDirectory, cancellation.Token);
+
+        _ = await load.Should().ThrowAsync<OperationCanceledException>();
+        _ = Directory.Exists(_profileDirectory).Should().BeFalse();
     }
 
     [Fact]
@@ -80,9 +146,10 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
         };
         await File.WriteAllTextAsync(
             Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros),
-            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession));
+            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession),
+            CancellationToken.None);
 
-        var snapshot = await store.LoadAsync(_profileDirectory);
+        var snapshot = await store.LoadAsync(_profileDirectory, CancellationToken.None);
 
         _ = snapshot.Should().BeEquivalentTo(LoadedMacroSessionSnapshot.Empty);
     }
@@ -99,12 +166,12 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
                 Path.Combine(_profileDirectory, "missing.macro"),
                 1),
         ],
-        null,
+        SelectedSessionId: null,
         PlaybackMode: 0);
 
-        await store.SaveAsync(_profileDirectory, snapshot);
+        await store.SaveAsync(_profileDirectory, snapshot, CancellationToken.None);
         var persisted = JsonSerializer.Deserialize(
-            await File.ReadAllTextAsync(Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros)),
+            await File.ReadAllTextAsync(Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros), CancellationToken.None),
             CrossMacroJsonContext.Default.PersistedLoadedMacroSession);
 
         _ = persisted!.Items.Should().BeEmpty();
@@ -131,9 +198,10 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
         };
         await File.WriteAllTextAsync(
             Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros),
-            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession));
+            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession),
+            CancellationToken.None);
 
-        var snapshot = await store.LoadAsync(_profileDirectory);
+        var snapshot = await store.LoadAsync(_profileDirectory, CancellationToken.None);
 
         _ = snapshot.Items.Should().ContainSingle().Which.SessionId.Should().Be(availableSessionId);
         _ = snapshot.SelectedSessionId.Should().BeNull();
@@ -162,9 +230,10 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
         };
         await File.WriteAllTextAsync(
             Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros),
-            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession));
+            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession),
+            CancellationToken.None);
 
-        var snapshot = await store.LoadAsync(_profileDirectory);
+        var snapshot = await store.LoadAsync(_profileDirectory, CancellationToken.None);
 
         _ = snapshot.SelectedSessionId.Should().BeNull();
         _ = snapshot.Items.Should().ContainSingle().Which.SessionId.Should().Be(sessionId);
@@ -192,9 +261,10 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
         };
         await File.WriteAllTextAsync(
             Path.Combine(_profileDirectory, ConfigFileNames.LoadedMacros),
-            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession));
+            JsonSerializer.Serialize(persisted, CrossMacroJsonContext.Default.PersistedLoadedMacroSession),
+            CancellationToken.None);
 
-        var load = () => store.LoadAsync(_profileDirectory);
+        var load = () => store.LoadAsync(_profileDirectory, CancellationToken.None);
 
         _ = await load.Should().ThrowAsync<InvalidDataException>()
             .WithMessage("*duplicate session id*");
@@ -210,10 +280,10 @@ public sealed class ProfileLoadedMacroSessionStoreTests : IDisposable
             new LoadedMacroSessionItemSnapshot(sessionId, CreateMacro("First", EventType.Click), CreateMacroFile("first"), 1),
             new LoadedMacroSessionItemSnapshot(sessionId, CreateMacro("Second", EventType.KeyPress), CreateMacroFile("second"), 1),
         ],
-        null,
+        SelectedSessionId: null,
         PlaybackMode: 0);
 
-        var save = () => store.SaveAsync(_profileDirectory, snapshot);
+        var save = () => store.SaveAsync(_profileDirectory, snapshot, CancellationToken.None);
 
         _ = await save.Should().ThrowAsync<InvalidDataException>()
             .WithMessage("*duplicate session id*");

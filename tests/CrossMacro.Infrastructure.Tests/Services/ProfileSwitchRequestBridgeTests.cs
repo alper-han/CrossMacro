@@ -29,4 +29,28 @@ public sealed class ProfileSwitchRequestBridgeTests
         _ = (await act.Should().ThrowAsync<InvalidOperationException>())
             .WithMessage("*No profile switch request handler*");
     }
+
+    [Fact]
+    public void SetHandler_WhenHandlerIsNull_ThrowsArgumentNullException()
+    {
+        var bridge = new ProfileSwitchRequestBridge();
+
+        _ = Assert.Throws<ArgumentNullException>(() => bridge.SetHandler(null!));
+    }
+
+    [Fact]
+    public async Task SetHandler_WhenCalledTwice_RejectsReplacementAndKeepsFirstHandler()
+    {
+        var bridge = new ProfileSwitchRequestBridge();
+        var first = Substitute.For<IProfileSwitchRequestHandler>();
+        var second = Substitute.For<IProfileSwitchRequestHandler>();
+        _ = first.HandleSwitchRequestAsync("work").Returns(Task.CompletedTask);
+        bridge.SetHandler(first);
+
+        _ = Assert.Throws<InvalidOperationException>(() => bridge.SetHandler(second));
+
+        await bridge.RequestSwitchAsync("work");
+        await first.Received(1).HandleSwitchRequestAsync("work");
+        await second.DidNotReceive().HandleSwitchRequestAsync(Arg.Any<string>());
+    }
 }

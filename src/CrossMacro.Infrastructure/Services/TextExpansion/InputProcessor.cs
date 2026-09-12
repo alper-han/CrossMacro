@@ -1,9 +1,12 @@
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
-public class InputProcessor(IKeyboardLayoutService layoutService) : IInputProcessor
+public class InputProcessor(
+    IKeyboardLayoutService layoutService,
+    TimeProvider? timeProvider = null) : IInputProcessor
 {
     private readonly IKeyboardLayoutService _layoutService = layoutService;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly Lock _stateLock = new();
 
     // Modifier state
@@ -18,8 +21,8 @@ public class InputProcessor(IKeyboardLayoutService layoutService) : IInputProces
 
     // Debouncing state
     private int _lastKey;
-    private long _lastPressTime;
-    private const long DebounceTicks = 20 * 10000; // 20ms in ticks
+    private long _lastPressTimestamp;
+    private static readonly TimeSpan DebounceWindow = TimeSpan.FromMilliseconds(20);
 
     private volatile bool _isSuspended;
 
@@ -91,13 +94,13 @@ public class InputProcessor(IKeyboardLayoutService layoutService) : IInputProces
             }
 
             // Debouncing check
-            long now = DateTime.UtcNow.Ticks;
-            if (e.Code == _lastKey && (now - _lastPressTime) < DebounceTicks)
+            var now = _timeProvider.GetTimestamp();
+            if (e.Code == _lastKey && _timeProvider.GetElapsedTime(_lastPressTimestamp, now) < DebounceWindow)
             {
                 return;
             }
             _lastKey = e.Code;
-            _lastPressTime = now;
+            _lastPressTimestamp = now;
 
             // Check for Special Keys first
             if (e.Code == InputEventCode.KEY_BACKSPACE)
@@ -195,7 +198,7 @@ capsLock: false);
             _pressedKeys.Clear();
             // _isCapsLockOn ? Usually persistent, don't reset caps lock
             _lastKey = 0;
-            _lastPressTime = 0;
+            _lastPressTimestamp = 0;
         }
     }
 

@@ -68,9 +68,9 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
     {
         var lines = fileText.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         return lines
-            .SkipWhile(line => line.Trim() != "[Script]")
+            .SkipWhile(line => !string.Equals(line.Trim(), "[Script]", StringComparison.Ordinal))
             .Skip(1)
-            .TakeWhile(line => line.Trim() != "[Events]")
+            .TakeWhile(line => !string.Equals(line.Trim(), "[Events]", StringComparison.Ordinal))
             .ToList();
     }
 
@@ -80,7 +80,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
         var loaded = await _manager.LoadAsync(GetFixturePath("script-arithmetic-legacy.macro"));
 
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().Equal(LegacyFixtureScriptSteps);
+        _ = loaded.ScriptSteps.Should().Equal(LegacyFixtureScriptSteps);
         _ = loaded.Events.Should().HaveCount(2);
 
         var restore = _converter.FromMacroSequenceWithDiagnostics(loaded);
@@ -124,7 +124,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
         var loaded = await _manager.LoadAsync(fixturePath);
 
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().Equal(ForwardFixtureScriptSteps);
+        _ = loaded.ScriptSteps.Should().Equal(ForwardFixtureScriptSteps);
         _ = loaded.Events.Should().BeEmpty();
 
         var fixtureText = await File.ReadAllTextAsync(fixturePath, NonCancelableToken);
@@ -141,7 +141,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
         // Old-reader simulation: the pre-feature converter restored unknown tokens
         // (mul/div/expression repeat) as RawScriptStep actions whose Text is the
         // verbatim script line (see EditorActionConverter.CreateRawScriptStepAction).
-        var oldReaderActions = loaded!.ScriptSteps
+        var oldReaderActions = loaded.ScriptSteps
             .Select(step => new EditorAction
             {
                 Type = EditorActionType.RawScriptStep,
@@ -163,7 +163,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
 
         var reloaded = await _manager.LoadAsync(savedPath);
         _ = reloaded.Should().NotBeNull();
-        _ = reloaded!.ScriptSteps.Should().Equal(ForwardFixtureScriptSteps);
+        _ = reloaded.ScriptSteps.Should().Equal(ForwardFixtureScriptSteps);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
         var loaded = await _manager.LoadAsync(GetFixturePath("script-arithmetic-forward.macro"));
         _ = loaded.Should().NotBeNull();
 
-        var restore = _converter.FromMacroSequenceWithDiagnostics(loaded!);
+        var restore = _converter.FromMacroSequenceWithDiagnostics(loaded);
 
         _ = restore.HasWarnings.Should().BeFalse();
         _ = restore.Actions.Select(action => action.Type).Should().Equal(
@@ -229,7 +229,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
 
         var loaded = await _manager.LoadAsync(filePath);
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().Equal(mixedScriptSteps);
+        _ = loaded.ScriptSteps.Should().Equal(mixedScriptSteps);
 
         var restore = _converter.FromMacroSequenceWithDiagnostics(loaded);
         _ = restore.HasWarnings.Should().BeFalse();
@@ -253,7 +253,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
         var reloaded = await _manager.LoadAsync(savedPath);
 
         _ = reloaded.Should().NotBeNull();
-        _ = reloaded!.ScriptSteps.Should().Equal(mixedScriptSteps);
+        _ = reloaded.ScriptSteps.Should().Equal(mixedScriptSteps);
 
         var reloadedRestore = _converter.FromMacroSequenceWithDiagnostics(reloaded);
         _ = reloadedRestore.HasWarnings.Should().BeFalse();
@@ -296,7 +296,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().Equal(
+        _ = loaded.ScriptSteps.Should().Equal(
             "set a 10",
             "mul a 2",
             "div a 4",
@@ -327,7 +327,7 @@ public sealed class ScriptArithmeticCompatibilityTests : IDisposable
         var loaded = await _manager.LoadAsync(filePath);
 
         _ = loaded.Should().NotBeNull();
-        _ = loaded!.ScriptSteps.Should().Equal(LegacyFixtureScriptSteps);
+        _ = loaded.ScriptSteps.Should().Equal(LegacyFixtureScriptSteps);
         _ = loaded.Events.Should().HaveCount(2);
         _ = loaded.Events[0].Type.Should().Be(EventType.MouseMove);
         _ = loaded.Events[1].Type.Should().Be(EventType.Click);

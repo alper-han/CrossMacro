@@ -38,15 +38,21 @@ def jobs():
 class ChangeSelectionTests(unittest.TestCase):
     def test_web_and_docs_do_not_build_desktop(self):
         self.assertEqual(policy.select_changes(["website/package-lock.json", "docs/cli.md"]),
-                         {"desktop": False, "website": True})
+                         {"desktop": False})
 
     def test_docs_still_have_a_successful_gate(self):
         selection = policy.select_changes(["README.md", "docs/linux.md"])
-        self.assertEqual(selection, {"desktop": False, "website": False})
+        self.assertEqual(selection, {"desktop": False})
         needs = {name: {"result": "skipped"} for name in policy.DESKTOP_JOBS}
         needs.update({"workflow-validation": {"result": "success"},
-                      "release-readiness": {"result": "skipped"}, "website": {"result": "skipped"}})
+                      "release-readiness": {"result": "skipped"}})
         policy.verify_results(needs, **selection)
+
+    def test_website_and_bot_configuration_do_not_select_desktop(self):
+        for path in ["website/src/index.astro", ".github/workflows/pages.yml", ".github/dependabot.yml"]:
+            with self.subTest(path=path):
+                self.assertEqual(policy.select_changes([path]), {"desktop": False})
+                self.assertTrue(policy.select_changes([path, "src/Changed.cs"])["desktop"])
 
     def test_common_and_unknown_inputs_cannot_skip_desktop(self):
         for path in ["VERSION", "global.json", "Directory.Packages.props", "src/Foo.cs",
@@ -55,9 +61,9 @@ class ChangeSelectionTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertTrue(policy.select_changes([path])["desktop"])
 
-    def test_ci_policy_changes_validate_both_products(self):
+    def test_ci_policy_changes_validate_desktop(self):
         for path in [".github/workflows/ci.yml", "scripts/ci/workflow_policy.py"]:
-            self.assertEqual(policy.select_changes([path]), {"desktop": True, "website": True})
+            self.assertEqual(policy.select_changes([path]), {"desktop": True})
 
     def test_manual_and_missing_diff_are_full(self):
         self.assertTrue(all(policy.select_changes([]).values()))
@@ -84,27 +90,26 @@ class QualityGateTests(unittest.TestCase):
     def setUp(self):
         self.needs = {name: {"result": "success"} for name in policy.DESKTOP_JOBS}
         self.needs.update({"workflow-validation": {"result": "success"},
-                           "release-readiness": {"result": "success"}, "website": {"result": "success"}})
+                           "release-readiness": {"result": "success"}})
 
     def test_all_selected_jobs_are_required(self):
-        policy.verify_results(self.needs, True, True)
+        policy.verify_results(self.needs, True)
         for name in self.needs:
             for result in ["failure", "cancelled", "skipped", None]:
                 with self.subTest(name=name, result=result):
                     needs = copy.deepcopy(self.needs)
                     needs[name]["result"] = result
                     with self.assertRaises(ValueError):
-                        policy.verify_results(needs, True, True)
+                        policy.verify_results(needs, True)
 
     def test_missing_job_cannot_turn_gate_green(self):
         del self.needs["package-flatpak"]
         with self.assertRaises(ValueError):
-            policy.verify_results(self.needs, True, True)
+            policy.verify_results(self.needs, True)
 
-    def test_readiness_does_not_wait_on_itself_or_website(self):
+    def test_readiness_does_not_wait_on_itself(self):
         del self.needs["release-readiness"]
-        del self.needs["website"]
-        policy.verify_results(self.needs, True, False, readiness=True)
+        policy.verify_results(self.needs, True, readiness=True)
 
 
 class ReleaseGateTests(unittest.TestCase):
@@ -175,10 +180,22 @@ class AurGateTests(unittest.TestCase):
         with patch.object(policy, "api", return_value={"object": {"sha": "b" * 40}}):
             self.assertFalse(policy.verify_aur_ci(REPOSITORY, SHA))
 
-    def test_docs_only_ci_is_not_published(self):
+    def test_docs_only_ci_keeps_dev_aur_tracking(self):
         entries = [jobs()[0], dict(jobs()[1], conclusion="skipped")]
         with patch.object(policy, "api", side_effect=[{"object": {"sha": SHA}}, [run()], entries]):
-            self.assertFalse(policy.verify_aur_ci(REPOSITORY, SHA))
+            self.assertTrue(policy.verify_aur_ci(REPOSITORY, SHA))
+
+    def test_failed_or_missing_quality_gate_never_publishes(self):
+        for entries in [[], [dict(jobs()[0], conclusion="failure")],
+                        [dict(jobs()[0], head_sha="b" * 40)], jobs() + jobs()[:1]]:
+            with self.subTest(entries=entries), patch.object(policy, "api", side_effect=[
+                    {"object": {"sha": SHA}}, [run()], entries]), self.assertRaises(ValueError):
+                policy.verify_aur_ci(REPOSITORY, SHA)
+
+    def test_new_failed_ci_attempt_never_publishes(self):
+        with patch.object(policy, "api", side_effect=[{"object": {"sha": SHA}},
+                [run(1), run(2, conclusion="failure")]]), self.assertRaises(ValueError):
+            policy.verify_aur_ci(REPOSITORY, SHA)
 
     def test_desktop_ci_is_published(self):
         with patch.object(policy, "api", side_effect=[{"object": {"sha": SHA}}, [run()], jobs()]):

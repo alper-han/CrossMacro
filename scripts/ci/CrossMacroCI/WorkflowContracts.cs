@@ -262,7 +262,7 @@ internal static class WorkflowContracts
             else
             {
                 var gate = string.Join('\n', gateLines);
-                foreach (var required in new[] { "workflow-validation", "source-validation", "build-linux-binaries", "package-linux", "package-flatpak", "package-windows", "package-macos", "website", "release-readiness" })
+                foreach (var required in new[] { "workflow-validation", "source-validation", "build-linux-binaries", "package-linux", "package-flatpak", "package-windows", "package-macos", "release-readiness" })
                 {
                     if (!Regex.IsMatch(gate, $@"(?m)^\s+needs:.*\b{Regex.Escape(required)}\b"))
                     {
@@ -283,7 +283,7 @@ internal static class WorkflowContracts
         {
             if (!text.Contains("source_sha:", StringComparison.Ordinal)
                 || !text.Contains("ref: ${{ inputs.source_sha }}", StringComparison.Ordinal)
-                || text.Contains("|| github.ref", StringComparison.Ordinal))
+                || Regex.IsMatch(text, @"(?m)^\s+ref:.*\|\|\s*github\.ref"))
             {
                 errors.Add($"{path}: reusable source checkouts must use an explicit source_sha");
             }

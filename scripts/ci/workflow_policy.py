@@ -18,19 +18,16 @@ DESKTOP_JOBS = (
 def select_changes(paths, full=False):
     # Unknown inputs and an unavailable/empty diff select full validation.
     desktop = full or not paths
-    website = full or not paths
     for path in paths:
-        if path.startswith("website/"):
-            website = True
-        elif path.startswith("docs/") and not path.startswith("docs/man/"):
+        # Website build/deployment is owned exclusively by manual pages.yml.
+        if path.startswith("website/") or path in {".github/dependabot.yml", ".github/workflows/pages.yml"}:
             continue
-        elif path in {"README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md"}:
+        if path.startswith("docs/") and not path.startswith("docs/man/"):
             continue
-        else:
-            desktop = True
-            if path.startswith(".github/") or path.startswith("scripts/ci/"):
-                website = True
-    return {"desktop": desktop, "website": website}
+        if path in {"README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md"}:
+            continue
+        desktop = True
+    return {"desktop": desktop}
 
 
 def changed_paths(event, event_name, sha):
@@ -52,11 +49,11 @@ def changed_paths(event, event_name, sha):
         return []
 
 
-def verify_results(needs, desktop, website, readiness=False):
+def verify_results(needs, desktop, readiness=False):
     expected = {"workflow-validation": True}
     expected.update({name: desktop for name in DESKTOP_JOBS})
     if not readiness:
-        expected.update({"website": website, "release-readiness": desktop})
+        expected.update({"release-readiness": desktop})
     errors = []
     for name, required in expected.items():
         actual = needs.get(name, {}).get("result")
@@ -191,10 +188,9 @@ def verify_aur_ci(repository, sha):
     run = latest_trusted_run(runs, sha, repository)
     jobs = api(f"repos/{repository}/actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100", "jobs")
     verify_ci_jobs(jobs, sha, ("CI Quality Gate",))
-    readiness = [j for j in jobs if j.get("name") == "Release Readiness"]
-    if len(readiness) == 1 and readiness[0].get("conclusion") == "skipped":
-        return False  # Documentation/website-only CI does not publish desktop packages.
-    verify_ci_jobs(jobs, sha)
+    # Quality Gate verifies every selected job, including Linux builds/tests.
+    # Non-desktop commits may skip Release Readiness: the git package still
+    # rebuilds, installs and smoke-tests this exact source before publication.
     return True
 
 
@@ -217,8 +213,7 @@ def main():
         paths = changed_paths(event, os.environ["GITHUB_EVENT_NAME"], os.environ["GITHUB_SHA"])
         output(select_changes(paths, os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch"))
     elif args.command == "results":
-        verify_results(json.loads(os.environ["JOB_RESULTS"]), boolean(os.environ["DESKTOP"]),
-                       boolean(os.environ.get("WEBSITE", "false")), args.readiness)
+        verify_results(json.loads(os.environ["JOB_RESULTS"]), boolean(os.environ["DESKTOP"]), args.readiness)
         print("All selected validation jobs completed successfully")
     elif args.command == "release-state":
         existing = None

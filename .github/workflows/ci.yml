@@ -21,7 +21,6 @@ jobs:
     timeout-minutes: 10
     outputs:
       desktop: ${{ steps.changes.outputs.desktop }}
-      website: ${{ steps.changes.outputs.website }}
       version: ${{ steps.version.outputs.version }}
       source_tag: ${{ steps.version.outputs.source_tag }}
       canonical_version: ${{ steps.version.outputs.package_version_canonical }}
@@ -127,29 +126,6 @@ jobs:
       artifact_prefix: macos-packages
       retention_days: 14
 
-  website:
-    name: Validate Website
-    needs: workflow-validation
-    if: needs.workflow-validation.outputs.website == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout exact source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.sha }}
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: website/package-lock.json
-      - name: Validate website build
-        working-directory: website
-        run: |
-          npm ci
-          npm run build
-
   release-readiness:
     name: Release Readiness
     needs: [workflow-validation, source-validation, build-linux-binaries, package-linux, package-flatpak, package-windows, package-macos]
@@ -169,7 +145,7 @@ jobs:
 
   quality-gate:
     name: CI Quality Gate
-    needs: [workflow-validation, source-validation, build-linux-binaries, package-linux, package-flatpak, package-windows, package-macos, website, release-readiness]
+    needs: [workflow-validation, source-validation, build-linux-binaries, package-linux, package-flatpak, package-windows, package-macos, release-readiness]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -182,5 +158,4 @@ jobs:
         env:
           JOB_RESULTS: ${{ toJSON(needs) }}
           DESKTOP: ${{ needs.workflow-validation.outputs.desktop }}
-          WEBSITE: ${{ needs.workflow-validation.outputs.website }}
         run: python3 scripts/ci/workflow_policy.py results

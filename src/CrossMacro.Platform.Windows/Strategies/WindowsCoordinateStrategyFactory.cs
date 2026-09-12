@@ -4,7 +4,8 @@ namespace CrossMacro.Platform.Windows.Strategies;
 public class WindowsCoordinateStrategyFactory(
     IMousePositionProvider positionProvider) : ICoordinateStrategyFactory
 {
-    private readonly IMousePositionProvider _positionProvider = positionProvider;
+    private readonly IMousePositionProvider _positionProvider = positionProvider
+        ?? throw new ArgumentNullException(nameof(positionProvider));
 
     public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero) =>
         Create(useAbsoluteCoordinates, forceRelative, skipInitialZero, useLogicalRelativeCoordinates: false);

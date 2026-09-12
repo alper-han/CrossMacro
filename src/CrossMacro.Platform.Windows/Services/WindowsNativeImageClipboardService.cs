@@ -39,8 +39,6 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
 
             SetPngInternal(pngArray, pngFormat, imagePngFormat, hwndOwner);
         }, cancellationToken).ConfigureAwait(false);
-
-        await Task.Delay(500, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<byte[]?> GetPngAsync(int maximumBytes, CancellationToken cancellationToken = default)

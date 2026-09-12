@@ -13,6 +13,13 @@ public sealed class WindowsInputCaptureTests
     }
 
     [Fact]
+    public void WindowsKeyMap_WhenIsoSectionCodeIsUsed_MapsToOem102()
+    {
+        Assert.Equal(0xE2, CrossMacro.Platform.Windows.Helpers.WindowsKeyMap.GetVirtualKey(InputEventCode.KEY_102ND));
+        Assert.Equal(InputEventCode.KEY_102ND, CrossMacro.Platform.Windows.Helpers.WindowsKeyMap.GetEvdevCode(0xE2));
+    }
+
+    [Fact]
     public void MapKeyboardEvent_WhenReturnIsExtended_MapsToKeypadEnter()
     {
         var evdevCode = WindowsInputCapture.MapKeyboardEvent(0x0D, 0x01);
@@ -142,6 +149,15 @@ public sealed class WindowsInputCaptureTests
     public void RawMouse_HasNativeLayout()
     {
         Assert.Equal(24, Marshal.SizeOf<RawMouse>());
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    [InlineData(-1, false)]
+    public void MessagePump_DispatchesOnlySuccessfulGetMessageResults(int result, bool expected)
+    {
+        Assert.Equal(expected, WindowsMessagePump.ShouldDispatchMessage(result));
     }
 
     [Theory]

@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsPlatformServiceRegistrarTests
 {
-    [Fact]
+    [WindowsFact]
     public void RegisterGuiClipboardServices_RegistersNativeClipboardServices()
     {
         var services = new ServiceCollection();
@@ -28,7 +28,7 @@ public sealed class WindowsPlatformServiceRegistrarTests
         _ = Assert.IsType<WindowsNativeImageClipboardService>(provider.GetRequiredService<IImageClipboardReader>());
     }
 
-    [Fact]
+    [WindowsFact]
     public void RegisterCliClipboardServices_DefersStaMessageThreadCreation()
     {
         var services = new ServiceCollection();

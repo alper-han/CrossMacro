@@ -10,13 +10,9 @@ internal static class WindowsMessagePump
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            if (User32.GetMessage(out var message, IntPtr.Zero, 0, 0))
+            int result = User32.GetMessage(out var message, IntPtr.Zero, 0, 0);
+            if (ShouldDispatchMessage(result))
             {
-                if (message.message == User32.WM_QUIT)
-                {
-                    break;
-                }
-
                 _ = User32.TranslateMessage(ref message);
                 _ = User32.DispatchMessage(ref message);
             }
@@ -26,6 +22,8 @@ internal static class WindowsMessagePump
             }
         }
     }
+
+    internal static bool ShouldDispatchMessage(int getMessageResult) => getMessageResult > 0;
 
     internal static void RequestStop(uint threadId)
     {

@@ -3,6 +3,12 @@ namespace CrossMacro.Platform.Windows.Tests.Strategies;
 
 public sealed class WindowsCoordinateStrategyFactoryTests
 {
+    [Fact]
+    public void Constructor_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => new WindowsCoordinateStrategyFactory(null!));
+    }
+
     [WindowsFact]
     public void Create_WhenForceRelativeTrue_ReturnsRelativeStrategy()
     {

@@ -171,7 +171,7 @@ internal static class WindowsKeyMap
         Add(InputEventCode.KEY_CAPSLOCK, 0x14);     // VK_CAPITAL
         Add(InputEventCode.KEY_SCROLLLOCK, 0x91);   // VK_SCROLL
 
-        Add(86, 0xE2);                              // VK_OEM_102 (KEY_102ND)
+        Add(InputEventCode.KEY_102ND, 0xE2);        // VK_OEM_102
 
         Add(InputEventCode.KEY_HANGUEL, 0x15);      // VK_HANGUL / VK_KANA
         Add(InputEventCode.KEY_HANJA, 0x19);        // VK_HANJA / VK_KANJI

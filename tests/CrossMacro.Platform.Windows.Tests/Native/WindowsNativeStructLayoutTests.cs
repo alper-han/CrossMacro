@@ -28,6 +28,25 @@ public sealed class WindowsNativeStructLayoutTests
             (nameof(HardwareInput.wParamL), 4),
             (nameof(HardwareInput.wParamH), 6));
         AssertLayout<PointStruct>(8, (nameof(PointStruct.x), 0), (nameof(PointStruct.y), 4));
+        AssertLayout<RawInputDevice>(16,
+            (nameof(RawInputDevice.UsagePage), 0),
+            (nameof(RawInputDevice.Usage), 2),
+            (nameof(RawInputDevice.Flags), 4),
+            (nameof(RawInputDevice.TargetWindow), 8));
+        AssertLayout<RawInputHeader>(24,
+            (nameof(RawInputHeader.Type), 0),
+            (nameof(RawInputHeader.Size), 4),
+            (nameof(RawInputHeader.Device), 8),
+            (nameof(RawInputHeader.WParam), 16));
+        AssertLayout<RawMouse>(24,
+            (nameof(RawMouse.Flags), 0),
+            (nameof(RawMouse.Padding), 2),
+            (nameof(RawMouse.ButtonFlags), 4),
+            (nameof(RawMouse.ButtonData), 6),
+            (nameof(RawMouse.RawButtons), 8),
+            (nameof(RawMouse.LastX), 12),
+            (nameof(RawMouse.LastY), 16),
+            (nameof(RawMouse.ExtraInformation), 20));
         AssertLayout<MsllHookStruct>(32,
             (nameof(MsllHookStruct.pt), 0),
             (nameof(MsllHookStruct.mouseData), 8),

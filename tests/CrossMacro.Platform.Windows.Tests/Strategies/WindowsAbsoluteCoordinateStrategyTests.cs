@@ -3,6 +3,12 @@ namespace CrossMacro.Platform.Windows.Tests.Strategies;
 
 public sealed class WindowsAbsoluteCoordinateStrategyTests
 {
+    [Fact]
+    public void Constructor_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => new WindowsAbsoluteCoordinateStrategy(null!));
+    }
+
     [WindowsFact]
     public async Task InitializeAsync_WhenPositionAvailable_UsesItForNonMouseEvents()
     {

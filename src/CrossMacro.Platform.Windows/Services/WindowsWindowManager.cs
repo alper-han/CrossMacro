@@ -7,6 +7,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult<WindowInfo?>(null);
@@ -18,6 +19,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult<IReadOnlyList<WindowInfo>>([]);
@@ -39,6 +41,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -54,6 +57,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> FocusWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -70,6 +74,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> FocusWindowByClassAsync(string classSubstring, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -86,6 +91,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> CloseWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -101,6 +107,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> CloseWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -117,6 +124,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -139,6 +147,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -160,13 +169,14 @@ public sealed class WindowsWindowManager : IWindowManager
     }
 
     public Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default) =>
-        ShowActiveWindowAsync(User32.SW_MAXIMIZE);
+        ShowActiveWindowAsync(User32.SW_MAXIMIZE, cancellationToken);
 
     public Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default) =>
-        ShowActiveWindowAsync(User32.SW_MAXIMIZE);
+        ShowActiveWindowAsync(User32.SW_MAXIMIZE, cancellationToken);
 
     public Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -191,6 +201,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -229,6 +240,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult<string?>(null);
@@ -243,10 +255,11 @@ public sealed class WindowsWindowManager : IWindowManager
     }
 
     public Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default) =>
-        Task.FromResult(false);
+        CanceledAwareUnsupportedResultAsync(cancellationToken);
 
     public Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -262,6 +275,7 @@ public sealed class WindowsWindowManager : IWindowManager
 
     public Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!IsSupported)
         {
             return Task.FromResult(false);
@@ -391,8 +405,9 @@ public sealed class WindowsWindowManager : IWindowManager
         return hwnd != IntPtr.Zero && User32.IsWindow(hwnd);
     }
 
-    private static Task<bool> ShowActiveWindowAsync(int command)
+    private static Task<bool> ShowActiveWindowAsync(int command, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!OperatingSystem.IsWindows())
         {
             return Task.FromResult(false);
@@ -404,6 +419,12 @@ public sealed class WindowsWindowManager : IWindowManager
         }
 
         return Task.FromResult(User32.ShowWindow(hwnd, command));
+    }
+
+    private static Task<bool> CanceledAwareUnsupportedResultAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(false);
     }
 
     private static RectStruct GetVisibleBounds(IntPtr hwnd)

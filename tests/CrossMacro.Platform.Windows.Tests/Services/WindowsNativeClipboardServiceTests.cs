@@ -81,6 +81,17 @@ public sealed class WindowsNativeClipboardServiceTests
         Assert.False(thread.IsValueCreated);
     }
 
+    [WindowsFact]
+    public async Task SetPngAsync_WhenPayloadIsEmpty_DoesNotInitializeStaThread()
+    {
+        var thread = new Lazy<StaMessageThread>(() => throw new InvalidOperationException("STA thread should not be initialized."));
+        var service = new WindowsNativeImageClipboardService(thread);
+
+        await service.SetPngAsync(ReadOnlyMemory<byte>.Empty, CancellationToken.None);
+
+        Assert.False(thread.IsValueCreated);
+    }
+
     [Fact]
     public void ReadPngFromClipboard_UsesImagePngFallbackAndAlwaysUnlocksAndCloses()
     {

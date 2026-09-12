@@ -64,6 +64,21 @@ public sealed class WindowsInputSimulatorTests
         Assert.Equal(expectedFlags, input.U.ki.dwFlags);
     }
 
+    [Fact]
+    public void TryCreateKeyboardInput_WhenMarkerIsProvided_StoresMarkerInExtraInfo()
+    {
+        var created = WindowsInputSimulator.TryCreateKeyboardInput(
+            InputEventCode.KEY_A,
+            pressed: true,
+            InputEventMarkers.TextExpansionKeyboardEvent,
+            out var input);
+
+        Assert.True(created);
+        Assert.Equal(
+            InputEventMarkers.ToIntPtr(InputEventMarkers.TextExpansionKeyboardEvent),
+            input.U.ki.dwExtraInfo);
+    }
+
     [Theory]
     [InlineData(User32.WM_XBUTTONDOWN, 1, true, MouseEventFlags.MOUSEEVENTF_XDOWN, User32.XBUTTON1)]
     [InlineData(User32.WM_XBUTTONUP, 1, false, MouseEventFlags.MOUSEEVENTF_XUP, User32.XBUTTON1)]

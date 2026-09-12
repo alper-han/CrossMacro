@@ -5,7 +5,7 @@ public sealed class WindowsKeyboardLayoutServiceTests
 {
     private readonly WindowsKeyboardLayoutService _service = new();
 
-    [WindowsFact]
+    [Fact]
     public void GetKeyName_WhenUnknownEvdevCode_ReturnsFallbackKeyLabel()
     {
         var name = _service.GetKeyName(9999);
@@ -13,7 +13,7 @@ public sealed class WindowsKeyboardLayoutServiceTests
         Assert.Equal("Key_9999", name);
     }
 
-    [WindowsFact]
+    [Fact]
     public void GetKeyName_WhenPauseKey_ReturnsPause()
     {
         var name = _service.GetKeyName(InputEventCode.KEY_PAUSE);
@@ -21,7 +21,7 @@ public sealed class WindowsKeyboardLayoutServiceTests
         Assert.Equal("Pause", name);
     }
 
-    [WindowsFact]
+    [Fact]
     public void GetKeyName_WhenPrintScreenKey_ReturnsPrintScreen()
     {
         var name = _service.GetKeyName(InputEventCode.KEY_SYSRQ);
@@ -29,7 +29,7 @@ public sealed class WindowsKeyboardLayoutServiceTests
         Assert.Equal("PrintScreen", name);
     }
 
-    [WindowsFact]
+    [Fact]
     public void GetKeyName_WhenNumLockKey_ReturnsNumLock()
     {
         var name = _service.GetKeyName(InputEventCode.KEY_NUMLOCK);
@@ -37,7 +37,7 @@ public sealed class WindowsKeyboardLayoutServiceTests
         Assert.Equal("NumLock", name);
     }
 
-    [WindowsFact]
+    [Fact]
     public void GetKeyName_WhenScrollLockKey_ReturnsScrollLock()
     {
         var name = _service.GetKeyName(InputEventCode.KEY_SCROLLLOCK);
@@ -45,7 +45,7 @@ public sealed class WindowsKeyboardLayoutServiceTests
         Assert.Equal("ScrollLock", name);
     }
 
-    [WindowsFact]
+    [Fact]
     public void GetKeyName_WhenLeftModifierKeys_ReturnsExpectedNames()
     {
         Assert.Equal("LeftShift", _service.GetKeyName(InputEventCode.KEY_LEFTSHIFT));
@@ -54,7 +54,7 @@ public sealed class WindowsKeyboardLayoutServiceTests
         Assert.Equal("LeftWin", _service.GetKeyName(InputEventCode.KEY_LEFTMETA));
     }
 
-    [WindowsFact]
+    [Fact]
     public void GetKeyName_WhenRightModifierKeys_ReturnsExpectedNames()
     {
         Assert.Equal("RightShift", _service.GetKeyName(InputEventCode.KEY_RIGHTSHIFT));
@@ -63,7 +63,7 @@ public sealed class WindowsKeyboardLayoutServiceTests
         Assert.Equal("RightWin", _service.GetKeyName(InputEventCode.KEY_RIGHTMETA));
     }
 
-    [WindowsFact]
+    [Fact]
     public void GetKeyCode_WhenUnknownName_ReturnsMinusOne()
     {
         var code = _service.GetKeyCode("NotAKnownKeyName");

@@ -9,7 +9,8 @@ namespace CrossMacro.Platform.Windows.Strategies;
 /// </summary>
 public sealed class WindowsAbsoluteCoordinateStrategy(IMousePositionProvider positionProvider) : ICoordinateStrategy
 {
-    private IMousePositionProvider PositionProvider { get; } = positionProvider;
+    private IMousePositionProvider PositionProvider { get; } = positionProvider
+        ?? throw new ArgumentNullException(nameof(positionProvider));
     private int _lastX;
     private int _lastY;
     private bool _hasPendingMovement;

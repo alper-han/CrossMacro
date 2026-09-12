@@ -62,8 +62,10 @@
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.HarfBuzz" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Serilog" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
   </ItemGroup>
 
   <ItemGroup>

@@ -161,24 +161,26 @@ region: null,
     }
 
     [Fact]
-    public async Task PlayAsync_WhenWaitImageTimeoutIsOmitted_UsesTheFiveSecondDefaultBudget()
+    public async Task ExecuteStepAsync_WhenWaitImageTimeoutIsOmitted_UsesTheFiveSecondDefaultBudget()
     {
         using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
         var screenReader = new FakeScreenPixelReader
         {
             ImageSearchResult = ScreenReadResultFactory.Success(new ScreenImageMatch(new ScreenPoint(17, 23), 1.0)),
         };
-        using var player = CreatePlayer(CreatePositionProvider((0, 0)), screenReader);
-        var macro = new MacroSequence
-        {
-            ScriptSteps = { "waitimage Target found found_x found_y" },
-            Images = { ["Target"] = await EncodePngBase64Async(template) },
-        };
+        var timeProvider = new ImagePollingTimeProvider();
+        var executor = new RunScriptScreenReadExecutor(screenReader, mousePositionProvider: null, timeProvider: timeProvider);
+        var variables = new Dictionary<string, string>(StringComparer.Ordinal);
+        var images = new Dictionary<string, string>(StringComparer.Ordinal) { ["Target"] = await EncodePngBase64Async(template) };
 
-        await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+        var execution = executor.ExecuteStepAsync("waitimage Target found found_x found_y", 1, variables, CancellationToken.None, images);
+        await timeProvider.TimerCreated.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        timeProvider.Clock.Advance(ScreenReadOptions.DefaultPollInterval);
+        await execution.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
-        _ = screenReader.ImageReadOptions[0].Timeout.Should().BeGreaterThan(TimeSpan.FromSeconds(4));
+        _ = screenReader.ImageReadOptions[0].Timeout.Should().Be(TimeSpan.FromSeconds(5));
         _ = screenReader.LastImageReadOptions.PollUntilMatch.Should().BeFalse();
+        _ = variables.Should().Contain("found", "true");
     }
 
     [Fact]

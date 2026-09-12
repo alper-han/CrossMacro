@@ -404,15 +404,16 @@ public sealed class RunScriptWindowRuntimeTests
             timeProvider,
             (delay, cancellationToken) =>
             {
+                var pendingDelay = Task.Delay(delay, timeProvider, cancellationToken);
                 _ = delayRegistered.TrySetResult();
-                return Task.Delay(delay, timeProvider, cancellationToken);
+                return pendingDelay;
             });
         var vars = Vars();
 
         var operation = executor.ExecuteStepAsync("window wait title missing 1000 result", 1, vars, CancellationToken.None);
-        await delayRegistered.Task;
+        await delayRegistered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        await operation;
+        await operation.WaitAsync(TimeSpan.FromSeconds(5));
 
         _ = vars.Should().Contain("result", string.Empty);
     }

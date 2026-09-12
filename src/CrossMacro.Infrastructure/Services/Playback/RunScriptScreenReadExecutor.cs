@@ -8,7 +8,8 @@ internal sealed class RunScriptScreenReadExecutor(
     IImageClickMovementResolver? imageClickMovementResolver = null,
     IInputSimulator? inputSimulator = null,
     IImageAssetCodec? imageAssetCodec = null,
-    Func<CancellationToken, Task>? flushPendingCursorMovementAsync = null)
+    Func<CancellationToken, Task>? flushPendingCursorMovementAsync = null,
+    TimeProvider? timeProvider = null)
 {
     private readonly IScreenPixelReader _screenPixelReader = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
     private readonly IMousePositionProvider? _mousePositionProvider = mousePositionProvider;
@@ -17,6 +18,7 @@ internal sealed class RunScriptScreenReadExecutor(
     private readonly IInputSimulator? _inputSimulator = inputSimulator;
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
     private readonly Func<CancellationToken, Task>? _flushPendingCursorMovementAsync = flushPendingCursorMovementAsync;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public async Task ExecuteAsync(
         MacroSequence macro,
@@ -650,7 +652,7 @@ internal sealed class RunScriptScreenReadExecutor(
             cancellationToken);
     }
 
-    private static Task<ScreenReadResult<ScreenImageMatch>> SearchImageUntilConsistentAsync(
+    private Task<ScreenReadResult<ScreenImageMatch>> SearchImageUntilConsistentAsync(
         IScreenImageSearchReader reader,
         ScreenRect? region,
         ScreenFrame template,
@@ -671,7 +673,7 @@ internal sealed class RunScriptScreenReadExecutor(
             timeout,
             ScreenReadOptions.DefaultPollInterval,
             cancellationToken,
-            TimeProvider.System);
+            _timeProvider);
     }
 
     private static void EnsureSuccess<T>(int stepNumber, string command, ScreenReadResult<T> result)

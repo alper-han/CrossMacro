@@ -68,14 +68,15 @@ public sealed class PositionSyncServiceTests : IDisposable
             timeProvider,
             (delay, cancellationToken) =>
             {
+                var pendingDelay = Task.Delay(delay, timeProvider, cancellationToken);
                 _ = delayRegistered.TrySetResult();
-                return Task.Delay(delay, timeProvider, cancellationToken);
+                return pendingDelay;
             });
 
         await service.StartAsync((_, _, _) => positionChanged.TrySetResult(), () => (0, 0), CancellationToken.None);
-        await delayRegistered.Task;
+        await delayRegistered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         timeProvider.Advance(TimeSpan.FromMilliseconds(1));
-        await positionChanged.Task;
+        await positionChanged.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         _ = await provider.Received(1).GetAbsolutePositionAsync();
         service.StopPositionSync();

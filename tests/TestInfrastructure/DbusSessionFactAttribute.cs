@@ -3,12 +3,18 @@ namespace CrossMacro.TestInfrastructure;
 
 internal sealed class DbusSessionFactAttribute : FactAttribute
 {
+    private const string IntegrationEnvironmentVariable = "CROSSMACRO_DBUS_INTEGRATION_TESTS";
+
     public DbusSessionFactAttribute()
     {
         if (!(OperatingSystem.IsLinux() &&
+              string.Equals(
+                  Environment.GetEnvironmentVariable(IntegrationEnvironmentVariable),
+                  "1",
+                  StringComparison.Ordinal) &&
               HasExecutableOnPath("dbus-daemon")))
         {
-            Skip = ConditionalSkipMessage.For("Linux + dbus-daemon");
+            Skip = ConditionalSkipMessage.For("Linux + CROSSMACRO_DBUS_INTEGRATION_TESTS=1 + dbus-daemon");
         }
     }
 

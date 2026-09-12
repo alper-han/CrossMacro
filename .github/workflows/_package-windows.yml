@@ -104,12 +104,12 @@ jobs:
       - name: Publish Windows portable EXE
         shell: pwsh
         run: |
-          $publishArgs = @(
-            '-Version', '${{ inputs.version }}',
-            '-Architecture', '${{ matrix.architecture }}',
-            '-OutputDir', 'artifacts/packages/windows/portable',
-            '-SkipSmoke'
-          )
+          $publishArgs = @{
+            Version = '${{ inputs.version }}'
+            Architecture = '${{ matrix.architecture }}'
+            OutputDir = 'artifacts/packages/windows/portable'
+            SkipSmoke = $true
+          }
           ./scripts/ci/publish-windows-portable.ps1 @publishArgs
 
       - name: Smoke Windows portable EXE
@@ -204,14 +204,14 @@ jobs:
       - name: Build MSIX package
         shell: pwsh
         run: |
-          $msixArgs = @(
-            '-Version', '${{ inputs.version }}',
-            '-PackageVersion', '${{ inputs.canonical_version }}',
-            '-Architecture', '${{ matrix.architecture }}',
-            '-OutputDir', 'artifacts/work/msix/content-${{ matrix.architecture }}',
-            '-PackagePath', 'artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix',
-            '-SkipSmoke'
-          )
+          $msixArgs = @{
+            Version = '${{ inputs.version }}'
+            PackageVersion = '${{ inputs.canonical_version }}'
+            Architecture = '${{ matrix.architecture }}'
+            OutputDir = 'artifacts/work/msix/content-${{ matrix.architecture }}'
+            PackagePath = 'artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix'
+            SkipSmoke = $true
+          }
           ./scripts/msix/build-msix.ps1 @msixArgs
 
       - name: Smoke MSIX package
@@ -263,15 +263,15 @@ jobs:
       - name: Build MSIX bundle and upload package
         shell: pwsh
         run: |
-          $storeArgs = @(
-            '-Version', '${{ inputs.version }}',
-            '-PackageVersion', '${{ inputs.canonical_version }}',
-            '-PackageDir', 'msix-store/packages',
-            '-BundlePath', 'artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}.msixbundle',
-            '-UploadPath', 'artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}.msixupload'
-          )
+          $storeArgs = @{
+            Version = '${{ inputs.version }}'
+            PackageVersion = '${{ inputs.canonical_version }}'
+            PackageDir = 'msix-store/packages'
+            BundlePath = 'artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}.msixbundle'
+            UploadPath = 'artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}.msixupload'
+          }
           if ('${{ inputs.smoke_enabled }}' -ne 'true') {
-            $storeArgs += '-SkipSmoke'
+            $storeArgs.SkipSmoke = $true
           }
           ./scripts/msix/build-msix-store-upload.ps1 @storeArgs
 

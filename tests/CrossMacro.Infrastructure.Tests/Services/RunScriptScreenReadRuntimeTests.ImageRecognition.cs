@@ -598,7 +598,9 @@ region: null,
         using var player = CreatePlayer(CreatePositionProvider((0, 0)), reader);
         var macro = new MacroSequence
         {
-            ScriptSteps = { "waitimage Target found found_x found_y timeout 1000 similarity 1" },
+            // This success-path integration test uses the real clock. Allow slow CI
+            // scheduling; deadline behavior is covered by the polling clock tests.
+            ScriptSteps = { "waitimage Target found found_x found_y timeout 10000 similarity 1" },
             Images = { ["Target"] = await EncodePngBase64Async(template) },
         };
 
